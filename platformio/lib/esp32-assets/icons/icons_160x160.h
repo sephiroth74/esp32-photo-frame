@@ -1,0 +1,6 @@
+#ifndef ESP32_ASSETS_ICONS_160x160_H__
+#define ESP32_ASSETS_ICONS_160x160_H__
+
+#include "160x160/error_icon_160x160.h"
+
+#endif // ESP32_ASSETS_ICONS_160x160_H__
