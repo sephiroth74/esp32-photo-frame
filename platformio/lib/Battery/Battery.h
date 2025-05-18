@@ -1,10 +1,11 @@
 #ifndef BATTERY_H__
 #define BATTERY_H__
 
+#include <Arduino.h>
 #include <stdlib.h>
 
-#define BATTERY_READINGS   20      // Number of readings to average
-#define BATTERY_ADJUSTMENT 1.06548 // Adjust for voltage divider
+#define BATTERY_READINGS   20     // Number of readings to average
+#define BATTERY_ADJUSTMENT 1.1165 // 1.06548 // Adjust for voltage divider
 
 class Battery {
   public:
@@ -14,8 +15,15 @@ class Battery {
     uint32_t voltage      = 0;   // in mV
     float percent         = 0.0; // percentage of battery
 
-    operator bool() { return (raw > 0); }
+    const bool operator!() const { return (raw == 0); }
+    operator bool() const { return (raw > 0); }
     void print();
+
+    String toString() const {
+        // return 'raw: 1023 | input: 2024 | voltage: 4024 | percent: 100.0'
+        return String("raw: ") + String(raw) + " | input: " + String(inputVoltage) +
+               " | voltage: " + String(voltage) + " | percent: " + String(percent);
+    }
 };
 
 void read_battery_with_resistor(Battery* bat,
