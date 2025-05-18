@@ -19,23 +19,22 @@ void disable_builtin_led() {
 void sleep_enable_timer_wakeup(Battery& battery) {
     // Disable the built-in LED to save power
 #ifdef ESP32
-    Serial.print(F("Enable deep sleep timer..."));
+    Serial.print(F("Enable deep sleep timer... "));
 
-    if (battery.voltage > NO_BATTERY) {
-        uint32_t sleep_duration = SLEEP_DURATION_MINUTES;
+    if (battery) {
+        uint32_t sleep_duration = SLEEP_TIMEOUT_MINUTES_ON_BATTERY;
         if (battery.voltage > BATTERY_CRITICAL_VOLTAGE) {
             if (battery.voltage < BATTERY_ALERT_VOLTAGE) {
-                sleep_duration = SLEEP_DURATION_MINUTES * 2;
+                sleep_duration = SLEEP_TIMEOUT_MINUTES_ON_BATTERY * 2;
             }
             Serial.print(sleep_duration);
             Serial.println(F(" minutes"));
-
             esp_sleep_enable_timer_wakeup(sleep_duration * 60 * 1000000);
         }
     } else {
-        Serial.print(SLEEP_DURATION_MINUTES);
+        Serial.print(SLEEP_TIMEOUT_MINUTES_ON_USB);
         Serial.println(F(" minutes"));
-        esp_sleep_enable_timer_wakeup(SLEEP_DURATION_MINUTES * 60 * 1000000);
+        esp_sleep_enable_timer_wakeup(SLEEP_TIMEOUT_MINUTES_ON_USB * 60 * 1000000);
     }
 
 #endif

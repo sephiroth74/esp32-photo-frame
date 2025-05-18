@@ -39,6 +39,11 @@ void read_battery_with_resistor(Battery* bat,
                                 uint32_t minV,
                                 uint32_t maxV) {
     Serial.println("read_battery_with_resistor on pin: " + String(pin));
+    Serial.println("R1: " + String(r1));
+    Serial.println("R2: " + String(r2));
+    Serial.println("minV: " + String(minV));
+    Serial.println("maxV: " + String(maxV));
+
     uint32_t rawADC = 0;
     uint32_t voltage;
     uint32_t batVoltage;
@@ -46,11 +51,21 @@ void read_battery_with_resistor(Battery* bat,
 
     pinMode(pin, INPUT);
 
+    Serial.print(F("Reading ADC value "));
+    Serial.print(BATTERY_READINGS);
+    Serial.print(F(" times... "));
+
     for (int i = 0; i < BATTERY_READINGS; i++) {
         rawADC += analogRead(pin);
         delay(10);
     }
-    rawADC /= 10; // Average the ADC value
+    Serial.println(F("done."));
+    Serial.print("Raw ADC: ");
+    Serial.print(rawADC);
+    rawADC /= BATTERY_READINGS; // Average the ADC value
+
+    Serial.print(" | Average ADC: ");
+    Serial.println(rawADC);
 
     if (rawADC < 2023) {
         Serial.println("ADC value too low, using 0");

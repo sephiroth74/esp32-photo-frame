@@ -1,11 +1,10 @@
 #include "SDCard.h"
 
 sd_card_error_code_t SDCard::begin() {
-    Serial.println("SDCard::begin");
-
     SPI.end(); // Ensure SPI is not in use
     SPI.begin(sck, miso, mosi, cs);
     SPI.setDataMode(SPI_MODE0);
+    // SPI.setFrequency(1000000);
     pinMode(cs, OUTPUT);
     digitalWrite(cs, HIGH); // Set CS high to deselect the card
 
@@ -48,15 +47,16 @@ sd_card_error_code_t scan_directory(uint32_t* index,
 
             String file_name = entry.substring(entry.lastIndexOf('/') + 1);
 
-            Serial.print(current_index);
-            Serial.print(", file name: ");
-            Serial.print(file_name);
-            Serial.print(", path: ");
-            Serial.println(entry);
+            // Serial.print(current_index);
+            // Serial.print(F(") "));
+            // Serial.print(entry);
+            // Serial.print(F("... "));
 
             if (file_name.startsWith(".") || entry.endsWith(extension) == false) {
-                Serial.println("Skipping file");
+                // Serial.println("skipping");
                 continue;
+            } else {
+                // Serial.println(F("ok"));
             }
 
             if (current_index == *index) {

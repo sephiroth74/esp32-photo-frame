@@ -1,17 +1,17 @@
 #define USE_ESP_IDF_LOG
 
 #include <Arduino.h>
+#include <Battery.h>
 #include <EPD.h>
 #include <Preferences.h>
 #include <SDCard.h>
-#include <Battery.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include "_locale.h"
 #include "board_util.h"
 #include "config.h"
-#include "display_util.h"
-#include "messages.h"
+#include "renderer.h"
 
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
@@ -20,6 +20,8 @@
 
 SDCard sdCard(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 Preferences preferences;
+
+photo_frame::Renderer* renderer = nullptr;
 
 void setup() {
     Serial.begin(115200);
@@ -51,6 +53,16 @@ void setup() {
     Serial.print(battery.percent);
     Serial.println(F(" %"));
 
+    if (battery) {
+        if (battery.voltage < BATTERY_CRITICAL_VOLTAGE) {
+            Serial.println(F("Battery voltage too low, going to deep sleep..."));
+            SD.end();  // End the SD library to free up resources
+            SPI.end(); // End SPI to free up resources
+            photo_frame::enter_deep_sleep();
+            return;
+        }
+    }
+
     Serial.print("Initializing SD card... ");
     sdcard_error = sdCard.begin();
 
@@ -61,7 +73,6 @@ void setup() {
     }
 
     if (sdcard_error == sd_card_error_code::NoError) {
-
         Serial.print("Reading next index from preferences... ");
         if (!preferences.begin("photo_frame", true)) {
             Serial.println(F("failed"));
@@ -109,70 +120,93 @@ void setup() {
         }
     }
 
-    if (battery.voltage > NO_BATTERY) {
-        if (battery.voltage < BATTERY_CRITICAL_VOLTAGE) {
-            Serial.println(F("Battery voltage too low, going to deep sleep..."));
-            SD.end();  // End the SD library to free up resources
-            SPI.end(); // End SPI to free up resources
-            photo_frame::enter_deep_sleep();
-            return;
-        }
-    }
-
-    DEV_Module_Init();
-
-#if DISPLAY_GREY_SCALE
-    EPD_7IN5_V2_Init_4Gray();
-#else
-    EPD_7IN5_V2_Init();
-#endif
-
-    EPD_7IN5_V2_Clear();
-    DEV_Delay_ms(500);
-
-    // Create a new image cache
-    UBYTE* BlackImage;
-    /* you have to edit the startup_stm32fxxx.s file and set a big enough heap size */
-    UWORD Imagesize =
-        ((DISPLAY_WIDTH % 8 == 0) ? (DISPLAY_WIDTH / 8) : (DISPLAY_WIDTH / 8 + 1)) * DISPLAY_HEIGHT;
-    if ((BlackImage = (UBYTE*)malloc(Imagesize)) == NULL) {
-        Serial.println("Failed to apply for black memory...");
+    renderer = new photo_frame::Renderer();
+    if (renderer == nullptr) {
+        Serial.println(F("Failed to allocate memory for renderer"));
+        SD.end();  // End the SD library to free up resources
+        SPI.end(); // End SPI to free up resources
         return;
     }
 
-    Paint_NewImage(BlackImage, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, WHITE);
+    Serial.print(F("Initializing renderer... "));
 
-#if DISPLAY_GREY_SCALE
-    // Paint_SetScale(4);
-#endif
+    if (!renderer->init()) {
+        Serial.println(F("failed."));
+        SD.end();  // End the SD library to free up resources
+        SPI.end(); // End SPI to free up resources
+        return;
+    } else {
+        Serial.println(F("done."));
+    }
 
-    // Paint_SelectImage(BlackImage);
-    Paint_Clear(WHITE);
+    Serial.println(F("Clearing the screen..."));
+    renderer->clear();
 
     // read the next image file from the SD card
     if (sdcard_error == sd_card_error_code::NoError) {
+        Serial.println(F("Opening file from the SD card..."));
         fs::File file = sdCard.open(file_entry.path.c_str(), FILE_READ);
+        if (!file) {
+            Serial.println(F("Failed to open file"));
+            renderer->drawCenteredWarningMessage(TXT_SDCARD_OPEN_FAILED);
+            SD.end();  // End the SD library to free up resources
+            SPI.end(); // End SPI to free up resources
+            return;
+        }
 
-        photo_frame::draw_bitmap_from_file(file);
+        Serial.print(F("Drawing image from file... "));
+
+        if (renderer->drawBitmapFromFile(file) !=
+            photo_frame::renderer_error_code::OperatoionComplete) {
+            Serial.println(F("failed."));
+        } else {
+            Serial.println(F("done."));
+        }
+
         file.close();
+
     } else {
-        photo_frame::draw_centered_warning_message(
-            warning_icon_196x196, TXT_SDCARD_INIT_FAILED, 196, 196);
+        const char* error_message = TXT_SDCARD_FILE_NOT_FOUND;
+
+        switch (sdcard_error) {
+        case sd_card_error_code::SDCardInitializationFailed:
+            error_message = TXT_SDCARD_INIT_FAILED;
+            break;
+        case sd_card_error_code::SDCardOpenFileFailed:
+            error_message = TXT_SDCARD_OPEN_FAILED;
+            break;
+        case sd_card_error_code::SDCardFileNotFound:
+            error_message = TXT_SDCARD_FILE_NOT_FOUND;
+            break;
+        default: break;
+        }
+
+        renderer->drawCenteredWarningMessage(error_message);
     }
 
-    photo_frame::draw_battery_status(battery.voltage, battery.percent);
+    renderer->drawCentererMessage(
+        battery.toString().c_str(), photo_frame::font_size::FontSize14pt, BLACK, WHITE);
 
-    // EPD_7IN5_V2_Clear();
-    EPD_7IN5_V2_Display(BlackImage);
-    DEV_Delay_ms(500);
+    Serial.println(F("Drawing battery status"));
+    renderer->drawBatteryStatus(battery);
 
-    Serial.println("Turn off the screen...");
-    EPD_7IN5_V2_Sleep();
-    free(BlackImage);
-    BlackImage = NULL;
+    Serial.println(F("Display the screen"));
+    renderer->display();
+
+    Serial.println("Turning off the screen");
+    renderer->sleep();
+
+    Serial.println(F("Freeing up resources"));
+    if (renderer) {
+        delete renderer;
+        renderer = nullptr;
+    }
 
     SD.end();  // End the SD library to free up resources
     SPI.end(); // End SPI to free up resources
+
+    Serial.println(F("Going to deep sleep..."));
+
     photo_frame::sleep_enable_timer_wakeup(battery);
     photo_frame::enter_deep_sleep();
 }

@@ -47,7 +47,8 @@ class SDCard {
     sd_card_error_code_t begin();
 
     // Read the next image from the SD card
-    sd_card_error_code_t read_next_image(uint32_t* index, const char* extension, FileEntry* file_entry);
+    sd_card_error_code_t
+    read_next_image(uint32_t* index, const char* extension, FileEntry* file_entry);
 
     // Open a file on the SD card
     fs::File open(const char* path, const char* mode = FILE_READ);
