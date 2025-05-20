@@ -10,7 +10,7 @@ void Battery::print() {
     Serial.print("Raw ADC: ");
     Serial.print(raw);
     Serial.print(" | Input Voltage: ");
-    Serial.print(inputVoltage);
+    Serial.print(input);
     Serial.print(" | Battery Voltage: ");
     Serial.print(voltage);
     Serial.print(" | Battery Percent: ");
@@ -18,17 +18,7 @@ void Battery::print() {
 }
 
 float calc_battery_percent(uint32_t v, uint32_t minv, uint32_t maxv) {
-    Serial.print("calc_battery_percent: ");
-    Serial.print(v);
-    Serial.print(" | minv: ");
-    Serial.print(minv);
-    Serial.print(" | maxv: ");
-    Serial.println(maxv);
-
     float perc = (((float)v - minv) / (maxv - minv)) * 100.0;
-    Serial.print("calc_battery_percent: perc: ");
-    Serial.println(perc);
-
     return (perc < 0) ? 0 : (perc > 100) ? 100 : perc;
 }
 
@@ -37,13 +27,8 @@ void read_battery_with_resistor(Battery* bat,
                                 uint32_t r1,
                                 uint32_t r2,
                                 uint32_t minV,
-                                uint32_t maxV) {
-    Serial.println("read_battery_with_resistor on pin: " + String(pin));
-    Serial.println("R1: " + String(r1));
-    Serial.println("R2: " + String(r2));
-    Serial.println("minV: " + String(minV));
-    Serial.println("maxV: " + String(maxV));
-
+                                uint32_t maxV,
+                                double adjustment) {
     uint32_t rawADC = 0;
     uint32_t voltage;
     uint32_t batVoltage;
@@ -51,23 +36,13 @@ void read_battery_with_resistor(Battery* bat,
 
     pinMode(pin, INPUT);
 
-    Serial.print(F("Reading ADC value "));
-    Serial.print(BATTERY_READINGS);
-    Serial.print(F(" times... "));
-
     for (int i = 0; i < BATTERY_READINGS; i++) {
         rawADC += analogRead(pin);
         delay(10);
     }
-    Serial.println(F("done."));
-    Serial.print("Raw ADC: ");
-    Serial.print(rawADC);
     rawADC /= BATTERY_READINGS; // Average the ADC value
 
-    Serial.print(" | Average ADC: ");
-    Serial.println(rawADC);
-
-    if (rawADC < 2023) {
+    if (rawADC < 1000) {
         Serial.println("ADC value too low, using 0");
         rawADC = 0;
     }
@@ -77,24 +52,24 @@ void read_battery_with_resistor(Battery* bat,
     // voltage = (rawADC * 3.3) / 4.095; // Convert to mV
 
     // Adjust for voltage divider
-    batVoltage = voltage * ((r1 + r2) / r2) * BATTERY_ADJUSTMENT;
+    batVoltage = voltage * ((r1 + r2) / r2) * adjustment;
 
     batPercent = calc_battery_percent(batVoltage, minV, maxV);
 
-    Serial.print("Raw ADC: ");
-    Serial.print(rawADC);
-    Serial.print(" | Voltage: ");
-    Serial.print(voltage);
-    Serial.print(" | Battery Voltage: ");
-    Serial.print(batVoltage);
-    Serial.print(" | Battery Percent: ");
-    Serial.println(batPercent);
+    // Serial.print("Raw ADC: ");
+    // Serial.print(rawADC);
+    // Serial.print(" | Voltage: ");
+    // Serial.print(voltage);
+    // Serial.print(" | Battery Voltage: ");
+    // Serial.print(batVoltage);
+    // Serial.print(" | Battery Percent: ");
+    // Serial.println(batPercent);
 
     // Fill the battery struct
-    bat->raw          = rawADC;
-    bat->inputVoltage = voltage;
-    bat->voltage      = batVoltage;
-    bat->percent      = batPercent;
+    bat->raw     = rawADC;
+    bat->input   = voltage;
+    bat->voltage = batVoltage;
+    bat->percent = batPercent;
 }
 
 void read_battery(Battery* bat, uint8_t pin, uint32_t minV, uint32_t maxV) {
@@ -121,10 +96,10 @@ void read_battery(Battery* bat, uint8_t pin, uint32_t minV, uint32_t maxV) {
 
     uint32_t batteryVoltage = esp_adc_cal_raw_to_voltage(adc_val, &adc_chars);
 
-    Serial.print("ADC Value: ");
-    Serial.print(adc_val);
-    Serial.print(" | Battery Voltage (mV): ");
-    Serial.println(batteryVoltage);
+    // Serial.print("ADC Value: ");
+    // Serial.print(adc_val);
+    // Serial.print(" | Battery Voltage (mV): ");
+    // Serial.println(batteryVoltage);
 
     // DFRobot FireBeetle Esp32-E V1.0 voltage divider (1M+1M), so readings are
     // multiplied by 2.
