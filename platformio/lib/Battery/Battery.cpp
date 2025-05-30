@@ -6,73 +6,99 @@
 #include <esp_adc_cal.h>
 #include <vector>
 
-void Battery::print() {
-    Serial.print("Raw ADC: ");
-    Serial.print(raw);
-    Serial.print(" | Input Voltage: ");
-    Serial.print(input);
-    Serial.print(" | Battery Voltage: ");
-    Serial.print(voltage);
-    Serial.print(" | Battery Percent: ");
-    Serial.println(percent);
+void Battery::print(Print& p) {
+    p.print("Raw ADC: ");
+    p.print(raw);
+    p.print(" | Input Voltage: ");
+    p.print(input);
+    p.print(" | Battery Voltage: ");
+    p.print(voltage);
+    p.print(" | Battery Percent: ");
+    p.println(percent);
 }
 
-float calc_battery_percent(uint32_t v, uint32_t minv, uint32_t maxv) {
+float calc_battery_percent(float v, float minv, float maxv) {
     float perc = (((float)v - minv) / (maxv - minv)) * 100.0;
     return (perc < 0) ? 0 : (perc > 100) ? 100 : perc;
 }
 
-void read_battery_with_resistor(Battery* bat,
-                                uint8_t pin,
-                                uint32_t r1,
-                                uint32_t r2,
-                                uint32_t minV,
-                                uint32_t maxV,
-                                double adjustment) {
-    uint32_t rawADC = 0;
-    uint32_t voltage;
-    uint32_t batVoltage;
+BatteryLib::BatteryLib(uint8_t pin, float r1, float r2, float minV, float maxV) :
+    pin(pin),
+    r1(r1),
+    r2(r2),
+    minV(minV),
+    maxV(maxV),
+    adjustment(DEFAULT_BATTERY_ADJUSTMENT),
+    battery_ratio(maxV / VOLT_3V3),
+    resistor_divider(((r1 + r2) / r2)) {}
+
+BatteryLib::BatteryLib(uint8_t pin, float r1, float r2, float minV, float maxV, double adjustment) :
+    pin(pin),
+    r1(r1),
+    r2(r2),
+    minV(minV),
+    maxV(maxV),
+    adjustment(adjustment),
+    battery_ratio(maxV / VOLT_3V3),
+    resistor_divider(((r1 + r2) / r2)) {}
+
+Battery BatteryLib::read(uint8_t num_readings) {
+    float raw           = 0;
+    float rawMillivolts = 0;
+    float inputVoltage;
+    float finalVoltage;
     float batPercent;
 
     pinMode(pin, INPUT);
+    analogSetPinAttenuation(pin, ADC_11db); // Set ADC attenuation to 11dB
 
-    for (int i = 0; i < BATTERY_READINGS; i++) {
-        rawADC += analogRead(pin);
-        delay(10);
+    for (int i = 0; i < num_readings; i++) {
+        rawMillivolts += analogReadMilliVolts(pin);
+        // raw += analogRead(pin);
+        // raw += analogRead(pin);
+        delayMicroseconds(500); // 0.1 milliseconds
     }
-    rawADC /= BATTERY_READINGS; // Average the ADC value
+    raw /= num_readings;           // Average the ADC value
+    rawMillivolts /= num_readings; // Average the ADC value
 
-    if (rawADC < 1000) {
-        Serial.println("ADC value too low, using 0");
-        rawADC = 0;
-    }
+    // if (raw > ADC_MAX_VALUE) {
+    //     raw = ADC_MAX_VALUE; // Clamp to max ADC value
+    // } else if (raw < 1000) {
+    //     raw = ADC_MAX_VALUE / resistor_divider; // Clamp to min ADC value
+    // }
 
-    // Adjust for voltage divider and ADC
-    voltage = (rawADC / 4.095) * 3.3;
-    // voltage = (rawADC * 3.3) / 4.095; // Convert to mV
+    // inputVoltage = (raw * (((float)VOLT_3V3 / 1000.0f) / ADC_MAX_VALUE)) * 1000.0f; // Convert to
+    // mV
+    inputVoltage = rawMillivolts;
 
-    // Adjust for voltage divider
-    batVoltage = voltage * ((r1 + r2) / r2) * adjustment;
+    // now we need to calculate the final voltage
+    // using the voltage divider formula
+    // Vout = Vin * (R2 / (R1 + R2))
+    // finalVoltage = ((inputVoltage * resistor_divider) * adjustment) * battery_ratio;
+    finalVoltage = ((inputVoltage * resistor_divider) * adjustment);
 
-    batPercent = calc_battery_percent(batVoltage, minV, maxV);
+#ifdef BATTERY_DEBUG
+    Serial.print("Raw ADC: ");
+    Serial.print(raw);
+    Serial.print(" | Raw Millivolts: ");
+    Serial.print(rawMillivolts);
+    Serial.print(" | Input Voltage: ");
+    Serial.print(inputVoltage);
+    Serial.print(" | Final Voltage: ");
+    Serial.print(finalVoltage);
+    Serial.print(" | Battery Ratio: ");
+    Serial.println(battery_ratio);
+#endif
 
-    // Serial.print("Raw ADC: ");
-    // Serial.print(rawADC);
-    // Serial.print(" | Voltage: ");
-    // Serial.print(voltage);
-    // Serial.print(" | Battery Voltage: ");
-    // Serial.print(batVoltage);
-    // Serial.print(" | Battery Percent: ");
-    // Serial.println(batPercent);
+    batPercent = calc_battery_percent(finalVoltage, minV, maxV);
 
     // Fill the battery struct
-    bat->raw     = rawADC;
-    bat->input   = voltage;
-    bat->voltage = batVoltage;
-    bat->percent = batPercent;
+    raw = rawMillivolts;
+    Battery bat(raw, inputVoltage, finalVoltage, batPercent);
+    return bat;
 }
 
-void read_battery(Battery* bat, uint8_t pin, uint32_t minV, uint32_t maxV) {
+void read_battery(Battery* bat, uint8_t pin, uint32_t minV, uint32_t maxV, uint8_t num_readings) {
     esp_adc_cal_characteristics_t adc_chars;
     // __attribute__((unused)) disables compiler warnings about this variable
     // being unused (Clang, GCC) which is the case when DEBUG_LEVEL == 0.
@@ -80,11 +106,11 @@ void read_battery(Battery* bat, uint8_t pin, uint32_t minV, uint32_t maxV) {
     esp_adc_cal_value_t val_type __attribute__((unused));
     adc_power_acquire();
     uint16_t adc_val = 0;
-    for (int i = 0; i < BATTERY_READINGS; i++) {
+    for (int i = 0; i < num_readings; i++) {
         adc_val += analogRead(pin);
-        delay(10);
+        delay(6);
     }
-    adc_val /= 10; // Average the ADC value
+    adc_val /= num_readings; // Average the ADC value
     adc_power_release();
 
     // We will use the eFuse ADC calibration bits, to get accurate voltage
