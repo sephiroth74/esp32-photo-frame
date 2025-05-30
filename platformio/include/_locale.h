@@ -1,10 +1,15 @@
-#ifndef PHOTO_FRAME_LOCALE_H__
-#define PHOTO_FRAME_LOCALE_H__
+#ifndef __PHOTO_FRAME_LOCALE_H__
+#define __PHOTO_FRAME_LOCALE_H__
 
-#include <Arduino.h>
+extern const char* TXT_NO_ERROR;
+extern const char* TXT_CARD_MOUNT_FAILED;
+extern const char* TXT_NO_SD_CARD_ATTACHED;
+extern const char* TXT_UNKNOWN_SD_CARD_TYPE;
+extern const char* TXT_CARD_OPEN_FILE_FAILED;
+extern const char* TXT_SD_CARD_FILE_NOT_FOUND;
+extern const char* TXT_SD_CARD_FILE_OPEN_FAILED;
+extern const char* TXT_IMAGE_FORMAT_NOT_SUPPORTED;
 
-extern const char* TXT_SDCARD_INIT_FAILED;
-extern const char* TXT_SDCARD_OPEN_FAILED;
-extern const char* TXT_SDCARD_FILE_NOT_FOUND;
+extern const char* TXT_ERROR_CODE;
 
-#endif // PHOTO_FRAME_LOCALE_H__
+#endif
