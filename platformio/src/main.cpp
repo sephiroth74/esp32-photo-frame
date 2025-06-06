@@ -1,245 +1,33 @@
 #include <Arduino.h>
+#include <Preferences.h>
 #include <Wire.h>
 
-#include <Battery.h>
-#include <RTClib.h>
-#include <WiFi.h>
-
+#include "battery.h"
+#include "board_util.h"
 #include "config.h"
+#include "errors.h"
 #include "renderer.h"
+#include "rtc_util.h"
 #include <assets/icons/icons.h>
 
 #include "sd_card.h"
 
-/* #endregion */
-
-/* #region Battery */
-
-#define BATTERY_PIN         A0      // the analog input pin
-#define BATTERY_R1          1000000 // Resistor 1 value in Ohms
-#define BATTERY_R2          1000000 // Resistor 2 value in Ohms
-
-#define BATTERY_ADJUSTMENT  1.0  // Adjustment factor for battery voltage calculation
-#define BATTERY_MIN_VOLTAGE 3300 // Minimum voltage in mV
-#define BATTERY_MAX_VOLTAGE 4200 // Maximum voltage in mV
-
-/* #endregion */
-
-/* #region SD CARD */
+battery::BatteryReader battery_reader(BATTERY_PIN,
+                                      BATTERY_RESISTORS_RATIO,
+                                      BATTERY_NUM_READINGS,
+                                      BATTERY_DELAY_BETWEEN_READINGS);
 
 photo_frame::SDCard sdCard(SD_CS_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_SCK_PIN);
 
-// SPIClass hspi(HSPI); // Create an SPI object for HSPI (sdcard)
+Preferences prefs;
 
-/* #endregion SD CARD */
-
-// #define SCREEN_WIDTH         128  // OLED display width, in pixels
-// #define SCREEN_HEIGHT        32   // OLED display height, in pixels
-// #define SCREEN_ADDRESS       0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for
-// 128x32 #define SSD_1306_SDA_PIN     A4 #define SSD_1306_SCL_PIN     A5
-
-// Adafruit_SSD1306 display;
-
-BatteryLib batteryLib(BATTERY_PIN,
-                      BATTERY_R1,
-                      BATTERY_R2,
-                      BATTERY_MIN_VOLTAGE,
-                      BATTERY_MAX_VOLTAGE); // 3300 mV to 4150 mV
-
-char dateTimeBuffer[32]     = {0}; // Buffer to hold formatted date and time
-const char dateTimeFormat[] = "%04d/%02d/%02d %02d:%02d:%02d";
-
-const char* format_datetime(DateTime& now) {
-    sprintf(dateTimeBuffer,
-            dateTimeFormat,
-            now.year(),
-            now.month(),
-            now.day(),
-            now.hour(),
-            now.minute(),
-            now.second());
-    return dateTimeBuffer;
-} // format_datetime
-
-void print_board_stats() {
-    Serial.print("Heap:");
-    Serial.println(ESP.getHeapSize());
-    Serial.print("Flash: ");
-    Serial.println(ESP.getFlashChipSize());
-    Serial.print("Free Heap: ");
-    Serial.println(ESP.getFreeHeap());
-    Serial.print("Free Flash: ");
-    Serial.println(ESP.getFreeSketchSpace());
-    Serial.print("Free PSRAM: ");
-    Serial.println(ESP.getFreePsram());
-    Serial.print("Chip Model: ");
-    Serial.println(ESP.getChipModel());
-    Serial.print("Chip Revision: ");
-    Serial.println(ESP.getChipRevision());
-    Serial.print("Chip Cores: ");
-    Serial.println(ESP.getChipCores());
-    Serial.print("CPU Freq: ");
-    Serial.println(ESP.getCpuFreqMHz());
-    Serial.println("");
-} // print_board_stats
-
-DateTime fetch_remote_datetime() {
-    Serial.println(F("Fetching time from WiFi..."));
-    DateTime result = DateTime((uint32_t)0);
-
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-    unsigned long timeout         = millis() + WIFI_CONNECT_TIMEOUT;
-    wl_status_t connection_status = WiFi.status();
-    while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
-        Serial.print(".");
-        delay(200);
-        connection_status = WiFi.status();
-    }
-    Serial.println();
-
-    if (connection_status != WL_CONNECTED) {
-        Serial.println(F("Failed to connect to WiFi!"));
-        Serial.println(F("Please check your WiFi credentials."));
-        return result;
-    } else {
-        Serial.println(F("Connected to WiFi!"));
-    }
-
-    // acquire the time from the NTP server
-    configTzTime(TIMEZONE, NTP_SERVER1, NTP_SERVER2);
-
-    // wait for the time to be set
-    Serial.print(F("Waiting for time."));
-    while (time(nullptr) < 1000000000) {
-        Serial.print(F("."));
-        delay(1000);
-    }
-    Serial.println(F("done."));
-
-    // Set the RTC to the time we just set
-    // get the local time
-
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo, NTP_TIMEOUT)) {
-        Serial.println(F("Failed to obtain time from NTP server!"));
-        return result;
-    }
-
-    result = DateTime(timeinfo.tm_year + 1900,
-                      timeinfo.tm_mon + 1,
-                      timeinfo.tm_mday,
-                      timeinfo.tm_hour,
-                      timeinfo.tm_min,
-                      timeinfo.tm_sec);
-
-    WiFi.disconnect();
-    return result;
-} // featch_remote_datetime
-
-DateTime fetch_datetime() {
-    Serial.println("Initializing RTC...");
-
-    DateTime now;
-    RTC_DS3231 rtc;
-
-    pinMode(RTC_POWER_PIN, OUTPUT);
-    digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
-    delay(1000);                       // Wait for RTC to power up
-
-    Wire1.begin(RTC_SDA_PIN /* SDA */, RTC_SCL_PIN /* SCL */);
-    if (!rtc.begin(&Wire1)) {
-        Serial.println(F("Couldn't find RTC"));
-        now = fetch_remote_datetime();
-        if (now.unixtime() == 0) {
-            Serial.println(F("Failed to fetch time from WiFi!"));
-            now = DateTime(F(__DATE__), F(__TIME__));
-        }
-
-    } else {
-        rtc.disable32K();
-        if (rtc.lostPower()) {
-            // Set the time to a default value if the RTC lost power
-            Serial.println(F("RTC lost power, setting the time!"));
-            now = fetch_remote_datetime();
-            if (now.unixtime() == 0) {
-                Serial.println(F("Failed to fetch time from WiFi!"));
-            } else {
-                rtc.adjust(now);
-            }
-        } else {
-            Serial.println(F("RTC is running!"));
-            now = rtc.now();
-        }
-    }
-
-    Wire1.end();
-    digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
-    return now;
-}
-
-void disable_built_in_led() {
-#if defined(LED_BUILTIN)
-    Serial.print(F("Disabling built-in LED on pin "));
-    Serial.println(LED_BUILTIN);
-
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW); // Disable the built-in LED
-#endif
-} // disable_builtin_led
-
-void blink_builtin_led(int count, int delay_ms = 500) {
-#if defined(LED_BUILTIN)
-    Serial.println(F("Blinking built-in LED..."));
-    pinMode(LED_BUILTIN, OUTPUT);
-    for (int i = 0; i < count; i++) {
-        digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
-        delay(delay_ms);
-        digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
-        delay(delay_ms);
-    }
-#else
-    Serial.println(F("LED_BUILTIN is not defined! Cannot blink the built-in LED."));
-#endif
-} // blink_builtin_led
-
-void blink_builtin_led(photo_frame_error_t error) {
-    Serial.print(F("Blinking built-in LED with error code: "));
-    Serial.print(error.code);
-    Serial.print(F(" ("));
-    Serial.print(error.message);
-    Serial.print(F(") - "));
-    Serial.print(F("Blink count: "));
-    Serial.println(error.blink_count);
-
-    blink_builtin_led(error.blink_count, 200);
-} // blink_builtin_led with error code
-
-void print_default_pins() {
-    Serial.println(F("Default Pin Mappings:"));
-    Serial.print(F("CS_PIN: "));
-    Serial.println(SS);
-    Serial.print(F("MOSI_PIN: "));
-    Serial.println(MOSI);
-    Serial.print(F("MISO_PIN: "));
-    Serial.println(MISO);
-    Serial.print(F("SCK_PIN: "));
-    Serial.println(SCK);
-    Serial.print(F("SDA_PIN: "));
-    Serial.println(SDA);
-    Serial.print(F("SCL_PIN: "));
-    Serial.println(SCL);
-    Serial.print(F("RTC_SDA_PIN: "));
-    Serial.println(RTC_SDA_PIN);
-    Serial.print(F("RTC_SCL_PIN: "));
-    Serial.println(RTC_SCL_PIN);
-    Serial.print(F("RTC_POWER_PIN: "));
-    Serial.println(RTC_POWER_PIN);
-}
-
-long read_refresh_seconds() {
+long read_refresh_seconds(bool is_battery_low = false) {
     Serial.println(F("Reading level input pin..."));
+
+    if (is_battery_low) {
+        Serial.println(F("Battery level is low, skipping level input pin reading."));
+        return REFRESH_INTERVAL_SECONDS_LOW_BATTERY;
+    }
 
     // now read the level
     pinMode(LEVEL_PWR_PIN, OUTPUT);
@@ -252,21 +40,22 @@ long read_refresh_seconds() {
     unsigned long level = 0;
     for (int i = 0; i < 10; i++) {
         level += analogRead(LEVEL_INPUT_PIN); // Read the level input pin
-        delay(10);                            // Wait for 10ms
+        delay(1);                             // Wait for 10ms
     }
     digitalWrite(LEVEL_PWR_PIN, LOW); // Power off the level shifter
     level /= 10;                      // Average the result
 
+#if DEBUG_LOG
     Serial.print(F("Raw level input pin reading: "));
     Serial.println(level);
+#endif
 
     level = constrain(level, 0, LEVEL_INPUT_MAX); // Constrain the level to the maximum value
 
     // invert the value
     level = LEVEL_INPUT_MAX - level;
 
-    Serial.println(F("Level input pin reading completed!"));
-    Serial.print(F("Percent: "));
+    Serial.println(F("Level input value: "));
     Serial.println(level);
 
     long refresh_seconds =
@@ -275,272 +64,299 @@ long read_refresh_seconds() {
 }
 
 void setup() {
-    // disable built-in LED
-    disable_built_in_led();
-
     delay(1000);
     Serial.begin(115200);
-    delay(1000);
     Serial.println(F("Initializing..."));
     Serial.println(F("Photo Frame v0.1.0"));
+
+    photo_frame::disable_built_in_led();
+    photo_frame::print_board_stats();
+    photo_frame::print_config();
+
     delay(1000);
 
-    print_board_stats();
-    // print_default_pins();
+#if DEBUG_LOG
+    delay(2000);
+#endif
 
-    /* #region RTC */
-    DateTime now = fetch_datetime();
+    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
+    fs::File file;
+    DateTime now         = DateTime((uint32_t)0); // Initialize DateTime with 0 timestamp
+    long refresh_seconds = 0;
+    unsigned long refresh_microseconds = refresh_seconds * MICROSECONDS_IN_SECOND;
+
+    // -------------------------------------------------------------
+    // 1. read the battery level
+    // -------------------------------------------------------------
+    Serial.println(F("1. Reading battery level..."));
+
+    battery_reader.init();
+    battery::battery_info_t battery_info = battery_reader.read();
+
+    Serial.print(F("Battery millivolts: "));
+    Serial.print(battery_info.millivolts);
+    Serial.print(F(", percent: "));
+    Serial.print(battery_info.percent);
+    Serial.println(F("%"));
+
+    if (battery_info.is_empty()) {
+        Serial.println(F("Battery is empty!"));
+        Serial.println(F("Going to deep sleep..."));
+
+        delay(DELAY_BEFORE_SLEEP); // Wait before going to deep sleep
+        esp_deep_sleep_start();    // Put the ESP32 into deep sleep mode
+
+        return; // Exit if battery is empty
+    } else if (battery_info.is_critical()) {
+        Serial.println(F("Battery level is critical!"));
+        error = photo_frame::error_type::BatteryLevelCritical;
+    }
+
+    // --------------------------------------------------------------
+    // 2. Initialize the SD card and fetch the current time
+    // --------------------------------------------------------------
+
+    Serial.println(F("2. Initializing SD card..."));
+
+    if (!battery_info.is_critical()) {
+        error = sdCard.begin(); // Initialize the SD card
+        if (error == photo_frame::error_type::None) {
+            now = photo_frame::fetch_datetime(sdCard);
+        }
+        Serial.print("now is: ");
+        Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
+        Serial.print("now is valid: ");
+        Serial.println(now.isValid() ? "Yes" : "No");
+    } else {
+        Serial.println(F("skipped"));
+    }
+
+    /* #region E-Paper display */
+
+    // -------------------------------------------------------------
+    // 3. Initialize the E-Paper display
+    // -------------------------------------------------------------
+    Serial.println(F("3. Initializing E-Paper display..."));
+
+    delay(100);
+    photo_frame::renderer::initDisplay();
     delay(1000);
 
-    Serial.println("-------------------------------------------");
-    Serial.print(F("RTC time: "));
-    Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
-    Serial.println("-------------------------------------------");
-    /* #endregion RTC */
+    display.clearScreen();
+
+    /* #endregion */
 
     /* #region SDCARD */
-    Serial.println(F("Initializing SD card..."));
 
-    photo_frame_error_t error = sdCard.begin(); // Initialize the SD card
-    if (error != error_type::None) {
-        blink_builtin_led(error);
-        sdCard.end(); // Close the SD card
-        return;       // Exit if SD card initialization failed
+    // -------------------------------------------------------------
+    // 4. Read the next image file from the SD card
+    // -------------------------------------------------------------
+    Serial.println(F("4. Find the next image from the SD..."));
+
+    if (error == photo_frame::error_type::None) {
+        error = sdCard.begin(); // Initialize the SD card
+
+        if (error == photo_frame::error_type::None) {
+            auto cardType = sdCard.getCardType();
+            Serial.print(F("SD card type: "));
+            switch (cardType) {
+            case CARD_MMC:     Serial.println(F("MMC")); break;
+            case CARD_SD:      Serial.println(F("SDSC")); break;
+            case CARD_SDHC:    Serial.println(F("SDHC")); break;
+            case CARD_UNKNOWN: Serial.println(F("Unknown")); break;
+            case CARD_NONE:    Serial.println(F("No SD card attached!")); break;
+            default:           Serial.println(F("Unknown card type!")); break;
+            }
+
+#if DEBUG_LOG
+            sdCard.printStats(); // Print SD card statistics
+#endif
+
+            photo_frame::SdCardEntry entry;
+
+            // Open preferences for reading
+
+            uint32_t index = 0; // Initialize the index to 0
+
+            if (!prefs.begin(PREFS_NAMESPACE, false)) {
+                Serial.println(F("Failed to open preferences!"));
+                // Get the count of .bmp files on the SD card
+                auto count = sdCard.getFileCount(".bmp");
+                // Generate a random index to start from
+                index = random(0, count);
+            } else {
+                Serial.println(F("Preferences opened successfully!"));
+                index = prefs.getUInt("last_index", 0); // Read the last index from preferences
+                Serial.print(F("Last index from preferences: "));
+                Serial.println(index);
+            }
+
+            // Read the next image file from the SD card
+            error = sdCard.findNextImage(&index, ".bmp", &entry);
+            prefs.putUInt("last_index", index + 1); // Save the last index to preferences
+            prefs.end();                            // Close the preferences
+
+            if (error == photo_frame::error_type::None) {
+                Serial.print(F("Next image file: "));
+                Serial.println(entry.to_string());
+                Serial.print(F("Entry is valid:"));
+                Serial.println(entry ? "Yes" : "No");
+
+                // Open the file for reading
+                file = sdCard.open(entry.path.c_str(), FILE_READ);
+            } else {
+                Serial.print(F("Failed to find next image file! Error code: "));
+                Serial.println(error.code);
+            }
+        }
+    } else {
+        Serial.println(F("skipped"));
     }
-
-    auto cardType = sdCard.getCardType();
-    Serial.print(F("SD card type: "));
-    switch (cardType) {
-    case CARD_MMC:     Serial.println(F("MMC")); break;
-    case CARD_SD:      Serial.println(F("SDSC")); break;
-    case CARD_SDHC:    Serial.println(F("SDHC")); break;
-    case CARD_UNKNOWN: Serial.println(F("Unknown")); break;
-    case CARD_NONE:    Serial.println(F("No SD card attached!")); break;
-    default:           Serial.println(F("Unknown card type!")); break;
-    }
-
-    sdCard.printStats(); // Print SD card statistics
-
-    photo_frame::SdCardEntry entry;
-    // sdCard.listFiles(".bmp"); // List all .bmp files on the SD card
-    auto count = sdCard.getFileCount(".bmp"); // Get the count of .bmp files on the SD card
-    // Serial.print(F("Number of .bmp files on SD card: "));
-    // Serial.println(count);
-
-    uint32_t index = random(0, count); // Generate a random index to start from
-
-    error =
-        sdCard.findNextImage(&index, ".bmp", &entry); // Read the next image file from the SD card
-    if (error != error_type::None) {
-        blink_builtin_led(error);
-        sdCard.end(); // Close the SD card
-        return;       // Exit if reading the next image failed
-    }
-
-    Serial.print(F("Next image file: "));
-    Serial.println(entry.to_string());
-    Serial.print(F("Entry is valid:"));
-    Serial.println(entry ? "Yes" : "No");
-
-    fs::File file = sdCard.open(entry.path.c_str(), FILE_READ); // Open the file for reading
-    if (!file) {
-        Serial.println(F("Failed to open file!"));
-        error = error_type::SdCardFileOpenFailed;
-        blink_builtin_led(error);
-        sdCard.end(); // Close the SD card
-        return;       // Exit if opening the file failed
-    }
-
-    // sdCard.listFiles(); // List files on the SD card
-    // sdCard.end(); // Close the SD card
 
     /* #endregion SDCARD */
 
     /* #region Refresh Rate */
 
-    long refresh_seconds = read_refresh_seconds();
+    // -------------------------------------------------------------
+    // 5. Calculate the refresh rate based on the battery level
+    // -------------------------------------------------------------
+    Serial.println(F("5. Calculating refresh rate..."));
 
-    // add the refresh time to the current time
-    // Update the current time with the refresh interval
-    DateTime nextRefresh = now + TimeSpan(refresh_seconds);
+    if (!battery_info.is_critical() && now.isValid()) {
+        refresh_seconds = read_refresh_seconds(battery_info.is_low());
 
-    // check if the next refresh time is after DAY_END_HOUR
-    Serial.println("-------------------------------------------");
+#if DEBUG_LOG
+        Serial.print(F("Refresh seconds read from level input pin: "));
+        Serial.println(refresh_seconds);
+#endif
 
-    if (nextRefresh.hour() < DAY_START_HOUR || nextRefresh.hour() >= DAY_END_HOUR) {
-        Serial.println(
-            F("Next refresh time is before DAY_START_HOUR or after DAY_END_HOUR, setting to "
-              "DAY_START_HOUR..."));
-        nextRefresh = DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
-        Serial.print(F("Next refresh time set to: "));
+        // add the refresh time to the current time
+        // Update the current time with the refresh interval
+        DateTime nextRefresh = now + TimeSpan(refresh_seconds);
+
+        // check if the next refresh time is after DAY_END_HOUR
+        DateTime dayEnd = DateTime(now.year(), now.month(), now.day(), DAY_END_HOUR, 0, 0);
+
+        if (nextRefresh > dayEnd) {
+            Serial.println(F("Next refresh time is after DAY_END_HOUR"));
+            // Set the next refresh time to the start of the next day
+            DateTime nextDayStart =
+                DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
+            DateTime nextDayEnd =
+                DateTime(now.year(), now.month(), now.day() + 1, DAY_END_HOUR, 0, 0);
+            nextRefresh     = nextRefresh > nextDayStart
+                                  ? (nextRefresh < nextDayEnd ? nextRefresh : nextDayEnd)
+                                  : nextDayStart;
+
+            refresh_seconds = nextRefresh.unixtime() - now.unixtime();
+        }
+
+        Serial.print(F("Next refresh time: "));
         Serial.println(nextRefresh.timestamp(DateTime::TIMESTAMP_FULL));
-        refresh_seconds = nextRefresh.unixtime() - now.unixtime();
+
+        // Convert minutes to microseconds for deep sleep
+        refresh_microseconds = refresh_seconds * MICROSECONDS_IN_SECOND;
+
+        Serial.print(F("Refresh interval in seconds: "));
+        Serial.println(refresh_seconds);
+    } else {
+        Serial.println(F("skipped"));
     }
-
-    Serial.print(F("Next refresh time: "));
-    Serial.println(nextRefresh.timestamp(DateTime::TIMESTAMP_FULL));
-
-    // Convert minutes to microseconds for deep sleep
-    unsigned long refresh_microseconds = refresh_seconds * MICROSECONDS_IN_SECOND;
-
-    Serial.print(F("Refresh interval in seconds: "));
-    Serial.println(refresh_seconds);
-    Serial.println("-------------------------------------------");
 
     /* #endregion */
 
     /* #region e-Paper display */
 
-    delay(1000);                          // Pause for 1 second
-    photo_frame::renderer::initDisplay(); // Initialize the e-Paper display
-    delay(1000);                          // Pause for 1 second
-
-    display.clearScreen();
-    // display.setFullWindow();
-
-    // display.firstPage();
-    // do {
-    //     photo_frame::renderer::drawError(error_type::ImageFormatNotSupported);
-    //     photo_frame::renderer::drawErrorMessage(gravity_t::TOP_RIGHT,
-    //                                             error_type::ImageFormatNotSupported.code);
-    // } while (display.nextPage());
-    // return;
-
-    if (!photo_frame::renderer::drawBitmapFromFile_Buffered(file, 0, 0, false)) {
-        Serial.println(F("Failed to draw bitmap from file!"));
-        display.firstPage();
-        do {
-            photo_frame::renderer::drawError(error_type::ImageFormatNotSupported);
-        } while (display.nextPage());
+    if (error == photo_frame::error_type::None && !file) {
+        Serial.println(F("File is not open!"));
+        error = photo_frame::error_type::SdCardFileOpenFailed;
     }
 
-    display.setPartialWindow(0, 0, display.width(), 16);
-    display.firstPage();
-    do {
+    if (error != photo_frame::error_type::None) {
+        photo_frame::blink_builtin_led(error);
+        display.firstPage();
+        do {
+            photo_frame::renderer::drawError(error);
+            photo_frame::renderer::drawErrorMessage(gravity_t::TOP_RIGHT, error.code);
 
-        // display.fillRect(0, 0, display.width(), 20, GxEPD_WHITE);
-        display.fillScreen(GxEPD_WHITE);
-
-        // format the refresh time string in the format "Refresh: 0' 0" (e.g., "Refresh: 10' 30")
-        String refreshStr = "";
-        long hours        = refresh_seconds / 3600; // Calculate hours
-        long minutes      = refresh_seconds / 60;   // Calculate minutes
-        long seconds      = refresh_seconds % 60;   // Calculate remaining seconds
-
-        if (hours > 0) {
-            refreshStr += String(hours) + "h "; // Append hours with a single quote
-            minutes -= hours * 60;              // Adjust minutes after calculating hours
-            seconds -= hours * 3600;            // Adjust seconds after calculating hours
+            if (error != photo_frame::error_type::BatteryLevelCritical) {
+                photo_frame::renderer::drawLastUpdate(now, nullptr);
+            }
+        } while (display.nextPage());
+    } else {
+        if (!photo_frame::renderer::drawBitmapFromFile_Buffered(file, 0, 0, false)) {
+            Serial.println(F("Failed to draw bitmap from file!"));
+            display.firstPage();
+            do {
+                photo_frame::renderer::drawError(photo_frame::error_type::ImageFormatNotSupported);
+            } while (display.nextPage());
         }
 
-        if (minutes > 0) {
-            refreshStr += String(minutes) + "m "; // Append minutes with a single quote
-            seconds -= minutes * 60;              // Adjust seconds after calculating minutes
-        }
+        display.setPartialWindow(0, 0, display.width(), 16);
+        display.firstPage();
+        do {
 
-        if (seconds > 0) {
-            refreshStr += String(seconds) + "s"; // Append seconds with a double quote
-        }
-        photo_frame::renderer::drawLastUpdate(now, refreshStr.c_str()); // Draw the last update time
+            // display.fillRect(0, 0, display.width(), 20, GxEPD_WHITE);
+            display.fillScreen(GxEPD_WHITE);
 
-        // display.displayWindow(0, 0, display.width(), display.height()); // Display the content in
-        // the partial window
+            // format the refresh time string in the format "Refresh: 0' 0" (e.g., "Refresh: 10'
+            // 30")
+            String refreshStr = "";
+            long hours        = refresh_seconds / 3600; // Calculate hours
+            long minutes      = refresh_seconds / 60;   // Calculate minutes
+            long seconds      = refresh_seconds % 60;   // Calculate remaining seconds
 
-    } while (display.nextPage()); // Clear the display
+            if (hours > 0) {
+                refreshStr += String(hours) + "h "; // Append hours with a single quote
+                minutes -= hours * 60;              // Adjust minutes after calculating hours
+                seconds -= hours * 3600;            // Adjust seconds after calculating hours
+            }
 
-    // display.display(true);
+            if (minutes > 0) {
+                refreshStr += String(minutes) + "m "; // Append minutes with a single quote
+                seconds -= minutes * 60;              // Adjust seconds after calculating minutes
+            }
 
-    // display.refresh(); // Refresh the display to show the drawn content
+            if (seconds > 0) {
+                refreshStr += String(seconds) + "s"; // Append seconds with a double quote
+            }
 
-    // photo_frame::renderer::clearScreen();
-    // photo_frame::renderer::drawBitmapFromFile(file, 0, 0, false); // Draw the bitmap from the
-    // file Serial.println(F("Bitmap drawn successfully!"));
-    file.close(); // Close the file after drawing
+            photo_frame::renderer::drawLastUpdate(now, refreshStr.c_str());
+            photo_frame::renderer::drawBatteryStatus(battery_info.millivolts, battery_info.percent);
 
-    // photo_frame::renderer::drawLastUpdate(now);
-    // photo_frame::renderer::refresh();
+            // display.displayWindow(0, 0, display.width(), display.height()); // Display the
+            // content in the partial window
+
+        } while (display.nextPage()); // Clear the display
+    }
+
+    if (file) {
+        file.close(); // Close the file after drawing
+    }
+    sdCard.end(); // Close the SD card
 
     delay(500); // Pause for 1 second
     photo_frame::renderer::powerOffDisplay();
 
-    sdCard.end(); // Close the SD card
-
     /* #endregion e-Paper display */
 
+    // Wait before going to sleep
+    delay(DELAY_BEFORE_SLEEP);
+
     // now go to sleep
-    Serial.print(F("Going to sleep for "));
-    Serial.print(refresh_seconds, DEC);
-    Serial.println(F(" seconds..."));
-
-// Wait for 10 seconds before going to sleep
-#if DEBUG_LOG
-    delay(10000);
-#endif
-
-    esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 1);         // wake up on GPIO 0
-    esp_sleep_enable_timer_wakeup(refresh_microseconds); // wake up after the refresh interval
+    if (!battery_info.is_critical() && refresh_microseconds > MICROSECONDS_IN_SECOND) {
+        Serial.print(F("Going to sleep for "));
+        Serial.print(refresh_seconds, DEC);
+        Serial.println(F(" seconds..."));
+        esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 1);         // wake up on GPIO 0
+        esp_sleep_enable_timer_wakeup(refresh_microseconds); // wake up after the refresh interval
+    }
     esp_deep_sleep_start();
-
-    /* #region Adafruit SSD1306 */
-    // Serial.println("Initializing OLED display...");
-    // Wire.begin(SSD_1306_SDA_PIN /* SDA */, SSD_1306_SCL_PIN /* SCL */); // SDA, SCL pins for
-    // ESP32 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1); if
-    // (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    //     Serial.println(F("SSD1306 allocation failed"));
-    //     for (;;)
-    //         ;
-    // }
-
-    // Serial.println(F("SSD1306 initialized successfully!"));
-    // display.display();
-    // delay(1500); // Pause for 2 seconds
-    // display.clearDisplay();
-    // display.setTextSize(1);
-    // display.setTextColor(SSD1306_WHITE);
-    // display.setCursor(0, 0); // Start at top-left corner
-    // display.println(F("Date: "));
-    // const char* dateTime = format_datetime(now);
-    // display.println(dateTime);
-    // display.println(now.timestamp(DateTime::TIMESTAMP_FULL));
-    // display.display();
-    /* #endregion Adafruit SSD1306 */
-
-    delay(2000); // Pause for 2 seconds
 }
 
 void loop() {
-    // display.clearDisplay();
-    // display.setTextSize(1);              // Normal 1:1 pixel scale
-    // display.setTextColor(SSD1306_WHITE); // Draw white text
-    // display.setCursor(0, 0);             // Start at top-left corner
-
-    // Battery battery = batteryLib.read(); // Read the battery voltage
-
-    // Serial.print(F("Battery: "));
-    // Serial.print(battery.toString());
-    // Serial.println();
-
-    // display.print(F("Raw: "));
-    // display.print(battery.raw); // Print the raw ADC value
-
-    // display.print(F(" - "));
-    // display.print(battery.voltage / 1000.0, 2);
-    // display.println(F(" V"));
-
-    // display.print(F("Perc: "));
-    // display.print(battery.percent, 2);
-    // display.println("%");
-
-    // const char* dateTime = format_datetime(now);
-    // display.println(dateTime);
-
-    // // draw a black filled rectangle with white stroke at the bottom
-    // display.fillRect(0, 24, 128, 8, SSD1306_BLACK);
-    // display.drawRect(0, 24, 128, 8, SSD1306_WHITE);
-
-    // // draw the battery percentage as a filled rectangle
-    // int barWidth = map(battery.percent, 0, 100, 0, 128);
-    // display.fillRect(0, 24, barWidth, 8, SSD1306_WHITE);
-    // display.display();
-    // delay(DELAY_TIME); // Wait for 1 seconds
+    // Nothing to do here, the ESP32 will go to sleep after setup
+    // The loop is intentionally left empty
+    // All processing is done in the setup function
+    // The ESP32 will wake up from deep sleep and run the setup function again
 }

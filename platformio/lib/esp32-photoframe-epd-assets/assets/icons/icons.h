@@ -17,7 +17,46 @@
 #include "icons_196x196.h"
 
 typedef enum icon_name {
+  battery_0_bar_0deg,
+  battery_0_bar_180deg,
+  battery_0_bar_270deg,
+  battery_0_bar_90deg,
+  battery_1_bar_0deg,
+  battery_1_bar_180deg,
+  battery_1_bar_270deg,
+  battery_1_bar_90deg,
+  battery_2_bar_0deg,
+  battery_2_bar_180deg,
+  battery_2_bar_270deg,
+  battery_2_bar_90deg,
+  battery_3_bar_0deg,
+  battery_3_bar_180deg,
+  battery_3_bar_270deg,
+  battery_3_bar_90deg,
+  battery_4_bar_0deg,
+  battery_4_bar_180deg,
+  battery_4_bar_270deg,
+  battery_4_bar_90deg,
+  battery_5_bar_0deg,
+  battery_5_bar_180deg,
+  battery_5_bar_270deg,
+  battery_5_bar_90deg,
+  battery_6_bar_0deg,
+  battery_6_bar_180deg,
+  battery_6_bar_270deg,
+  battery_6_bar_90deg,
   battery_alert_0deg,
+  battery_alert_180deg,
+  battery_alert_270deg,
+  battery_alert_90deg,
+  battery_charging_full_0deg,
+  battery_charging_full_180deg,
+  battery_charging_full_270deg,
+  battery_charging_full_90deg,
+  battery_full_0deg,
+  battery_full_180deg,
+  battery_full_270deg,
+  battery_full_90deg,
   error_icon,
   ionizing_radiation_symbol,
   micro_sd_card_0deg,
@@ -28,6 +67,426 @@ typedef enum icon_name {
 constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
 {
   switch (icon) {
+  case battery_0_bar_0deg:
+    switch (size) {
+    case 12: return battery_0_bar_0deg_12x12;
+    case 16: return battery_0_bar_0deg_16x16;
+    case 24: return battery_0_bar_0deg_24x24;
+    case 32: return battery_0_bar_0deg_32x32;
+    case 48: return battery_0_bar_0deg_48x48;
+    case 64: return battery_0_bar_0deg_64x64;
+    case 96: return battery_0_bar_0deg_96x96;
+    case 128: return battery_0_bar_0deg_128x128;
+    case 160: return battery_0_bar_0deg_160x160;
+    case 196: return battery_0_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_0_bar_180deg:
+    switch (size) {
+    case 12: return battery_0_bar_180deg_12x12;
+    case 16: return battery_0_bar_180deg_16x16;
+    case 24: return battery_0_bar_180deg_24x24;
+    case 32: return battery_0_bar_180deg_32x32;
+    case 48: return battery_0_bar_180deg_48x48;
+    case 64: return battery_0_bar_180deg_64x64;
+    case 96: return battery_0_bar_180deg_96x96;
+    case 128: return battery_0_bar_180deg_128x128;
+    case 160: return battery_0_bar_180deg_160x160;
+    case 196: return battery_0_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_0_bar_270deg:
+    switch (size) {
+    case 12: return battery_0_bar_270deg_12x12;
+    case 16: return battery_0_bar_270deg_16x16;
+    case 24: return battery_0_bar_270deg_24x24;
+    case 32: return battery_0_bar_270deg_32x32;
+    case 48: return battery_0_bar_270deg_48x48;
+    case 64: return battery_0_bar_270deg_64x64;
+    case 96: return battery_0_bar_270deg_96x96;
+    case 128: return battery_0_bar_270deg_128x128;
+    case 160: return battery_0_bar_270deg_160x160;
+    case 196: return battery_0_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_0_bar_90deg:
+    switch (size) {
+    case 12: return battery_0_bar_90deg_12x12;
+    case 16: return battery_0_bar_90deg_16x16;
+    case 24: return battery_0_bar_90deg_24x24;
+    case 32: return battery_0_bar_90deg_32x32;
+    case 48: return battery_0_bar_90deg_48x48;
+    case 64: return battery_0_bar_90deg_64x64;
+    case 96: return battery_0_bar_90deg_96x96;
+    case 128: return battery_0_bar_90deg_128x128;
+    case 160: return battery_0_bar_90deg_160x160;
+    case 196: return battery_0_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_1_bar_0deg:
+    switch (size) {
+    case 12: return battery_1_bar_0deg_12x12;
+    case 16: return battery_1_bar_0deg_16x16;
+    case 24: return battery_1_bar_0deg_24x24;
+    case 32: return battery_1_bar_0deg_32x32;
+    case 48: return battery_1_bar_0deg_48x48;
+    case 64: return battery_1_bar_0deg_64x64;
+    case 96: return battery_1_bar_0deg_96x96;
+    case 128: return battery_1_bar_0deg_128x128;
+    case 160: return battery_1_bar_0deg_160x160;
+    case 196: return battery_1_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_1_bar_180deg:
+    switch (size) {
+    case 12: return battery_1_bar_180deg_12x12;
+    case 16: return battery_1_bar_180deg_16x16;
+    case 24: return battery_1_bar_180deg_24x24;
+    case 32: return battery_1_bar_180deg_32x32;
+    case 48: return battery_1_bar_180deg_48x48;
+    case 64: return battery_1_bar_180deg_64x64;
+    case 96: return battery_1_bar_180deg_96x96;
+    case 128: return battery_1_bar_180deg_128x128;
+    case 160: return battery_1_bar_180deg_160x160;
+    case 196: return battery_1_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_1_bar_270deg:
+    switch (size) {
+    case 12: return battery_1_bar_270deg_12x12;
+    case 16: return battery_1_bar_270deg_16x16;
+    case 24: return battery_1_bar_270deg_24x24;
+    case 32: return battery_1_bar_270deg_32x32;
+    case 48: return battery_1_bar_270deg_48x48;
+    case 64: return battery_1_bar_270deg_64x64;
+    case 96: return battery_1_bar_270deg_96x96;
+    case 128: return battery_1_bar_270deg_128x128;
+    case 160: return battery_1_bar_270deg_160x160;
+    case 196: return battery_1_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_1_bar_90deg:
+    switch (size) {
+    case 12: return battery_1_bar_90deg_12x12;
+    case 16: return battery_1_bar_90deg_16x16;
+    case 24: return battery_1_bar_90deg_24x24;
+    case 32: return battery_1_bar_90deg_32x32;
+    case 48: return battery_1_bar_90deg_48x48;
+    case 64: return battery_1_bar_90deg_64x64;
+    case 96: return battery_1_bar_90deg_96x96;
+    case 128: return battery_1_bar_90deg_128x128;
+    case 160: return battery_1_bar_90deg_160x160;
+    case 196: return battery_1_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_2_bar_0deg:
+    switch (size) {
+    case 12: return battery_2_bar_0deg_12x12;
+    case 16: return battery_2_bar_0deg_16x16;
+    case 24: return battery_2_bar_0deg_24x24;
+    case 32: return battery_2_bar_0deg_32x32;
+    case 48: return battery_2_bar_0deg_48x48;
+    case 64: return battery_2_bar_0deg_64x64;
+    case 96: return battery_2_bar_0deg_96x96;
+    case 128: return battery_2_bar_0deg_128x128;
+    case 160: return battery_2_bar_0deg_160x160;
+    case 196: return battery_2_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_2_bar_180deg:
+    switch (size) {
+    case 12: return battery_2_bar_180deg_12x12;
+    case 16: return battery_2_bar_180deg_16x16;
+    case 24: return battery_2_bar_180deg_24x24;
+    case 32: return battery_2_bar_180deg_32x32;
+    case 48: return battery_2_bar_180deg_48x48;
+    case 64: return battery_2_bar_180deg_64x64;
+    case 96: return battery_2_bar_180deg_96x96;
+    case 128: return battery_2_bar_180deg_128x128;
+    case 160: return battery_2_bar_180deg_160x160;
+    case 196: return battery_2_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_2_bar_270deg:
+    switch (size) {
+    case 12: return battery_2_bar_270deg_12x12;
+    case 16: return battery_2_bar_270deg_16x16;
+    case 24: return battery_2_bar_270deg_24x24;
+    case 32: return battery_2_bar_270deg_32x32;
+    case 48: return battery_2_bar_270deg_48x48;
+    case 64: return battery_2_bar_270deg_64x64;
+    case 96: return battery_2_bar_270deg_96x96;
+    case 128: return battery_2_bar_270deg_128x128;
+    case 160: return battery_2_bar_270deg_160x160;
+    case 196: return battery_2_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_2_bar_90deg:
+    switch (size) {
+    case 12: return battery_2_bar_90deg_12x12;
+    case 16: return battery_2_bar_90deg_16x16;
+    case 24: return battery_2_bar_90deg_24x24;
+    case 32: return battery_2_bar_90deg_32x32;
+    case 48: return battery_2_bar_90deg_48x48;
+    case 64: return battery_2_bar_90deg_64x64;
+    case 96: return battery_2_bar_90deg_96x96;
+    case 128: return battery_2_bar_90deg_128x128;
+    case 160: return battery_2_bar_90deg_160x160;
+    case 196: return battery_2_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_3_bar_0deg:
+    switch (size) {
+    case 12: return battery_3_bar_0deg_12x12;
+    case 16: return battery_3_bar_0deg_16x16;
+    case 24: return battery_3_bar_0deg_24x24;
+    case 32: return battery_3_bar_0deg_32x32;
+    case 48: return battery_3_bar_0deg_48x48;
+    case 64: return battery_3_bar_0deg_64x64;
+    case 96: return battery_3_bar_0deg_96x96;
+    case 128: return battery_3_bar_0deg_128x128;
+    case 160: return battery_3_bar_0deg_160x160;
+    case 196: return battery_3_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_3_bar_180deg:
+    switch (size) {
+    case 12: return battery_3_bar_180deg_12x12;
+    case 16: return battery_3_bar_180deg_16x16;
+    case 24: return battery_3_bar_180deg_24x24;
+    case 32: return battery_3_bar_180deg_32x32;
+    case 48: return battery_3_bar_180deg_48x48;
+    case 64: return battery_3_bar_180deg_64x64;
+    case 96: return battery_3_bar_180deg_96x96;
+    case 128: return battery_3_bar_180deg_128x128;
+    case 160: return battery_3_bar_180deg_160x160;
+    case 196: return battery_3_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_3_bar_270deg:
+    switch (size) {
+    case 12: return battery_3_bar_270deg_12x12;
+    case 16: return battery_3_bar_270deg_16x16;
+    case 24: return battery_3_bar_270deg_24x24;
+    case 32: return battery_3_bar_270deg_32x32;
+    case 48: return battery_3_bar_270deg_48x48;
+    case 64: return battery_3_bar_270deg_64x64;
+    case 96: return battery_3_bar_270deg_96x96;
+    case 128: return battery_3_bar_270deg_128x128;
+    case 160: return battery_3_bar_270deg_160x160;
+    case 196: return battery_3_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_3_bar_90deg:
+    switch (size) {
+    case 12: return battery_3_bar_90deg_12x12;
+    case 16: return battery_3_bar_90deg_16x16;
+    case 24: return battery_3_bar_90deg_24x24;
+    case 32: return battery_3_bar_90deg_32x32;
+    case 48: return battery_3_bar_90deg_48x48;
+    case 64: return battery_3_bar_90deg_64x64;
+    case 96: return battery_3_bar_90deg_96x96;
+    case 128: return battery_3_bar_90deg_128x128;
+    case 160: return battery_3_bar_90deg_160x160;
+    case 196: return battery_3_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_4_bar_0deg:
+    switch (size) {
+    case 12: return battery_4_bar_0deg_12x12;
+    case 16: return battery_4_bar_0deg_16x16;
+    case 24: return battery_4_bar_0deg_24x24;
+    case 32: return battery_4_bar_0deg_32x32;
+    case 48: return battery_4_bar_0deg_48x48;
+    case 64: return battery_4_bar_0deg_64x64;
+    case 96: return battery_4_bar_0deg_96x96;
+    case 128: return battery_4_bar_0deg_128x128;
+    case 160: return battery_4_bar_0deg_160x160;
+    case 196: return battery_4_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_4_bar_180deg:
+    switch (size) {
+    case 12: return battery_4_bar_180deg_12x12;
+    case 16: return battery_4_bar_180deg_16x16;
+    case 24: return battery_4_bar_180deg_24x24;
+    case 32: return battery_4_bar_180deg_32x32;
+    case 48: return battery_4_bar_180deg_48x48;
+    case 64: return battery_4_bar_180deg_64x64;
+    case 96: return battery_4_bar_180deg_96x96;
+    case 128: return battery_4_bar_180deg_128x128;
+    case 160: return battery_4_bar_180deg_160x160;
+    case 196: return battery_4_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_4_bar_270deg:
+    switch (size) {
+    case 12: return battery_4_bar_270deg_12x12;
+    case 16: return battery_4_bar_270deg_16x16;
+    case 24: return battery_4_bar_270deg_24x24;
+    case 32: return battery_4_bar_270deg_32x32;
+    case 48: return battery_4_bar_270deg_48x48;
+    case 64: return battery_4_bar_270deg_64x64;
+    case 96: return battery_4_bar_270deg_96x96;
+    case 128: return battery_4_bar_270deg_128x128;
+    case 160: return battery_4_bar_270deg_160x160;
+    case 196: return battery_4_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_4_bar_90deg:
+    switch (size) {
+    case 12: return battery_4_bar_90deg_12x12;
+    case 16: return battery_4_bar_90deg_16x16;
+    case 24: return battery_4_bar_90deg_24x24;
+    case 32: return battery_4_bar_90deg_32x32;
+    case 48: return battery_4_bar_90deg_48x48;
+    case 64: return battery_4_bar_90deg_64x64;
+    case 96: return battery_4_bar_90deg_96x96;
+    case 128: return battery_4_bar_90deg_128x128;
+    case 160: return battery_4_bar_90deg_160x160;
+    case 196: return battery_4_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_5_bar_0deg:
+    switch (size) {
+    case 12: return battery_5_bar_0deg_12x12;
+    case 16: return battery_5_bar_0deg_16x16;
+    case 24: return battery_5_bar_0deg_24x24;
+    case 32: return battery_5_bar_0deg_32x32;
+    case 48: return battery_5_bar_0deg_48x48;
+    case 64: return battery_5_bar_0deg_64x64;
+    case 96: return battery_5_bar_0deg_96x96;
+    case 128: return battery_5_bar_0deg_128x128;
+    case 160: return battery_5_bar_0deg_160x160;
+    case 196: return battery_5_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_5_bar_180deg:
+    switch (size) {
+    case 12: return battery_5_bar_180deg_12x12;
+    case 16: return battery_5_bar_180deg_16x16;
+    case 24: return battery_5_bar_180deg_24x24;
+    case 32: return battery_5_bar_180deg_32x32;
+    case 48: return battery_5_bar_180deg_48x48;
+    case 64: return battery_5_bar_180deg_64x64;
+    case 96: return battery_5_bar_180deg_96x96;
+    case 128: return battery_5_bar_180deg_128x128;
+    case 160: return battery_5_bar_180deg_160x160;
+    case 196: return battery_5_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_5_bar_270deg:
+    switch (size) {
+    case 12: return battery_5_bar_270deg_12x12;
+    case 16: return battery_5_bar_270deg_16x16;
+    case 24: return battery_5_bar_270deg_24x24;
+    case 32: return battery_5_bar_270deg_32x32;
+    case 48: return battery_5_bar_270deg_48x48;
+    case 64: return battery_5_bar_270deg_64x64;
+    case 96: return battery_5_bar_270deg_96x96;
+    case 128: return battery_5_bar_270deg_128x128;
+    case 160: return battery_5_bar_270deg_160x160;
+    case 196: return battery_5_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_5_bar_90deg:
+    switch (size) {
+    case 12: return battery_5_bar_90deg_12x12;
+    case 16: return battery_5_bar_90deg_16x16;
+    case 24: return battery_5_bar_90deg_24x24;
+    case 32: return battery_5_bar_90deg_32x32;
+    case 48: return battery_5_bar_90deg_48x48;
+    case 64: return battery_5_bar_90deg_64x64;
+    case 96: return battery_5_bar_90deg_96x96;
+    case 128: return battery_5_bar_90deg_128x128;
+    case 160: return battery_5_bar_90deg_160x160;
+    case 196: return battery_5_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_6_bar_0deg:
+    switch (size) {
+    case 12: return battery_6_bar_0deg_12x12;
+    case 16: return battery_6_bar_0deg_16x16;
+    case 24: return battery_6_bar_0deg_24x24;
+    case 32: return battery_6_bar_0deg_32x32;
+    case 48: return battery_6_bar_0deg_48x48;
+    case 64: return battery_6_bar_0deg_64x64;
+    case 96: return battery_6_bar_0deg_96x96;
+    case 128: return battery_6_bar_0deg_128x128;
+    case 160: return battery_6_bar_0deg_160x160;
+    case 196: return battery_6_bar_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_6_bar_180deg:
+    switch (size) {
+    case 12: return battery_6_bar_180deg_12x12;
+    case 16: return battery_6_bar_180deg_16x16;
+    case 24: return battery_6_bar_180deg_24x24;
+    case 32: return battery_6_bar_180deg_32x32;
+    case 48: return battery_6_bar_180deg_48x48;
+    case 64: return battery_6_bar_180deg_64x64;
+    case 96: return battery_6_bar_180deg_96x96;
+    case 128: return battery_6_bar_180deg_128x128;
+    case 160: return battery_6_bar_180deg_160x160;
+    case 196: return battery_6_bar_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_6_bar_270deg:
+    switch (size) {
+    case 12: return battery_6_bar_270deg_12x12;
+    case 16: return battery_6_bar_270deg_16x16;
+    case 24: return battery_6_bar_270deg_24x24;
+    case 32: return battery_6_bar_270deg_32x32;
+    case 48: return battery_6_bar_270deg_48x48;
+    case 64: return battery_6_bar_270deg_64x64;
+    case 96: return battery_6_bar_270deg_96x96;
+    case 128: return battery_6_bar_270deg_128x128;
+    case 160: return battery_6_bar_270deg_160x160;
+    case 196: return battery_6_bar_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_6_bar_90deg:
+    switch (size) {
+    case 12: return battery_6_bar_90deg_12x12;
+    case 16: return battery_6_bar_90deg_16x16;
+    case 24: return battery_6_bar_90deg_24x24;
+    case 32: return battery_6_bar_90deg_32x32;
+    case 48: return battery_6_bar_90deg_48x48;
+    case 64: return battery_6_bar_90deg_64x64;
+    case 96: return battery_6_bar_90deg_96x96;
+    case 128: return battery_6_bar_90deg_128x128;
+    case 160: return battery_6_bar_90deg_160x160;
+    case 196: return battery_6_bar_90deg_196x196;
+    default:
+      return nullptr;
+    }
   case battery_alert_0deg:
     switch (size) {
     case 12: return battery_alert_0deg_12x12;
@@ -40,6 +499,171 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     case 128: return battery_alert_0deg_128x128;
     case 160: return battery_alert_0deg_160x160;
     case 196: return battery_alert_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_alert_180deg:
+    switch (size) {
+    case 12: return battery_alert_180deg_12x12;
+    case 16: return battery_alert_180deg_16x16;
+    case 24: return battery_alert_180deg_24x24;
+    case 32: return battery_alert_180deg_32x32;
+    case 48: return battery_alert_180deg_48x48;
+    case 64: return battery_alert_180deg_64x64;
+    case 96: return battery_alert_180deg_96x96;
+    case 128: return battery_alert_180deg_128x128;
+    case 160: return battery_alert_180deg_160x160;
+    case 196: return battery_alert_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_alert_270deg:
+    switch (size) {
+    case 12: return battery_alert_270deg_12x12;
+    case 16: return battery_alert_270deg_16x16;
+    case 24: return battery_alert_270deg_24x24;
+    case 32: return battery_alert_270deg_32x32;
+    case 48: return battery_alert_270deg_48x48;
+    case 64: return battery_alert_270deg_64x64;
+    case 96: return battery_alert_270deg_96x96;
+    case 128: return battery_alert_270deg_128x128;
+    case 160: return battery_alert_270deg_160x160;
+    case 196: return battery_alert_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_alert_90deg:
+    switch (size) {
+    case 12: return battery_alert_90deg_12x12;
+    case 16: return battery_alert_90deg_16x16;
+    case 24: return battery_alert_90deg_24x24;
+    case 32: return battery_alert_90deg_32x32;
+    case 48: return battery_alert_90deg_48x48;
+    case 64: return battery_alert_90deg_64x64;
+    case 96: return battery_alert_90deg_96x96;
+    case 128: return battery_alert_90deg_128x128;
+    case 160: return battery_alert_90deg_160x160;
+    case 196: return battery_alert_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_charging_full_0deg:
+    switch (size) {
+    case 12: return battery_charging_full_0deg_12x12;
+    case 16: return battery_charging_full_0deg_16x16;
+    case 24: return battery_charging_full_0deg_24x24;
+    case 32: return battery_charging_full_0deg_32x32;
+    case 48: return battery_charging_full_0deg_48x48;
+    case 64: return battery_charging_full_0deg_64x64;
+    case 96: return battery_charging_full_0deg_96x96;
+    case 128: return battery_charging_full_0deg_128x128;
+    case 160: return battery_charging_full_0deg_160x160;
+    case 196: return battery_charging_full_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_charging_full_180deg:
+    switch (size) {
+    case 12: return battery_charging_full_180deg_12x12;
+    case 16: return battery_charging_full_180deg_16x16;
+    case 24: return battery_charging_full_180deg_24x24;
+    case 32: return battery_charging_full_180deg_32x32;
+    case 48: return battery_charging_full_180deg_48x48;
+    case 64: return battery_charging_full_180deg_64x64;
+    case 96: return battery_charging_full_180deg_96x96;
+    case 128: return battery_charging_full_180deg_128x128;
+    case 160: return battery_charging_full_180deg_160x160;
+    case 196: return battery_charging_full_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_charging_full_270deg:
+    switch (size) {
+    case 12: return battery_charging_full_270deg_12x12;
+    case 16: return battery_charging_full_270deg_16x16;
+    case 24: return battery_charging_full_270deg_24x24;
+    case 32: return battery_charging_full_270deg_32x32;
+    case 48: return battery_charging_full_270deg_48x48;
+    case 64: return battery_charging_full_270deg_64x64;
+    case 96: return battery_charging_full_270deg_96x96;
+    case 128: return battery_charging_full_270deg_128x128;
+    case 160: return battery_charging_full_270deg_160x160;
+    case 196: return battery_charging_full_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_charging_full_90deg:
+    switch (size) {
+    case 12: return battery_charging_full_90deg_12x12;
+    case 16: return battery_charging_full_90deg_16x16;
+    case 24: return battery_charging_full_90deg_24x24;
+    case 32: return battery_charging_full_90deg_32x32;
+    case 48: return battery_charging_full_90deg_48x48;
+    case 64: return battery_charging_full_90deg_64x64;
+    case 96: return battery_charging_full_90deg_96x96;
+    case 128: return battery_charging_full_90deg_128x128;
+    case 160: return battery_charging_full_90deg_160x160;
+    case 196: return battery_charging_full_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_full_0deg:
+    switch (size) {
+    case 12: return battery_full_0deg_12x12;
+    case 16: return battery_full_0deg_16x16;
+    case 24: return battery_full_0deg_24x24;
+    case 32: return battery_full_0deg_32x32;
+    case 48: return battery_full_0deg_48x48;
+    case 64: return battery_full_0deg_64x64;
+    case 96: return battery_full_0deg_96x96;
+    case 128: return battery_full_0deg_128x128;
+    case 160: return battery_full_0deg_160x160;
+    case 196: return battery_full_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_full_180deg:
+    switch (size) {
+    case 12: return battery_full_180deg_12x12;
+    case 16: return battery_full_180deg_16x16;
+    case 24: return battery_full_180deg_24x24;
+    case 32: return battery_full_180deg_32x32;
+    case 48: return battery_full_180deg_48x48;
+    case 64: return battery_full_180deg_64x64;
+    case 96: return battery_full_180deg_96x96;
+    case 128: return battery_full_180deg_128x128;
+    case 160: return battery_full_180deg_160x160;
+    case 196: return battery_full_180deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_full_270deg:
+    switch (size) {
+    case 12: return battery_full_270deg_12x12;
+    case 16: return battery_full_270deg_16x16;
+    case 24: return battery_full_270deg_24x24;
+    case 32: return battery_full_270deg_32x32;
+    case 48: return battery_full_270deg_48x48;
+    case 64: return battery_full_270deg_64x64;
+    case 96: return battery_full_270deg_96x96;
+    case 128: return battery_full_270deg_128x128;
+    case 160: return battery_full_270deg_160x160;
+    case 196: return battery_full_270deg_196x196;
+    default:
+      return nullptr;
+    }
+  case battery_full_90deg:
+    switch (size) {
+    case 12: return battery_full_90deg_12x12;
+    case 16: return battery_full_90deg_16x16;
+    case 24: return battery_full_90deg_24x24;
+    case 32: return battery_full_90deg_32x32;
+    case 48: return battery_full_90deg_48x48;
+    case 64: return battery_full_90deg_64x64;
+    case 96: return battery_full_90deg_96x96;
+    case 128: return battery_full_90deg_128x128;
+    case 160: return battery_full_90deg_160x160;
+    case 196: return battery_full_90deg_196x196;
     default:
       return nullptr;
     }

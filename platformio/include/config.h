@@ -1,13 +1,27 @@
+
+/**
+ * Copyright (C) 2025  Alessandro Crugnola
+ * This file is part of the Photo Frame project.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #ifndef __PHOTO_FRAME_CONFIG_H__
 #define __PHOTO_FRAME_CONFIG_H__
 
 #include "_locale.h"
 #include <Arduino.h>
-
-/**
- * LICENSE
- * This file is part of the Photo Frame project.
- */
 
 // Pin definitions
 
@@ -37,16 +51,34 @@ extern const uint8_t LEVEL_PWR_PIN;   // Power pin for level shifter
 extern const uint8_t LEVEL_INPUT_PIN; // SDA pin for level shifter
 extern const uint16_t LEVEL_INPUT_MAX;
 
+// Battery
+
+// Analog pin for battery reading
+extern const uint8_t BATTERY_PIN;
+// Resistor ratio for battery voltage divider
+extern const double BATTERY_RESISTORS_RATIO;
+// Number of readings to average for battery voltage
+#define BATTERY_NUM_READINGS 20
+// Delay between battery readings in milliseconds
+#define BATTERY_DELAY_BETWEEN_READINGS 1
+
+// Minimum battery percentage to consider the battery empty
+extern const uint8_t BATTERY_PERCENT_EMPTY;
+// Minimum battery percentage to consider the battery critical
+extern const uint8_t BATTERY_PERCENT_CRITICAL;
+// Minimum battery percentage to consider the battery low
+extern const uint8_t BATTERY_PERCENT_LOW;
+
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2 // Built-in LED pin for ESP32
 #endif                // LED_BUILTIN
 
-// Wifi
-// #define WIFI_SSID            "FiOS-RS1LV"
-// #define WIFI_PASSWORD        "airs900pop4456chew"
+#define DELAY_BEFORE_SLEEP 10000 // Delay before going to sleep in milliseconds
 
-extern const char* WIFI_SSID;
-extern const char* WIFI_PASSWORD;
+// Wifi
+// In case the RTC module lost power, the WiFi credentials will be read from the SD card
+// and used to connect to the WiFi network to fetch the current time from NTP servers.
+extern const char* WIFI_FILENAME; // Filename for WiFi credentials inside the SD Card
 
 #define WIFI_CONNECT_TIMEOUT 10000 // 10 seconds
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0/3"
@@ -65,24 +97,23 @@ extern const char* WIFI_PASSWORD;
 extern const uint8_t ACCENT_COLOR; // Accent color for the display
 
 // Miscellaneous
-
 #define DEBUG_LOG              1 // Enable debug logging (0 = off, 1 = on)
 
 #define MICROSECONDS_IN_SECOND 1000000
 #define SECONDS_IN_MINUTE      60
 #define SECONDS_IN_HOUR        3600
 
-// Minimum time between refreshes in seconds (minimum 1 minute, maximum 2 hours)
-#define REFRESH_MIN_INTERVAL_SECONDS 60
+// Minimum time between refreshes in seconds (minimum 5 minute, maximum 2 hours)
+#define REFRESH_MIN_INTERVAL_SECONDS 5 * SECONDS_IN_MINUTE
 
-// Maximum time between refreshes in seconds (minimum 2 minutes, maximum 4 hours)
+// Maximum time between refreshes in seconds (minimum 10 minutes, maximum 4 hours)
 #define REFRESH_MAX_INTERVAL_SECONDS 2 * SECONDS_IN_HOUR
 
 // time between refreshes in seconds when battery is low
 #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY 6 * SECONDS_IN_HOUR
 
 #define DAY_START_HOUR                       06 // Hour when the day starts (6 AM)
-#define DAY_END_HOUR                         22 // Hour when the day ends (10 PM) (midnight is 0)
+#define DAY_END_HOUR                         23 // Hour when the day ends (10 PM) (midnight is 0)
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 // #define FONT_HEADER                          "assets/fonts/UbuntuMono_R.h"
@@ -102,39 +133,13 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 //   Language (Territory)            code
 //   English (United States)         en_US
 //   Italiano (Italia)               it_IT
-#define LOCALE it_IT
+#define LOCALE          it_IT
 
-typedef class photo_frame_error {
-  public:
-    const char* message;
-    uint8_t code;
-    uint8_t blink_count; // Number of times to blink the built-in LED for this error
+#define PREFS_NAMESPACE "photo_frame"
 
-    constexpr photo_frame_error(const char* msg, uint8_t err_code) :
-        message(msg),
-        code(err_code),
-        blink_count(1) {}
-    constexpr photo_frame_error(const char* msg, uint8_t err_code, uint8_t blink_count) :
-        message(msg),
-        code(err_code),
-        blink_count(blink_count) {}
+namespace photo_frame {
+void print_config();
+} // namespace photo_frame
 
-    constexpr bool operator==(const photo_frame_error& other) const {
-        return (this->code == other.code) && (this->blink_count == other.blink_count);
-    }
-    constexpr bool operator!=(const photo_frame_error& other) const { return !(*this == other); }
-} photo_frame_error_t;
-
-namespace error_type {
-const photo_frame_error None{TXT_NO_ERROR, 0, 0};
-const photo_frame_error CardMountFailed{TXT_CARD_MOUNT_FAILED, 3, 3};
-const photo_frame_error NoSdCardAttached{TXT_NO_SD_CARD_ATTACHED, 4, 4};
-const photo_frame_error UnknownSdCardType{TXT_UNKNOWN_SD_CARD_TYPE, 5, 5};
-const photo_frame_error CardOpenFileFailed{TXT_CARD_OPEN_FILE_FAILED, 6, 6};
-const photo_frame_error SdCardFileNotFound{TXT_SD_CARD_FILE_NOT_FOUND, 7, 7};
-const photo_frame_error SdCardFileOpenFailed{TXT_SD_CARD_FILE_OPEN_FAILED, 8, 8};
-const photo_frame_error ImageFormatNotSupported{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 9, 9};
-// Add more errors here
-} // namespace error_type
 
 #endif // __PHOTO_FRAME_CONFIG_H__
