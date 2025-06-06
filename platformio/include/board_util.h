@@ -27,6 +27,18 @@ void print_board_stats() {
     Serial.println("");
 } // print_board_stats
 
+void disable_rgb_led() {
+#if defined(LED_RED) && defined(LED_GREEN) && defined(LED_BLUE)
+    Serial.print(F("Disabling RGB LED on pin "));
+    pinMode(LED_BLUE, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+    digitalWrite(LED_BLUE, LOW);
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_RED, LOW); // Disable the RGB LED
+#endif
+}
+
 void disable_built_in_led() {
 #if defined(LED_BUILTIN)
     Serial.print(F("Disabling built-in LED on pin "));
