@@ -9,9 +9,18 @@
 # Exit on error
 set -e
 
-pointsize=24
-font='UbuntuMono-Nerd-Font-Bold'
-
+# check if pointsize is set as environment variable
+if [ -z "$pointsize" ]; then
+    pointsize=20
+fi
+# check if font is set as environment variable
+if [ -z "$font" ]; then
+    font='UbuntuMono-Nerd-Font-Bold'
+fi
+# check if annotate_background is set as environment variable
+if [ -z "$annotate_background" ]; then
+    annotate_background='#00000080'
+fi
 
 # Default values
 type=""
@@ -23,32 +32,32 @@ output_dir=""
 # Parse options
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -type)
-            type="$2"
-            shift 2
-            ;;
-        -palette)
-            palette="$2"
-            shift 2
-            ;;
-        -*)
-            echo "Unknown option: $1"
+    -type)
+        type="$2"
+        shift 2
+        ;;
+    -palette)
+        palette="$2"
+        shift 2
+        ;;
+    -*)
+        echo "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        # Positional arguments
+        if [[ -z "$input_file1" ]]; then
+            input_file1="$1"
+        elif [[ -z "$input_file2" ]]; then
+            input_file2="$1"
+        elif [[ -z "$output_dir" ]]; then
+            output_dir="$1"
+        else
+            echo "Unexpected argument: $1"
             exit 1
-            ;;
-        *)
-            # Positional arguments
-            if [[ -z "$input_file1" ]]; then
-                input_file1="$1"
-            elif [[ -z "$input_file2" ]]; then
-                input_file2="$1"
-            elif [[ -z "$output_dir" ]]; then
-                output_dir="$1"
-            else
-                echo "Unexpected argument: $1"
-                exit 1
-            fi
-            shift
-            ;;
+        fi
+        shift
+        ;;
     esac
 done
 
@@ -76,7 +85,6 @@ if [[ -z "$input_file1" || -z "$input_file2" || -z "$output_dir" ]]; then
 fi
 
 mkdir -p "$output_dir"
-
 
 # extract date time from the input file name
 exif_date1=$(identify -format "%[EXIF:DateTimeOriginal]" "$input_file1" 2>/dev/null)
@@ -127,11 +135,11 @@ magick .tmp1.jpg -resize 400x480^ -gravity Center -extent 400x480 .tmp1.jpg
 magick .tmp2.jpg -resize 400x480^ -gravity Center -extent 400x480 .tmp2.jpg
 
 if [ -n "$exif_date1" ]; then
-    magick .tmp1.jpg -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +10+1 $exif_date1 .tmp1.jpg
+    magick .tmp1.jpg -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +10+1 $exif_date1 .tmp1.jpg
 fi
 
 if [ -n "$exif_date2" ]; then
-    magick .tmp2.jpg -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +10+1 $exif_date2 .tmp2.jpg
+    magick .tmp2.jpg -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +10+1 $exif_date2 .tmp2.jpg
 fi
 
 magick .tmp1.jpg .tmp2.jpg +append .tmp3.jpg
@@ -144,7 +152,6 @@ if [ "$type" = "grey" ]; then
     magick .tmp3.jpg -dither FloydSteinberg -remap pattern:gray50 .tmp3.gif
     magick .tmp3.gif -monochrome .tmp3.gif #monochrome
     magick .tmp3.gif -depth 8 -alpha off -compress none BMP3:$output_file
-    # magick .tmp3.gif -alpha Off $output_file # grey
 else
     # Convert to color using the provided palette
     magick .tmp3.jpg -dither FloydSteinberg -remap $palette .tmp3.gif
@@ -153,12 +160,10 @@ else
     # magick .tmp3.gif -alpha Off -type truecolor $output_file # 24-bit color
 
     # now extract the bmp image data into an array of bytes and save to a .cpp file
-    
+
 fi
 
-
 rm .tmp3.jpg
-
 
 rm .tmp3.gif
 

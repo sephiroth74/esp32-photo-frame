@@ -3,6 +3,7 @@
 
 #include "FS.h"
 #include "config.h"
+#include "errors.h"
 #include <Arduino.h>
 #include <SD.h>
 #include <SPI.h>
@@ -49,6 +50,10 @@ class SDCard {
         mosiPin(mosiPin),
         sckPin(sckPin),
         cardType(CARD_UNKNOWN) {}
+
+    // Disable copy constructor and assignment operator
+    SDCard(const SDCard&)            = delete;
+    SDCard& operator=(const SDCard&) = delete;
 
     photo_frame_error_t begin();
 

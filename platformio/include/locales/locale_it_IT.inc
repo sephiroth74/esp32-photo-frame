@@ -10,3 +10,4 @@ const char* TXT_SD_CARD_FILE_NOT_FOUND = "File della scheda SD non trovato";
 const char* TXT_SD_CARD_FILE_OPEN_FAILED = "Apertura del file della scheda SD fallita";
 const char* TXT_IMAGE_FORMAT_NOT_SUPPORTED = "Formato immagine non supportato";
 const char* TXT_ERROR_CODE = "Codice errore: ";
+const char* TXT_BATTERY_LEVEL_CRITICAL = "Livello batteria critico";

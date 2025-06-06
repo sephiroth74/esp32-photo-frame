@@ -1,5 +1,4 @@
 #include "renderer.h"
-#include <assets/icons/icons.h>
 
 #include FONT_HEADER
 
@@ -299,13 +298,23 @@ void drawMultiLnString(int16_t x,
     return;
 } // end drawMultiLnString
 
-void drawError(photo_frame_error error_type) {
-    if (error_type == error_type::None) {
+void drawError(photo_frame_error error) {
+    if (error == error_type::None) {
         Serial.println("drawError: No error to display");
         return;
     }
-    auto bitmap_196x196 = getBitmap(icon_name::error_icon, 196);
-    drawError(bitmap_196x196, String(error_type.message), "");
+
+    const unsigned char* bitmap_196x196;
+
+    if (error == error_type::NoSdCardAttached) {
+        bitmap_196x196 = getBitmap(icon_name::micro_sd_card_0deg, 196);
+    } else if (error == error_type::BatteryLevelCritical) {
+        bitmap_196x196 = getBitmap(icon_name::battery_alert_0deg, 196);
+    } else {
+        bitmap_196x196 = getBitmap(icon_name::error_icon, 196);
+    }
+
+    drawError(bitmap_196x196, String(error.message), "");
 }
 
 void drawErrorMessage(const gravity_t gravity, const uint8_t code) {
@@ -373,27 +382,95 @@ void drawError(const uint8_t* bitmap_196x196, const String& errMsgLn1, const Str
     return;
 } // end drawError
 
+void drawBatteryStatus(const uint32_t battery_voltage, const uint8_t battery_percentage) {
+    Serial.println("drawBatteryStatus: " + String(battery_voltage) + "V, " +
+                   String(battery_percentage) + "%");
+
+    // Draw battery icon
+    icon_name_t icon_name;
+
+    if (battery_percentage >= 100) {
+        icon_name = icon_name::battery_full_90deg;
+    } else if (battery_percentage >= 80) {
+        icon_name = icon_name::battery_6_bar_90deg;
+    } else if (battery_percentage >= 60) {
+        icon_name = icon_name::battery_5_bar_90deg;
+    } else if (battery_percentage >= 40) {
+        icon_name = icon_name::battery_4_bar_90deg;
+    } else if (battery_percentage >= 20) {
+        icon_name = icon_name::battery_3_bar_90deg;
+    } else if (battery_percentage >= 10) {
+        icon_name = icon_name::battery_2_bar_90deg;
+    } else {
+        icon_name = icon_name::battery_alert_90deg; // Critical battery
+    }
+
+    String message =
+        String(battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
+    drawSideMessageWithIcon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
+}
+
 void drawLastUpdate(const DateTime& lastUpdate, const char* refreshStr) {
     Serial.println("drawLastUpdate: " + lastUpdate.timestamp());
-
-    display.setFont(&FONT_6pt8b);
-
     char dateTimeBuffer[32] = {0}; // Buffer to hold formatted date and time
     formatDatetime(dateTimeBuffer, lastUpdate);
 
     String lastUpdateStr =
         String(dateTimeBuffer) + (refreshStr ? " (" + String(refreshStr) + ")" : "");
 
-    int16_t x1, y1;
-    uint16_t w, h;
-
-    display.getTextBounds(lastUpdateStr.c_str(), 0, 0, &x1, &y1, &w, &h);
-    // draw the wi_time_10 icon followed by last update time in the bottom left corner
-    display.drawInvertedBitmap(0, 0, wi_time_10_12x12, 12, 12, GxEPD_BLACK);
-    display.setTextColor(GxEPD_BLACK);
-    display.setCursor(0 + 12 + 2, -y1);
-    display.print(lastUpdateStr.c_str());
+    drawSideMessageWithIcon(gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateStr.c_str(), 0, -2);
 } // end drawLastUpdate
+
+void drawSideMessageWithIcon(gravity_t gravity,
+                             icon_name_t icon_name,
+                             const char* message,
+                             int32_t x_offset,
+                             int32_t y_offset) {
+    const uint16_t icon_size  = 16;
+    const unsigned char* icon = getBitmap(icon_name, icon_size); // ensure the icon is loaded
+    if (!icon) {
+        Serial.println("drawSizeMessageWithIcon: Icon not found");
+        return;
+    }
+
+    display.setFont(&FONT_7pt8b);
+    display.setTextColor(GxEPD_BLACK);
+    rect_t rect = getTextBounds(message, 0, 0);
+
+    int16_t x = 0, y = 0;
+    switch (gravity) {
+    case TOP_LEFT: {
+        x = 0;
+        y = -rect.y;
+        break;
+    }
+    case TOP_RIGHT: {
+        x = DISP_WIDTH - rect.width - 20;
+        y = -rect.y;
+        break;
+    }
+    case BOTTOM_LEFT: {
+        x = 0;
+        y = DISP_HEIGHT - rect.y;
+        break;
+    }
+    case BOTTOM_RIGHT: {
+        x = DISP_WIDTH - rect.width - 20;
+        y = DISP_HEIGHT - rect.y;
+        break;
+    }
+    default: {
+        Serial.println("drawSizeMessageWithIcon: Invalid gravity type");
+        return;
+    }
+    }
+
+    // Draw the icon
+    display.drawInvertedBitmap(
+        x + x_offset, y - y + y_offset, icon, icon_size, icon_size, GxEPD_BLACK);
+    // Draw the message next to the icon
+    drawString(x + icon_size + 2, y, message, GxEPD_BLACK);
+}
 
 bool drawBitmapFromFile(File& file, int16_t x, int16_t y, bool with_color) {
     if (!file) {

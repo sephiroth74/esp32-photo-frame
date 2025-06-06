@@ -8,11 +8,21 @@
 # Exit on error
 set -e
 
-pointsize=24
-font='UbuntuMono-Nerd-Font-Bold'
+# check if pointsize is set as environment variable
+if [ -z "$pointsize" ]; then
+    pointsize=20
+fi
+# check if font is set as environment variable
+if [ -z "$font" ]; then
+    font='UbuntuMono-Nerd-Font-Bold'
+fi
+# check if annotate_background is set as environment variable
+if [ -z "$annotate_background" ]; then
+    annotate_background='#00000080'
+fi
 
 # Check if ImageMagick is installed
-if ! command -v magick &> /dev/null; then
+if ! command -v magick &>/dev/null; then
     echo "ImageMagick could not be found. Please install it to use this script."
     exit 1
 fi
@@ -26,30 +36,30 @@ output_dir=""
 # Parse options
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -type)
-            type="$2"
-            shift 2
-            ;;
-        -palette)
-            palette="$2"
-            shift 2
-            ;;
-        -*)
-            echo "Unknown option: $1"
+    -type)
+        type="$2"
+        shift 2
+        ;;
+    -palette)
+        palette="$2"
+        shift 2
+        ;;
+    -*)
+        echo "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        # Positional arguments
+        if [[ -z "$input_file" ]]; then
+            input_file="$1"
+        elif [[ -z "$output_dir" ]]; then
+            output_dir="$1"
+        else
+            echo "Unexpected argument: $1"
             exit 1
-            ;;
-        *)
-            # Positional arguments
-            if [[ -z "$input_file" ]]; then
-                input_file="$1"
-            elif [[ -z "$output_dir" ]]; then
-                output_dir="$1"
-            else
-                echo "Unexpected argument: $1"
-                exit 1
-            fi
-            shift
-            ;;
+        fi
+        shift
+        ;;
     esac
 done
 
@@ -81,14 +91,12 @@ if [[ -z "$input_file" || -z "$output_dir" ]]; then
     exit 1
 fi
 
-
 # output_directory will be the same as input file directory
 # Create output directory if it doesn't exist
 mkdir -p "$output_dir"
 
 # output_file will be the input file name with .bmp extension
 output_file="${output_dir}/$(basename "$input_file" .jpg).bmp"
-
 
 if [ -z "$input_file" ] || [ -z "$output_file" ]; then
     echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input> <output_directory>"
@@ -116,18 +124,16 @@ if [ -z "$exif_date" ]; then
     exif_date=$(basename "$input_file" | sed 's/\.[^.]*$//') # remove extension
 fi
 
-
 if [ "$type" = "grey" ]; then
     magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -dither FloydSteinberg -remap pattern:gray50 -auto-orient .tmp.gif #grey
     if [ -n "$exif_date" ]; then
-        magick .tmp.gif -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.gif
+        magick .tmp.gif -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.gif
     fi
-    
+
     magick .tmp.gif -depth 8 -alpha off -compress none BMP3:$output_file
-    # magick .tmp.gif -alpha Off $output_file # grey
 else
     magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -dither FloydSteinberg -remap $palette -auto-orient .tmp.gif #colored
-    magick .tmp.gif -depth 8 -colors 256 -compress none BMP3:$output_file # 8-bit color
+    magick .tmp.gif -depth 8 -colors 256 -compress none BMP3:$output_file                                                            # 8-bit color
 fi
 
 rm .tmp.gif
