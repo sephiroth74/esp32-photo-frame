@@ -114,11 +114,17 @@ void drawError(const uint8_t* bitmap_196x196,
 
 void drawErrorMessage(const gravity_t gravity, const uint8_t code);
 
-void drawSideMessageWithIcon(gravity_t gravity, icon_name_t icon_name, const char* message, int32_t x_offset = 0, int32_t y_offset = 0);
+void drawSideMessageWithIcon(gravity_t gravity,
+                             icon_name_t icon_name,
+                             const char* message,
+                             int32_t x_offset = 0,
+                             int32_t y_offset = 0);
 
 void drawLastUpdate(const DateTime& lastUpdate, const char* refreshStr = nullptr);
 
-void drawBatteryStatus(const uint32_t battery_voltage, const uint8_t battery_percentage);
+void drawBatteryStatus(const uint32_t raw_value,
+                       const uint32_t battery_voltage,
+                       const uint8_t battery_percentage);
 
 bool drawBitmapFromFile(File& file, int16_t x = 0, int16_t y = 0, bool with_color = true);
 

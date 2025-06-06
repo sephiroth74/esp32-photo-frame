@@ -25,7 +25,7 @@ const uint8_t LEVEL_PWR_PIN            = A5;
 const uint8_t LEVEL_INPUT_PIN          = A4;
 
 const uint8_t BATTERY_PIN              = A0;
-const double BATTERY_RESISTORS_RATIO   = 0.502642493;
+const double BATTERY_RESISTORS_RATIO   = 0.502642493; // 0.4901176471
 
 const uint8_t BATTERY_PERCENT_EMPTY    = 5;
 const uint8_t BATTERY_PERCENT_CRITICAL = 10;
@@ -175,8 +175,8 @@ void print_config() {
     Serial.print(F("WIFI_FILENAME: "));
     Serial.println(WIFI_FILENAME);
 
-    Serial.print(F("PREFS_NAMESPACE: "));
-    Serial.println(PREFS_NAMESPACE);
+    Serial.print(F("HAS_RGB_LED: "));
+    Serial.println(HAS_RGB_LED ? "true" : "false");
 #endif // DEBUG_LOG
 }
 } // namespace photo_frame
