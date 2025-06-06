@@ -64,17 +64,24 @@ long read_refresh_seconds(bool is_battery_low = false) {
 }
 
 void setup() {
-    delay(1000);
     Serial.begin(115200);
+
+#if HAS_RGB_LED
+    Serial.println(F("Initializing RGB LED..."));
+    pinMode(LED_BLUE, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+#endif // HAS_RGB_LED
+
+    photo_frame::disable_built_in_led();
+    photo_frame::disable_rgb_led();
+    delay(1000);
+
     Serial.println(F("Initializing..."));
     Serial.println(F("Photo Frame v0.1.0"));
 
-    photo_frame::disable_rgb_led();
-    photo_frame::disable_built_in_led();
     photo_frame::print_board_stats();
     photo_frame::print_config();
-
-    delay(1000);
 
 #if DEBUG_LOG
     delay(2000);
@@ -104,8 +111,10 @@ void setup() {
         Serial.println(F("Battery is empty!"));
         Serial.println(F("Going to deep sleep..."));
 
+#if DEBUG_LOG
         delay(DELAY_BEFORE_SLEEP); // Wait before going to deep sleep
-        esp_deep_sleep_start();    // Put the ESP32 into deep sleep mode
+#endif
+        esp_deep_sleep_start(); // Put the ESP32 into deep sleep mode
 
         return; // Exit if battery is empty
     } else if (battery_info.is_critical()) {
@@ -141,7 +150,7 @@ void setup() {
 
     delay(100);
     photo_frame::renderer::initDisplay();
-    delay(1000);
+    delay(200);
 
     display.clearScreen();
 
@@ -323,7 +332,8 @@ void setup() {
             }
 
             photo_frame::renderer::drawLastUpdate(now, refreshStr.c_str());
-            photo_frame::renderer::drawBatteryStatus(battery_info.millivolts, battery_info.percent);
+            photo_frame::renderer::drawBatteryStatus(
+                battery_info.raw_value, battery_info.millivolts, battery_info.percent);
 
             // display.displayWindow(0, 0, display.width(), display.height()); // Display the
             // content in the partial window
@@ -336,13 +346,15 @@ void setup() {
     }
     sdCard.end(); // Close the SD card
 
-    delay(500); // Pause for 1 second
+    delay(500);
     photo_frame::renderer::powerOffDisplay();
 
-    /* #endregion e-Paper display */
+/* #endregion e-Paper display */
 
-    // Wait before going to sleep
+// Wait before going to sleep
+#if DEBUG_LOG
     delay(DELAY_BEFORE_SLEEP);
+#endif
 
     // now go to sleep
     if (!battery_info.is_critical() && refresh_microseconds > MICROSECONDS_IN_SECOND) {
@@ -360,4 +372,6 @@ void loop() {
     // The loop is intentionally left empty
     // All processing is done in the setup function
     // The ESP32 will wake up from deep sleep and run the setup function again
+
+    delay(1000); // Just to avoid watchdog reset
 }

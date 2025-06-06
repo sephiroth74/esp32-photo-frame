@@ -382,7 +382,9 @@ void drawError(const uint8_t* bitmap_196x196, const String& errMsgLn1, const Str
     return;
 } // end drawError
 
-void drawBatteryStatus(const uint32_t battery_voltage, const uint8_t battery_percentage) {
+void drawBatteryStatus(const uint32_t raw_value,
+                       const uint32_t battery_voltage,
+                       const uint8_t battery_percentage) {
     Serial.println("drawBatteryStatus: " + String(battery_voltage) + "V, " +
                    String(battery_percentage) + "%");
 
@@ -407,6 +409,11 @@ void drawBatteryStatus(const uint32_t battery_voltage, const uint8_t battery_per
 
     String message =
         String(battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
+
+#if DEBUG_LOG
+    message += " " + String(raw_value);
+#endif
+
     drawSideMessageWithIcon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
 }
 

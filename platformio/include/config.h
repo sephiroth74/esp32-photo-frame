@@ -73,7 +73,7 @@ extern const uint8_t BATTERY_PERCENT_LOW;
 #define LED_BUILTIN 2 // Built-in LED pin for ESP32
 #endif                // LED_BUILTIN
 
-#define DELAY_BEFORE_SLEEP 10000 // Delay before going to sleep in milliseconds
+#define DELAY_BEFORE_SLEEP 5000 // Delay before going to sleep in milliseconds
 
 // Wifi
 // In case the RTC module lost power, the WiFi credentials will be read from the SD card
@@ -137,9 +137,15 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 
 #define PREFS_NAMESPACE "photo_frame"
 
+// Checks if has rgb leds defined
+#ifdef ARDUINO_ARCH_ESP32
+#define HAS_RGB_LED 1
+#else
+#define HAS_RGB_LED 0
+#endif // HAS_RGB_LED
+
 namespace photo_frame {
 void print_config();
 } // namespace photo_frame
-
 
 #endif // __PHOTO_FRAME_CONFIG_H__
