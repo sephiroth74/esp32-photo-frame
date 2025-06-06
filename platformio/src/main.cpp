@@ -69,6 +69,7 @@ void setup() {
     Serial.println(F("Initializing..."));
     Serial.println(F("Photo Frame v0.1.0"));
 
+    photo_frame::disable_rgb_led();
     photo_frame::disable_built_in_led();
     photo_frame::print_board_stats();
     photo_frame::print_config();
