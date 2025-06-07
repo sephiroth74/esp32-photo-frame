@@ -31,19 +31,7 @@ const uint8_t BATTERY_PERCENT_EMPTY    = 5;
 const uint8_t BATTERY_PERCENT_CRITICAL = 10;
 const uint8_t BATTERY_PERCENT_LOW      = 25;
 
-// const uint8_t SD_CS_PIN     = 5;
-// const uint8_t SD_MISO_PIN   = 4;
-// const uint8_t SD_MOSI_PIN   = 16;
-// const uint8_t SD_SCK_PIN    = 18; // SCK (CLK) pin for SD card
-
-// const uint8_t EPD_CS_PIN    = 15;
-// const uint8_t EPD_DC_PIN    = 27;
-// const uint8_t EPD_RST_PIN   = 26;
-// const uint8_t EPD_BUSY_PIN  = 25;
-// const uint8_t EPD_MISO_PIN  = MISO; // MISO // 19
-// const uint8_t EPD_MOSI_PIN  = MOSI; // MOSI (DIN)  // 23
-// const uint8_t EPD_SCK_PIN   = 13;
-// const uint8_t EPD_PWR_PIN   = 0; // Power pin for e-Paper display
+const char* WIFI_FILENAME              = "/wifi.txt";
 
 #if defined(ESP32)
 const uint16_t LEVEL_INPUT_MAX = 4095; // Maximum value for the level input pin (12-bit ADC)

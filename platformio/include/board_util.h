@@ -5,6 +5,11 @@
 #include <Arduino.h>
 
 namespace photo_frame {
+
+void print_wakeup_reason();
+
+void enter_deep_sleep();
+
 void print_board_stats();
 
 void disable_rgb_led();

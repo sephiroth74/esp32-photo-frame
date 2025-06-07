@@ -80,8 +80,9 @@ void setup() {
     Serial.println(F("Initializing..."));
     Serial.println(F("Photo Frame v0.1.0"));
 
+    photo_frame::print_wakeup_reason();
     photo_frame::print_board_stats();
-    photo_frame::print_config();
+    // photo_frame::print_config();
 
 #if DEBUG_LOG
     delay(2000);
@@ -109,14 +110,8 @@ void setup() {
 
     if (battery_info.is_empty()) {
         Serial.println(F("Battery is empty!"));
-        Serial.println(F("Going to deep sleep..."));
-
-#if DEBUG_LOG
-        delay(DELAY_BEFORE_SLEEP); // Wait before going to deep sleep
-#endif
-        esp_deep_sleep_start(); // Put the ESP32 into deep sleep mode
-
-        return; // Exit if battery is empty
+        photo_frame::enter_deep_sleep(); // Enter deep sleep mode
+        return;                          // Exit if battery is empty
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
         error = photo_frame::error_type::BatteryLevelCritical;
@@ -349,22 +344,19 @@ void setup() {
     delay(500);
     photo_frame::renderer::powerOffDisplay();
 
-/* #endregion e-Paper display */
+    /* #endregion e-Paper display */
 
-// Wait before going to sleep
-#if DEBUG_LOG
-    delay(DELAY_BEFORE_SLEEP);
-#endif
+    // Wait before going to sleep
 
     // now go to sleep
     if (!battery_info.is_critical() && refresh_microseconds > MICROSECONDS_IN_SECOND) {
         Serial.print(F("Going to sleep for "));
         Serial.print(refresh_seconds, DEC);
         Serial.println(F(" seconds..."));
-        esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 1);         // wake up on GPIO 0
         esp_sleep_enable_timer_wakeup(refresh_microseconds); // wake up after the refresh interval
     }
-    esp_deep_sleep_start();
+
+    photo_frame::enter_deep_sleep();
 }
 
 void loop() {
