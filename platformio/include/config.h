@@ -73,7 +73,9 @@ extern const uint8_t BATTERY_PERCENT_LOW;
 #define LED_BUILTIN 2 // Built-in LED pin for ESP32
 #endif                // LED_BUILTIN
 
-#define DELAY_BEFORE_SLEEP 8000 // Delay before going to sleep in milliseconds
+// Delay before going to sleep in milliseconds (when in debug mode or coming back from sleep without
+// a wakeup reason)
+#define DELAY_BEFORE_SLEEP 20000
 
 // Wifi
 // In case the RTC module lost power, the WiFi credentials will be read from the SD card
@@ -97,7 +99,11 @@ extern const char* WIFI_FILENAME; // Filename for WiFi credentials inside the SD
 extern const uint8_t ACCENT_COLOR; // Accent color for the display
 
 // Miscellaneous
-#define DEBUG_LOG              1 // Enable debug logging (0 = off, 1 = on)
+
+// Toggle debug mode (0 = off, 1 = on)
+// When is on, for instance, the display will also print the battery raw value and there will be a
+// delay before entering deep sleep
+#define DEBUG_MODE             0
 
 #define MICROSECONDS_IN_SECOND 1000000
 #define SECONDS_IN_MINUTE      60

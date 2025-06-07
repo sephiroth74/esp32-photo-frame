@@ -402,7 +402,7 @@ void drawBatteryStatus(const uint32_t raw_value,
     String message =
         String(battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
 
-#if DEBUG_LOG
+#if DEBUG_MODE
     message += " " + String(raw_value);
 #endif
 

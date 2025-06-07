@@ -82,7 +82,7 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 
 namespace photo_frame {
 void print_config() {
-#if DEBUG_LOG
+#if DEBUG_MODE
     Serial.println(F("Configuration:"));
     Serial.print(F("SD_CS_PIN: "));
     Serial.println(SD_CS_PIN);
@@ -165,6 +165,6 @@ void print_config() {
 
     Serial.print(F("HAS_RGB_LED: "));
     Serial.println(HAS_RGB_LED ? "true" : "false");
-#endif // DEBUG_LOG
+#endif // DEBUG_MODE
 }
 } // namespace photo_frame
