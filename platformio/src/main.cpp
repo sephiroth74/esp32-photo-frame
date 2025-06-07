@@ -45,7 +45,7 @@ long read_refresh_seconds(bool is_battery_low = false) {
     digitalWrite(LEVEL_PWR_PIN, LOW); // Power off the level shifter
     level /= 10;                      // Average the result
 
-#if DEBUG_LOG
+#if DEBUG_MODE
     Serial.print(F("Raw level input pin reading: "));
     Serial.println(level);
 #endif
@@ -80,11 +80,11 @@ void setup() {
     Serial.println(F("Initializing..."));
     Serial.println(F("Photo Frame v0.1.0"));
 
-    photo_frame::print_wakeup_reason();
+    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::get_wakeup_reason();
     photo_frame::print_board_stats();
-    // photo_frame::print_config();
+    photo_frame::print_config();
 
-#if DEBUG_LOG
+#if DEBUG_MODE
     delay(2000);
 #endif
 
@@ -110,8 +110,8 @@ void setup() {
 
     if (battery_info.is_empty()) {
         Serial.println(F("Battery is empty!"));
-        photo_frame::enter_deep_sleep(); // Enter deep sleep mode
-        return;                          // Exit if battery is empty
+        photo_frame::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
+        return;                                       // Exit if battery is empty
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
         error = photo_frame::error_type::BatteryLevelCritical;
@@ -145,7 +145,7 @@ void setup() {
 
     delay(100);
     photo_frame::renderer::initDisplay();
-    delay(200);
+    delay(100);
 
     display.clearScreen();
 
@@ -173,7 +173,7 @@ void setup() {
             default:           Serial.println(F("Unknown card type!")); break;
             }
 
-#if DEBUG_LOG
+#if DEBUG_MODE
             sdCard.printStats(); // Print SD card statistics
 #endif
 
@@ -230,7 +230,7 @@ void setup() {
     if (!battery_info.is_critical() && now.isValid()) {
         refresh_seconds = read_refresh_seconds(battery_info.is_low());
 
-#if DEBUG_LOG
+#if DEBUG_MODE
         Serial.print(F("Refresh seconds read from level input pin: "));
         Serial.println(refresh_seconds);
 #endif
@@ -356,7 +356,7 @@ void setup() {
         esp_sleep_enable_timer_wakeup(refresh_microseconds); // wake up after the refresh interval
     }
 
-    photo_frame::enter_deep_sleep();
+    photo_frame::enter_deep_sleep(wakeup_reason);
 }
 
 void loop() {

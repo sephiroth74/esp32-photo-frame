@@ -7,14 +7,15 @@
 namespace photo_frame {
 
 /**
- * Prints the reason for the last wakeup from deep sleep.
+ * Gets and prints the reason for the last wakeup from deep sleep.
  */
-void print_wakeup_reason();
+esp_sleep_wakeup_cause_t get_wakeup_reason();
 
 /**
  * Enters deep sleep mode, disabling peripherals and LEDs to save power.
+ * @param wakeup_reason The reason for waking up, which can be used to determine the next action.
  */
-void enter_deep_sleep();
+void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
  * Prints various statistics about the board, including heap size, flash size, free heap, free

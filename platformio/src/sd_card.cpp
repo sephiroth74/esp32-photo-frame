@@ -36,7 +36,7 @@ photo_frame_error_t scan_directory(uint32_t* index,
 
             String file_name = entry.substring(entry.lastIndexOf('/') + 1);
 
-#if DEBUG_LOG
+#if DEBUG_MODE
             Serial.print(current_index);
             Serial.print(F(") "));
             Serial.print(entry);
@@ -44,12 +44,12 @@ photo_frame_error_t scan_directory(uint32_t* index,
 #endif
 
             if (file_name.startsWith(".") || entry.endsWith(extension) == false) {
-#if DEBUG_LOG
+#if DEBUG_MODE
                 Serial.println("skipping");
 #endif
                 continue;
             } else {
-#if DEBUG_LOG
+#if DEBUG_MODE
                 Serial.println(F("ok"));
 #endif
             }

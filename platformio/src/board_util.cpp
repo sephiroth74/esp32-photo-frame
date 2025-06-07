@@ -4,7 +4,7 @@
 
 namespace photo_frame {
 
-void enter_deep_sleep() {
+void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
     Serial.println(F("Entering deep sleep..."));
     disable_rgb_led();      // Disable RGB LED before going to sleep
     disable_built_in_led(); // Disable built-in LED before going to sleep
@@ -24,13 +24,22 @@ void enter_deep_sleep() {
         ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG); // Disable COCPU trap trigger wakeup source
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT); // Disable Bluetooth wakeup source
 
-#if DEBUG_LOG
-    delay(DELAY_BEFORE_SLEEP);
+    bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+
+#if DEBUG_MODE
+    delay_before_sleep = true;
 #endif
+
+    if (delay_before_sleep) {
+        Serial.println(
+            F("Wakeup reason is undefined or debug mode is on, delaying before sleep..."));
+        delay(DELAY_BEFORE_SLEEP);
+    }
+
     esp_deep_sleep_start();
 }
 
-void print_wakeup_reason() {
+esp_sleep_wakeup_cause_t get_wakeup_reason() {
     esp_sleep_wakeup_cause_t wakeup_reason;
 
     wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -42,11 +51,17 @@ void print_wakeup_reason() {
     case ESP_SLEEP_WAKEUP_EXT1:
         Serial.println("Wakeup caused by external signal using RTC_CNTL");
         break;
-    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
-    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
-    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+    case ESP_SLEEP_WAKEUP_TIMER:           Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD:        Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_GPIO:            Serial.println("Wakeup caused by GPIO (light sleep only)"); break;
+    case ESP_SLEEP_WAKEUP_UART:            Serial.println("Wakeup caused by UART (light sleep only)"); break;
+    case ESP_SLEEP_WAKEUP_WIFI:            Serial.println("Wakeup caused by WiFi (light sleep only)"); break;
+    case ESP_SLEEP_WAKEUP_COCPU:           Serial.println("Wakeup caused by COCPU int"); break;
+    case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG: Serial.println("Wakeup caused by COCPU crash"); break;
+    case ESP_SLEEP_WAKEUP_ULP:             Serial.println("Wakeup caused by ULP program"); break;
+    default:                               Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
     }
+    return wakeup_reason;
 }
 
 void print_board_stats() {
