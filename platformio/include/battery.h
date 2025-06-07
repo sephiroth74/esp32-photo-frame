@@ -6,6 +6,13 @@
 
 namespace battery {
 
+/**
+ * Calculates the battery percentage based on the voltage.
+ * @param v The voltage in millivolts.
+ * @return The battery percentage (0-100).
+ */
+uint8_t calc_battery_percentage(uint32_t v);
+
 typedef struct battery_step {
     uint8_t percent;
     uint16_t voltage;
@@ -29,25 +36,28 @@ typedef struct battery_info {
     constexpr battery_info() : raw_value(0), millivolts(0), percent(0) {}
 
     constexpr battery_info(const battery_step_t& step) :
-        raw_value(step.voltage), millivolts(step.voltage), percent(step.percent) {}
+        raw_value(step.voltage),
+        millivolts(step.voltage),
+        percent(step.percent) {}
 
     constexpr bool operator==(const battery_info& other) const {
         return (raw_value == other.raw_value && millivolts == other.millivolts &&
                 percent == other.percent);
     }
 
-    static inline constexpr battery_info empty() {
-        return battery_info{raw_value : 0, millivolts : 0, percent : 0};
-    }
+    static inline constexpr battery_info empty() { return battery_info(0, 0, 0); }
 
     bool is_low() const;
+
     bool is_critical() const;
+
     bool is_empty() const;
 
     static battery_info fromMv(uint32_t mv);
 
 } battery_info_t;
 
+// Battery steps for voltage to percentage mapping
 constexpr battery_step_t steps[21] = {
     battery_step(0, 3270),   battery_step(5, 3610),  battery_step(10, 3690), battery_step(15, 3710),
     battery_step(20, 3730),  battery_step(25, 3750), battery_step(30, 3770), battery_step(35, 3790),
@@ -75,56 +85,17 @@ class BatteryReader {
         num_readings(num_readings),
         delay_between_readings(delay) {}
 
-    void init() const {
-        Serial.print(F("Initializing BatteryReader on pin "));
-        Serial.println(pin);
-        pinMode(pin, INPUT);
-        // Set the pin to use the ADC with no attenuation
-        analogSetPinAttenuation(pin, ADC_11db);
-    }
+    /**
+     * Initializes the battery reader by setting the pin mode and ADC attenuation.
+     */
+    void init() const;
 
-    battery_info_t read() const {
-        uint32_t millivolts = 0;
-        uint32_t raw        = 0;
-        for (int i = 0; i < num_readings; i++) {
-            raw += analogRead(pin);
-            millivolts += analogReadMilliVolts(pin);
-            delay(delay_between_readings);
-        }
-
-        raw /= num_readings;
-        millivolts /= num_readings;
-        uint32_t voltage = millivolts / resistor_ratio;
-        uint8_t percent  = BatteryReader::calc_battery_percentage(voltage);
-
-        Serial.print("raw: ");
-        Serial.print(raw);
-        Serial.print(", millivolts: ");
-        Serial.print(millivolts);
-        Serial.print(", voltage: ");
-        Serial.print(voltage);
-        Serial.print(", percent: ");
-        Serial.println(percent);
-
-        return battery_info{raw_value : millivolts, millivolts : voltage, percent : percent};
-    }
-
-    static uint8_t calc_battery_percentage(uint32_t v) {
-
-        if (v >= steps[total_steps - 1].voltage)
-            return steps[total_steps - 1].percent;
-        if (v <= steps[0].voltage)
-            return steps[0].percent;
-
-        for (int8_t i = total_steps - 1; i > 0; i--) {
-            battery_step_t current  = steps[i];
-            battery_step_t previous = steps[i - 1];
-            if (v >= previous.voltage && v <= current.voltage) {
-                return map(v, previous.voltage, current.voltage, previous.percent, current.percent);
-            }
-        }
-        return 0;
-    }
+    /**
+     * Reads the battery voltage and returns a battery_info_t structure containing
+     * the raw value, millivolts, and percentage.
+     * @return A battery_info_t structure with the battery information.
+     */
+    battery_info_t read() const;
 
 }; // BatteryReader
 
