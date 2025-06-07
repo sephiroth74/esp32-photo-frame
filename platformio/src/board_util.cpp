@@ -10,9 +10,19 @@ void enter_deep_sleep() {
     disable_built_in_led(); // Disable built-in LED before going to sleep
 
     Serial.println(F("Disabling peripherals..."));
-    btStop();                                              // Stop Bluetooth to save power
-    esp_bt_controller_disable();                           // Disable Bluetooth controller
-    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL); // Disable all wakeup sources
+    btStop();                                                   // Stop Bluetooth to save power
+    esp_bt_controller_disable();                                // Disable Bluetooth controller
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT0);     // Disable external wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT1);     // Disable external wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD); // Disable touchpad wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ULP);      // Disable ULP wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);     // Disable GPIO wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_UART);     // Disable UART wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_WIFI);     // Disable WiFi wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_COCPU);    // Disable COCPU wakeup source
+    esp_sleep_disable_wakeup_source(
+        ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG); // Disable COCPU trap trigger wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT); // Disable Bluetooth wakeup source
 
 #if DEBUG_LOG
     delay(DELAY_BEFORE_SLEEP);
@@ -63,7 +73,7 @@ void print_board_stats() {
 
 void disable_rgb_led() {
 #if HAS_RGB_LED
-    Serial.print(F("Disabling RGB LED"));
+    Serial.println(F("Disabling RGB LED..."));
     digitalWrite(LED_BLUE, LOW);
     digitalWrite(LED_GREEN, LOW);
     digitalWrite(LED_RED, LOW); // Disable the RGB LED
@@ -105,18 +115,18 @@ void blink_builtin_led(photo_frame_error_t error) {
     Serial.print(F("Blink count: "));
     Serial.println(error.blink_count);
 
-    blink_builtin_led(error.blink_count, 200);
+    blink_builtin_led(error.blink_count);
 } // blink_builtin_led with error code
 
-void blink_builtin_led(int count, uint32_t delay_ms) {
+void blink_builtin_led(int count, uint32_t on_ms, uint32_t off_ms) {
 #if defined(LED_BUILTIN)
     Serial.println(F("Blinking built-in LED..."));
     pinMode(LED_BUILTIN, OUTPUT);
     for (int i = 0; i < count; i++) {
         digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
-        delay(delay_ms);
+        delay(on_ms);
         digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
-        delay(delay_ms);
+        delay(off_ms);
     }
 #else
     Serial.println(F("LED_BUILTIN is not defined! Cannot blink the built-in LED."));

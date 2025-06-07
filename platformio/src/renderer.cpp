@@ -139,15 +139,7 @@ void powerOffDisplay() {
     return;
 } // end initDisplay
 
-void clearScreen(uint8_t value) { display.clearScreen(value); }
-
 void refresh(bool partial_update_mode) { display.refresh(partial_update_mode); }
-
-void firstPage() { display.firstPage(); }
-
-bool nextPage() { return display.nextPage(); }
-
-void setFullWindow() { display.setFullWindow(); }
 
 void fillScreen(uint16_t color) { display.fillScreen(color); }
 
