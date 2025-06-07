@@ -4,24 +4,24 @@
 #define X_LOCALE(code) STR(code)
 
 const uint8_t SD_CS_PIN                = D6;
-const uint8_t SD_MISO_PIN              = D3;
+const uint8_t SD_MISO_PIN              = D4;
 const uint8_t SD_MOSI_PIN              = D5;
-const uint8_t SD_SCK_PIN               = D4;
+const uint8_t SD_SCK_PIN               = D3;
 
 const uint8_t EPD_CS_PIN               = D7;
 const uint8_t EPD_DC_PIN               = D8;
 const uint8_t EPD_RST_PIN              = D9;
 const uint8_t EPD_BUSY_PIN             = D10;
-const uint8_t EPD_MISO_PIN             = D12; // MISO
+const uint8_t EPD_MISO_PIN             = 0; // MISO
 const uint8_t EPD_MOSI_PIN             = D11; // MOSI (DIN)
-const uint8_t EPD_SCK_PIN              = D13;
+const uint8_t EPD_SCK_PIN              = D12;
 const uint8_t EPD_PWR_PIN              = 0;
 
 const uint8_t RTC_SDA_PIN              = A6;
 const uint8_t RTC_SCL_PIN              = A7;
-const uint8_t RTC_POWER_PIN            = A3;
+const uint8_t RTC_POWER_PIN            = A5;
 
-const uint8_t LEVEL_PWR_PIN            = A5;
+const uint8_t LEVEL_PWR_PIN            = A3;
 const uint8_t LEVEL_INPUT_PIN          = A4;
 
 const uint8_t BATTERY_PIN              = A0;
