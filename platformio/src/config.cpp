@@ -25,7 +25,7 @@ const uint8_t LEVEL_PWR_PIN            = A5;
 const uint8_t LEVEL_INPUT_PIN          = A4;
 
 const uint8_t BATTERY_PIN              = A0;
-const double BATTERY_RESISTORS_RATIO   = 0.502642493; // 0.4901176471
+const double BATTERY_RESISTORS_RATIO   = 0.4910588235; //0.502642493; // 0.4901176471
 
 const uint8_t BATTERY_PERCENT_EMPTY    = 5;
 const uint8_t BATTERY_PERCENT_CRITICAL = 10;
