@@ -111,6 +111,8 @@ void SDCard::end() {
         SD.end();
         hspi.end();
         initialized = false;
+    } else {
+        Serial.println("SD card not initialized, nothing to end.");
     }
 } // end end
 

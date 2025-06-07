@@ -44,6 +44,8 @@ DateTime fetch_remote_datetime(SDCard& sdCard) {
     if (connection_status != WL_CONNECTED) {
         Serial.println(F("Failed to connect to WiFi!"));
         Serial.println(F("Please check your WiFi credentials."));
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
         return result;
     } else {
         Serial.println(F("Connected to WiFi!"));
@@ -66,6 +68,8 @@ DateTime fetch_remote_datetime(SDCard& sdCard) {
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo, NTP_TIMEOUT)) {
         Serial.println(F("Failed to obtain time from NTP server!"));
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
         return result;
     }
 
@@ -76,7 +80,8 @@ DateTime fetch_remote_datetime(SDCard& sdCard) {
                       timeinfo.tm_min,
                       timeinfo.tm_sec);
 
-    WiFi.disconnect();
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
     return result;
 } // featch_remote_datetime
 

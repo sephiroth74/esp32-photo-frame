@@ -1,6 +1,43 @@
 #include "board_util.h"
+#include "driver/adc.h"
+#include "esp_bt.h"
 
 namespace photo_frame {
+
+void enter_deep_sleep() {
+    Serial.println(F("Entering deep sleep..."));
+    disable_rgb_led();      // Disable RGB LED before going to sleep
+    disable_built_in_led(); // Disable built-in LED before going to sleep
+
+    Serial.println(F("Disabling peripherals..."));
+    btStop();                                              // Stop Bluetooth to save power
+    esp_bt_controller_disable();                           // Disable Bluetooth controller
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL); // Disable all wakeup sources
+
+#if DEBUG_LOG
+    delay(DELAY_BEFORE_SLEEP);
+#endif
+    esp_deep_sleep_start();
+}
+
+void print_wakeup_reason() {
+    esp_sleep_wakeup_cause_t wakeup_reason;
+
+    wakeup_reason = esp_sleep_get_wakeup_cause();
+
+    switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0:
+        Serial.println("Wakeup caused by external signal using RTC_IO");
+        break;
+    case ESP_SLEEP_WAKEUP_EXT1:
+        Serial.println("Wakeup caused by external signal using RTC_CNTL");
+        break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
+    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+    }
+}
 
 void print_board_stats() {
     Serial.print("Heap:");

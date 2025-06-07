@@ -73,7 +73,7 @@ extern const uint8_t BATTERY_PERCENT_LOW;
 #define LED_BUILTIN 2 // Built-in LED pin for ESP32
 #endif                // LED_BUILTIN
 
-#define DELAY_BEFORE_SLEEP 5000 // Delay before going to sleep in milliseconds
+#define DELAY_BEFORE_SLEEP 8000 // Delay before going to sleep in milliseconds
 
 // Wifi
 // In case the RTC module lost power, the WiFi credentials will be read from the SD card
