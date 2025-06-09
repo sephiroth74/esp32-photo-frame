@@ -1,40 +1,43 @@
 #include "config.h"
 
-#define STR(s)         #s
+#define STR(s) #s
 #define X_LOCALE(code) STR(code)
 
-const uint8_t SD_CS_PIN                = D6;
-const uint8_t SD_MISO_PIN              = D4;
-const uint8_t SD_MOSI_PIN              = D5;
-const uint8_t SD_SCK_PIN               = D3;
+const uint8_t SD_CS_PIN = D6;
+const uint8_t SD_MISO_PIN = D4;
+const uint8_t SD_MOSI_PIN = D5;
+const uint8_t SD_SCK_PIN = D3;
 
-const uint8_t EPD_CS_PIN               = D7;
-const uint8_t EPD_DC_PIN               = D8;
-const uint8_t EPD_RST_PIN              = D9;
-const uint8_t EPD_BUSY_PIN             = D10;
-const uint8_t EPD_MISO_PIN             = 0; // MISO
-const uint8_t EPD_MOSI_PIN             = D11; // MOSI (DIN)
-const uint8_t EPD_SCK_PIN              = D12;
-const uint8_t EPD_PWR_PIN              = 0;
+const uint8_t EPD_CS_PIN = D7;
+const uint8_t EPD_DC_PIN = D8;
+const uint8_t EPD_RST_PIN = D9;
+const uint8_t EPD_BUSY_PIN = D10;
+const uint8_t EPD_MISO_PIN = 0; // MISO
+const uint8_t EPD_MOSI_PIN = D11; // MOSI (DIN)
+const uint8_t EPD_SCK_PIN = D12;
+const uint8_t EPD_PWR_PIN = 0;
 
-const uint8_t RTC_SDA_PIN              = A6;
-const uint8_t RTC_SCL_PIN              = A7;
-const uint8_t RTC_POWER_PIN            = A5;
+const uint8_t RTC_SDA_PIN = A6;
+const uint8_t RTC_SCL_PIN = A7;
+const uint8_t RTC_POWER_PIN = A5;
 
-const uint8_t LEVEL_PWR_PIN            = A3;
-const uint8_t LEVEL_INPUT_PIN          = A4;
+const uint8_t POTENTIOMETER_PWR_PIN = A3;
+const uint8_t POTENTIOMETER_INPUT_PIN = A4;
 
-const uint8_t BATTERY_PIN              = A0;
-const double BATTERY_RESISTORS_RATIO   = 0.4910588235; //0.502642493; // 0.4901176471
+const uint8_t BATTERY_PIN = A0;
+const double BATTERY_RESISTORS_RATIO = 0.4910588235; // 0.502642493; // 0.4901176471
 
-const uint8_t BATTERY_PERCENT_EMPTY    = 5;
+const uint32_t BATTERY_CHARGING_MILLIVOLTS = 4300; // Millivolts above which the battery is considered charging
+const uint8_t BATTERY_PERCENT_EMPTY = 5;
 const uint8_t BATTERY_PERCENT_CRITICAL = 10;
-const uint8_t BATTERY_PERCENT_LOW      = 25;
+const uint8_t BATTERY_PERCENT_LOW = 25;
 
-const char* WIFI_FILENAME              = "/wifi.txt";
+const char* WIFI_FILENAME = "/wifi.txt";
+
+const char* TOC_FILENAME = "/toc.txt";
 
 #if defined(ESP32)
-const uint16_t LEVEL_INPUT_MAX = 4095; // Maximum value for the level input pin (12-bit ADC)
+const uint16_t POTENTIOMETER_INPUT_MAX = 4095; // Maximum value for the level input pin (12-bit ADC)
 #else
 const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit ADC)
 #endif // ESP32
@@ -48,13 +51,11 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 #endif // DAY_END_HOUR
 
 // validate REFRESH_MIN_INTERVAL_SECONDS and REFRESH_MAX_INTERVAL_SECONDS
-#if (REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) ||                                     \
-     REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR))
+#if (REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) || REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR))
 #error "REFRESH_MIN_INTERVAL_SECONDS must be between 5 minutes and 2 hours"
 #endif // REFRESH_MIN_INTERVAL_SECONDS
 
-#if (REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) ||                                    \
-     REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR))
+#if (REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) || REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR))
 #error "REFRESH_MAX_INTERVAL_SECONDS must be between 10 minutes and 4 hours"
 #endif // REFRESH_MAX_INTERVAL_SECONDS
 
@@ -63,7 +64,7 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 #endif // REFRESH_MIN_INTERVAL_SECONDS > REFRESH_MAX_INTERVAL_SECONDS
 
 #if (REFRESH_MAX_INTERVAL_SECONDS > ((24 - DAY_END_HOUR) + DAY_START_HOUR) * SECONDS_IN_HOUR)
-#error                                                                                             \
+#error \
     "REFRESH_MAX_INTERVAL_SECONDS must be less than or equal to the number of seconds between DAY_START_HOUR and DAY_END_HOUR"
 #endif // REFRESH_MAX_INTERVAL_SECONDS > (DAY_END_HOUR - DAY_START_HOUR) * SECONDS_IN_HOUR
 
@@ -81,7 +82,8 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 #include "config.local"
 
 namespace photo_frame {
-void print_config() {
+void print_config()
+{
 #if DEBUG_MODE
     Serial.println(F("Configuration:"));
     Serial.print(F("SD_CS_PIN: "));
@@ -165,6 +167,10 @@ void print_config() {
 
     Serial.print(F("HAS_RGB_LED: "));
     Serial.println(HAS_RGB_LED ? "true" : "false");
+
+    Serial.print(F("TOC_FILENAME: "));
+    Serial.println(TOC_FILENAME);
+    Serial.println(F("-----------------------------"));
 #endif // DEBUG_MODE
 }
 } // namespace photo_frame

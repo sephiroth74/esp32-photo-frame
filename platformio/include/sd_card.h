@@ -11,17 +11,24 @@
 namespace photo_frame {
 
 class SdCardEntry {
-  public:
+public:
     String name;
     String path;
     uint32_t index;
 
-    SdCardEntry() : name(""), path(""), index(0) {}
+    SdCardEntry()
+        : name("")
+        , path("")
+        , index(0)
+    {
+    }
 
-    SdCardEntry(const char* name, const char* path, uint32_t index) :
-        name(name),
-        path(path),
-        index(index) {}
+    SdCardEntry(const char* name, const char* path, uint32_t index)
+        : name(name)
+        , path(path)
+        , index(index)
+    {
+    }
 
     String to_string() const { return name + " | " + path + " | " + String(index); }
 
@@ -29,7 +36,7 @@ class SdCardEntry {
 };
 
 class SDCard {
-  private:
+private:
     SPIClass hspi; // SPI object for SD card
     bool initialized;
     uint8_t csPin;
@@ -38,21 +45,23 @@ class SDCard {
     uint8_t sckPin;
     sdcard_type_t cardType;
 
-  public:
-    SDCard(uint8_t csPin   = SD_CS_PIN,
-           uint8_t misoPin = SD_MISO_PIN,
-           uint8_t mosiPin = SD_MOSI_PIN,
-           uint8_t sckPin  = SD_SCK_PIN) :
-        hspi(HSPI),
-        initialized(false),
-        csPin(csPin),
-        misoPin(misoPin),
-        mosiPin(mosiPin),
-        sckPin(sckPin),
-        cardType(CARD_UNKNOWN) {}
+public:
+    SDCard(uint8_t csPin = SD_CS_PIN,
+        uint8_t misoPin = SD_MISO_PIN,
+        uint8_t mosiPin = SD_MOSI_PIN,
+        uint8_t sckPin = SD_SCK_PIN)
+        : hspi(HSPI)
+        , initialized(false)
+        , csPin(csPin)
+        , misoPin(misoPin)
+        , mosiPin(mosiPin)
+        , sckPin(sckPin)
+        , cardType(CARD_UNKNOWN)
+    {
+    }
 
     // Disable copy constructor and assignment operator
-    SDCard(const SDCard&)            = delete;
+    SDCard(const SDCard&) = delete;
     SDCard& operator=(const SDCard&) = delete;
 
     /**
@@ -76,19 +85,75 @@ class SDCard {
     /**
      * Checks if the SD card is initialized.
      */
-    bool isInitialized() const { return initialized; }
+    bool is_initialized() const { return initialized; }
 
     /**
      * Returns the type of the SD card.
      * @return sdcard_type_t representing the type of the SD card.
      * If the SD card is not initialized, it returns CARD_NONE.
      */
-    sdcard_type_t getCardType() const {
+    sdcard_type_t get_card_type() const
+    {
         if (!initialized) {
             return CARD_NONE;
         }
         return cardType;
     }
+
+    void print_card_type() const
+    {
+        Serial.print("Card Type: ");
+        switch (cardType) {
+        case CARD_MMC:
+            Serial.println("MMC");
+            break;
+        case CARD_SD:
+            Serial.println("SDSC");
+            break;
+        case CARD_SDHC:
+            Serial.println("SDHC");
+            break;
+        case CARD_UNKNOWN:
+            Serial.println("Unknown");
+            break;
+        case CARD_NONE:
+            Serial.println("No SD card attached!");
+            break;
+        default:
+            Serial.println("Unknown card type!");
+            break;
+        }
+    }
+
+    /**
+     * Checks if a file exists on the SD card.
+     * @param path The path to the file to check.
+     * @return true if the file exists, false otherwise.
+     */
+    bool file_exists(const char* path) const;
+
+    /**
+     * List all files in the root directory of the SD card with the specified extension.
+     * Then writes a table of contents (TOC) file named "toc.txt" in the root directory.
+     *
+     * @param total_files Pointer to a variable that will hold the total number of files written to
+     * the TOC.
+     * @param toc_file_name The name of the TOC file to be created (default is "/toc.txt").
+     * @param extension The file extension to filter files (default is ".bmp").
+     * @return photo_frame_error_t indicating success or failure.
+     */
+    photo_frame_error_t write_images_toc(uint32_t* total_files,
+        const char* toc_file_name = TOC_FILENAME,
+        const char* extension = ".bmp") const;
+
+    /**
+     * Gets the file path of the TOC file.
+     * @param index The index of the TOC file.
+     * @param toc_file_name The name of the TOC file (default is "toc.txt").
+     * @return The file path of the TOC file as a String.
+     * If the index is out of bounds, it returns an empty String.
+     */
+    String get_toc_file_path(uint32_t index, const char* toc_file_name = TOC_FILENAME) const;
 
     /**
      * Lists all files in the root directory of the SD card with the specified extension.
@@ -97,7 +162,7 @@ class SDCard {
      * @note This function only lists files in the root directory, not in subdirectories.
      * @note If the SD card is not initialized, it will not list any files.
      */
-    void listFiles(const char* extension) const;
+    void list_files(const char* extension) const;
 
     /**
      * Prints statistics about the SD card, including total space, used space, and free space.
@@ -107,7 +172,7 @@ class SDCard {
      * @note This function is useful for debugging and monitoring the SD card's status.
      * It can help identify issues related to storage capacity or file management.
      */
-    void printStats() const;
+    void print_stats() const;
 
     /**
      * Finds the next image file on the SD card with the specified extension.
@@ -123,7 +188,7 @@ class SDCard {
      * is not initialized.
      */
     photo_frame_error_t
-    findNextImage(uint32_t* index, const char* extension, SdCardEntry* file_entry) const;
+    find_next_image(uint32_t* index, const char* extension, SdCardEntry* file_entry) const;
 
     /**
      * Counts the number of files with the specified extension in the root directory of the SD card.
@@ -133,7 +198,7 @@ class SDCard {
      * If the SD card is not initialized, it returns 0.
      * @note This function only counts files in the root directory, not in subdirectories.
      */
-    uint32_t getFileCount(const char* extension) const;
+    uint32_t count_files(const char* extension) const;
 
     /**
      * Opens a file on the SD card.

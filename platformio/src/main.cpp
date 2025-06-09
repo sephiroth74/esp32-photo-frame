@@ -13,57 +13,16 @@
 #include "sd_card.h"
 
 battery::BatteryReader battery_reader(BATTERY_PIN,
-                                      BATTERY_RESISTORS_RATIO,
-                                      BATTERY_NUM_READINGS,
-                                      BATTERY_DELAY_BETWEEN_READINGS);
+    BATTERY_RESISTORS_RATIO,
+    BATTERY_NUM_READINGS,
+    BATTERY_DELAY_BETWEEN_READINGS);
 
 photo_frame::SDCard sdCard(SD_CS_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_SCK_PIN);
 
 Preferences prefs;
 
-long read_refresh_seconds(bool is_battery_low = false) {
-    Serial.println(F("Reading level input pin..."));
-
-    if (is_battery_low) {
-        Serial.println(F("Battery level is low, skipping level input pin reading."));
-        return REFRESH_INTERVAL_SECONDS_LOW_BATTERY;
-    }
-
-    // now read the level
-    pinMode(LEVEL_PWR_PIN, OUTPUT);
-    pinMode(LEVEL_INPUT_PIN, INPUT); // Set the level input pin as input
-
-    digitalWrite(LEVEL_PWR_PIN, HIGH); // Power on the level shifter
-    delay(100);                        // Wait for the level shifter to power up
-
-    // read the level input pin for 100ms and average the result (10 samples)
-    unsigned long level = 0;
-    for (int i = 0; i < 10; i++) {
-        level += analogRead(LEVEL_INPUT_PIN); // Read the level input pin
-        delay(1);                             // Wait for 10ms
-    }
-    digitalWrite(LEVEL_PWR_PIN, LOW); // Power off the level shifter
-    level /= 10;                      // Average the result
-
-#if DEBUG_MODE
-    Serial.print(F("Raw level input pin reading: "));
-    Serial.println(level);
-#endif
-
-    level = constrain(level, 0, LEVEL_INPUT_MAX); // Constrain the level to the maximum value
-
-    // invert the value
-    level = LEVEL_INPUT_MAX - level;
-
-    Serial.println(F("Level input value: "));
-    Serial.println(level);
-
-    long refresh_seconds =
-        map(level, 0, LEVEL_INPUT_MAX, REFRESH_MIN_INTERVAL_SECONDS, REFRESH_MAX_INTERVAL_SECONDS);
-    return refresh_seconds;
-}
-
-void setup() {
+void setup()
+{
     Serial.begin(115200);
 
 #if HAS_RGB_LED
@@ -81,8 +40,29 @@ void setup() {
     Serial.println(F("Photo Frame v0.1.0"));
 
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::get_wakeup_reason();
+    String wakeup_reason_string = photo_frame::get_wakeup_reason_string(wakeup_reason);
+
+    // if the wakeup reason is undefined, it means the device is starting up after
+    // a reset
+    bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+
+    // if in reset state, we will write the TOC (Table of Contents) to the SD
+    bool write_toc = is_reset;
+
+    uint32_t image_index = 0; // Index of the image to display
+    uint32_t total_files = 0; // Total number of image files on the SD card
+
     photo_frame::print_board_stats();
     photo_frame::print_config();
+
+    Serial.print(F("Wakeup reason: "));
+    Serial.print(wakeup_reason_string);
+    Serial.print(F(" ("));
+    Serial.print(wakeup_reason);
+    Serial.println(F(")"));
+
+    Serial.print(F("Is reset: "));
+    Serial.println(is_reset ? "Yes" : "No");
 
 #if DEBUG_MODE
     delay(2000);
@@ -90,7 +70,7 @@ void setup() {
 
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
     fs::File file;
-    DateTime now         = DateTime((uint32_t)0); // Initialize DateTime with 0 timestamp
+    DateTime now = DateTime((uint32_t)0); // Initialize DateTime with 0 timestamp
     long refresh_seconds = 0;
     unsigned long refresh_microseconds = refresh_seconds * MICROSECONDS_IN_SECOND;
 
@@ -111,7 +91,7 @@ void setup() {
     if (battery_info.is_empty()) {
         Serial.println(F("Battery is empty!"));
         photo_frame::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
-        return;                                       // Exit if battery is empty
+        return; // Exit if battery is empty
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
         error = photo_frame::error_type::BatteryLevelCritical;
@@ -144,7 +124,7 @@ void setup() {
     Serial.println(F("3. Initializing E-Paper display..."));
 
     delay(100);
-    photo_frame::renderer::initDisplay();
+    photo_frame::renderer::init_display();
     delay(100);
 
     display.clearScreen();
@@ -162,56 +142,67 @@ void setup() {
         error = sdCard.begin(); // Initialize the SD card
 
         if (error == photo_frame::error_type::None) {
-            auto cardType = sdCard.getCardType();
-            Serial.print(F("SD card type: "));
-            switch (cardType) {
-            case CARD_MMC:     Serial.println(F("MMC")); break;
-            case CARD_SD:      Serial.println(F("SDSC")); break;
-            case CARD_SDHC:    Serial.println(F("SDHC")); break;
-            case CARD_UNKNOWN: Serial.println(F("Unknown")); break;
-            case CARD_NONE:    Serial.println(F("No SD card attached!")); break;
-            default:           Serial.println(F("Unknown card type!")); break;
-            }
-
 #if DEBUG_MODE
-            sdCard.printStats(); // Print SD card statistics
+            sdCard.print_stats(); // Print SD card statistics
 #endif
-
-            photo_frame::SdCardEntry entry;
-
-            // Open preferences for reading
-
-            uint32_t index = 0; // Initialize the index to 0
 
             if (!prefs.begin(PREFS_NAMESPACE, false)) {
                 Serial.println(F("Failed to open preferences!"));
-                // Get the count of .bmp files on the SD card
-                auto count = sdCard.getFileCount(".bmp");
-                // Generate a random index to start from
-                index = random(0, count);
+                error = photo_frame::error_type::PreferencesOpenFailed;
             } else {
                 Serial.println(F("Preferences opened successfully!"));
-                index = prefs.getUInt("last_index", 0); // Read the last index from preferences
-                Serial.print(F("Last index from preferences: "));
-                Serial.println(index);
-            }
 
-            // Read the next image file from the SD card
-            error = sdCard.findNextImage(&index, ".bmp", &entry);
-            prefs.putUInt("last_index", index + 1); // Save the last index to preferences
-            prefs.end();                            // Close the preferences
+                // upon reset, write the TOC (Table of Contents) to the SD card
+                if (write_toc || !sdCard.file_exists(TOC_FILENAME)) {
+#if DEBUG_MODE
+                    Serial.println(F("Writing TOC to SD card..."));
+#endif
 
-            if (error == photo_frame::error_type::None) {
-                Serial.print(F("Next image file: "));
-                Serial.println(entry.to_string());
-                Serial.print(F("Entry is valid:"));
-                Serial.println(entry ? "Yes" : "No");
+                    error = sdCard.write_images_toc(&total_files);
+                    // Remove the old total_files key
+                    prefs.remove("total_files");
 
-                // Open the file for reading
-                file = sdCard.open(entry.path.c_str(), FILE_READ);
-            } else {
-                Serial.print(F("Failed to find next image file! Error code: "));
-                Serial.println(error.code);
+                    if (error == photo_frame::error_type::None) {
+                        // Save the total number of files to preferences
+                        prefs.putUInt("total_files", total_files);
+                    } else {
+                        Serial.print(F("Failed to write TOC! Error code: "));
+                        Serial.println(error.code);
+                    }
+                } else {
+                    // Read the total number of files from preferences
+                    total_files = prefs.getUInt("total_files", 0);
+
+                    Serial.print(F("Total files from preferences: "));
+                    Serial.println(total_files);
+                }
+
+                prefs.end(); // Close the preferences
+
+                if (total_files == 0) {
+                    Serial.println(F("No image files found on the SD card!"));
+                    error = photo_frame::error_type::NoImagesFound;
+                } else {
+                    // Generate a random index to start from
+                    image_index = random(0, total_files);
+
+#if DEBUG_MODE
+                    Serial.print(F("Next image index: "));
+                    Serial.println(image_index);
+#endif
+
+                    String image_file_path = sdCard.get_toc_file_path(image_index);
+
+                    if (image_file_path.isEmpty()) {
+#if DEBUG_MODE
+                        Serial.print(F("Image file path is empty at index: "));
+                        Serial.println(image_index);
+#endif
+                        error = photo_frame::error_type::SdCardFileNotFound;
+                    } else {
+                        file = sdCard.open(image_file_path.c_str(), FILE_READ);
+                    }
+                }
             }
         }
     } else {
@@ -228,10 +219,10 @@ void setup() {
     Serial.println(F("5. Calculating refresh rate..."));
 
     if (!battery_info.is_critical() && now.isValid()) {
-        refresh_seconds = read_refresh_seconds(battery_info.is_low());
+        refresh_seconds = photo_frame::read_refresh_seconds(battery_info.is_low());
 
 #if DEBUG_MODE
-        Serial.print(F("Refresh seconds read from level input pin: "));
+        Serial.print(F("Refresh seconds read from potentiometer: "));
         Serial.println(refresh_seconds);
 #endif
 
@@ -245,13 +236,11 @@ void setup() {
         if (nextRefresh > dayEnd) {
             Serial.println(F("Next refresh time is after DAY_END_HOUR"));
             // Set the next refresh time to the start of the next day
-            DateTime nextDayStart =
-                DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
-            DateTime nextDayEnd =
-                DateTime(now.year(), now.month(), now.day() + 1, DAY_END_HOUR, 0, 0);
-            nextRefresh     = nextRefresh > nextDayStart
-                                  ? (nextRefresh < nextDayEnd ? nextRefresh : nextDayEnd)
-                                  : nextDayStart;
+            DateTime nextDayStart = DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
+            DateTime nextDayEnd = DateTime(now.year(), now.month(), now.day() + 1, DAY_END_HOUR, 0, 0);
+            nextRefresh = nextRefresh > nextDayStart
+                ? (nextRefresh < nextDayEnd ? nextRefresh : nextDayEnd)
+                : nextDayStart;
 
             refresh_seconds = nextRefresh.unixtime() - now.unixtime();
         }
@@ -285,7 +274,7 @@ void setup() {
             photo_frame::renderer::drawErrorMessage(gravity_t::TOP_RIGHT, error.code);
 
             if (error != photo_frame::error_type::BatteryLevelCritical) {
-                photo_frame::renderer::drawLastUpdate(now, nullptr);
+                photo_frame::renderer::drawLastUpdate(now, 0);
             }
         } while (display.nextPage());
     } else {
@@ -300,38 +289,16 @@ void setup() {
         display.setPartialWindow(0, 0, display.width(), 16);
         display.firstPage();
         do {
-
             // display.fillRect(0, 0, display.width(), 20, GxEPD_WHITE);
             display.fillScreen(GxEPD_WHITE);
 
-            // format the refresh time string in the format "Refresh: 0' 0" (e.g., "Refresh: 10'
-            // 30")
-            String refreshStr = "";
-            long hours        = refresh_seconds / 3600; // Calculate hours
-            long minutes      = refresh_seconds / 60;   // Calculate minutes
-            long seconds      = refresh_seconds % 60;   // Calculate remaining seconds
-
-            if (hours > 0) {
-                refreshStr += String(hours) + "h "; // Append hours with a single quote
-                minutes -= hours * 60;              // Adjust minutes after calculating hours
-                seconds -= hours * 3600;            // Adjust seconds after calculating hours
-            }
-
-            if (minutes > 0) {
-                refreshStr += String(minutes) + "m "; // Append minutes with a single quote
-                seconds -= minutes * 60;              // Adjust seconds after calculating minutes
-            }
-
-            if (seconds > 0) {
-                refreshStr += String(seconds) + "s"; // Append seconds with a double quote
-            }
-
-            photo_frame::renderer::drawLastUpdate(now, refreshStr.c_str());
+            photo_frame::renderer::drawLastUpdate(now, refresh_seconds);
+            photo_frame::renderer::drawImageInfo(image_index, total_files);
             photo_frame::renderer::drawBatteryStatus(
                 battery_info.raw_value, battery_info.millivolts, battery_info.percent);
 
-            // display.displayWindow(0, 0, display.width(), display.height()); // Display the
-            // content in the partial window
+            // display.displayWindow(0, 0, display.width(), display.height()); //
+            // Display the content in the partial window
 
         } while (display.nextPage()); // Clear the display
     }
@@ -342,7 +309,7 @@ void setup() {
     sdCard.end(); // Close the SD card
 
     delay(500);
-    photo_frame::renderer::powerOffDisplay();
+    photo_frame::renderer::power_off();
 
     /* #endregion e-Paper display */
 
@@ -359,7 +326,8 @@ void setup() {
     photo_frame::enter_deep_sleep(wakeup_reason);
 }
 
-void loop() {
+void loop()
+{
     // Nothing to do here, the ESP32 will go to sleep after setup
     // The loop is intentionally left empty
     // All processing is done in the setup function

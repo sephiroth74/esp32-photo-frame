@@ -4,18 +4,19 @@
 
 namespace photo_frame {
 
-DateTime fetch_remote_datetime(SDCard& sdCard) {
+DateTime fetch_remote_datetime(SDCard& sdCard)
+{
     Serial.println(F("Fetching time from WiFi..."));
     DateTime result = DateTime((uint32_t)0);
 
-    fs::File file   = sdCard.open(WIFI_FILENAME, FILE_READ); // Open the file to write the time
+    fs::File file = sdCard.open(WIFI_FILENAME, FILE_READ); // Open the file to write the time
     if (!file) {
         Serial.println(F("Failed to open WiFi credentials file!"));
         Serial.println(F("Please check if the file exists on the SD card."));
         return result;
     }
 
-    String wifi_ssid     = file.readStringUntil('\n');
+    String wifi_ssid = file.readStringUntil('\n');
     String wifi_password = file.readStringUntil('\n');
 
     wifi_ssid.trim();
@@ -32,7 +33,7 @@ DateTime fetch_remote_datetime(SDCard& sdCard) {
     WiFi.mode(WIFI_STA);
     WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
 
-    unsigned long timeout         = millis() + WIFI_CONNECT_TIMEOUT;
+    unsigned long timeout = millis() + WIFI_CONNECT_TIMEOUT;
     wl_status_t connection_status = WiFi.status();
     while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
         Serial.print(".");
@@ -74,18 +75,19 @@ DateTime fetch_remote_datetime(SDCard& sdCard) {
     }
 
     result = DateTime(timeinfo.tm_year + 1900,
-                      timeinfo.tm_mon + 1,
-                      timeinfo.tm_mday,
-                      timeinfo.tm_hour,
-                      timeinfo.tm_min,
-                      timeinfo.tm_sec);
+        timeinfo.tm_mon + 1,
+        timeinfo.tm_mday,
+        timeinfo.tm_hour,
+        timeinfo.tm_min,
+        timeinfo.tm_sec);
 
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
     return result;
 } // featch_remote_datetime
 
-DateTime fetch_datetime(SDCard& sdCard) {
+DateTime fetch_datetime(SDCard& sdCard)
+{
     Serial.println("Initializing RTC...");
 
     DateTime now;
@@ -93,7 +95,7 @@ DateTime fetch_datetime(SDCard& sdCard) {
 
     pinMode(RTC_POWER_PIN, OUTPUT);
     digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
-    delay(1000);                       // Wait for RTC to power up
+    delay(1000); // Wait for RTC to power up
 
     Wire1.begin(RTC_SDA_PIN /* SDA */, RTC_SCL_PIN /* SCL */);
     if (!rtc.begin(&Wire1)) {
