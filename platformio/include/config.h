@@ -46,10 +46,10 @@ extern const uint8_t RTC_SDA_PIN;
 extern const uint8_t RTC_SCL_PIN;
 extern const uint8_t RTC_POWER_PIN;
 
-// Level pin
-extern const uint8_t LEVEL_PWR_PIN;   // Power pin for level shifter
-extern const uint8_t LEVEL_INPUT_PIN; // SDA pin for level shifter
-extern const uint16_t LEVEL_INPUT_MAX;
+// Potentiometer pin
+extern const uint8_t POTENTIOMETER_PWR_PIN; // Power pin for potentiometer
+extern const uint8_t POTENTIOMETER_INPUT_PIN; // SDA pin for potentiometer
+extern const uint16_t POTENTIOMETER_INPUT_MAX;
 
 // Battery
 
@@ -62,6 +62,9 @@ extern const double BATTERY_RESISTORS_RATIO;
 // Delay between battery readings in milliseconds
 #define BATTERY_DELAY_BETWEEN_READINGS 1
 
+// Voltage of battery reading in millivolts above which the battery is considered charging
+extern const uint32_t BATTERY_CHARGING_MILLIVOLTS;
+
 // Minimum battery percentage to consider the battery empty
 extern const uint8_t BATTERY_PERCENT_EMPTY;
 // Minimum battery percentage to consider the battery critical
@@ -71,7 +74,7 @@ extern const uint8_t BATTERY_PERCENT_LOW;
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2 // Built-in LED pin for ESP32
-#endif                // LED_BUILTIN
+#endif // LED_BUILTIN
 
 // Delay before going to sleep in milliseconds (when in debug mode or coming back from sleep without
 // a wakeup reason)
@@ -82,11 +85,15 @@ extern const uint8_t BATTERY_PERCENT_LOW;
 // and used to connect to the WiFi network to fetch the current time from NTP servers.
 extern const char* WIFI_FILENAME; // Filename for WiFi credentials inside the SD Card
 
+// SdCard
+// Filename for Table of Contents (TOC) inside the SD Card
+extern const char* TOC_FILENAME;
+
 #define WIFI_CONNECT_TIMEOUT 10000 // 10 seconds
-#define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0/3"
-#define NTP_TIMEOUT          20000 // ms
-#define NTP_SERVER1          "pool.ntp.org"
-#define NTP_SERVER2          "time.nist.gov"
+#define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
+#define NTP_TIMEOUT 20000 // ms
+#define NTP_SERVER1 "pool.ntp.org"
+#define NTP_SERVER2 "time.nist.gov"
 
 // e-Paper display
 
@@ -103,11 +110,11 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 // Toggle debug mode (0 = off, 1 = on)
 // When is on, for instance, the display will also print the battery raw value and there will be a
 // delay before entering deep sleep
-#define DEBUG_MODE             0
+#define DEBUG_MODE 0
 
 #define MICROSECONDS_IN_SECOND 1000000
-#define SECONDS_IN_MINUTE      60
-#define SECONDS_IN_HOUR        3600
+#define SECONDS_IN_MINUTE 60
+#define SECONDS_IN_HOUR 3600
 
 // Minimum time between refreshes in seconds (minimum 5 minute, maximum 2 hours)
 #define REFRESH_MIN_INTERVAL_SECONDS 5 * SECONDS_IN_MINUTE
@@ -118,10 +125,10 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 // time between refreshes in seconds when battery is low
 #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY 6 * SECONDS_IN_HOUR
 
-#define DAY_START_HOUR                       06 // Hour when the day starts (6 AM)
-#define DAY_END_HOUR                         23 // Hour when the day ends (10 PM) (midnight is 0)
+#define DAY_START_HOUR 06 // Hour when the day starts (6 AM)
+#define DAY_END_HOUR 23 // Hour when the day ends (10 PM) (midnight is 0)
 
-#define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
+#define FONT_HEADER "assets/fonts/Ubuntu_R.h"
 // #define FONT_HEADER                          "assets/fonts/UbuntuMono_R.h"
 // #define FONT_HEADER                          "assets/fonts/FreeMono.h"
 // #define FONT_HEADER                          "assets/fonts/FreeSans.h"
@@ -139,7 +146,7 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 //   Language (Territory)            code
 //   English (United States)         en_US
 //   Italiano (Italia)               it_IT
-#define LOCALE          it_IT
+#define LOCALE it_IT
 
 #define PREFS_NAMESPACE "photo_frame"
 

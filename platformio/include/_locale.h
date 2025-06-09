@@ -10,6 +10,9 @@ extern const char* TXT_SD_CARD_FILE_NOT_FOUND;
 extern const char* TXT_SD_CARD_FILE_OPEN_FAILED;
 extern const char* TXT_IMAGE_FORMAT_NOT_SUPPORTED;
 extern const char* TXT_BATTERY_LEVEL_CRITICAL;
+extern const char* TXT_CARD_TOC_OPEN_FILE_FAILED;
+extern const char* TXT_PREFERENCES_OPEN_FAILED;
+extern const char* TXT_NO_IMAGES_FOUND;
 
 extern const char* TXT_ERROR_CODE;
 

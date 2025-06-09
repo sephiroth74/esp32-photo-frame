@@ -12,6 +12,13 @@ namespace photo_frame {
 esp_sleep_wakeup_cause_t get_wakeup_reason();
 
 /**
+ * Converts the wakeup reason to a human-readable string.
+ * @param wakeup_reason The reason for waking up from deep sleep.
+ * @return A string representation of the wakeup reason.
+ */
+String get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason);
+
+/**
  * Enters deep sleep mode, disabling peripherals and LEDs to save power.
  * @param wakeup_reason The reason for waking up, which can be used to determine the next action.
  */
@@ -54,6 +61,13 @@ void blink_builtin_led(int count, uint32_t on_ms = 200, uint32_t off_ms = 400);
  * @param error The error containing the message, code, and blink count.
  */
 void blink_builtin_led(photo_frame_error_t error);
+
+/**
+ * Reads the refresh interval in seconds, adjusting for battery level if specified.
+ * @param is_battery_low Indicates if the battery is low, which may affect the refresh rate.
+ * @return The refresh interval in seconds.
+ */
+long read_refresh_seconds(bool is_battery_low = false);
 
 } // namespace photo_frame
 
