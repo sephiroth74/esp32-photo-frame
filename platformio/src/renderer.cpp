@@ -152,7 +152,7 @@ namespace renderer {
     /*
      * Returns the string width in pixels
      */
-    uint16_t getStringWidth(const String& text)
+    uint16_t get_string_width(const String& text)
     {
         int16_t x1, y1;
         uint16_t w, h;
@@ -163,7 +163,7 @@ namespace renderer {
     /*
      * Returns the string height in pixels
      */
-    uint16_t getStringHeight(const String& text)
+    uint16_t get_string_height(const String& text)
     {
         int16_t x1, y1;
         uint16_t w, h;
@@ -171,7 +171,7 @@ namespace renderer {
         return h;
     }
 
-    rect_t getTextBounds(const char* text, int16_t x, int16_t y)
+    rect_t get_text_bounds(const char* text, int16_t x, int16_t y)
     {
         int16_t x1, y1;
         uint16_t w, h;
@@ -182,10 +182,10 @@ namespace renderer {
     /*
      * Draws a string with alignment
      */
-    void drawString(int16_t x, int16_t y, const char* text, alignment_t alignment, uint16_t color)
+    void draw_string(int16_t x, int16_t y, const char* text, alignment_t alignment, uint16_t color)
     {
         display.setTextColor(color);
-        rect_t rect = getTextBounds(text, x, y);
+        rect_t rect = get_text_bounds(text, x, y);
         if (alignment == RIGHT) {
             x = x - rect.width;
         }
@@ -200,7 +200,7 @@ namespace renderer {
     /*
      * Draws a string without alignment
      */
-    void drawString(int16_t x, int16_t y, const char* text, uint16_t color)
+    void draw_string(int16_t x, int16_t y, const char* text, uint16_t color)
     {
         display.setTextColor(color);
         display.setCursor(x, y);
@@ -218,7 +218,7 @@ namespace renderer {
      *       max_width exist in text, then the string will be printed beyond
      *       max_width.
      */
-    void drawMultiLnString(int16_t x,
+    void draw_multiline_string(int16_t x,
         int16_t y,
         const String& text,
         alignment_t alignment,
@@ -290,7 +290,7 @@ namespace renderer {
                 } // end if (splitAt != -1)
             } // end inner while
 
-            drawString(x, y + (current_line * line_spacing), subStr.c_str(), alignment, color);
+            draw_string(x, y + (current_line * line_spacing), subStr.c_str(), alignment, color);
 
             // update textRemaining to no longer include what was printed
             // +1 for exclusive bounds, +1 to get passed space/dash
@@ -302,7 +302,7 @@ namespace renderer {
         return;
     } // end drawMultiLnString
 
-    void drawError(photo_frame_error error)
+    void draw_error(photo_frame_error error)
     {
         if (error == error_type::None) {
             Serial.println("drawError: No error to display");
@@ -319,33 +319,33 @@ namespace renderer {
             bitmap_196x196 = getBitmap(icon_name::error_icon, 196);
         }
 
-        drawError(bitmap_196x196, String(error.message), "");
+        draw_error(bitmap_196x196, String(error.message), "");
     }
 
-    void drawErrorMessage(const gravity_t gravity, const uint8_t code)
+    void draw_error_message(const gravity_t gravity, const uint8_t code)
     {
         String errMsgLn1 = String(TXT_ERROR_CODE) + code;
 
         display.setFont(&FONT_6pt8b);
         display.setTextColor(GxEPD_BLACK);
 
-        rect_t rect = getTextBounds(errMsgLn1.c_str(), 0, 0);
+        rect_t rect = get_text_bounds(errMsgLn1.c_str(), 0, 0);
 
         switch (gravity) {
         case TOP_LEFT: {
-            drawString(10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
+            draw_string(10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
             break;
         }
         case TOP_RIGHT: {
-            drawString(DISP_WIDTH - rect.width - 10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
+            draw_string(DISP_WIDTH - rect.width - 10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
             break;
         }
         case BOTTOM_LEFT: {
-            drawString(10, DISP_HEIGHT - rect.height - 10, errMsgLn1.c_str(), GxEPD_BLACK);
+            draw_string(10, DISP_HEIGHT - rect.height - 10, errMsgLn1.c_str(), GxEPD_BLACK);
             break;
         }
         case BOTTOM_RIGHT: {
-            drawString(DISP_WIDTH - rect.width - 10,
+            draw_string(DISP_WIDTH - rect.width - 10,
                 DISP_HEIGHT - rect.height - 10,
                 errMsgLn1.c_str(),
                 GxEPD_BLACK);
@@ -358,16 +358,16 @@ namespace renderer {
         }
     }
 
-    void drawError(const uint8_t* bitmap_196x196, const String& errMsgLn1, const String& errMsgLn2)
+    void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const String& errMsgLn2)
     {
         Serial.println("drawError: " + errMsgLn1);
 
         display.setFont(&FONT_26pt8b);
         if (!errMsgLn2.isEmpty()) {
-            drawString(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21, errMsgLn1.c_str(), CENTER);
-            drawString(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21 + 55, errMsgLn2.c_str(), CENTER);
+            draw_string(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21, errMsgLn1.c_str(), CENTER);
+            draw_string(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21 + 55, errMsgLn2.c_str(), CENTER);
         } else {
-            drawMultiLnString(DISP_WIDTH / 2,
+            draw_multiline_string(DISP_WIDTH / 2,
                 DISP_HEIGHT / 2 + 196 / 2 + 21,
                 errMsgLn1,
                 CENTER,
@@ -389,14 +389,14 @@ namespace renderer {
         return;
     } // end drawError
 
-    void drawImageInfo(uint32_t index, uint32_t total_images)
+    void draw_image_info(uint32_t index, uint32_t total_images)
     {
         Serial.println("drawImageInfo: " + String(index) + " / " + String(total_images));
         String message = String(index + 1) + " / " + String(total_images);
-        drawSideMessage(gravity::TOP_CENTER, message.c_str(), 0, 0);
+        draw_side_message(gravity::TOP_CENTER, message.c_str(), 0, 0);
     }
 
-    void drawBatteryStatus(const uint32_t raw_value,
+    void draw_battery_status(const uint32_t raw_value,
         const uint32_t battery_voltage,
         const uint8_t battery_percentage)
     {
@@ -432,10 +432,10 @@ namespace renderer {
         message += " " + String(raw_value);
 #endif
 
-        drawSideMessageWithIcon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
+        draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
     }
 
-    void drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds)
+    void draw_last_update(const DateTime& lastUpdate, long refresh_seconds)
     {
         Serial.println("drawLastUpdate: " + lastUpdate.timestamp());
         char dateTimeBuffer[32] = { 0 }; // Buffer to hold formatted date and time
@@ -472,14 +472,14 @@ namespace renderer {
 
         String lastUpdateStr = String(dateTimeBuffer) + (refreshStr ? " (" + String(refreshStr) + ")" : "");
 
-        drawSideMessageWithIcon(gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateStr.c_str(), 0, -2);
+        draw_side_message_with_icon(gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateStr.c_str(), 0, -2);
     } // end drawLastUpdate
 
-    void drawSideMessage(gravity_t gravity, const char* message, int32_t x_offset, int32_t y_offset)
+    void draw_side_message(gravity_t gravity, const char* message, int32_t x_offset, int32_t y_offset)
     {
         display.setFont(&FONT_7pt8b);
         display.setTextColor(GxEPD_BLACK);
-        rect_t rect = getTextBounds(message, 0, 0);
+        rect_t rect = get_text_bounds(message, 0, 0);
 
         int16_t x = 0, y = 0;
         switch (gravity) {
@@ -516,10 +516,10 @@ namespace renderer {
         }
 
         // Draw the message
-        drawString(x + x_offset, y + y_offset, message, GxEPD_BLACK);
+        draw_string(x + x_offset, y + y_offset, message, GxEPD_BLACK);
     } // end drawSideMessage
 
-    void drawSideMessageWithIcon(gravity_t gravity,
+    void draw_side_message_with_icon(gravity_t gravity,
         icon_name_t icon_name,
         const char* message,
         int32_t x_offset,
@@ -534,7 +534,7 @@ namespace renderer {
 
         display.setFont(&FONT_7pt8b);
         display.setTextColor(GxEPD_BLACK);
-        rect_t rect = getTextBounds(message, 0, 0);
+        rect_t rect = get_text_bounds(message, 0, 0);
 
         int16_t x = 0, y = 0;
         switch (gravity) {
@@ -574,10 +574,10 @@ namespace renderer {
         display.drawInvertedBitmap(
             x + x_offset, y - y + y_offset, icon, icon_size, icon_size, GxEPD_BLACK);
         // Draw the message next to the icon
-        drawString(x + icon_size + 2, y, message, GxEPD_BLACK);
+        draw_string(x + icon_size + 2, y, message, GxEPD_BLACK);
     }
 
-    bool drawBitmapFromFile(File& file, int16_t x, int16_t y, bool with_color)
+    bool draw_bitmap_from_file(File& file, int16_t x, int16_t y, bool with_color)
     {
         if (!file) {
             Serial.println("File not open or invalid");
@@ -783,7 +783,7 @@ namespace renderer {
         }
     } // end drawBitmapFromFile
 
-    bool drawBitmapFromFile_Buffered(File& file,
+    bool draw_bitmap_from_file_buffered(File& file,
         int16_t x,
         int16_t y,
         bool with_color,
