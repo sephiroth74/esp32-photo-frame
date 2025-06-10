@@ -47,7 +47,7 @@ const uint8_t POTENTIOMETER_PWR_PIN = A3;
 const uint8_t POTENTIOMETER_INPUT_PIN = A4;
 
 const uint8_t BATTERY_PIN = A0;
-const double BATTERY_RESISTORS_RATIO = 0.4910588235; // 0.502642493; // 0.4901176471
+const double BATTERY_RESISTORS_RATIO = 0.4910588235; // Ratio of the voltage divider resistors (R1 / (R1 + R2))
 
 const uint32_t BATTERY_CHARGING_MILLIVOLTS = 4300; // Millivolts above which the battery is considered charging
 const uint8_t BATTERY_PERCENT_EMPTY = 5;
