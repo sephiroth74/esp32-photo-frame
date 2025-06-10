@@ -36,8 +36,8 @@ typedef struct rect {
 public:
     operator bool() const { return (width > 0 && height > 0); }
 
-    inline constexpr bool isEmpty() const { return (width == 0 || height == 0); }
-    inline constexpr bool isValid() const { return (x >= 0 && y >= 0 && width > 0 && height > 0); }
+    inline constexpr bool is_empty() const { return (width == 0 || height == 0); }
+    inline constexpr bool is_valid() const { return (x >= 0 && y >= 0 && width > 0 && height > 0); }
     inline constexpr bool contains(int16_t px, int16_t py) const
     {
         return (px >= x && px < x + width && py >= y && py < y + height);
@@ -88,7 +88,7 @@ namespace renderer {
      * @note This function calculates the width and height of the text based on the current font size
      * and style. It does not render the text on the display.
      */
-    rect_t getTextBounds(const char* text, int16_t x = 0, int16_t y = 0);
+    rect_t get_text_bounds(const char* text, int16_t x = 0, int16_t y = 0);
 
     /**
      * Calculates the width of the given text string.
@@ -96,7 +96,7 @@ namespace renderer {
      * @return The width of the text in pixels.
      * @note This function uses the current font size and style to calculate the width.
      */
-    uint16_t getStringWidth(const String& text);
+    uint16_t get_string_width(const String& text);
 
     /**
      * Calculates the height of the given text string.
@@ -104,7 +104,7 @@ namespace renderer {
      * @return The height of the text in pixels.
      * @note This function uses the current font size and style to calculate the height.
      */
-    uint16_t getStringHeight(const String& text);
+    uint16_t get_string_height(const String& text);
 
     /**
      * Initializes the e-paper display.
@@ -132,7 +132,7 @@ namespace renderer {
      * @param alignment The alignment of the text (LEFT, RIGHT, CENTER).
      * @param color The color of the text (default is GxEPD_BLACK).
      */
-    void drawString(int16_t x,
+    void draw_string(int16_t x,
         int16_t y,
         const char* text,
         alignment_t alignment,
@@ -147,7 +147,7 @@ namespace renderer {
      * @note This function does not support text alignment. It draws the text at the specified position
      * without any alignment adjustments.
      */
-    void drawString(int16_t x, int16_t y, const char* text, uint16_t color = GxEPD_BLACK);
+    void draw_string(int16_t x, int16_t y, const char* text, uint16_t color = GxEPD_BLACK);
 
     /**
      * Draws a multi-line string on the e-paper display.
@@ -160,7 +160,7 @@ namespace renderer {
      * @param line_spacing The spacing between lines in pixels.
      * @param color The color of the text (default is GxEPD_BLACK).
      */
-    void drawMultiLnString(int16_t x,
+    void draw_multiline_string(int16_t x,
         int16_t y,
         const String& text,
         alignment_t alignment,
@@ -174,7 +174,7 @@ namespace renderer {
      * @param error_type The type of error to be displayed.
      * @note This function displays a predefined error message based on the error type.
      */
-    void drawError(photo_frame_error error_type);
+    void draw_error(photo_frame_error error_type);
 
     /**
      * Draws an error message with a bitmap icon.
@@ -182,7 +182,7 @@ namespace renderer {
      * @param errMsgLn1 The first line of the error message.
      * @param errMsgLn2 The second line of the error message (optional).
      */
-    void drawError(const uint8_t* bitmap_196x196,
+    void draw_error(const uint8_t* bitmap_196x196,
         const String& errMsgLn1,
         const String& errMsgLn2 = "");
 
@@ -191,7 +191,7 @@ namespace renderer {
      * @param gravity The gravity of the message (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
      * @param code The error code to be displayed.
      */
-    void drawErrorMessage(const gravity_t gravity, const uint8_t code);
+    void draw_error_message(const gravity_t gravity, const uint8_t code);
 
     /**
      * Draws a side message with an icon.
@@ -203,7 +203,7 @@ namespace renderer {
      * @note The icon will be drawn next to the message, and the message will be aligned based on the
      * specified gravity. The icon size is fixed at 16x16 pixels.
      */
-    void drawSideMessageWithIcon(gravity_t gravity,
+    void draw_side_message_with_icon(gravity_t gravity,
         icon_name_t icon_name,
         const char* message,
         int32_t x_offset = 0,
@@ -219,7 +219,7 @@ namespace renderer {
      * message will be aligned based on the specified gravity. The text will be drawn in the default
      * font and color (GxEPD_BLACK).
      */
-    void drawSideMessage(gravity_t gravity,
+    void draw_side_message(gravity_t gravity,
         const char* message,
         int32_t x_offset = 0,
         int32_t y_offset = 0);
@@ -231,7 +231,7 @@ namespace renderer {
      * @note This function formats the last update time and displays it on the top left corner of the
      * display. If refresh_seconds is bigger than 0, it will be displayed in parentheses next to the time.
      */
-    void drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds = 0);
+    void draw_last_update(const DateTime& lastUpdate, long refresh_seconds = 0);
 
     /**
      * Draws the battery status on the e-paper display.
@@ -241,7 +241,7 @@ namespace renderer {
      * @note This function displays the battery icon and its status on the top right corner of the
      * display. It uses predefined icons based on the battery percentage.
      */
-    void drawBatteryStatus(const uint32_t raw_value,
+    void draw_battery_status(const uint32_t raw_value,
         const uint32_t battery_voltage,
         const uint8_t battery_percentage);
 
@@ -252,18 +252,18 @@ namespace renderer {
      * @note This function displays the current image index and total number of images on the
      * top center corner of the display. It is useful for providing context when viewing images.
      */
-    void drawImageInfo(uint32_t index, uint32_t total_images);
+    void draw_image_info(uint32_t index, uint32_t total_images);
 
     /**
      * Draws a bitmap image from a file on the e-paper display.
      */
-    bool drawBitmapFromFile(File& file, int16_t x = 0, int16_t y = 0, bool with_color = true);
+    bool draw_bitmap_from_file(File& file, int16_t x = 0, int16_t y = 0, bool with_color = true);
 
     /**
      * Draws a bitmap image from a file on the e-paper display with buffering.
      * This function is optimized for partial updates and uses a buffered approach.
      */
-    bool drawBitmapFromFile_Buffered(File& file,
+    bool draw_bitmap_from_file_buffered(File& file,
         int16_t x = 0,
         int16_t y = 0,
         bool with_color = true,

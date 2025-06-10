@@ -270,19 +270,19 @@ void setup()
         photo_frame::blink_builtin_led(error);
         display.firstPage();
         do {
-            photo_frame::renderer::drawError(error);
-            photo_frame::renderer::drawErrorMessage(gravity_t::TOP_RIGHT, error.code);
+            photo_frame::renderer::draw_error(error);
+            photo_frame::renderer::draw_error_message(gravity_t::TOP_RIGHT, error.code);
 
             if (error != photo_frame::error_type::BatteryLevelCritical) {
-                photo_frame::renderer::drawLastUpdate(now, 0);
+                photo_frame::renderer::draw_last_update(now, 0);
             }
         } while (display.nextPage());
     } else {
-        if (!photo_frame::renderer::drawBitmapFromFile_Buffered(file, 0, 0, false)) {
+        if (!photo_frame::renderer::draw_bitmap_from_file_buffered(file, 0, 0, false)) {
             Serial.println(F("Failed to draw bitmap from file!"));
             display.firstPage();
             do {
-                photo_frame::renderer::drawError(photo_frame::error_type::ImageFormatNotSupported);
+                photo_frame::renderer::draw_error(photo_frame::error_type::ImageFormatNotSupported);
             } while (display.nextPage());
         }
 
@@ -292,9 +292,9 @@ void setup()
             // display.fillRect(0, 0, display.width(), 20, GxEPD_WHITE);
             display.fillScreen(GxEPD_WHITE);
 
-            photo_frame::renderer::drawLastUpdate(now, refresh_seconds);
-            photo_frame::renderer::drawImageInfo(image_index, total_files);
-            photo_frame::renderer::drawBatteryStatus(
+            photo_frame::renderer::draw_last_update(now, refresh_seconds);
+            photo_frame::renderer::draw_image_info(image_index, total_files);
+            photo_frame::renderer::draw_battery_status(
                 battery_info.raw_value, battery_info.millivolts, battery_info.percent);
 
             // display.displayWindow(0, 0, display.width(), display.height()); //
