@@ -1,4 +1,4 @@
-# esp32-photo-frame
+# Arduino E-Paper Photo Frame
 
 **esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from an SD card on an e-paper (EPD) display, with features such as battery monitoring, real-time clock (RTC) support, and multi-language localization.
 
