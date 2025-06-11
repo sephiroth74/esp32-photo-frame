@@ -59,11 +59,11 @@ void disable_rgb_led();
 
 /**
  * Toggles the RGB LED to the specified color.
- * @param red   The state of the red LED (HIGH or LOW).
- * @param green The state of the green LED (HIGH or LOW).
- * @param blue  The state of the blue LED (HIGH or LOW).
+ * @param red    If true, turns on the red LED.
+ * @param green  If true, turns on the green LED.
+ * @param blue   If true, turns on the blue LED.
  */
-void toggle_rgb_led(uint8_t red = LOW, uint8_t green = LOW, uint8_t blue = LOW);
+void toggle_rgb_led(bool red = false, bool green = false, bool blue = false);
 
 /**
  * Disables the built-in LED by setting its pin to LOW.

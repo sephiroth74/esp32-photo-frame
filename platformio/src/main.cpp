@@ -56,6 +56,7 @@ void setup()
 
     photo_frame::disable_built_in_led();
     photo_frame::disable_rgb_led();
+    photo_frame::toggle_rgb_led(false, true, false);
     delay(1000);
 
     Serial.println(F("Initializing..."));
@@ -126,6 +127,7 @@ void setup()
     Serial.println(F("2. Initializing SD card..."));
 
     if (!battery_info.is_critical()) {
+        photo_frame::toggle_rgb_led(false, false, true);
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
             now = photo_frame::fetch_datetime(sdCard, is_reset);
@@ -146,6 +148,7 @@ void setup()
     // 3. Initialize the E-Paper display
     // -------------------------------------------------------------
     Serial.println(F("3. Initializing E-Paper display..."));
+    photo_frame::toggle_rgb_led(true, false, false);
 
     delay(100);
     photo_frame::renderer::init_display();

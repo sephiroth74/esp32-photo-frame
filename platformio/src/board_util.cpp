@@ -135,7 +135,7 @@ void disable_rgb_led()
 #endif
 }
 
-void toggle_rgb_led(uint8_t red, uint8_t green, uint8_t blue)
+void toggle_rgb_led(bool red, bool green, bool blue)
 {
 #if HAS_RGB_LED
     Serial.print(F("Toggling RGB LED to R: "));
@@ -145,9 +145,9 @@ void toggle_rgb_led(uint8_t red, uint8_t green, uint8_t blue)
     Serial.print(F(", B: "));
     Serial.println(blue);
 
-    digitalWrite(LED_RED, red);
-    digitalWrite(LED_GREEN, green);
-    digitalWrite(LED_BLUE, blue);
+    digitalWrite(LED_RED, red ? LOW : HIGH); // LOW to turn on the LED
+    digitalWrite(LED_GREEN, green ? LOW : HIGH);
+    digitalWrite(LED_BLUE, blue ? LOW : HIGH);
 #endif
 }
 
