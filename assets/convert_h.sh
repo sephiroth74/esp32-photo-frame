@@ -74,11 +74,11 @@ if [[ "$type" != "grey" && "$type" != "color" ]]; then
     exit 1
 fi
 
-# If type is color, palette must be provided
-if [[ "$type" == "color" && -z "$palette" ]]; then
-    echo "Error: -palette argument is required when -type is 'color'."
-    exit 1
-fi
+# # If type is color, palette must be provided
+# if [[ "$type" == "color" && -z "$palette" ]]; then
+#     echo "Error: -palette argument is required when -type is 'color'."
+#     exit 1
+# fi
 
 # echo "type: $type"
 # echo "palette: $palette"
@@ -129,14 +129,28 @@ if [ "$type" = "grey" ]; then
     if [ -n "$exif_date" ]; then
         magick .tmp.gif -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.gif
     fi
-
     magick .tmp.gif -depth 8 -alpha off -compress none BMP3:$output_file
 else
-    magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -dither FloydSteinberg -remap $palette -auto-orient .tmp.gif #colored
-    magick .tmp.gif -depth 8 -colors 256 -compress none BMP3:$output_file                                                            # 8-bit color
+    
+    if [ -z "$palette" ]; then
+        magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -auto-orient +dither -colors 16 .tmp.gif
+    else
+        magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -auto-orient -dither FloydSteinberg -remap $palette .tmp.gif
+    fi
+
+    if [ -n "$exif_date" ]; then
+        magick .tmp.gif -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.gif
+    fi
+
+    magick .tmp.gif -depth 8 -alpha off -compress none BMP3:$output_file
 fi
 
-rm .tmp.gif
+# remove .tmp.gif file if it exists
+if [ -f .tmp.gif ]; then
+    rm .tmp.gif
+fi
+
+
 if [ $? -eq 0 ]; then
     echo "Done. Output file: $output_file"
 else
