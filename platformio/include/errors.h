@@ -64,6 +64,8 @@ namespace error_type {
     const photo_frame_error CardTocOpenFileFailed { TXT_CARD_TOC_OPEN_FILE_FAILED, 11, 11 };
     const photo_frame_error PreferencesOpenFailed { TXT_PREFERENCES_OPEN_FAILED, 12, 12 };
     const photo_frame_error NoImagesFound { TXT_NO_IMAGES_FOUND, 13, 13 };
+    const photo_frame_error BatteryEmpty { TXT_BATTERY_EMPTY, 14, 14 };
+    const photo_frame_error RTCInitializationFailed { TXT_RTC_MODULE_NOT_FOUND, 15, 15 };
     // Add more errors here
 } // namespace error_type
 

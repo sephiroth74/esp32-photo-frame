@@ -55,9 +55,9 @@ void setup()
 #endif // HAS_RGB_LED
 
     photo_frame::disable_built_in_led();
-    photo_frame::disable_rgb_led();
-    photo_frame::toggle_rgb_led(false, true, false);
+    photo_frame::toggle_rgb_led(false, true, false); // Set RGB LED to green to indicate initialization
     delay(1000);
+    photo_frame::disable_rgb_led(); // Disable RGB LED to save power
 
     Serial.println(F("Initializing..."));
     Serial.println(F("Photo Frame v0.1.0"));
@@ -127,17 +127,23 @@ void setup()
     Serial.println(F("2. Initializing SD card..."));
 
     if (!battery_info.is_critical()) {
-        photo_frame::toggle_rgb_led(false, false, true);
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
-            now = photo_frame::fetch_datetime(sdCard, is_reset);
+            now = photo_frame::fetch_datetime(sdCard, is_reset, &error);
         } else {
             Serial.println(F("Skipping datetime fetch due to SD card error!"));
         }
-        Serial.print("now is: ");
-        Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
-        Serial.print("now is valid: ");
-        Serial.println(now.isValid() ? "Yes" : "No");
+
+        if (error == photo_frame::error_type::None) {
+            Serial.print("now is: ");
+            Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
+            Serial.print("now is valid: ");
+            Serial.println(now.isValid() ? "Yes" : "No");
+        } else {
+            Serial.print(F("Failed to fetch current time! Error code: "));
+            Serial.println(error.code);
+            Serial.println(F("Skipping datetime fetch!"));
+        }
     } else {
         Serial.println(F("skipped"));
     }
@@ -148,7 +154,6 @@ void setup()
     // 3. Initialize the E-Paper display
     // -------------------------------------------------------------
     Serial.println(F("3. Initializing E-Paper display..."));
-    photo_frame::toggle_rgb_led(true, false, false);
 
     delay(100);
     photo_frame::renderer::init_display();
@@ -294,7 +299,7 @@ void setup()
     }
 
     if (error != photo_frame::error_type::None) {
-        photo_frame::blink_builtin_led(error);
+        photo_frame::blink_error(error);
         display.firstPage();
         do {
             photo_frame::renderer::draw_error(error);
@@ -335,6 +340,7 @@ void setup()
     }
     sdCard.end(); // Close the SD card
 
+    photo_frame::disable_rgb_led();
     delay(500);
     photo_frame::renderer::power_off();
 

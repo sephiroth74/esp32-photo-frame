@@ -14,3 +14,5 @@ const char* TXT_BATTERY_LEVEL_CRITICAL = "Battery level critical";
 const char* TXT_CARD_TOC_OPEN_FILE_FAILED = "Failed to open SD card TOC file";
 const char* TXT_PREFERENCES_OPEN_FAILED = "Failed to open preferences";
 const char* TXT_NO_IMAGES_FOUND = "No images found";
+const char* TXT_BATTERY_EMPTY = "Battery empty";
+const char* TXT_RTC_MODULE_NOT_FOUND = "RTC module not found";

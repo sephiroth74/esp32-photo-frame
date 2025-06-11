@@ -76,13 +76,37 @@ void disable_built_in_led();
  * @param on_ms     The duration in milliseconds to keep the LED on.
  * @param off_ms    The duration in milliseconds to keep the LED off.
  */
-void blink_builtin_led(int count, uint32_t on_ms = 200, uint32_t off_ms = 400);
+void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned off_ms = 300);
 
 /**
  * Blinks the built-in LED according to the specified error.
  * @param error The error containing the message, code, and blink count.
  */
 void blink_builtin_led(photo_frame_error_t error);
+
+/**
+ * Blinks the built-in RGB led a specified number of times with a delay between blinks and a specified color.
+ * @param count     The number of times to blink the LED.
+ * @param red       If true, turns on the red LED.
+ * @param green     If true, turns on the green LED.
+ * @param blue      If true, turns on the blue LED.
+ * @param on_ms     The duration in milliseconds to keep the LED on.
+ * @param off_ms    The duration in milliseconds to keep the LED off.
+ */
+void blink_rgb_led(uint32_t count, bool red, bool green, bool blue, unsigned long on_ms = 100, unsigned long off_ms = 300);
+
+/**
+ * Blinks the built-in RGB LED according to the specified error.
+ * @param error The error containing the message, code, and blink count.
+ */
+void blink_rgb_led(photo_frame_error_t error);
+
+/**
+ * Blinks either the RGB or the built-in LED according to the specified error
+ * and prints the error message to the Serial console.
+ * @param error The error containing the message, code, and blink count.
+ */
+void blink_error(photo_frame_error_t error);
 
 /**
  * Reads the refresh interval in seconds, adjusting for battery level if specified.
