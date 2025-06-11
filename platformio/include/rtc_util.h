@@ -37,7 +37,7 @@ namespace photo_frame {
  * If the RTC is not available or has lost power, it attempts to fetch the time from WiFi.
  * If both RTC and WiFi are unavailable, it returns an invalid DateTime object.
  */
-DateTime fetch_datetime(SDCard& sdCard);
+DateTime fetch_datetime(SDCard& sdCard, bool reset = true);
 
 } // namespace photo_frame
 #endif // __PHOTO_FRAME_RTC_UTIL_H__

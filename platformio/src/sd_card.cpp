@@ -108,7 +108,7 @@ photo_frame_error_t SDCard::begin()
 
     Serial.println("Initializing SD card...");
     hspi.begin(sckPin, misoPin, mosiPin, csPin);
-    if (!SD.begin(SD_CS_PIN, hspi)) {
+    if (!SD.begin(csPin, hspi)) {
         hspi.end(); // End the SPI bus for SD card
         return error_type::CardMountFailed;
     }

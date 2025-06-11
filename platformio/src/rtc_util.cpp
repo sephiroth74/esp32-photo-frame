@@ -108,9 +108,10 @@ DateTime fetch_remote_datetime(SDCard& sdCard)
     return result;
 } // featch_remote_datetime
 
-DateTime fetch_datetime(SDCard& sdCard)
+DateTime fetch_datetime(SDCard& sdCard, bool reset)
 {
-    Serial.println("Initializing RTC...");
+    Serial.print("Initializing RTC, reset: ");
+    Serial.println(reset ? "true" : "false");
 
     DateTime now;
     RTC_DS3231 rtc;
@@ -129,12 +130,16 @@ DateTime fetch_datetime(SDCard& sdCard)
 
     } else {
         rtc.disable32K();
-        if (rtc.lostPower()) {
+        if (rtc.lostPower() || reset) {
             // Set the time to a default value if the RTC lost power
-            Serial.println(F("RTC lost power, setting the time!"));
+            Serial.println(F("RTC lost power (or force is true), setting the time!"));
+
             now = fetch_remote_datetime(sdCard);
             if (!now.isValid()) {
                 Serial.println(F("Failed to fetch time from WiFi!"));
+                Serial.println(F("Using compile time as fallback"));
+                now = DateTime(__DATE__, __TIME__); // Use compile time as a fallback
+                rtc.adjust(now);
             } else {
                 rtc.adjust(now);
             }

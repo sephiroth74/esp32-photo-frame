@@ -128,7 +128,9 @@ void setup()
     if (!battery_info.is_critical()) {
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
-            now = photo_frame::fetch_datetime(sdCard);
+            now = photo_frame::fetch_datetime(sdCard, is_reset);
+        } else {
+            Serial.println(F("Skipping datetime fetch due to SD card error!"));
         }
         Serial.print("now is: ");
         Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
