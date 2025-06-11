@@ -73,10 +73,10 @@ if [[ "$type" != "grey" && "$type" != "color" ]]; then
 fi
 
 # If type is color, palette must be provided
-if [[ "$type" == "color" && -z "$palette" ]]; then
-    echo "Error: -palette argument is required when -type is 'color'."
-    exit 1
-fi
+# if [[ "$type" == "color" && -z "$palette" ]]; then
+#     echo "Error: -palette argument is required when -type is 'color'."
+#     exit 1
+# fi
 
 # Validate input and output directories
 if [[ -z "$input_file1" || -z "$input_file2" || -z "$output_dir" ]]; then
@@ -153,19 +153,22 @@ if [ "$type" = "grey" ]; then
     magick .tmp3.gif -monochrome .tmp3.gif #monochrome
     magick .tmp3.gif -depth 8 -alpha off -compress none BMP3:$output_file
 else
-    # Convert to color using the provided palette
-    magick .tmp3.jpg -dither FloydSteinberg -remap $palette .tmp3.gif
-    # magick .tmp3.gif -alpha Off -colors 256 $output_file # 8-bit color
-    magick .tmp.gif -alpha Off -depth 8 -colors 256 -compress none BMP3:$output_file # 8-bit color
-    # magick .tmp3.gif -alpha Off -type truecolor $output_file # 24-bit color
-
-    # now extract the bmp image data into an array of bytes and save to a .cpp file
+    if [ -z "$palette" ]; then
+        magick .tmp3.jpg +dither -colors 16 .tmp3.gif
+    else
+        magick .tmp3.jpg -dither FloydSteinberg -remap $palette .tmp3.gif
+    fi
+    magick .tmp3.gif -depth 8 -alpha Off -compress none BMP3:$output_file # 8-bit color
 
 fi
 
-rm .tmp3.jpg
+if [ -f .tmp3.jpg ]; then
+    rm .tmp3.jpg
+fi
 
-rm .tmp3.gif
+if [ -f .tmp3.gif ]; then
+    rm .tmp3.gif
+fi
 
 if [ $? -eq 0 ]; then
     echo "Done. Output file: $output_file"

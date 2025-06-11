@@ -29,35 +29,35 @@
 // Pin definitions
 
 // SD Card
-extern const uint8_t SD_CS_PIN;
-extern const uint8_t SD_MISO_PIN;
-extern const uint8_t SD_MOSI_PIN;
-extern const uint8_t SD_SCK_PIN;
+extern const int8_t SD_CS_PIN;
+extern const int8_t SD_MISO_PIN;
+extern const int8_t SD_MOSI_PIN;
+extern const int8_t SD_SCK_PIN;
 
 // e-Paper Display
-extern const uint8_t EPD_CS_PIN;
-extern const uint8_t EPD_DC_PIN;
-extern const uint8_t EPD_RST_PIN;
-extern const uint8_t EPD_BUSY_PIN;
-extern const uint8_t EPD_MISO_PIN;
-extern const uint8_t EPD_MOSI_PIN;
-extern const uint8_t EPD_SCK_PIN;
-extern const uint8_t EPD_PWR_PIN;
+extern const int8_t EPD_CS_PIN;
+extern const int8_t EPD_DC_PIN;
+extern const int8_t EPD_RST_PIN;
+extern const int8_t EPD_BUSY_PIN;
+extern const int8_t EPD_MISO_PIN;
+extern const int8_t EPD_MOSI_PIN;
+extern const int8_t EPD_SCK_PIN;
+extern const int8_t EPD_PWR_PIN;
 
 // RTC
-extern const uint8_t RTC_SDA_PIN;
-extern const uint8_t RTC_SCL_PIN;
-extern const uint8_t RTC_POWER_PIN;
+extern const int8_t RTC_SDA_PIN;
+extern const int8_t RTC_SCL_PIN;
+extern const int8_t RTC_POWER_PIN;
 
 // Potentiometer pin
-extern const uint8_t POTENTIOMETER_PWR_PIN; // Power pin for potentiometer
-extern const uint8_t POTENTIOMETER_INPUT_PIN; // SDA pin for potentiometer
+extern const int8_t POTENTIOMETER_PWR_PIN; // Power pin for potentiometer
+extern const int8_t POTENTIOMETER_INPUT_PIN; // SDA pin for potentiometer
 extern const uint16_t POTENTIOMETER_INPUT_MAX;
 
 // Battery
 
 // Analog pin for battery reading
-extern const uint8_t BATTERY_PIN;
+extern const int8_t BATTERY_PIN;
 // Resistor ratio for battery voltage divider
 extern const double BATTERY_RESISTORS_RATIO;
 // Number of readings to average for battery voltage

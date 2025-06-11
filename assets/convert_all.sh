@@ -19,7 +19,7 @@ if [ -z "$ZSH_VERSION" ]; then
     exit 1
 fi
 
-usage="Usage: $0 -type <grey|color> [-palette <palette.gif>] -output <output_directory> <input_directory>..."
+usage="Usage: $0 -type <grey|color> [-palette <palette.gif>] [-landscape-only] [-portrait-only] -output <output_directory> <input_directory>..."
 
 export pointsize=24
 export font='UbuntuMono-Nerd-Font-Bold'
@@ -30,6 +30,8 @@ type=""
 palette=""
 output_dir=""
 input_dirs=()
+landscape_only=false
+portrait_only=false
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -45,6 +47,14 @@ while [[ $# -gt 0 ]]; do
     -output)
         output_dir="$2"
         shift 2
+        ;;
+    -landscape-only)
+        landscape_only=true
+        shift
+        ;;
+    -portrait-only)
+        portrait_only=true
+        shift
         ;;
     -*)
         echo "Unknown option: $1"
@@ -88,12 +98,12 @@ if [[ "$type" != "grey" && "$type" != "color" ]]; then
     exit 1
 fi
 
-# If type is color, palette must be provided
-if [[ "$type" == "color" && -z "$palette" ]]; then
-    echo "Error: -palette argument is required when -type is 'color'."
-    echo "$usage"
-    exit 1
-fi
+# # If type is color, palette must be provided
+# if [[ "$type" == "color" && -z "$palette" ]]; then
+#     echo "Error: -palette argument is required when -type is 'color'."
+#     echo "$usage"
+#     exit 1
+# fi
 
 # Validate input and output directories
 if [[ -z "$output_dir" ]]; then
@@ -191,9 +201,17 @@ for input_dir in "${input_dirs[@]}"; do
 
         # Check if the width is greater than or equal to the height
         if [ "$width" -ge "$height" ]; then
+            if $portrait_only; then
+                echo "Skipping landscape image in portrait-only mode: $file"
+                continue
+            fi
             echo "Collecting landscape: $file"
             landscape_images+=("$file")
         else
+            if $landscape_only; then
+                echo "Skipping portrait image in landscape-only mode: $file"
+                continue
+            fi
             echo "Collecting portrait: $file"
             portrait_images+=("$file")
         fi
