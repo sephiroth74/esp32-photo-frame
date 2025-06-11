@@ -46,7 +46,7 @@ const int8_t RTC_SCL_PIN = A3;
 const int8_t POTENTIOMETER_PWR_PIN = A4;
 const int8_t POTENTIOMETER_INPUT_PIN = A5;
 
-const int8_t BATTERY_PIN = A0;
+const int8_t BATTERY_PIN = A7;
 const double BATTERY_RESISTORS_RATIO = 0.4910588235; // Ratio of the voltage divider resistors (R1 / (R1 + R2))
 
 const uint32_t BATTERY_CHARGING_MILLIVOLTS = 4300; // Millivolts above which the battery is considered charging

@@ -72,22 +72,17 @@ void BatteryReader::init() const
 battery_info_t BatteryReader::read() const
 {
     uint32_t millivolts = 0;
-    uint32_t raw = 0;
     for (int i = 0; i < num_readings; i++) {
-        raw += analogRead(pin);
         millivolts += analogReadMilliVolts(pin);
         delay(delay_between_readings);
     }
 
-    raw /= num_readings;
     millivolts /= num_readings;
     uint32_t voltage = millivolts / resistor_ratio;
     uint8_t percent = calc_battery_percentage(voltage);
 
 #if DEBUG_MODE
-    Serial.print("raw: ");
-    Serial.print(raw);
-    Serial.print(", millivolts: ");
+    Serial.print("millivolts: ");
     Serial.print(millivolts);
     Serial.print(", voltage: ");
     Serial.print(voltage);
@@ -96,7 +91,7 @@ battery_info_t BatteryReader::read() const
 #endif // DEBUG_MODE
 
     return battery_info(
-        millivolts /* raw_value */, voltage /* millivolts */, percent /* percent */);
+        millivolts /* raw_millivolts */, voltage /* adjusted millivolts */, percent /* percent */);
 } // read
 
 } // namespace battery

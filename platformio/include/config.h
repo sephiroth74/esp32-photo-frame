@@ -113,7 +113,7 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 // Toggle debug mode (0 = off, 1 = on)
 // When is on, for instance, the display will also print the battery raw value and there will be a
 // delay before entering deep sleep
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 #define MICROSECONDS_IN_SECOND 1000000
 #define SECONDS_IN_MINUTE 60
