@@ -108,7 +108,7 @@ DateTime fetch_remote_datetime(SDCard& sdCard)
     return result;
 } // featch_remote_datetime
 
-DateTime fetch_datetime(SDCard& sdCard, bool reset)
+DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
 {
     Serial.print("Initializing RTC, reset: ");
     Serial.println(reset ? "true" : "false");
@@ -122,6 +122,11 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset)
 
     Wire1.begin(RTC_SDA_PIN /* SDA */, RTC_SCL_PIN /* SCL */);
     if (!rtc.begin(&Wire1)) {
+        // set the error if provided
+        if (error) {
+            *error = error_type::RTCInitializationFailed;
+        }
+
         Serial.println(F("Couldn't find RTC"));
         now = fetch_remote_datetime(sdCard);
         if (!now.isValid()) {

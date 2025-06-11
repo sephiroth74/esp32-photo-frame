@@ -165,6 +165,7 @@ void disable_built_in_led()
 
 void blink_builtin_led(photo_frame_error_t error)
 {
+#if defined(LED_BUILTIN)
     Serial.print(F("Blinking built-in LED with error code: "));
     Serial.print(error.code);
     Serial.print(F(" ("));
@@ -172,11 +173,11 @@ void blink_builtin_led(photo_frame_error_t error)
     Serial.print(F(") - "));
     Serial.print(F("Blink count: "));
     Serial.println(error.blink_count);
-
     blink_builtin_led(error.blink_count);
+#endif
 } // blink_builtin_led with error code
 
-void blink_builtin_led(int count, uint32_t on_ms, uint32_t off_ms)
+void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms)
 {
 #if defined(LED_BUILTIN)
     Serial.println(F("Blinking built-in LED..."));
@@ -191,6 +192,53 @@ void blink_builtin_led(int count, uint32_t on_ms, uint32_t off_ms)
     Serial.println(F("LED_BUILTIN is not defined! Cannot blink the built-in LED."));
 #endif
 } // blink_builtin_led
+
+void blink_rgb_led(uint32_t count, bool red, bool green, bool blue, unsigned long on_ms, unsigned long off_ms)
+{
+#if HAS_RGB_LED
+    Serial.print(F("Blinking RGB LED..."));
+    pinMode(LED_BLUE, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+    for (int i = 0; i < count; i++) {
+        toggle_rgb_led(red, green, blue);
+        delay(on_ms);
+        toggle_rgb_led(false, false, false);
+        delay(off_ms);
+    }
+#endif
+} // blin,_rgb_led
+
+void blink_rgb_led(photo_frame_error_t error)
+{
+#if HAS_RGB_LED
+    Serial.print(F("Blinking RGB LED with error code: "));
+    Serial.print(error.code);
+    Serial.print(F(" ("));
+    Serial.print(error.message);
+    Serial.print(F(") - "));
+    Serial.print(F("Blink count: "));
+    Serial.println(error.blink_count);
+
+    blink_rgb_led(error.blink_count, true, false, false);
+#endif
+} // blink_rgb_led with error code
+
+void blink_error(photo_frame_error_t error)
+{
+    Serial.print(F("Blinking error: "));
+    Serial.print(error.message);
+    Serial.print(F(" (Code: "));
+    Serial.print(error.code);
+    Serial.print(F(", Blink count: "));
+    Serial.println(error.blink_count);
+
+#if HAS_RGB_LED
+    blink_rgb_led(error);
+#elif defined(LED_BUILTIN)
+    blink_builtin_led(error);
+#endif
+} // blink_error
 
 long read_refresh_seconds(bool is_battery_low)
 {

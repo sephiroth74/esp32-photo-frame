@@ -35,6 +35,8 @@ extern const char* TXT_BATTERY_LEVEL_CRITICAL;
 extern const char* TXT_CARD_TOC_OPEN_FILE_FAILED;
 extern const char* TXT_PREFERENCES_OPEN_FAILED;
 extern const char* TXT_NO_IMAGES_FOUND;
+extern const char* TXT_BATTERY_EMPTY;
+extern const char* TXT_RTC_MODULE_NOT_FOUND;
 
 extern const char* TXT_ERROR_CODE;
 

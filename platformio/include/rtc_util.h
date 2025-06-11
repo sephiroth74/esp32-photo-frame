@@ -33,11 +33,15 @@ namespace photo_frame {
  * Fetches the current date and time from the RTC or WiFi if the RTC is not available.
  * @param sdCard Reference to the SDCard object used for fetching time from WiFi if RTC is not
  * available.
+ * @param reset If true, forces the RTC to reset and fetch the time from WiFi.
+ * @param error Pointer to a photo_frame_error_t object to store any error that occurs during the
+ * operation. If an error occurs, the error object will be updated with the error message and code.
+ * If no error occurs, the error object will remain unchanged.
  * @return DateTime object representing the current date and time.
  * If the RTC is not available or has lost power, it attempts to fetch the time from WiFi.
  * If both RTC and WiFi are unavailable, it returns an invalid DateTime object.
  */
-DateTime fetch_datetime(SDCard& sdCard, bool reset = true);
+DateTime fetch_datetime(SDCard& sdCard, bool reset = true, photo_frame_error_t* error = nullptr);
 
 } // namespace photo_frame
 #endif // __PHOTO_FRAME_RTC_UTIL_H__
