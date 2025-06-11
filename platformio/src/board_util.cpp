@@ -129,9 +129,9 @@ void disable_rgb_led()
 {
 #if HAS_RGB_LED
     Serial.println(F("Disabling RGB LED..."));
-    digitalWrite(LED_BLUE, LOW);
-    digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_BLUE, HIGH);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_RED, HIGH);
 #endif
 }
 
