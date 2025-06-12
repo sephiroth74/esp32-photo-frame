@@ -123,17 +123,17 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
     Wire1.begin(RTC_SDA_PIN /* SDA */, RTC_SCL_PIN /* SCL */);
     if (!rtc.begin(&Wire1)) {
         // set the error if provided
-        if (error) {
-            *error = error_type::RTCInitializationFailed;
-        }
-
         Serial.println(F("Couldn't find RTC"));
         now = fetch_remote_datetime(sdCard);
         if (!now.isValid()) {
             Serial.println(F("Failed to fetch time from WiFi!"));
+            if (error) {
+                *error = error_type::RTCInitializationFailed;
+            }
         }
 
     } else {
+        Serial.println(F("RTC initialized successfully!"));
         rtc.disable32K();
         if (rtc.lostPower() || reset) {
             // Set the time to a default value if the RTC lost power
