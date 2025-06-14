@@ -1,3 +1,5 @@
 assets/Martina
 assets/output/
 platformio/include/config.local
+assets/project/project-backups/
+assets/project/*.lck
