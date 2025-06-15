@@ -3,3 +3,4 @@ assets/output/
 platformio/include/config.local
 assets/project/project-backups/
 assets/project/*.lck
+assets/project/\#auto_saved_files\#
