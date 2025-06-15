@@ -52,7 +52,20 @@
         }
       },
       "diff_pair_dimensions": [],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "silk_edge_clearance|100330000|103000000|55d7346d-193c-43c9-b52f-ed6febbcc74c|aba6eb63-658a-48e4-ab55-536a6fed26d8",
+          ""
+        ],
+        [
+          "silk_edge_clearance|100330000|95120000|55d7346d-193c-43c9-b52f-ed6febbcc74c|3f4b8b63-102b-43ee-a9f3-352852d40453",
+          ""
+        ],
+        [
+          "silk_edge_clearance|194338388|68390000|55d7346d-193c-43c9-b52f-ed6febbcc74c|562fcc67-5905-4fc1-89cd-a1f7c06f0f42",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
