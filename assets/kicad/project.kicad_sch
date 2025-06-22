@@ -3529,7 +3529,7 @@
 		(uuid "8f8a4b7b-b208-4746-910e-f3f21280eaa6")
 	)
 	(no_connect
-		(at 135.89 68.58)
+		(at 133.35 69.85)
 		(uuid "a8ae75df-7f5d-4c60-a78a-20c3b7133e40")
 	)
 	(no_connect
@@ -3537,7 +3537,7 @@
 		(uuid "ef09b4cc-fc8a-444d-9864-46d5ffe07eca")
 	)
 	(no_connect
-		(at 135.89 66.04)
+		(at 133.35 67.31)
 		(uuid "f8e8eea0-dc8b-4e6d-b518-5cf142afefab")
 	)
 	(wire
@@ -3858,7 +3858,7 @@
 	)
 	(wire
 		(pts
-			(xy 120.65 78.74) (xy 85.09 78.74)
+			(xy 97.79 78.74) (xy 85.09 78.74)
 		)
 		(stroke
 			(width 0)
@@ -3898,7 +3898,7 @@
 	)
 	(wire
 		(pts
-			(xy 26.67 66.04) (xy 26.67 71.12)
+			(xy 29.21 62.23) (xy 29.21 71.12)
 		)
 		(stroke
 			(width 0)
@@ -3948,7 +3948,7 @@
 	)
 	(wire
 		(pts
-			(xy 163.83 113.03) (xy 163.83 68.58)
+			(xy 163.83 113.03) (xy 163.83 69.85)
 		)
 		(stroke
 			(width 0)
@@ -4131,7 +4131,7 @@
 	)
 	(wire
 		(pts
-			(xy 24.13 76.2) (xy 49.53 76.2)
+			(xy 21.59 76.2) (xy 49.53 76.2)
 		)
 		(stroke
 			(width 0)
@@ -4203,7 +4203,7 @@
 	)
 	(wire
 		(pts
-			(xy 163.83 68.58) (xy 161.29 68.58)
+			(xy 163.83 69.85) (xy 158.75 69.85)
 		)
 		(stroke
 			(width 0)
@@ -4265,7 +4265,7 @@
 	)
 	(wire
 		(pts
-			(xy 163.83 66.04) (xy 161.29 66.04)
+			(xy 163.83 67.31) (xy 158.75 67.31)
 		)
 		(stroke
 			(width 0)
@@ -4633,7 +4633,7 @@
 	)
 	(wire
 		(pts
-			(xy 26.67 71.12) (xy 49.53 71.12)
+			(xy 29.21 71.12) (xy 49.53 71.12)
 		)
 		(stroke
 			(width 0)
@@ -4663,7 +4663,7 @@
 	)
 	(wire
 		(pts
-			(xy 163.83 58.42) (xy 163.83 66.04)
+			(xy 163.83 67.31) (xy 163.83 58.42)
 		)
 		(stroke
 			(width 0)
@@ -4673,7 +4673,7 @@
 	)
 	(wire
 		(pts
-			(xy 41.91 104.14) (xy 49.53 104.14)
+			(xy 24.13 104.14) (xy 49.53 104.14)
 		)
 		(stroke
 			(width 0)
@@ -4713,7 +4713,7 @@
 	)
 	(wire
 		(pts
-			(xy 24.13 74.93) (xy 24.13 76.2)
+			(xy 21.59 73.66) (xy 21.59 76.2)
 		)
 		(stroke
 			(width 0)
@@ -4733,7 +4733,7 @@
 	)
 	(wire
 		(pts
-			(xy 41.91 102.87) (xy 41.91 104.14)
+			(xy 24.13 102.87) (xy 24.13 104.14)
 		)
 		(stroke
 			(width 0)
@@ -4814,7 +4814,7 @@
 	)
 	(wire
 		(pts
-			(xy 120.65 62.23) (xy 120.65 78.74)
+			(xy 97.79 76.2) (xy 97.79 78.74)
 		)
 		(stroke
 			(width 0)
@@ -4874,7 +4874,7 @@
 	)
 	(wire
 		(pts
-			(xy 25.4 71.12) (xy 25.4 73.66)
+			(xy 25.4 68.58) (xy 25.4 73.66)
 		)
 		(stroke
 			(width 0)
@@ -5172,7 +5172,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "19bd759d-6b24-4a9c-afa5-40d7e41ff541")
-		(property "Reference" "R2"
+		(property "Reference" "R1"
 			(at 191.77 35.56 90)
 			(effects
 				(font
@@ -5224,7 +5224,7 @@
 		(instances
 			(project ""
 				(path "/f8e09e1c-881e-489b-95e9-2234c93d45c2"
-					(reference "R2")
+					(reference "R1")
 					(unit 1)
 				)
 			)
@@ -5499,7 +5499,7 @@
 	)
 	(symbol
 		(lib_id "Mouser Library:FSMRA6JH")
-		(at 161.29 68.58 180)
+		(at 158.75 69.85 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -5508,7 +5508,7 @@
 		(fields_autoplaced yes)
 		(uuid "38c0d587-a530-4ef2-879e-1a0cebd401f7")
 		(property "Reference" "S1"
-			(at 148.59 58.42 0)
+			(at 146.05 59.69 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5516,7 +5516,7 @@
 			)
 		)
 		(property "Value" "FSMRA6JH"
-			(at 148.59 60.96 0)
+			(at 146.05 62.23 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5524,7 +5524,7 @@
 			)
 		)
 		(property "Footprint" "Mouser:P&B Tactile Button Right Angle - FSMRA6JH"
-			(at 139.7 -26.34 0)
+			(at 137.16 -25.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5534,7 +5534,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocNm=1825027&DocType=Customer%20Drawing&DocLang=English&DocFormat=pdf&PartCntxt=1-1825027-7"
-			(at 139.7 -126.34 0)
+			(at 137.16 -125.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5544,7 +5544,7 @@
 			)
 		)
 		(property "Description" "50 mA Tactile Switch, Round Actuator, NO, Copper Alloy, Silver Contact Plating, Low Profile, 24 VDC, Alcoswitch FSM"
-			(at 162.052 62.23 0)
+			(at 159.512 63.5 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5553,7 +5553,7 @@
 			)
 		)
 		(property "Height" "7.01"
-			(at 139.7 -326.34 0)
+			(at 137.16 -325.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5563,7 +5563,7 @@
 			)
 		)
 		(property "Mouser Part Number" "655-FSMRA6JH"
-			(at 139.7 -426.34 0)
+			(at 137.16 -425.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5573,7 +5573,7 @@
 			)
 		)
 		(property "Mouser Price/Stock" "https://www.mouser.co.uk/ProductDetail/TE-Connectivity-PB/FSMRA6JH?qs=g%252BEszo6zu8NkDuHQpVqSQA%3D%3D"
-			(at 139.7 -526.34 0)
+			(at 137.16 -525.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5583,7 +5583,7 @@
 			)
 		)
 		(property "Manufacturer_Name" "TE Connectivity"
-			(at 139.7 -626.34 0)
+			(at 137.16 -625.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5593,7 +5593,7 @@
 			)
 		)
 		(property "Manufacturer_Part_Number" "FSMRA6JH"
-			(at 139.7 -726.34 0)
+			(at 137.16 -725.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5692,7 +5692,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 25.4 71.12 0)
+		(at 25.4 68.58 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -5700,7 +5700,7 @@
 		(dnp no)
 		(uuid "44d90516-bd84-40e3-9602-4761225c880e")
 		(property "Reference" "TP6"
-			(at 16.002 66.802 0)
+			(at 16.002 64.262 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5709,7 +5709,7 @@
 			)
 		)
 		(property "Value" "D1/TX"
-			(at 16.002 69.342 0)
+			(at 16.002 66.802 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5718,7 +5718,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
-			(at 30.48 71.12 0)
+			(at 30.48 68.58 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5727,7 +5727,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 30.48 71.12 0)
+			(at 30.48 68.58 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5736,7 +5736,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 25.4 71.12 0)
+			(at 25.4 68.58 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5758,7 +5758,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 41.91 102.87 0)
+		(at 24.13 102.87 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -5766,7 +5766,7 @@
 		(dnp no)
 		(uuid "4f682aeb-2443-43e9-be9c-e0cb02e3777b")
 		(property "Reference" "TP4"
-			(at 37.846 103.124 0)
+			(at 20.066 103.124 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5775,7 +5775,7 @@
 			)
 		)
 		(property "Value" "D13/SCK"
-			(at 37.846 105.664 0)
+			(at 20.066 105.664 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5784,7 +5784,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
-			(at 46.99 102.87 0)
+			(at 29.21 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5793,7 +5793,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 46.99 102.87 0)
+			(at 29.21 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5802,7 +5802,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 41.91 102.87 0)
+			(at 24.13 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5894,7 +5894,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 120.65 62.23 0)
+		(at 97.79 76.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -5903,7 +5903,7 @@
 		(fields_autoplaced yes)
 		(uuid "56c2873e-ce43-4a37-9326-0997d4952585")
 		(property "Reference" "TP10"
-			(at 123.19 57.6579 0)
+			(at 100.33 71.6279 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5912,7 +5912,7 @@
 			)
 		)
 		(property "Value" "B0"
-			(at 123.19 60.1979 0)
+			(at 100.33 74.1679 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5921,7 +5921,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
-			(at 125.73 62.23 0)
+			(at 102.87 76.2 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5930,7 +5930,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 125.73 62.23 0)
+			(at 102.87 76.2 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5939,7 +5939,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 120.65 62.23 0)
+			(at 97.79 76.2 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6262,7 +6262,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7cd66b42-3586-409a-967f-d03106356260")
-		(property "Reference" "R1"
+		(property "Reference" "R2"
 			(at 199.39 49.53 90)
 			(effects
 				(font
@@ -6314,7 +6314,7 @@
 		(instances
 			(project ""
 				(path "/f8e09e1c-881e-489b-95e9-2234c93d45c2"
-					(reference "R1")
+					(reference "R2")
 					(unit 1)
 				)
 			)
@@ -6862,7 +6862,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 26.67 66.04 0)
+		(at 29.21 62.23 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6870,7 +6870,7 @@
 		(dnp no)
 		(uuid "bf31bdbf-57ee-482b-8356-2b6702e73177")
 		(property "Reference" "TP7"
-			(at 16.002 61.214 0)
+			(at 18.542 57.404 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6879,7 +6879,7 @@
 			)
 		)
 		(property "Value" "D0/RX"
-			(at 16.002 63.754 0)
+			(at 18.542 59.944 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6888,7 +6888,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
-			(at 31.75 66.04 0)
+			(at 34.29 62.23 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6897,7 +6897,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 31.75 66.04 0)
+			(at 34.29 62.23 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6906,7 +6906,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 26.67 66.04 0)
+			(at 29.21 62.23 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7009,7 +7009,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 24.13 74.93 0)
+		(at 21.59 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -7017,7 +7017,7 @@
 		(dnp no)
 		(uuid "e4e3b38a-daaf-4e35-a84c-929b45d44ac4")
 		(property "Reference" "TP5"
-			(at 23.622 77.724 0)
+			(at 17.78 77.216 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7026,7 +7026,7 @@
 			)
 		)
 		(property "Value" "D2"
-			(at 23.622 80.264 0)
+			(at 17.526 79.502 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7035,7 +7035,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
-			(at 29.21 74.93 0)
+			(at 26.67 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7044,7 +7044,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 29.21 74.93 0)
+			(at 26.67 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7053,7 +7053,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 24.13 74.93 0)
+			(at 21.59 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)

@@ -772,7 +772,7 @@
 		)
 		(property "Value" "RTC"
 			(at 17.526 6.35 0)
-			(layer "F.Fab")
+			(layer "F.SilkS")
 			(uuid "f35d4993-1463-4caf-9238-9728c8567b03")
 			(effects
 				(font
@@ -1412,7 +1412,7 @@
 		(at 190.5 85.852)
 		(descr "Resistor, Axial_DIN0207 series, Axial, Horizontal, pin pitch=7.62mm, 0.25W = 1/4W, length*diameter=6.3*2.5mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0207 series Axial Horizontal pin pitch 7.62mm 0.25W = 1/4W length 6.3mm diameter 2.5mm")
-		(property "Reference" "R2"
+		(property "Reference" "R1"
 			(at 3.81 -2.37 0)
 			(layer "F.SilkS")
 			(uuid "ad7145a4-6d2b-4edf-ae97-06ea02071d40")
@@ -5780,7 +5780,7 @@
 		(at 190.5 78.994)
 		(descr "Resistor, Axial_DIN0207 series, Axial, Horizontal, pin pitch=7.62mm, 0.25W = 1/4W, length*diameter=6.3*2.5mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0207 series Axial Horizontal pin pitch 7.62mm 0.25W = 1/4W length 6.3mm diameter 2.5mm")
-		(property "Reference" "R1"
+		(property "Reference" "R2"
 			(at 3.81 -2.37 0)
 			(layer "F.SilkS")
 			(uuid "b79eaec0-a1ca-45c2-be1d-2336e9d6e32c")
@@ -8362,6 +8362,42 @@
 				(thickness 0.25)
 			)
 			(justify bottom mirror)
+		)
+	)
+	(gr_text "21.06.2025"
+		(at 206.756 193.548 0)
+		(layer "Cmts.User")
+		(uuid "6ca8210e-bc1f-416e-9da2-6046241a4d34")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Alessandro Crugnola"
+		(at 178.054 172.212 0)
+		(layer "Cmts.User")
+		(uuid "77c6bbf0-4deb-43d0-8049-8b60078ee4e5")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Photo Frame"
+		(at 186.69 190.5 0)
+		(layer "Cmts.User")
+		(uuid "784f350b-b917-4de7-a1d3-4f662cc41f47")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.25)
+			)
+			(justify left bottom)
 		)
 	)
 	(gr_text "Photo Frame"
