@@ -6,3 +6,5 @@ assets/project/*.lck
 assets/project/\#auto_saved_files\#
 assets/kicad/jlcpcb/
 assets/kicad/project-backups/
+assets/kicad/~project.kicad_pcb.lck
+assets/kicad/~project.kicad_sch.lck
