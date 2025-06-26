@@ -103,6 +103,7 @@ String get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason)
 
 void print_board_stats()
 {
+#if DEBUG_MODE
     Serial.println(F("Board Statistics:"));
     Serial.print("Heap:");
     Serial.println(ESP.getHeapSize());
@@ -123,6 +124,7 @@ void print_board_stats()
     Serial.print("CPU Freq: ");
     Serial.println(ESP.getCpuFreqMHz());
     Serial.println("-----------------------------");
+#endif // DEBUG_MODE
 } // print_board_stats
 
 void disable_rgb_led()
@@ -285,6 +287,19 @@ long read_refresh_seconds(bool is_battery_low)
         POTENTIOMETER_INPUT_MAX,
         REFRESH_MIN_INTERVAL_SECONDS,
         REFRESH_MAX_INTERVAL_SECONDS);
+
+    Serial.print(F("Refresh seconds: "));
+    Serial.println(refresh_seconds);
+
+    if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS * 2)) {
+        // increase the refresh seconds to the next step
+        Serial.println(F("Increasing refresh seconds to the next step..."));
+        refresh_seconds = (refresh_seconds / (long)REFRESH_STEP_SECONDS + 1) * (long)REFRESH_STEP_SECONDS;
+    }
+
+    Serial.print(F("Final refresh seconds: "));
+    Serial.println(refresh_seconds);
+
     return refresh_seconds;
 } // read_refresh_seconds
 

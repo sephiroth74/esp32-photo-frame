@@ -68,6 +68,7 @@ void setup()
     // if the wakeup reason is undefined, it means the device is starting up after
     // a reset
     bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+    bool reset_rtc = is_reset && RESET_INVALIDATES_DATE_TIME;
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
     bool write_toc = is_reset;
@@ -78,6 +79,7 @@ void setup()
     photo_frame::print_board_stats();
     photo_frame::print_config();
 
+#if DEBUG_MODE
     Serial.print(F("Wakeup reason: "));
     Serial.print(wakeup_reason_string);
     Serial.print(F(" ("));
@@ -86,6 +88,7 @@ void setup()
 
     Serial.print(F("Is reset: "));
     Serial.println(is_reset ? "Yes" : "No");
+#endif // DEBUG_MODE
 
 #if DEBUG_MODE
     delay(2000);
@@ -129,7 +132,7 @@ void setup()
     if (!battery_info.is_critical()) {
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
-            now = photo_frame::fetch_datetime(sdCard, (is_reset), &error);
+            now = photo_frame::fetch_datetime(sdCard, (reset_rtc), &error);
         } else {
             Serial.println(F("Skipping datetime fetch due to SD card error!"));
         }
@@ -216,7 +219,14 @@ void setup()
                     error = photo_frame::error_type::NoImagesFound;
                 } else {
                     // Generate a random index to start from
+
+#ifdef DEBUG_IMAGE_INDEX
+                    image_index = DEBUG_IMAGE_INDEX;
+                    Serial.print(F("Using debug image index: "));
+                    Serial.println(image_index);
+#else
                     image_index = random(0, total_files);
+#endif // DEBUG_IMAGE_INDEX
 
 #if DEBUG_MODE
                     Serial.print(F("Next image index: "));
@@ -341,7 +351,9 @@ void setup()
     sdCard.end(); // Close the SD card
 
     photo_frame::disable_rgb_led();
-    delay(500);
+
+    delay(1000);
+
     photo_frame::renderer::power_off();
 
     /* #endregion e-Paper display */

@@ -76,7 +76,8 @@ extern const uint8_t BATTERY_PERCENT_CRITICAL;
 extern const uint8_t BATTERY_PERCENT_LOW;
 
 #ifndef LED_BUILTIN
-#define LED_BUILTIN 2 // Built-in LED pin for ESP32
+// Built-in LED pin for ESP32
+#define LED_BUILTIN 2
 #endif // LED_BUILTIN
 
 // Delay before going to sleep in milliseconds (when in debug mode or coming back from sleep without
@@ -92,9 +93,11 @@ extern const char* WIFI_FILENAME; // Filename for WiFi credentials inside the SD
 // Filename for Table of Contents (TOC) inside the SD Card
 extern const char* TOC_FILENAME;
 
-#define WIFI_CONNECT_TIMEOUT 10000 // 10 seconds
+// 10 seconds
+#define WIFI_CONNECT_TIMEOUT 10000 
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
-#define NTP_TIMEOUT 20000 // ms
+// ms
+#define NTP_TIMEOUT 20000 
 #define NTP_SERVER1 "pool.ntp.org"
 #define NTP_SERVER2 "time.nist.gov"
 
@@ -115,18 +118,27 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 // delay before entering deep sleep
 #define DEBUG_MODE 0
 
+// Forces the display to use the debug image instead of random from toc
+// #define DEBUG_IMAGE_INDEX 381
+
+// Reset the RTC so that it will be initialized with the current time from NTP servers
+#define RESET_INVALIDATES_DATE_TIME 1
+
 #define MICROSECONDS_IN_SECOND 1000000
 #define SECONDS_IN_MINUTE 60
 #define SECONDS_IN_HOUR 3600
 
 // Minimum time between refreshes in seconds (minimum 5 minute, maximum 2 hours)
-#define REFRESH_MIN_INTERVAL_SECONDS 5 * SECONDS_IN_MINUTE
+#define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)
 
 // Maximum time between refreshes in seconds (minimum 10 minutes, maximum 4 hours)
-#define REFRESH_MAX_INTERVAL_SECONDS 2 * SECONDS_IN_HOUR
+#define REFRESH_MAX_INTERVAL_SECONDS (2 * SECONDS_IN_HOUR)
+
+// Step in seconds for the refresh rate
+#define REFRESH_STEP_SECONDS (5 * SECONDS_IN_MINUTE)
 
 // time between refreshes in seconds when battery is low
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY 6 * SECONDS_IN_HOUR
+#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)
 
 #define DAY_START_HOUR 06 // Hour when the day starts (6 AM)
 #define DAY_END_HOUR 23 // Hour when the day ends (10 PM) (midnight is 0)
