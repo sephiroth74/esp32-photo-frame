@@ -30,13 +30,14 @@ const int8_t SD_MISO_PIN = D5;
 const int8_t SD_MOSI_PIN = D4;
 const int8_t SD_SCK_PIN = D6;
 
-const int8_t EPD_BUSY_PIN = D12;
-const int8_t EPD_RST_PIN = D11;
-const int8_t EPD_DC_PIN = D10;
-const int8_t EPD_CS_PIN = D9;
+const int8_t EPD_BUSY_PIN = D7;
+const int8_t EPD_RST_PIN = D8;
+const int8_t EPD_DC_PIN = D9;
+const int8_t EPD_CS_PIN = D10;
+const int8_t EPD_SCK_PIN = D11;
+const int8_t EPD_MOSI_PIN = D12; // MOSI (DIN)
+
 const int8_t EPD_MISO_PIN = -1; // MISO
-const int8_t EPD_MOSI_PIN = D7; // MOSI (DIN)
-const int8_t EPD_SCK_PIN = D8;
 const int8_t EPD_PWR_PIN = -1;
 
 const int8_t RTC_POWER_PIN = A1;

@@ -62,6 +62,26 @@
         [
           "item_on_disabled_layer|192945000|98330000|739fa789-5af3-492f-971f-783f60eaed86|00000000-0000-0000-0000-000000000000",
           ""
+        ],
+        [
+          "silk_edge_clearance|126268000|60532000|d73d2101-ab9d-44fa-b879-63516c54d703|cb81d7bc-2dfe-4920-92d6-e3c40e45758b",
+          ""
+        ],
+        [
+          "silk_edge_clearance|166298000|60532000|d73d2101-ab9d-44fa-b879-63516c54d703|7d688d5c-e235-4cc5-8359-d708e35b868a",
+          ""
+        ],
+        [
+          "silk_edge_clearance|172538000|60532000|d73d2101-ab9d-44fa-b879-63516c54d703|e4423abd-9782-4703-b86f-4b7c24a9d889",
+          ""
+        ],
+        [
+          "silk_edge_clearance|72858000|106042000|d73d2101-ab9d-44fa-b879-63516c54d703|7367605a-a5a8-48b0-8b09-94620665cf4a",
+          ""
+        ],
+        [
+          "silk_edge_clearance|72858000|113922000|d73d2101-ab9d-44fa-b879-63516c54d703|417361bd-88df-4eb4-9b0c-e78eaf09bc16",
+          ""
         ]
       ],
       "meta": {
@@ -128,7 +148,7 @@
       },
       "rules": {
         "max_error": 0.005,
-        "min_clearance": 0.0,
+        "min_clearance": 0.2,
         "min_connection": 0.0,
         "min_copper_edge_clearance": 0.5,
         "min_groove_width": 0.0,
@@ -193,9 +213,9 @@
       ],
       "track_widths": [
         0.0,
-        0.2,
+        0.254,
         0.3,
-        0.5,
+        0.508,
         0.76
       ],
       "tuning_pattern_settings": {
