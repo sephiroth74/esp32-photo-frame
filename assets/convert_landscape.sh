@@ -3,7 +3,7 @@
 # This script converts a single image to BMP format with optional color palette and type.
 #     echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
 #     echo "Error: -palette argument is required when -type is 'color'."
-# Usage: convert_h.sh -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>
+# Usage: convert_landscape.sh -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>
 
 # Exit on error
 set -e
@@ -32,6 +32,7 @@ type=""
 palette=""
 input_file=""
 output_dir=""
+colors=0
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -42,6 +43,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     -palette)
         palette="$2"
+        shift 2
+        ;;
+    -colors)
+        colors="$2"
         shift 2
         ;;
     -*)
@@ -74,16 +79,16 @@ if [[ "$type" != "grey" && "$type" != "color" ]]; then
     exit 1
 fi
 
-# # If type is color, palette must be provided
-# if [[ "$type" == "color" && -z "$palette" ]]; then
-#     echo "Error: -palette argument is required when -type is 'color'."
-#     exit 1
-# fi
-
-# echo "type: $type"
-# echo "palette: $palette"
-# echo "input_file: $input_file"
-# echo "output_dir: $output_dir"
+# If type is color, palette or colors must be provided, but not both (colors is ignored if palette is provided)
+if [[ "$type" == "color" && -z "$palette" && (-z "$colors" || "$colors" -le 0) ]]; then
+    echo "Error: -palette or -colors argument is required when -type is 'color'."
+    echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
+    exit 1
+elif [[ "$type" == "color" && -n "$palette" && (-n "$colors" && "$colors" -gt 0) ]]; then
+    echo "Error: -palette and -colors cannot be used together. Please use one of them."
+    echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
+    exit 1
+fi
 
 # Validate input and output directories
 if [[ -z "$input_file" || -z "$output_dir" ]]; then
@@ -124,37 +129,38 @@ if [ -z "$exif_date" ]; then
     exif_date=$(basename "$input_file" | sed 's/\.[^.]*$//') # remove extension
 fi
 
+magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -auto-orient .tmp.jpg
+command=""
+
+if [ -n "$exif_date" ]; then
+    magick .tmp.jpg -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.jpg
+fi
+
 if [ "$type" = "grey" ]; then
-    magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -dither FloydSteinberg -remap pattern:gray50 -auto-orient .tmp.gif #grey
-    if [ -n "$exif_date" ]; then
-        magick .tmp.gif -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.gif
-    fi
-    magick .tmp.gif -depth 8 -alpha off -compress none BMP3:$output_file
-else
-    
+    command="magick .tmp.jpg -auto-level -dither FloydSteinberg"
     if [ -z "$palette" ]; then
-        magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -auto-orient +dither -colors 16 .tmp.gif
+        command="$command -remap pattern:gray50 -monochrome"
     else
-        magick $input_file -resize 800x480^ -gravity Center -extent 800x480 -auto-orient -dither FloydSteinberg -remap $palette .tmp.gif
+        command="$command -remap $palette"
     fi
-
-    if [ -n "$exif_date" ]; then
-        magick .tmp.gif -undercolor $annotate_background -gravity SouthEast -fill white -font $font -pointsize $pointsize -annotate +0+0 $exif_date .tmp.gif
-    fi
-
-    magick .tmp.gif -depth 8 -alpha off -compress none BMP3:$output_file
-fi
-
-# remove .tmp.gif file if it exists
-if [ -f .tmp.gif ]; then
-    rm .tmp.gif
-fi
-
-
-if [ $? -eq 0 ]; then
-    echo "Done. Output file: $output_file"
+    command="$command -type Palette -depth 8 -alpha off -compress none BMP3:\"$output_file\""
 else
-    echo "Failed."
+    command="magick .tmp.jpg -auto-level -dither FloydSteinberg"
+    if [ -z "$palette" ]; then
+        command="$command -colors $colors"
+    else
+        command="$command -remap $palette"
+    fi
+    command="$command -type Palette -depth 8 -alpha off -compress none BMP3:\"$output_file\""
+fi
+
+eval $command
+
+
+
+# remove .tmp.jpg file if it exists
+if [ -f .tmp.jpg ]; then
+    rm .tmp.jpg
 fi
 
 set +e

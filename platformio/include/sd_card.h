@@ -59,7 +59,9 @@ public:
 
 class SDCard {
 private:
+#ifdef USE_HSPI_FOR_SD
     SPIClass hspi; // SPI object for SD card
+#endif // USE_HSPI_FOR_SD
     bool initialized;
     uint8_t csPin;
     uint8_t misoPin;
@@ -72,8 +74,12 @@ public:
         uint8_t misoPin = SD_MISO_PIN,
         uint8_t mosiPin = SD_MOSI_PIN,
         uint8_t sckPin = SD_SCK_PIN)
+#ifdef USE_HSPI_FOR_SD
         : hspi(HSPI)
         , initialized(false)
+#else
+        : initialized(false)
+#endif // USE_HSPI_FOR_SD
         , csPin(csPin)
         , misoPin(misoPin)
         , mosiPin(mosiPin)
@@ -148,6 +154,13 @@ public:
     }
 
     /**
+     * Gets the last modified time of a file on the SD card.
+     * @param path The path to the file.
+     * @return The last modified time as a time_t value.
+     */
+    time_t get_last_modified(const char* path) const;
+
+    /**
      * Checks if a file exists on the SD card.
      * @param path The path to the file to check.
      * @return true if the file exists, false otherwise.
@@ -161,12 +174,15 @@ public:
      * @param total_files Pointer to a variable that will hold the total number of files written to
      * the TOC.
      * @param toc_file_name The name of the TOC file to be created (default is "/toc.txt").
+     * @param root_dir The root directory to search for image files (default is "/").
      * @param extension The file extension to filter files (default is ".bmp").
      * @return photo_frame_error_t indicating success or failure.
      */
-    photo_frame_error_t write_images_toc(uint32_t* total_files,
-        const char* toc_file_name = TOC_FILENAME,
-        const char* extension = ".bmp") const;
+    photo_frame_error_t write_images_toc(
+        uint32_t* total_files,
+        const char* toc_file_name,
+        const char* root_dir,
+        const char* extension) const;
 
     /**
      * Gets the file path of the TOC file.

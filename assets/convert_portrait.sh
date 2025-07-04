@@ -28,6 +28,7 @@ palette=""
 input_file1=""
 input_file2=""
 output_dir=""
+colors=0
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     -palette)
         palette="$2"
+        shift 2
+        ;;
+    -colors)
+        colors="$2"
         shift 2
         ;;
     -*)
@@ -72,11 +77,16 @@ if [[ "$type" != "grey" && "$type" != "color" ]]; then
     exit 1
 fi
 
-# If type is color, palette must be provided
-# if [[ "$type" == "color" && -z "$palette" ]]; then
-#     echo "Error: -palette argument is required when -type is 'color'."
-#     exit 1
-# fi
+# If type is color, palette or colors must be provided, but not both (colors is ignored if palette is provided)
+if [[ "$type" == "color" && -z "$palette" && (-z "$colors" || "$colors" -le 0) ]]; then
+    echo "Error: -palette or -colors argument is required when -type is 'color'."
+    echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
+    exit 1
+elif [[ "$type" == "color" && -n "$palette" && (-n "$colors" && "$colors" -gt 0) ]]; then
+    echo "Error: -palette and -colors cannot be used together. Please use one of them."
+    echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
+    exit 1
+fi
 
 # Validate input and output directories
 if [[ -z "$input_file1" || -z "$input_file2" || -z "$output_dir" ]]; then
@@ -148,19 +158,29 @@ rm .tmp2.jpg
 
 magick .tmp3.jpg -stroke white -strokewidth 4 -draw "line 398,0,398,480" .tmp3.jpg
 
-if [ "$type" = "grey" ]; then
-    magick .tmp3.jpg -dither FloydSteinberg -remap pattern:gray50 .tmp3.gif
-    magick .tmp3.gif -monochrome .tmp3.gif #monochrome
-    magick .tmp3.gif -depth 8 -alpha off -compress none BMP3:$output_file
-else
-    if [ -z "$palette" ]; then
-        magick .tmp3.jpg +dither -colors 16 .tmp3.gif
-    else
-        magick .tmp3.jpg -dither FloydSteinberg -remap $palette .tmp3.gif
-    fi
-    magick .tmp3.gif -depth 8 -alpha Off -compress none BMP3:$output_file # 8-bit color
+command=""
 
+if [ "$type" = "grey" ]; then
+    command="magick .tmp3.jpg -auto-level -adaptive-sharpen 1 -dither FloydSteinberg"
+
+    if [ -z "$palette" ]; then
+        command="$command -remap pattern:gray50 -monochrome"
+    else
+        command="$command -remap $palette"
+    fi
+
+    command="$command -type Palette -depth 8 -alpha off -compress none BMP3:$output_file"
+else
+    command="magick .tmp3.jpg -auto-level -dither FloydSteinberg"
+    if [ -z "$palette" ]; then
+        command="$command -colors $colors"
+    else
+        command="$command -remap $palette"
+    fi
+    command="$command -type Palette -depth 8 -alpha off -compress none BMP3:$output_file"
 fi
+
+eval $command
 
 if [ -f .tmp3.jpg ]; then
     rm .tmp3.jpg

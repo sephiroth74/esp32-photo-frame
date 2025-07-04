@@ -24,14 +24,6 @@
 
 #include FONT_HEADER
 
-#if !defined(DISP_7C_F) && !defined(DISP_BW_V2)
-#error "Please define DISP_7C_F or DISP_BW_V2."
-#endif
-
-#if defined(DISP_BW_V2) && defined(DISP_7C_F)
-#error "Please define only one display type: either DISP_BW_V2 or DISP_7C_F for 7-color display."
-#endif
-
 #if !defined(USE_DESPI_DRIVER) && !defined(USE_WAVESHARE_DRIVER)
 #error "Please define USE_DESPI_DRIVER or USE_WAVESHARE_DRIVER."
 #endif
@@ -40,22 +32,30 @@
 #error "Please define only one display driver: either USE_DESPI_DRIVER or USE_WAVESHARE_DRIVER."
 #endif
 
-GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT>
-    display(GxEPD2_DRIVER_CLASS(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN));
+GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display(GxEPD2_DRIVER_CLASS(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN));
 
 #if defined(DISP_BW_V2)
-const uint8_t ACCENT_COLOR = GxEPD_BLACK; // black
+const int ACCENT_COLOR = GxEPD_BLACK; // black
 #elif defined(DISP_7C_F)
-const uint8_t ACCENT_COLOR = GxEPD_RED; // red
+const int ACCENT_COLOR = GxEPD_RED; // red
+#elif defined(DISP_6C)
+const int ACCENT_COLOR = GxEPD_RED; // red for 6
 #else
-const uint8_t ACCENT_COLOR = GxEPD_BLACK; // default to black if no display type is defined
-#endif // DISP_BW_V2 or DISP_7C_F
+const int ACCENT_COLOR = GxEPD_BLACK; // default to black if no display type is defined
+#endif // DISP_BW_V2 or DISP_7C_F or DISP_6C
+
+#ifdef USE_HSPI_FOR_EPD
+SPIClass hspi(HSPI); // SPI object for e-Paper display
+#endif // USE_HSPI_FOR_EPD
 
 namespace photo_frame {
 namespace renderer {
 
+    void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y);
+
     // static const uint16_t input_buffer_pixels = 20; // may affect performance
-    static const uint16_t input_buffer_pixels = 800; // may affect performance
+    static const uint16_t input_buffer_pixels
+        = 800; // may affect performance
 
     static const uint16_t max_row_width = 1448; // for up to 6" display 1448x1072
     static const uint16_t max_palette_pixels = 256; // for depth <= 8
@@ -119,8 +119,14 @@ namespace renderer {
             digitalWrite(EPD_PWR_PIN, HIGH);
         }
 
+#ifdef USE_HSPI_FOR_EPD
+        hspi.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
+#else
+
         SPI.end();
         SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+#endif // USE_HSPI_FOR_EPD
 
 #ifdef USE_DESPI_DRIVER
         display.init(115200);
@@ -162,7 +168,13 @@ namespace renderer {
         display.hibernate();
         display.powerOff(); // turns off the display
         display.end(); // release SPI and control pins
+
+#ifdef USE_HSPI_FOR_EPD
+        hspi.end(); // release SPI pins
+#else
         SPI.end(); // release SPI pins
+#endif // USE_HSPI_FOR_EPD
+
         digitalWrite(EPD_PWR_PIN, LOW);
         return;
     } // end initDisplay
@@ -170,6 +182,12 @@ namespace renderer {
     void refresh(bool partial_update_mode) { display.refresh(partial_update_mode); }
 
     void fill_screen(uint16_t color) { display.fillScreen(color); }
+
+    bool has_partial_update()
+    {
+        // check if the display supports partial update
+        return display.epd2.hasPartialUpdate || display.epd2.hasFastPartialUpdate;
+    } // end hasPartialUpdate
 
     /*
      * Returns the string width in pixels
@@ -599,14 +617,14 @@ namespace renderer {
         draw_string(x + icon_size + 2, y, message, GxEPD_BLACK);
     }
 
-    bool draw_bitmap_from_file(File& file, int16_t x, int16_t y, bool with_color)
+    bool draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bool with_color)
     {
         if (!file) {
             Serial.println("File not open or invalid");
             return false;
         }
 
-        Serial.println("drawBitmapFromFile: " + String(file.name()));
+        Serial.println("drawBitmapFromFile: " + String(filename));
 
         bool valid = false; // valid format to be handled
         bool flip = true; // bitmap is stored bottom-to-top
@@ -805,7 +823,146 @@ namespace renderer {
         }
     } // end drawBitmapFromFile
 
+    bool draw_binary_from_file(File& file, const char* filename, int width, int height)
+    {
+        Serial.print("draw_binary_from_file: ");
+        Serial.print(filename);
+        Serial.print(", width: ");
+        Serial.print(width);
+        Serial.print(", height: ");
+        Serial.println(height);
+
+        if (width <= 0 || height <= 0) {
+            Serial.println("Invalid width or height");
+            return false;
+        } else if (width > display.width() || height > display.height()) {
+            Serial.println("Width or height exceeds display dimensions");
+            return false;
+        }
+
+        if (!file) {
+            Serial.println("File not open or invalid");
+            return false;
+        }
+
+        display.fillScreen(GxEPD_WHITE);
+        auto startTime = millis();
+        uint32_t idx = 0;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                uint8_t color;
+                uint16_t pixelColor;
+                idx = (y * width + x);
+
+                int byteRead = 0;
+
+                // Move to the pixel position in the file
+                if (file.seek(idx)) {
+                    byteRead = file.read();
+                }
+
+                if (byteRead >= 0) {
+                    color = static_cast<uint8_t>(byteRead); // Read the byte as color value
+                    photo_frame::renderer::color2Epd(color, pixelColor, x, y);
+                    display.writePixel(x, y, pixelColor);
+                } else {
+                    Serial.print("Error reading pixel data at position (");
+                    Serial.print(x);
+                    Serial.print(", ");
+                    Serial.print(y);
+                    Serial.print(") - index: ");
+                    Serial.print(idx);
+                    Serial.print(" - file position: ");
+                    Serial.println(file.position());
+                    Serial.println("Exiting early due to read error.");
+                    return false; // Exit early if read error occurs
+                }
+            }
+        }
+        auto elapsedTime = millis() - startTime;
+        Serial.print("Image rendered in: ");
+        Serial.print(elapsedTime);
+        Serial.println(" ms");
+        Serial.println("Binary file processed successfully");
+        return true;
+    }
+
+    bool draw_binary_from_file_buffered(File& file, const char* filename, int width, int height)
+    {
+        Serial.print("draw_binary_from_file_buffered: ");
+        Serial.print(filename);
+        Serial.print(", width: ");
+        Serial.print(width);
+        Serial.print(", height: ");
+        Serial.println(height);
+
+        if (width <= 0 || height <= 0) {
+            Serial.println("Invalid width or height");
+            return false;
+        } else if (width > display.width() || height > display.height()) {
+            Serial.println("Width or height exceeds display dimensions");
+            return false;
+        }
+
+        if (!file) {
+            Serial.println("File not open or invalid");
+            return false;
+        }
+
+        display.setFullWindow();
+        display.firstPage();
+
+        do {
+            display.fillScreen(GxEPD_WHITE);
+            auto startTime = millis();
+            uint32_t idx = 0;
+
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    uint8_t color;
+                    uint16_t pixelColor;
+                    idx = (y * width + x);
+
+                    int byteRead = 0;
+
+                    // Move to the pixel position in the file
+                    if (file.seek(idx)) {
+                        byteRead = file.read();
+                    }
+
+                    if (byteRead >= 0) {
+                        color = static_cast<uint8_t>(byteRead); // Read the byte as color value
+                        photo_frame::renderer::color2Epd(color, pixelColor, x, y);
+                        display.drawPixel(x, y, pixelColor);
+                    } else {
+                        Serial.print("Error reading pixel data at position (");
+                        Serial.print(x);
+                        Serial.print(", ");
+                        Serial.print(y);
+                        Serial.print(") - index: ");
+                        Serial.print(idx);
+                        Serial.print(" - file position: ");
+                        Serial.println(file.position());
+                        Serial.println("Exiting early due to read error.");
+
+                        file.close();
+                        return false; // Exit early if read error occurs
+                    }
+                }
+            }
+            auto elapsedTime = millis() - startTime;
+            Serial.print("Page rendered in: ");
+            Serial.print(elapsedTime);
+            Serial.println(" ms");
+        } while (display.nextPage());
+        Serial.println("Binary file processed successfully");
+        file.close();
+        return true; // Return true if the file was processed successfully
+    }
+
     bool draw_bitmap_from_file_buffered(File& file,
+        const char* filename,
         int16_t x,
         int16_t y,
         bool with_color,
@@ -816,7 +973,7 @@ namespace renderer {
             Serial.println("File not open or invalid");
             return false;
         }
-        Serial.println("drawBitmapFromSD_Buffered: " + String(file.name()) + ", x: " + String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) + ", partial_update: " + String(partial_update));
+        Serial.println("drawBitmapFromSD_Buffered: " + String(filename) + ", x: " + String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) + ", partial_update: " + String(partial_update));
 
         bool valid = false; // valid format to be handled
         bool flip = true; // bitmap is stored bottom-to-top
@@ -1000,9 +1157,9 @@ namespace renderer {
                                 } else if (whitish) {
                                     color = GxEPD_WHITE;
                                 } else if (colored && with_color) {
-                                    color = GxEPD_COLORED;
+                                    // color = GxEPD_COLORED;
                                 } else {
-                                    color = GxEPD_BLACK;
+                                    // color = GxEPD_BLACK;
                                 }
                                 uint16_t yrow = y + (flip ? h - row - 1 : row);
                                 display.drawPixel(x + col, yrow, color);
@@ -1026,6 +1183,122 @@ namespace renderer {
             return true;
         }
     } // end drawBitmapFromFile_Buffered
+
+#if defined(DISP_6C) || defined(DISP_7C_F)
+
+    bool isDominant(uint8_t r, uint8_t g, uint8_t b)
+    {
+        return (r >= g && r >= b) || (g >= r && g >= b) || (b >= r && b >= g);
+    };
+
+    bool isLightGrey(uint8_t r, uint8_t g, uint8_t b)
+    {
+        return (r >= 5 && g >= 5 && b >= 2);
+    };
+
+    bool isDarkGrey(uint8_t r, uint8_t g, uint8_t b)
+    {
+        return (r < 3 && g < 3 && b < 2);
+    };
+
+    bool isYellow(uint8_t r, uint8_t g, uint8_t b)
+    {
+        return (r > 3 && g > 3 && b < 2);
+    };
+
+#endif // DISP_6C
+
+    void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y)
+    {
+#ifdef DISP_6C
+        switch (color) {
+        case 0xff: // 255
+            pixelColor = GxEPD_WHITE;
+            break;
+        case 0x00: // 0
+            pixelColor = GxEPD_BLACK;
+            break;
+        case 0xe0: // 224
+            pixelColor = GxEPD_RED;
+            break;
+        case 0x1c: // 28
+            pixelColor = GxEPD_GREEN;
+            break;
+        case 0xfc: // 252
+            pixelColor = GxEPD_YELLOW;
+            break;
+        case 0x03: // 3
+            pixelColor = GxEPD_BLUE;
+            break;
+        default:
+            // extract the rgb values from the color byte
+            uint8_t r = (color >> 5) & 0x07; // from 0 to 7
+            uint8_t g = (color >> 2) & 0x07; // from 0 to 7
+            uint8_t b = color & 0x03; // from 0 to 3
+
+            // Improved color mapping: use the dominant channel to determine color
+            if (isDominant(r, g, b)) {
+                // Use the dominant channel to determine the color
+                if (r > g && r > b) {
+                    pixelColor = GxEPD_RED;
+                } else if (g > r && g > b) {
+                    pixelColor = GxEPD_GREEN;
+                } else if (b > r && b > g) {
+                    pixelColor = GxEPD_BLUE;
+                } else {
+                    pixelColor = GxEPD_WHITE; // Fallback to white if no dominant channel
+                }
+            } else {
+                if (isYellow(r, g, b)) {
+                    pixelColor = GxEPD_YELLOW;
+                } else if (isLightGrey(r, g, b)) {
+                    pixelColor = GxEPD_WHITE; // Light grey
+                } else if (isDarkGrey(r, g, b)) {
+                    pixelColor = GxEPD_BLACK; // Dark grey
+                } else {
+                    // Fallback to white if no match
+                    pixelColor = GxEPD_WHITE;
+
+                    uint8_t r8 = (r * 255) / 7; // scale to 0-255
+                    uint8_t g8 = (g * 255) / 7; // scale to 0-255
+                    uint8_t b8 = (b * 255) / 3; // scale to 0-255
+
+                    Serial.print("Unknown color: ");
+                    Serial.print(color, HEX);
+                    Serial.print(" - RGB values: R=");
+                    Serial.print(r);
+                    Serial.print(", G=");
+                    Serial.print(g);
+                    Serial.print(", B=");
+                    Serial.print(b);
+
+                    Serial.print(" - RGB8 values: R=");
+                    Serial.print(r8);
+                    Serial.print(", G=");
+                    Serial.print(g8);
+                    Serial.print(", B=");
+                    Serial.print(b8);
+
+                    Serial.print(" - at position (");
+                    Serial.print(x);
+                    Serial.print(", ");
+                    Serial.print(y);
+                    Serial.println(")");
+                }
+            }
+        }
+
+#elif defined(DISP_7C_F)
+#error "DISP_7C_F is not supported in this code snippet. Please define the color2Epd function for DISP_7C_F."
+
+#elif defined(DISP_BW_V2)
+        if (color > 127) {
+            pixelColor = GxEPD_WHITE; // 255
+        } else {
+            pixelColor = GxEPD_BLACK; // 0
+        }
+#endif
+    }
 
 } // namespace renderer
 

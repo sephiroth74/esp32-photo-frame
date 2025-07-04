@@ -158,4 +158,18 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
     digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
     return now;
 }
+
+void format_date_time(time_t time, char* buffer, const uint8_t buffer_size, const char* format)
+{
+    struct tm* tm_info = localtime(&time);
+    memset(buffer, 0, buffer_size);
+
+    Serial.print("Size of buffer: ");
+    Serial.println(buffer_size);
+
+    strftime(buffer, buffer_size, format, tm_info);
+}
+
+// format_date_time
+
 } // namespace photo_frame
