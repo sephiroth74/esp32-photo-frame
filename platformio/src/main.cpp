@@ -193,7 +193,20 @@ void setup()
                     Serial.println(F("Writing TOC to SD card..."));
 #endif
 
-                    error = sdCard.write_images_toc(&total_files);
+                    // time_t last_modified = sdCard.get_last_modified(SD_DIRNAME);
+                    // if (last_modified != 0) {
+                    //     char time_buffer[32] = { 0 };
+                    //     photo_frame::format_date_time(last_modified, time_buffer, 32);
+                    //     Serial.print(F("Last modified time: "));
+                    //     Serial.print(time_buffer);
+                    //     Serial.print(F(" ("));
+                    //     Serial.print(last_modified);
+                    //     Serial.println(F(")"));
+                    //     prefs.putUInt("last_modified", last_modified);
+                    //     Serial.println(F("Last modified time saved to preferences"));
+                    // }
+
+                    error = sdCard.write_images_toc(&total_files, TOC_FILENAME, SD_DIRNAME, SD_FILE_EXTENSION);
                     // Remove the old total_files key
                     prefs.remove("total_files");
 
@@ -320,29 +333,82 @@ void setup()
             }
         } while (display.nextPage());
     } else {
-        if (!photo_frame::renderer::draw_bitmap_from_file_buffered(file, 0, 0, false)) {
-            Serial.println(F("Failed to draw bitmap from file!"));
-            display.firstPage();
-            do {
-                photo_frame::renderer::draw_error(photo_frame::error_type::ImageFormatNotSupported);
-            } while (display.nextPage());
-        }
+        bool has_partial_update = photo_frame::renderer::has_partial_update();
+        Serial.print(F("*** Display supports partial update: "));
+        Serial.print(has_partial_update ? "Yes" : "No");
+        Serial.println(F(" *** "));
 
-        display.setPartialWindow(0, 0, display.width(), 16);
-        display.firstPage();
-        do {
-            // display.fillRect(0, 0, display.width(), 20, GxEPD_WHITE);
+        Serial.print(F("*** Display pages: "));
+        Serial.print(display.pages());
+        Serial.println(F(" *** "));
+
+        const char* img_filename = file.name();
+
+        if (!has_partial_update) { // if the display does not support partial update
+            display.setFullWindow();
             display.fillScreen(GxEPD_WHITE);
 
-            photo_frame::renderer::draw_last_update(now, refresh_seconds);
-            photo_frame::renderer::draw_image_info(image_index, total_files);
-            photo_frame::renderer::draw_battery_status(
-                battery_info.raw_value, battery_info.millivolts, battery_info.percent);
+            int page_index = 0;
+            display.firstPage();
+            do {
+                Serial.print(F("Drawing page: "));
+                Serial.println(page_index);
 
-            // display.displayWindow(0, 0, display.width(), display.height()); //
-            // Display the content in the partial window
+                file.seek(0); // Reset file pointer to the beginning
+#if EPD_USE_BINARY_FILE
+                bool success = photo_frame::renderer::draw_binary_from_file(file, img_filename, DISP_WIDTH, DISP_HEIGHT);
+#else
+                bool success = photo_frame::renderer::draw_bitmap_from_file(file, img_filename, 0, 0, false);
+#endif
 
-        } while (display.nextPage()); // Clear the display
+                if (!success) {
+                    Serial.println(F("Failed to draw bitmap from file!"));
+                    photo_frame::renderer::draw_error(photo_frame::error_type::ImageFormatNotSupported);
+                }
+
+                display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
+
+                photo_frame::renderer::draw_last_update(now, refresh_seconds);
+                photo_frame::renderer::draw_image_info(image_index, total_files);
+                photo_frame::renderer::draw_battery_status(battery_info.raw_value, battery_info.millivolts, battery_info.percent);
+
+                page_index++;
+            } while (display.nextPage()); // Clear the display
+
+            file.close(); // Close the file after drawing
+
+        } else {
+#if EPD_USE_BINARY_FILE
+            bool success = photo_frame::renderer::draw_binary_from_file_buffered(file, img_filename, DISP_WIDTH, DISP_HEIGHT);
+#else
+            bool success = photo_frame::renderer::draw_bitmap_from_file_buffered(file, img_filename, 0, 0, false);
+#endif
+
+            if (!success) {
+                Serial.println(F("Failed to draw bitmap from file!"));
+                display.firstPage();
+                do {
+                    photo_frame::renderer::draw_error(photo_frame::error_type::ImageFormatNotSupported);
+                } while (display.nextPage());
+            }
+
+            display.setPartialWindow(0, 0, display.width(), 16);
+            display.firstPage();
+            do {
+                if (has_partial_update) {
+                    display.fillScreen(GxEPD_WHITE);
+                } else {
+                    display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
+                }
+                // display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
+
+                photo_frame::renderer::draw_last_update(now, refresh_seconds);
+                photo_frame::renderer::draw_image_info(image_index, total_files);
+                photo_frame::renderer::draw_battery_status(battery_info.raw_value, battery_info.millivolts, battery_info.percent);
+                // display.displayWindow(0, 0, display.width(), display.height());
+
+            } while (display.nextPage()); // Clear the display
+        }
     }
 
     if (file) {

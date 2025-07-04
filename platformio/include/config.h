@@ -26,6 +26,9 @@
 #include "_locale.h"
 #include <Arduino.h>
 
+// #define USE_HSPI_FOR_SD  // Use HSPI for SD card communication
+#define USE_HSPI_FOR_EPD // Use HSPI for e-Paper display
+
 // Pin definitions
 
 // SD Card
@@ -91,25 +94,31 @@ extern const char* WIFI_FILENAME; // Filename for WiFi credentials inside the SD
 
 // SdCard
 // Filename for Table of Contents (TOC) inside the SD Card
+// Note: TOC is created the first time the device is started and contains the list of all images
+// available on the SD card, so that the device can display them in a random order.
+// The TOC is recreated if not found.
+// When new images are added/removed to the SD card, the toc file on the SD card should be deleted
+// so that it will be recreated the next time the device is started.
 extern const char* TOC_FILENAME;
 
 // 10 seconds
-#define WIFI_CONNECT_TIMEOUT 10000 
+#define WIFI_CONNECT_TIMEOUT 10000
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
 // ms
-#define NTP_TIMEOUT 20000 
+#define NTP_TIMEOUT 20000
 #define NTP_SERVER1 "pool.ntp.org"
 #define NTP_SERVER2 "time.nist.gov"
 
 // e-Paper display
 
 #define DISP_BW_V2 // Black and White e-Paper display (GDEH0154D67)
-// #define DISP_7C_F    // 7-color e-Paper display (GDEY073C46)
+// #define DISP_7C_F        // 7-color e-Paper display (GDEY073C46)
+// #define DISP_6C             // 6-color e-Paper display (GDEP073E01)
 
 #define USE_DESPI_DRIVER // Use Despi driver for e-Paper display
 // #define USE_WAVESHARE_DRIVER // Use Waveshare driver for e-Paper display
 
-extern const uint8_t ACCENT_COLOR; // Accent color for the display
+extern const int ACCENT_COLOR; // Accent color for the display
 
 // Miscellaneous
 
@@ -117,6 +126,16 @@ extern const uint8_t ACCENT_COLOR; // Accent color for the display
 // When is on, for instance, the display will also print the battery raw value and there will be a
 // delay before entering deep sleep
 #define DEBUG_MODE 0
+
+// Toggle the use of the binary file for the e-Paper display
+// When is on, the display will use a binary files instead of regular image files.
+#define EPD_USE_BINARY_FILE 1
+
+// Base directory for the SD card where the images are stored, based on the display type and the value of EPD_USE_BINARY_FILE
+extern const char* SD_DIRNAME;
+
+// File extension for images on the SD card, based on the display type and the value of EPD_USE_BINARY_FILE
+extern const char* SD_FILE_EXTENSION;
 
 // Forces the display to use the debug image instead of random from toc
 // #define DEBUG_IMAGE_INDEX 381

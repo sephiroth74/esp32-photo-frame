@@ -22,6 +22,22 @@
 
 #include "config.h"
 
+#if !defined(DISP_BW_V2) && !defined(DISP_7C_F) && !defined(DISP_6C)
+#error "Please define DISP_BW_V2 or DISP_7C_F or DISP_6C"
+#endif
+
+#if defined(DISP_BW_V2) && defined(DISP_7C_F) && defined(DISP_6C)
+#error "Please define only one display type: either DISP_BW_V2 or DISP_7C_F or DISP_6C"
+#endif
+
+#if !defined(USE_HSPI_FOR_EPD) && !defined(USE_HSPI_FOR_SD)
+#error "Please define USE_HSPI_FOR_EPD and USE_HSPI_FOR_SD"
+#endif // USE_HSPI_FOR_EPD and USE_HSPI_FOR_SD
+
+#if defined(USE_HSPI_FOR_SD) && defined(USE_HSPI_FOR_EPD)
+#error "Please define only one SPI bus: either USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD"
+#endif // USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD
+
 #define STR(s) #s
 #define X_LOCALE(code) STR(code)
 
@@ -101,6 +117,30 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 #if (BATTERY_DELAY_BETWEEN_READINGS < 1 || BATTERY_DELAY_BETWEEN_READINGS > 1000)
 #error "BATTERY_DELAY_BETWEEN_READINGS must be between 0 and 1000 milliseconds"
 #endif // BATTERY_DELAY_BETWEEN_READINGS
+
+//
+// Define the file extension and directory name based on the display type and EPD_USE_BINARY_FILE setting
+//
+#if EPD_USE_BINARY_FILE
+const char* SD_FILE_EXTENSION = ".bin";
+#else
+const char* SD_FILE_EXTENSION = ".bmp";
+#endif // EPD_USE_BINARY_FILE
+
+#ifdef DISP_BW_V2
+#ifdef EPD_USE_BINARY_FILE
+const char* SD_DIRNAME = "/bin-bw";
+#else
+const char* SD_DIRNAME = "/bmp-bw";
+#endif // EPD_USE_BINARY_FILE
+
+#elif defined(DISP_6C)
+#ifdef EPD_USE_BINARY_FILE
+const char* SD_DIRNAME = "/bin-6c";
+#else
+const char* SD_DIRNAME = "/bmp-6c";
+#endif // EPD_USE_BINARY_FILE
+#endif // DISP_BW_V2
 
 #include "config.local"
 

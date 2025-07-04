@@ -43,5 +43,14 @@ namespace photo_frame {
  */
 DateTime fetch_datetime(SDCard& sdCard, bool reset = true, photo_frame_error_t* error = nullptr);
 
+/**
+ * Formats a time_t value into a human-readable string.
+ * @param time The time_t value to format.
+ * @param buffer The buffer to store the formatted string.
+ * @param format The format string (default is "%Y-%m-%d %H:%M:%S").
+ */
+void format_date_time(time_t time, char* buffer, const uint8_t buffer_size = 32, const char* format = "%Y-%m-%d %H:%M:%S");
+
 } // namespace photo_frame
+
 #endif // __PHOTO_FRAME_RTC_UTIL_H__

@@ -37,9 +37,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.0,
+          "drill": 28.0,
           "height": 2.0,
-          "width": 2.0
+          "width": 28.0
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -60,6 +60,10 @@
       ],
       "drc_exclusions": [
         [
+          "hole_clearance|75184000|102399200|00407c7a-cc1e-4d11-9a3d-69b24a0ba1dd|611f970f-2f38-4742-ba5d-2a9b88ea831e",
+          ""
+        ],
+        [
           "item_on_disabled_layer|192945000|98330000|739fa789-5af3-492f-971f-783f60eaed86|00000000-0000-0000-0000-000000000000",
           ""
         ],
@@ -76,11 +80,15 @@
           ""
         ],
         [
-          "silk_edge_clearance|72858000|106042000|d73d2101-ab9d-44fa-b879-63516c54d703|7367605a-a5a8-48b0-8b09-94620665cf4a",
+          "silk_edge_clearance|186167000|60532000|d73d2101-ab9d-44fa-b879-63516c54d703|5de844a4-24eb-453e-a82f-b1742180980a",
           ""
         ],
         [
-          "silk_edge_clearance|72858000|113922000|d73d2101-ab9d-44fa-b879-63516c54d703|417361bd-88df-4eb4-9b0c-e78eaf09bc16",
+          "silk_edge_clearance|189677000|60532000|d73d2101-ab9d-44fa-b879-63516c54d703|9af196af-0abc-4e31-bb8f-797cf95556a2",
+          ""
+        ],
+        [
+          "track_dangling|192945000|98330000|739fa789-5af3-492f-971f-783f60eaed86|00000000-0000-0000-0000-000000000000",
           ""
         ]
       ],
@@ -248,6 +256,10 @@
         {
           "diameter": 0.0,
           "drill": 0.0
+        },
+        {
+          "diameter": 0.6,
+          "drill": 0.3
         }
       ],
       "zones_allow_external_fillets": false
@@ -299,6 +311,10 @@
       ],
       [
         "label_dangling|774700|444500|ba87fc5e-785f-42c5-ae3a-52d34d3c504b|00000000-0000-0000-0000-000000000000|/f8e09e1c-881e-489b-95e9-2234c93d45c2||",
+        ""
+      ],
+      [
+        "lib_symbol_mismatch|1549400|1752600|b9011e7a-ebfa-43b6-9d35-72f93351392a|00000000-0000-0000-0000-000000000000|||",
         ""
       ]
     ],

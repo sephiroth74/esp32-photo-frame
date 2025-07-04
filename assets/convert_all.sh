@@ -2,9 +2,9 @@
 
 # This script list all .jpg images in the given directory
 # and check if the image width is greater or equal to its height.
-# If so, it will call the `convert_h.sh` command with the image path as an argument.
+# If so, it will call the `convert_landscape.sh` command with the image path as an argument.
 # Otherwise collect all the images that are not in landscape mode into an array.
-# for every pair in the array it will call the `convert_v.sh` command with the images pair as arguments.
+# for every pair in the array it will call the `convert_portrait.sh` command with the images pair as arguments.
 
 # arguments:
 # -type: the type of images to process, either "grey" or "color"
@@ -19,7 +19,7 @@ if [ -z "$ZSH_VERSION" ]; then
     exit 1
 fi
 
-usage="Usage: $0 -type <grey|color> [-palette <palette.gif>] [-landscape-only] [-portrait-only] -output <output_directory> <input_directory>..."
+usage="Usage: $0 -type <grey|color> [-palette <palette.gif>] [-colors <num_colors>] [-landscape-only] [-portrait-only] -output <output_directory> <input_directory>..."
 
 export pointsize=24
 export font='UbuntuMono-Nerd-Font-Bold'
@@ -28,10 +28,13 @@ export annotate_background='#00000040'
 # Default values
 type=""
 palette=""
+colors=0
 output_dir=""
 input_dirs=()
 landscape_only=false
 portrait_only=false
+auto_process=false
+
 
 # Parse options
 while [[ $# -gt 0 ]]; do
@@ -44,6 +47,10 @@ while [[ $# -gt 0 ]]; do
         palette="$2"
         shift 2
         ;;
+    -colors)
+        colors="$2"
+        shift 2
+        ;;
     -output)
         output_dir="$2"
         shift 2
@@ -54,6 +61,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     -portrait-only)
         portrait_only=true
+        shift
+        ;;
+    -y| --yes)
+        auto_process=true
         shift
         ;;
     -*)
@@ -98,12 +109,16 @@ if [[ "$type" != "grey" && "$type" != "color" ]]; then
     exit 1
 fi
 
-# # If type is color, palette must be provided
-# if [[ "$type" == "color" && -z "$palette" ]]; then
-#     echo "Error: -palette argument is required when -type is 'color'."
-#     echo "$usage"
-#     exit 1
-# fi
+# If type is color, palette or colors must be provided, but not both (colors is ignored if palette is provided)
+if [[ "$type" == "color" && -z "$palette" && ( -z "$colors" || "$colors" -le 0 ) ]]; then
+    echo "Error: -palette or -colors argument is required when -type is 'color'."
+    echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
+    exit 1
+elif [[ "$type" == "color" && -n "$palette" && ( -n "$colors" && "$colors" -gt 0 ) ]]; then
+    echo "Error: -palette and -colors cannot be used together. Please use one of them."
+    echo "Usage: $0 -type <grey|color> [-palette <palette.gif>] <input_file> <output_directory>"
+    exit 1
+fi
 
 # Validate input and output directories
 if [[ -z "$output_dir" ]]; then
@@ -113,6 +128,8 @@ if [[ -z "$output_dir" ]]; then
 fi
 
 echo "type: $type"
+echo "colors: $colors"
+echo "auto process: $auto_process"
 
 if [[ -z "$palette" ]]; then
     echo "palette: not provided"
@@ -132,27 +149,27 @@ if ! command -v magick &>/dev/null; then
     echo "ImageMagick could not be found. Please install it to use this script."
     exit 1
 fi
-# Check if the convert_h.sh script exists
-if [ ! -f "convert_h.sh" ]; then
-    echo "convert_h.sh script not found!"
+# Check if the convert_landscape.sh script exists
+if [ ! -f "convert_landscape.sh" ]; then
+    echo "convert_landscape.sh script not found!"
     exit 1
 fi
 
-# Check if the convert_v.sh script exists
-if [ ! -f "convert_v.sh" ]; then
-    echo "convert_v.sh script not found!"
+# Check if the convert_portrait.sh script exists
+if [ ! -f "convert_portrait.sh" ]; then
+    echo "convert_portrait.sh script not found!"
     exit 1
 fi
 
-# Check if the convert_h.sh script is executable
-if [ ! -x "convert_h.sh" ]; then
-    echo "convert_h.sh script is not executable!"
+# Check if the convert_landscape.sh script is executable
+if [ ! -x "convert_landscape.sh" ]; then
+    echo "convert_landscape.sh script is not executable!"
     exit 1
 fi
 
-# Check if the convert_v.sh script is executable
-if [ ! -x "convert_v.sh" ]; then
-    echo "convert_v.sh script is not executable!"
+# Check if the convert_portrait.sh script is executable
+if [ ! -x "convert_portrait.sh" ]; then
+    echo "convert_portrait.sh script is not executable!"
     exit 1
 fi
 
@@ -226,11 +243,13 @@ echo "Total images: $((${#landscape_images[@]} + ${#portrait_images[@]}))"
 echo "----------------------------------------------------------------"
 echo " "
 
-# Ask the user if they want to continue
-read -q "answer?Do you want convert all the images? (y/n): "
-if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
-    echo "Exiting..."
-    exit 0
+# Ask the user if they want to continue (if auto_process is false)
+if ! $auto_process; then
+    read -q "answer?Do you want convert all the images? (y/n): "
+    if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+        echo "Exiting..."
+        exit 0
+    fi
 fi
 
 # randomize the portrait_images array (using zsh which does not have shuf)
@@ -247,29 +266,20 @@ portrait_images=("${shuffled_portrait_images[@]}")
 
 echo ""
 echo "Processing landscape images..."
-# Loop through the landscape_images array and call the convert_h.sh script with each image
+# Loop through the landscape_images array and call the convert_landscape.sh script with each image
 
 if [ -z "$palette" ]; then
-    command="./convert_h.sh -type $type"
+    command="./convert_landscape.sh -type $type -colors $colors"
 else
-    command="./convert_h.sh -type $type -palette $palette"
+    command="./convert_landscape.sh -type $type -palette $palette"
 fi
 
 index=1
 for image in "${landscape_images[@]}"; do
-    # Call the convert_h.sh script with the image path as an argument
+    # Call the convert_landscape.sh script with the image path as an argument
     echo "[$index / ${#landscape_images[@]}] Processing landscape image: $image"
     final_command="$command \"$image\" \"$output_dir\""
     eval ${final_command}
-
-    # Check if palette is provided
-    # If palette is not provided, call convert_h.sh without -palette option
-    # If palette is provided, call convert_h.sh with -palette option
-    # if [ -z "$palette" ]; then
-    #     ./convert_h.sh -type $type "$image" "$output_dir"
-    # else
-    #     ./convert_h.sh -type $type -palette $palette "$image" "$output_dir"
-    # fi
     index=$((index + 1))
 done
 echo "done"
@@ -278,9 +288,9 @@ echo ""
 echo "Processing portrait images..."
 
 if [ -z "$palette" ]; then
-    command="./convert_v.sh -type $type"
+    command="./convert_portrait.sh -type $type -colors $colors"
 else
-    command="./convert_v.sh -type $type -palette $palette"
+    command="./convert_portrait.sh -type $type -palette $palette"
 fi
 
 # for every pair of images in the portrait_images array
@@ -304,12 +314,6 @@ for ((i = 1; i < ${#portrait_images[@]}; i += 2)); do
     # call command with the two images and output directory
     final_command="$command \"$image1\" \"$image2\" \"$output_dir\""
     eval ${final_command}
-
-    # if [ -z "$palette" ]; then
-    #     ./convert_v.sh -type $type "$image1" "$image2" "$output_dir"
-    # else
-    #     ./convert_v.sh -type $type -palette $palette "$image1" "$image2" "$output_dir"
-    # fi
 done
 
 echo "done"

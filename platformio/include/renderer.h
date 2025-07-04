@@ -30,14 +30,16 @@
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
+#define MAX_DISPLAY_BUFFER_SIZE 65536ul // e.g.
+
 #if defined(DISP_BW_V2)
 #define DISP_WIDTH 800
 #define DISP_HEIGHT 480
 #include <GxEPD2_BW.h>
 #define GxEPD2_DISPLAY_CLASS GxEPD2_BW
 #define GxEPD2_DRIVER_CLASS GxEPD2_750_GDEY075T7
-#define MAX_HEIGHT GxEPD2_DRIVER_CLASS::HEIGHT
-extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT> display;
+#define MAX_HEIGHT(EPD) (EPD::HEIGHT <= MAX_DISPLAY_BUFFER_SIZE / (EPD::WIDTH / 8) ? EPD::HEIGHT : MAX_DISPLAY_BUFFER_SIZE / (EPD::WIDTH / 8))
+extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
 
 #elif defined(DISP_7C_F)
 #define DISP_WIDTH 800
@@ -45,8 +47,17 @@ extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT> display;
 #include <GxEPD2_7C.h>
 #define GxEPD2_DISPLAY_CLASS GxEPD2_7C
 #define GxEPD2_DRIVER_CLASS GxEPD2_730c_GDEY073D46
-#define MAX_HEIGHT GxEPD2_DRIVER_CLASS::HEIGHT / 4
-extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT> display;
+#define MAX_HEIGHT(EPD) (EPD::HEIGHT <= (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2) ? EPD::HEIGHT : (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2))
+extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
+
+#elif defined(DISP_6C)
+#define DISP_WIDTH 800
+#define DISP_HEIGHT 480
+#include <GxEPD2_7C.h>
+#define GxEPD2_DISPLAY_CLASS GxEPD2_7C
+#define GxEPD2_DRIVER_CLASS GxEPD2_730c_GDEP073E01
+#define MAX_HEIGHT(EPD) (EPD::HEIGHT <= (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2) ? EPD::HEIGHT : (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2))
+extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
 #endif
 
 typedef struct rect {
@@ -145,6 +156,8 @@ namespace renderer {
     void refresh(bool partial_update_mode = false);
 
     void fill_screen(uint16_t color = GxEPD_WHITE);
+
+    bool has_partial_update();
 
     /**
      * Draws a string on the e-paper display at the specified position with alignment.
@@ -279,17 +292,22 @@ namespace renderer {
     /**
      * Draws a bitmap image from a file on the e-paper display.
      */
-    bool draw_bitmap_from_file(File& file, int16_t x = 0, int16_t y = 0, bool with_color = true);
+    bool draw_bitmap_from_file(File& file, const char* filename, int16_t x = 0, int16_t y = 0, bool with_color = true);
 
     /**
      * Draws a bitmap image from a file on the e-paper display with buffering.
      * This function is optimized for partial updates and uses a buffered approach.
      */
     bool draw_bitmap_from_file_buffered(File& file,
+        const char* filename,
         int16_t x = 0,
         int16_t y = 0,
         bool with_color = true,
         bool partial_update = false);
+
+    bool draw_binary_from_file_buffered(File& filen, const char* filename, int width, int height);
+
+    bool draw_binary_from_file(File& file, const char* filename, int width, int height);
 
 } // namespace renderer
 

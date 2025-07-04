@@ -107,21 +107,45 @@ photo_frame_error_t SDCard::begin()
     }
 
     Serial.println("Initializing SD card...");
+#ifdef USE_HSPI_FOR_SD
+    Serial.println("Using HSPI for SD card communication.");
     hspi.begin(sckPin, misoPin, mosiPin, csPin);
+#else
+    Serial.println("Using default SPI for SD card communication.");
+    SPI.begin(sckPin, misoPin, mosiPin, csPin);
+#endif // USE_HSPI_FOR_SD
+
+#if defined(USE_HSPI_FOR_SD)
     if (!SD.begin(csPin, hspi)) {
         hspi.end(); // End the SPI bus for SD card
         return error_type::CardMountFailed;
     }
+#else
+    if (!SD.begin(csPin)) {
+        SPI.end(); // End the SPI bus for SD card
+        return error_type::CardMountFailed;
+    }
+#endif // USE_HSPI_FOR_SD
 
     cardType = SD.cardType();
 
     if (cardType == CARD_NONE) {
         SD.end();
+
+#ifdef USE_HSPI_FOR_SD
         hspi.end(); // End the SPI bus for SD card
+#else
+        SPI.end(); // End the SPI bus for SD card
+#endif
         return error_type::NoSdCardAttached;
     } else if (cardType == CARD_UNKNOWN) {
         SD.end();
+
+#ifdef USE_HSPI_FOR_SD
         hspi.end(); // End the SPI bus for SD card
+#else
+        SPI.end(); // End the SPI bus for SD card
+#endif
         return error_type::UnknownSdCardType;
     }
 
@@ -134,7 +158,11 @@ void SDCard::end()
     Serial.println("Ending SD card...");
     if (initialized) {
         SD.end();
+#ifdef USE_HSPI_FOR_SD
         hspi.end();
+#else
+        SPI.end();
+#endif
         initialized = false;
     } else {
         Serial.println("SD card not initialized, nothing to end.");
@@ -180,6 +208,20 @@ void SDCard::print_stats() const
     Serial.print(SD.usedBytes() / (1024 * 1024));
     Serial.println(" MB");
 } // end printStats
+
+time_t SDCard::get_last_modified(const char* path) const
+{
+    if (!initialized) {
+        return 0; // Return 0 if SD card is not initialized
+    }
+    fs::File file = SD.open(path, FILE_READ);
+    if (!file) {
+        return 0; // Return 0 if file cannot be opened
+    }
+    time_t lastModified = file.getLastWrite();
+    file.close();
+    return lastModified;
+}
 
 photo_frame_error_t
 SDCard::find_next_image(uint32_t* index, const char* extension, SdCardEntry* file_entry) const
@@ -315,10 +357,13 @@ String SDCard::get_toc_file_path(uint32_t index, const char* toc_file_name) cons
 
 photo_frame_error_t SDCard::write_images_toc(uint32_t* total_files,
     const char* toc_file_name,
+    const char* root_dir,
     const char* extension) const
 {
     Serial.print("write_images_toc | toc_file_name: ");
     Serial.print(toc_file_name);
+    Serial.print(", root_dir: ");
+    Serial.print(root_dir);
     Serial.print(", extension: ");
     Serial.println(extension);
 
@@ -348,7 +393,7 @@ photo_frame_error_t SDCard::write_images_toc(uint32_t* total_files,
         return error_type::CardTocOpenFileFailed;
     }
 
-    File root = SD.open("/", FILE_READ);
+    File root = SD.open(root_dir, FILE_READ);
     if (!root) {
         Serial.println("Failed to open root directory");
         toc_file.close();
