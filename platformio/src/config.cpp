@@ -59,6 +59,7 @@ const int8_t EPD_PWR_PIN = -1;
 const int8_t RTC_POWER_PIN = A1;
 const int8_t RTC_SDA_PIN = A2;
 const int8_t RTC_SCL_PIN = A3;
+const bool USE_RTC = true;
 
 const int8_t POTENTIOMETER_PWR_PIN = A4;
 const int8_t POTENTIOMETER_INPUT_PIN = A5;

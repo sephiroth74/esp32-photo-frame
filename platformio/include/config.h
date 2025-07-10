@@ -51,6 +51,8 @@ extern const int8_t EPD_PWR_PIN;
 extern const int8_t RTC_SDA_PIN;
 extern const int8_t RTC_SCL_PIN;
 extern const int8_t RTC_POWER_PIN;
+// Use RTC module for timekeeping
+extern const bool USE_RTC; 
 
 // Potentiometer pin
 extern const int8_t POTENTIOMETER_PWR_PIN; // Power pin for potentiometer
