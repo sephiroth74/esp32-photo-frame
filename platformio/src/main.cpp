@@ -392,6 +392,8 @@ void setup()
                 } while (display.nextPage());
             }
 
+            delay(100); // Wait for the display to update
+
             display.setPartialWindow(0, 0, display.width(), 16);
             display.firstPage();
             do {
@@ -418,7 +420,7 @@ void setup()
 
     photo_frame::disable_rgb_led();
 
-    delay(1000);
+    delay(5000);
 
     photo_frame::renderer::power_off();
 

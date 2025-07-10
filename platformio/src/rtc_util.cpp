@@ -103,8 +103,10 @@ DateTime fetch_remote_datetime(SDCard& sdCard)
         timeinfo.tm_min,
         timeinfo.tm_sec);
 
+    // disconnect the Wifi and turn off the WiFi module
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
+
     return result;
 } // featch_remote_datetime
 
@@ -116,9 +118,10 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
     DateTime now;
     RTC_DS3231 rtc;
 
+#if USE_RTC
     pinMode(RTC_POWER_PIN, OUTPUT);
     digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
-    delay(1000); // Wait for RTC to power up
+    delay(2000); // Wait for RTC to power up
 
     Wire1.begin(RTC_SDA_PIN /* SDA */, RTC_SCL_PIN /* SCL */);
     if (!rtc.begin(&Wire1)) {
@@ -156,6 +159,17 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
 
     Wire1.end();
     digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
+
+#else
+    Serial.println(F("RTC module is not used, fetching time from WiFi..."));
+    now = fetch_remote_datetime(sdCard);
+    if (!now.isValid()) {
+        Serial.println(F("Failed to fetch time from WiFi!"));
+        if (error) {
+            *error = error_type::RTCInitializationFailed;
+        }
+    }
+#endif
     return now;
 }
 

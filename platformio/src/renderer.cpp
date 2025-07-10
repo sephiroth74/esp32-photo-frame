@@ -165,7 +165,8 @@ namespace renderer {
      */
     void power_off()
     {
-        display.hibernate();
+        Serial.println("Powering off e-paper display...");
+        // display.hibernate();
         display.powerOff(); // turns off the display
         display.end(); // release SPI and control pins
 
