@@ -168,6 +168,7 @@ namespace renderer {
         Serial.println("Powering off e-paper display...");
         // display.hibernate();
         display.powerOff(); // turns off the display
+        delay(100); // wait for the display to power off
         display.end(); // release SPI and control pins
 
 #ifdef USE_HSPI_FOR_EPD
