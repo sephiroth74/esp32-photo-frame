@@ -28,6 +28,14 @@
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
 
+#ifdef SENSOR_MAX1704X
+#include <Adafruit_MAX1704X.h>
+#include <Wire.h>
+
+Adafruit_MAX17048 max1704x;
+
+#endif // SENSOR_MAX1704X
+
 namespace battery {
 
 uint8_t calc_battery_percentage(uint32_t v)
@@ -53,38 +61,90 @@ bool battery_info_t::is_critical() const { return percent <= BATTERY_PERCENT_CRI
 
 bool battery_info_t::is_empty() const { return percent <= BATTERY_PERCENT_EMPTY; }
 
+#ifdef SENSOR_MAX1704X
+bool battery_info_t::is_charging() const { return percent > 100; }
+#else
 bool battery_info_t::is_charging() const { return millivolts > BATTERY_CHARGING_MILLIVOLTS; }
-
-battery_info_t battery_info::fromMv(uint32_t mv)
-{
-    return battery_info(mv, mv, calc_battery_percentage(mv));
-} // fromMv
+#endif // SENSOR_MAX1704X
 
 void BatteryReader::init() const
 {
+#ifdef SENSOR_MAX1704X
+    Serial.println(F("Initializing MAX1704X Battery Reader on Wire"));
+    Wire1.setPins(MAX1704X_SDA_PIN, MAX1704X_SCL_PIN);
+#else
     Serial.print(F("Initializing BatteryReader on pin "));
     Serial.println(pin);
     pinMode(pin, INPUT);
     // Set the pin to use the ADC with no attenuation
     analogSetPinAttenuation(pin, ADC_11db);
+#endif
+
     delay(200); // Allow some time for the ADC to stabilize
     Serial.println(F("BatteryReader initialized."));
 } // init
 
 battery_info_t BatteryReader::read() const
 {
+#ifdef SENSOR_MAX1704X
+
+    auto ms = millis();
+    do {
+        if ((millis() - ms) > SENSOR_MAX1704X_TIMEOUT) {
+            Serial.println(F("MAX1704X sensor initialization timed out!"));
+            return battery_info_t::full();
+        }
+        delay(10); // Wait a bit before trying again
+    } while (!max1704x.begin(&Wire1));
+
+    Serial.println(F("MAX1704X initialized.."));
+    delay(100); // Allow some time for the sensor to initialize
+
+    if (!max1704x.isDeviceReady()) {
+        Serial.println(F("MAX1704X device is not ready!"));
+        return battery_info_t::full();
+    }
+
+    float voltage = max1704x.cellVoltage();
+    float percent = max1704x.cellPercent();
+    float charge_rate = max1704x.chargeRate();
+
+#if DEBUG_MODE
+    Serial.print(F("Battery reading: "));
+    Serial.print("voltage: ");
+    Serial.print(voltage);
+    Serial.print("V, percent: ");
+    Serial.print(percent);
+    Serial.print("%, charge rate: ");
+    Serial.print(charge_rate);
+    Serial.println(" mA");
+#endif // DEBUG_MODE
+
+    return battery_info(
+        voltage /* cell_voltage */,
+        charge_rate /* charge_rate */,
+        percent /* percent */);
+
+#else
+
     uint32_t millivolts = 0;
+    uint32_t raw = 0;
     for (int i = 0; i < num_readings; i++) {
         millivolts += analogReadMilliVolts(pin);
+        raw += analogRead(pin);
         delay(delay_between_readings);
     }
 
     millivolts /= num_readings;
-    uint32_t voltage = millivolts / resistor_ratio;
+    raw /= num_readings;
+    uint32_t voltage = raw / resistor_ratio;
     uint8_t percent = calc_battery_percentage(voltage);
 
 #if DEBUG_MODE
-    Serial.print("millivolts: ");
+    Serial.print(F("Battery reading: "));
+    Serial.print("raw: ");
+    Serial.print(raw);
+    Serial.print(", millivolts: ");
     Serial.print(millivolts);
     Serial.print(", voltage: ");
     Serial.print(voltage);
@@ -93,7 +153,12 @@ battery_info_t BatteryReader::read() const
 #endif // DEBUG_MODE
 
     return battery_info(
-        millivolts /* raw_millivolts */, voltage /* adjusted millivolts */, percent /* percent */);
+        raw /* raw_value */,
+        millivolts /* raw_millivolts */,
+        voltage /* adjusted millivolts */,
+        percent /* percent */);
+
+#endif // SENSOR_MAX1704X
 } // read
 
 } // namespace battery

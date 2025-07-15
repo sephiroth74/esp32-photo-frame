@@ -123,8 +123,9 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
     digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
     delay(2000); // Wait for RTC to power up
 
-    Wire1.begin(RTC_SDA_PIN /* SDA */, RTC_SCL_PIN /* SCL */);
-    if (!rtc.begin(&Wire1)) {
+    Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
+
+    if (!rtc.begin(&Wire)) {
         // set the error if provided
         Serial.println(F("Couldn't find RTC"));
         now = fetch_remote_datetime(sdCard);
@@ -157,7 +158,6 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
         }
     }
 
-    Wire1.end();
     digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
 
 #else

@@ -27,6 +27,7 @@
 #include "RTClib.h"
 #include "config.h"
 #include "errors.h"
+#include "battery.h"
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
@@ -276,9 +277,7 @@ namespace renderer {
      * @note This function displays the battery icon and its status on the top right corner of the
      * display. It uses predefined icons based on the battery percentage.
      */
-    void draw_battery_status(const uint32_t raw_value,
-        const uint32_t battery_voltage,
-        const uint8_t battery_percentage);
+    void draw_battery_status(battery::battery_info battery_info);
 
     /**
      * Draws image information on the e-paper display.

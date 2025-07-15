@@ -51,24 +51,32 @@ extern const int8_t EPD_PWR_PIN;
 extern const int8_t RTC_SDA_PIN;
 extern const int8_t RTC_SCL_PIN;
 extern const int8_t RTC_POWER_PIN;
+
 // Use RTC module for timekeeping
-extern const bool USE_RTC; 
+#define USE_RTC 1
 
 // Potentiometer pin
 extern const int8_t POTENTIOMETER_PWR_PIN; // Power pin for potentiometer
-extern const int8_t POTENTIOMETER_INPUT_PIN; // SDA pin for potentiometer
+extern const int8_t POTENTIOMETER_INPUT_PIN; // pin for potentiometer
 extern const uint16_t POTENTIOMETER_INPUT_MAX;
 
 // Battery
+
+// Use MAX1704X battery sensor
+// Uncomment the following line to use MAX1704X battery sensor
+#define SENSOR_MAX1704X  // Use MAX1704 battery sensor
+#define SENSOR_MAX1704X_TIMEOUT 5000 // Timeout for MAX1704X sensor initialization in milliseconds
+extern const int8_t MAX1704X_SDA_PIN;
+extern const int8_t MAX1704X_SCL_PIN;
 
 // Analog pin for battery reading
 extern const int8_t BATTERY_PIN;
 // Resistor ratio for battery voltage divider
 extern const double BATTERY_RESISTORS_RATIO;
 // Number of readings to average for battery voltage
-#define BATTERY_NUM_READINGS 20
+#define BATTERY_NUM_READINGS 100
 // Delay between battery readings in milliseconds
-#define BATTERY_DELAY_BETWEEN_READINGS 1
+#define BATTERY_DELAY_BETWEEN_READINGS 30
 
 // Voltage of battery reading in millivolts above which the battery is considered charging
 extern const uint32_t BATTERY_CHARGING_MILLIVOLTS;
@@ -79,6 +87,8 @@ extern const uint8_t BATTERY_PERCENT_EMPTY;
 extern const uint8_t BATTERY_PERCENT_CRITICAL;
 // Minimum battery percentage to consider the battery low
 extern const uint8_t BATTERY_PERCENT_LOW;
+
+#define BATTERY_POWER_SAVING 1
 
 #ifndef LED_BUILTIN
 // Built-in LED pin for ESP32

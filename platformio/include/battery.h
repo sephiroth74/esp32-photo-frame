@@ -25,6 +25,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include "config.h"
 
 namespace battery {
 
@@ -48,12 +49,51 @@ typedef struct battery_step {
 
 typedef struct battery_info {
 public:
-    uint32_t raw_value;
+#ifdef SENSOR_MAX1704X
+    float cell_voltage; // Voltage in volts
+    float charge_rate; // Charge rate in mA
+    float percent;
     uint32_t millivolts;
-    uint8_t percent;
+#else
+    uint32_t raw_value;
+    uint32_t raw_millivolts;
+    uint32_t millivolts;
+    float percent;
+#endif
 
-    constexpr battery_info(uint32_t raw_value, uint32_t millivolts, uint8_t percent)
+
+#ifdef SENSOR_MAX1704X
+    constexpr battery_info(float cell_voltage, float charge_rate, float percent)
+        : cell_voltage(cell_voltage)
+        , charge_rate(charge_rate)
+        , percent(percent)
+        , millivolts(static_cast<uint32_t>(cell_voltage * 1000)) // Convert volts to millivolts
+    {
+    }
+
+    constexpr battery_info()
+        : battery_info(0.0f, 0.0f, 0.0f) // Default constructor
+    {
+    }
+
+    constexpr battery_info(const battery_step_t& step)
+        : battery_info(step.voltage / 1000.0f, 0.0f, step.percent) // Convert to volts
+    {
+    }
+
+    constexpr bool operator==(const battery_info& other) const
+    {
+        return (cell_voltage == other.cell_voltage && charge_rate == other.charge_rate && percent == other.percent);
+    }
+
+    static inline constexpr battery_info empty() { return battery_info(0.0f, 0.0f, 0); }
+
+    static inline constexpr battery_info full() { return battery_info(4.2f, 0.0f, 100); }
+
+#else
+    constexpr battery_info(uint32_t raw_value, uint32_t raw_millivolts, uint32_t millivolts, float percent)
         : raw_value(raw_value)
+        , raw_millivolts(raw_millivolts)
         , millivolts(millivolts)
         , percent(percent)
     {
@@ -61,6 +101,7 @@ public:
 
     constexpr battery_info()
         : raw_value(0)
+        , raw_millivolts(0)
         , millivolts(0)
         , percent(0)
     {
@@ -68,6 +109,7 @@ public:
 
     constexpr battery_info(const battery_step_t& step)
         : raw_value(step.voltage)
+        , raw_millivolts(step.voltage)
         , millivolts(step.voltage)
         , percent(step.percent)
     {
@@ -75,10 +117,14 @@ public:
 
     constexpr bool operator==(const battery_info& other) const
     {
-        return (raw_value == other.raw_value && millivolts == other.millivolts && percent == other.percent);
+        return (raw_millivolts == other.raw_millivolts && millivolts == other.millivolts && percent == other.percent);
     }
 
-    static inline constexpr battery_info empty() { return battery_info(0, 0, 0); }
+    static inline constexpr battery_info empty() { return battery_info(0, 0, 0, 0); }
+
+    static inline constexpr battery_info full() { return battery_info(3999, 3999, 3999, 100); }
+
+#endif // SENSOR_MAX1704X
 
     bool is_low() const;
 
@@ -91,8 +137,6 @@ public:
      * @return True if the battery is charging, false otherwise.
      */
     bool is_charging() const;
-
-    static battery_info fromMv(uint32_t mv);
 
 } battery_info_t;
 
