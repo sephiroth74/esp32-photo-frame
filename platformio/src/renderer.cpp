@@ -438,16 +438,18 @@ namespace renderer {
         draw_side_message(gravity::TOP_CENTER, message.c_str(), 0, 0);
     }
 
-    void draw_battery_status(const uint32_t raw_value,
-        const uint32_t battery_voltage,
-        const uint8_t battery_percentage)
+    void draw_battery_status(battery::battery_info battery_info)
     {
-        Serial.println("drawBatteryStatus: " + String(battery_voltage) + "V, " + String(battery_percentage) + "%");
+        Serial.println("drawBatteryStatus");
+
+        auto battery_voltage = battery_info.millivolts;
+
+        auto battery_percentage = battery_info.percent;
 
         // Draw battery icon
         icon_name_t icon_name;
 
-        if (battery_voltage >= BATTERY_CHARGING_MILLIVOLTS) {
+        if (battery_info.is_charging()) {
             icon_name = icon_name::battery_charging_full_90deg;
         } else {
 
@@ -471,7 +473,11 @@ namespace renderer {
         String message = String(battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
 
 #if DEBUG_MODE
-        message += " " + String(raw_value);
+#ifdef SENSOR_MAX1704X
+        message += " - " + String(battery_info.charge_rate) + "mA";
+#else
+        message += " / " + String(raw_value) + "r - " + String(raw_millivolts) + "m";
+#endif // SENSOR_MAX1704X
 #endif
 
         draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
@@ -892,12 +898,12 @@ namespace renderer {
 
     bool draw_binary_from_file_buffered(File& file, const char* filename, int width, int height)
     {
-        Serial.print("draw_binary_from_file_buffered: ");
-        Serial.print(filename);
-        Serial.print(", width: ");
-        Serial.print(width);
-        Serial.print(", height: ");
-        Serial.println(height);
+        // Serial.print("draw_binary_from_file_buffered: ");
+        // Serial.print(filename);
+        // Serial.print(", width: ");
+        // Serial.print(width);
+        // Serial.print(", height: ");
+        // Serial.println(height);
 
         if (width <= 0 || height <= 0) {
             Serial.println("Invalid width or height");
@@ -947,8 +953,6 @@ namespace renderer {
                         Serial.print(" - file position: ");
                         Serial.println(file.position());
                         Serial.println("Exiting early due to read error.");
-
-                        file.close();
                         return false; // Exit early if read error occurs
                     }
                 }
@@ -959,7 +963,6 @@ namespace renderer {
             Serial.println(" ms");
         } while (display.nextPage());
         Serial.println("Binary file processed successfully");
-        file.close();
         return true; // Return true if the file was processed successfully
     }
 

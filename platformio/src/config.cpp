@@ -56,16 +56,28 @@ const int8_t EPD_MOSI_PIN = D12; // MOSI (DIN)
 const int8_t EPD_MISO_PIN = -1; // MISO
 const int8_t EPD_PWR_PIN = -1;
 
-const int8_t RTC_POWER_PIN = A1;
-const int8_t RTC_SDA_PIN = A2;
-const int8_t RTC_SCL_PIN = A3;
-const bool USE_RTC = true;
+const int8_t RTC_POWER_PIN = A3;
+const int8_t RTC_SDA_PIN = A4;
+const int8_t RTC_SCL_PIN = A5;
 
-const int8_t POTENTIOMETER_PWR_PIN = A4;
-const int8_t POTENTIOMETER_INPUT_PIN = A5;
+const int8_t POTENTIOMETER_PWR_PIN = A6;
+const int8_t POTENTIOMETER_INPUT_PIN = A7;
 
-const int8_t BATTERY_PIN = A7;
-const double BATTERY_RESISTORS_RATIO = 0.4910588235; // Ratio of the voltage divider resistors (R1 / (R1 + R2))
+#if !defined(SENSOR_MAX1704X)
+const int8_t BATTERY_PIN = A0;
+
+// R1 = 680K Ohm
+// R1 = 470K Ohm
+const double BATTERY_RESISTORS_RATIO = 0.460453401; // Ratio of the voltage divider resistors (R1 / (R1 + R2))
+
+// const int8_t MAX1704X_SDA_PIN = -1; // Not used when not using MAX1704X sensor
+// const int8_t MAX1704X_SCL_PIN = -1; // Not used when not using MAX1704X sensor
+#else
+const int8_t MAX1704X_SDA_PIN = A1;
+const int8_t MAX1704X_SCL_PIN = A2;
+const int8_t BATTERY_PIN = -1; // Not used when using MAX1704X sensor
+const double BATTERY_RESISTORS_RATIO = 1.0; // Not used when using
+#endif
 
 const uint32_t BATTERY_CHARGING_MILLIVOLTS = 4300; // Millivolts above which the battery is considered charging
 const uint8_t BATTERY_PERCENT_EMPTY = 5;
@@ -176,10 +188,10 @@ void print_config()
     Serial.print(F("EPD_PWR_PIN: "));
     Serial.println(EPD_PWR_PIN);
 
-    Serial.print(F("RTC_SDA_PIN: "));
-    Serial.println(RTC_SDA_PIN);
-    Serial.print(F("RTC_SCL_PIN: "));
-    Serial.println(RTC_SCL_PIN);
+    Serial.print(F("SDA_PIN: "));
+    Serial.println(SDA);
+    Serial.print(F("SCL_PIN: "));
+    Serial.println(SCL);
     Serial.print(F("RTC_POWER_PIN: "));
     Serial.println(RTC_POWER_PIN);
 

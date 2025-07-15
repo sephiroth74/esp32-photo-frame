@@ -560,7 +560,7 @@
       "plot": "",
       "pos_files": "",
       "specctra_dsn": "",
-      "step": "project.stl",
+      "step": "project.step",
       "svg": "",
       "vrml": ""
     },

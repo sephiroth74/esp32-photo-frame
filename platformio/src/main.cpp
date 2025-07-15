@@ -106,21 +106,17 @@ void setup()
     Serial.println(F("1. Reading battery level..."));
 
     battery_reader.init();
+
     battery::battery_info_t battery_info = battery_reader.read();
 
-    Serial.print(F("Battery millivolts: "));
-    Serial.print(battery_info.millivolts);
-    Serial.print(F(", percent: "));
-    Serial.print(battery_info.percent);
-    Serial.println(F("%"));
 
-    if (battery_info.is_empty()) {
+    if (battery_info.is_empty() && BATTERY_POWER_SAVING) {
         Serial.println(F("Battery is empty!"));
         photo_frame::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
         return; // Exit if battery is empty
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
-        error = photo_frame::error_type::BatteryLevelCritical;
+        // error = photo_frame::error_type::BatteryLevelCritical;
     }
 
     // --------------------------------------------------------------
@@ -129,10 +125,10 @@ void setup()
 
     Serial.println(F("2. Initializing SD card..."));
 
-    if (!battery_info.is_critical()) {
+    if (error != photo_frame::error_type::BatteryLevelCritical && error != photo_frame::error_type::BatteryEmpty) {
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
-            now = photo_frame::fetch_datetime(sdCard, (reset_rtc), &error);
+            now = photo_frame::fetch_datetime(sdCard, reset_rtc, &error);
         } else {
             Serial.println(F("Skipping datetime fetch due to SD card error!"));
         }
@@ -370,7 +366,7 @@ void setup()
 
                 photo_frame::renderer::draw_last_update(now, refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files);
-                photo_frame::renderer::draw_battery_status(battery_info.raw_value, battery_info.millivolts, battery_info.percent);
+                photo_frame::renderer::draw_battery_status(battery_info);
 
                 page_index++;
             } while (display.nextPage()); // Clear the display
@@ -383,6 +379,7 @@ void setup()
 #else
             bool success = photo_frame::renderer::draw_bitmap_from_file_buffered(file, img_filename, 0, 0, false);
 #endif
+            file.close(); // Close the file after drawing
 
             if (!success) {
                 Serial.println(F("Failed to draw bitmap from file!"));
@@ -392,7 +389,7 @@ void setup()
                 } while (display.nextPage());
             }
 
-            delay(100); // Wait for the display to update
+            delay(1000); // Wait for the display to update
 
             display.setPartialWindow(0, 0, display.width(), 16);
             display.firstPage();
@@ -406,7 +403,7 @@ void setup()
 
                 photo_frame::renderer::draw_last_update(now, refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files);
-                photo_frame::renderer::draw_battery_status(battery_info.raw_value, battery_info.millivolts, battery_info.percent);
+                photo_frame::renderer::draw_battery_status(battery_info);
                 // display.displayWindow(0, 0, display.width(), display.height());
 
             } while (display.nextPage()); // Clear the display

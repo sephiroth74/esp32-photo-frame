@@ -1,0 +1,24 @@
+{
+	"folders": [
+		{
+			"path": "platformio"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"system_error": "cpp",
+			"array": "cpp",
+			"deque": "cpp",
+			"string": "cpp",
+			"unordered_map": "cpp",
+			"unordered_set": "cpp",
+			"vector": "cpp",
+			"string_view": "cpp",
+			"memory": "cpp",
+			"random": "cpp",
+			"initializer_list": "cpp",
+			"fstream": "cpp",
+			"epd_1in54.h": "c"
+		}
+	}
+}
