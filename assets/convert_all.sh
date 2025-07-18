@@ -190,13 +190,13 @@ for input_dir in "${input_dirs[@]}"; do
         # Get the image dimensions, ignore errors
         # print errors (stderr) to /dev/null
 
-        dimensions=$(magick identify -format "%[EXIF:Orientation]x%wx%h" "$file" 2>/dev/null)
+        dimensions=$(identify -format "%[EXIF:Orientation]x%wx%h" "$file" 2>/dev/null)
         orientation=0
         set -e
 
         # if the script is not able to get the dimensions, retry without the orientation
         if [ -z "$dimensions" ]; then
-            dimensions=$(magick identify -format "1%wx%h" "$file") # 800x480
+            dimensions=$(identify -format "1%wx%h" "$file") # 800x480
         fi
 
         orientation=$(echo "$dimensions" | cut -d'x' -f1)
