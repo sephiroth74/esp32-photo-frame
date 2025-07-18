@@ -40,6 +40,7 @@ auto_resize_and_annotate_script="${file_dir}/private/auto_resize_and_annotate.sh
 combine_images_script="${file_dir}/private/combine_images.sh"
 convert_script="${file_dir}/private/convert.sh"
 bmp_to_lcd_script="${file_dir}/private/bmp_to_lcd.sh"
+yolov3_weights="${file_dir}/private/assets/yolov3.weights"
 
 source "${file_dir}/private/utils.sh"
 
@@ -199,6 +200,14 @@ if [[ ! -f "$bmp_to_lcd_script" ]]; then
     echo "Error: $bmp_to_lcd_script script not found."
     exit 1
 fi
+
+# Check if the yolov3.weights file exists, otherwise download it from the official source
+if [[ ! -f "$yolov3_weights" ]]; then
+    echo "Error: $yolov3_weights file not found."
+    echo "Please download it from https://www.kaggle.com/datasets/shivam316/yolov3-weights and place it in the private/assets directory."
+    exit 1
+fi
+
 
 # create tmp_dir if it doesn't exist
 if [[ ! -d "$tmp_dir" ]]; then
@@ -539,6 +548,13 @@ t2=$(date +%s%N)
 elapsed_time=$(( ( t2 - start_time ) / 1000000 )) # convert nanoseconds to milliseconds
 total_time=$(( (t2 - t1) / 1000000 )) # convert nanoseconds to milliseconds
 
+elapsed_time_string=""
+if [[ $elapsed_time -ge 1000 ]]; then
+    elapsed_time_string="$((elapsed_time / 1000)) seconds"
+else
+    elapsed_time_string="${elapsed_time} ms"
+fi
+
 total_time_string=""
 if [[ $total_time -ge 1000 ]]; then
     total_time_string="$((total_time / 1000)) seconds"
@@ -546,7 +562,7 @@ else
     total_time_string="${total_time} ms"
 fi
 
-echo "Processed $count images in $elapsed_time ms"
+echo "Processed $count images in $elapsed_time_string"
 echo ""
 
 # No converting all the output images to binary format
@@ -568,7 +584,7 @@ if [[ $elapsed_time -ge 1000 ]]; then
 else
     elapsed_time_string="${elapsed_time} ms"
 fi
-echo "Converted images to binary format in $elapsed_time_string"
+echo "Converted $count images to binary format in $elapsed_time_string"
 echo ""
 
 echo ""
