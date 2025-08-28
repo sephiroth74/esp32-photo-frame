@@ -26,7 +26,7 @@
 
 namespace photo_frame {
 
-DateTime fetch_remote_datetime(SDCard& sdCard)
+DateTime fetch_remote_datetime(sd_card& sdCard)
 {
     Serial.println(F("Fetching time from WiFi..."));
     DateTime result = DateTime((uint32_t)0);
@@ -53,25 +53,57 @@ DateTime fetch_remote_datetime(SDCard& sdCard)
     }
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
+    
+    const uint8_t maxRetries = 3;
+    const unsigned long baseDelay = 2000; // 2 seconds base delay
+    bool connected = false;
+    
+    for (uint8_t attempt = 0; attempt < maxRetries && !connected; attempt++) {
+        Serial.print(F("WiFi connection attempt "));
+        Serial.print(attempt + 1);
+        Serial.print(F("/"));
+        Serial.println(maxRetries);
+        
+        WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
 
-    unsigned long timeout = millis() + WIFI_CONNECT_TIMEOUT;
-    wl_status_t connection_status = WiFi.status();
-    while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
-        Serial.print(".");
-        delay(200);
-        connection_status = WiFi.status();
+        unsigned long timeout = millis() + WIFI_CONNECT_TIMEOUT;
+        wl_status_t connection_status = WiFi.status();
+        while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
+            Serial.print(".");
+            delay(200);
+            connection_status = WiFi.status();
+        }
+        Serial.println();
+
+        if (connection_status == WL_CONNECTED) {
+            connected = true;
+            Serial.println(F("Connected to WiFi!"));
+        } else {
+            Serial.print(F("WiFi connection failed (attempt "));
+            Serial.print(attempt + 1);
+            Serial.println(F(")"));
+            
+            WiFi.disconnect(true);
+            
+            // Exponential backoff with jitter for retries
+            if (attempt < maxRetries - 1) {
+                unsigned long backoffDelay = baseDelay * (1UL << attempt);
+                unsigned long jitter = random(0, backoffDelay / 4); // Add up to 25% jitter
+                backoffDelay += jitter;
+                
+                Serial.print(F("Retrying in "));
+                Serial.print(backoffDelay);
+                Serial.println(F("ms..."));
+                delay(backoffDelay);
+            }
+        }
     }
-    Serial.println();
 
-    if (connection_status != WL_CONNECTED) {
-        Serial.println(F("Failed to connect to WiFi!"));
-        Serial.println(F("Please check your WiFi credentials."));
-        WiFi.disconnect(true);
+    if (!connected) {
+        Serial.println(F("Failed to connect to WiFi after all retries!"));
+        Serial.println(F("Please check your WiFi credentials and network."));
         WiFi.mode(WIFI_OFF);
         return result;
-    } else {
-        Serial.println(F("Connected to WiFi!"));
     }
 
     // acquire the time from the NTP server
@@ -110,7 +142,7 @@ DateTime fetch_remote_datetime(SDCard& sdCard)
     return result;
 } // featch_remote_datetime
 
-DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
+DateTime fetch_datetime(sd_card& sdCard, bool reset, photo_frame_error_t* error)
 {
     Serial.print("Initializing RTC, reset: ");
     Serial.println(reset ? "true" : "false");
@@ -118,10 +150,13 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
     DateTime now;
     RTC_DS3231 rtc;
 
-#if USE_RTC
+#ifdef USE_RTC
+
+#if RTC_POWER_PIN > -1
     pinMode(RTC_POWER_PIN, OUTPUT);
     digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
     delay(2000); // Wait for RTC to power up
+#endif
 
     Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
 
@@ -158,7 +193,9 @@ DateTime fetch_datetime(SDCard& sdCard, bool reset, photo_frame_error_t* error)
         }
     }
 
+#if RTC_POWER_PIN > -1
     digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
+#endif
 
 #else
     Serial.println(F("RTC module is not used, fetching time from WiFi..."));

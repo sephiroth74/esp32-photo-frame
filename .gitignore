@@ -12,3 +12,8 @@ assets/kicad/\#auto_saved_files\#
 assets/kicad/_autosave-project.kicad_sch
 assets/kicad/fp-info-cache
 assets/kicad/production/
+platformio/upload_script.sh
+platformio/include/config/waveshare_esp32_s3_zero.h
+platformio/include/config/seeed_xiao_esp32c6.h
+platformio/include/config/arduino_nano_esp32.h
+platformio/optimizations.txt

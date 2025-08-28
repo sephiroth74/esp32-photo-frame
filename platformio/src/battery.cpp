@@ -25,8 +25,15 @@
 
 #include <Arduino.h>
 #include <cmath>
+#if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
+#include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
+#else
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
+#endif
+
 
 #ifdef SENSOR_MAX1704X
 #include <Adafruit_MAX1704X.h>
@@ -67,13 +74,13 @@ bool battery_info_t::is_charging() const { return percent > 100; }
 bool battery_info_t::is_charging() const { return millivolts > BATTERY_CHARGING_MILLIVOLTS; }
 #endif // SENSOR_MAX1704X
 
-void BatteryReader::init() const
+void battery_reader::init() const
 {
 #ifdef SENSOR_MAX1704X
     Serial.println(F("Initializing MAX1704X Battery Reader on Wire"));
     Wire1.setPins(MAX1704X_SDA_PIN, MAX1704X_SCL_PIN);
 #else
-    Serial.print(F("Initializing BatteryReader on pin "));
+    Serial.print(F("Initializing battery_reader on pin "));
     Serial.println(pin);
     pinMode(pin, INPUT);
     // Set the pin to use the ADC with no attenuation
@@ -81,10 +88,10 @@ void BatteryReader::init() const
 #endif
 
     delay(200); // Allow some time for the ADC to stabilize
-    Serial.println(F("BatteryReader initialized."));
+    Serial.println(F("battery_reader initialized."));
 } // init
 
-battery_info_t BatteryReader::read() const
+battery_info_t battery_reader::read() const
 {
 #ifdef SENSOR_MAX1704X
 
