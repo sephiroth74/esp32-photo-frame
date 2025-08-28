@@ -22,6 +22,12 @@
 
 #include "config.h"
 
+// Check all the E-Paper pins are defined
+#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) || !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
+#error "Please define all E-Paper display pins"
+#endif
+
+// Check display type
 #if !defined(DISP_BW_V2) && !defined(DISP_7C_F) && !defined(DISP_6C)
 #error "Please define DISP_BW_V2 or DISP_7C_F or DISP_6C"
 #endif
@@ -30,69 +36,51 @@
 #error "Please define only one display type: either DISP_BW_V2 or DISP_7C_F or DISP_6C"
 #endif
 
-#if !defined(USE_HSPI_FOR_EPD) && !defined(USE_HSPI_FOR_SD)
-#error "Please define USE_HSPI_FOR_EPD and USE_HSPI_FOR_SD"
-#endif // USE_HSPI_FOR_EPD and USE_HSPI_FOR_SD
+#if defined(USE_GOOGLE_DRIVE)
+#if !defined(GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL) || !defined(GOOGLE_DRIVE_PRIVATE_KEY_PEM) || !defined(GOOGLE_DRIVE_CLIENT_ID) || !defined(GOOGLE_DRIVE_FOLDER_ID)
+#error "Please define all Google Drive settings (GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY_PEM, GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_FOLDER_ID)"
+#endif
 
+#if GOOGLE_DRIVE_TOC_MAX_AGE > 30 * SECONDS_IN_DAY
+#error "GOOGLE_DRIVE_TOC_MAX_AGE must be less than or equal to 30 days"
+#endif
+
+#if !defined(USE_INSECURE_TLS) && !defined(GOOGLE_DRIVE_ROOT_CA)
+#error "When USE_INSECURE_TLS is not defined, GOOGLE_DRIVE_ROOT_CA must be defined with the path to the root CA certificate file"
+#endif
+#endif // USE_GOOGLE_DRIVE
+
+// Check all SD-Card pins are defined
+#if !defined(SD_CS_PIN) || !defined(SD_MISO_PIN) || !defined(SD_MOSI_PIN) || !defined(SD_SCK_PIN)
+#error "Please define all SD-Card pins"
+#endif
+
+#if !defined(USE_HSPI_FOR_EPD) && !defined(USE_HSPI_FOR_SD)
+#error "Please define USE_HSPI_FOR_EPD or USE_HSPI_FOR_SD"
+#endif // USE_HSPI_FOR_EPD or USE_HSPI_FOR_SD
+
+// Check only one SPI bus is used
 #if defined(USE_HSPI_FOR_SD) && defined(USE_HSPI_FOR_EPD)
 #error "Please define only one SPI bus: either USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD"
 #endif // USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD
 
-#define STR(s) #s
-#define X_LOCALE(code) STR(code)
-
-const int8_t SD_CS_PIN = D3;
-const int8_t SD_MISO_PIN = D5;
-const int8_t SD_MOSI_PIN = D4;
-const int8_t SD_SCK_PIN = D6;
-
-const int8_t EPD_BUSY_PIN = D7;
-const int8_t EPD_RST_PIN = D8;
-const int8_t EPD_DC_PIN = D9;
-const int8_t EPD_CS_PIN = D10;
-const int8_t EPD_SCK_PIN = D11;
-const int8_t EPD_MOSI_PIN = D12; // MOSI (DIN)
-
-const int8_t EPD_MISO_PIN = -1; // MISO
-const int8_t EPD_PWR_PIN = -1;
-
-const int8_t RTC_POWER_PIN = A3;
-const int8_t RTC_SDA_PIN = A4;
-const int8_t RTC_SCL_PIN = A5;
-
-const int8_t POTENTIOMETER_PWR_PIN = A6;
-const int8_t POTENTIOMETER_INPUT_PIN = A7;
-
-#if !defined(SENSOR_MAX1704X)
-const int8_t BATTERY_PIN = A0;
-
-// R1 = 680K Ohm
-// R1 = 470K Ohm
-const double BATTERY_RESISTORS_RATIO = 0.460453401; // Ratio of the voltage divider resistors (R1 / (R1 + R2))
-
-// const int8_t MAX1704X_SDA_PIN = -1; // Not used when not using MAX1704X sensor
-// const int8_t MAX1704X_SCL_PIN = -1; // Not used when not using MAX1704X sensor
-#else
-const int8_t MAX1704X_SDA_PIN = A1;
-const int8_t MAX1704X_SCL_PIN = A2;
-const int8_t BATTERY_PIN = -1; // Not used when using MAX1704X sensor
-const double BATTERY_RESISTORS_RATIO = 1.0; // Not used when using
+// Check all RTC pins are defined
+#ifdef USE_RTC
+#if !defined(RTC_SDA_PIN) || !defined(RTC_SCL_PIN)
+#error "Please define all RTC pins"
 #endif
+#endif // USE_RTC
 
-const uint32_t BATTERY_CHARGING_MILLIVOLTS = 4300; // Millivolts above which the battery is considered charging
-const uint8_t BATTERY_PERCENT_EMPTY = 5;
-const uint8_t BATTERY_PERCENT_CRITICAL = 10;
-const uint8_t BATTERY_PERCENT_LOW = 25;
+// Check potentiometer pins are all set
+#if !defined(POTENTIOMETER_PWR_PIN) || !defined(POTENTIOMETER_INPUT_PIN)
+#error "Please define all potentiometer pins"
+#endif // POTENTIOMETER_PWR_PIN || POTENTIOMETER_INPUT_PIN
 
-const char* WIFI_FILENAME = "/wifi.txt";
-
-const char* TOC_FILENAME = "/toc.txt";
-
-#if defined(ESP32)
-const uint16_t POTENTIOMETER_INPUT_MAX = 4095; // Maximum value for the level input pin (12-bit ADC)
-#else
-const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit ADC)
-#endif // ESP32
+#if defined(SENSOR_MAX1704X)
+#if !defined(MAX1704X_SDA_PIN) || !defined(MAX1704X_SCL_PIN)
+#error "Please define SENSOR_MAX1704X_PIN"
+#endif // !defined(MAX1704X_SDA_PIN) || !defined(MAX1704X_SCL_PIN)
+#endif // SENSOR_MAX1704X
 
 // validate DAY_START and DAY_END
 #if (DAY_START_HOUR < 0 || DAY_START_HOUR > 23)
@@ -123,6 +111,7 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 // Include local configuration overrides
 // Here you can define the local configuration overrides not to be committed to the repository
 
+#ifndef SENSOR_MAX1704X
 // validate battery settings
 #if (BATTERY_NUM_READINGS < 1 || BATTERY_NUM_READINGS > 100)
 #error "BATTERY_NUM_READINGS must be between 1 and 100"
@@ -130,123 +119,17 @@ const uint16_t LEVEL_INPUT_MAX = 1023; // Default for other platforms (10-bit AD
 #if (BATTERY_DELAY_BETWEEN_READINGS < 1 || BATTERY_DELAY_BETWEEN_READINGS > 1000)
 #error "BATTERY_DELAY_BETWEEN_READINGS must be between 0 and 1000 milliseconds"
 #endif // BATTERY_DELAY_BETWEEN_READINGS
+#endif // SENSORS_MAX1704X
+
+#ifndef SD_DIRNAME
+#error "SD_DIRNAME must be defined"
+#endif // SD_DIRNAME
 
 //
 // Define the file extension and directory name based on the display type and EPD_USE_BINARY_FILE setting
 //
-#if EPD_USE_BINARY_FILE
-const char* SD_FILE_EXTENSION = ".bin";
+#if defined(EPD_USE_BINARY_FILE)
+const char* LOCAL_FILE_EXTENSION = ".bin";
 #else
-const char* SD_FILE_EXTENSION = ".bmp";
+const char* LOCAL_FILE_EXTENSION = ".bmp";
 #endif // EPD_USE_BINARY_FILE
-
-#ifdef DISP_BW_V2
-#ifdef EPD_USE_BINARY_FILE
-const char* SD_DIRNAME = "/bin-bw";
-#else
-const char* SD_DIRNAME = "/bmp-bw";
-#endif // EPD_USE_BINARY_FILE
-
-#elif defined(DISP_6C)
-#ifdef EPD_USE_BINARY_FILE
-const char* SD_DIRNAME = "/bin-6c";
-#else
-const char* SD_DIRNAME = "/bmp-6c";
-#endif // EPD_USE_BINARY_FILE
-#endif // DISP_BW_V2
-
-#include "config.local"
-
-namespace photo_frame {
-void print_config()
-{
-#if DEBUG_MODE
-    Serial.println(F("Configuration:"));
-    Serial.print(F("SD_CS_PIN: "));
-    Serial.println(SD_CS_PIN);
-    Serial.print(F("SD_MISO_PIN: "));
-    Serial.println(SD_MISO_PIN);
-    Serial.print(F("SD_MOSI_PIN: "));
-    Serial.println(SD_MOSI_PIN);
-    Serial.print(F("SD_SCK_PIN: "));
-    Serial.println(SD_SCK_PIN);
-
-    Serial.print(F("EPD_CS_PIN: "));
-    Serial.println(EPD_CS_PIN);
-    Serial.print(F("EPD_DC_PIN: "));
-    Serial.println(EPD_DC_PIN);
-    Serial.print(F("EPD_RST_PIN: "));
-    Serial.println(EPD_RST_PIN);
-    Serial.print(F("EPD_BUSY_PIN: "));
-    Serial.println(EPD_BUSY_PIN);
-    Serial.print(F("EPD_MISO_PIN: "));
-    Serial.println(EPD_MISO_PIN);
-    Serial.print(F("EPD_MOSI_PIN: "));
-    Serial.println(EPD_MOSI_PIN);
-    Serial.print(F("EPD_SCK_PIN: "));
-    Serial.println(EPD_SCK_PIN);
-    Serial.print(F("EPD_PWR_PIN: "));
-    Serial.println(EPD_PWR_PIN);
-
-    Serial.print(F("SDA_PIN: "));
-    Serial.println(SDA);
-    Serial.print(F("SCL_PIN: "));
-    Serial.println(SCL);
-    Serial.print(F("RTC_POWER_PIN: "));
-    Serial.println(RTC_POWER_PIN);
-
-    Serial.print(F("POTENTIOMETER_PWR_PIN: "));
-    Serial.println(POTENTIOMETER_PWR_PIN);
-    Serial.print(F("POTENTIOMETER_INPUT_PIN: "));
-    Serial.println(POTENTIOMETER_INPUT_PIN);
-    Serial.print(F("POTENTIOMETER_INPUT_MAX: "));
-    Serial.println(POTENTIOMETER_INPUT_MAX);
-
-    Serial.print(F("BATTERY_PIN: "));
-    Serial.println(BATTERY_PIN);
-    Serial.print(F("BATTERY_RESISTORS_RATIO: "));
-    Serial.println(BATTERY_RESISTORS_RATIO);
-    Serial.print(F("BATTERY_NUM_READINGS: "));
-    Serial.println(BATTERY_NUM_READINGS);
-    Serial.print(F("BATTERY_DELAY_BETWEEN_READINGS: "));
-    Serial.println(BATTERY_DELAY_BETWEEN_READINGS);
-    Serial.print(F("BATTERY_PERCENT_EMPTY: "));
-    Serial.println(BATTERY_PERCENT_EMPTY);
-    Serial.print(F("BATTERY_PERCENT_CRITICAL: "));
-    Serial.println(BATTERY_PERCENT_CRITICAL);
-    Serial.print(F("BATTERY_PERCENT_LOW: "));
-    Serial.println(BATTERY_PERCENT_LOW);
-
-    Serial.print(F("LED_BUILTIN: "));
-    Serial.println(LED_BUILTIN);
-
-    Serial.print(F("DAY_START_HOUR: "));
-    Serial.println(DAY_START_HOUR);
-    Serial.print(F("DAY_END_HOUR: "));
-    Serial.println(DAY_END_HOUR);
-
-    Serial.print(F("REFRESH_MIN_INTERVAL_SECONDS: "));
-    Serial.println(REFRESH_MIN_INTERVAL_SECONDS);
-    Serial.print(F("REFRESH_MAX_INTERVAL_SECONDS: "));
-    Serial.println(REFRESH_MAX_INTERVAL_SECONDS);
-    Serial.print(F("REFRESH_INTERVAL_SECONDS_LOW_BATTERY: "));
-    Serial.println(REFRESH_INTERVAL_SECONDS_LOW_BATTERY);
-
-    Serial.print(F("FONT_HEADER: "));
-    Serial.println(FONT_HEADER);
-
-    Serial.print(F("LOCALE: "));
-    Serial.println(X_LOCALE(LOCALE));
-
-    Serial.print(F("WIFI_FILENAME: "));
-    Serial.println(WIFI_FILENAME);
-
-    Serial.print(F("HAS_RGB_LED: "));
-    Serial.println(HAS_RGB_LED ? "true" : "false");
-
-    Serial.print(F("TOC_FILENAME: "));
-    Serial.println(TOC_FILENAME);
-    Serial.println(F("-----------------------------"));
-#endif // DEBUG_MODE
-}
-} // namespace photo_frame

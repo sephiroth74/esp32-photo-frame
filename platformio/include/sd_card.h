@@ -32,45 +32,83 @@
 
 namespace photo_frame {
 
-class SdCardEntry {
+/**
+ * @brief Represents an entry (file) on the SD card.
+ * 
+ * This class encapsulates information about a file stored on the SD card,
+ * including its name, full path, and index within a collection. It provides
+ * utility methods for string representation and validity checking.
+ */
+class sd_card_entry {
 public:
-    String name;
-    String path;
-    uint32_t index;
+    String name;      ///< Name of the file (without path)
+    String path;      ///< Full path to the file on the SD card
+    uint32_t index;   ///< Index of this entry within a collection
 
-    SdCardEntry()
+    /**
+     * @brief Default constructor creating an empty entry.
+     */
+    sd_card_entry()
         : name("")
         , path("")
         , index(0)
     {
     }
 
-    SdCardEntry(const char* name, const char* path, uint32_t index)
+    /**
+     * @brief Constructor with file information.
+     * @param name Name of the file (without path)
+     * @param path Full path to the file on the SD card
+     * @param index Index of this entry within a collection
+     */
+    sd_card_entry(const char* name, const char* path, uint32_t index)
         : name(name)
         , path(path)
         , index(index)
     {
     }
 
+    /**
+     * @brief Converts the entry to a string representation.
+     * @return String in format "name | path | index"
+     */
     String to_string() const { return name + " | " + path + " | " + String(index); }
 
+    /**
+     * @brief Checks if the entry is valid (has non-empty name and path).
+     * @return True if entry is valid, false otherwise
+     */
     operator bool() const { return (!name.isEmpty() && !path.isEmpty()); }
 };
 
-class SDCard {
+/**
+ * @brief SD card interface class for file operations.
+ * 
+ * This class provides a comprehensive interface for interacting with SD cards,
+ * including initialization, file operations, directory management, and metadata
+ * operations. It supports both HSPI and standard SPI configurations.
+ */
+class sd_card {
 private:
 #ifdef USE_HSPI_FOR_SD
-    SPIClass hspi; // SPI object for SD card
+    SPIClass hspi;              ///< SPI object for SD card when using HSPI
 #endif // USE_HSPI_FOR_SD
-    bool initialized;
-    uint8_t csPin;
-    uint8_t misoPin;
-    uint8_t mosiPin;
-    uint8_t sckPin;
-    sdcard_type_t cardType;
+    bool initialized;           ///< Flag indicating if SD card is initialized
+    uint8_t csPin;              ///< Chip select pin for SD card
+    uint8_t misoPin;            ///< MISO (Master In, Slave Out) pin
+    uint8_t mosiPin;            ///< MOSI (Master Out, Slave In) pin
+    uint8_t sckPin;             ///< Serial clock pin
+    sdcard_type_t cardType;     ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
 public:
-    SDCard(uint8_t csPin = SD_CS_PIN,
+    /**
+     * @brief Constructor for sd_card with configurable pins.
+     * @param csPin Chip select pin (default from config)
+     * @param misoPin MISO pin (default from config)
+     * @param mosiPin MOSI pin (default from config)
+     * @param sckPin Serial clock pin (default from config)
+     */
+    sd_card(uint8_t csPin = SD_CS_PIN,
         uint8_t misoPin = SD_MISO_PIN,
         uint8_t mosiPin = SD_MOSI_PIN,
         uint8_t sckPin = SD_SCK_PIN)
@@ -89,8 +127,8 @@ public:
     }
 
     // Disable copy constructor and assignment operator
-    SDCard(const SDCard&) = delete;
-    SDCard& operator=(const SDCard&) = delete;
+    sd_card(const sd_card&) = delete;
+    sd_card& operator=(const sd_card&) = delete;
 
     /**
      * Initializes the SD card.
@@ -128,6 +166,12 @@ public:
         return cardType;
     }
 
+    /**
+     * @brief Prints the SD card type to Serial output.
+     * 
+     * Outputs a human-readable description of the detected SD card type
+     * (MMC, SDSC, SDHC, etc.) for debugging and informational purposes.
+     */
     void print_card_type() const
     {
         Serial.print("Card Type: ");
@@ -217,7 +261,7 @@ public:
      * @param index Pointer to a variable that will hold the index of the found image.
      * @param extension The file extension to filter files (e.g., ".jpg", ".png").
      * If the extension is null or empty, it searches for all files.
-     * @param file_entry Pointer to a SdCardEntry object that will be filled with the file details.
+     * @param file_entry Pointer to a sd_card_entry object that will be filled with the file details.
      * @return photo_frame_error_t indicating success or failure.
      * If no image is found, it returns an error indicating that no image was found.
      * @note This function searches for image files in the root directory of the SD card.
@@ -226,7 +270,7 @@ public:
      * is not initialized.
      */
     photo_frame_error_t
-    find_next_image(uint32_t* index, const char* extension, SdCardEntry* file_entry) const;
+    find_next_image(uint32_t* index, const char* extension, sd_card_entry* file_entry) const;
 
     /**
      * Counts the number of files with the specified extension in the root directory of the SD card.
@@ -247,6 +291,31 @@ public:
      * object.
      */
     fs::File open(const char* path, const char* mode = FILE_READ);
+
+    /**
+     * Renames a file on the SD card.
+     * @param pathFrom The current path of the file to rename.
+     * @param pathTo The new path for the renamed file.
+     * @param overwrite If true, allows overwriting an existing file.
+     * @return true if the file was renamed successfully, false otherwise.
+     * @note If the SD card is not initialized, it will return false.
+     */
+    bool rename(const char* pathFrom, const char* pathTo, bool overwrite = false);
+
+    /**
+     * Removes (deletes) a file from the SD card.
+     * @param path The path to the file to remove.
+     * @return true if the file was removed successfully, false otherwise.
+     * @note If the SD card is not initialized or the file doesn't exist, it will return false.
+     */
+    bool remove(const char* path);
+
+    /**
+     * Gets the size of a file on the SD card.
+     * @param path The path to the file.
+     * @return The size of the file in bytes, or 0 if the file doesn't exist or SD card is not initialized.
+     */
+    size_t get_file_size(const char* path) const;
 };
 
 } // namespace photo_frame

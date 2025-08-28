@@ -21,8 +21,14 @@
 // SOFTWARE.
 
 #include "board_util.h"
-#include "driver/adc.h"
 #include "esp_bt.h"
+
+#if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
+#include <esp_adc/adc_oneshot.h>
+#else
+#include <driver/adc.h>
+#endif
+
 
 namespace photo_frame {
 
@@ -139,7 +145,7 @@ void disable_rgb_led()
 
 void toggle_rgb_led(bool red, bool green, bool blue)
 {
-#if HAS_RGB_LED
+#if HAS_RGB_LED && DEBUG_MODE
     Serial.print(F("Toggling RGB LED to R: "));
     Serial.print(red);
     Serial.print(F(", G: "));
@@ -233,7 +239,8 @@ void blink_error(photo_frame_error_t error)
     Serial.print(F(" (Code: "));
     Serial.print(error.code);
     Serial.print(F(", Blink count: "));
-    Serial.println(error.blink_count);
+    Serial.print(error.blink_count);
+    Serial.println(F(")"));
 
 #if HAS_RGB_LED
     blink_rgb_led(error);

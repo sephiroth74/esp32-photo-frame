@@ -34,16 +34,6 @@
 
 GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display(GxEPD2_DRIVER_CLASS(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN));
 
-#if defined(DISP_BW_V2)
-const int ACCENT_COLOR = GxEPD_BLACK; // black
-#elif defined(DISP_7C_F)
-const int ACCENT_COLOR = GxEPD_RED; // red
-#elif defined(DISP_6C)
-const int ACCENT_COLOR = GxEPD_RED; // red for 6
-#else
-const int ACCENT_COLOR = GxEPD_BLACK; // default to black if no display type is defined
-#endif // DISP_BW_V2 or DISP_7C_F or DISP_6C
-
 #ifdef USE_HSPI_FOR_EPD
 SPIClass hspi(HSPI); // SPI object for e-Paper display
 #endif // USE_HSPI_FOR_EPD
@@ -114,18 +104,14 @@ namespace renderer {
     void init_display()
     {
         Serial.println("Initializing e-paper display...");
-        if (EPD_PWR_PIN > 0) {
-            pinMode(EPD_PWR_PIN, OUTPUT);
-            digitalWrite(EPD_PWR_PIN, HIGH);
-        }
 
 #ifdef USE_HSPI_FOR_EPD
-        hspi.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        hspi.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
         display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
 #else
 
         SPI.end();
-        SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
 #endif // USE_HSPI_FOR_EPD
 
 #ifdef USE_DESPI_DRIVER
@@ -177,7 +163,6 @@ namespace renderer {
         SPI.end(); // release SPI pins
 #endif // USE_HSPI_FOR_EPD
 
-        digitalWrite(EPD_PWR_PIN, LOW);
         return;
     } // end initDisplay
 
@@ -273,6 +258,11 @@ namespace renderer {
         String textRemaining = text;
         // print until we reach max_lines or no more text remains
         while (current_line < max_lines && !textRemaining.isEmpty()) {
+            // Yield periodically during complex text processing
+            if (current_line % 5 == 0) {
+                yield();
+            }
+            
             int16_t x1, y1;
             uint16_t w, h;
 
@@ -718,12 +708,22 @@ namespace renderer {
                             if (0 == pn % 8)
                                 color_palette_buffer[pn / 8] = 0;
                             color_palette_buffer[pn / 8] |= colored << pn % 8;
+                            
+                            // Yield every 16 palette entries to prevent watchdog timeout
+                            if (pn % 16 == 0) {
+                                yield();
+                            }
                         }
                     }
                     // display.clearScreen();
                     uint32_t rowPosition = flip ? imageOffset + (height - h) * rowSize : imageOffset;
                     for (uint16_t row = 0; row < h; row++, rowPosition += rowSize) // for each line
                     {
+                        // Yield every 10 rows to prevent watchdog timeout
+                        if (row % 10 == 0) {
+                            yield();
+                        }
+                        
                         uint32_t in_remain = rowSize;
                         uint32_t in_idx = 0;
                         uint32_t in_bytes = 0;
@@ -809,6 +809,11 @@ namespace renderer {
                                 out_byte = 0xFF; // white (for w%8!=0 border)
                                 out_color_byte = 0xFF; // white (for w%8!=0 border)
                             }
+                            
+                            // Yield every 100 pixels to prevent watchdog timeout
+                            if (col % 100 == 0) {
+                                yield();
+                            }
                         } // end pixel
                         uint16_t yrow = y + (flip ? h - row - 1 : row);
                         display.writeImage(
@@ -858,6 +863,11 @@ namespace renderer {
         uint32_t idx = 0;
 
         for (int y = 0; y < height; y++) {
+            // Yield every 10 rows to prevent watchdog timeout
+            if (y % 10 == 0) {
+                yield();
+            }
+            
             for (int x = 0; x < width; x++) {
                 uint8_t color;
                 uint16_t pixelColor;
@@ -885,6 +895,11 @@ namespace renderer {
                     Serial.println(file.position());
                     Serial.println("Exiting early due to read error.");
                     return false; // Exit early if read error occurs
+                }
+                
+                // Yield every 100 pixels to prevent watchdog timeout
+                if (x % 100 == 0) {
+                    yield();
                 }
             }
         }
@@ -927,6 +942,11 @@ namespace renderer {
             uint32_t idx = 0;
 
             for (int y = 0; y < height; y++) {
+                // Yield every 10 rows to prevent watchdog timeout
+                if (y % 10 == 0) {
+                    yield();
+                }
+                
                 for (int x = 0; x < width; x++) {
                     uint8_t color;
                     uint16_t pixelColor;
@@ -954,6 +974,11 @@ namespace renderer {
                         Serial.println(file.position());
                         Serial.println("Exiting early due to read error.");
                         return false; // Exit early if read error occurs
+                    }
+                    
+                    // Yield every 100 pixels to prevent watchdog timeout
+                    if (x % 100 == 0) {
+                        yield();
                     }
                 }
             }
@@ -1067,6 +1092,11 @@ namespace renderer {
                                 color_palette_buffer[pn / 8] = 0;
                             color_palette_buffer[pn / 8] |= colored << pn % 8;
                             rgb_palette_buffer[pn] = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | ((blue & 0xF8) >> 3);
+                            
+                            // Yield every 16 palette entries to prevent watchdog timeout
+                            if (pn % 16 == 0) {
+                                yield();
+                            }
                         }
                     }
                     if (partial_update)
@@ -1079,6 +1109,11 @@ namespace renderer {
                         uint32_t rowPosition = flip ? imageOffset + (height - h) * rowSize : imageOffset;
                         for (uint16_t row = 0; row < h; row++, rowPosition += rowSize) // for each line
                         {
+                            // Yield every 10 rows to prevent watchdog timeout
+                            if (row % 10 == 0) {
+                                yield();
+                            }
+                            
                             uint32_t in_remain = rowSize;
                             uint32_t in_idx = 0;
                             uint32_t in_bytes = 0;
@@ -1168,6 +1203,11 @@ namespace renderer {
                                 }
                                 uint16_t yrow = y + (flip ? h - row - 1 : row);
                                 display.drawPixel(x + col, yrow, color);
+                                
+                                // Yield every 100 pixels to prevent watchdog timeout
+                                if (col % 100 == 0) {
+                                    yield();
+                                }
                             } // end pixel
                         } // end line
                         Serial.print("page loaded in ");

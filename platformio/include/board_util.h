@@ -76,7 +76,7 @@ void disable_built_in_led();
  * @param on_ms     The duration in milliseconds to keep the LED on.
  * @param off_ms    The duration in milliseconds to keep the LED off.
  */
-void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned off_ms = 300);
+void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
 
 /**
  * Blinks the built-in LED according to the specified error.

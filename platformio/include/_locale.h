@@ -28,8 +28,10 @@ extern const char* TXT_CARD_MOUNT_FAILED;
 extern const char* TXT_NO_SD_CARD_ATTACHED;
 extern const char* TXT_UNKNOWN_SD_CARD_TYPE;
 extern const char* TXT_CARD_OPEN_FILE_FAILED;
+extern const char* TXT_CARD_CREATE_FILE_FAILED;
 extern const char* TXT_SD_CARD_FILE_NOT_FOUND;
 extern const char* TXT_SD_CARD_FILE_OPEN_FAILED;
+extern const char* TXT_SD_CARD_FILE_CREATE_FAILED;
 extern const char* TXT_IMAGE_FORMAT_NOT_SUPPORTED;
 extern const char* TXT_BATTERY_LEVEL_CRITICAL;
 extern const char* TXT_CARD_TOC_OPEN_FILE_FAILED;
@@ -37,6 +39,16 @@ extern const char* TXT_PREFERENCES_OPEN_FAILED;
 extern const char* TXT_NO_IMAGES_FOUND;
 extern const char* TXT_BATTERY_EMPTY;
 extern const char* TXT_RTC_MODULE_NOT_FOUND;
+extern const char* TXT_RTC_MODULE_NOT_FOUND;
+extern const char* TXT_JWT_CREATION_FAILED;
+extern const char* TXT_HTTP_POST_FAILED;
+extern const char* TXT_JSON_PARSE_FAILED;
+extern const char* TXT_TOKEN_MISSING;
+extern const char* TXT_FILE_OPEN_FAILED;
+extern const char* TXT_HTTP_CONNECT_FAILED;
+extern const char* TXT_HTTP_GET_FAILED;
+extern const char* TXT_DOWNLOAD_FAILED;
+extern const char* TXT_SSL_CERTIFICATE_LOAD_FAILED;
 
 extern const char* TXT_ERROR_CODE;
 

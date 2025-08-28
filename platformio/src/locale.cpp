@@ -22,7 +22,10 @@
 
 #include "config.h"
 
+#ifndef STR
 #define STR(s) #s
+#endif // STR
+
 #define X_LOCALE_INC(code) STR(locales/locale_##code.inc)
 #define LOCALE_INC(code) X_LOCALE_INC(code)
 
