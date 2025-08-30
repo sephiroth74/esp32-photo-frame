@@ -78,6 +78,14 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     return error_type::None;
 }
 
+void wifi_manager::set_timezone(const char* timezone)
+{
+    Serial.print(F("Setting timezone to: "));
+    Serial.println(timezone);
+    setenv("TZ", timezone, 1);
+    tzset();
+}
+
 photo_frame_error_t wifi_manager::connect()
 {
     if (!_initialized) {
@@ -165,9 +173,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error)
         return DateTime(); // Invalid DateTime
     }
 
-    setenv("TZ", TIMEZONE, 1);
-    tzset();
-
+    set_timezone(TIMEZONE);
     configTime(0, 0, NTP_SERVER1, NTP_SERVER2);
 
     Serial.print(F("Waiting for NTP time sync..."));
@@ -184,6 +190,10 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error)
     struct tm timeinfo;
 
     if (getLocalTime(&timeinfo)) {
+        set_timezone(TIMEZONE);
+
+        getLocalTime(&timeinfo);
+
         Serial.print("Current time is: ");
         Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 

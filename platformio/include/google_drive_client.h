@@ -59,7 +59,6 @@ typedef struct {
     unsigned long expiresAt; ///< Expiration time of the access token
     unsigned long obtainedAt; ///< Timestamp when the access token was obtained
     
-
     bool expired(int marginSeconds = 0) const
     {
         time_t now = time(NULL);
@@ -185,6 +184,12 @@ public:
      * Cleans up cryptographic contexts and resources.
      */
     ~google_drive_client();
+
+    /**
+     * @brief Sets the access token for the Google Drive client.
+     * @param token The access token to set
+     */
+    void set_access_token(const google_drive_access_token& token);
 
     /**
      * @brief Retrieves an access token for authenticating requests.

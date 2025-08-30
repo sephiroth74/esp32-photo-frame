@@ -1187,6 +1187,11 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
     return error_type::DownloadFailed;
 }
 
+void google_drive_client::set_access_token(const google_drive_access_token& token) {
+    // use the copy constructor
+    g_access_token = token;
+}
+
 const google_drive_access_token* google_drive_client::get_access_token_value() const { return &g_access_token; }
 
 bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResponse& response)
