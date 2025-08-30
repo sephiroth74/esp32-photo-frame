@@ -34,7 +34,7 @@ namespace string_utils {
      * @param s2 Second string component
      * @return Optimized concatenated String
      */
-    inline String buildString(const String& s1, const String& s2)
+    inline String build_string(const String& s1, const String& s2)
     {
         String result;
         result.reserve(s1.length() + s2.length() + 1);
@@ -50,7 +50,7 @@ namespace string_utils {
      * @param s3 Third string component
      * @return Optimized concatenated String
      */
-    inline String buildString(const String& s1, const String& s2, const String& s3)
+    inline String build_string(const String& s1, const String& s2, const String& s3)
     {
         String result;
         result.reserve(s1.length() + s2.length() + s3.length() + 1);
@@ -68,7 +68,7 @@ namespace string_utils {
      * @param s4 Fourth string component
      * @return Optimized concatenated String
      */
-    inline String buildString(const String& s1, const String& s2, const String& s3, const String& s4)
+    inline String build_string(const String& s1, const String& s2, const String& s3, const String& s4)
     {
         String result;
         result.reserve(s1.length() + s2.length() + s3.length() + s4.length() + 1);
@@ -86,7 +86,7 @@ namespace string_utils {
      * @param extension File extension (optional)
      * @return Optimized file path String
      */
-    inline String buildPath(const String& dir, const String& filename, const String& extension = "")
+    inline String build_path(const String& dir, const String& filename, const String& extension = "")
     {
         String result;
         size_t totalLen = dir.length() + filename.length() + extension.length() + 2; // "/" and null terminator
@@ -110,7 +110,7 @@ namespace string_utils {
      * @param version HTTP version (default: "HTTP/1.1")
      * @return Optimized HTTP request line
      */
-    inline String buildHttpRequestLine(const String& method, const String& path, const String& version = "HTTP/1.1")
+    inline String build_http_request_line(const String& method, const String& path, const String& version = "HTTP/1.1")
     {
         String result;
         result.reserve(method.length() + path.length() + version.length() + 4); // spaces and \r\n
@@ -129,7 +129,7 @@ namespace string_utils {
      * @param value Header value
      * @return Optimized HTTP header line
      */
-    inline String buildHttpHeader(const String& name, const String& value)
+    inline String build_http_header(const String& name, const String& value)
     {
         String result;
         result.reserve(name.length() + value.length() + 4); // ": " and "\r\n"
@@ -146,7 +146,7 @@ namespace string_utils {
      * @param threshold Warning threshold in bytes (default: 4096)
      * @return true if heap is sufficient, false if low
      */
-    inline bool checkHeapHealth(const char* context, size_t threshold = 4096)
+    inline bool check_heap_health(const char* context, size_t threshold = 4096)
     {
         size_t freeHeap = ESP.getFreeHeap();
         if (freeHeap < threshold) {

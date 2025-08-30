@@ -1423,7 +1423,7 @@ bool google_drive_client::handle_transient_failure(uint8_t attempt, failure_type
     }
 
     // Add jitter to prevent thundering herd
-    backoffDelay = addJitter(backoffDelay);
+    backoffDelay = add_jitter(backoffDelay);
 
     Serial.print(F("Transient failure ("));
     Serial.print(failureTypeName);
@@ -1441,12 +1441,12 @@ bool google_drive_client::handle_transient_failure(uint8_t attempt, failure_type
     return true;
 }
 
-unsigned long google_drive_client::addJitter(unsigned long baseDelay)
+unsigned long google_drive_client::add_jitter(unsigned long base_delay)
 {
     // Add up to 25% random jitter to prevent thundering herd
-    unsigned long maxJitter = baseDelay / 4;
-    unsigned long jitter = random(0, maxJitter + 1);
-    return baseDelay + jitter;
+    unsigned long max_jitter = base_delay / 4;
+    unsigned long jitter = random(0, max_jitter + 1);
+    return base_delay + jitter;
 }
 
 bool google_drive_client::is_token_expired(int marginSeconds)
