@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "renderer.h"
+#include "datetime_utils.h"
 
 #include FONT_HEADER
 
@@ -59,18 +60,6 @@ namespace renderer {
     uint16_t rgb_palette_buffer[max_palette_pixels]; // palette buffer for depth <= 8 for buffered
                                                      // graphics, needed for 7-color display
 
-    const char dateTimeFormat[] = "%04d/%02d/%02d %02d:%02d";
-
-    int formatDatetime(char* dateTimeBuffer, const DateTime& now)
-    {
-        return sprintf(dateTimeBuffer,
-            dateTimeFormat,
-            now.year(),
-            now.month(),
-            now.day(),
-            now.hour(),
-            now.minute());
-    } // format_datetime
 
     uint16_t read8(File& f)
     {
@@ -213,7 +202,7 @@ namespace renderer {
         int16_t x1, y1;
         uint16_t w, h;
         display.getTextBounds(text, x, y, &x1, &y1, &w, &h);
-        return rect_t::fromXYWH(x1, y1, w, h);
+        return rect_t::from_xywh(x1, y1, w, h);
     }
 
     /*
@@ -487,7 +476,7 @@ namespace renderer {
     {
         Serial.println("drawLastUpdate: " + lastUpdate.timestamp());
         char dateTimeBuffer[32] = { 0 }; // Buffer to hold formatted date and time
-        formatDatetime(dateTimeBuffer, lastUpdate);
+        photo_frame::datetime_utils::format_datetime(dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate);
 
         // format the refresh time string in the format "Refresh: 0' 0" (e.g. "Refresh: 10' 30")
         String refreshStr = "";
@@ -1241,22 +1230,22 @@ namespace renderer {
 
 #if defined(DISP_6C) || defined(DISP_7C_F)
 
-    bool isDominant(uint8_t r, uint8_t g, uint8_t b)
+    bool is_dominant(uint8_t r, uint8_t g, uint8_t b)
     {
         return (r >= g && r >= b) || (g >= r && g >= b) || (b >= r && b >= g);
     };
 
-    bool isLightGrey(uint8_t r, uint8_t g, uint8_t b)
+    bool is_light_grey(uint8_t r, uint8_t g, uint8_t b)
     {
         return (r >= 5 && g >= 5 && b >= 2);
     };
 
-    bool isDarkGrey(uint8_t r, uint8_t g, uint8_t b)
+    bool is_dark_grey(uint8_t r, uint8_t g, uint8_t b)
     {
         return (r < 3 && g < 3 && b < 2);
     };
 
-    bool isYellow(uint8_t r, uint8_t g, uint8_t b)
+    bool is_yellow(uint8_t r, uint8_t g, uint8_t b)
     {
         return (r > 3 && g > 3 && b < 2);
     };
@@ -1292,7 +1281,7 @@ namespace renderer {
             uint8_t b = color & 0x03; // from 0 to 3
 
             // Improved color mapping: use the dominant channel to determine color
-            if (isDominant(r, g, b)) {
+            if (is_dominant(r, g, b)) {
                 // Use the dominant channel to determine the color
                 if (r > g && r > b) {
                     pixelColor = GxEPD_RED;
@@ -1304,11 +1293,11 @@ namespace renderer {
                     pixelColor = GxEPD_WHITE; // Fallback to white if no dominant channel
                 }
             } else {
-                if (isYellow(r, g, b)) {
+                if (is_yellow(r, g, b)) {
                     pixelColor = GxEPD_YELLOW;
-                } else if (isLightGrey(r, g, b)) {
+                } else if (is_light_grey(r, g, b)) {
                     pixelColor = GxEPD_WHITE; // Light grey
-                } else if (isDarkGrey(r, g, b)) {
+                } else if (is_dark_grey(r, g, b)) {
                     pixelColor = GxEPD_BLACK; // Dark grey
                 } else {
                     // Fallback to white if no match

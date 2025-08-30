@@ -234,9 +234,16 @@ public:
     /**
      * @brief Set the root CA certificate for SSL/TLS connections
      * @param rootCA The root CA certificate in PEM format
-     */
+     */a
     void set_root_ca_certificate(const String& rootCA);
 #endif
+
+    /**
+     * @brief Check if the current access token is expired or about to expire
+     * @param marginSeconds Safety margin in seconds before actual expiration (default: 60)
+     * @return true if token is expired or will expire within margin
+     */
+    bool is_token_expired(int marginSeconds = 60);
 
 private:
     /**
@@ -362,17 +369,10 @@ private:
 
     /**
      * @brief Add random jitter to backoff delay to prevent thundering herd
-     * @param baseDelay Base delay in milliseconds
+     * @param base_delay Base delay in milliseconds
      * @return Delay with jitter applied
      */
-    unsigned long addJitter(unsigned long baseDelay);
-
-    /**
-     * @brief Check if the current access token is expired or about to expire
-     * @param marginSeconds Safety margin in seconds before actual expiration (default: 60)
-     * @return true if token is expired or will expire within margin
-     */
-    bool is_token_expired(int marginSeconds = 60);
+    unsigned long add_jitter(unsigned long base_delay);
 
     /**
      * @brief Refresh the access token when it's expired or on 401 errors

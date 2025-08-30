@@ -545,6 +545,85 @@ bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite)
     }
 }
 
+bool sd_card::cleanup_dir(const char* path)
+{
+    Serial.print("sd_card::cleanup_dir | path: ");
+    Serial.println(path);
+
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return false;
+    }
+
+    if (!path) {
+        Serial.println("Invalid directory path provided.");
+        return false;
+    }
+
+    if (!SD.exists(path)) {
+        Serial.println("Directory does not exist.");
+        return false;
+    }
+
+    fs::File dir = SD.open(path, FILE_READ);
+    if (!dir) {
+        Serial.println("Failed to open directory for cleanup.");
+        return false;
+    }
+
+    if(!dir.isDirectory()) {
+        Serial.println("Provided path is not a directory.");
+        return false;
+    }
+
+    bool allRemoved = true;
+    bool isDir = false;
+    String entry = dir.getNextFileName(&isDir);
+    
+    while (entry && !entry.isEmpty()) {
+        Serial.print("Processing entry: ");
+        Serial.print(entry);
+        Serial.print(" (isDir: ");
+        Serial.print(isDir);
+        Serial.println(")");
+        
+        if (isDir) {
+            // Recursively cleanup and remove subdirectory
+            if (!cleanup_dir(entry.c_str())) {
+                Serial.print("Failed to cleanup subdirectory: ");
+                Serial.println(entry);
+                allRemoved = false;
+            } else {
+                // After cleanup, remove the empty subdirectory
+                if (!SD.rmdir(entry.c_str())) {
+                    Serial.print("Failed to remove empty subdirectory: ");
+                    Serial.println(entry);
+                    allRemoved = false;
+                }
+            }
+        } else {
+            // Remove file
+            if (!SD.remove(entry.c_str())) {
+                Serial.print("Failed to remove file: ");
+                Serial.println(entry);
+                allRemoved = false;
+            }
+        }
+        
+        entry = dir.getNextFileName(&isDir);
+    }
+    
+    dir.close();
+    
+    if (!allRemoved) {
+        Serial.println("Not all files/directories could be removed during cleanup.");
+        return false;
+    }
+
+    Serial.println("Directory cleanup completed successfully.");
+    return true;
+}
+
 bool sd_card::rmdir(const char* path)
 {
     Serial.print("sd_card::rmdir | path: ");
@@ -565,6 +644,13 @@ bool sd_card::rmdir(const char* path)
         return false;
     }
 
+    // First cleanup all files and subdirectories recursively
+    if (!cleanup_dir(path)) {
+        Serial.println("Failed to cleanup directory contents.");
+        return false;
+    }
+
+    // Now remove the empty directory
     if (SD.rmdir(path)) {
         Serial.println("Directory removed successfully.");
         return true;

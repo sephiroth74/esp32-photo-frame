@@ -137,7 +137,7 @@ public:
      * @param height Height in pixels
      * @return A new rect instance
      */
-    static inline constexpr rect fromXYWH(int16_t x, int16_t y, uint16_t width, uint16_t height)
+    static inline constexpr rect from_xywh(int16_t x, int16_t y, uint16_t width, uint16_t height)
     {
         return rect(x, y, width, height);
     }

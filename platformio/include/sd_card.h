@@ -318,6 +318,14 @@ public:
     bool remove(const char* path);
 
     /**
+     * Recursively removes all files and subdirectories from a directory.
+     * @param path The path to the directory to clean up.
+     * @return true if all contents were removed successfully, false otherwise.
+     * @note If the SD card is not initialized or the directory doesn't exist, it will return false.
+     */
+    bool cleanup_dir(const char* path);
+
+    /**
      * Removes a directory from the SD card.
      * @param path The path to the directory to remove.
      * @return true if the directory was removed successfully, false otherwise.

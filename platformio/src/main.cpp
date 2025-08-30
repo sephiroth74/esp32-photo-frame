@@ -318,7 +318,7 @@ void setup()
                         Serial.println(selectedFile.name);
 
                         // if the selected file already exists in the sdcard, then use it
-                        String localFilePath = photo_frame::string_utils::buildPath(drive_config.localPath, selectedFile.name);
+                        String localFilePath = photo_frame::string_utils::build_path(drive_config.localPath, selectedFile.name);
                         if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
                             Serial.println(F("File already exists in SD card, using cached version"));
                             file = sdCard.open(localFilePath.c_str(), FILE_READ);
