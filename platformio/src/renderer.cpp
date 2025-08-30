@@ -470,7 +470,7 @@ namespace renderer {
             }
         }
 
-        String message = String(battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
+        String message = String((uint16_t)battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
 
 #if DEBUG_MODE
 #ifdef USE_SENSOR_MAX1704X

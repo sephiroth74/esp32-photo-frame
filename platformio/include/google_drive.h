@@ -121,6 +121,18 @@ public:
      */
     google_drive_file get_toc_file_by_index(const String& filePath, size_t index, photo_frame_error_t* error = nullptr);
 
+    /**
+     * @brief Save the current access token to SD card
+     * @return Error code indicating success or failure
+     */
+    photo_frame_error_t save_access_token_to_file();
+
+    /**
+     * @brief Load access token from SD card and set it in the client
+     * @return Error code indicating success or failure
+     */
+    photo_frame_error_t load_access_token_from_file();
+
 private:
     google_drive_client& client;  ///< Reference to the Google Drive client for API operations
     google_drive_config config;   ///< Configuration settings for this Google Drive instance

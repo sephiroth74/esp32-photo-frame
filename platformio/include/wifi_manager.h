@@ -42,6 +42,7 @@ public:
     bool is_connected() const;
     String get_ip_address() const;
     String get_ssid() const;
+    void end();
 
 private:
     String _ssid;
