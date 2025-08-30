@@ -355,7 +355,7 @@ namespace renderer {
      * @note This function displays the battery icon and its status on the top right corner of the
      * display. It uses predefined icons based on the battery percentage.
      */
-    void draw_battery_status(battery::battery_info battery_info);
+    void draw_battery_status(photo_frame::battery_info_t battery_info);
 
     /**
      * Draws image information on the e-paper display.

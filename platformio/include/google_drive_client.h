@@ -36,34 +36,60 @@
 #include "config.h"
 #include "errors.h"
 
+// Google Drive page token buffer size (Google Drive tokens are typically 100-200 chars)
+// "nextPageToken": "~!!~AI9FV7Q4Gfow5ZkBdhXuhx79-W0ocOSHEiiXYs6okeePWmpITPB3mY8gXAqzrAn0xKRgyNc_9pAkEUrUBajPHnQQa49js9-njz_IfwjmDmIdm3yyyJ1KCPS3mZrcx_CQPbiZyqLY2odPLf0CbzvALTrPtZN4TODshZX2YQRraUVrc_bZWm_-6BCifCS0xcweij0n1aIQlIDIrCbwQwgYMxypRaCed1uKZVGiUfsqBC20HcM69OQ86bnhW9GDCDRInVT27vdLmyB_LnN8krrIjELMWZsVFMHQz5nS1Q20opzAnsDe_LQIlTKHbyce29oeFDyzToz9QoTx"
+#define GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE 512
+
+namespace photo_frame {
+
 /**
  * @brief Configuration structure for Google Drive client.
- * 
+ *
  * Contains the necessary credentials and configuration parameters
  * required to authenticate with Google Drive API using a service account.
  */
 typedef struct {
-    const char* serviceAccountEmail;  ///< Service account email address
-    const char* privateKeyPem;        ///< PEM-encoded private key for JWT signing
-    const char* clientId;             ///< Client ID from Google Cloud Console
+    const char* serviceAccountEmail; ///< Service account email address
+    const char* privateKeyPem; ///< PEM-encoded private key for JWT signing
+    const char* clientId; ///< Client ID from Google Cloud Console
 } google_drive_client_config;
+
+typedef struct {
+    char accessToken[512]; ///< Access token for Google Drive API
+    unsigned long expiresAt; ///< Expiration time of the access token
+    unsigned long obtainedAt; ///< Timestamp when the access token was obtained
+    
+
+    bool expired(int marginSeconds = 0) const
+    {
+        time_t now = time(NULL);
+        return (now + marginSeconds) >= expiresAt;
+    }
+
+    unsigned long expires_in() const
+    {
+        time_t now = time(NULL);
+        return (now < expiresAt) ? (expiresAt - now) : 0;
+    }
+
+} google_drive_access_token;
 
 /**
  * @brief Error codes for Google Drive operations.
- * 
+ *
  * Enumeration of possible error conditions that can occur during
  * Google Drive API interactions.
  */
 enum class google_drive_error {
-    None,                ///< No error occurred
-    JwtCreationFailed,   ///< Failed to create JWT token for authentication
-    HttpPostFailed,      ///< HTTP POST request failed
-    JsonParseFailed,     ///< Failed to parse JSON response
-    TokenMissing,        ///< Access token is missing or invalid
-    FileOpenFailed,      ///< Failed to open local file for writing
-    HttpConnectFailed,   ///< Failed to establish HTTP connection
-    HttpGetFailed,       ///< HTTP GET request failed
-    DownloadFailed       ///< File download operation failed
+    None, ///< No error occurred
+    JwtCreationFailed, ///< Failed to create JWT token for authentication
+    HttpPostFailed, ///< HTTP POST request failed
+    JsonParseFailed, ///< Failed to parse JSON response
+    TokenMissing, ///< Access token is missing or invalid
+    FileOpenFailed, ///< Failed to open local file for writing
+    HttpConnectFailed, ///< Failed to establish HTTP connection
+    HttpGetFailed, ///< HTTP GET request failed
+    DownloadFailed ///< File download operation failed
 };
 
 /**
@@ -74,32 +100,36 @@ struct HttpResponse {
     String statusMessage;
     String body;
     bool hasContent;
-    
-    HttpResponse() : statusCode(0), hasContent(false) {}
+
+    HttpResponse()
+        : statusCode(0)
+        , hasContent(false)
+    {
+    }
 };
 
 /**
  * @brief Classification of failure types for retry logic
  */
 enum class failure_type {
-    Permanent,      // Don't retry (4xx errors, authentication failures)
-    Transient,      // Retry with backoff (5xx errors, network issues)
-    RateLimit,      // Special handling for 429 responses
-    TokenExpired,   // Token refresh needed (401 responses)
-    Unknown         // Default fallback
+    Permanent, // Don't retry (4xx errors, authentication failures)
+    Transient, // Retry with backoff (5xx errors, network issues)
+    RateLimit, // Special handling for 429 responses
+    TokenExpired, // Token refresh needed (401 responses)
+    Unknown // Default fallback
 };
 
 /**
  * @brief Represents a file from Google Drive.
- * 
+ *
  * Contains metadata information about a file stored in Google Drive,
  * including its unique identifier, name, MIME type, and modification time.
  */
 class google_drive_file {
 public:
-    String id;           ///< Unique file identifier in Google Drive
-    String name;         ///< Display name of the file
-    String mimeType;     ///< MIME type of the file (e.g., "image/jpeg")
+    String id; ///< Unique file identifier in Google Drive
+    String name; ///< Display name of the file
+    String mimeType; ///< MIME type of the file (e.g., "image/jpeg")
     String modifiedTime; ///< Last modification timestamp
 
     /**
@@ -120,13 +150,13 @@ public:
 
 /**
  * @brief Container for a list of Google Drive files.
- * 
+ *
  * Simple wrapper around a vector of google_drive_file objects,
  * used to return collections of files from API operations.
  */
 class google_drive_files_list {
 public:
-    std::vector<google_drive_file> files;  ///< Vector containing the list of files
+    std::vector<google_drive_file> files; ///< Vector containing the list of files
 };
 
 /**
@@ -149,7 +179,7 @@ public:
      * @param config Configuration containing service account credentials
      */
     google_drive_client(const google_drive_client_config& config);
-    
+
     /**
      * @brief Destructor for google_drive_client.
      * Cleans up cryptographic contexts and resources.
@@ -165,7 +195,7 @@ public:
      *
      * @return google_drive_error indicating the result of the operation.
      */
-    photo_frame::photo_frame_error_t get_access_token();
+    photo_frame_error_t get_access_token();
 
     /**
      * @brief Lists files in a specified Google Drive folder.
@@ -177,7 +207,7 @@ public:
      * @param outFiles A vector to store the retrieved files.
      * @return google_drive_error indicating the result of the operation.
      */
-    photo_frame::photo_frame_error_t list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 100);
+    photo_frame_error_t list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 50);
 
     /**
      * @brief Downloads a file from Google Drive to the specified file.
@@ -186,14 +216,14 @@ public:
      * @param outFile The file object to write the downloaded content to.
      * @return google_drive_error indicating the result of the operation.
      */
-    photo_frame::photo_frame_error_t download_file(const String& fileId, fs::File* outFile);
+    photo_frame_error_t download_file(const String& fileId, fs::File* outFile);
 
     /**
      * @brief Retrieves the current access token value.
      *
      * @return The access token as a String.
      */
-    String get_access_token_value() const;
+    const google_drive_access_token* get_access_token_value() const;
 
 #if !defined(USE_INSECURE_TLS)
     /**
@@ -227,8 +257,8 @@ private:
      * @param pageToken Token for requesting specific page (empty for first page)
      * @return photo_frame_error_t indicating success or failure
      */
-    photo_frame::photo_frame_error_t list_files_in_folder(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 10, String* nextPageToken = nullptr, const String& pageToken = "");
-    
+    photo_frame_error_t list_files_in_folder(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 10, char* nextPageToken = nullptr, const char* pageToken = "");
+
     /**
      * @brief Streaming parser for large Google Drive JSON responses.
      * @param jsonBody JSON response body to parse
@@ -236,7 +266,18 @@ private:
      * @param nextPageToken Pointer to store next page token if present
      * @return photo_frame_error_t indicating parsing success or failure
      */
-    photo_frame::photo_frame_error_t parse_file_list_streaming(const String& jsonBody, std::vector<google_drive_file>& outFiles, String* nextPageToken);
+    photo_frame_error_t parse_file_list_streaming(const String& jsonBody, std::vector<google_drive_file>& outFiles, char* nextPageToken);
+
+    /**
+     * @brief Build HTTP request string with optimized memory allocation
+     * @param method HTTP method (GET, POST, etc.)
+     * @param path Request path/URL
+     * @param host Target host
+     * @param headers Additional headers (optional)
+     * @param body Request body for POST requests (optional)
+     * @return Complete HTTP request string
+     */
+    String build_http_request(const char* method, const char* path, const char* host, const char* headers = nullptr, const char* body = nullptr);
 
     // Member variables
 
@@ -244,9 +285,7 @@ private:
     const google_drive_client_config* config;
 
     /// Current OAuth2 access token for API authentication
-    String g_access_token;
-    /// Timestamp when the current access token expires
-    time_t tokenExpirationTime;
+    google_drive_access_token g_access_token;
 
     /// mbedTLS entropy context for cryptographic operations
     mbedtls_entropy_context entropy;
@@ -271,8 +310,9 @@ private:
 
     /**
      * @brief Wait for rate limit compliance before making a request
+     * @return photo_frame_error_t indicating success or timeout
      */
-    void wait_for_rate_limit();
+    photo_frame_error_t wait_for_rate_limit();
 
     /**
      * @brief Record a new API request timestamp
@@ -333,5 +373,7 @@ private:
      * @brief Refresh the access token when it's expired or on 401 errors
      * @return photo_frame_error_t indicating success or failure
      */
-    photo_frame::photo_frame_error_t refresh_token();
+    photo_frame_error_t refresh_token();
 };
+
+} // namespace photo_frame

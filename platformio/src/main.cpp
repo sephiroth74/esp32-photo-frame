@@ -32,50 +32,59 @@
 #include "errors.h"
 #include "renderer.h"
 #include "rtc_util.h"
-#include <assets/icons/icons.h>
-
 #include "sd_card.h"
+#include "wifi_manager.h"
+#include "string_utils.h"
+
+#include <assets/icons/icons.h>
 
 #if defined(USE_GOOGLE_DRIVE)
 #include "google_drive_client.h"
 #include "google_drive.h"
-google_drive_client_config client_config = {
+
+photo_frame::google_drive_client_config client_config = {
     .serviceAccountEmail = GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL,
     .privateKeyPem = GOOGLE_DRIVE_PRIVATE_KEY_PEM,
     .clientId = GOOGLE_DRIVE_CLIENT_ID
 };
 
-google_drive_config drive_config = {
+photo_frame::google_drive_config drive_config = {
     .tocMaxAge = GOOGLE_DRIVE_TOC_MAX_AGE,
     .localPath = GOOGLE_DRIVE_LOCAL_PATH,
     .localTocFilename = GOOGLE_DRIVE_TOC_FILENAME,
-    .localImageBasename = GOOGLE_DRIVE_IMAGE_BASENAME,
-    .localImageExtension = LOCAL_FILE_EXTENSION,
     .driveFolderId = GOOGLE_DRIVE_FOLDER_ID
 };
 
-google_drive_client driveClient = google_drive_client(client_config);
-google_drive drive = google_drive(driveClient, drive_config);
+photo_frame::google_drive_client driveClient = photo_frame::google_drive_client(client_config);
+photo_frame::google_drive drive = photo_frame::google_drive(driveClient, drive_config);
 #endif
 
-#ifndef SENSOR_MAX1704X
-battery::battery_reader battery_reader(BATTERY_PIN,
+#ifndef USE_SENSOR_MAX1704X
+photo_frame::battery_reader battery_reader(BATTERY_PIN,
     BATTERY_RESISTORS_RATIO,
     BATTERY_NUM_READINGS,
     BATTERY_DELAY_BETWEEN_READINGS);
-#else // SENSOR_MAX1704X
-
-battery::battery_reader battery_reader;
-
-#endif // SENSOR_MAX1704X
+#else // USE_SENSOR_MAX1704X
+photo_frame::battery_reader battery_reader;
+#endif // USE_SENSOR_MAX1704X
 
 photo_frame::sd_card sdCard(SD_CS_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_SCK_PIN);
-
+photo_frame::wifi_manager wifiManager;
 Preferences prefs;
+
+unsigned long startupTime = 0;
+
+typedef struct {
+    long refresh_seconds;
+    uint64_t refresh_microseconds;
+} refresh_delay_t;
+
+refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now);
 
 void setup()
 {
     Serial.begin(115200);
+    startupTime = millis();
 
 #if DEBUG_MODE
     delay(1000);
@@ -88,18 +97,17 @@ void setup()
     pinMode(LED_RED, OUTPUT);
 #endif // HAS_RGB_LED
 
-    photo_frame::disable_built_in_led();
-    photo_frame::toggle_rgb_led(false, true, false); // Set RGB LED to green to indicate initialization
+    photo_frame::board_utils::blink_builtin_led(1, 300, 300);
+    photo_frame::board_utils::disable_built_in_led();
+    photo_frame::board_utils::toggle_rgb_led(false, true, false); // Set RGB LED to green to indicate initialization
+    photo_frame::board_utils::disable_rgb_led(); // Disable RGB LED to save power
 
-    photo_frame::disable_rgb_led(); // Disable RGB LED to save power
-
-    Serial.println(F("Initializing..."));
+    Serial.println(F("------------------------------"));
     Serial.println(F("Photo Frame v0.1.0"));
+    Serial.println(F("------------------------------"));
 
-    delay(2000);
-
-    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::get_wakeup_reason();
-    String wakeup_reason_string = photo_frame::get_wakeup_reason_string(wakeup_reason);
+    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
+    String wakeup_reason_string = photo_frame::board_utils::get_wakeup_reason_string(wakeup_reason);
 
     // if the wakeup reason is undefined, it means the device is starting up after
     // a reset
@@ -107,12 +115,13 @@ void setup()
     bool reset_rtc = is_reset && RESET_INVALIDATES_DATE_TIME;
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
-    bool write_toc = is_reset;
+    bool write_toc = false; //is_reset;
 
     uint32_t image_index = 0; // Index of the image to display
     uint32_t total_files = 0; // Total number of image files on the SD card
 
-    photo_frame::print_board_stats();
+    photo_frame::board_utils::print_board_stats();
+    photo_frame::board_utils::print_board_pins();
 
 #if DEBUG_MODE
     Serial.print(F("Wakeup reason: "));
@@ -123,31 +132,31 @@ void setup()
 
     Serial.print(F("Is reset: "));
     Serial.println(is_reset ? "Yes" : "No");
-#endif // DEBUG_MODE
-
-#if DEBUG_MODE
     delay(2000);
-#endif
+#endif // DEBUG_MODE
 
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
     fs::File file;
     DateTime now = DateTime((uint32_t)0); // Initialize DateTime with 0 timestamp
-    long refresh_seconds = 0;
-    uint64_t refresh_microseconds = 0;
 
     // -------------------------------------------------------------
-    // * Read the battery level
+    // - Read the battery level
     // -------------------------------------------------------------
-    Serial.println(F("1. Reading battery level..."));
+    Serial.println(F("--------------------------------------"));
+    Serial.println(F("- Reading battery level..."));
+    Serial.println(F("--------------------------------------"));
 
     battery_reader.init();
-
-    battery::battery_info_t battery_info = battery_reader.read();
+    photo_frame::battery_info_t battery_info = battery_reader.read();
 
     if (battery_info.is_empty()) {
         Serial.println(F("Battery is empty!"));
 #ifdef BATTERY_POWER_SAVING
-        photo_frame::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
+        unsigned long elapsed = millis() - startupTime;
+        Serial.printf("Elapsed seconds since startup: %lu s\n", elapsed / 1000);
+
+        Serial.println(F("Entering deep sleep to preserve battery..."));
+        photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
         return; // Exit if battery is empty
 #endif // BATTERY_POWER_SAVING
     } else if (battery_info.is_critical()) {
@@ -155,39 +164,64 @@ void setup()
     }
 
     // --------------------------------------------------------------
-    // * Initialize the SD card and fetch the current time
+    // - Initialize the SD card and fetch the current time
     // --------------------------------------------------------------
-
-    Serial.println(F("2. Initializing SD card..."));
+    Serial.println(F("--------------------------------------"));
+    Serial.println(F(" - Fetching current time..."));
+    Serial.println(F("--------------------------------------"));
 
     if (error != photo_frame::error_type::BatteryLevelCritical && error != photo_frame::error_type::BatteryEmpty) {
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
-            now = photo_frame::fetch_datetime(sdCard, reset_rtc, &error);
+            Serial.println(F("Initializing WiFi manager..."));
+            error = wifiManager.init(WIFI_FILENAME, sdCard);
+            if (error == photo_frame::error_type::None) {
+#ifdef USE_GOOGLE_DRIVE
+                error = wifiManager.connect();
+                if (error == photo_frame::error_type::None) {
+                    now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
+                }
+#else
+                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
+#endif // USE_GOOGLE_DRIVE
+            } else {
+                Serial.println(F("WiFi initialization failed"));
+#if !defined(USE_GOOGLE_DRIVE)
+                Serial.println(F("Continuing without WiFi"));
+                error = photo_frame::error_type::None;
+#endif
+            }
         } else {
             Serial.println(F("Skipping datetime fetch due to SD card error!"));
         }
 
         if (error == photo_frame::error_type::None) {
-            Serial.print(F("now is: "));
-            Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
-            Serial.print(F("now is valid: "));
+            Serial.print(F("Current time is valid: "));
             Serial.println(now.isValid() ? "Yes" : "No");
         } else {
             Serial.print(F("Failed to fetch current time! Error code: "));
             Serial.println(String(error.code));
-            Serial.println(F("Skipping datetime fetch!"));
         }
     } else {
         Serial.println(F("skipped"));
     }
 
-    /* #region SDCARD */
+    // -------------------------------------------------------------
+    // - Calculate the refresh rate based on the battery level
+    // -------------------------------------------------------------
+
+    Serial.println(F("--------------------------------------"));
+    Serial.println(F("- Calculating refresh rate"));
+    Serial.println(F("--------------------------------------"));
+    refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
 
     // -------------------------------------------------------------
-    // * Read the next image file from the SD card
+    // - Read the next image file from the SD card or Google Drive
     // -------------------------------------------------------------
-    Serial.println(F("3. Find the next image from the SD..."));
+
+    Serial.println(F("--------------------------------------"));
+    Serial.println(F(" - Find the next image from the SD..."));
+    Serial.println(F("--------------------------------------"));
 
     if (error == photo_frame::error_type::None) {
         error = sdCard.begin(); // Initialize the SD card
@@ -203,7 +237,7 @@ void setup()
 
 #if !defined(USE_INSECURE_TLS)
             // Load root CA certificate for secure Google Drive connections
-            String rootCA = google_drive::load_root_ca_certificate(sdCard);
+            String rootCA = photo_frame::google_drive::load_root_ca_certificate(sdCard);
             if (rootCA.length() > 0) {
                 driveClient.set_root_ca_certificate(rootCA);
                 Serial.println(F("Root CA certificate loaded for secure connections"));
@@ -215,13 +249,14 @@ void setup()
 
             if (error == photo_frame::error_type::None) {
                 // Clean up any temporary files from previous incomplete downloads
-                uint32_t cleanedFiles = google_drive::cleanup_temporary_files(sdCard, drive_config);
+
+                uint32_t cleanedFiles = photo_frame::google_drive::cleanup_temporary_files(sdCard, drive_config, write_toc);
                 if (cleanedFiles > 0) {
                     Serial.print(F("Cleaned up "));
                     Serial.print(cleanedFiles);
                     Serial.println(F(" temporary files from previous session"));
                 }
-                
+
                 // Retrieve Table of Contents (with caching)
                 // If battery is critical, use cached TOC even if expired to save power
                 bool batteryConservationMode = battery_info.is_critical();
@@ -230,29 +265,51 @@ void setup()
                     Serial.print(battery_info.percent);
                     Serial.println(F("%) - using cached TOC to preserve power"));
                 }
-                google_drive_files_list driveFilesList = drive.retrieve_toc(write_toc, batteryConservationMode);
-                
-                if (driveFilesList.files.size() > 0) {
-                    total_files = driveFilesList.files.size();
 
+                // Ensure TOC is up to date (but don't load files into memory)
+                drive.retrieve_toc(batteryConservationMode);
+
+                // Get file count efficiently from plain text TOC
+                String tocFullPath = drive.get_toc_file_path();
+                photo_frame::photo_frame_error_t tocError;
+                total_files = drive.get_toc_file_count(tocFullPath, &tocError);
+
+                if (tocError == photo_frame::error_type::None && total_files > 0) {
                     Serial.print(F("Total files in Google Drive folder: "));
                     Serial.println(total_files);
 
                     // Generate a random index to start from
                     image_index = random(0, total_files);
 
-                    Serial.print(F("Selected file: "));
-                    Serial.println(driveFilesList.files[image_index].name);
+                    // Get the specific file by index efficiently
+                    photo_frame::google_drive_file selectedFile = drive.get_toc_file_by_index(tocFullPath, image_index, &tocError);
 
-                    // Check battery level before downloading file
-                    if (batteryConservationMode) {
-                        Serial.print(F("Skipping file download due to critical battery level ("));
-                        Serial.print(battery_info.percent);
-                        Serial.println(F("%) - will use cached files if available"));
-                        error = photo_frame::error_type::BatteryLevelCritical;
+                    if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
+                        Serial.print(F("Selected file: "));
+                        Serial.println(selectedFile.name);
+
+                        // if the selected file already exists in the sdcard, then use it
+                        String localFilePath = photo_frame::string_utils::buildPath(drive_config.localPath, selectedFile.name);
+                        if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
+                            Serial.println(F("File already exists in SD card, using cached version"));
+                            file = sdCard.open(localFilePath.c_str(), FILE_READ);
+                        } else {
+
+                            // Check battery level before downloading file
+                            if (batteryConservationMode) {
+                                Serial.print(F("Skipping file download due to critical battery level ("));
+                                Serial.print(battery_info.percent);
+                                Serial.println(F("%) - will use cached files if available"));
+                                error = photo_frame::error_type::BatteryLevelCritical;
+                            } else {
+                                // Download the selected file using the new google_drive class
+                                file = drive.download_file(selectedFile, &error);
+                            }
+                        }
                     } else {
-                        // Download the selected file using the new google_drive class
-                        file = drive.download_file(driveFilesList.files[image_index], &error);
+                        Serial.print(F("Failed to get file by index. Error code: "));
+                        Serial.println(tocError.code);
+                        error = tocError;
                     }
 
                     if (error == photo_frame::error_type::None && file) {
@@ -262,8 +319,14 @@ void setup()
                         Serial.println(error.code);
                     }
                 } else {
-                    Serial.println(F("No files found in Google Drive folder!"));
-                    error = photo_frame::error_type::NoImagesFound;
+                    if (tocError != photo_frame::error_type::None) {
+                        Serial.print(F("Failed to read TOC file count. Error code: "));
+                        Serial.println(tocError.code);
+                        error = tocError;
+                    } else {
+                        Serial.println(F("No files found in Google Drive folder!"));
+                        error = photo_frame::error_type::NoImagesFound;
+                    }
                 }
             }
 
@@ -333,73 +396,13 @@ void setup()
         Serial.println(F("skipped"));
     }
 
-    /* #endregion SDCARD */
+    wifiManager.disconnect(); // Disconnect from WiFi to save power
 
-    /* #region Refresh Rate */
-
-    // -------------------------------------------------------------
-    // 5. Calculate the refresh rate based on the battery level
-    // -------------------------------------------------------------
-    Serial.println(F("4. Calculating refresh rate..."));
-
-    if (!battery_info.is_critical() && now.isValid()) {
-        refresh_seconds = photo_frame::read_refresh_seconds(battery_info.is_low());
-
-#if DEBUG_MODE
-        Serial.print(F("Refresh seconds read from potentiometer: "));
-        Serial.println(refresh_seconds);
-#endif
-
-        // add the refresh time to the current time
-        // Update the current time with the refresh interval
-        DateTime nextRefresh = now + TimeSpan(refresh_seconds);
-
-        // check if the next refresh time is after DAY_END_HOUR
-        DateTime dayEnd = DateTime(now.year(), now.month(), now.day(), DAY_END_HOUR, 0, 0);
-
-        if (nextRefresh > dayEnd) {
-            Serial.println(F("Next refresh time is after DAY_END_HOUR"));
-            // Set the next refresh time to the start of the next day
-            DateTime nextDayStart = DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
-            DateTime nextDayEnd = DateTime(now.year(), now.month(), now.day() + 1, DAY_END_HOUR, 0, 0);
-            nextRefresh = nextRefresh > nextDayStart
-                ? (nextRefresh < nextDayEnd ? nextRefresh : nextDayEnd)
-                : nextDayStart;
-
-            refresh_seconds = nextRefresh.unixtime() - now.unixtime();
-        }
-
-        Serial.print(F("Next refresh time: "));
-        Serial.println(nextRefresh.timestamp(DateTime::TIMESTAMP_FULL));
-
-        // Convert seconds to microseconds for deep sleep with overflow protection
-        // ESP32 max sleep time is ~18 hours (281474976710655 microseconds)
-        // Practical limit defined in config.h
-        
-        if (refresh_seconds <= 0) {
-            refresh_microseconds = 0;
-            Serial.println(F("Warning: Invalid refresh interval, sleep disabled"));
-        } else if (refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
-            refresh_microseconds = (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
-            Serial.print(F("Warning: Refresh interval capped to "));
-            Serial.print(MAX_DEEP_SLEEP_SECONDS);
-            Serial.println(F(" seconds to prevent overflow"));
-        } else {
-            // Safe calculation using 64-bit arithmetic
-            refresh_microseconds = (uint64_t)refresh_seconds * MICROSECONDS_IN_SECOND;
-        }
-
-        Serial.print(F("Refresh interval in seconds: "));
-        Serial.println(refresh_seconds);
-    } else {
-        Serial.println(F("skipped"));
-    }
-
-    /* #endregion */
-
-    /* #region e-Paper display */
-
-    Serial.println(F("5. Initializing E-Paper display..."));
+    // --------------------------------------
+    // - Initialize E-Paper display
+    // --------------------------------------
+    Serial.println(F("- Initializing E-Paper display..."));
+    Serial.println(F("--------------------------------------"));
 
     delay(100);
     photo_frame::renderer::init_display();
@@ -413,7 +416,7 @@ void setup()
     }
 
     if (error != photo_frame::error_type::None) {
-        photo_frame::blink_error(error);
+        photo_frame::board_utils::blink_error(error);
         display.firstPage();
         do {
             photo_frame::renderer::draw_error(error);
@@ -459,7 +462,7 @@ void setup()
 
                 display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
 
-                photo_frame::renderer::draw_last_update(now, refresh_seconds);
+                photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files);
                 photo_frame::renderer::draw_battery_status(battery_info);
 
@@ -496,7 +499,7 @@ void setup()
                 }
                 // display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
 
-                photo_frame::renderer::draw_last_update(now, refresh_seconds);
+                photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files);
                 photo_frame::renderer::draw_battery_status(battery_info);
                 // display.displayWindow(0, 0, display.width(), display.height());
@@ -510,9 +513,9 @@ void setup()
     }
     sdCard.end(); // Close the SD card
 
-    photo_frame::disable_rgb_led();
+    photo_frame::board_utils::disable_rgb_led();
 
-    delay(5000);
+    delay(1000);
 
     photo_frame::renderer::power_off();
 
@@ -521,18 +524,20 @@ void setup()
     // Wait before going to sleep
 
     // now go to sleep
-    if (!battery_info.is_critical() && refresh_microseconds > MICROSECONDS_IN_SECOND) {
+    if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
         Serial.print(F("Going to sleep for "));
-        Serial.print(refresh_seconds, DEC);
+        Serial.print(refresh_delay.refresh_seconds, DEC);
         Serial.print(F(" seconds ("));
-        Serial.print((unsigned long)(refresh_microseconds / 1000000ULL)); // Show actual seconds from microseconds
+        Serial.print((unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL)); // Show actual seconds from microseconds
         Serial.println(F(" seconds from microseconds calculation)..."));
-        esp_sleep_enable_timer_wakeup(refresh_microseconds); // wake up after the refresh interval
-    } else if (refresh_microseconds <= MICROSECONDS_IN_SECOND) {
+        esp_sleep_enable_timer_wakeup(refresh_delay.refresh_microseconds); // wake up after the refresh interval
+    } else if (refresh_delay.refresh_microseconds <= MICROSECONDS_IN_SECOND) {
         Serial.println(F("Sleep interval too short, entering indefinite sleep"));
     }
 
-    photo_frame::enter_deep_sleep(wakeup_reason);
+    unsigned long elapsed = millis() - startupTime;
+    Serial.printf("Elapsed seconds since startup: %lu s\n", elapsed / 1000);
+    photo_frame::board_utils::enter_deep_sleep(wakeup_reason);
 }
 
 void loop()
@@ -543,4 +548,71 @@ void loop()
     // The ESP32 will wake up from deep sleep and run the setup function again
 
     delay(1000); // Just to avoid watchdog reset
+}
+
+/**
+ * @brief Calculate the wakeup delay based on the battery level and current time.
+ *
+ * @param battery_info The battery information structure.
+ * @param now The current time.
+ * @return The calculated wakeup delay.
+ */
+refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now)
+{
+    refresh_delay_t refresh_delay = { 0, 0 };
+
+    if (!battery_info.is_critical() && now.isValid()) {
+        refresh_delay.refresh_seconds = photo_frame::board_utils::read_refresh_seconds(battery_info.is_low());
+
+        Serial.print(F("Refresh seconds read from potentiometer: "));
+        Serial.println(refresh_delay.refresh_seconds);
+
+        // add the refresh time to the current time
+        // Update the current time with the refresh interval
+        DateTime nextRefresh = now + TimeSpan(refresh_delay.refresh_seconds);
+
+        // check if the next refresh time is after DAY_END_HOUR
+        DateTime dayEnd = DateTime(now.year(), now.month(), now.day(), DAY_END_HOUR, 0, 0);
+
+        if (nextRefresh > dayEnd) {
+            Serial.println(F("Next refresh time is after DAY_END_HOUR"));
+            // Set the next refresh time to the start of the next day
+            DateTime nextDayStart = DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
+            DateTime nextDayEnd = DateTime(now.year(), now.month(), now.day() + 1, DAY_END_HOUR, 0, 0);
+            nextRefresh = nextRefresh > nextDayStart
+                ? (nextRefresh < nextDayEnd ? nextRefresh : nextDayEnd)
+                : nextDayStart;
+
+            refresh_delay.refresh_seconds = nextRefresh.unixtime() - now.unixtime();
+        }
+
+        Serial.print(F("Next refresh time: "));
+        Serial.println(nextRefresh.timestamp(DateTime::TIMESTAMP_FULL));
+
+        // Convert seconds to microseconds for deep sleep with overflow protection
+        // ESP32 max sleep time is ~18 hours (281474976710655 microseconds)
+        // Practical limit defined in config.h
+
+        if (refresh_delay.refresh_seconds <= 0) {
+            refresh_delay.refresh_microseconds = 0;
+            Serial.println(F("Warning: Invalid refresh interval, sleep disabled"));
+        } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
+            refresh_delay.refresh_microseconds = (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
+            Serial.print(F("Warning: Refresh interval capped to "));
+            Serial.print(MAX_DEEP_SLEEP_SECONDS);
+            Serial.println(F(" seconds to prevent overflow"));
+        } else {
+            // Safe calculation using 64-bit arithmetic
+            refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        }
+
+        String humanReadable = photo_frame::string_utils::secondsToHuman(refresh_delay.refresh_seconds);
+
+        Serial.print(F("Refresh interval in: "));
+        Serial.println(humanReadable);
+    } else {
+        Serial.println(F("skipped"));
+    }
+
+    return refresh_delay;
 }

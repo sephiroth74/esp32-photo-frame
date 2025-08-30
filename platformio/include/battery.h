@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include "config.h"
 
-namespace battery {
+namespace photo_frame {
 
 /**
  * Calculates the battery percentage based on the voltage.
@@ -67,7 +67,7 @@ typedef struct battery_step {
  */
 typedef struct battery_info {
 public:
-#ifdef SENSOR_MAX1704X
+#ifdef USE_SENSOR_MAX1704X
     float cell_voltage;     ///< Battery cell voltage in volts (MAX1704X sensor)
     float charge_rate;      ///< Battery charge rate in mA (MAX1704X sensor)
     float percent;          ///< Battery percentage (0-100)
@@ -79,7 +79,7 @@ public:
     float percent;              ///< Battery percentage (0-100)
 #endif
 
-#ifdef SENSOR_MAX1704X
+#ifdef USE_SENSOR_MAX1704X
     /**
      * @brief Constructor for MAX1704X sensor battery info.
      * @param cell_voltage Battery cell voltage in volts
@@ -194,7 +194,7 @@ public:
      */
     static inline constexpr battery_info full() { return battery_info(3999, 3999, 3999, 100); }
 
-#endif // SENSOR_MAX1704X
+#endif // USE_SENSOR_MAX1704X
 
     /**
      * @brief Checks if the battery level is low.
@@ -229,32 +229,10 @@ public:
  * and corresponding percentage levels. Used for accurate battery level calculation
  * based on voltage readings.
  */
-constexpr battery_step_t steps[21] = {
-    battery_step(0, 3270),
-    battery_step(5, 3610),
-    battery_step(10, 3690),
-    battery_step(15, 3710),
-    battery_step(20, 3730),
-    battery_step(25, 3750),
-    battery_step(30, 3770),
-    battery_step(35, 3790),
-    battery_step(40, 3800),
-    battery_step(45, 3820),
-    battery_step(50, 3840),
-    battery_step(55, 3850),
-    battery_step(60, 3870),
-    battery_step(65, 3910),
-    battery_step(70, 3950),
-    battery_step(75, 3980),
-    battery_step(80, 4020),
-    battery_step(85, 4080),
-    battery_step(90, 4110),
-    battery_step(95, 4150),
-    battery_step(100, 4200),
-};
+extern const battery_step_t steps[21];
 
 /// Total number of battery mapping steps
-constexpr uint8_t total_steps = 21;
+extern const uint8_t total_steps;
 
 /**
  * @brief Battery reader class for monitoring battery voltage and percentage.
@@ -265,7 +243,7 @@ constexpr uint8_t total_steps = 21;
  */
 class battery_reader {
 public:
-#ifndef SENSOR_MAX1704X
+#ifndef USE_SENSOR_MAX1704X
     uint8_t pin;                        ///< Analog pin for battery voltage reading
     double resistor_ratio;              ///< Voltage divider ratio (R1/(R1+R2))
     uint8_t num_readings;               ///< Number of readings to average
@@ -296,7 +274,7 @@ public:
      */
     constexpr battery_reader() { }
 
-#endif // SENSOR_MAX1704X
+#endif // USE_SENSOR_MAX1704X
 
     /**
      * @brief Initializes the battery reader.
@@ -318,6 +296,6 @@ public:
 
 }; // battery_reader
 
-} // namespace battery
+} // namespace photo_frame
 
 #endif // __BATTERY_READER_H__
