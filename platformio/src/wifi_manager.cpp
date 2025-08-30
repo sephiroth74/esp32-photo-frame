@@ -225,6 +225,11 @@ void wifi_manager::disconnect()
     }
 }
 
+void wifi_manager::end()
+{
+    disconnect();
+}
+
 bool wifi_manager::is_connected() const
 {
     return _connected && WiFi.status() == WL_CONNECTED;

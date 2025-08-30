@@ -46,13 +46,9 @@ namespace board_utils {
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT0); // Disable external wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT1); // Disable external wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD); // Disable touchpad wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ULP); // Disable ULP wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO); // Disable GPIO wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_UART); // Disable UART wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_WIFI); // Disable WiFi wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_COCPU); // Disable COCPU wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG); // Disable COCPU trap trigger
-                                                                           // wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT); // Disable Bluetooth wakeup source
 
         bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
@@ -67,7 +63,7 @@ namespace board_utils {
             delay(DELAY_BEFORE_SLEEP);
         }
 
-        // esp_deep_sleep_start();
+        esp_deep_sleep_start();
     }
 
     esp_sleep_wakeup_cause_t get_wakeup_reason()
@@ -268,7 +264,6 @@ namespace board_utils {
 
         // Set ADC attenuation for better range utilization
         analogSetPinAttenuation(POTENTIOMETER_INPUT_PIN, ADC_11db);
-
         digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
         delay(100); // Wait potentiometer to stabilize
 

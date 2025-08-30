@@ -111,11 +111,23 @@ google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
     if (shouldFetchFromDrive) {
         Serial.println(F("Fetching TOC from Google Drive..."));
 
-        // Get access token first
-        photo_frame_error_t error = client.get_access_token();
+        // Try to load cached access token first
+        photo_frame_error_t error = load_access_token_from_file();
         if (error != error_type::None) {
-            Serial.print(F("Failed to get access token: "));
-            Serial.println(error.code);
+            Serial.println(F("No valid cached token, getting new access token..."));
+            error = client.get_access_token();
+            if (error != error_type::None) {
+                Serial.print(F("Failed to get access token: "));
+                Serial.println(error.code);
+            } else {
+                // Save the new token for future use
+                save_access_token_to_file();
+            }
+        } else {
+            Serial.println(F("Using cached access token"));
+        }
+        
+        if (error != error_type::None) {
 
             // Fallback to local TOC if available and not forced
             if (localTocExists) {
@@ -748,22 +760,17 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard, const google_dri
 
 #if DEBUG_MODE
 
-    char buffer[32];
-    photo_frame::string_utils::format_size_to_human_readable(buffer, sizeof(buffer), cardSize);
     Serial.print(F("SD card size: "));
-    Serial.println(buffer);
+    Serial.println(cardSize / 1024 / 1024);
 
-    photo_frame::string_utils::format_size_to_human_readable(buffer, sizeof(buffer), totalBytes);
     Serial.print(F("Total size: "));
-    Serial.println(buffer);
+    Serial.println(totalBytes / 1024 / 1024);
 
-    photo_frame::string_utils::format_size_to_human_readable(buffer, sizeof(buffer), usedBytes);
     Serial.print(F("Used size: "));
-    Serial.println(buffer);
+    Serial.println(usedBytes / 1024 / 1024);
 
-    photo_frame::string_utils::format_size_to_human_readable(buffer, sizeof(buffer), freeBytes);
     Serial.print(F("SD card free space: "));
-    Serial.println(buffer);
+    Serial.println(freeBytes / 1024 / 1024);
 
 #endif // DEBUG_MODE
 
@@ -849,6 +856,102 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard, const google_dri
     Serial.println(F(" temporary files"));
 
     return cleanedCount;
+}
+
+photo_frame_error_t google_drive::save_access_token_to_file()
+{
+    Serial.println(F("Saving access token to file..."));
+    
+    const google_drive_access_token* token = client.get_access_token_value();
+    if (!token || strlen(token->accessToken) == 0) {
+        Serial.println(F("No valid access token to save"));
+        return error_type::TokenMissing;
+    }
+    
+    String tokenPath = string_utils::buildPath(config.localPath, "access_token.json");
+    
+    fs::File tokenFile = SD.open(tokenPath.c_str(), FILE_WRITE);
+    if (!tokenFile) {
+        Serial.print(F("Failed to create token file: "));
+        Serial.println(tokenPath);
+        return error_type::SdCardFileCreateFailed;
+    }
+    
+    // Write token as JSON
+    tokenFile.print(F("{\"access_token\":\""));
+    tokenFile.print(token->accessToken);
+    tokenFile.print(F("\",\"expires_at\":"));
+    tokenFile.print(token->expiresAt);
+    tokenFile.print(F(",\"obtained_at\":"));
+    tokenFile.print(token->obtainedAt);
+    tokenFile.println(F("}"));
+    
+    tokenFile.close();
+    
+    Serial.print(F("Access token saved to: "));
+    Serial.println(tokenPath);
+    
+    return error_type::None;
+}
+
+photo_frame_error_t google_drive::load_access_token_from_file()
+{
+    Serial.println(F("Loading access token from file..."));
+    
+    String tokenPath = string_utils::buildPath(config.localPath, "access_token.json");
+    
+    if (!SD.exists(tokenPath.c_str())) {
+        Serial.print(F("Token file does not exist: "));
+        Serial.println(tokenPath);
+        return error_type::SdCardFileNotFound;
+    }
+    
+    fs::File tokenFile = SD.open(tokenPath.c_str(), FILE_READ);
+    if (!tokenFile) {
+        Serial.print(F("Failed to open token file: "));
+        Serial.println(tokenPath);
+        return error_type::SdCardFileOpenFailed;
+    }
+    
+    String tokenContent = tokenFile.readString();
+    tokenFile.close();
+    
+    // Parse JSON
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, tokenContent);
+    
+    if (error) {
+        Serial.print(F("Failed to parse token file: "));
+        Serial.println(error.c_str());
+        return error_type::JsonParseFailed;
+    }
+    
+    if (!doc.containsKey("access_token") || !doc.containsKey("expires_at") || !doc.containsKey("obtained_at")) {
+        Serial.println(F("Invalid token file format"));
+        return error_type::JsonParseFailed;
+    }
+    
+    google_drive_access_token token;
+    strncpy(token.accessToken, doc["access_token"], sizeof(token.accessToken) - 1);
+    token.accessToken[sizeof(token.accessToken) - 1] = '\0';
+    token.expiresAt = doc["expires_at"];
+    token.obtainedAt = doc["obtained_at"];
+    
+    // Check if token is still valid (with 5 minute margin)
+    if (token.expired(300)) {
+        Serial.println(F("Cached token has expired"));
+        return error_type::TokenMissing;
+    }
+    
+    client.set_access_token(token);
+    
+    Serial.print(F("Access token loaded from: "));
+    Serial.println(tokenPath);
+    Serial.print(F("Token expires in: "));
+    Serial.print(token.expires_in());
+    Serial.println(F(" seconds"));
+    
+    return error_type::None;
 }
 
 } // namespace photo_frame

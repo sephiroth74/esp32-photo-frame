@@ -239,6 +239,11 @@
 // Free space threshold on SD card before cleanup
 // #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
 
+// Cleanup temporary files interval (in seconds) - default is once per day
+#ifndef CLEANUP_TEMP_FILES_INTERVAL_SECONDS
+#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60) // 24 hours
+#endif
+
 /// ---- End ----
 
 // File extension for images on the SD card, based on the display type and the value of EPD_USE_BINARY_FILE
@@ -446,9 +451,5 @@ extern const char* LOCAL_FILE_EXTENSION;
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
 #endif // POTENTIOMETER_INPUT_MAX
-
-#ifndef POTENTIOMETER_INPUT_MIN
-#define POTENTIOMETER_INPUT_MIN 0
-#endif // POTENTIOMETER_INPUT_MIN
 
 #endif // __PHOTO_FRAME_CONFIG_H__

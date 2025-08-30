@@ -115,7 +115,7 @@ void setup()
     bool reset_rtc = is_reset && RESET_INVALIDATES_DATE_TIME;
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
-    bool write_toc = false; // is_reset;
+    bool write_toc = is_reset;
 
     uint32_t image_index = 0; // Index of the image to display
     uint32_t total_files = 0; // Total number of image files on the SD card
@@ -207,17 +207,6 @@ void setup()
     }
 
     // -------------------------------------------------------------
-    // - Calculate the refresh rate based on the battery level
-    // -------------------------------------------------------------
-
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F("- Calculating refresh rate"));
-    Serial.println(F("--------------------------------------"));
-    refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
-
-    return;
-
-    // -------------------------------------------------------------
     // - Read the next image file from the SD card or Google Drive
     // -------------------------------------------------------------
 
@@ -251,12 +240,50 @@ void setup()
 
             if (error == photo_frame::error_type::None) {
                 // Clean up any temporary files from previous incomplete downloads
+                // Only run cleanup once per day to save battery
+                bool shouldCleanup = write_toc; // Always cleanup if forced
 
-                uint32_t cleanedFiles = photo_frame::google_drive::cleanup_temporary_files(sdCard, drive_config, write_toc);
-                if (cleanedFiles > 0) {
-                    Serial.print(F("Cleaned up "));
-                    Serial.print(cleanedFiles);
-                    Serial.println(F(" temporary files from previous session"));
+                if (!shouldCleanup) {
+                    // Check if we need to run cleanup based on time interval
+                    if (!prefs.begin(PREFS_NAMESPACE, false)) {
+                        Serial.println(F("Failed to open preferences for cleanup check!"));
+                        shouldCleanup = true; // Default to cleanup if can't check
+                    } else {
+                        time_t now = time(NULL);
+                        time_t lastCleanup = prefs.getULong("last_cleanup", 0);
+
+                        if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
+                            shouldCleanup = true;
+                            Serial.print(F("Time since last cleanup: "));
+                            Serial.print(now - lastCleanup);
+                            Serial.println(F(" seconds"));
+                        } else {
+                            Serial.print(F("Skipping cleanup, only "));
+                            Serial.print(now - lastCleanup);
+                            Serial.print(F(" seconds since last cleanup (need "));
+                            Serial.print(CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
+                            Serial.println(F(" seconds)"));
+                        }
+                        prefs.end();
+                    }
+                }
+
+                if (shouldCleanup) {
+                    uint32_t cleanedFiles = photo_frame::google_drive::cleanup_temporary_files(sdCard, drive_config, write_toc);
+                    if (cleanedFiles > 0) {
+                        Serial.print(F("Cleaned up "));
+                        Serial.print(cleanedFiles);
+                        Serial.println(F(" temporary files from previous session"));
+                    }
+
+                    // Update last cleanup time
+                    if (!prefs.begin(PREFS_NAMESPACE, false)) {
+                        Serial.println(F("Failed to open preferences to save cleanup time!"));
+                    } else {
+                        prefs.putULong("last_cleanup", time(NULL));
+                        prefs.end();
+                        Serial.println(F("Updated last cleanup time"));
+                    }
                 }
 
                 // Retrieve Table of Contents (with caching)
@@ -399,6 +426,15 @@ void setup()
     }
 
     wifiManager.disconnect(); // Disconnect from WiFi to save power
+
+    // -------------------------------------------------------------
+    // - Calculate the refresh rate based on the battery level
+    // -------------------------------------------------------------
+
+    Serial.println(F("--------------------------------------"));
+    Serial.println(F("- Calculating refresh rate"));
+    Serial.println(F("--------------------------------------"));
+    refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
 
     // --------------------------------------
     // - Initialize E-Paper display
@@ -548,14 +584,6 @@ void loop()
     // The loop is intentionally left empty
     // All processing is done in the setup function
     // The ESP32 will wake up from deep sleep and run the setup function again
-
-    auto refresh_seconds = photo_frame::board_utils::read_refresh_seconds(false);
-    Serial.print(F("Refresh seconds read from potentiometer in loop: "));
-    
-    char buffer[64];
-    photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
-    Serial.println(buffer);
-
     delay(1000); // Just to avoid watchdog reset
 }
 
