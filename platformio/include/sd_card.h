@@ -34,16 +34,16 @@ namespace photo_frame {
 
 /**
  * @brief Represents an entry (file) on the SD card.
- * 
+ *
  * This class encapsulates information about a file stored on the SD card,
  * including its name, full path, and index within a collection. It provides
  * utility methods for string representation and validity checking.
  */
 class sd_card_entry {
 public:
-    String name;      ///< Name of the file (without path)
-    String path;      ///< Full path to the file on the SD card
-    uint32_t index;   ///< Index of this entry within a collection
+    String name; ///< Name of the file (without path)
+    String path; ///< Full path to the file on the SD card
+    uint32_t index; ///< Index of this entry within a collection
 
     /**
      * @brief Default constructor creating an empty entry.
@@ -83,7 +83,7 @@ public:
 
 /**
  * @brief SD card interface class for file operations.
- * 
+ *
  * This class provides a comprehensive interface for interacting with SD cards,
  * including initialization, file operations, directory management, and metadata
  * operations. It supports both HSPI and standard SPI configurations.
@@ -91,14 +91,14 @@ public:
 class sd_card {
 private:
 #ifdef USE_HSPI_FOR_SD
-    SPIClass hspi;              ///< SPI object for SD card when using HSPI
+    SPIClass hspi; ///< SPI object for SD card when using HSPI
 #endif // USE_HSPI_FOR_SD
-    bool initialized;           ///< Flag indicating if SD card is initialized
-    uint8_t csPin;              ///< Chip select pin for SD card
-    uint8_t misoPin;            ///< MISO (Master In, Slave Out) pin
-    uint8_t mosiPin;            ///< MOSI (Master Out, Slave In) pin
-    uint8_t sckPin;             ///< Serial clock pin
-    sdcard_type_t cardType;     ///< Type of the SD card (MMC, SD, SDHC, etc.)
+    bool initialized; ///< Flag indicating if SD card is initialized
+    uint8_t csPin; ///< Chip select pin for SD card
+    uint8_t misoPin; ///< MISO (Master In, Slave Out) pin
+    uint8_t mosiPin; ///< MOSI (Master Out, Slave In) pin
+    uint8_t sckPin; ///< Serial clock pin
+    sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
 public:
     /**
@@ -168,7 +168,7 @@ public:
 
     /**
      * @brief Prints the SD card type to Serial output.
-     * 
+     *
      * Outputs a human-readable description of the detected SD card type
      * (MMC, SDSC, SDHC, etc.) for debugging and informational purposes.
      */
@@ -203,6 +203,13 @@ public:
      * @return The last modified time as a time_t value.
      */
     time_t get_last_modified(const char* path) const;
+
+    /**
+     * Get the age of a file on the SD card.
+     * @param path The path to the file.
+     * @return The age of the file in seconds.
+     */
+    time_t get_file_age(const char* path) const;
 
     /**
      * Checks if a file exists on the SD card.
@@ -311,11 +318,45 @@ public:
     bool remove(const char* path);
 
     /**
+     * Removes a directory from the SD card.
+     * @param path The path to the directory to remove.
+     * @return true if the directory was removed successfully, false otherwise.
+     * @note If the SD card is not initialized or the directory doesn't exist, it will return false.
+     */
+    bool rmdir(const char* path);
+
+    /**
      * Gets the size of a file on the SD card.
      * @param path The path to the file.
      * @return The size of the file in bytes, or 0 if the file doesn't exist or SD card is not initialized.
      */
     size_t get_file_size(const char* path) const;
+
+    /**
+     * Creates directories recursively if they don't exist.
+     * @param path The directory path to create (can be nested like "/dir1/dir2/dir3").
+     * @return true if directories were created successfully or already exist, false otherwise.
+     * @note If the SD card is not initialized, it will return false.
+     */
+    bool create_directories(const char* path);
+
+    /**
+     * Gets the amount of used space in bytes on the SD card.
+     * @return The amount of used space in bytes, or 0 if the SD card is not initialized.
+     */
+    uint64_t used_bytes() const;
+
+    /**
+     * Gets the total bytes on the SD card.
+     * @return The total space in bytes, or 0 if the SD card is not initialized.
+     */
+    uint64_t total_bytes() const;
+
+    /**
+     * Gets the card size in bytes.
+     * @return The card size in bytes, or 0 if the SD card is not initialized.
+     */
+    uint64_t card_size() const;
 };
 
 } // namespace photo_frame

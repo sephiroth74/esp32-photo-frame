@@ -36,6 +36,7 @@ GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> displ
 
 #ifdef USE_HSPI_FOR_EPD
 SPIClass hspi(HSPI); // SPI object for e-Paper display
+SPISettings device_settings(4000000, MSBFIRST, SPI_MODE0);
 #endif // USE_HSPI_FOR_EPD
 
 namespace photo_frame {
@@ -105,14 +106,26 @@ namespace renderer {
     {
         Serial.println("Initializing e-paper display...");
 
-#ifdef USE_HSPI_FOR_EPD
-        hspi.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
-        display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
-#else
+        if (!digitalPinIsValid(EPD_BUSY_PIN) || !digitalPinIsValid(EPD_RST_PIN) || !digitalPinIsValid(EPD_DC_PIN) || !digitalPinIsValid(EPD_CS_PIN)) {
+            Serial.println("Invalid e-paper display pins!");
+            return;
+        }
 
-        SPI.end();
-        SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
-#endif // USE_HSPI_FOR_EPD
+        pinMode(EPD_RST_PIN, OUTPUT);
+        pinMode(EPD_DC_PIN, OUTPUT);
+        pinMode(EPD_CS_PIN, OUTPUT);
+
+        // SPIClass hspi;
+        // hspi.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN);
+        // display.epd2.selectSPI(SPI, device_settings);
+
+        // #ifdef USE_HSPI_FOR_EPD
+        //         hspi.begin(EPD_SCK_PIN, EPD_MOSI_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        //         display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
+        // #else
+        //         SPI.end();
+        //         SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        // #endif // USE_HSPI_FOR_EPD
 
 #ifdef USE_DESPI_DRIVER
         display.init(115200);
@@ -262,7 +275,7 @@ namespace renderer {
             if (current_line % 5 == 0) {
                 yield();
             }
-            
+
             int16_t x1, y1;
             uint16_t w, h;
 
@@ -428,7 +441,7 @@ namespace renderer {
         draw_side_message(gravity::TOP_CENTER, message.c_str(), 0, 0);
     }
 
-    void draw_battery_status(battery::battery_info battery_info)
+    void draw_battery_status(photo_frame::battery_info_t battery_info)
     {
         Serial.println("drawBatteryStatus");
 
@@ -463,11 +476,11 @@ namespace renderer {
         String message = String(battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
 
 #if DEBUG_MODE
-#ifdef SENSOR_MAX1704X
+#ifdef USE_SENSOR_MAX1704X
         message += " - " + String(battery_info.charge_rate) + "mA";
 #else
         message += " / " + String(raw_value) + "r - " + String(raw_millivolts) + "m";
-#endif // SENSOR_MAX1704X
+#endif // USE_SENSOR_MAX1704X
 #endif
 
         draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
@@ -708,7 +721,7 @@ namespace renderer {
                             if (0 == pn % 8)
                                 color_palette_buffer[pn / 8] = 0;
                             color_palette_buffer[pn / 8] |= colored << pn % 8;
-                            
+
                             // Yield every 16 palette entries to prevent watchdog timeout
                             if (pn % 16 == 0) {
                                 yield();
@@ -723,7 +736,7 @@ namespace renderer {
                         if (row % 10 == 0) {
                             yield();
                         }
-                        
+
                         uint32_t in_remain = rowSize;
                         uint32_t in_idx = 0;
                         uint32_t in_bytes = 0;
@@ -809,7 +822,7 @@ namespace renderer {
                                 out_byte = 0xFF; // white (for w%8!=0 border)
                                 out_color_byte = 0xFF; // white (for w%8!=0 border)
                             }
-                            
+
                             // Yield every 100 pixels to prevent watchdog timeout
                             if (col % 100 == 0) {
                                 yield();
@@ -867,7 +880,7 @@ namespace renderer {
             if (y % 10 == 0) {
                 yield();
             }
-            
+
             for (int x = 0; x < width; x++) {
                 uint8_t color;
                 uint16_t pixelColor;
@@ -896,7 +909,7 @@ namespace renderer {
                     Serial.println("Exiting early due to read error.");
                     return false; // Exit early if read error occurs
                 }
-                
+
                 // Yield every 100 pixels to prevent watchdog timeout
                 if (x % 100 == 0) {
                     yield();
@@ -913,12 +926,12 @@ namespace renderer {
 
     bool draw_binary_from_file_buffered(File& file, const char* filename, int width, int height)
     {
-        // Serial.print("draw_binary_from_file_buffered: ");
-        // Serial.print(filename);
-        // Serial.print(", width: ");
-        // Serial.print(width);
-        // Serial.print(", height: ");
-        // Serial.println(height);
+        Serial.print("draw_binary_from_file_buffered: ");
+        Serial.print(filename);
+        Serial.print(", width: ");
+        Serial.print(width);
+        Serial.print(", height: ");
+        Serial.println(height);
 
         if (width <= 0 || height <= 0) {
             Serial.println("Invalid width or height");
@@ -946,7 +959,7 @@ namespace renderer {
                 if (y % 10 == 0) {
                     yield();
                 }
-                
+
                 for (int x = 0; x < width; x++) {
                     uint8_t color;
                     uint16_t pixelColor;
@@ -975,7 +988,7 @@ namespace renderer {
                         Serial.println("Exiting early due to read error.");
                         return false; // Exit early if read error occurs
                     }
-                    
+
                     // Yield every 100 pixels to prevent watchdog timeout
                     if (x % 100 == 0) {
                         yield();
@@ -1092,7 +1105,7 @@ namespace renderer {
                                 color_palette_buffer[pn / 8] = 0;
                             color_palette_buffer[pn / 8] |= colored << pn % 8;
                             rgb_palette_buffer[pn] = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | ((blue & 0xF8) >> 3);
-                            
+
                             // Yield every 16 palette entries to prevent watchdog timeout
                             if (pn % 16 == 0) {
                                 yield();
@@ -1113,7 +1126,7 @@ namespace renderer {
                             if (row % 10 == 0) {
                                 yield();
                             }
-                            
+
                             uint32_t in_remain = rowSize;
                             uint32_t in_idx = 0;
                             uint32_t in_bytes = 0;
@@ -1203,7 +1216,7 @@ namespace renderer {
                                 }
                                 uint16_t yrow = y + (flip ? h - row - 1 : row);
                                 display.drawPixel(x + col, yrow, color);
-                                
+
                                 // Yield every 100 pixels to prevent watchdog timeout
                                 if (col % 100 == 0) {
                                     yield();

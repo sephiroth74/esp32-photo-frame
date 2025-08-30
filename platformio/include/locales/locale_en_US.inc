@@ -26,3 +26,6 @@ const char* TXT_HTTP_CONNECT_FAILED = "HTTP connection failed";
 const char* TXT_HTTP_GET_FAILED = "HTTP GET request failed";
 const char* TXT_DOWNLOAD_FAILED = "Download failed";
 const char* TXT_SSL_CERTIFICATE_LOAD_FAILED = "SSL certificate load failed";
+const char* TXT_RATE_LIMIT_TIMEOUT_EXCEEDED = "Rate limit timeout exceeded";
+const char* TXT_WIFI_CREDENTIALS_NOT_FOUND = "WiFi credentials not found";
+const char* TXT_WIFI_CONNECTION_FAILED = "WiFi connection failed";

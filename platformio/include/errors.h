@@ -38,6 +38,8 @@ public:
     uint8_t code;          ///< Numeric error code for identification
     uint8_t blink_count;   ///< Number of times to blink the built-in LED for this error
 
+    photo_frame_error() : message(TXT_NO_ERROR), code(0), blink_count(0) {}
+
     /**
      * @brief Constructor with message and code (default blink count = 1).
      * @param msg Human-readable error message
@@ -113,6 +115,9 @@ namespace error_type {
     const photo_frame_error HttpGetFailed { TXT_HTTP_GET_FAILED, 22, 22 };
     const photo_frame_error DownloadFailed { TXT_DOWNLOAD_FAILED, 23, 23 };
     const photo_frame_error SslCertificateLoadFailed { TXT_SSL_CERTIFICATE_LOAD_FAILED, 25, 25 };
+    const photo_frame_error RateLimitTimeoutExceeded { TXT_RATE_LIMIT_TIMEOUT_EXCEEDED, 26, 26 };
+    const photo_frame_error WifiCredentialsNotFound { TXT_WIFI_CREDENTIALS_NOT_FOUND, 27, 27 };
+    const photo_frame_error WifiConnectionFailed { TXT_WIFI_CONNECTION_FAILED, 28, 28 };
 
     // Add more errors here
 } // namespace error_type

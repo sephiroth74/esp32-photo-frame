@@ -76,11 +76,11 @@
 #error "Please define all potentiometer pins"
 #endif // POTENTIOMETER_PWR_PIN || POTENTIOMETER_INPUT_PIN
 
-#if defined(SENSOR_MAX1704X)
+#if defined(USE_SENSOR_MAX1704X)
 #if !defined(MAX1704X_SDA_PIN) || !defined(MAX1704X_SCL_PIN)
 #error "Please define SENSOR_MAX1704X_PIN"
 #endif // !defined(MAX1704X_SDA_PIN) || !defined(MAX1704X_SCL_PIN)
-#endif // SENSOR_MAX1704X
+#endif // USE_SENSOR_MAX1704X
 
 // validate DAY_START and DAY_END
 #if (DAY_START_HOUR < 0 || DAY_START_HOUR > 23)
@@ -111,7 +111,7 @@
 // Include local configuration overrides
 // Here you can define the local configuration overrides not to be committed to the repository
 
-#ifndef SENSOR_MAX1704X
+#ifndef USE_SENSOR_MAX1704X
 // validate battery settings
 #if (BATTERY_NUM_READINGS < 1 || BATTERY_NUM_READINGS > 100)
 #error "BATTERY_NUM_READINGS must be between 1 and 100"
@@ -119,7 +119,7 @@
 #if (BATTERY_DELAY_BETWEEN_READINGS < 1 || BATTERY_DELAY_BETWEEN_READINGS > 1000)
 #error "BATTERY_DELAY_BETWEEN_READINGS must be between 0 and 1000 milliseconds"
 #endif // BATTERY_DELAY_BETWEEN_READINGS
-#endif // SENSORS_MAX1704X
+#endif // USE_SENSOR_MAX1704X
 
 #ifndef SD_DIRNAME
 #error "SD_DIRNAME must be defined"

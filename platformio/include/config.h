@@ -83,13 +83,13 @@
 // Use MAX1704X battery sensor
 // Uncomment the following line to use MAX1704X battery sensor
 // Use MAX1704 battery sensor
-// #define SENSOR_MAX1704X
+// #define USE_SENSOR_MAX1704X
 // Timeout for MAX1704X sensor initialization in milliseconds
 // #define SENSOR_MAX1704X_TIMEOUT 5000
 // #define MAX1704X_SDA_PIN A1
 // #define MAX1704X_SCL_PIN A2
 
-// If SENSOR_MAX1704X is defined, then ignore the followings settings for battery readings
+// If USE_SENSOR_MAX1704X is defined, then ignore the followings settings for battery readings
 
 // Analog pin for battery reading
 // #define BATTERY_PIN A0
@@ -131,6 +131,7 @@
 // #define NTP_TIMEOUT 20000
 // #define NTP_SERVER1 "pool.ntp.org"
 // #define NTP_SERVER2 "time.nist.gov"
+// #define NTP_TIMEOUT 15000
 
 // e-Paper display
 // #define DISP_BW_V2 // Black and White e-Paper display (GDEH0154D67)
@@ -214,6 +215,7 @@
 // #define GOOGLE_DRIVE_CLIENT_ID "client_id"
 // Drive folder to list/download from (share this folder with SERVICE_ACCOUNT_EMAIL)
 // #define GOOGLE_DRIVE_FOLDER_ID "folder_id"
+// #define GOOGLE_DRIVE_LIST_PAGE_SIZE 300
 
 // Uncomment to use insecure TLS (not recommended)
 // #define USE_INSECURE_TLS
@@ -227,13 +229,13 @@
 // #define GOOGLE_DRIVE_TOC_MAX_AGE 7 * SECONDS_IN_DAY
 
 // Filename for the Google Drive TOC on the sd-card
-// #define GOOGLE_DRIVE_TOC_FILENAME "toc.txt"
+// #define GOOGLE_DRIVE_TOC_FILENAME "toc.json"
 
 // Path to the Google Drive folder on the sd-card where the toc and the images will be stored
 // #define GOOGLE_DRIVE_LOCAL_PATH "/gdrive"
 
-// Filename to use for downloaded image (same name every time)
-// #define GOOGLE_DRIVE_IMAGE_BASENAME "image"
+// Free space threshold on SD card before cleanup
+// #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
 
 /// ---- End ----
 
@@ -300,12 +302,12 @@ extern const char* LOCAL_FILE_EXTENSION;
 #endif // NTP_TIMEOUT
 
 // HTTP operation timeouts
-#ifndef HTTP_CONNECT_TIMEOUT 
-#define HTTP_CONNECT_TIMEOUT 15000  // 15 seconds for connection
+#ifndef HTTP_CONNECT_TIMEOUT
+#define HTTP_CONNECT_TIMEOUT 15000 // 15 seconds for connection
 #endif // HTTP_CONNECT_TIMEOUT
 
 #ifndef HTTP_REQUEST_TIMEOUT
-#define HTTP_REQUEST_TIMEOUT 30000  // 30 seconds for full request
+#define HTTP_REQUEST_TIMEOUT 30000 // 30 seconds for full request
 #endif // HTTP_REQUEST_TIMEOUT
 
 #ifndef NTP_SERVER1
@@ -315,6 +317,10 @@ extern const char* LOCAL_FILE_EXTENSION;
 #ifndef NTP_SERVER2
 #define NTP_SERVER2 "time.nist.gov"
 #endif // NTP_SERVER2
+
+#ifndef NTP_TIMEOUT
+#define NTP_TIMEOUT 20000
+#endif // NTP_TIMEOUT
 
 // Verify ACCENT_COLOR
 #ifndef ACCENT_COLOR
@@ -349,7 +355,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 // Google Drive API rate limiting settings
 #ifndef GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
-#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 50  // Conservative limit (Google allows 1000/100s)
+#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 100 // Conservative limit (Google allows 1000/100s)
 #endif // GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
 
 #ifndef GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS
@@ -357,7 +363,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 #endif // GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS
 
 #ifndef GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
-#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 2000  // 2 seconds between requests
+#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 500 // 500 milliseconds between requests
 #endif // GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
 
 #ifndef GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS
@@ -365,24 +371,28 @@ extern const char* LOCAL_FILE_EXTENSION;
 #endif // GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS
 
 #ifndef GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
-#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 5000  // 5 seconds base delay for backoff
+#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 5000 // 5 seconds base delay for backoff
 #endif // GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
+
+#ifndef GOOGLE_DRIVE_MAX_WAIT_TIME_MS
+#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 30000 // 30 seconds maximum wait time for rate limiting
+#endif // GOOGLE_DRIVE_MAX_WAIT_TIME_MS
 
 #endif // USE_GOOGLE_DRIVE
 
-#ifndef GOOGLE_DRIVE_IMAGE_BASENAME
-#define GOOGLE_DRIVE_IMAGE_BASENAME "image"
-#endif // GOOGLE_DRIVE_IMAGE_BASENAME
+#ifndef GOOGLE_DRIVE_LIST_PAGE_SIZE
+#define GOOGLE_DRIVE_LIST_PAGE_SIZE 150
+#endif // GOOGLE_DRIVE_LIST_PAGE_SIZE
 
 #ifndef LOCALE
 #define LOCALE en_US
 #endif // LOCALE
 
-#if defined(SENSOR_MAX1704X)
+#if defined(USE_SENSOR_MAX1704X)
 #ifndef SENSOR_MAX1704X_TIMEOUT
 #define SENSOR_MAX1704X_TIMEOUT 5000
 #endif // SENSOR_MAX1704X_TIMEOUT
-#endif // SENSOR_MAX1704X
+#endif // USE_SENSOR_MAX1704X
 
 #ifndef RESET_INVALIDATES_DATE_TIME
 #define RESET_INVALIDATES_DATE_TIME 1
@@ -401,7 +411,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 #endif // REFRESH_STEP_SECONDS
 
 #ifndef REFRESH_INTERVAL_SECONDS_LOW_BATTERY
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_MINUTE)
+#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOURS)
 #endif // REFRESH_INTERVAL_SECONDS_LOW_BATTERY
 
 #ifndef DAY_START_HOUR
@@ -420,11 +430,15 @@ extern const char* LOCAL_FILE_EXTENSION;
 #ifndef HAS_RGB_LED
 #if defined(ARDUINO_ARCH_ESP32) && defined(NANO_ESP32)
 #define HAS_RGB_LED 1
+#elif defined(LED_BLUE) && defined(LED_GREEN) && defined(LED_RED)
+#define HAS_RGB_LED 1
 #else
 #define HAS_RGB_LED 0
 #endif // HAS_RGB_LED
 #endif // HAS_RGB_LED
 
-
+#ifndef SD_CARD_FREE_SPACE_THRESHOLD
+#define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
+#endif // SD_CARD_FREE_SPACE_THRESHOLD
 
 #endif // __PHOTO_FRAME_CONFIG_H__

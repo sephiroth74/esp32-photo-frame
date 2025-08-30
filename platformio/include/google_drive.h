@@ -26,6 +26,8 @@
 #include "google_drive_client.h"
 #include "sd_card.h"
 
+namespace photo_frame {
+
 /**
  * @brief Configuration structure for Google Drive operations.
  * 
@@ -36,8 +38,6 @@ typedef struct {
     unsigned long tocMaxAge;        ///< Maximum age (in seconds) of the local TOC file before refresh
     const char* localPath;          ///< Path to the google drive files on the SD card (toc and images)
     const char* localTocFilename;   ///< Filename of the TOC file on the SD card
-    const char* localImageBasename; ///< Basename for downloaded images
-    const char* localImageExtension;///< Extension for downloaded images
     const char* driveFolderId;      ///< Google Drive folder ID to access
 
 } google_drive_config;
@@ -67,10 +67,9 @@ public:
      * @brief Retrieve the Table of Contents (TOC) from Google Drive and store it locally.
      * If the local file (stored in the SD card) exists, it will be used instead of downloading (unless is too old, or force it set to true).
      *
-     * @param force If true, forces the retrieval of the TOC from Google Drive even if a local copy exists.
      * @param batteryConservationMode If true, uses cached TOC even if expired to save battery power.
      */
-    google_drive_files_list retrieve_toc(bool force = false, bool batteryConservationMode = false);
+    google_drive_files_list retrieve_toc(bool batteryConservationMode = false);
 
     /**
      * @brief Download a file from Google Drive to the SD card.
@@ -79,15 +78,16 @@ public:
      * @param error Pointer to store the error code result.
      * @return fs::File object representing the downloaded file on the SD card, or empty File on failure.
      */
-    fs::File download_file(google_drive_file file, photo_frame::photo_frame_error_t* error);
+    fs::File download_file(google_drive_file file, photo_frame_error_t* error);
 
     /**
      * @brief Clean up temporary files left from previous incomplete downloads
      * @param sdCard Reference to the SD card object
      * @param config Google Drive configuration
+     * @param force If true, forces the cleanup of temporary files
      * @return Number of temporary files cleaned up
      */
-    static uint32_t cleanup_temporary_files(photo_frame::sd_card& sdCard, const google_drive_config& config);
+    static uint32_t cleanup_temporary_files(sd_card& sdCard, const google_drive_config& config, boolean force);
 
 #if !defined(USE_INSECURE_TLS)
     /**
@@ -95,8 +95,31 @@ public:
      * @param sdCard Reference to the SD card object
      * @return String containing the certificate in PEM format, empty if failed
      */
-    static String load_root_ca_certificate(photo_frame::sd_card& sdCard);
+    static String load_root_ca_certificate(sd_card& sdCard);
 #endif
+
+    /**
+     * @brief Get the full path to the TOC file on SD card
+     * @return String containing the full path to the TOC file
+     */
+    String get_toc_file_path() const;
+    
+    /**
+     * @brief Get the file count from a plain text TOC file efficiently
+     * @param filePath Path to the TOC file on SD card
+     * @param error Pointer to error code (optional)
+     * @return Number of files in the TOC, or 0 if error
+     */
+    size_t get_toc_file_count(const String& filePath, photo_frame_error_t* error = nullptr);
+    
+    /**
+     * @brief Get a specific file entry by index from a plain text TOC file
+     * @param filePath Path to the TOC file on SD card
+     * @param index Zero-based index of the file to retrieve
+     * @param error Pointer to error code (optional)
+     * @return google_drive_file at the specified index, or empty file if error
+     */
+    google_drive_file get_toc_file_by_index(const String& filePath, size_t index, photo_frame_error_t* error = nullptr);
 
 private:
     google_drive_client& client;  ///< Reference to the Google Drive client for API operations
@@ -132,3 +155,5 @@ private:
      */
     bool save_toc_to_file_chunked(fs::File& file, const google_drive_files_list& filesList);
 };
+
+} // namespace photo_frame

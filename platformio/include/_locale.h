@@ -49,6 +49,9 @@ extern const char* TXT_HTTP_CONNECT_FAILED;
 extern const char* TXT_HTTP_GET_FAILED;
 extern const char* TXT_DOWNLOAD_FAILED;
 extern const char* TXT_SSL_CERTIFICATE_LOAD_FAILED;
+extern const char* TXT_RATE_LIMIT_TIMEOUT_EXCEEDED;
+extern const char* TXT_WIFI_CREDENTIALS_NOT_FOUND;
+extern const char* TXT_WIFI_CONNECTION_FAILED;
 
 extern const char* TXT_ERROR_CODE;
 

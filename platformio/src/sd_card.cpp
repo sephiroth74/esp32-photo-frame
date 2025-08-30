@@ -113,6 +113,7 @@ photo_frame_error_t sd_card::begin()
 #else
     Serial.println("Using default SPI for SD card communication.");
     SPI.begin(sckPin, misoPin, mosiPin, csPin);
+    // SPI.setDataMode(SPI_MODE0);
 #endif // USE_HSPI_FOR_SD
 
 #if defined(USE_HSPI_FOR_SD)
@@ -221,6 +222,15 @@ time_t sd_card::get_last_modified(const char* path) const
     time_t lastModified = file.getLastWrite();
     file.close();
     return lastModified;
+}
+
+time_t sd_card::get_file_age(const char* path) const
+{
+    time_t lastModified = get_last_modified(path);
+    if (lastModified == 0) {
+        return 0; // Return 0 if file cannot be accessed
+    }
+    return time(NULL) - lastModified;
 }
 
 photo_frame_error_t
@@ -535,6 +545,35 @@ bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite)
     }
 }
 
+bool sd_card::rmdir(const char* path)
+{
+    Serial.print("sd_card::rmdir | path: ");
+    Serial.println(path);
+
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return false;
+    }
+
+    if (!path) {
+        Serial.println("Invalid directory path provided.");
+        return false;
+    }
+
+    if (!SD.exists(path)) {
+        Serial.println("Directory does not exist.");
+        return false;
+    }
+
+    if (SD.rmdir(path)) {
+        Serial.println("Directory removed successfully.");
+        return true;
+    } else {
+        Serial.println("Failed to remove directory.");
+        return false;
+    }
+}
+
 bool sd_card::remove(const char* path)
 {
     Serial.print("sd_card::remove | path: ");
@@ -591,6 +630,98 @@ size_t sd_card::get_file_size(const char* path) const
     file.close();
     
     return fileSize;
+}
+
+bool sd_card::create_directories(const char* path) {
+    if (!initialized) {
+        Serial.println(F("SD card not initialized"));
+        return false;
+    }
+    
+    if (!path || strlen(path) == 0) {
+        return true; // Empty path is considered success
+    }
+    
+    String dirPath = String(path);
+    
+    // Remove trailing slash if present
+    if (dirPath.endsWith("/")) {
+        dirPath = dirPath.substring(0, dirPath.length() - 1);
+    }
+    
+    // If directory already exists, return success
+    if (SD.exists(dirPath.c_str())) {
+        return true;
+    }
+    
+    // Split path into components and create each directory level
+    String currentPath = "";
+    int start = 0;
+    if (dirPath.startsWith("/")) {
+        start = 1; // Skip leading slash
+        currentPath = "/";
+    }
+    
+    while (start < dirPath.length()) {
+        int end = dirPath.indexOf('/', start);
+        if (end == -1) {
+            end = dirPath.length();
+        }
+        
+        String dirName = dirPath.substring(start, end);
+        if (dirName.length() > 0) {
+            if (currentPath != "/" && !currentPath.endsWith("/")) {
+                currentPath += "/";
+            }
+            currentPath += dirName;
+            
+            // Check if this directory level exists
+            if (!SD.exists(currentPath.c_str())) {
+                Serial.print(F("Creating directory: "));
+                Serial.println(currentPath);
+                
+                if (!SD.mkdir(currentPath.c_str())) {
+                    Serial.print(F("Failed to create directory: "));
+                    Serial.println(currentPath);
+                    return false;
+                }
+            }
+        }
+        
+        start = end + 1;
+    }
+    
+    return true;
+}
+
+uint64_t sd_card::total_bytes() const
+{
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return 0;
+    }
+
+    return SD.totalBytes();
+}
+
+uint64_t sd_card::used_bytes() const
+{
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return 0;
+    }
+
+    return SD.usedBytes();
+}
+
+uint64_t sd_card::card_size() const
+{
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return 0;
+    }
+
+    return SD.cardSize();
 }
 
 } // namespace photo_frame
