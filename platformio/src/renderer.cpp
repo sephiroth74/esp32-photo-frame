@@ -115,17 +115,14 @@ namespace renderer {
         pinMode(EPD_DC_PIN, OUTPUT);
         pinMode(EPD_CS_PIN, OUTPUT);
 
-        // SPIClass hspi;
-        // hspi.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN);
-        // display.epd2.selectSPI(SPI, device_settings);
 
-        // #ifdef USE_HSPI_FOR_EPD
-        //         hspi.begin(EPD_SCK_PIN, EPD_MOSI_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
-        //         display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
-        // #else
-        //         SPI.end();
-        //         SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
-        // #endif // USE_HSPI_FOR_EPD
+#if defined(USE_HSPI_FOR_EPD)
+        hspi.begin(EPD_SCK_PIN, EPD_MOSI_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        display.epd2.selectSPI(hspi, device_settings);
+#elif defined(USE_HSPI_FOR_EPD)
+        SPI.end();
+        SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+#endif // USE_HSPI_FOR_EPD
 
 #ifdef USE_DESPI_DRIVER
         display.init(115200);

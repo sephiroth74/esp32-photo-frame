@@ -33,6 +33,7 @@
 
 // #define USE_HSPI_FOR_SD  // Use HSPI for SD card communication
 // #define USE_HSPI_FOR_EPD // Use HSPI for e-Paper display
+// #define USE_SHARED_SPI   // Use shared SPI for all devices
 
 // Pin definitions
 
