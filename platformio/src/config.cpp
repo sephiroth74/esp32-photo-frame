@@ -76,6 +76,14 @@
 #error "Please define all potentiometer pins"
 #endif // POTENTIOMETER_PWR_PIN || POTENTIOMETER_INPUT_PIN
 
+#if !defined(POTENTIOMETER_INPUT_MAX)
+#error "Please define POTENTIOMETER_INPUT_MAX"
+#endif // !defined(POTENTIOMETER_INPUT_MAX)
+
+#if !defined(POTENTIOMETER_INPUT_MIN)
+#error "Please define POTENTIOMETER_INPUT_MIN"
+#endif // !defined(POTENTIOMETER_INPUT_MIN)
+
 #if defined(USE_SENSOR_MAX1704X)
 #if !defined(MAX1704X_SDA_PIN) || !defined(MAX1704X_SCL_PIN)
 #error "Please define SENSOR_MAX1704X_PIN"

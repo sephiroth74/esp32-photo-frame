@@ -37,6 +37,7 @@ public:
     photo_frame_error_t init(const char* config_file, sd_card& sdCard);
     photo_frame_error_t connect();
     DateTime fetch_datetime(photo_frame_error_t* error = nullptr);
+    void set_timezone(const char* timezone);
     void disconnect();
     bool is_connected() const;
     String get_ip_address() const;

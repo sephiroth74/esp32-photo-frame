@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "board_util.h"
+#include "string_utils.h"
 #include "esp_bt.h"
 
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -263,7 +264,10 @@ namespace board_utils {
 
         // now read the level
         pinMode(POTENTIOMETER_PWR_PIN, OUTPUT);
-        pinMode(POTENTIOMETER_INPUT_PIN, INPUT);
+        // pinMode(POTENTIOMETER_INPUT_PIN, INPUT);
+
+        // Set ADC attenuation for better range utilization
+        analogSetPinAttenuation(POTENTIOMETER_INPUT_PIN, ADC_11db);
 
         digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
         delay(100); // Wait potentiometer to stabilize
@@ -277,10 +281,8 @@ namespace board_utils {
         digitalWrite(POTENTIOMETER_PWR_PIN, LOW); // Power off the level shifter
         level /= 10; // Average the result
 
-#if DEBUG_MODE
         Serial.print(F("Raw potentiometer pin reading: "));
         Serial.println(level);
-#endif
 
         level = constrain(level, 0, POTENTIOMETER_INPUT_MAX); // Constrain the level to the maximum value
 
@@ -296,8 +298,11 @@ namespace board_utils {
             REFRESH_MIN_INTERVAL_SECONDS,
             REFRESH_MAX_INTERVAL_SECONDS);
 
+        char buffer[64];
+        photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
+
         Serial.print(F("Refresh seconds: "));
-        Serial.println(refresh_seconds);
+        Serial.println(buffer);
 
         if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS * 2)) {
             // increase the refresh seconds to the next step

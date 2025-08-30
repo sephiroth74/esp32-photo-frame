@@ -160,9 +160,14 @@ namespace string_utils {
         return true;
     }
 
-    inline String secondsToHuman(unsigned long seconds)
+    /**
+     * @brief Convert seconds to human-readable format
+     * @param buffer Output buffer
+     * @param buffer_len Length of the output buffer
+     * @param seconds Time in seconds
+     */
+    inline void seconds_to_human(char* buffer, size_t buffer_len, unsigned long seconds)
     {
-        String result;
         unsigned long days = seconds / 86400;
         seconds %= 86400;
         unsigned long hours = seconds / 3600;
@@ -170,19 +175,31 @@ namespace string_utils {
         unsigned long minutes = seconds / 60;
         seconds %= 60;
 
+        buffer[0] = '\0';
+        char temp[32];
+
         if (days > 0) {
-            result += String(days) + "d ";
+            snprintf(temp, sizeof(temp), "%lud ", days);
+            strncat(buffer, temp, buffer_len - strlen(buffer) - 1);
         }
         if (hours > 0) {
-            result += String(hours) + "h ";
+            snprintf(temp, sizeof(temp), "%luh ", hours);
+            strncat(buffer, temp, buffer_len - strlen(buffer) - 1);
         }
         if (minutes > 0) {
-            result += String(minutes) + "m ";
+            snprintf(temp, sizeof(temp), "%lum ", minutes);
+            strncat(buffer, temp, buffer_len - strlen(buffer) - 1);
         }
-        result += String(seconds) + "s";
-        return result;
+        snprintf(temp, sizeof(temp), "%lus", seconds);
+        strncat(buffer, temp, buffer_len - strlen(buffer) - 1);
     }
 
+    /**
+     * @brief Convert seconds to human-readable format
+     * @param buffer Output buffer
+     * @param buffer_len Length of the output buffer
+     * @param seconds Time in seconds
+     */
     inline void format_size_to_human_readable(char* buffer, size_t buffer_len, uint64_t size)
     {
         const char* units[] = { "B", "KB", "MB", "GB", "TB" };

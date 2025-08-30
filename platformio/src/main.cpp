@@ -115,7 +115,7 @@ void setup()
     bool reset_rtc = is_reset && RESET_INVALIDATES_DATE_TIME;
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
-    bool write_toc = false; //is_reset;
+    bool write_toc = false; // is_reset;
 
     uint32_t image_index = 0; // Index of the image to display
     uint32_t total_files = 0; // Total number of image files on the SD card
@@ -214,6 +214,8 @@ void setup()
     Serial.println(F("- Calculating refresh rate"));
     Serial.println(F("--------------------------------------"));
     refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
+
+    return;
 
     // -------------------------------------------------------------
     // - Read the next image file from the SD card or Google Drive
@@ -547,6 +549,13 @@ void loop()
     // All processing is done in the setup function
     // The ESP32 will wake up from deep sleep and run the setup function again
 
+    auto refresh_seconds = photo_frame::board_utils::read_refresh_seconds(false);
+    Serial.print(F("Refresh seconds read from potentiometer in loop: "));
+    
+    char buffer[64];
+    photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
+    Serial.println(buffer);
+
     delay(1000); // Just to avoid watchdog reset
 }
 
@@ -606,7 +615,8 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
             refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         }
 
-        String humanReadable = photo_frame::string_utils::secondsToHuman(refresh_delay.refresh_seconds);
+        char humanReadable[64];
+        photo_frame::string_utils::seconds_to_human(humanReadable, sizeof(humanReadable), refresh_delay.refresh_seconds);
 
         Serial.print(F("Refresh interval in: "));
         Serial.println(humanReadable);
