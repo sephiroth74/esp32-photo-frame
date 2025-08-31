@@ -111,6 +111,26 @@
 // a wakeup reason)
 // #define DELAY_BEFORE_SLEEP 20000
 
+// -----------------------------
+// Wake up pin
+// -----------------------------
+
+// Wakeup pin for the device
+// Uncomment the following line to use a pin to wake up the device from deep sleep
+
+// Uncomment the following lines to enable wakeup functionality either on EXT0 or EXT1
+// #define WAKEUP_EXT1
+// #define WAKEUP_EXT0
+
+// Wakeup pin for the device
+// #define WAKEUP_PIN      GPIO_NUM_7
+
+// Pin mode for wakeup pin
+// #define WAKEUP_PIN_MODE INPUT_PULLDOWN
+
+// Wakeup level for the device
+// #define WAKEUP_LEVEL    ESP_EXT1_WAKEUP_ANY_HIGH
+
 // -------------------------------------------
 // Misc
 // -------------------------------------------
@@ -451,5 +471,6 @@ extern const char* LOCAL_FILE_EXTENSION;
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
 #endif // POTENTIOMETER_INPUT_MAX
+
 
 #endif // __PHOTO_FRAME_CONFIG_H__

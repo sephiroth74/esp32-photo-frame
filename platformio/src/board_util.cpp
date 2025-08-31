@@ -43,13 +43,22 @@ namespace board_utils {
         Serial.println(F("Disabling peripherals..."));
         btStop(); // Stop Bluetooth to save power
         esp_bt_controller_disable(); // Disable Bluetooth controller
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT0); // Disable external wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT1); // Disable external wakeup source
+
+// These are not valid on ESP32-C6 and ESP32-H2
+#if !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD); // Disable touchpad wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO); // Disable GPIO wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_UART); // Disable UART wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_WIFI); // Disable WiFi wakeup source
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT); // Disable Bluetooth wakeup source
+#endif // !ESP32C6 && !ESP32H2
+
+#if defined(WAKEUP_EXT1)
+        Serial.println(F("Configuring EXT1 wakeup..."));
+
+        pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
+        esp_sleep_enable_ext1_wakeup(1ULL << WAKEUP_PIN, WAKEUP_LEVEL);
+#endif // WAKEUP_EXT1
 
         bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
@@ -73,35 +82,47 @@ namespace board_utils {
         return wakeup_reason;
     }
 
-    String get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason)
+    void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason, char* buffer, size_t buffer_size)
     {
         switch (wakeup_reason) {
         case ESP_SLEEP_WAKEUP_UNDEFINED:
-            return "Undefined";
+            snprintf(buffer, buffer_size, "Undefined");
+            break;
         case ESP_SLEEP_WAKEUP_EXT0:
-            return "External wakeup (EXT0)";
+            snprintf(buffer, buffer_size, "External wakeup (EXT0)");
+            break;
         case ESP_SLEEP_WAKEUP_EXT1:
-            return "External wakeup (EXT1)";
+            snprintf(buffer, buffer_size, "External wakeup (EXT1)");
+            break;
         case ESP_SLEEP_WAKEUP_TIMER:
-            return "Timer wakeup";
+            snprintf(buffer, buffer_size, "Timer wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_TOUCHPAD:
-            return "Touchpad wakeup";
+            snprintf(buffer, buffer_size, "Touchpad wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_ULP:
-            return "ULP wakeup";
+            snprintf(buffer, buffer_size, "ULP wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_GPIO:
-            return "GPIO wakeup";
+            snprintf(buffer, buffer_size, "GPIO wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_UART:
-            return "UART wakeup";
+            snprintf(buffer, buffer_size, "UART wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_WIFI:
-            return "WiFi wakeup";
+            snprintf(buffer, buffer_size, "WiFi wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_COCPU:
-            return "COCPU wakeup";
+            snprintf(buffer, buffer_size, "COCPU wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG:
-            return "COCPU trap trigger wakeup";
+            snprintf(buffer, buffer_size, "COCPU trap trigger wakeup");
+            break;
         case ESP_SLEEP_WAKEUP_BT:
-            return "Bluetooth wakeup";
+            snprintf(buffer, buffer_size, "Bluetooth wakeup");
+            break;
         default:
-            return "Unknown wakeup reason";
+            snprintf(buffer, buffer_size, "Unknown wakeup reason");
         }
     } // get_wakeup_reason_string
 
@@ -260,11 +281,10 @@ namespace board_utils {
 
         // now read the level
         pinMode(POTENTIOMETER_PWR_PIN, OUTPUT);
-        // pinMode(POTENTIOMETER_INPUT_PIN, INPUT);
+        digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
 
         // Set ADC attenuation for better range utilization
         analogSetPinAttenuation(POTENTIOMETER_INPUT_PIN, ADC_11db);
-        digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
         delay(100); // Wait potentiometer to stabilize
 
         // read the potentiometer for 100ms and average the result (10 samples)

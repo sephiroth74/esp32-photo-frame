@@ -97,7 +97,7 @@ void setup()
     pinMode(LED_RED, OUTPUT);
 #endif // HAS_RGB_LED
 
-    photo_frame::board_utils::blink_builtin_led(1, 300, 300);
+    photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
     photo_frame::board_utils::toggle_rgb_led(false, true, false); // Set RGB LED to green to indicate initialization
     photo_frame::board_utils::disable_rgb_led(); // Disable RGB LED to save power
@@ -107,12 +107,19 @@ void setup()
     Serial.println(F("------------------------------"));
 
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
-    String wakeup_reason_string = photo_frame::board_utils::get_wakeup_reason_string(wakeup_reason);
+
+    char wakeup_reason_string[32];
+    photo_frame::board_utils::get_wakeup_reason_string(wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
 
     // if the wakeup reason is undefined, it means the device is starting up after
     // a reset
     bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+
+#ifdef USE_RTC
     bool reset_rtc = is_reset && RESET_INVALIDATES_DATE_TIME;
+#else
+    bool reset_rtc = false;
+#endif
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
     bool write_toc = is_reset;
@@ -123,7 +130,6 @@ void setup()
     photo_frame::board_utils::print_board_stats();
     photo_frame::board_utils::print_board_pins();
 
-#if DEBUG_MODE
     Serial.print(F("Wakeup reason: "));
     Serial.print(wakeup_reason_string);
     Serial.print(F(" ("));
@@ -132,8 +138,6 @@ void setup()
 
     Serial.print(F("Is reset: "));
     Serial.println(is_reset ? "Yes" : "No");
-    delay(2000);
-#endif // DEBUG_MODE
 
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
     fs::File file;

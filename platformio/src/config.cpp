@@ -137,3 +137,13 @@ const char* LOCAL_FILE_EXTENSION = ".bin";
 #else
 const char* LOCAL_FILE_EXTENSION = ".bmp";
 #endif // EPD_USE_BINARY_FILE
+
+#if defined(WAKEUP_EXT1) && defined(WAKEUP_EXT0)
+#error "Please define only one wakeup pin: either WAKEUP_EXT1 or WAKEUP_EXT0"
+#endif // WAKEUP_EXT1 && WAKEUP_EXT0
+
+#if defined(WAKEUP_EXT1) || defined(WAKEUP_EXT0)
+#if !defined(WAKEUP_PIN) || !defined(WAKEUP_PIN_MODE) || !defined(WAKEUP_LEVEL)
+#error "Please define all wakeup pin settings"
+#endif // WAKEUP_PIN && WAKEUP_PIN_MODE && WAKEUP_LEVEL
+#endif // WAKEUP_EXT1 || WAKEUP_EXT0

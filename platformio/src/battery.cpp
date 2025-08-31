@@ -135,13 +135,13 @@ battery_info_t battery_reader::read() const
             Serial.println(F("MAX1704X sensor initialization timed out!"));
             return battery_info_t::full();
         }
-        delay(100); // Wait a bit before trying again
+        delay(200); // Wait a bit before trying again
         Serial.print(F("."));
     } while (!max1704x.begin(&TheWire));
 
     Serial.println();
     Serial.println(F("MAX1704X initialized.."));
-    delay(100); // Allow some time for the sensor to initialize
+    delay(1000); // Allow some time for the sensor to initialize
 
     if (!max1704x.isDeviceReady()) {
         Serial.println(F("MAX1704X device is not ready!"));
@@ -152,7 +152,6 @@ battery_info_t battery_reader::read() const
     float percent = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
-#if DEBUG_MODE
     Serial.print(F("Battery reading: "));
     Serial.print("voltage: ");
     Serial.print(voltage);
@@ -161,7 +160,6 @@ battery_info_t battery_reader::read() const
     Serial.print("%, charge rate: ");
     Serial.print(charge_rate);
     Serial.println(" mA");
-#endif // DEBUG_MODE
 
     return battery_info(
         voltage /* cell_voltage */,
