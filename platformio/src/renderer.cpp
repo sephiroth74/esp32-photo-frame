@@ -60,7 +60,6 @@ namespace renderer {
     uint16_t rgb_palette_buffer[max_palette_pixels]; // palette buffer for depth <= 8 for buffered
                                                      // graphics, needed for 7-color display
 
-
     uint16_t read8(File& f)
     {
         uint8_t result;
@@ -103,7 +102,6 @@ namespace renderer {
         pinMode(EPD_RST_PIN, OUTPUT);
         pinMode(EPD_DC_PIN, OUTPUT);
         pinMode(EPD_CS_PIN, OUTPUT);
-
 
 #if defined(USE_HSPI_FOR_EPD)
         hspi.begin(EPD_SCK_PIN, EPD_MOSI_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
@@ -461,13 +459,13 @@ namespace renderer {
 
         String message = String((uint16_t)battery_percentage) + "% (" + String((float)battery_voltage / 1000, 2) + "V)";
 
-#if DEBUG_MODE
 #ifdef USE_SENSOR_MAX1704X
-        message += " - " + String(battery_info.charge_rate) + "mA";
+        if (battery_info.charge_rate != 0.0) {
+            message += " - " + String(battery_info.charge_rate, 2) + "mA";
+        }
 #else
         message += " / " + String(raw_value) + "r - " + String(raw_millivolts) + "m";
 #endif // USE_SENSOR_MAX1704X
-#endif
 
         draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
     }

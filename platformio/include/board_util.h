@@ -38,9 +38,10 @@ namespace board_utils {
     /**
      * Converts the wakeup reason to a human-readable string.
      * @param wakeup_reason The reason for waking up from deep sleep.
-     * @return A string representation of the wakeup reason.
+     * @param buffer The buffer to store the string representation.
+     * @param buffer_size The size of the buffer.
      */
-    String get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason);
+    void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason, char* buffer, size_t buffer_size);
 
     /**
      * Enters deep sleep mode, disabling peripherals and LEDs to save power.
