@@ -26,9 +26,9 @@
 #include <Arduino.h>
 #include <cmath>
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
-#include <esp_adc/adc_oneshot.h>
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
+#include <esp_adc/adc_oneshot.h>
 #else
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
@@ -51,40 +51,25 @@ Adafruit_MAX17048 max1704x;
 namespace photo_frame {
 
 const battery_step_t steps[21] = {
-    battery_step_t(0, 3270),
-    battery_step_t(5, 3610),
-    battery_step_t(10, 3690),
-    battery_step_t(15, 3710),
-    battery_step_t(20, 3730),
-    battery_step_t(25, 3750),
-    battery_step_t(30, 3770),
-    battery_step_t(35, 3790),
-    battery_step_t(40, 3800),
-    battery_step_t(45, 3820),
-    battery_step_t(50, 3840),
-    battery_step_t(55, 3850),
-    battery_step_t(60, 3870),
-    battery_step_t(65, 3910),
-    battery_step_t(70, 3950),
-    battery_step_t(75, 3980),
-    battery_step_t(80, 4020),
-    battery_step_t(85, 4080),
-    battery_step_t(90, 4110),
-    battery_step_t(95, 4150),
-    battery_step_t(100, 4200),
+    battery_step_t(0, 3270),  battery_step_t(5, 3610),  battery_step_t(10, 3690),
+    battery_step_t(15, 3710), battery_step_t(20, 3730), battery_step_t(25, 3750),
+    battery_step_t(30, 3770), battery_step_t(35, 3790), battery_step_t(40, 3800),
+    battery_step_t(45, 3820), battery_step_t(50, 3840), battery_step_t(55, 3850),
+    battery_step_t(60, 3870), battery_step_t(65, 3910), battery_step_t(70, 3950),
+    battery_step_t(75, 3980), battery_step_t(80, 4020), battery_step_t(85, 4080),
+    battery_step_t(90, 4110), battery_step_t(95, 4150), battery_step_t(100, 4200),
 };
 
 const uint8_t total_steps = 21;
 
-uint8_t calc_battery_percentage(uint32_t v)
-{
+uint8_t calc_battery_percentage(uint32_t v) {
     if (v >= steps[total_steps - 1].voltage)
         return steps[total_steps - 1].percent;
     if (v <= steps[0].voltage)
         return steps[0].percent;
 
     for (int8_t i = total_steps - 1; i > 0; i--) {
-        battery_step_t current = steps[i];
+        battery_step_t current  = steps[i];
         battery_step_t previous = steps[i - 1];
         if (v >= previous.voltage && v <= current.voltage) {
             return map(v, previous.voltage, current.voltage, previous.percent, current.percent);
@@ -105,8 +90,7 @@ bool battery_info_t::is_charging() const { return percent > 100; }
 bool battery_info_t::is_charging() const { return millivolts > BATTERY_CHARGING_MILLIVOLTS; }
 #endif // USE_SENSOR_MAX1704X
 
-void battery_reader::init() const
-{
+void battery_reader::init() const {
 #ifdef USE_SENSOR_MAX1704X
     Serial.println(F("Initializing MAX1704X Battery Reader on Wire"));
 #if defined(MAX1704X_SDA_PIN) && defined(MAX1704X_SCL_PIN)
@@ -123,8 +107,7 @@ void battery_reader::init() const
     delay(200); // Allow some time for the ADC to stabilize
 } // init
 
-battery_info_t battery_reader::read() const
-{
+battery_info_t battery_reader::read() const {
 #ifdef USE_SENSOR_MAX1704X
 
     unsigned long ms = millis();
@@ -148,8 +131,8 @@ battery_info_t battery_reader::read() const
         return battery_info_t::full();
     }
 
-    float voltage = max1704x.cellVoltage();
-    float percent = max1704x.cellPercent();
+    float voltage     = max1704x.cellVoltage();
+    float percent     = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
     Serial.print(F("Battery reading: "));
@@ -162,14 +145,12 @@ battery_info_t battery_reader::read() const
     Serial.println(" mA");
 
     return battery_info(
-        voltage /* cell_voltage */,
-        charge_rate /* charge_rate */,
-        percent /* percent */);
+        voltage /* cell_voltage */, charge_rate /* charge_rate */, percent /* percent */);
 
 #else
 
     uint32_t millivolts = 0;
-    uint32_t raw = 0;
+    uint32_t raw        = 0;
     for (int i = 0; i < num_readings; i++) {
         millivolts += analogReadMilliVolts(pin);
         raw += analogRead(pin);
@@ -179,7 +160,7 @@ battery_info_t battery_reader::read() const
     millivolts /= num_readings;
     raw /= num_readings;
     uint32_t voltage = millivolts / resistor_ratio;
-    uint8_t percent = calc_battery_percentage(voltage);
+    uint8_t percent  = calc_battery_percentage(voltage);
 
 #if DEBUG_MODE
     Serial.print(F("Battery reading: "));
@@ -193,11 +174,10 @@ battery_info_t battery_reader::read() const
     Serial.println(percent);
 #endif // DEBUG_MODE
 
-    return battery_info(
-        raw /* raw_value */,
-        millivolts /* raw_millivolts */,
-        voltage /* adjusted millivolts */,
-        percent /* percent */);
+    return battery_info(raw /* raw_value */,
+                        millivolts /* raw_millivolts */,
+                        voltage /* adjusted millivolts */,
+                        percent /* percent */);
 
 #endif // USE_SENSOR_MAX1704X
 } // read

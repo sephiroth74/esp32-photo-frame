@@ -27,19 +27,11 @@ namespace photo_frame {
 
 const unsigned long wifi_manager::CONNECTION_TIMEOUT_MS = 30000;
 
-wifi_manager::wifi_manager()
-    : _initialized(false)
-    , _connected(false)
-{
-}
+wifi_manager::wifi_manager() : _initialized(false), _connected(false) {}
 
-wifi_manager::~wifi_manager()
-{
-    disconnect();
-}
+wifi_manager::~wifi_manager() { disconnect(); }
 
-photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
-{
+photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -58,7 +50,7 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
         return error_type::SdCardFileOpenFailed;
     }
 
-    _ssid = file.readStringUntil('\n');
+    _ssid     = file.readStringUntil('\n');
     _password = file.readStringUntil('\n');
 
     _ssid.trim();
@@ -78,16 +70,14 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     return error_type::None;
 }
 
-void wifi_manager::set_timezone(const char* timezone)
-{
+void wifi_manager::set_timezone(const char* timezone) {
     Serial.print(F("Setting timezone to: "));
     Serial.println(timezone);
     setenv("TZ", timezone, 1);
     tzset();
 }
 
-photo_frame_error_t wifi_manager::connect()
-{
+photo_frame_error_t wifi_manager::connect() {
     if (!_initialized) {
         Serial.println(F("WiFi manager not initialized"));
         return error_type::WifiCredentialsNotFound;
@@ -103,9 +93,9 @@ photo_frame_error_t wifi_manager::connect()
 
     WiFi.mode(WIFI_STA);
 
-    const uint8_t maxRetries = 2;
+    const uint8_t maxRetries      = 2;
     const unsigned long baseDelay = 2000; // 2 seconds base delay
-    bool connected = false;
+    bool connected                = false;
 
     for (uint8_t attempt = 0; attempt < maxRetries && !connected; attempt++) {
         Serial.print(F("WiFi connection attempt "));
@@ -115,7 +105,7 @@ photo_frame_error_t wifi_manager::connect()
 
         WiFi.begin(_ssid.c_str(), _password.c_str());
 
-        unsigned long timeout = millis() + CONNECTION_TIMEOUT_MS;
+        unsigned long timeout         = millis() + CONNECTION_TIMEOUT_MS;
         wl_status_t connection_status = WiFi.status();
         while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
             Serial.print(".");
@@ -125,7 +115,7 @@ photo_frame_error_t wifi_manager::connect()
         Serial.println();
 
         if (connection_status == WL_CONNECTED) {
-            connected = true;
+            connected  = true;
             _connected = true;
             Serial.print(F("WiFi connected! IP address: "));
             Serial.println(WiFi.localIP());
@@ -139,7 +129,7 @@ photo_frame_error_t wifi_manager::connect()
             // Exponential backoff with jitter for retries
             if (attempt < maxRetries - 1) {
                 unsigned long backoffDelay = baseDelay * (1UL << attempt);
-                unsigned long jitter = random(0, backoffDelay / 4); // Add up to 25% jitter
+                unsigned long jitter       = random(0, backoffDelay / 4); // Add up to 25% jitter
                 backoffDelay += jitter;
 
                 Serial.print(F("Retrying in "));
@@ -159,8 +149,7 @@ photo_frame_error_t wifi_manager::connect()
     return error_type::None;
 }
 
-DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error)
-{
+DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -197,13 +186,12 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error)
         Serial.print("Current time is: ");
         Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 
-        return DateTime(
-            timeinfo.tm_year + 1900,
-            timeinfo.tm_mon + 1,
-            timeinfo.tm_mday,
-            timeinfo.tm_hour,
-            timeinfo.tm_min,
-            timeinfo.tm_sec);
+        return DateTime(timeinfo.tm_year + 1900,
+                        timeinfo.tm_mon + 1,
+                        timeinfo.tm_mday,
+                        timeinfo.tm_hour,
+                        timeinfo.tm_min,
+                        timeinfo.tm_sec);
     }
 
     Serial.println();
@@ -214,8 +202,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error)
     return DateTime(); // Invalid DateTime
 }
 
-void wifi_manager::disconnect()
-{
+void wifi_manager::disconnect() {
     if (_connected) {
         Serial.println(F("Disconnecting from WiFi..."));
         WiFi.disconnect(true);
@@ -225,27 +212,17 @@ void wifi_manager::disconnect()
     }
 }
 
-void wifi_manager::end()
-{
-    disconnect();
-}
+void wifi_manager::end() { disconnect(); }
 
-bool wifi_manager::is_connected() const
-{
-    return _connected && WiFi.status() == WL_CONNECTED;
-}
+bool wifi_manager::is_connected() const { return _connected && WiFi.status() == WL_CONNECTED; }
 
-String wifi_manager::get_ip_address() const
-{
+String wifi_manager::get_ip_address() const {
     if (is_connected()) {
         return WiFi.localIP().toString();
     }
     return String("");
 }
 
-String wifi_manager::get_ssid() const
-{
-    return _ssid;
-}
+String wifi_manager::get_ssid() const { return _ssid; }
 
 } // namespace photo_frame
