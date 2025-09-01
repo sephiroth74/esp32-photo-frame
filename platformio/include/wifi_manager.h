@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "config.h"
 #include "RTClib.h"
 #include "errors.h"
 #include "sd_card.h"
