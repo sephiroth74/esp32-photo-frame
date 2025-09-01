@@ -178,7 +178,7 @@ battery_info_t battery_reader::read() const
 
     millivolts /= num_readings;
     raw /= num_readings;
-    uint32_t voltage = raw / resistor_ratio;
+    uint32_t voltage = millivolts / resistor_ratio;
     uint8_t percent = calc_battery_percentage(voltage);
 
 #if DEBUG_MODE
