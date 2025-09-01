@@ -23,8 +23,7 @@
 #include "config.h"
 
 // Check all the E-Paper pins are defined
-#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) ||                     \
-    !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
+#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) || !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
 #error "Please define all E-Paper display pins"
 #endif
 
@@ -37,21 +36,11 @@
 #error "Please define only one display type: either DISP_BW_V2 or DISP_7C_F or DISP_6C"
 #endif
 
+// check if GOOGLE_DRIVE_CONFIG_FILEPATH is defined
 #if defined(USE_GOOGLE_DRIVE)
-#if !defined(GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL) || !defined(GOOGLE_DRIVE_PRIVATE_KEY_PEM) ||      \
-    !defined(GOOGLE_DRIVE_CLIENT_ID) || !defined(GOOGLE_DRIVE_FOLDER_ID)
-#error                                                                                             \
-    "Please define all Google Drive settings (GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY_PEM, GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_FOLDER_ID)"
-#endif
-
-#if GOOGLE_DRIVE_TOC_MAX_AGE > 30 * SECONDS_IN_DAY
-#error "GOOGLE_DRIVE_TOC_MAX_AGE must be less than or equal to 30 days"
-#endif
-
-#if !defined(USE_INSECURE_TLS) && !defined(GOOGLE_DRIVE_ROOT_CA)
-#error                                                                                             \
-    "When USE_INSECURE_TLS is not defined, GOOGLE_DRIVE_ROOT_CA must be defined with the path to the root CA certificate file"
-#endif
+#if !defined(GOOGLE_DRIVE_CONFIG_FILEPATH)
+#error "GOOGLE_DRIVE_CONFIG_FILEPATH must be defined when USE_GOOGLE_DRIVE is defined"
+#endif // GOOGLE_DRIVE_CONFIG_FILEPATH
 #endif // USE_GOOGLE_DRIVE
 
 // Check all SD-Card pins are defined
@@ -65,7 +54,7 @@
 
 // Check only one SPI bus is used
 #if defined(USE_HSPI_FOR_SD) && defined(USE_HSPI_FOR_EPD) && defined(USE_SHARED_SPI)
-#error                                                                                             \
+#error \
     "Please define only one SPI bus: either USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD or USE_SHARED_SPI"
 #endif // USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD or USE_SHARED_SPI
 
@@ -100,13 +89,11 @@
 #endif // DAY_END_HOUR
 
 // validate REFRESH_MIN_INTERVAL_SECONDS and REFRESH_MAX_INTERVAL_SECONDS
-#if (REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) ||                                     \
-     REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR))
+#if (REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) || REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR))
 #error "REFRESH_MIN_INTERVAL_SECONDS must be between 5 minutes and 2 hours"
 #endif // REFRESH_MIN_INTERVAL_SECONDS
 
-#if (REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) ||                                    \
-     REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR))
+#if (REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) || REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR))
 #error "REFRESH_MAX_INTERVAL_SECONDS must be between 10 minutes and 4 hours"
 #endif // REFRESH_MAX_INTERVAL_SECONDS
 
@@ -115,7 +102,7 @@
 #endif // REFRESH_MIN_INTERVAL_SECONDS > REFRESH_MAX_INTERVAL_SECONDS
 
 #if (REFRESH_MAX_INTERVAL_SECONDS > ((24 - DAY_END_HOUR) + DAY_START_HOUR) * SECONDS_IN_HOUR)
-#error                                                                                             \
+#error \
     "REFRESH_MAX_INTERVAL_SECONDS must be less than or equal to the number of seconds between DAY_START_HOUR and DAY_END_HOUR"
 #endif // REFRESH_MAX_INTERVAL_SECONDS > (DAY_END_HOUR - DAY_START_HOUR) * SECONDS_IN_HOUR
 

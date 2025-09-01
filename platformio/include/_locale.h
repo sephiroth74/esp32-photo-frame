@@ -32,6 +32,7 @@ extern const char* TXT_CARD_CREATE_FILE_FAILED;
 extern const char* TXT_SD_CARD_FILE_NOT_FOUND;
 extern const char* TXT_SD_CARD_FILE_OPEN_FAILED;
 extern const char* TXT_SD_CARD_FILE_CREATE_FAILED;
+extern const char* TXT_SD_CARD_DIR_CREATE_FAILED;
 extern const char* TXT_IMAGE_FORMAT_NOT_SUPPORTED;
 extern const char* TXT_BATTERY_LEVEL_CRITICAL;
 extern const char* TXT_CARD_TOC_OPEN_FILE_FAILED;
@@ -52,6 +53,15 @@ extern const char* TXT_SSL_CERTIFICATE_LOAD_FAILED;
 extern const char* TXT_RATE_LIMIT_TIMEOUT_EXCEEDED;
 extern const char* TXT_WIFI_CREDENTIALS_NOT_FOUND;
 extern const char* TXT_WIFI_CONNECTION_FAILED;
+
+// Google Drive configuration validation error messages
+extern const char* TXT_CONFIG_MISSING_SECTION;
+extern const char* TXT_CONFIG_MISSING_FIELD;
+extern const char* TXT_CONFIG_INVALID_EMAIL;
+extern const char* TXT_CONFIG_INVALID_PEM_KEY;
+extern const char* TXT_CONFIG_INVALID_PATH;
+extern const char* TXT_CONFIG_INVALID_FILENAME;
+extern const char* TXT_CONFIG_VALUE_OUT_OF_RANGE;
 
 extern const char* TXT_ERROR_CODE;
 

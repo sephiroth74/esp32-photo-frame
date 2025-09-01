@@ -28,19 +28,41 @@
 
 namespace photo_frame {
 
+
 /**
- * @brief Configuration structure for Google Drive operations.
+ * @brief JSON-based configuration structure for Google Drive settings.
  *
- * Contains settings and paths for managing Google Drive file caching,
- * local storage locations, and file naming conventions.
+ * Contains all configuration parameters that can be loaded from a JSON file.
  */
 typedef struct {
-    unsigned long tocMaxAge; ///< Maximum age (in seconds) of the local TOC file before refresh
-    const char* localPath;   ///< Path to the google drive files on the SD card (toc and images)
-    const char* localTocFilename; ///< Filename of the TOC file on the SD card
-    const char* driveFolderId;    ///< Google Drive folder ID to access
+    String serviceAccountEmail;
+    String privateKeyPem;
+    String clientId;
+    String folderId;
+    String rootCaPath;
+    int listPageSize;
+    bool useInsecureTls;
+    String localPath;
+    String tocFilename;
+    unsigned long tocMaxAgeSeconds;
+    int maxRequestsPerWindow;
+    int rateLimitWindowSeconds;
+    int minRequestDelayMs;
+    int maxRetryAttempts;
+    int backoffBaseDelayMs;
+    int maxWaitTimeMs;
+} google_drive_json_config;
 
-} google_drive_config;
+/**
+ * @brief Load Google Drive configuration from JSON file on SD card
+ * @param sd_card Reference to the SD card instance
+ * @param config_filepath Path to the JSON configuration file
+ * @param config Output parameter for the loaded configuration
+ * @return photo_frame_error_t indicating success or failure
+ */
+photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card, 
+                                                      const char* config_filepath, 
+                                                      google_drive_json_config& config);
 
 /**
  * @brief High-level Google Drive interface for file management and caching.
@@ -53,13 +75,24 @@ typedef struct {
 class google_drive {
   public:
     /**
-     * @brief Constructor for google_drive.
-     * @param client Reference to the google_drive_client for API operations
-     * @param config Configuration settings for Google Drive operations
+     * @brief Default constructor for google_drive.
      */
-    google_drive(google_drive_client& client, const google_drive_config& config) :
-        client(client),
-        config(config) {}
+    google_drive() : client(google_drive_client_config{}), config{} {}
+
+    /**
+     * @brief Initialize Google Drive from JSON configuration file.
+     * @param sd_card Reference to the SD card instance
+     * @param config_filepath Path to the JSON configuration file
+     * @return photo_frame_error_t indicating success or failure
+     */
+    photo_frame_error_t initialize_from_json(sd_card& sd_card, const char* config_filepath);
+
+    /**
+     * @brief Create necessary directories on the sdcard for google drive local cache.
+     * @param sdCard Reference to the SD card object
+     * @return photo_frame_error_t indicating success or failure
+     */
+    photo_frame_error_t create_directories(sd_card& sdCard);
 
     /**
      * @brief Retrieve the Table of Contents (TOC) from Google Drive and store it locally.
@@ -89,16 +122,22 @@ class google_drive {
      * @return Number of temporary files cleaned up
      */
     static uint32_t
-    cleanup_temporary_files(sd_card& sdCard, const google_drive_config& config, boolean force);
+    cleanup_temporary_files(sd_card& sdCard, const google_drive_json_config& config, boolean force);
 
-#if !defined(USE_INSECURE_TLS)
+    /**
+     * @brief Clean up temporary files left from previous incomplete downloads
+     * @param force If true, forces the cleanup of temporary files
+     * @return Number of temporary files cleaned up
+     */
+    uint32_t cleanup_temporary_files(boolean force);
+
     /**
      * @brief Load Google Drive root CA certificate from SD card
      * @param sdCard Reference to the SD card object
+     * @param rootCaPath Path to the root CA certificate file
      * @return String containing the certificate in PEM format, empty if failed
      */
-    static String load_root_ca_certificate(sd_card& sdCard);
-#endif
+    static String load_root_ca_certificate(sd_card& sdCard, const char* rootCaPath);
 
     /**
      * @brief Get the full path to the TOC file on SD card
@@ -126,6 +165,21 @@ class google_drive {
                                             photo_frame_error_t* error = nullptr);
 
     /**
+     * @brief Get the file count from the TOC file efficiently
+     * @param error Pointer to error code (optional)
+     * @return Number of files in the TOC, or 0 if error
+     */
+    size_t get_toc_file_count(photo_frame_error_t* error = nullptr);
+
+    /**
+     * @brief Get a specific file entry by index from the TOC file
+     * @param index Zero-based index of the file to retrieve
+     * @param error Pointer to error code (optional)
+     * @return google_drive_file at the specified index, or empty file if error
+     */
+    google_drive_file get_toc_file_by_index(size_t index, photo_frame_error_t* error = nullptr);
+
+    /**
      * @brief Save the current access token to SD card
      * @return Error code indicating success or failure
      */
@@ -138,8 +192,8 @@ class google_drive {
     photo_frame_error_t load_access_token_from_file();
 
   private:
-    google_drive_client& client; ///< Reference to the Google Drive client for API operations
-    google_drive_config config;  ///< Configuration settings for this Google Drive instance
+    google_drive_client client; ///< Google Drive client for API operations
+    google_drive_json_config config;  ///< Configuration settings for this Google Drive instance
 
     /**
      * @brief Load TOC from local SD card file

@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# example usage:
+# ./auto.sh -i ~/photos -o ~/outputs/auto -t bw -s 800x480 --extensions jpg --auto
+
 # expected arguments:
 # -i <input_directory> (can be multiple)
 # -o <output_directory>

@@ -200,6 +200,20 @@ class sd_card {
     bool file_exists(const char* path) const;
 
     /**
+     * Checks if a directory exists on the SD card.
+     * @param path The path to the directory to check.
+     * @return true if the directory exists, false otherwise.
+     */
+    bool is_directory(const char* path) const;
+
+    /**
+     * Checks if a file exists on the SD card.
+     * @param path The path to the file to check.
+     * @return true if the file exists, false otherwise.
+     */
+    bool is_file(const char* path) const;
+
+    /**
      * List all files in the root directory of the SD card with the specified extension.
      * Then writes a table of contents (TOC) file named "toc.txt" in the root directory.
      *

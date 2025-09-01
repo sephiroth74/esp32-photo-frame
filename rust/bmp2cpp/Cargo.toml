@@ -1,0 +1,10 @@
+[package]
+name = "bmp2cpp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tinybmp = "0.6.0"
+embedded-graphics = "0.8.1"
+bmp-rust = "0.5.0"
+clap = { version = "4.4.0", features = ["derive"] }
