@@ -94,6 +94,7 @@ const photo_frame_error CardOpenFileFailed{TXT_CARD_OPEN_FILE_FAILED, 6, 6};
 const photo_frame_error SdCardFileNotFound{TXT_SD_CARD_FILE_NOT_FOUND, 7, 7};
 const photo_frame_error SdCardFileOpenFailed{TXT_SD_CARD_FILE_OPEN_FAILED, 8, 8};
 const photo_frame_error SdCardFileCreateFailed{TXT_SD_CARD_FILE_CREATE_FAILED, 24, 24};
+const photo_frame_error SdCardDirCreateFailed{TXT_SD_CARD_DIR_CREATE_FAILED, 36, 36};
 const photo_frame_error ImageFormatNotSupported{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 9, 9};
 const photo_frame_error BatteryLevelCritical{TXT_BATTERY_LEVEL_CRITICAL, 10, 10};
 const photo_frame_error CardTocOpenFileFailed{TXT_CARD_TOC_OPEN_FILE_FAILED, 11, 11};
@@ -113,6 +114,15 @@ const photo_frame_error SslCertificateLoadFailed{TXT_SSL_CERTIFICATE_LOAD_FAILED
 const photo_frame_error RateLimitTimeoutExceeded{TXT_RATE_LIMIT_TIMEOUT_EXCEEDED, 26, 26};
 const photo_frame_error WifiCredentialsNotFound{TXT_WIFI_CREDENTIALS_NOT_FOUND, 27, 27};
 const photo_frame_error WifiConnectionFailed{TXT_WIFI_CONNECTION_FAILED, 28, 28};
+
+// Google Drive configuration validation errors
+const photo_frame_error ConfigMissingSection{TXT_CONFIG_MISSING_SECTION, 29, 29};
+const photo_frame_error ConfigMissingField{TXT_CONFIG_MISSING_FIELD, 30, 30};
+const photo_frame_error ConfigInvalidEmail{TXT_CONFIG_INVALID_EMAIL, 31, 31};
+const photo_frame_error ConfigInvalidPemKey{TXT_CONFIG_INVALID_PEM_KEY, 32, 32};
+const photo_frame_error ConfigInvalidPath{TXT_CONFIG_INVALID_PATH, 33, 33};
+const photo_frame_error ConfigInvalidFilename{TXT_CONFIG_INVALID_FILENAME, 34, 34};
+const photo_frame_error ConfigValueOutOfRange{TXT_CONFIG_VALUE_OUT_OF_RANGE, 35, 35};
 
 // Add more errors here
 } // namespace error_type

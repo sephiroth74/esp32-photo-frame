@@ -182,8 +182,10 @@ void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
 
     pinMode(LED_BUILTIN, OUTPUT);
     for (int i = 0; i < count; i++) {
+        Serial.print(F("Blinkin on.."));
         digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
         delay(on_ms);
+        Serial.print(F("Blinking off.."));
         digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
         delay(off_ms);
     }

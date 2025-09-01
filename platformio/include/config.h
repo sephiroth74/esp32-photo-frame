@@ -228,31 +228,98 @@
 
 // Uncomment to use Google Drive as image source
 // This will enable the use of Google Drive for image storage and retrieval, while the sd-card will
-// be only used for caching and temporary storage #define USE_GOOGLE_DRIVE
+// be only used for caching and temporary storage
+// #define USE_GOOGLE_DRIVE
 
-// Service account (from your JSON key)
-// #define GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL "your_service_account_email"
-// #define GOOGLE_DRIVE_PRIVATE_KEY_PEM "-----BEGIN PRIVATE KEY-----your_private_key-----END PRIVATE
-// KEY-----\n" #define GOOGLE_DRIVE_CLIENT_ID "client_id" Drive folder to list/download from (share
-// this folder with SERVICE_ACCOUNT_EMAIL) #define GOOGLE_DRIVE_FOLDER_ID "folder_id" #define
-// GOOGLE_DRIVE_LIST_PAGE_SIZE 300
+// Path to the Google Drive configuration JSON file on the sd-card
+// This file must be uploaded to your SD card and contain all Google Drive settings
+// #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
 
-// Uncomment to use insecure TLS (not recommended)
-// #define USE_INSECURE_TLS
+// Maximum age (in seconds) the google drive local toc file can be before it is refreshed
+#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_PER_DAY)
 
-// Root CA certificate file for Google Drive SSL/TLS connections
-// This file should contain the Google Root CA certificate in PEM format
-// If USE_INSECURE_TLS is not defined, this file must exist and be valid
-// #define GOOGLE_DRIVE_ROOT_CA "/certs/google_root_ca.pem"
+// Maximum number of API requests per time window
+#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 200 // Conservative limit (Google allows 1000/100s)
 
-// Max age (in seconds) of the google drive toc, after which it will be refreshed
-// #define GOOGLE_DRIVE_TOC_MAX_AGE 7 * SECONDS_IN_DAY
+// Time window for rate limiting in seconds
+#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600
 
-// Filename for the Google Drive TOC on the sd-card
-// #define GOOGLE_DRIVE_TOC_FILENAME "toc.json"
+// Minimum delay between requests in milliseconds
+#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 10000
 
-// Path to the Google Drive folder on the sd-card where the toc and the images will be stored
-// #define GOOGLE_DRIVE_LOCAL_PATH "/gdrive"
+// Maximum number of retry attempts for failed requests
+#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 10
+
+// Maximum backoff delay for retries in milliseconds
+#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 60000
+
+// Maximum wait time for rate limiting in milliseconds
+#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000
+
+// Maximum number of files to retrieve per API request
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 500
+
+// Stream parser threshold in bytes
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 40960
+
+// -------------------------------------------
+// Google Drive Configuration File
+// -------------------------------------------
+//
+// Create a JSON file at the path specified by GOOGLE_DRIVE_CONFIG_FILEPATH with the following structure:
+//
+// {
+//   "authentication": {
+//     "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
+//     "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT\n-----END PRIVATE KEY-----\n",
+//     "client_id": "116262609282266881196"
+//   },
+//   "drive": {
+//     "folder_id": "1XWK-Op3uMFXADykfi0VR46r6HnrZfaDr",
+//     "root_ca_path": "/certs/google_root_ca.pem",
+//     "list_page_size": 150,
+//     "use_insecure_tls": false
+//   },
+//   "caching": {
+//     "local_path": "/gdrive",
+//     "toc_filename": "toc.txt",
+//     "toc_max_age_seconds": 604800
+//   },
+//   "rate_limiting": {
+//     "max_requests_per_window": 100,
+//     "rate_limit_window_seconds": 100,
+//     "min_request_delay_ms": 500,
+//     "max_retry_attempts": 3,
+//     "backoff_base_delay_ms": 5000,
+//     "max_wait_time_ms": 30000
+//   }
+// }
+//
+// Configuration Guide:
+//
+// Authentication section:
+// - service_account_email: Email from your Google Service Account JSON key
+// - private_key_pem: Private key from your Google Service Account JSON key (keep newlines as \n)
+// - client_id: Client ID from your Google Service Account
+//
+// Drive section:
+// - folder_id: Google Drive folder ID to use as image source (share with service account)
+// - root_ca_path: Path to Google Root CA certificate file (required if use_insecure_tls is false)
+// - list_page_size: Number of files to request per API call (1-1000)
+// - use_insecure_tls: Set to true to skip SSL certificate validation (not recommended)
+//
+// Caching section:
+// - local_path: Directory on SD card for cached files
+// - toc_filename: Filename for the table of contents file
+// - toc_max_age_seconds: Maximum age of cached TOC before refresh (1-2592000 seconds)
+//
+// Rate limiting section:
+// - max_requests_per_window: Maximum API requests per time window (1-100, limited by GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW)
+// - rate_limit_window_seconds: Time window for rate limiting (1-3600 seconds)
+// - min_request_delay_ms: Minimum delay between requests (0-10000 ms)
+// - max_retry_attempts: Maximum retry attempts for failed requests (0-10)
+// - backoff_base_delay_ms: Base delay for exponential backoff (1-60000 ms)
+// - max_wait_time_ms: Maximum wait time for rate limiting (1-300000 ms)
 
 // Free space threshold on SD card before cleanup
 // #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
@@ -363,52 +430,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #ifdef USE_GOOGLE_DRIVE
 
-#ifndef GOOGLE_DRIVE_TOC_MAX_AGE
-#define GOOGLE_DRIVE_TOC_MAX_AGE 7 * SECONDS_IN_DAY
-#endif // GOOGLE_DRIVE_TOC_MAX_AGE
-
-#ifndef GOOGLE_DRIVE_TOC_FILENAME
-#define GOOGLE_DRIVE_TOC_FILENAME "toc.txt"
-#endif // GOOGLE_DRIVE_TOC_FILENAME
-
-#ifndef GOOGLE_DRIVE_LOCAL_PATH
-#define GOOGLE_DRIVE_LOCAL_PATH "/gdrive"
-#endif // GOOGLE_DRIVE_LOCAL_PATH
-
-#ifndef GOOGLE_DRIVE_ROOT_CA
-#define GOOGLE_DRIVE_ROOT_CA "/certs/google_root_ca.pem"
-#endif // GOOGLE_DRIVE_ROOT_CA
-
-// Google Drive API rate limiting settings
-#ifndef GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
-#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 100 // Conservative limit (Google allows 1000/100s)
-#endif                                           // GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
-
-#ifndef GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS
-#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 100
-#endif // GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS
-
-#ifndef GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
-#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 500 // 500 milliseconds between requests
-#endif                                        // GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
-
-#ifndef GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS
-#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 3
-#endif // GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS
-
-#ifndef GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
-#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 5000 // 5 seconds base delay for backoff
-#endif                                          // GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
-
-#ifndef GOOGLE_DRIVE_MAX_WAIT_TIME_MS
-#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 30000 // 30 seconds maximum wait time for rate limiting
-#endif                                      // GOOGLE_DRIVE_MAX_WAIT_TIME_MS
+#ifndef GOOGLE_DRIVE_CONFIG_FILEPATH
+#define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
+#endif // GOOGLE_DRIVE_CONFIG_FILEPATH
 
 #endif // USE_GOOGLE_DRIVE
-
-#ifndef GOOGLE_DRIVE_LIST_PAGE_SIZE
-#define GOOGLE_DRIVE_LIST_PAGE_SIZE 150
-#endif // GOOGLE_DRIVE_LIST_PAGE_SIZE
 
 #ifndef LOCALE
 #define LOCALE en_US

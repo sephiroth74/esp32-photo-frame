@@ -691,6 +691,57 @@ size_t sd_card::get_file_size(const char* path) const {
     return fileSize;
 }
 
+bool sd_card::is_directory(const char* path) const {
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return false;
+    }
+
+    if (!path) {
+        Serial.println("Invalid directory path provided.");
+        return false;
+    }
+
+    if(!SD.exists(path)) {
+        Serial.println("Directory does not exist.");
+        return false;
+    }
+
+    fs::File file = SD.open(path, FILE_READ);
+    if (!file) {
+        Serial.print("Failed to open directory for reading: ");
+        Serial.println(path);
+        return false;
+    }
+
+    bool isDir = file.isDirectory();
+    file.close();
+    return isDir;
+}
+
+bool sd_card::is_file(const char* path) const {
+    if (!initialized) {
+        Serial.println("SD card not initialized.");
+        return false;
+    }
+
+    if (!path) {
+        Serial.println("Invalid file path provided.");
+        return false;
+    }
+
+    fs::File file = SD.open(path, FILE_READ);
+    if (!file) {
+        Serial.print("Failed to open file for reading: ");
+        Serial.println(path);
+        return false;
+    }
+
+    bool isFile = !file.isDirectory();
+    file.close();
+    return isFile;
+}
+
 bool sd_card::create_directories(const char* path) {
     if (!initialized) {
         Serial.println(F("SD card not initialized"));

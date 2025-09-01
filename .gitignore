@@ -18,3 +18,12 @@ platformio/include/config/seeed_xiao_esp32c6.h
 platformio/include/config/arduino_nano_esp32.h
 platformio/optimizations.txt
 platformio/include/config/dfrobot_firebeetle2_esp32c6.h
+assets/scripts/PhotoFrameProcessor/
+scripts/private/assets/yolov3.weights
+platformio/.claude/
+platformio/google_drive_config.json
+android/PhotoFrameProcessor/.claude/
+android/PhotoFrameProcessor/app/build/
+platformio/toc.json
+platformio/toc.txt
+platformio/test/oauth_response.json

@@ -53,7 +53,16 @@ typedef struct {
     const char* serviceAccountEmail; ///< Service account email address
     const char* privateKeyPem;       ///< PEM-encoded private key for JWT signing
     const char* clientId;            ///< Client ID from Google Cloud Console
+    bool useInsecureTls;             ///< Whether to use insecure TLS connections
+    
+    // Rate limiting configuration
+    int rateLimitWindowSeconds;      ///< Time window for rate limiting in seconds
+    int minRequestDelayMs;           ///< Minimum delay between requests in milliseconds
+    int maxRetryAttempts;            ///< Maximum retry attempts for failed requests
+    int backoffBaseDelayMs;          ///< Base delay for exponential backoff in milliseconds
+    int maxWaitTimeMs;               ///< Maximum wait time for rate limiting in milliseconds
 } google_drive_client_config;
+
 
 typedef struct {
     char accessToken[512];    ///< Access token for Google Drive API
@@ -229,13 +238,11 @@ class google_drive_client {
      */
     const google_drive_access_token* get_access_token_value() const;
 
-#if !defined(USE_INSECURE_TLS)
     /**
      * @brief Set the root CA certificate for SSL/TLS connections
      * @param rootCA The root CA certificate in PEM format
      */
-    a void set_root_ca_certificate(const String& rootCA);
-#endif
+    void set_root_ca_certificate(const String& rootCA);
 
     /**
      * @brief Check if the current access token is expired or about to expire

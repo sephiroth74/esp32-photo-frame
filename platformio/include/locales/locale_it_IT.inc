@@ -7,6 +7,7 @@ const char* TXT_NO_SD_CARD_ATTACHED = "Nessuna scheda SD collegata";
 const char* TXT_UNKNOWN_SD_CARD_TYPE = "Tipo di scheda SD sconosciuto";
 const char* TXT_CARD_OPEN_FILE_FAILED = "Apertura del file nella scheda SD fallita";
 const char* TXT_SD_CARD_FILE_CREATE_FAILED = "Creazione del file nella scheda SD fallita";
+const char* TXT_SD_CARD_DIR_CREATE_FAILED = "Creazione della directory nella scheda SD fallita";
 const char* TXT_SD_CARD_FILE_NOT_FOUND = "File non trovato";
 const char* TXT_SD_CARD_FILE_OPEN_FAILED = "Apertura del file della scheda SD fallita";
 const char* TXT_IMAGE_FORMAT_NOT_SUPPORTED = "Formato immagine non supportato";
@@ -29,3 +30,12 @@ const char* TXT_SSL_CERTIFICATE_LOAD_FAILED = "Caricamento certificato SSL falli
 const char* TXT_RATE_LIMIT_TIMEOUT_EXCEEDED = "Timeout superato";
 const char* TXT_WIFI_CREDENTIALS_NOT_FOUND = "Credenziali WiFi non trovate";
 const char* TXT_WIFI_CONNECTION_FAILED = "Connessione WiFi fallita";
+
+// Google Drive configuration validation error messages
+const char* TXT_CONFIG_MISSING_SECTION = "Sezione di configurazione mancante";
+const char* TXT_CONFIG_MISSING_FIELD = "Campo obbligatorio mancante";
+const char* TXT_CONFIG_INVALID_EMAIL = "Formato email non valido";
+const char* TXT_CONFIG_INVALID_PEM_KEY = "Formato chiave PEM non valido";
+const char* TXT_CONFIG_INVALID_PATH = "Percorso file non valido";
+const char* TXT_CONFIG_INVALID_FILENAME = "Nome file non valido";
+const char* TXT_CONFIG_VALUE_OUT_OF_RANGE = "Valore fuori dal range consentito";
