@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 #include "board_util.h"
-#include "string_utils.h"
 #include "esp_bt.h"
+#include "string_utils.h"
 
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
 #include <esp_adc/adc_oneshot.h>
@@ -34,325 +34,297 @@ namespace photo_frame {
 
 namespace board_utils {
 
-    void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason)
-    {
-        Serial.println(F("Entering deep sleep..."));
-        disable_rgb_led(); // Disable RGB LED before going to sleep
-        disable_built_in_led(); // Disable built-in LED before going to sleep
+void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
+    Serial.println(F("Entering deep sleep..."));
+    disable_rgb_led();      // Disable RGB LED before going to sleep
+    disable_built_in_led(); // Disable built-in LED before going to sleep
 
-        Serial.println(F("Disabling peripherals..."));
-        btStop(); // Stop Bluetooth to save power
-        esp_bt_controller_disable(); // Disable Bluetooth controller
+    Serial.println(F("Disabling peripherals..."));
+    btStop();                    // Stop Bluetooth to save power
+    esp_bt_controller_disable(); // Disable Bluetooth controller
 
 // These are not valid on ESP32-C6 and ESP32-H2
 #if !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD); // Disable touchpad wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO); // Disable GPIO wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_UART); // Disable UART wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_WIFI); // Disable WiFi wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT); // Disable Bluetooth wakeup source
-#endif // !ESP32C6 && !ESP32H2
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD); // Disable touchpad wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);     // Disable GPIO wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_UART);     // Disable UART wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_WIFI);     // Disable WiFi wakeup source
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT);       // Disable Bluetooth wakeup source
+#endif                                                          // !ESP32C6 && !ESP32H2
 
 #if defined(WAKEUP_EXT1)
-        Serial.println(F("Configuring EXT1 wakeup..."));
+    Serial.println(F("Configuring EXT1 wakeup..."));
 
-        pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
-        esp_sleep_enable_ext1_wakeup(1ULL << WAKEUP_PIN, WAKEUP_LEVEL);
+    pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
+    esp_sleep_enable_ext1_wakeup(1ULL << WAKEUP_PIN, WAKEUP_LEVEL);
 #endif // WAKEUP_EXT1
 
-        bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+    bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
 #if DEBUG_MODE
-        delay_before_sleep = true;
+    delay_before_sleep = true;
 #endif
 
-        if (delay_before_sleep) {
-            Serial.println(F("Wakeup reason is undefined or debug mode is on, delaying before "
-                             "sleep..."));
-            delay(DELAY_BEFORE_SLEEP);
-        }
-
-        esp_deep_sleep_start();
+    if (delay_before_sleep) {
+        Serial.println(F("Wakeup reason is undefined or debug mode is on, delaying before "
+                         "sleep..."));
+        delay(DELAY_BEFORE_SLEEP);
     }
 
-    esp_sleep_wakeup_cause_t get_wakeup_reason()
-    {
-        esp_sleep_wakeup_cause_t wakeup_reason;
-        wakeup_reason = esp_sleep_get_wakeup_cause();
-        return wakeup_reason;
+    esp_deep_sleep_start();
+}
+
+esp_sleep_wakeup_cause_t get_wakeup_reason() {
+    esp_sleep_wakeup_cause_t wakeup_reason;
+    wakeup_reason = esp_sleep_get_wakeup_cause();
+    return wakeup_reason;
+}
+
+void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
+                              char* buffer,
+                              size_t buffer_size) {
+    switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_UNDEFINED: snprintf(buffer, buffer_size, "Undefined"); break;
+    case ESP_SLEEP_WAKEUP_EXT0:      snprintf(buffer, buffer_size, "External wakeup (EXT0)"); break;
+    case ESP_SLEEP_WAKEUP_EXT1:      snprintf(buffer, buffer_size, "External wakeup (EXT1)"); break;
+    case ESP_SLEEP_WAKEUP_TIMER:     snprintf(buffer, buffer_size, "Timer wakeup"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD:  snprintf(buffer, buffer_size, "Touchpad wakeup"); break;
+    case ESP_SLEEP_WAKEUP_ULP:       snprintf(buffer, buffer_size, "ULP wakeup"); break;
+    case ESP_SLEEP_WAKEUP_GPIO:      snprintf(buffer, buffer_size, "GPIO wakeup"); break;
+    case ESP_SLEEP_WAKEUP_UART:      snprintf(buffer, buffer_size, "UART wakeup"); break;
+    case ESP_SLEEP_WAKEUP_WIFI:      snprintf(buffer, buffer_size, "WiFi wakeup"); break;
+    case ESP_SLEEP_WAKEUP_COCPU:     snprintf(buffer, buffer_size, "COCPU wakeup"); break;
+    case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG:
+        snprintf(buffer, buffer_size, "COCPU trap trigger wakeup");
+        break;
+    case ESP_SLEEP_WAKEUP_BT: snprintf(buffer, buffer_size, "Bluetooth wakeup"); break;
+    default:                  snprintf(buffer, buffer_size, "Unknown wakeup reason");
     }
+} // get_wakeup_reason_string
 
-    void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason, char* buffer, size_t buffer_size)
-    {
-        switch (wakeup_reason) {
-        case ESP_SLEEP_WAKEUP_UNDEFINED:
-            snprintf(buffer, buffer_size, "Undefined");
-            break;
-        case ESP_SLEEP_WAKEUP_EXT0:
-            snprintf(buffer, buffer_size, "External wakeup (EXT0)");
-            break;
-        case ESP_SLEEP_WAKEUP_EXT1:
-            snprintf(buffer, buffer_size, "External wakeup (EXT1)");
-            break;
-        case ESP_SLEEP_WAKEUP_TIMER:
-            snprintf(buffer, buffer_size, "Timer wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_TOUCHPAD:
-            snprintf(buffer, buffer_size, "Touchpad wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_ULP:
-            snprintf(buffer, buffer_size, "ULP wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_GPIO:
-            snprintf(buffer, buffer_size, "GPIO wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_UART:
-            snprintf(buffer, buffer_size, "UART wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_WIFI:
-            snprintf(buffer, buffer_size, "WiFi wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_COCPU:
-            snprintf(buffer, buffer_size, "COCPU wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG:
-            snprintf(buffer, buffer_size, "COCPU trap trigger wakeup");
-            break;
-        case ESP_SLEEP_WAKEUP_BT:
-            snprintf(buffer, buffer_size, "Bluetooth wakeup");
-            break;
-        default:
-            snprintf(buffer, buffer_size, "Unknown wakeup reason");
-        }
-    } // get_wakeup_reason_string
-
-    void print_board_stats()
-    {
+void print_board_stats() {
 #if DEBUG_MODE
-        Serial.println(F("Board Statistics:"));
-        Serial.print("Heap:");
-        Serial.println(ESP.getHeapSize());
-        Serial.print("Flash: ");
-        Serial.println(ESP.getFlashChipSize());
-        Serial.print("Free Heap: ");
-        Serial.println(ESP.getFreeHeap());
-        Serial.print("Free Flash: ");
-        Serial.println(ESP.getFreeSketchSpace());
-        Serial.print("Free PSRAM: ");
-        Serial.println(ESP.getFreePsram());
-        Serial.print("Chip Model: ");
-        Serial.println(ESP.getChipModel());
-        Serial.print("Chip Revision: ");
-        Serial.println(ESP.getChipRevision());
-        Serial.print("Chip Cores: ");
-        Serial.println(ESP.getChipCores());
-        Serial.print("CPU Freq: ");
-        Serial.println(ESP.getCpuFreqMHz());
-        Serial.println("-----------------------------");
+    Serial.println(F("Board Statistics:"));
+    Serial.print("Heap:");
+    Serial.println(ESP.getHeapSize());
+    Serial.print("Flash: ");
+    Serial.println(ESP.getFlashChipSize());
+    Serial.print("Free Heap: ");
+    Serial.println(ESP.getFreeHeap());
+    Serial.print("Free Flash: ");
+    Serial.println(ESP.getFreeSketchSpace());
+    Serial.print("Free PSRAM: ");
+    Serial.println(ESP.getFreePsram());
+    Serial.print("Chip Model: ");
+    Serial.println(ESP.getChipModel());
+    Serial.print("Chip Revision: ");
+    Serial.println(ESP.getChipRevision());
+    Serial.print("Chip Cores: ");
+    Serial.println(ESP.getChipCores());
+    Serial.print("CPU Freq: ");
+    Serial.println(ESP.getCpuFreqMHz());
+    Serial.println("-----------------------------");
 #endif // DEBUG_MODE
-    } // print_board_stats
+} // print_board_stats
 
-    void disable_rgb_led()
-    {
+void disable_rgb_led() {
 #if HAS_RGB_LED
-        Serial.println(F("Disabling RGB LED..."));
-        digitalWrite(LED_BLUE, HIGH);
-        digitalWrite(LED_GREEN, HIGH);
-        digitalWrite(LED_RED, HIGH);
+    Serial.println(F("Disabling RGB LED..."));
+    digitalWrite(LED_BLUE, HIGH);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_RED, HIGH);
 #endif
-    }
+}
 
-    void toggle_rgb_led(bool red, bool green, bool blue)
-    {
+void toggle_rgb_led(bool red, bool green, bool blue) {
 #if HAS_RGB_LED && DEBUG_MODE
-        Serial.print(F("Toggling RGB LED to R: "));
-        Serial.print(red);
-        Serial.print(F(", G: "));
-        Serial.print(green);
-        Serial.print(F(", B: "));
-        Serial.println(blue);
+    Serial.print(F("Toggling RGB LED to R: "));
+    Serial.print(red);
+    Serial.print(F(", G: "));
+    Serial.print(green);
+    Serial.print(F(", B: "));
+    Serial.println(blue);
 
-        digitalWrite(LED_RED, red ? LOW : HIGH); // LOW to turn on the LED
-        digitalWrite(LED_GREEN, green ? LOW : HIGH);
-        digitalWrite(LED_BLUE, blue ? LOW : HIGH);
+    digitalWrite(LED_RED, red ? LOW : HIGH); // LOW to turn on the LED
+    digitalWrite(LED_GREEN, green ? LOW : HIGH);
+    digitalWrite(LED_BLUE, blue ? LOW : HIGH);
 #endif
+}
+
+void disable_built_in_led() {
+#if defined(LED_BUILTIN)
+    Serial.print(F("Disabling built-in LED on pin "));
+    Serial.println(LED_BUILTIN);
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW); // Disable the built-in LED
+#else
+    Serial.println(F("LED_BUILTIN is not defined! Cannot disable the built-in LED."));
+#endif
+} // disable_builtin_led
+
+void blink_builtin_led(photo_frame_error_t error) {
+#if defined(LED_BUILTIN)
+    Serial.print(F("Blinking built-in LED with error code: "));
+    Serial.print(error.code);
+    Serial.print(F(" ("));
+    Serial.print(error.message);
+    Serial.print(F(") - "));
+    Serial.print(F("Blink count: "));
+    Serial.println(error.blink_count);
+    blink_builtin_led(error.blink_count);
+#endif
+} // blink_builtin_led with error code
+
+void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
+#if defined(LED_BUILTIN)
+    Serial.print(F("Blinking built-in LED on pin "));
+    Serial.println(LED_BUILTIN);
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    for (int i = 0; i < count; i++) {
+        digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
+        delay(on_ms);
+        digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
+        delay(off_ms);
+    }
+#else
+    Serial.println(F("LED_BUILTIN is not defined! Cannot blink the built-in LED."));
+#endif
+} // blink_builtin_led
+
+void blink_rgb_led(uint32_t count,
+                   bool red,
+                   bool green,
+                   bool blue,
+                   unsigned long on_ms,
+                   unsigned long off_ms) {
+#if HAS_RGB_LED
+    Serial.print(F("Blinking RGB LED..."));
+    pinMode(LED_BLUE, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+    for (int i = 0; i < count; i++) {
+        toggle_rgb_led(red, green, blue);
+        delay(on_ms);
+        toggle_rgb_led(false, false, false);
+        delay(off_ms);
+    }
+#endif
+} // blin,_rgb_led
+
+void blink_rgb_led(photo_frame_error_t error) {
+#if HAS_RGB_LED
+    Serial.print(F("Blinking RGB LED with error code: "));
+    Serial.print(error.code);
+    Serial.print(F(" ("));
+    Serial.print(error.message);
+    Serial.print(F(") - "));
+    Serial.print(F("Blink count: "));
+    Serial.println(error.blink_count);
+
+    blink_rgb_led(error.blink_count, true, false, false);
+#endif
+} // blink_rgb_led with error code
+
+void blink_error(photo_frame_error_t error) {
+    Serial.print(F("Blinking error: "));
+    Serial.print(error.message);
+    Serial.print(F(" (Code: "));
+    Serial.print(error.code);
+    Serial.print(F(", Blink count: "));
+    Serial.print(error.blink_count);
+    Serial.println(F(")"));
+
+#if defined(LED_BUILTIN)
+    blink_builtin_led(error);
+#else
+    Serial.println(F("No built-in LED available for error indication."));
+#endif
+} // blink_error
+
+long read_refresh_seconds(bool is_battery_low) {
+    Serial.println(F("Reading potentiometer..."));
+
+    if (is_battery_low) {
+        Serial.println(F("Battery level is low, skipping potentiometer reading."));
+        return REFRESH_INTERVAL_SECONDS_LOW_BATTERY;
     }
 
-    void disable_built_in_led()
-    {
-#if defined(LED_BUILTIN)
-        Serial.print(F("Disabling built-in LED on pin "));
-        Serial.println(LED_BUILTIN);
-        pinMode(LED_BUILTIN, OUTPUT);
-        digitalWrite(LED_BUILTIN, LOW); // Disable the built-in LED
-#else
-        Serial.println(F("LED_BUILTIN is not defined! Cannot disable the built-in LED."));
-#endif
-    } // disable_builtin_led
+    // now read the level
+    pinMode(POTENTIOMETER_PWR_PIN, OUTPUT);
+    digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
 
-    void blink_builtin_led(photo_frame_error_t error)
-    {
-#if defined(LED_BUILTIN)
-        Serial.print(F("Blinking built-in LED with error code: "));
-        Serial.print(error.code);
-        Serial.print(F(" ("));
-        Serial.print(error.message);
-        Serial.print(F(") - "));
-        Serial.print(F("Blink count: "));
-        Serial.println(error.blink_count);
-        blink_builtin_led(error.blink_count);
-#endif
-    } // blink_builtin_led with error code
+    // Set ADC attenuation for better range utilization
+    analogSetPinAttenuation(POTENTIOMETER_INPUT_PIN, ADC_11db);
+    delay(100); // Wait potentiometer to stabilize
 
-    void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms)
-    {
-#if defined(LED_BUILTIN)
-        Serial.print(F("Blinking built-in LED on pin "));
-        Serial.println(LED_BUILTIN);
+    // read the potentiometer for 100ms and average the result (10 samples)
+    unsigned long level = 0;
+    for (int i = 0; i < 10; i++) {
+        level += analogRead(POTENTIOMETER_INPUT_PIN); // Read the potentiometer
+        delay(1);                                     // Wait for 1ms
+    }
+    digitalWrite(POTENTIOMETER_PWR_PIN, LOW); // Power off the level shifter
+    level /= 10;                              // Average the result
 
-        pinMode(LED_BUILTIN, OUTPUT);
-        for (int i = 0; i < count; i++) {
-            digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
-            delay(on_ms);
-            digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
-            delay(off_ms);
-        }
-#else
-        Serial.println(F("LED_BUILTIN is not defined! Cannot blink the built-in LED."));
-#endif
-    } // blink_builtin_led
+    Serial.print(F("Raw potentiometer pin reading: "));
+    Serial.println(level);
 
-    void blink_rgb_led(uint32_t count, bool red, bool green, bool blue, unsigned long on_ms, unsigned long off_ms)
-    {
-#if HAS_RGB_LED
-        Serial.print(F("Blinking RGB LED..."));
-        pinMode(LED_BLUE, OUTPUT);
-        pinMode(LED_GREEN, OUTPUT);
-        pinMode(LED_RED, OUTPUT);
-        for (int i = 0; i < count; i++) {
-            toggle_rgb_led(red, green, blue);
-            delay(on_ms);
-            toggle_rgb_led(false, false, false);
-            delay(off_ms);
-        }
-#endif
-    } // blin,_rgb_led
+    level =
+        constrain(level, 0, POTENTIOMETER_INPUT_MAX); // Constrain the level to the maximum value
 
-    void blink_rgb_led(photo_frame_error_t error)
-    {
-#if HAS_RGB_LED
-        Serial.print(F("Blinking RGB LED with error code: "));
-        Serial.print(error.code);
-        Serial.print(F(" ("));
-        Serial.print(error.message);
-        Serial.print(F(") - "));
-        Serial.print(F("Blink count: "));
-        Serial.println(error.blink_count);
+    // invert the value
+    level = POTENTIOMETER_INPUT_MAX - level;
 
-        blink_rgb_led(error.blink_count, true, false, false);
-#endif
-    } // blink_rgb_led with error code
+    Serial.print(F("Potentiometer value: "));
+    Serial.println(level);
 
-    void blink_error(photo_frame_error_t error)
-    {
-        Serial.print(F("Blinking error: "));
-        Serial.print(error.message);
-        Serial.print(F(" (Code: "));
-        Serial.print(error.code);
-        Serial.print(F(", Blink count: "));
-        Serial.print(error.blink_count);
-        Serial.println(F(")"));
+    long refresh_seconds = map(level,
+                               0,
+                               POTENTIOMETER_INPUT_MAX,
+                               REFRESH_MIN_INTERVAL_SECONDS,
+                               REFRESH_MAX_INTERVAL_SECONDS);
 
-#if defined(LED_BUILTIN)
-        blink_builtin_led(error);
-#else
-        Serial.println(F("No built-in LED available for error indication."));
-#endif
-    } // blink_error
+    char buffer[64];
+    photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
 
-    long read_refresh_seconds(bool is_battery_low)
-    {
-        Serial.println(F("Reading potentiometer..."));
+    Serial.print(F("Refresh seconds: "));
+    Serial.println(buffer);
 
-        if (is_battery_low) {
-            Serial.println(F("Battery level is low, skipping potentiometer reading."));
-            return REFRESH_INTERVAL_SECONDS_LOW_BATTERY;
-        }
+    if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS * 2)) {
+        // increase the refresh seconds to the next step
+        Serial.println(F("Increasing refresh seconds to the next step..."));
+        refresh_seconds =
+            (refresh_seconds / (long)REFRESH_STEP_SECONDS + 1) * (long)REFRESH_STEP_SECONDS;
+    }
 
-        // now read the level
-        pinMode(POTENTIOMETER_PWR_PIN, OUTPUT);
-        digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
+    Serial.print(F("Final refresh seconds: "));
+    Serial.println(refresh_seconds);
 
-        // Set ADC attenuation for better range utilization
-        analogSetPinAttenuation(POTENTIOMETER_INPUT_PIN, ADC_11db);
-        delay(100); // Wait potentiometer to stabilize
+    return refresh_seconds;
+} // read_refresh_seconds
 
-        // read the potentiometer for 100ms and average the result (10 samples)
-        unsigned long level = 0;
-        for (int i = 0; i < 10; i++) {
-            level += analogRead(POTENTIOMETER_INPUT_PIN); // Read the potentiometer
-            delay(1); // Wait for 1ms
-        }
-        digitalWrite(POTENTIOMETER_PWR_PIN, LOW); // Power off the level shifter
-        level /= 10; // Average the result
-
-        Serial.print(F("Raw potentiometer pin reading: "));
-        Serial.println(level);
-
-        level = constrain(level, 0, POTENTIOMETER_INPUT_MAX); // Constrain the level to the maximum value
-
-        // invert the value
-        level = POTENTIOMETER_INPUT_MAX - level;
-
-        Serial.print(F("Potentiometer value: "));
-        Serial.println(level);
-
-        long refresh_seconds = map(level,
-            0,
-            POTENTIOMETER_INPUT_MAX,
-            REFRESH_MIN_INTERVAL_SECONDS,
-            REFRESH_MAX_INTERVAL_SECONDS);
-
-        char buffer[64];
-        photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
-
-        Serial.print(F("Refresh seconds: "));
-        Serial.println(buffer);
-
-        if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS * 2)) {
-            // increase the refresh seconds to the next step
-            Serial.println(F("Increasing refresh seconds to the next step..."));
-            refresh_seconds = (refresh_seconds / (long)REFRESH_STEP_SECONDS + 1) * (long)REFRESH_STEP_SECONDS;
-        }
-
-        Serial.print(F("Final refresh seconds: "));
-        Serial.println(refresh_seconds);
-
-        return refresh_seconds;
-    } // read_refresh_seconds
-
-    void print_board_pins()
-    {
-        Serial.println(F("Board Pin Assignments:"));
-        Serial.print(F("LED_BUILTIN: "));
+void print_board_pins() {
+    Serial.println(F("Board Pin Assignments:"));
+    Serial.print(F("LED_BUILTIN: "));
 #ifdef LED_BUILTIN
-        Serial.println(LED_BUILTIN);
+    Serial.println(LED_BUILTIN);
 #else
-        Serial.println(F("N/A"));
+    Serial.println(F("N/A"));
 #endif
-        Serial.print(F("SDA: "));
-        Serial.println(SDA);
-        Serial.print(F("SCL: "));
-        Serial.println(SCL);
-        Serial.print(F("SCK: "));
-        Serial.println(SCK);
-        Serial.print(F("MOSI: "));
-        Serial.println(MOSI);
-        Serial.print(F("MISO: "));
-        Serial.println(MISO);
-        Serial.print(F("CS: "));
-        Serial.println(SS);
-    }
+    Serial.print(F("SDA: "));
+    Serial.println(SDA);
+    Serial.print(F("SCL: "));
+    Serial.println(SCL);
+    Serial.print(F("SCK: "));
+    Serial.println(SCK);
+    Serial.print(F("MOSI: "));
+    Serial.println(MOSI);
+    Serial.print(F("MISO: "));
+    Serial.println(MISO);
+    Serial.print(F("CS: "));
+    Serial.println(SS);
+}
 
 } // namespace board_utils
 

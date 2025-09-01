@@ -26,7 +26,7 @@
 #include "_locale.h"
 #include <Arduino.h>
 
-#define STR(x) #x
+#define STR(x)  #x
 #define XSTR(x) STR(x)
 
 /// ---- Customizable settings ----
@@ -175,8 +175,8 @@
 // When is defined, the display will use a binary files instead of regular bmp files.
 // #define EPD_USE_BINARY_FILE
 
-// Base directory for the SD card where the images are stored, based on the display type and the value of EPD_USE_BINARY_FILE
-// #define SD_DIRNAME "/bin-bw"
+// Base directory for the SD card where the images are stored, based on the display type and the
+// value of EPD_USE_BINARY_FILE #define SD_DIRNAME "/bin-bw"
 
 // Forces the display to use the debug image instead of random from toc
 // #define DEBUG_IMAGE_INDEX 381
@@ -227,17 +227,15 @@
 // -------------------------------------------
 
 // Uncomment to use Google Drive as image source
-// This will enable the use of Google Drive for image storage and retrieval, while the sd-card will be
-// only used for caching and temporary storage
-// #define USE_GOOGLE_DRIVE
+// This will enable the use of Google Drive for image storage and retrieval, while the sd-card will
+// be only used for caching and temporary storage #define USE_GOOGLE_DRIVE
 
 // Service account (from your JSON key)
 // #define GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL "your_service_account_email"
-// #define GOOGLE_DRIVE_PRIVATE_KEY_PEM "-----BEGIN PRIVATE KEY-----your_private_key-----END PRIVATE KEY-----\n"
-// #define GOOGLE_DRIVE_CLIENT_ID "client_id"
-// Drive folder to list/download from (share this folder with SERVICE_ACCOUNT_EMAIL)
-// #define GOOGLE_DRIVE_FOLDER_ID "folder_id"
-// #define GOOGLE_DRIVE_LIST_PAGE_SIZE 300
+// #define GOOGLE_DRIVE_PRIVATE_KEY_PEM "-----BEGIN PRIVATE KEY-----your_private_key-----END PRIVATE
+// KEY-----\n" #define GOOGLE_DRIVE_CLIENT_ID "client_id" Drive folder to list/download from (share
+// this folder with SERVICE_ACCOUNT_EMAIL) #define GOOGLE_DRIVE_FOLDER_ID "folder_id" #define
+// GOOGLE_DRIVE_LIST_PAGE_SIZE 300
 
 // Uncomment to use insecure TLS (not recommended)
 // #define USE_INSECURE_TLS
@@ -266,7 +264,8 @@
 
 /// ---- End ----
 
-// File extension for images on the SD card, based on the display type and the value of EPD_USE_BINARY_FILE
+// File extension for images on the SD card, based on the display type and the value of
+// EPD_USE_BINARY_FILE
 extern const char* LOCAL_FILE_EXTENSION;
 
 #ifndef LOCAL_CONFIG_FILE
@@ -275,12 +274,12 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #include XSTR(LOCAL_CONFIG_FILE)
 
-#define PREFS_NAMESPACE "photo_frame"
+#define PREFS_NAMESPACE        "photo_frame"
 
 #define MICROSECONDS_IN_SECOND 1000000
-#define SECONDS_IN_MINUTE 60
-#define SECONDS_IN_HOUR 3600
-#define SECONDS_IN_DAY 86400
+#define SECONDS_IN_MINUTE      60
+#define SECONDS_IN_HOUR        3600
+#define SECONDS_IN_DAY         86400
 
 // Maximum deep sleep duration to prevent overflow (24 hours)
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY
@@ -331,11 +330,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 // HTTP operation timeouts
 #ifndef HTTP_CONNECT_TIMEOUT
 #define HTTP_CONNECT_TIMEOUT 15000 // 15 seconds for connection
-#endif // HTTP_CONNECT_TIMEOUT
+#endif                             // HTTP_CONNECT_TIMEOUT
 
 #ifndef HTTP_REQUEST_TIMEOUT
 #define HTTP_REQUEST_TIMEOUT 30000 // 30 seconds for full request
-#endif // HTTP_REQUEST_TIMEOUT
+#endif                             // HTTP_REQUEST_TIMEOUT
 
 #ifndef NTP_SERVER1
 #define NTP_SERVER1 "pool.ntp.org"
@@ -359,8 +358,8 @@ extern const char* LOCAL_FILE_EXTENSION;
 #define ACCENT_COLOR GxEPD_RED // red for 6
 #else
 #define ACCENT_COLOR GxEPD_BLACK // default to black if no display type is defined
-#endif // DISP_BW_V2 or DISP_7C_F or DISP_6C
-#endif // ACCENT_COLOR
+#endif                           // DISP_BW_V2 or DISP_7C_F or DISP_6C
+#endif                           // ACCENT_COLOR
 
 #ifdef USE_GOOGLE_DRIVE
 
@@ -383,7 +382,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 // Google Drive API rate limiting settings
 #ifndef GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
 #define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 100 // Conservative limit (Google allows 1000/100s)
-#endif // GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
+#endif                                           // GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
 
 #ifndef GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS
 #define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 100
@@ -391,7 +390,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #ifndef GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
 #define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 500 // 500 milliseconds between requests
-#endif // GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
+#endif                                        // GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
 
 #ifndef GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS
 #define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 3
@@ -399,11 +398,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #ifndef GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
 #define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 5000 // 5 seconds base delay for backoff
-#endif // GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
+#endif                                          // GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
 
 #ifndef GOOGLE_DRIVE_MAX_WAIT_TIME_MS
 #define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 30000 // 30 seconds maximum wait time for rate limiting
-#endif // GOOGLE_DRIVE_MAX_WAIT_TIME_MS
+#endif                                      // GOOGLE_DRIVE_MAX_WAIT_TIME_MS
 
 #endif // USE_GOOGLE_DRIVE
 
@@ -466,11 +465,10 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #ifndef SD_CARD_FREE_SPACE_THRESHOLD
 #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
-#endif // SD_CARD_FREE_SPACE_THRESHOLD
+#endif                                                // SD_CARD_FREE_SPACE_THRESHOLD
 
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
 #endif // POTENTIOMETER_INPUT_MAX
-
 
 #endif // __PHOTO_FRAME_CONFIG_H__

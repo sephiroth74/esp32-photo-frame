@@ -25,11 +25,10 @@
 namespace photo_frame {
 
 photo_frame_error_t scan_directory(uint32_t* index,
-    sd_card_entry* file_entry,
-    const char* path,
-    const char* extension,
-    uint32_t& current_index)
-{
+                                   sd_card_entry* file_entry,
+                                   const char* path,
+                                   const char* extension,
+                                   uint32_t& current_index) {
     Serial.print("scan_directory | path: ");
     Serial.print(path);
     Serial.print(", ext: ");
@@ -40,7 +39,7 @@ photo_frame_error_t scan_directory(uint32_t* index,
     Serial.print(*index);
     Serial.println();
 
-    bool found = false;
+    bool found    = false;
     fs::File root = SD.open(path, FILE_READ); // Open the root directory
 
     if (!root) {
@@ -78,12 +77,12 @@ photo_frame_error_t scan_directory(uint32_t* index,
             }
 
             if (current_index == *index) {
-                file_entry->name = file_name.c_str();
-                file_entry->path = entry.c_str();
+                file_entry->name  = file_name.c_str();
+                file_entry->path  = entry.c_str();
                 file_entry->index = current_index;
 
-                *index = current_index;
-                found = true;
+                *index            = current_index;
+                found             = true;
                 break;
             }
 
@@ -99,8 +98,7 @@ photo_frame_error_t scan_directory(uint32_t* index,
     }
 } // end scan_directory
 
-photo_frame_error_t sd_card::begin()
-{
+photo_frame_error_t sd_card::begin() {
     if (initialized) {
         Serial.println("SD card already initialized.");
         return error_type::None;
@@ -154,8 +152,7 @@ photo_frame_error_t sd_card::begin()
     return error_type::None;
 } // end begin
 
-void sd_card::end()
-{
+void sd_card::end() {
     Serial.println("Ending SD card...");
     if (initialized) {
         SD.end();
@@ -170,8 +167,7 @@ void sd_card::end()
     }
 } // end end
 
-void sd_card::print_stats() const
-{
+void sd_card::print_stats() const {
     if (!initialized) {
         Serial.println("SD card not initialized.");
         return;
@@ -179,24 +175,12 @@ void sd_card::print_stats() const
     Serial.print("Card Type: ");
 
     switch (cardType) {
-    case CARD_MMC:
-        Serial.println("MMC");
-        break;
-    case CARD_SD:
-        Serial.println("SDSC");
-        break;
-    case CARD_SDHC:
-        Serial.println("SDHC");
-        break;
-    case CARD_UNKNOWN:
-        Serial.println("Unknown");
-        break;
-    case CARD_NONE:
-        Serial.println("No SD card attached!");
-        break;
-    default:
-        Serial.println("Unknown card type!");
-        break;
+    case CARD_MMC:     Serial.println("MMC"); break;
+    case CARD_SD:      Serial.println("SDSC"); break;
+    case CARD_SDHC:    Serial.println("SDHC"); break;
+    case CARD_UNKNOWN: Serial.println("Unknown"); break;
+    case CARD_NONE:    Serial.println("No SD card attached!"); break;
+    default:           Serial.println("Unknown card type!"); break;
     }
 
     Serial.print("Card Size: ");
@@ -210,8 +194,7 @@ void sd_card::print_stats() const
     Serial.println(" MB");
 } // end printStats
 
-time_t sd_card::get_last_modified(const char* path) const
-{
+time_t sd_card::get_last_modified(const char* path) const {
     if (!initialized) {
         return 0; // Return 0 if SD card is not initialized
     }
@@ -224,8 +207,7 @@ time_t sd_card::get_last_modified(const char* path) const
     return lastModified;
 }
 
-time_t sd_card::get_file_age(const char* path) const
-{
+time_t sd_card::get_file_age(const char* path) const {
     time_t lastModified = get_last_modified(path);
     if (lastModified == 0) {
         return 0; // Return 0 if file cannot be accessed
@@ -234,8 +216,7 @@ time_t sd_card::get_file_age(const char* path) const
 }
 
 photo_frame_error_t
-sd_card::find_next_image(uint32_t* index, const char* extension, sd_card_entry* file_entry) const
-{
+sd_card::find_next_image(uint32_t* index, const char* extension, sd_card_entry* file_entry) const {
     Serial.print("read_next_image | index: ");
     Serial.print(*index);
     Serial.print(", ext: ");
@@ -256,7 +237,7 @@ sd_card::find_next_image(uint32_t* index, const char* extension, sd_card_entry* 
             Serial.println("No more files in directory");
             Serial.println("Resetting index to 0 and try again");
 
-            *index = 0;
+            *index        = 0;
             current_index = 0;
             return scan_directory(index, file_entry, "/", extension, current_index);
         }
@@ -264,8 +245,7 @@ sd_card::find_next_image(uint32_t* index, const char* extension, sd_card_entry* 
     return error_type::None;
 } // end findNextImage
 
-void sd_card::list_files(const char* extension) const
-{
+void sd_card::list_files(const char* extension) const {
     if (!extension || strlen(extension) == 0 || extension[0] != '.') {
         Serial.println("Invalid extension provided");
         return;
@@ -286,11 +266,12 @@ void sd_card::list_files(const char* extension) const
     }
 
     uint32_t fileCount = 1;
-    String entry = root.getNextFileName();
+    String entry       = root.getNextFileName();
     while (entry.length() > 0) {
         String file_name = entry.substring(entry.lastIndexOf('/') + 1);
 
-        if (file_name.endsWith(extension) && !file_name.startsWith("/") && !file_name.startsWith(".")) {
+        if (file_name.endsWith(extension) && !file_name.startsWith("/") &&
+            !file_name.startsWith(".")) {
             Serial.print(fileCount);
             Serial.print(") entry: ");
             Serial.println(file_name);
@@ -302,8 +283,7 @@ void sd_card::list_files(const char* extension) const
     root.close();
 } // end listFiles
 
-bool sd_card::file_exists(const char* path) const
-{
+bool sd_card::file_exists(const char* path) const {
     Serial.print("file_exists | path: ");
     Serial.println(path);
 
@@ -320,8 +300,7 @@ bool sd_card::file_exists(const char* path) const
     return SD.exists(path);
 } // end fileExists
 
-String sd_card::get_toc_file_path(uint32_t index, const char* toc_file_name) const
-{
+String sd_card::get_toc_file_path(uint32_t index, const char* toc_file_name) const {
     Serial.print("get_toc_file_path | index: ");
     Serial.println(index);
 
@@ -366,10 +345,9 @@ String sd_card::get_toc_file_path(uint32_t index, const char* toc_file_name) con
 } // end getTocFilePath
 
 photo_frame_error_t sd_card::write_images_toc(uint32_t* total_files,
-    const char* toc_file_name,
-    const char* root_dir,
-    const char* extension) const
-{
+                                              const char* toc_file_name,
+                                              const char* root_dir,
+                                              const char* extension) const {
     Serial.print("write_images_toc | toc_file_name: ");
     Serial.print(toc_file_name);
     Serial.print(", root_dir: ");
@@ -411,12 +389,13 @@ photo_frame_error_t sd_card::write_images_toc(uint32_t* total_files,
     }
 
     unsigned long start_time = millis();
-    uint32_t file_count = 0;
-    bool is_dir = false;
-    String entry = root.getNextFileName(&is_dir);
+    uint32_t file_count      = 0;
+    bool is_dir              = false;
+    String entry             = root.getNextFileName(&is_dir);
     while (entry && !entry.isEmpty()) {
         String file_name = entry.substring(entry.lastIndexOf('/') + 1);
-        if (!is_dir && file_name.endsWith(extension) && !file_name.startsWith("/") && !file_name.startsWith(".")) {
+        if (!is_dir && file_name.endsWith(extension) && !file_name.startsWith("/") &&
+            !file_name.startsWith(".")) {
 #if DEBUG_MODE
             Serial.print("[");
             Serial.print(file_count + 1);
@@ -446,8 +425,7 @@ photo_frame_error_t sd_card::write_images_toc(uint32_t* total_files,
     return photo_frame::error_type::None;
 }
 
-uint32_t sd_card::count_files(const char* extension) const
-{
+uint32_t sd_card::count_files(const char* extension) const {
     Serial.print("count_files | extension: ");
     Serial.println(extension);
 
@@ -464,18 +442,19 @@ uint32_t sd_card::count_files(const char* extension) const
     }
 
     uint32_t count = 0;
-    File root = SD.open("/", FILE_READ);
+    File root      = SD.open("/", FILE_READ);
     if (!root) {
         Serial.println("Failed to open root directory");
         return count;
     }
 
     auto start_time = millis();
-    bool is_dir = false;
-    String path = root.getNextFileName(&is_dir);
+    bool is_dir     = false;
+    String path     = root.getNextFileName(&is_dir);
     while (path && !path.isEmpty()) {
         String file_name = path.substring(path.lastIndexOf('/') + 1);
-        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") && path.endsWith(extension)) {
+        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") &&
+            path.endsWith(extension)) {
             count++;
         }
         path = root.getNextFileName(&is_dir);
@@ -489,8 +468,7 @@ uint32_t sd_card::count_files(const char* extension) const
     return count;
 } // end getFileCount
 
-fs::File sd_card::open(const char* path, const char* mode)
-{
+fs::File sd_card::open(const char* path, const char* mode) {
     Serial.print("sd_card::open | path: ");
     Serial.print(path);
     Serial.print(", mode: ");
@@ -505,8 +483,7 @@ fs::File sd_card::open(const char* path, const char* mode)
     return file;
 } // end open
 
-bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite)
-{
+bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite) {
     Serial.print("sd_card::rename | pathFrom: ");
     Serial.print(pathFrom);
     Serial.print(", pathTo: ");
@@ -545,8 +522,7 @@ bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite)
     }
 }
 
-bool sd_card::cleanup_dir(const char* path)
-{
+bool sd_card::cleanup_dir(const char* path) {
     Serial.print("sd_card::cleanup_dir | path: ");
     Serial.println(path);
 
@@ -571,22 +547,22 @@ bool sd_card::cleanup_dir(const char* path)
         return false;
     }
 
-    if(!dir.isDirectory()) {
+    if (!dir.isDirectory()) {
         Serial.println("Provided path is not a directory.");
         return false;
     }
 
     bool allRemoved = true;
-    bool isDir = false;
-    String entry = dir.getNextFileName(&isDir);
-    
+    bool isDir      = false;
+    String entry    = dir.getNextFileName(&isDir);
+
     while (entry && !entry.isEmpty()) {
         Serial.print("Processing entry: ");
         Serial.print(entry);
         Serial.print(" (isDir: ");
         Serial.print(isDir);
         Serial.println(")");
-        
+
         if (isDir) {
             // Recursively cleanup and remove subdirectory
             if (!cleanup_dir(entry.c_str())) {
@@ -609,12 +585,12 @@ bool sd_card::cleanup_dir(const char* path)
                 allRemoved = false;
             }
         }
-        
+
         entry = dir.getNextFileName(&isDir);
     }
-    
+
     dir.close();
-    
+
     if (!allRemoved) {
         Serial.println("Not all files/directories could be removed during cleanup.");
         return false;
@@ -624,8 +600,7 @@ bool sd_card::cleanup_dir(const char* path)
     return true;
 }
 
-bool sd_card::rmdir(const char* path)
-{
+bool sd_card::rmdir(const char* path) {
     Serial.print("sd_card::rmdir | path: ");
     Serial.println(path);
 
@@ -660,8 +635,7 @@ bool sd_card::rmdir(const char* path)
     }
 }
 
-bool sd_card::remove(const char* path)
-{
+bool sd_card::remove(const char* path) {
     Serial.print("sd_card::remove | path: ");
     Serial.println(path);
 
@@ -677,7 +651,7 @@ bool sd_card::remove(const char* path)
 
     if (!SD.exists(path)) {
         Serial.println("File does not exist, nothing to remove.");
-        return true;  // Consider it successful if file doesn't exist
+        return true; // Consider it successful if file doesn't exist
     }
 
     if (SD.remove(path)) {
@@ -689,8 +663,7 @@ bool sd_card::remove(const char* path)
     }
 }
 
-size_t sd_card::get_file_size(const char* path) const
-{
+size_t sd_card::get_file_size(const char* path) const {
     if (!initialized) {
         Serial.println("SD card not initialized.");
         return 0;
@@ -702,7 +675,7 @@ size_t sd_card::get_file_size(const char* path) const
     }
 
     if (!SD.exists(path)) {
-        return 0;  // File doesn't exist
+        return 0; // File doesn't exist
     }
 
     fs::File file = SD.open(path, FILE_READ);
@@ -714,7 +687,7 @@ size_t sd_card::get_file_size(const char* path) const
 
     size_t fileSize = file.size();
     file.close();
-    
+
     return fileSize;
 }
 
@@ -723,49 +696,49 @@ bool sd_card::create_directories(const char* path) {
         Serial.println(F("SD card not initialized"));
         return false;
     }
-    
+
     if (!path || strlen(path) == 0) {
         return true; // Empty path is considered success
     }
-    
+
     String dirPath = String(path);
-    
+
     // Remove trailing slash if present
     if (dirPath.endsWith("/")) {
         dirPath = dirPath.substring(0, dirPath.length() - 1);
     }
-    
+
     // If directory already exists, return success
     if (SD.exists(dirPath.c_str())) {
         return true;
     }
-    
+
     // Split path into components and create each directory level
     String currentPath = "";
-    int start = 0;
+    int start          = 0;
     if (dirPath.startsWith("/")) {
-        start = 1; // Skip leading slash
+        start       = 1; // Skip leading slash
         currentPath = "/";
     }
-    
+
     while (start < dirPath.length()) {
         int end = dirPath.indexOf('/', start);
         if (end == -1) {
             end = dirPath.length();
         }
-        
+
         String dirName = dirPath.substring(start, end);
         if (dirName.length() > 0) {
             if (currentPath != "/" && !currentPath.endsWith("/")) {
                 currentPath += "/";
             }
             currentPath += dirName;
-            
+
             // Check if this directory level exists
             if (!SD.exists(currentPath.c_str())) {
                 Serial.print(F("Creating directory: "));
                 Serial.println(currentPath);
-                
+
                 if (!SD.mkdir(currentPath.c_str())) {
                     Serial.print(F("Failed to create directory: "));
                     Serial.println(currentPath);
@@ -773,15 +746,14 @@ bool sd_card::create_directories(const char* path) {
                 }
             }
         }
-        
+
         start = end + 1;
     }
-    
+
     return true;
 }
 
-uint64_t sd_card::total_bytes() const
-{
+uint64_t sd_card::total_bytes() const {
     if (!initialized) {
         Serial.println("SD card not initialized.");
         return 0;
@@ -790,8 +762,7 @@ uint64_t sd_card::total_bytes() const
     return SD.totalBytes();
 }
 
-uint64_t sd_card::used_bytes() const
-{
+uint64_t sd_card::used_bytes() const {
     if (!initialized) {
         Serial.println("SD card not initialized.");
         return 0;
@@ -800,8 +771,7 @@ uint64_t sd_card::used_bytes() const
     return SD.usedBytes();
 }
 
-uint64_t sd_card::card_size() const
-{
+uint64_t sd_card::card_size() const {
     if (!initialized) {
         Serial.println("SD card not initialized.");
         return 0;

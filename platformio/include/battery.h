@@ -23,9 +23,9 @@
 #ifndef __BATTERY_READER_H__
 #define __BATTERY_READER_H__
 
+#include "config.h"
 #include <Arduino.h>
 #include <stdint.h>
-#include "config.h"
 
 namespace photo_frame {
 
@@ -38,45 +38,43 @@ uint8_t calc_battery_percentage(uint32_t v);
 
 /**
  * @brief Structure representing a battery voltage-to-percentage mapping step.
- * 
+ *
  * This structure is used to define the relationship between battery voltage
  * and percentage levels for accurate battery level calculation.
  */
 typedef struct battery_step {
-    uint8_t percent;    ///< Battery percentage (0-100)
-    uint16_t voltage;   ///< Corresponding voltage in millivolts
+    uint8_t percent;  ///< Battery percentage (0-100)
+    uint16_t voltage; ///< Corresponding voltage in millivolts
 
     /**
      * @brief Constructor for battery_step.
      * @param percent Battery percentage (0-100)
      * @param voltage Corresponding voltage in millivolts
      */
-    constexpr battery_step(uint16_t percent, uint16_t voltage)
-        : percent(percent)
-        , voltage(voltage)
-    {
-    }
+    constexpr battery_step(uint16_t percent, uint16_t voltage) :
+        percent(percent),
+        voltage(voltage) {}
 } battery_step_t;
 
 /**
  * @brief Structure containing comprehensive battery information.
- * 
+ *
  * This structure holds all relevant battery data including voltage, percentage,
  * and charging status. The structure adapts based on whether the MAX1704X sensor
  * is being used or analog voltage reading is employed.
  */
 typedef struct battery_info {
-public:
+  public:
 #ifdef USE_SENSOR_MAX1704X
-    float cell_voltage;     ///< Battery cell voltage in volts (MAX1704X sensor)
-    float charge_rate;      ///< Battery charge rate in mA (MAX1704X sensor)
-    float percent;          ///< Battery percentage (0-100)
-    uint32_t millivolts;    ///< Battery voltage in millivolts
+    float cell_voltage;  ///< Battery cell voltage in volts (MAX1704X sensor)
+    float charge_rate;   ///< Battery charge rate in mA (MAX1704X sensor)
+    float percent;       ///< Battery percentage (0-100)
+    uint32_t millivolts; ///< Battery voltage in millivolts
 #else
-    uint32_t raw_value;         ///< Raw ADC reading value
-    uint32_t raw_millivolts;    ///< Raw voltage reading in millivolts
-    uint32_t millivolts;        ///< Corrected battery voltage in millivolts
-    float percent;              ///< Battery percentage (0-100)
+    uint32_t raw_value;      ///< Raw ADC reading value
+    uint32_t raw_millivolts; ///< Raw voltage reading in millivolts
+    uint32_t millivolts;     ///< Corrected battery voltage in millivolts
+    float percent;           ///< Battery percentage (0-100)
 #endif
 
 #ifdef USE_SENSOR_MAX1704X
@@ -86,39 +84,32 @@ public:
      * @param charge_rate Battery charge rate in mA
      * @param percent Battery percentage (0-100)
      */
-    constexpr battery_info(float cell_voltage, float charge_rate, float percent)
-        : cell_voltage(cell_voltage)
-        , charge_rate(charge_rate)
-        , percent(percent)
-        , millivolts(static_cast<uint32_t>(cell_voltage * 1000))
-    {
-    }
+    constexpr battery_info(float cell_voltage, float charge_rate, float percent) :
+        cell_voltage(cell_voltage),
+        charge_rate(charge_rate),
+        percent(percent),
+        millivolts(static_cast<uint32_t>(cell_voltage * 1000)) {}
 
     /**
      * @brief Default constructor initializing all values to zero.
      */
-    constexpr battery_info()
-        : battery_info(0.0f, 0.0f, 0.0f)
-    {
-    }
+    constexpr battery_info() : battery_info(0.0f, 0.0f, 0.0f) {}
 
     /**
      * @brief Constructor from battery_step_t for MAX1704X sensor.
      * @param step Battery step containing voltage and percentage data
      */
-    constexpr battery_info(const battery_step_t& step)
-        : battery_info(step.voltage / 1000.0f, 0.0f, step.percent)
-    {
-    }
+    constexpr battery_info(const battery_step_t& step) :
+        battery_info(step.voltage / 1000.0f, 0.0f, step.percent) {}
 
     /**
      * @brief Equality operator for battery_info comparison.
      * @param other Another battery_info instance to compare with
      * @return True if both instances are equal, false otherwise
      */
-    constexpr bool operator==(const battery_info& other) const
-    {
-        return (cell_voltage == other.cell_voltage && charge_rate == other.charge_rate && percent == other.percent);
+    constexpr bool operator==(const battery_info& other) const {
+        return (cell_voltage == other.cell_voltage && charge_rate == other.charge_rate &&
+                percent == other.percent);
     }
 
     /**
@@ -141,45 +132,38 @@ public:
      * @param millivolts Corrected battery voltage in millivolts
      * @param percent Battery percentage (0-100)
      */
-    constexpr battery_info(uint32_t raw_value, uint32_t raw_millivolts, uint32_t millivolts, float percent)
-        : raw_value(raw_value)
-        , raw_millivolts(raw_millivolts)
-        , millivolts(millivolts)
-        , percent(percent)
-    {
-    }
+    constexpr battery_info(uint32_t raw_value,
+                           uint32_t raw_millivolts,
+                           uint32_t millivolts,
+                           float percent) :
+        raw_value(raw_value),
+        raw_millivolts(raw_millivolts),
+        millivolts(millivolts),
+        percent(percent) {}
 
     /**
      * @brief Default constructor initializing all values to zero.
      */
-    constexpr battery_info()
-        : raw_value(0)
-        , raw_millivolts(0)
-        , millivolts(0)
-        , percent(0)
-    {
-    }
+    constexpr battery_info() : raw_value(0), raw_millivolts(0), millivolts(0), percent(0) {}
 
     /**
      * @brief Constructor from battery_step_t for analog reading.
      * @param step Battery step containing voltage and percentage data
      */
-    constexpr battery_info(const battery_step_t& step)
-        : raw_value(step.voltage)
-        , raw_millivolts(step.voltage)
-        , millivolts(step.voltage)
-        , percent(step.percent)
-    {
-    }
+    constexpr battery_info(const battery_step_t& step) :
+        raw_value(step.voltage),
+        raw_millivolts(step.voltage),
+        millivolts(step.voltage),
+        percent(step.percent) {}
 
     /**
      * @brief Equality operator for battery_info comparison.
      * @param other Another battery_info instance to compare with
      * @return True if both instances are equal, false otherwise
      */
-    constexpr bool operator==(const battery_info& other) const
-    {
-        return (raw_millivolts == other.raw_millivolts && millivolts == other.millivolts && percent == other.percent);
+    constexpr bool operator==(const battery_info& other) const {
+        return (raw_millivolts == other.raw_millivolts && millivolts == other.millivolts &&
+                percent == other.percent);
     }
 
     /**
@@ -224,7 +208,7 @@ public:
 
 /**
  * @brief Battery voltage to percentage mapping steps.
- * 
+ *
  * This array defines the relationship between battery voltage (in millivolts)
  * and corresponding percentage levels. Used for accurate battery level calculation
  * based on voltage readings.
@@ -236,18 +220,18 @@ extern const uint8_t total_steps;
 
 /**
  * @brief Battery reader class for monitoring battery voltage and percentage.
- * 
+ *
  * This class provides functionality to read battery information using either
  * the MAX1704X sensor or analog voltage divider circuit. It handles initialization,
  * voltage reading, and percentage calculation.
  */
 class battery_reader {
-public:
+  public:
 #ifndef USE_SENSOR_MAX1704X
-    uint8_t pin;                        ///< Analog pin for battery voltage reading
-    double resistor_ratio;              ///< Voltage divider ratio (R1/(R1+R2))
-    uint8_t num_readings;               ///< Number of readings to average
-    uint32_t delay_between_readings;    ///< Delay between readings in milliseconds
+    uint8_t pin;                     ///< Analog pin for battery voltage reading
+    double resistor_ratio;           ///< Voltage divider ratio (R1/(R1+R2))
+    uint8_t num_readings;            ///< Number of readings to average
+    uint32_t delay_between_readings; ///< Delay between readings in milliseconds
 
     /**
      * @brief Constructor for analog battery reader.
@@ -257,28 +241,26 @@ public:
      * @param delay Delay between readings in milliseconds
      */
     constexpr battery_reader(uint8_t pin,
-        double resistor_ratio,
-        uint8_t num_readings,
-        uint32_t delay)
-        : pin(pin)
-        , resistor_ratio(resistor_ratio)
-        , num_readings(num_readings)
-        , delay_between_readings(delay)
-    {
-    }
+                             double resistor_ratio,
+                             uint8_t num_readings,
+                             uint32_t delay) :
+        pin(pin),
+        resistor_ratio(resistor_ratio),
+        num_readings(num_readings),
+        delay_between_readings(delay) {}
 
 #else
     /**
      * @brief Constructor for MAX1704X sensor battery reader.
      * No parameters needed as the sensor handles everything internally.
      */
-    constexpr battery_reader() { }
+    constexpr battery_reader() {}
 
 #endif // USE_SENSOR_MAX1704X
 
     /**
      * @brief Initializes the battery reader.
-     * 
+     *
      * For analog reading: Sets the pin mode and ADC attenuation.
      * For MAX1704X sensor: Initializes the I2C communication and sensor.
      */
@@ -286,10 +268,10 @@ public:
 
     /**
      * @brief Reads the current battery information.
-     * 
+     *
      * Performs battery voltage reading and calculates percentage based on
      * the configured method (analog or MAX1704X sensor).
-     * 
+     *
      * @return battery_info_t structure containing voltage, percentage, and status
      */
     battery_info_t read() const;

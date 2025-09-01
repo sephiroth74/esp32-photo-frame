@@ -28,75 +28,37 @@ namespace photo_frame {
 
 namespace rtc_utils {
 
-    DateTime fetch_remote_datetime(wifi_manager& wifiManager, photo_frame_error_t* error)
-    {
-        if (!wifiManager.is_connected()) {
-            *error = wifiManager.connect();
-            if (error && *error != error_type::None) {
-                Serial.println(F("Failed to connect to WiFi!"));
-                return DateTime();
-            }
+DateTime fetch_remote_datetime(wifi_manager& wifiManager, photo_frame_error_t* error) {
+    if (!wifiManager.is_connected()) {
+        *error = wifiManager.connect();
+        if (error && *error != error_type::None) {
+            Serial.println(F("Failed to connect to WiFi!"));
+            return DateTime();
         }
-        return wifiManager.fetch_datetime(error);
     }
+    return wifiManager.fetch_datetime(error);
+}
 
-    DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error_t* error)
-    {
-        Serial.print("Initializing RTC, reset: ");
-        Serial.println(reset ? "true" : "false");
+DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error_t* error) {
+    Serial.print("Initializing RTC, reset: ");
+    Serial.println(reset ? "true" : "false");
 
-        DateTime now;
-        RTC_DS3231 rtc;
+    DateTime now;
+    RTC_DS3231 rtc;
 
 #ifdef USE_RTC
 
 #if RTC_POWER_PIN > -1
-        pinMode(RTC_POWER_PIN, OUTPUT);
-        digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
-        delay(2000); // Wait for RTC to power up
+    pinMode(RTC_POWER_PIN, OUTPUT);
+    digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
+    delay(2000);                       // Wait for RTC to power up
 #endif
 
-        Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
+    Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
 
-        if (!rtc.begin(&Wire)) {
-            // set the error if provided
-            Serial.println(F("Couldn't find RTC"));
-            now = fetch_remote_datetime(wifiManager, error);
-            if (!now.isValid() || (error && *error != error_type::None)) {
-                Serial.println(F("Failed to fetch time from WiFi!"));
-                if (error) {
-                    *error = error_type::RTCInitializationFailed;
-                }
-            }
-
-        } else {
-            Serial.println(F("RTC initialized successfully!"));
-            rtc.disable32K();
-            if (rtc.lostPower() || reset) {
-                // Set the time to a default value if the RTC lost power
-                Serial.println(F("RTC lost power (or force is true), setting the time!"));
-
-                now = fetch_remote_datetime(wifiManager, error);
-                if (error && *error != error_type::None) {
-                    Serial.println(F("Failed to fetch time from WiFi!"));
-                    Serial.println(F("Using compile time as fallback"));
-                    now = DateTime(__DATE__, __TIME__); // Use compile time as a fallback
-                    rtc.adjust(now);
-                } else {
-                    rtc.adjust(now);
-                }
-            } else {
-                Serial.println(F("RTC is running!"));
-                now = rtc.now();
-            }
-        }
-
-#if RTC_POWER_PIN > -1
-        digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
-#endif
-
-#else
-        Serial.println(F("RTC module is not used, fetching time from WiFi..."));
+    if (!rtc.begin(&Wire)) {
+        // set the error if provided
+        Serial.println(F("Couldn't find RTC"));
         now = fetch_remote_datetime(wifiManager, error);
         if (!now.isValid() || (error && *error != error_type::None)) {
             Serial.println(F("Failed to fetch time from WiFi!"));
@@ -104,22 +66,57 @@ namespace rtc_utils {
                 *error = error_type::RTCInitializationFailed;
             }
         }
+
+    } else {
+        Serial.println(F("RTC initialized successfully!"));
+        rtc.disable32K();
+        if (rtc.lostPower() || reset) {
+            // Set the time to a default value if the RTC lost power
+            Serial.println(F("RTC lost power (or force is true), setting the time!"));
+
+            now = fetch_remote_datetime(wifiManager, error);
+            if (error && *error != error_type::None) {
+                Serial.println(F("Failed to fetch time from WiFi!"));
+                Serial.println(F("Using compile time as fallback"));
+                now = DateTime(__DATE__, __TIME__); // Use compile time as a fallback
+                rtc.adjust(now);
+            } else {
+                rtc.adjust(now);
+            }
+        } else {
+            Serial.println(F("RTC is running!"));
+            now = rtc.now();
+        }
+    }
+
+#if RTC_POWER_PIN > -1
+    digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
 #endif
-        return now;
+
+#else
+    Serial.println(F("RTC module is not used, fetching time from WiFi..."));
+    now = fetch_remote_datetime(wifiManager, error);
+    if (!now.isValid() || (error && *error != error_type::None)) {
+        Serial.println(F("Failed to fetch time from WiFi!"));
+        if (error) {
+            *error = error_type::RTCInitializationFailed;
+        }
     }
+#endif
+    return now;
+}
 
-    void format_date_time(time_t time, char* buffer, const uint8_t buffer_size, const char* format)
-    {
-        struct tm* tm_info = localtime(&time);
-        memset(buffer, 0, buffer_size);
+void format_date_time(time_t time, char* buffer, const uint8_t buffer_size, const char* format) {
+    struct tm* tm_info = localtime(&time);
+    memset(buffer, 0, buffer_size);
 
-        Serial.print("Size of buffer: ");
-        Serial.println(buffer_size);
+    Serial.print("Size of buffer: ");
+    Serial.println(buffer_size);
 
-        strftime(buffer, buffer_size, format, tm_info);
-    }
+    strftime(buffer, buffer_size, format, tm_info);
+}
 
-    // format_date_time
+// format_date_time
 
 } // namespace rtc_utils
 

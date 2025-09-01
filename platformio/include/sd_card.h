@@ -40,20 +40,15 @@ namespace photo_frame {
  * utility methods for string representation and validity checking.
  */
 class sd_card_entry {
-public:
-    String name; ///< Name of the file (without path)
-    String path; ///< Full path to the file on the SD card
+  public:
+    String name;    ///< Name of the file (without path)
+    String path;    ///< Full path to the file on the SD card
     uint32_t index; ///< Index of this entry within a collection
 
     /**
      * @brief Default constructor creating an empty entry.
      */
-    sd_card_entry()
-        : name("")
-        , path("")
-        , index(0)
-    {
-    }
+    sd_card_entry() : name(""), path(""), index(0) {}
 
     /**
      * @brief Constructor with file information.
@@ -61,12 +56,10 @@ public:
      * @param path Full path to the file on the SD card
      * @param index Index of this entry within a collection
      */
-    sd_card_entry(const char* name, const char* path, uint32_t index)
-        : name(name)
-        , path(path)
-        , index(index)
-    {
-    }
+    sd_card_entry(const char* name, const char* path, uint32_t index) :
+        name(name),
+        path(path),
+        index(index) {}
 
     /**
      * @brief Converts the entry to a string representation.
@@ -89,18 +82,18 @@ public:
  * operations. It supports both HSPI and standard SPI configurations.
  */
 class sd_card {
-private:
+  private:
 #ifdef USE_HSPI_FOR_SD
-    SPIClass hspi; ///< SPI object for SD card when using HSPI
-#endif // USE_HSPI_FOR_SD
-    bool initialized; ///< Flag indicating if SD card is initialized
-    uint8_t csPin; ///< Chip select pin for SD card
-    uint8_t misoPin; ///< MISO (Master In, Slave Out) pin
-    uint8_t mosiPin; ///< MOSI (Master Out, Slave In) pin
-    uint8_t sckPin; ///< Serial clock pin
+    SPIClass hspi;          ///< SPI object for SD card when using HSPI
+#endif                      // USE_HSPI_FOR_SD
+    bool initialized;       ///< Flag indicating if SD card is initialized
+    uint8_t csPin;          ///< Chip select pin for SD card
+    uint8_t misoPin;        ///< MISO (Master In, Slave Out) pin
+    uint8_t mosiPin;        ///< MOSI (Master Out, Slave In) pin
+    uint8_t sckPin;         ///< Serial clock pin
     sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
-public:
+  public:
     /**
      * @brief Constructor for sd_card with configurable pins.
      * @param csPin Chip select pin (default from config)
@@ -108,26 +101,28 @@ public:
      * @param mosiPin MOSI pin (default from config)
      * @param sckPin Serial clock pin (default from config)
      */
-    sd_card(uint8_t csPin = SD_CS_PIN,
-        uint8_t misoPin = SD_MISO_PIN,
-        uint8_t mosiPin = SD_MOSI_PIN,
-        uint8_t sckPin = SD_SCK_PIN)
+    sd_card(uint8_t csPin   = SD_CS_PIN,
+            uint8_t misoPin = SD_MISO_PIN,
+            uint8_t mosiPin = SD_MOSI_PIN,
+            uint8_t sckPin  = SD_SCK_PIN)
 #ifdef USE_HSPI_FOR_SD
-        : hspi(HSPI)
-        , initialized(false)
+        :
+        hspi(HSPI),
+        initialized(false)
 #else
-        : initialized(false)
+        :
+        initialized(false)
 #endif // USE_HSPI_FOR_SD
-        , csPin(csPin)
-        , misoPin(misoPin)
-        , mosiPin(mosiPin)
-        , sckPin(sckPin)
-        , cardType(CARD_UNKNOWN)
-    {
+        ,
+        csPin(csPin),
+        misoPin(misoPin),
+        mosiPin(mosiPin),
+        sckPin(sckPin),
+        cardType(CARD_UNKNOWN) {
     }
 
     // Disable copy constructor and assignment operator
-    sd_card(const sd_card&) = delete;
+    sd_card(const sd_card&)            = delete;
     sd_card& operator=(const sd_card&) = delete;
 
     /**
@@ -158,8 +153,7 @@ public:
      * @return sdcard_type_t representing the type of the SD card.
      * If the SD card is not initialized, it returns CARD_NONE.
      */
-    sdcard_type_t get_card_type() const
-    {
+    sdcard_type_t get_card_type() const {
         if (!initialized) {
             return CARD_NONE;
         }
@@ -172,28 +166,15 @@ public:
      * Outputs a human-readable description of the detected SD card type
      * (MMC, SDSC, SDHC, etc.) for debugging and informational purposes.
      */
-    void print_card_type() const
-    {
+    void print_card_type() const {
         Serial.print("Card Type: ");
         switch (cardType) {
-        case CARD_MMC:
-            Serial.println("MMC");
-            break;
-        case CARD_SD:
-            Serial.println("SDSC");
-            break;
-        case CARD_SDHC:
-            Serial.println("SDHC");
-            break;
-        case CARD_UNKNOWN:
-            Serial.println("Unknown");
-            break;
-        case CARD_NONE:
-            Serial.println("No SD card attached!");
-            break;
-        default:
-            Serial.println("Unknown card type!");
-            break;
+        case CARD_MMC:     Serial.println("MMC"); break;
+        case CARD_SD:      Serial.println("SDSC"); break;
+        case CARD_SDHC:    Serial.println("SDHC"); break;
+        case CARD_UNKNOWN: Serial.println("Unknown"); break;
+        case CARD_NONE:    Serial.println("No SD card attached!"); break;
+        default:           Serial.println("Unknown card type!"); break;
         }
     }
 
@@ -229,11 +210,10 @@ public:
      * @param extension The file extension to filter files (default is ".bmp").
      * @return photo_frame_error_t indicating success or failure.
      */
-    photo_frame_error_t write_images_toc(
-        uint32_t* total_files,
-        const char* toc_file_name,
-        const char* root_dir,
-        const char* extension) const;
+    photo_frame_error_t write_images_toc(uint32_t* total_files,
+                                         const char* toc_file_name,
+                                         const char* root_dir,
+                                         const char* extension) const;
 
     /**
      * Gets the file path of the TOC file.
@@ -268,7 +248,8 @@ public:
      * @param index Pointer to a variable that will hold the index of the found image.
      * @param extension The file extension to filter files (e.g., ".jpg", ".png").
      * If the extension is null or empty, it searches for all files.
-     * @param file_entry Pointer to a sd_card_entry object that will be filled with the file details.
+     * @param file_entry Pointer to a sd_card_entry object that will be filled with the file
+     * details.
      * @return photo_frame_error_t indicating success or failure.
      * If no image is found, it returns an error indicating that no image was found.
      * @note This function searches for image files in the root directory of the SD card.
@@ -336,7 +317,8 @@ public:
     /**
      * Gets the size of a file on the SD card.
      * @param path The path to the file.
-     * @return The size of the file in bytes, or 0 if the file doesn't exist or SD card is not initialized.
+     * @return The size of the file in bytes, or 0 if the file doesn't exist or SD card is not
+     * initialized.
      */
     size_t get_file_size(const char* path) const;
 

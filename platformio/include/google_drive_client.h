@@ -21,23 +21,24 @@
 // SOFTWARE.
 
 #pragma once
-#include <vector>
 #include <Arduino.h>
-#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <FS.h>
+#include <WiFiClientSecure.h>
+#include <vector>
 
 #include "mbedtls/base64.h"
-#include "mbedtls/pk.h"
-#include "mbedtls/md.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
+#include "mbedtls/md.h"
+#include "mbedtls/pk.h"
 
 #include "config.h"
 #include "errors.h"
 
 // Google Drive page token buffer size (Google Drive tokens are typically 100-200 chars)
-// "nextPageToken": "~!!~AI9FV7Q4Gfow5ZkBdhXuhx79-W0ocOSHEiiXYs6okeePWmpITPB3mY8gXAqzrAn0xKRgyNc_9pAkEUrUBajPHnQQa49js9-njz_IfwjmDmIdm3yyyJ1KCPS3mZrcx_CQPbiZyqLY2odPLf0CbzvALTrPtZN4TODshZX2YQRraUVrc_bZWm_-6BCifCS0xcweij0n1aIQlIDIrCbwQwgYMxypRaCed1uKZVGiUfsqBC20HcM69OQ86bnhW9GDCDRInVT27vdLmyB_LnN8krrIjELMWZsVFMHQz5nS1Q20opzAnsDe_LQIlTKHbyce29oeFDyzToz9QoTx"
+// "nextPageToken":
+// "~!!~AI9FV7Q4Gfow5ZkBdhXuhx79-W0ocOSHEiiXYs6okeePWmpITPB3mY8gXAqzrAn0xKRgyNc_9pAkEUrUBajPHnQQa49js9-njz_IfwjmDmIdm3yyyJ1KCPS3mZrcx_CQPbiZyqLY2odPLf0CbzvALTrPtZN4TODshZX2YQRraUVrc_bZWm_-6BCifCS0xcweij0n1aIQlIDIrCbwQwgYMxypRaCed1uKZVGiUfsqBC20HcM69OQ86bnhW9GDCDRInVT27vdLmyB_LnN8krrIjELMWZsVFMHQz5nS1Q20opzAnsDe_LQIlTKHbyce29oeFDyzToz9QoTx"
 #define GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE 512
 
 namespace photo_frame {
@@ -50,23 +51,21 @@ namespace photo_frame {
  */
 typedef struct {
     const char* serviceAccountEmail; ///< Service account email address
-    const char* privateKeyPem; ///< PEM-encoded private key for JWT signing
-    const char* clientId; ///< Client ID from Google Cloud Console
+    const char* privateKeyPem;       ///< PEM-encoded private key for JWT signing
+    const char* clientId;            ///< Client ID from Google Cloud Console
 } google_drive_client_config;
 
 typedef struct {
-    char accessToken[512]; ///< Access token for Google Drive API
-    unsigned long expiresAt; ///< Expiration time of the access token
+    char accessToken[512];    ///< Access token for Google Drive API
+    unsigned long expiresAt;  ///< Expiration time of the access token
     unsigned long obtainedAt; ///< Timestamp when the access token was obtained
-    
-    bool expired(int marginSeconds = 0) const
-    {
+
+    bool expired(int marginSeconds = 0) const {
         time_t now = time(NULL);
         return (now + marginSeconds) >= expiresAt;
     }
 
-    unsigned long expires_in() const
-    {
+    unsigned long expires_in() const {
         time_t now = time(NULL);
         return (now < expiresAt) ? (expiresAt - now) : 0;
     }
@@ -80,15 +79,15 @@ typedef struct {
  * Google Drive API interactions.
  */
 enum class google_drive_error {
-    None, ///< No error occurred
+    None,              ///< No error occurred
     JwtCreationFailed, ///< Failed to create JWT token for authentication
-    HttpPostFailed, ///< HTTP POST request failed
-    JsonParseFailed, ///< Failed to parse JSON response
-    TokenMissing, ///< Access token is missing or invalid
-    FileOpenFailed, ///< Failed to open local file for writing
+    HttpPostFailed,    ///< HTTP POST request failed
+    JsonParseFailed,   ///< Failed to parse JSON response
+    TokenMissing,      ///< Access token is missing or invalid
+    FileOpenFailed,    ///< Failed to open local file for writing
     HttpConnectFailed, ///< Failed to establish HTTP connection
-    HttpGetFailed, ///< HTTP GET request failed
-    DownloadFailed ///< File download operation failed
+    HttpGetFailed,     ///< HTTP GET request failed
+    DownloadFailed     ///< File download operation failed
 };
 
 /**
@@ -100,22 +99,18 @@ struct HttpResponse {
     String body;
     bool hasContent;
 
-    HttpResponse()
-        : statusCode(0)
-        , hasContent(false)
-    {
-    }
+    HttpResponse() : statusCode(0), hasContent(false) {}
 };
 
 /**
  * @brief Classification of failure types for retry logic
  */
 enum class failure_type {
-    Permanent, // Don't retry (4xx errors, authentication failures)
-    Transient, // Retry with backoff (5xx errors, network issues)
-    RateLimit, // Special handling for 429 responses
+    Permanent,    // Don't retry (4xx errors, authentication failures)
+    Transient,    // Retry with backoff (5xx errors, network issues)
+    RateLimit,    // Special handling for 429 responses
     TokenExpired, // Token refresh needed (401 responses)
-    Unknown // Default fallback
+    Unknown       // Default fallback
 };
 
 /**
@@ -125,10 +120,10 @@ enum class failure_type {
  * including its unique identifier, name, MIME type, and modification time.
  */
 class google_drive_file {
-public:
-    String id; ///< Unique file identifier in Google Drive
-    String name; ///< Display name of the file
-    String mimeType; ///< MIME type of the file (e.g., "image/jpeg")
+  public:
+    String id;           ///< Unique file identifier in Google Drive
+    String name;         ///< Display name of the file
+    String mimeType;     ///< MIME type of the file (e.g., "image/jpeg")
     String modifiedTime; ///< Last modification timestamp
 
     /**
@@ -138,13 +133,14 @@ public:
      * @param mimeType MIME type of the file
      * @param modifiedTime Last modification timestamp
      */
-    google_drive_file(const String& id, const String& name, const String& mimeType, const String& modifiedTime)
-        : id(id)
-        , name(name)
-        , mimeType(mimeType)
-        , modifiedTime(modifiedTime)
-    {
-    }
+    google_drive_file(const String& id,
+                      const String& name,
+                      const String& mimeType,
+                      const String& modifiedTime) :
+        id(id),
+        name(name),
+        mimeType(mimeType),
+        modifiedTime(modifiedTime) {}
 };
 
 /**
@@ -154,7 +150,7 @@ public:
  * used to return collections of files from API operations.
  */
 class google_drive_files_list {
-public:
+  public:
     std::vector<google_drive_file> files; ///< Vector containing the list of files
 };
 
@@ -163,16 +159,18 @@ public:
  * @brief A client for interacting with Google Drive using a service account.
  *
  * This class provides methods to authenticate with Google Drive via JWT, list files in folders,
- * download files to LittleFS, and manage access tokens. It uses mbedtls for cryptographic operations.
+ * download files to LittleFS, and manage access tokens. It uses mbedtls for cryptographic
+ * operations.
  *
  * @param serviceAccountEmail The email address of the Google service account.
  * @param privateKeyPem The PEM-encoded private key for the service account.
  * @param clientId The client ID associated with the service account.
  *
- * @note Requires mbedtls for cryptographic operations and assumes LittleFS is available for file storage.
+ * @note Requires mbedtls for cryptographic operations and assumes LittleFS is available for file
+ * storage.
  */
 class google_drive_client {
-public:
+  public:
     /**
      * @brief Constructor for google_drive_client.
      * @param config Configuration containing service account credentials
@@ -212,7 +210,8 @@ public:
      * @param outFiles A vector to store the retrieved files.
      * @return google_drive_error indicating the result of the operation.
      */
-    photo_frame_error_t list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 50);
+    photo_frame_error_t
+    list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 50);
 
     /**
      * @brief Downloads a file from Google Drive to the specified file.
@@ -234,8 +233,8 @@ public:
     /**
      * @brief Set the root CA certificate for SSL/TLS connections
      * @param rootCA The root CA certificate in PEM format
-     */a
-    void set_root_ca_certificate(const String& rootCA);
+     */
+    a void set_root_ca_certificate(const String& rootCA);
 #endif
 
     /**
@@ -245,7 +244,7 @@ public:
      */
     bool is_token_expired(int marginSeconds = 60);
 
-private:
+  private:
     /**
      * @brief Creates a JWT token for Google Drive authentication.
      * @return JWT token as a string, or empty string on failure
@@ -269,7 +268,11 @@ private:
      * @param pageToken Token for requesting specific page (empty for first page)
      * @return photo_frame_error_t indicating success or failure
      */
-    photo_frame_error_t list_files_in_folder(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 10, char* nextPageToken = nullptr, const char* pageToken = "");
+    photo_frame_error_t list_files_in_folder(const char* folderId,
+                                             std::vector<google_drive_file>& outFiles,
+                                             int pageSize          = 10,
+                                             char* nextPageToken   = nullptr,
+                                             const char* pageToken = "");
 
     /**
      * @brief Streaming parser for large Google Drive JSON responses.
@@ -278,7 +281,9 @@ private:
      * @param nextPageToken Pointer to store next page token if present
      * @return photo_frame_error_t indicating parsing success or failure
      */
-    photo_frame_error_t parse_file_list_streaming(const String& jsonBody, std::vector<google_drive_file>& outFiles, char* nextPageToken);
+    photo_frame_error_t parse_file_list_streaming(const String& jsonBody,
+                                                  std::vector<google_drive_file>& outFiles,
+                                                  char* nextPageToken);
 
     /**
      * @brief Build HTTP request string with optimized memory allocation
@@ -289,7 +294,11 @@ private:
      * @param body Request body for POST requests (optional)
      * @return Complete HTTP request string
      */
-    String build_http_request(const char* method, const char* path, const char* host, const char* headers = nullptr, const char* body = nullptr);
+    String build_http_request(const char* method,
+                              const char* path,
+                              const char* host,
+                              const char* headers = nullptr,
+                              const char* body    = nullptr);
 
     // Member variables
 

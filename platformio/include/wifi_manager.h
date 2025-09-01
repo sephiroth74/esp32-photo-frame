@@ -22,15 +22,15 @@
 
 #pragma once
 
-#include <WiFi.h>
-#include "sd_card.h"
-#include "errors.h"
 #include "RTClib.h"
+#include "errors.h"
+#include "sd_card.h"
+#include <WiFi.h>
 
 namespace photo_frame {
 
 class wifi_manager {
-public:
+  public:
     wifi_manager();
     ~wifi_manager();
 
@@ -44,12 +44,12 @@ public:
     String get_ssid() const;
     void end();
 
-private:
+  private:
     String _ssid;
     String _password;
     bool _initialized;
     bool _connected;
-    
+
     static const unsigned long CONNECTION_TIMEOUT_MS;
 };
 
