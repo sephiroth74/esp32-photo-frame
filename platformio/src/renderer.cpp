@@ -463,8 +463,6 @@ namespace renderer {
         if (battery_info.charge_rate != 0.0) {
             message += " - " + String(battery_info.charge_rate, 2) + "mA";
         }
-#else
-        message += " / " + String(raw_value) + "r - " + String(raw_millivolts) + "m";
 #endif // USE_SENSOR_MAX1704X
 
         draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);

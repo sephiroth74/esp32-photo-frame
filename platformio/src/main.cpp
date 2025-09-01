@@ -84,6 +84,8 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
 void setup()
 {
     Serial.begin(115200);
+    analogReadResolution(12);
+
     startupTime = millis();
 
 #if DEBUG_MODE
@@ -617,13 +619,15 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
 
         if (nextRefresh > dayEnd) {
             Serial.println(F("Next refresh time is after DAY_END_HOUR"));
-            // Set the next refresh time to the start of the next day
-            DateTime nextDayStart = DateTime(now.year(), now.month(), now.day() + 1, DAY_START_HOUR, 0, 0);
-            DateTime nextDayEnd = DateTime(now.year(), now.month(), now.day() + 1, DAY_END_HOUR, 0, 0);
-            nextRefresh = nextRefresh > nextDayStart
-                ? (nextRefresh < nextDayEnd ? nextRefresh : nextDayEnd)
-                : nextDayStart;
-
+            // Check if we're currently in the inactive period (before DAY_START_HOUR)
+            if (now.hour() < DAY_START_HOUR) {
+                // We're in early morning hours, schedule for DAY_START_HOUR today
+                nextRefresh = DateTime(now.year(), now.month(), now.day(), DAY_START_HOUR, 0, 0);
+            } else {
+                // We're past DAY_END_HOUR, schedule for DAY_START_HOUR tomorrow
+                DateTime tomorrow = now + TimeSpan(1, 0, 0, 0); // Add 1 day safely
+                nextRefresh = DateTime(tomorrow.year(), tomorrow.month(), tomorrow.day(), DAY_START_HOUR, 0, 0);
+            }
             refresh_delay.refresh_seconds = nextRefresh.unixtime() - now.unixtime();
         }
 
