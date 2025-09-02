@@ -847,11 +847,11 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
     Serial.println(F("Using streaming JSON parser for file list"));
 
     // Extract nextPageToken first using simple string search
-    char* tokenKey = "\"nextPageToken\":\"";
+    const char* tokenKey = "\"nextPageToken\":\"";
     int tokenStart = jsonBody.indexOf(tokenKey);
 
+    // if token was not found, let's try in another way
     if (tokenStart < 0) {
-        Serial.println(F("No nextPageToken found in response"));
         tokenKey = "\"nextPageToken\": \"";
         tokenStart = jsonBody.indexOf(tokenKey);
     }
@@ -859,23 +859,18 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
     size_t tokenLength = strlen(tokenKey);
 
     if (tokenStart >= 0 && nextPageToken) {
-        int tokenOffset = tokenStart + tokenLength;
-        int tokenStart = jsonBody.indexOf("\"", tokenOffset);
+        // we need to find the very next '"' char
+        tokenStart = jsonBody.indexOf("\"", tokenStart + tokenLength);
+        int tokenEnd = jsonBody.indexOf("\"", tokenStart + 1);
 
 #if DEBUG_MODE
         Serial.print(F("nextPageToken value start position: "));
         Serial.println(tokenStart);
-#endif // DEBUG_MODE
-
-        tokenOffset += tokenLength;
-        int tokenEnd = jsonBody.indexOf("\"", tokenOffset);
-
-#if DEBUG_MODE
         Serial.print(F("nextPageToken value end position: "));
         Serial.println(tokenEnd);
 #endif // DEBUG_MODE
 
-        if (tokenEnd > tokenStart && tokenStart) {
+        if (tokenEnd > tokenStart && tokenStart > 0) { // tokenStart cannot be 0
             String token = jsonBody.substring(tokenStart, tokenEnd);
             safe_strcpy(nextPageToken, token.c_str(), GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE);
         } else {

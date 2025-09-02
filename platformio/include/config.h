@@ -493,6 +493,15 @@ extern const char* LOCAL_FILE_EXTENSION;
 #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
 #endif                                                // SD_CARD_FREE_SPACE_THRESHOLD
 
+// Google Drive folder structure defines
+#ifndef GOOGLE_DRIVE_TEMP_DIR
+#define GOOGLE_DRIVE_TEMP_DIR "temp"
+#endif
+
+#ifndef GOOGLE_DRIVE_CACHE_DIR  
+#define GOOGLE_DRIVE_CACHE_DIR "cache"
+#endif
+
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
 #endif // POTENTIOMETER_INPUT_MAX

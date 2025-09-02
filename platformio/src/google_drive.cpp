@@ -265,7 +265,7 @@ photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
 {
     // Create necessary directories on the SD card for Google Drive local cache
     // first make sure the directory doesn't exists and it's not a file, in which case we will try to delete the file and continue
-    // otherwise, if the directory already exists, just return.
+    // otherwise, if the directory already exists, continue to check subdirectories.
     if (sdCard.file_exists(config.localPath.c_str())) {
         if (sdCard.is_file(config.localPath.c_str())) {
             Serial.print(F("Removing file at path: "));
@@ -276,17 +276,38 @@ photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
                 return photo_frame::error_type::SdCardDirCreateFailed;
             }
         } else {
-            Serial.print(F("Directory already exists: "));
+            Serial.print(F("Root directory already exists: "));
             Serial.println(config.localPath);
-            return photo_frame::error_type::None;
         }
     }
 
+    // Create root directory
     if (!sdCard.create_directories(config.localPath.c_str())) {
-        Serial.print(F("Failed to create directories for Google Drive local cache: "));
+        Serial.print(F("Failed to create root directory for Google Drive local cache: "));
         Serial.println(config.localPath);
         return photo_frame::error_type::SdCardDirCreateFailed;
     }
+
+    // Create temp subdirectory
+    String tempDir = get_temp_dir_path();
+    if (!sdCard.create_directories(tempDir.c_str())) {
+        Serial.print(F("Failed to create temp directory: "));
+        Serial.println(tempDir);
+        return photo_frame::error_type::SdCardDirCreateFailed;
+    }
+    Serial.print(F("Created temp directory: "));
+    Serial.println(tempDir);
+
+    // Create cache subdirectory
+    String cacheDir = get_cache_dir_path();
+    if (!sdCard.create_directories(cacheDir.c_str())) {
+        Serial.print(F("Failed to create cache directory: "));
+        Serial.println(cacheDir);
+        return photo_frame::error_type::SdCardDirCreateFailed;
+    }
+    Serial.print(F("Created cache directory: "));
+    Serial.println(cacheDir);
+
     return photo_frame::error_type::None;
 }
 
@@ -419,6 +440,26 @@ bool google_drive::save_toc_to_file_chunked(fs::File& file,
 String google_drive::get_toc_file_path() const
 {
     return string_utils::build_path(config.localPath, config.tocFilename);
+}
+
+String google_drive::get_temp_dir_path() const
+{
+    return string_utils::build_path(config.localPath, GOOGLE_DRIVE_TEMP_DIR);
+}
+
+String google_drive::get_cache_dir_path() const
+{
+    return string_utils::build_path(config.localPath, GOOGLE_DRIVE_CACHE_DIR);
+}
+
+String google_drive::get_cached_file_path(const String& filename) const
+{
+    return string_utils::build_path(get_cache_dir_path(), filename);
+}
+
+String google_drive::get_temp_file_path(const String& filename) const
+{
+    return string_utils::build_path(get_temp_dir_path(), filename);
 }
 
 size_t google_drive::get_toc_file_count(const String& filePath, photo_frame_error_t* error)
@@ -597,10 +638,9 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
         *error = error_type::None;
     }
 
-    // Create file paths using optimized utility functions
-    String tempBasename = string_utils::build_string("temp_", file.name);
-    String tempPath = string_utils::build_path(config.localPath, tempBasename);
-    String finalPath = string_utils::build_path(config.localPath, file.name);
+    // Create file paths using new directory structure
+    String tempPath = get_temp_file_path(file.name);
+    String finalPath = get_cached_file_path(file.name);
 
     Serial.print(F("Downloading file: "));
     Serial.println(file.name);
@@ -731,7 +771,20 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
         return emptyFile;
     }
 
+    // Mark as downloaded from cloud since we actually downloaded it
+    last_image_source = IMAGE_SOURCE_CLOUD;
+    
     return finalFile;
+}
+
+image_source_t google_drive::get_last_image_source() const
+{
+    return last_image_source;
+}
+
+void google_drive::set_last_image_source(image_source_t source)
+{
+    last_image_source = source;
 }
 
 String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootCaPath)
@@ -830,9 +883,15 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
 
 #endif // DEBUG_MODE
 
-    // first delete the toc
+    // Calculate 20% threshold of total SD card space first
+    uint64_t twentyPercentThreshold = totalBytes * 20 / 100;
+    bool lowSpace = freeBytes < twentyPercentThreshold;
+    bool shouldCleanupImages = force || lowSpace;
+
+    // Handle TOC deletion and orphaned file cleanup
     String tocPath = string_utils::build_path(config.localPath, config.tocFilename);
-    bool tocDeleted = false;
+    std::vector<String> validFilenames;
+    
     if (sdCard.file_exists(tocPath.c_str())) {
         Serial.print(F("Found TOC file: "));
         Serial.println(tocPath);
@@ -843,6 +902,41 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
         Serial.print(F(" seconds, max age: "));
         Serial.println(config.tocMaxAgeSeconds);
 
+        // If TOC will be deleted AND we're not doing full cleanup, read filenames for orphaned cleanup
+        if ((force || tocAge > config.tocMaxAgeSeconds) && !shouldCleanupImages) {
+            Serial.println(F("Reading TOC file for orphaned cache cleanup..."));
+            fs::File tocFile = sdCard.open(tocPath.c_str(), FILE_READ);
+            if (tocFile) {
+                // Skip timestamp line
+                String line = tocFile.readStringUntil('\n');
+                // Skip fileCount line  
+                line = tocFile.readStringUntil('\n');
+                
+                // Read all file entries
+                while (tocFile.available()) {
+                    line = tocFile.readStringUntil('\n');
+                    line.trim();
+                    if (line.length() == 0) continue;
+                    
+                    // Parse line: id|name|mimeType|modifiedTime
+                    int pos1 = line.indexOf('|');
+                    if (pos1 == -1) continue;
+                    int pos2 = line.indexOf('|', pos1 + 1);
+                    if (pos2 == -1) continue;
+                    
+                    String filename = line.substring(pos1 + 1, pos2);
+                    if (filename.length() > 0) {
+                        validFilenames.push_back(filename);
+                    }
+                }
+                tocFile.close();
+                
+                Serial.print(F("Found "));
+                Serial.print(validFilenames.size());
+                Serial.println(F(" valid filenames in TOC"));
+            }
+        }
+
         if (force || tocAge > config.tocMaxAgeSeconds) {
             if (sdCard.remove(tocPath.c_str())) {
                 Serial.println(F("Successfully removed TOC file"));
@@ -850,61 +944,124 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
             } else {
                 Serial.println(F("Failed to remove TOC file"));
             }
-            tocDeleted = true;
         }
     }
-
-    // if force is true, delete all the files inside the localPath folder
-    // otherwise only those max age is greater than tocMaxAge, or the sdcard free space is under 20%
-
-    if (!force && (freeBytes < SD_CARD_FREE_SPACE_THRESHOLD)) {
-        Serial.print(F("SD card free space is under "));
-        Serial.print(SD_CARD_FREE_SPACE_THRESHOLD / 1024 / 1024);
-        Serial.println(F(" MB, forcing cleanup of all temporary files"));
-        force = true;
-    }
-
-    // if force is true delete all files, otherwise delete those files
-    // older than tocMaxAge
-    if (force) {
-        Serial.println(F("Force cleanup enabled, removing all temporary files"));
-        if (sdCard.file_exists(config.localPath.c_str())) {
-            cleanedCount += sdCard.rmdir(config.localPath.c_str());
-        }
-    } else if (tocDeleted) {
-        Serial.println(F("Removing files older than max age"));
-        fs::File root = sdCard.open(config.localPath.c_str(), FILE_READ);
-        if (!root || root.isDirectory() == false) {
-            Serial.println(F("Failed to open directory"));
-            return 0;
-        }
-
-        fs::File file = root.openNextFile();
-        time_t currentTime = time(nullptr);
-
-        while (file) {
-            String fileName = file.name();
-            time_t lastModified = file.getLastWrite();
-            time_t elapsedSeconds = currentTime - lastModified;
-
-            Serial.print(F("Checking file: "));
-            Serial.print(fileName);
-            Serial.print(F(", Last modified: "));
-            Serial.print(lastModified);
-            Serial.print(F(", Elapsed: "));
-            Serial.print(elapsedSeconds);
-            Serial.println();
-
-            if (elapsedSeconds >= config.tocMaxAgeSeconds) {
-                Serial.print(F("Removing old file: "));
-                Serial.println(fileName);
-                sdCard.remove(fileName.c_str());
-                cleanedCount++;
+    
+    // Always clean up temporary files from temp directory
+    Serial.println(F("Cleaning up temporary files..."));
+    String tempDir = string_utils::build_path(config.localPath, GOOGLE_DRIVE_TEMP_DIR);
+    if (sdCard.file_exists(tempDir.c_str())) {
+        fs::File tempRoot = sdCard.open(tempDir.c_str(), FILE_READ);
+        if (tempRoot && tempRoot.isDirectory()) {
+            fs::File tempFile = tempRoot.openNextFile();
+            while (tempFile) {
+                String tempFileName = tempFile.name();
+                String tempFilePath = string_utils::build_path(tempDir, tempFileName);
+                
+                Serial.print(F("Removing temp file: "));
+                Serial.println(tempFileName);
+                
+                if (sdCard.remove(tempFilePath.c_str())) {
+                    cleanedCount++;
+                } else {
+                    Serial.print(F("Failed to remove temp file: "));
+                    Serial.println(tempFileName);
+                }
+                tempFile = tempRoot.openNextFile();
             }
-            file = root.openNextFile();
+            tempRoot.close();
         }
+    }
 
-        root.close();
+    // Clean up orphaned cache files only if we're NOT doing full cleanup
+    if (validFilenames.size() > 0 && !shouldCleanupImages) {
+        Serial.println(F("Cleaning up cached images not in TOC..."));
+        String cacheDir = string_utils::build_path(config.localPath, GOOGLE_DRIVE_CACHE_DIR);
+        if (sdCard.file_exists(cacheDir.c_str())) {
+            fs::File cacheRoot = sdCard.open(cacheDir.c_str(), FILE_READ);
+            if (cacheRoot && cacheRoot.isDirectory()) {
+                fs::File cacheFile = cacheRoot.openNextFile();
+                while (cacheFile) {
+                    String fileName = cacheFile.name();
+                    
+                    // Check if this cached file is in the valid filenames list
+                    bool foundInToc = false;
+                    for (const String& validName : validFilenames) {
+                        if (fileName.equals(validName)) {
+                            foundInToc = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!foundInToc) {
+                        String filePath = string_utils::build_path(cacheDir, fileName);
+                        Serial.print(F("Removing orphaned cached file: "));
+                        Serial.println(fileName);
+                        
+                        if (sdCard.remove(filePath.c_str())) {
+                            cleanedCount++;
+                        } else {
+                            Serial.print(F("Failed to remove orphaned file: "));
+                            Serial.println(fileName);
+                        }
+                    }
+                    cacheFile = cacheRoot.openNextFile();
+                }
+                cacheRoot.close();
+            }
+        }
+    }
+    
+    Serial.print(F("SD card space - Total: "));
+    Serial.print(totalBytes / 1024 / 1024);
+    Serial.print(F(" MB, Free: "));
+    Serial.print(freeBytes / 1024 / 1024);
+    Serial.print(F(" MB ("));
+    Serial.print((freeBytes * 100) / totalBytes);
+    Serial.print(F("%), 20% threshold: "));
+    Serial.print(twentyPercentThreshold / 1024 / 1024);
+    Serial.println(F(" MB"));
+
+    if (lowSpace && !force) {
+        Serial.println(F("SD card free space is under 20%, enabling image cleanup"));
+    }
+
+    if (shouldCleanupImages) {
+        if (force) {
+            Serial.println(F("Force cleanup enabled, removing all cached images"));
+        } else {
+            Serial.println(F("Low disk space detected, removing cached images to free space"));
+        }
+        
+        // Remove all cached images from cache directory
+        String cacheDir = string_utils::build_path(config.localPath, GOOGLE_DRIVE_CACHE_DIR);
+        if (sdCard.file_exists(cacheDir.c_str())) {
+            fs::File cacheRoot = sdCard.open(cacheDir.c_str(), FILE_READ);
+            if (!cacheRoot || cacheRoot.isDirectory() == false) {
+                Serial.println(F("Failed to open cache directory for cleanup"));
+                return cleanedCount;
+            }
+
+            fs::File cacheFile = cacheRoot.openNextFile();
+            while (cacheFile) {
+                String fileName = cacheFile.name();
+                String filePath = string_utils::build_path(cacheDir, fileName);
+                
+                Serial.print(F("Removing cached image: "));
+                Serial.println(fileName);
+                
+                if (sdCard.remove(filePath.c_str())) {
+                    cleanedCount++;
+                } else {
+                    Serial.print(F("Failed to remove: "));
+                    Serial.println(fileName);
+                }
+                cacheFile = cacheRoot.openNextFile();
+            }
+            cacheRoot.close();
+        }
+    } else {
+        Serial.println(F("Sufficient disk space available, keeping cached images"));
     }
 
     Serial.print(F("Cleaned up "));
@@ -1319,6 +1476,14 @@ photo_frame_error_t google_drive::initialize_from_json(sd_card& sd_card, const c
             Serial.print(F("Warning: Could not load SSL certificate from: "));
             Serial.println(json_config.rootCaPath);
         }
+    }
+
+    // Create necessary directories for Google Drive cache structure
+    photo_frame_error_t dir_result = create_directories(sd_card);
+    if (dir_result != error_type::None) {
+        Serial.print(F("Failed to create Google Drive directories: "));
+        Serial.println(dir_result.code);
+        return dir_result;
     }
 
     Serial.println(F("Google Drive initialized from JSON configuration"));

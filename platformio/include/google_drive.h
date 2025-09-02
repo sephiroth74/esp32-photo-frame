@@ -28,6 +28,14 @@
 
 namespace photo_frame {
 
+/**
+ * @brief Image source enumeration for tracking where an image was loaded from.
+ */
+typedef enum image_source {
+    IMAGE_SOURCE_CLOUD,      ///< Image was downloaded from Google Drive
+    IMAGE_SOURCE_LOCAL_CACHE ///< Image was loaded from local SD card cache
+} image_source_t;
+
 
 /**
  * @brief JSON-based configuration structure for Google Drive settings.
@@ -77,7 +85,7 @@ class google_drive {
     /**
      * @brief Default constructor for google_drive.
      */
-    google_drive() : client(google_drive_client_config{}), config{} {}
+    google_drive() : client(google_drive_client_config{}), config{}, last_image_source(IMAGE_SOURCE_LOCAL_CACHE) {}
 
     /**
      * @brief Initialize Google Drive from JSON configuration file.
@@ -115,6 +123,18 @@ class google_drive {
     fs::File download_file(google_drive_file file, photo_frame_error_t* error);
 
     /**
+     * @brief Get the source of the last downloaded/accessed file.
+     * @return image_source_t indicating whether the last file was from cloud or local cache
+     */
+    image_source_t get_last_image_source() const;
+
+    /**
+     * @brief Set the source of the current image for tracking purposes.
+     * @param source The source type (cloud or local cache)
+     */
+    void set_last_image_source(image_source_t source);
+
+    /**
      * @brief Clean up temporary files left from previous incomplete downloads
      * @param sdCard Reference to the SD card object
      * @param config Google Drive configuration
@@ -144,6 +164,32 @@ class google_drive {
      * @return String containing the full path to the TOC file
      */
     String get_toc_file_path() const;
+
+    /**
+     * @brief Get the full path to the temp directory on SD card
+     * @return String containing the full path to the temp directory
+     */
+    String get_temp_dir_path() const;
+
+    /**
+     * @brief Get the full path to the cache directory on SD card
+     * @return String containing the full path to the cache directory
+     */
+    String get_cache_dir_path() const;
+
+    /**
+     * @brief Get the full path for a cached file on SD card
+     * @param filename Name of the file
+     * @return String containing the full path to the cached file
+     */
+    String get_cached_file_path(const String& filename) const;
+
+    /**
+     * @brief Get the full path for a temporary file on SD card
+     * @param filename Name of the file
+     * @return String containing the full path to the temporary file
+     */
+    String get_temp_file_path(const String& filename) const;
 
     /**
      * @brief Get the file count from a plain text TOC file efficiently
@@ -194,6 +240,7 @@ class google_drive {
   private:
     google_drive_client client; ///< Google Drive client for API operations
     google_drive_json_config config;  ///< Configuration settings for this Google Drive instance
+    image_source_t last_image_source; ///< Source of the last accessed/downloaded image
 
     /**
      * @brief Load TOC from local SD card file

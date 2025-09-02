@@ -22,6 +22,7 @@
 
 #include "renderer.h"
 #include "datetime_utils.h"
+#include "google_drive.h"
 
 #include FONT_HEADER
 
@@ -404,10 +405,11 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
     return;
 } // end drawError
 
-void draw_image_info(uint32_t index, uint32_t total_images) {
+void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source)
+{
     Serial.println("drawImageInfo: " + String(index) + " / " + String(total_images));
     String message = String(index + 1) + " / " + String(total_images);
-    draw_side_message(gravity::TOP_CENTER, message.c_str(), 0, 0);
+    draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloud_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
 }
 
 void draw_battery_status(photo_frame::battery_info_t battery_info) {

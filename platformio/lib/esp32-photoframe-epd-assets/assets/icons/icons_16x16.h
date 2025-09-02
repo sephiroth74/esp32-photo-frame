@@ -40,6 +40,7 @@
 #include "16x16/battery_full_180deg_16x16.h"
 #include "16x16/battery_full_270deg_16x16.h"
 #include "16x16/battery_full_90deg_16x16.h"
+#include "16x16/cloud_0deg_16x16.h"
 #include "16x16/error_icon_16x16.h"
 #include "16x16/ionizing_radiation_symbol_16x16.h"
 #include "16x16/micro_sd_card_0deg_16x16.h"

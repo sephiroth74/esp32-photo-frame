@@ -40,6 +40,7 @@
 #include "24x24/battery_full_180deg_24x24.h"
 #include "24x24/battery_full_270deg_24x24.h"
 #include "24x24/battery_full_90deg_24x24.h"
+#include "24x24/cloud_0deg_24x24.h"
 #include "24x24/error_icon_24x24.h"
 #include "24x24/ionizing_radiation_symbol_24x24.h"
 #include "24x24/micro_sd_card_0deg_24x24.h"
