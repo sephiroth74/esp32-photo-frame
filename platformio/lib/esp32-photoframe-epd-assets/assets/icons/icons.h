@@ -57,6 +57,7 @@ typedef enum icon_name {
   battery_full_180deg,
   battery_full_270deg,
   battery_full_90deg,
+  cloud_0deg,
   error_icon,
   ionizing_radiation_symbol,
   micro_sd_card_0deg,
@@ -664,6 +665,21 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     case 128: return battery_full_90deg_128x128;
     case 160: return battery_full_90deg_160x160;
     case 196: return battery_full_90deg_196x196;
+    default:
+      return nullptr;
+    }
+  case cloud_0deg:
+    switch (size) {
+    case 12: return cloud_0deg_12x12;
+    case 16: return cloud_0deg_16x16;
+    case 24: return cloud_0deg_24x24;
+    case 32: return cloud_0deg_32x32;
+    case 48: return cloud_0deg_48x48;
+    case 64: return cloud_0deg_64x64;
+    case 96: return cloud_0deg_96x96;
+    case 128: return cloud_0deg_128x128;
+    case 160: return cloud_0deg_160x160;
+    case 196: return cloud_0deg_196x196;
     default:
       return nullptr;
     }

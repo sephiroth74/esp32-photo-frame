@@ -28,6 +28,7 @@
 #include "battery.h"
 #include "config.h"
 #include "errors.h"
+#include "google_drive.h"
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
@@ -367,10 +368,11 @@ void draw_battery_status(photo_frame::battery_info_t battery_info);
  * Draws image information on the e-paper display.
  * @param index The index of the current image.
  * @param total_images The total number of images.
+ * @param image_source The source of the current image (cloud or local cache).
  * @note This function displays the current image index and total number of images on the
  * top center corner of the display. It is useful for providing context when viewing images.
  */
-void draw_image_info(uint32_t index, uint32_t total_images);
+void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source);
 
 /**
  * @brief Draws a bitmap image from a file on the e-paper display.

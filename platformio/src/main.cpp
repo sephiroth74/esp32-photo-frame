@@ -321,12 +321,12 @@ void setup()
                         Serial.println(selectedFile.name);
 
                         // if the selected file already exists in the sdcard, then use it
-                        String localFilePath = photo_frame::string_utils::build_path(
-                            drive.get_toc_file_path().substring(0, drive.get_toc_file_path().lastIndexOf('/')), selectedFile.name);
+                        String localFilePath = drive.get_cached_file_path(selectedFile.name);
                         if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
                             Serial.println(
                                 F("File already exists in SD card, using cached version"));
                             file = sdCard.open(localFilePath.c_str(), FILE_READ);
+                            drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
                         } else {
 
                             // Check battery level before downloading file
@@ -339,6 +339,7 @@ void setup()
                             } else {
                                 // Download the selected file using the new google_drive class
                                 file = drive.download_file(selectedFile, &error);
+                                // Note: image source is set to IMAGE_SOURCE_CLOUD inside download_file
                             }
                         }
                     } else {
@@ -510,7 +511,7 @@ void setup()
                 display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
 
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
-                photo_frame::renderer::draw_image_info(image_index, total_files);
+                photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
 
                 page_index++;
@@ -550,7 +551,7 @@ void setup()
                 // display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
 
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
-                photo_frame::renderer::draw_image_info(image_index, total_files);
+                photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
                 // display.displayWindow(0, 0, display.width(), display.height());
 
