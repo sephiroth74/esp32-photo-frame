@@ -64,7 +64,6 @@
 // Uncomment the following line to use RTC module
 // If this is set, then RTC_SDA_PIN and RTC_SCL_PIN must be defined
 // #define USE_RTC
-// #define RTC_POWER_PIN A3
 // #define RTC_SDA_PIN A4
 // #define RTC_SCL_PIN A5
 
@@ -256,11 +255,12 @@
 // Maximum wait time for rate limiting in milliseconds
 #define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000
 
-// Maximum number of files to retrieve per API request
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 500
+// Maximum number of files to retrieve per API request  
+// Test with larger page size now that RTC is disabled
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 100
 
 // Stream parser threshold in bytes
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 40960
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768
 
 // -------------------------------------------
 // Google Drive Configuration File

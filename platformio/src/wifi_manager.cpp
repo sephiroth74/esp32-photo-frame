@@ -78,9 +78,16 @@ void wifi_manager::set_timezone(const char* timezone) {
 }
 
 photo_frame_error_t wifi_manager::connect() {
+    // Check if the WiFi manager is initialized
     if (!_initialized) {
         Serial.println(F("WiFi manager not initialized"));
         return error_type::WifiCredentialsNotFound;
+    }
+
+    // then check if we're already connected
+    if (_connected) {
+        Serial.println(F("Already connected to WiFi"));
+        return error_type::None;
     }
 
     if (_ssid.isEmpty() || _password.isEmpty()) {
@@ -167,12 +174,22 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
 
     Serial.print(F("Waiting for NTP time sync..."));
 
+    unsigned long startTime = millis();
     time_t now = time(nullptr);
-    while (now < NTP_TIMEOUT) {
+    while (now < 1000000000 && (millis() - startTime) < (NTP_TIMEOUT * 1000)) { // NTP_TIMEOUT in seconds
         delay(200);
         Serial.print(".");
         now = time(nullptr);
     }
+    
+    if (now < 1000000000) {
+        Serial.println("\nNTP time sync timeout!");
+        if (error) {
+            *error = error_type::WifiConnectionFailed;
+        }
+        return DateTime(); // Invalid DateTime
+    }
+    
     Serial.println("\nTime synchronized.");
 
     // Print the current time
