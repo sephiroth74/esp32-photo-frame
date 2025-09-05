@@ -75,6 +75,9 @@ void setup()
 
     startupTime = millis();
 
+    // Initialize I2C bus early to prevent conflicts between RTC and battery sensor
+    Wire.begin();
+
 #if DEBUG_MODE
     delay(1000);
 #endif
@@ -172,10 +175,15 @@ void setup()
             error = wifiManager.init(WIFI_FILENAME, sdCard);
             if (error == photo_frame::error_type::None) {
 #ifdef USE_GOOGLE_DRIVE
+
+#ifdef USE_RTC
+                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
+#else
                 error = wifiManager.connect();
                 if (error == photo_frame::error_type::None) {
                     now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
                 }
+#endif // USE_RTC
 #else
                 now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
 #endif // USE_GOOGLE_DRIVE
@@ -204,6 +212,12 @@ void setup()
     // -------------------------------------------------------------
     // - Read the next image file from the SD card or Google Drive
     // -------------------------------------------------------------
+
+#if defined(USE_GOOGLE_DRIVE) && !defined(USE_RTC)
+    if (error == photo_frame::error_type::None) {
+        error = wifiManager.connect();
+    }
+#endif
 
     Serial.println(F("--------------------------------------"));
     Serial.println(F(" - Find the next image from the SD..."));
@@ -462,7 +476,9 @@ void setup()
     }
 
     if (error != photo_frame::error_type::None) {
+#if DEBUG_MODE
         photo_frame::board_utils::blink_error(error);
+#endif
         display.firstPage();
         do {
             photo_frame::renderer::draw_error(error);

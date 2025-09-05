@@ -13,7 +13,7 @@ String g_google_root_ca;
 
 String readHttpBody(WiFiClientSecure& client)
 {
-    // 1. Skip headers
+    // Skip headers first
     uint16_t headerCount = 0;
     while (client.connected()) {
         String line = client.readStringUntil('\n');
@@ -26,47 +26,42 @@ String readHttpBody(WiFiClientSecure& client)
         }
     }
 
-    // 2. Read raw body into a buffer
+    // Read body in chunks to handle large responses
     String body;
-    uint32_t bodyBytesRead = 0;
+    body.reserve(65536); // Reserve space for larger responses
+    
+    char buffer[1024];
+    size_t totalRead = 0;
+    
     while (client.connected() || client.available()) {
-        char c = client.read();
-        if (c < 0) {
-            yield(); // Yield when no data available
-            break;
+        size_t bytesRead = client.readBytes(buffer, sizeof(buffer) - 1);
+        if (bytesRead == 0) {
+            yield();
+            continue;
         }
-        body += c;
-
-        // Yield every 1KB to prevent watchdog timeout on large responses
-        if (++bodyBytesRead % 1024 == 0) {
+        
+        buffer[bytesRead] = '\0'; // Null terminate
+        body += buffer;
+        totalRead += bytesRead;
+        
+        // Yield every 4KB to prevent watchdog timeout
+        if (totalRead % 4096 == 0) {
             yield();
         }
-    }
-
-    // 3. Remove chunk markers (very simple filter)
-    String cleanBody;
-    int i = 0;
-    uint16_t chunkCount = 0;
-    while (i < body.length()) {
-        // chunk size is hex, then \r\n
-        int pos = body.indexOf("\r\n", i);
-        if (pos == -1)
+        
+        // Safety limit to prevent memory overflow
+        if (totalRead > 100000) {
+            Serial.println(F("Response too large, truncating"));
             break;
-        String chunkSizeHex = body.substring(i, pos);
-        int chunkSize = strtol(chunkSizeHex.c_str(), NULL, 16);
-        if (chunkSize == 0)
-            break; // end of chunks
-        i = pos + 2;
-        cleanBody += body.substring(i, i + chunkSize);
-        i += chunkSize + 2; // skip chunk + CRLF
-
-        // Yield every 5 chunks to prevent watchdog timeout
-        if (++chunkCount % 5 == 0) {
-            yield();
         }
     }
+    
+    Serial.print(F("Body read complete, length: "));
+    Serial.println(body.length());
+    Serial.print(F("Total bytes read: "));
+    Serial.println(totalRead);
 
-    return cleanBody;
+    return body;
 }
 
 // Helper functions
@@ -734,14 +729,6 @@ google_drive_client::list_files_in_folder(const char* folderId,
         Serial.print(response.statusCode);
         Serial.println();
 
-#if DEBUG_MODE
-        Serial.print(F("HTTP response status message: "));
-        Serial.println(response.statusMessage);
-
-        Serial.print(F("HTTP response body length: "));
-        Serial.println(response.body.length());
-#endif // DEBUG_MODE
-
         client.stop();
 
         // Classify failure and decide whether to retry
@@ -765,7 +752,7 @@ google_drive_client::list_files_in_folder(const char* folderId,
                 parseError = parse_file_list_streaming(response.body, outFiles, nextPageToken);
             } else {
                 // For smaller responses, use optimized static allocation
-                StaticJsonDocument<32768> doc;
+                StaticJsonDocument<40960> doc;
                 auto err = deserializeJson(doc, response.body);
                 if (err) {
                     Serial.print(F("JSON parse error: "));
@@ -868,6 +855,12 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
         Serial.println(tokenStart);
         Serial.print(F("nextPageToken value end position: "));
         Serial.println(tokenEnd);
+
+        if(tokenStart < 0) {
+            // print the jsonBody line by line
+            
+        }
+
 #endif // DEBUG_MODE
 
         if (tokenEnd > tokenStart && tokenStart > 0) { // tokenStart cannot be 0
@@ -879,6 +872,15 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
     } else if (nextPageToken) {
         Serial.println(F("No nextPageToken found in response"));
         nextPageToken[0] = '\0';
+        
+        Serial.println(F("jsonBody: "));
+        // print the jsonBody line by line
+        for (int i = 0; i < jsonBody.length(); i++) {
+            Serial.print(jsonBody.charAt(i));
+            if (jsonBody.charAt(i) == '\n') {
+                yield();
+            }
+        }
     }
 
     // Find files array start
@@ -1304,6 +1306,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
     uint32_t bodyBytesRead = 0;
 
     if (isChunked) {
+        Serial.println(F("Response uses chunked transfer encoding"));
         // Handle chunked transfer encoding
         while (client.connected() || client.available()) {
             // Read chunk size line

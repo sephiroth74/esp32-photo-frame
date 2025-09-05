@@ -773,7 +773,7 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
 
     // Mark as downloaded from cloud since we actually downloaded it
     last_image_source = IMAGE_SOURCE_CLOUD;
-    
+
     return finalFile;
 }
 
@@ -891,7 +891,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
     // Handle TOC deletion and orphaned file cleanup
     String tocPath = string_utils::build_path(config.localPath, config.tocFilename);
     std::vector<String> validFilenames;
-    
+
     if (sdCard.file_exists(tocPath.c_str())) {
         Serial.print(F("Found TOC file: "));
         Serial.println(tocPath);
@@ -909,28 +909,31 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
             if (tocFile) {
                 // Skip timestamp line
                 String line = tocFile.readStringUntil('\n');
-                // Skip fileCount line  
+                // Skip fileCount line
                 line = tocFile.readStringUntil('\n');
-                
+
                 // Read all file entries
                 while (tocFile.available()) {
                     line = tocFile.readStringUntil('\n');
                     line.trim();
-                    if (line.length() == 0) continue;
-                    
+                    if (line.length() == 0)
+                        continue;
+
                     // Parse line: id|name|mimeType|modifiedTime
                     int pos1 = line.indexOf('|');
-                    if (pos1 == -1) continue;
+                    if (pos1 == -1)
+                        continue;
                     int pos2 = line.indexOf('|', pos1 + 1);
-                    if (pos2 == -1) continue;
-                    
+                    if (pos2 == -1)
+                        continue;
+
                     String filename = line.substring(pos1 + 1, pos2);
                     if (filename.length() > 0) {
                         validFilenames.push_back(filename);
                     }
                 }
                 tocFile.close();
-                
+
                 Serial.print(F("Found "));
                 Serial.print(validFilenames.size());
                 Serial.println(F(" valid filenames in TOC"));
@@ -946,7 +949,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
             }
         }
     }
-    
+
     // Always clean up temporary files from temp directory
     Serial.println(F("Cleaning up temporary files..."));
     String tempDir = string_utils::build_path(config.localPath, GOOGLE_DRIVE_TEMP_DIR);
@@ -957,10 +960,10 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
             while (tempFile) {
                 String tempFileName = tempFile.name();
                 String tempFilePath = string_utils::build_path(tempDir, tempFileName);
-                
+
                 Serial.print(F("Removing temp file: "));
                 Serial.println(tempFileName);
-                
+
                 if (sdCard.remove(tempFilePath.c_str())) {
                     cleanedCount++;
                 } else {
@@ -983,7 +986,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
                 fs::File cacheFile = cacheRoot.openNextFile();
                 while (cacheFile) {
                     String fileName = cacheFile.name();
-                    
+
                     // Check if this cached file is in the valid filenames list
                     bool foundInToc = false;
                     for (const String& validName : validFilenames) {
@@ -992,12 +995,12 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
                             break;
                         }
                     }
-                    
+
                     if (!foundInToc) {
                         String filePath = string_utils::build_path(cacheDir, fileName);
                         Serial.print(F("Removing orphaned cached file: "));
                         Serial.println(fileName);
-                        
+
                         if (sdCard.remove(filePath.c_str())) {
                             cleanedCount++;
                         } else {
@@ -1011,7 +1014,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
             }
         }
     }
-    
+
     Serial.print(F("SD card space - Total: "));
     Serial.print(totalBytes / 1024 / 1024);
     Serial.print(F(" MB, Free: "));
@@ -1032,7 +1035,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
         } else {
             Serial.println(F("Low disk space detected, removing cached images to free space"));
         }
-        
+
         // Remove all cached images from cache directory
         String cacheDir = string_utils::build_path(config.localPath, GOOGLE_DRIVE_CACHE_DIR);
         if (sdCard.file_exists(cacheDir.c_str())) {
@@ -1046,10 +1049,10 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
             while (cacheFile) {
                 String fileName = cacheFile.name();
                 String filePath = string_utils::build_path(cacheDir, fileName);
-                
+
                 Serial.print(F("Removing cached image: "));
                 Serial.println(fileName);
-                
+
                 if (sdCard.remove(filePath.c_str())) {
                     cleanedCount++;
                 } else {
@@ -1292,7 +1295,11 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
         if (config.listPageSize <= 0 || config.listPageSize > GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE) {
             Serial.print(F("Validation failed: list_page_size must be between 1 and "));
             Serial.println(GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
-            return error_type::ConfigValueOutOfRange;
+
+            // do not throw an exception, just update the config with GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
+            config.listPageSize = constrain(config.listPageSize, 1, GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
+            Serial.print(F("Updated list_page_size to "));
+            Serial.println(config.listPageSize);
         }
 
         // use_insecure_tls is automatically validated as boolean by ArduinoJson

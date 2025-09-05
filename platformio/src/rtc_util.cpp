@@ -48,13 +48,10 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
 
 #ifdef USE_RTC
 
-#if RTC_POWER_PIN > -1
-    pinMode(RTC_POWER_PIN, OUTPUT);
-    digitalWrite(RTC_POWER_PIN, HIGH); // Power on the RTC
-    delay(2000);                       // Wait for RTC to power up
-#endif
-
+    // Configure I2C pins for RTC - this is safe to call multiple times
     Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
+    // Note: begin() is idempotent and safe to call multiple times
+    Wire.begin();
 
     if (!rtc.begin(&Wire)) {
         // set the error if provided
@@ -77,9 +74,8 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
             now = fetch_remote_datetime(wifiManager, error);
             if (error && *error != error_type::None) {
                 Serial.println(F("Failed to fetch time from WiFi!"));
-                Serial.println(F("Using compile time as fallback"));
-                now = DateTime(__DATE__, __TIME__); // Use compile time as a fallback
-                rtc.adjust(now);
+                Serial.println(F("Cannot synchronize RTC - both RTC and WiFi failed"));
+                return DateTime(); // Return invalid DateTime
             } else {
                 rtc.adjust(now);
             }
@@ -88,10 +84,6 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
             now = rtc.now();
         }
     }
-
-#if RTC_POWER_PIN > -1
-    digitalWrite(RTC_POWER_PIN, LOW); // Power off the RTC
-#endif
 
 #else
     Serial.println(F("RTC module is not used, fetching time from WiFi..."));
