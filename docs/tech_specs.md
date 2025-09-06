@@ -526,6 +526,192 @@ bool update_rtc_after_restart(const DateTime& dateTime) {
 - **Timing**: Adjustable refresh intervals and schedules
 - **Image Processing**: Configurable quality and color settings
 
+## Comprehensive Error Handling System
+
+The project implements a sophisticated, granular error reporting system with 259 specific error types across 7 categories, providing detailed diagnostic information for debugging and maintenance.
+
+### 8.1 Error System Architecture
+
+#### Error Class Structure (`platformio/include/errors.h`)
+
+The enhanced `photo_frame_error` class provides comprehensive error tracking:
+
+```cpp
+typedef class photo_frame_error {
+public:
+    const char* message;        // Human-readable error message
+    uint16_t code;             // Numeric error code (0-259)
+    error_severity severity;    // ERROR_SEVERITY_INFO/WARNING/ERROR/CRITICAL
+    error_category category;    // ERROR_CATEGORY_GENERAL/NETWORK/STORAGE/etc.
+    uint32_t timestamp;        // When error occurred (millis())
+    const char* context;       // Additional context/details
+    const char* source_file;   // Source file where error occurred
+    uint16_t source_line;      // Source line where error occurred
+} photo_frame_error_t;
+```
+
+#### Error Severity Levels
+- **ERROR_SEVERITY_INFO** (0): Informational messages
+- **ERROR_SEVERITY_WARNING** (1): Warning conditions  
+- **ERROR_SEVERITY_ERROR** (2): Error conditions
+- **ERROR_SEVERITY_CRITICAL** (3): Critical system errors
+
+#### Error Categories
+- **ERROR_CATEGORY_GENERAL** (0): General errors
+- **ERROR_CATEGORY_NETWORK** (1): Network/WiFi related errors
+- **ERROR_CATEGORY_STORAGE** (2): SD card/file system errors
+- **ERROR_CATEGORY_HARDWARE** (3): Hardware component errors
+- **ERROR_CATEGORY_CONFIG** (4): Configuration validation errors
+- **ERROR_CATEGORY_AUTHENTICATION** (5): Authentication/JWT errors
+- **ERROR_CATEGORY_BATTERY** (6): Battery related errors
+- **ERROR_CATEGORY_DISPLAY** (7): Display/rendering errors
+
+### 8.2 Specific Error Categories
+
+#### Google Drive API & OAuth Errors (40-79)
+Comprehensive cloud service error handling:
+- **OAuth Token Management** (40-49): Token expiration, refresh failures, scope issues
+- **Google Drive API** (50-69): API quota, rate limiting, file operations, permissions
+- **HTTP Transport** (70-79): Status code mapping, transport layer issues
+
+Example Usage:
+```cpp
+// Automatic error creation with context
+auto error = photo_frame::error_utils::map_google_drive_error(
+    429, responseBody, "Syncing folder contents");
+if (error != photo_frame::error_type::None) {
+    error.log_detailed(); // Logs full error with context
+}
+```
+
+#### Image Processing Errors (80-99)
+Advanced image validation and processing error detection:
+- **File Validation** (80-87): Corruption detection, format validation, size checking
+- **Processing Operations** (88-95): Buffer management, conversion failures, memory issues
+- **Format Support** (96-99): Palette validation, resolution limits, format conversion
+
+Example Usage:
+```cpp
+// Validate image dimensions with automatic error creation
+auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
+    width, height, display.width(), display.height(), filename);
+if (dimensionError != photo_frame::error_type::None) {
+    dimensionError.log_detailed();
+    return false;
+}
+```
+
+#### Network & WiFi Errors (120-139)
+Detailed network diagnostics:
+- **WiFi Connection** (120-127): Signal strength, authentication, DHCP, DNS resolution
+- **HTTP Transport** (128-134): Request timeouts, SSL handshake, proxy issues
+- **Network Interface** (131-139): Interface status, configuration validation
+
+#### Configuration Errors (140-159)
+Configuration file validation and management:
+- **File Integrity** (140-149): Corruption detection, JSON syntax, version mismatches
+- **Field Validation** (150-159): Type checking, dependency validation, access control
+
+#### SD Card Specific Errors (100-119)
+Comprehensive SD card health monitoring:
+- **Physical Issues** (100-109): Write protection, corruption, bad sectors, size validation
+- **Performance** (103-109): Slow response detection, efficiency monitoring
+
+#### Battery & Power Management Errors (160-199)
+Advanced power system monitoring:
+- **Battery Health** (160-169): Voltage monitoring, temperature tracking, aging detection
+- **Charging System** (170-179): Charge rate monitoring, charger compatibility, safety
+- **Power Supply** (180-189): Voltage regulation, overcurrent protection, efficiency
+- **Power Management** (190-199): Sleep mode control, thermal throttling, clock management
+
+Example Usage:
+```cpp
+// Battery validation with rich context
+auto batteryError = photo_frame::error_utils::validate_battery_voltage(
+    voltage, 3.0, 4.3, "Main battery check");
+if (batteryError != photo_frame::error_type::None) {
+    batteryError.log_detailed(); // Shows voltage values and thresholds
+}
+```
+
+#### Display System Errors (200-259)
+Comprehensive e-paper display diagnostics:
+- **Hardware Control** (200-209): Initialization, SPI communication, reset sequencing
+- **E-Paper Specific** (210-229): Refresh failures, ghosting detection, lifetime tracking
+- **Rendering Engine** (230-249): Buffer management, pixel format conversion, memory allocation
+- **Configuration** (250-259): Resolution validation, color depth support, calibration
+
+Example Usage:
+```cpp
+// E-paper specific error with context
+auto epaperError = photo_frame::error_utils::create_epaper_error(
+    "refresh_failed", refreshCount, temperature, waveform, "Full screen update");
+epaperError.log_detailed(); // Shows refresh count, temperature, waveform info
+```
+
+### 8.3 Error Helper Functions (`platformio/src/errors.cpp`)
+
+#### Smart Error Creation Functions
+- `map_http_status_to_error()`: HTTP status code to specific error mapping
+- `map_google_drive_error()`: Google Drive API response parsing and error classification
+- `create_oauth_error()`: OAuth-specific error creation with context
+- `create_image_error()`: Image processing error with file and dimension context
+- `create_battery_error()`: Battery error with voltage, percentage, and temperature metrics
+- `create_display_error()`: Display error with resolution and mode information
+
+#### Validation Functions with Automatic Error Creation
+- `validate_image_dimensions()`: Dimension checking with automatic error reporting
+- `validate_image_file_size()`: File size validation with expected size context
+- `validate_battery_voltage()`: Battery voltage range checking
+- `validate_battery_temperature()`: Temperature safety validation
+- `validate_display_resolution()`: Display resolution compatibility checking
+
+### 8.4 Enhanced Error Logging
+
+#### Detailed Error Output
+The `log_detailed()` method provides comprehensive error information:
+```
+[CRITICAL] Error 200 (Display): Display initialization failed
+  Context: Resolution: 800x480, Mode: Full refresh
+  Location: renderer.cpp:91
+  Time: 12456ms
+```
+
+#### Error Display Integration
+- **Visual Feedback**: Errors displayed on e-paper screen with appropriate icons
+- **LED Indicators**: Blink patterns for different error severities
+- **Context Preservation**: Error context maintained across sleep/wake cycles
+
+### 8.5 Error Recovery Strategies
+
+#### Graceful Degradation
+- **Network Failures**: Fall back to cached content, extend refresh intervals
+- **SD Card Issues**: Continue with limited functionality, display error status
+- **Battery Critical**: Enter power-saving mode, display battery warning
+- **Display Errors**: Attempt recovery, fallback to basic rendering
+
+#### Automatic Recovery
+- **Transient Errors**: Automatic retry with exponential backoff
+- **System Health**: Watchdog timer prevents system hang
+- **Resource Management**: Automatic cleanup of corrupted cache files
+
+### 8.6 Error Monitoring & Analytics
+
+#### Error Classification
+Each error includes automatic classification for monitoring:
+- **Severity Distribution**: Track critical vs warning ratios
+- **Category Analysis**: Identify problematic subsystems
+- **Temporal Patterns**: Error frequency over time
+- **Context Analysis**: Common failure scenarios
+
+#### Diagnostic Information
+Rich context information enables rapid debugging:
+- **Hardware State**: Battery level, display status, connectivity
+- **System State**: Memory usage, file system status, timing information
+- **Operation Context**: Current operation, file being processed, API endpoint
+
+This comprehensive error system enables proactive maintenance, rapid troubleshooting, and continuous system improvement through detailed error analytics.
+
 ## File Structure Summary
 
 ```

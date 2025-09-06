@@ -196,14 +196,8 @@ void disable_built_in_led() {
 
 void blink_builtin_led(photo_frame_error_t error) {
 #if defined(LED_BUILTIN)
-    Serial.print(F("Blinking built-in LED with error code: "));
-    Serial.print(error.code);
-    Serial.print(F(" ("));
-    Serial.print(error.message);
-    Serial.print(F(") - "));
-    Serial.print(F("Blink count: "));
-    Serial.println(error.code);
-    blink_builtin_led(error.code);
+    // Use enhanced logging for better error reporting
+    error.log_detailed();
 #endif
 } // blink_builtin_led with error code
 
@@ -248,15 +242,8 @@ void blink_rgb_led(uint32_t count,
 
 void blink_rgb_led(photo_frame_error_t error) {
 #if HAS_RGB_LED
-    Serial.print(F("Blinking RGB LED with error code: "));
-    Serial.print(error.code);
-    Serial.print(F(" ("));
-    Serial.print(error.message);
-    Serial.print(F(") - "));
-    Serial.print(F("Blink count: "));
-    Serial.println(error.code);
-
-    blink_rgb_led(error.code, true, false, false);
+    // Use enhanced logging for better error reporting
+    error.log_detailed();
 #endif
 } // blink_rgb_led with error code
 

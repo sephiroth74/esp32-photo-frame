@@ -30,7 +30,10 @@ namespace rtc_utils {
 
 // Global variable to store pending RTC update
 static DateTime pendingRtcUpdate = DateTime((uint32_t)0);
+
+#ifdef USE_RTC
 static bool needsRtcUpdate = false;
+#endif
 
 DateTime fetch_remote_datetime(wifi_manager& wifiManager, photo_frame_error_t* error) {
     if (!wifiManager.is_connected()) {
