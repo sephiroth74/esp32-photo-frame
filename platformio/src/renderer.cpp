@@ -337,7 +337,7 @@ void draw_error(photo_frame_error error) {
         bitmap_196x196 = getBitmap(icon_name::error_icon, 196);
     }
 
-    draw_error(bitmap_196x196, String(error.message), "");
+    draw_error(bitmap_196x196, error.format_for_display(), "");
 }
 
 void draw_error_message(const gravity_t gravity, const uint8_t code) {
@@ -837,11 +837,11 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
     Serial.print(", height: ");
     Serial.println(height);
 
-    if (width <= 0 || height <= 0) {
-        Serial.println("Invalid width or height");
-        return false;
-    } else if (width > display.width() || height > display.height()) {
-        Serial.println("Width or height exceeds display dimensions");
+    // Validate image dimensions using enhanced error system
+    auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
+        width, height, display.width(), display.height(), filename);
+    if (dimensionError != photo_frame::error_type::None) {
+        dimensionError.log_detailed();
         return false;
     }
 
@@ -877,15 +877,10 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
                 photo_frame::renderer::color2Epd(color, pixelColor, x, y);
                 display.writePixel(x, y, pixelColor);
             } else {
-                Serial.print("Error reading pixel data at position (");
-                Serial.print(x);
-                Serial.print(", ");
-                Serial.print(y);
-                Serial.print(") - index: ");
-                Serial.print(idx);
-                Serial.print(" - file position: ");
-                Serial.println(file.position());
-                Serial.println("Exiting early due to read error.");
+                // Create specific image processing error
+                auto error = photo_frame::error_utils::create_image_error("read_failed", filename, 
+                            nullptr, "Failed to read pixel data during rendering");
+                error.log_detailed();
                 return false; // Exit early if read error occurs
             }
 
@@ -911,11 +906,11 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
     Serial.print(", height: ");
     Serial.println(height);
 
-    if (width <= 0 || height <= 0) {
-        Serial.println("Invalid width or height");
-        return false;
-    } else if (width > display.width() || height > display.height()) {
-        Serial.println("Width or height exceeds display dimensions");
+    // Validate image dimensions using enhanced error system
+    auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
+        width, height, display.width(), display.height(), filename);
+    if (dimensionError != photo_frame::error_type::None) {
+        dimensionError.log_detailed();
         return false;
     }
 
@@ -924,15 +919,12 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
         return false;
     }
 
-    // Check file size matches expected dimensions
+    // Validate file size using enhanced error system
     size_t expectedSize = width * height;
-    size_t actualSize = file.size();
-    if (actualSize != expectedSize) {
-        Serial.print("File size mismatch - expected: ");
-        Serial.print(expectedSize);
-        Serial.print(", actual: ");
-        Serial.println(actualSize);
-        Serial.println("Cannot continue with mismatched file size");
+    auto fileSizeError = photo_frame::error_utils::validate_image_file_size(
+        file.size(), expectedSize, expectedSize, filename);
+    if (fileSizeError != photo_frame::error_type::None) {
+        fileSizeError.log_detailed();
         return false;
     }
 
@@ -983,20 +975,16 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
                     }
                     
                     if (byteRead < 0) {
-                        Serial.print("File read error at position (");
-                        Serial.print(x);
-                        Serial.print(", ");
-                        Serial.print(y);
-                        Serial.print(") - index: ");
-                        Serial.print(idx);
-                        Serial.print(" - seek success: ");
-                        Serial.print(seekSuccess ? "YES" : "NO");
-                        Serial.print(" - file position: ");
-                        Serial.print(file.position());
-                        Serial.print(" - file size: ");
-                        Serial.print(file.size());
-                        Serial.print(" - available: ");
-                        Serial.println(file.available());
+                        // Determine specific error type based on seek success
+                        if (!seekSuccess) {
+                            auto error = photo_frame::error_utils::create_image_error("seek_failed", filename, 
+                                        nullptr, "Failed to seek to pixel position");
+                            error.log_detailed();
+                        } else {
+                            auto error = photo_frame::error_utils::create_image_error("read_failed", filename, 
+                                        nullptr, "Failed to read pixel data");
+                            error.log_detailed();
+                        }
                     }
                 }
 

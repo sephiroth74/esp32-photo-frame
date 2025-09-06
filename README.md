@@ -36,7 +36,7 @@
    - 3.7 5000mAh LiPo Battery
 
 2. **Hardware Assembly & Wiring**
-   - **📋 [Complete Wiring Diagram](wiring-diagram.md)** - Comprehensive pin connections and assembly guide
+   - **📋 [Complete Wiring Diagram](docs/wiring-diagram.md)** - Comprehensive pin connections and assembly guide
    - **Recommended Board**: DFRobot FireBeetle 2 ESP32-C6 (built-in battery management and solar charging)
    - **Key Connections**: SPI for display and SD card, I2C for RTC, analog for battery monitoring
    - **Power Management**: Built-in JST connector for battery, screw terminals for solar panel
@@ -109,7 +109,30 @@
    - **Binary Output**: Generates both .bmp and optimized .bin files
    - **Color Modes**: Supports black & white and 6-color e-paper displays
 
-4. **Build and Upload**
+4. **Binary to Image Conversion**
+
+   The project includes a powerful Rust-based tool for converting ESP32 binary image files back to viewable formats:
+
+   **📋 [Binary to Image Converter Documentation](docs/bin_2_image.md)** - Complete guide for the `bin2bmp` tool
+
+   ```bash
+   # Convert binary to BMP with default 800x480 size
+   ./rust/bin2bmp/target/release/bin2bmp -i photo.bin -t bw
+   
+   # Convert 6-color binary to JPEG with custom size
+   ./rust/bin2bmp/target/release/bin2bmp -i photo.bin -o output/ -s 1200x825 -t 6c -f jpeg
+   
+   # Validate binary file only
+   ./rust/bin2bmp/target/release/bin2bmp --validate-only -i photo.bin
+   ```
+
+   **Key Features:**
+   - 🚀 **Fast**: Native Rust performance with animated progress bars
+   - 🎯 **Smart Validation**: Helpful error messages with dimension suggestions  
+   - 🎨 **Multiple Formats**: BMP, JPEG, PNG output support
+   - 📁 **Auto Naming**: Automatically generates output filenames
+
+5. **Build and Upload**
    - Connect your ESP32 board
    - Use PlatformIO to build and upload the firmware
 
@@ -146,6 +169,10 @@ The workarounds are implemented in:
 - `platformio/src/main.cpp`: I2C shutdown before all WiFi operations
 - `platformio/src/rtc_util.cpp`: Deferred RTC updates after I2C restart
 - `platformio/include/rtc_util.h`: New RTC update function declarations
+
+## Technical Specifications
+
+For detailed technical documentation including comprehensive error handling system, system architecture, hardware specifications, and API references, see **📋 [Technical Specifications](docs/tech_specs.md)**.
 
 ## Configuration & Customization
 

@@ -488,7 +488,8 @@ photo_frame_error_t google_drive_client::get_access_token()
             Serial.print(F("Permanent failure (HTTP "));
             Serial.print(response.statusCode);
             Serial.println(F("), not retrying"));
-            return error_type::HttpPostFailed;
+            // Return specific error based on failure type and status code
+            return photo_frame::error_utils::map_google_drive_error(response.statusCode, response.body.c_str(), "OAuth token request");
         }
 
         // Success case
@@ -505,7 +506,11 @@ photo_frame_error_t google_drive_client::get_access_token()
                 Serial.println(err.c_str());
                 Serial.print(F("Response body: "));
                 Serial.println(response.body);
-                return error_type::JsonParseFailed;
+                // Check if this is an OAuth error response
+                if (response.body.indexOf("invalid_grant") >= 0 || response.body.indexOf("invalid_client") >= 0) {
+                    return photo_frame::error_utils::create_oauth_error("invalid_grant", "OAuth token response parsing failed");
+                }
+                return photo_frame::error_utils::create_oauth_error("invalid_token", "Failed to parse OAuth token response");
             }
 
             const char* tok = doc["access_token"];
@@ -513,7 +518,7 @@ photo_frame_error_t google_drive_client::get_access_token()
 
             if (!tok) {
                 Serial.println(F("No access_token in response"));
-                return error_type::TokenMissing;
+                return error_type::OAuthTokenRequestFailed;
             }
 
             time_t tokenExpirationTime = time(NULL) + expires_in;
@@ -740,7 +745,7 @@ google_drive_client::list_files_in_folder(const char* folderId,
             Serial.print(F("Permanent failure (HTTP "));
             Serial.print(response.statusCode);
             Serial.println(F("), not retrying file listing"));
-            return error_type::HttpGetFailed;
+            return photo_frame::error_utils::map_google_drive_error(response.statusCode, response.body.c_str(), "File listing request");
         }
 
         // Success case
