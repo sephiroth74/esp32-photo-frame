@@ -53,10 +53,42 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
 #endif                                                          // !ESP32C6 && !ESP32H2
 
 #if defined(WAKEUP_EXT1)
-    Serial.println(F("Configuring EXT1 wakeup..."));
+    Serial.println(F("Configuring EXT1 wakeup on RTC IO pin..."));
 
+    // Test if pin supports RTC IO before configuration
+    Serial.print(F("Testing RTC IO capability for GPIO "));
+    Serial.print(WAKEUP_PIN);
+    Serial.print(F("... "));
+    
     pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
-    esp_sleep_enable_ext1_wakeup(1ULL << WAKEUP_PIN, WAKEUP_LEVEL);
+    
+    // Read current pin state for debugging
+    int pinState = digitalRead(WAKEUP_PIN);
+    Serial.print(F("Pin state: "));
+    Serial.print(pinState);
+    
+    // Test EXT1 wakeup configuration
+    uint64_t pin_mask = 1ULL << WAKEUP_PIN;
+    esp_err_t wakeup_result = esp_sleep_enable_ext1_wakeup(pin_mask, WAKEUP_LEVEL);
+    
+    Serial.print(F(" | EXT1 config: "));
+    if (wakeup_result == ESP_OK) {
+        Serial.println(F("SUCCESS"));
+        Serial.print(F("GPIO "));
+        Serial.print(WAKEUP_PIN);
+        Serial.print(F(" configured for EXT1 wakeup with mask 0x"));
+        Serial.print((uint32_t)pin_mask, HEX);
+        Serial.print(F(", level: "));
+        Serial.println(WAKEUP_LEVEL == ESP_EXT1_WAKEUP_ANY_HIGH ? "HIGH" : "LOW");
+        
+        // Additional test: try to read the configured wakeup source
+        Serial.println(F("EXT1 wakeup source configured successfully"));
+    } else {
+        Serial.print(F("FAILED - Error code: "));
+        Serial.println(wakeup_result);
+        Serial.println(F("This GPIO pin does not support RTC IO / EXT1 wakeup!"));
+    }
+    
 #endif // WAKEUP_EXT1
 
     bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
@@ -170,8 +202,8 @@ void blink_builtin_led(photo_frame_error_t error) {
     Serial.print(error.message);
     Serial.print(F(") - "));
     Serial.print(F("Blink count: "));
-    Serial.println(error.blink_count);
-    blink_builtin_led(error.blink_count);
+    Serial.println(error.code);
+    blink_builtin_led(error.code);
 #endif
 } // blink_builtin_led with error code
 
@@ -222,27 +254,11 @@ void blink_rgb_led(photo_frame_error_t error) {
     Serial.print(error.message);
     Serial.print(F(") - "));
     Serial.print(F("Blink count: "));
-    Serial.println(error.blink_count);
+    Serial.println(error.code);
 
-    blink_rgb_led(error.blink_count, true, false, false);
+    blink_rgb_led(error.code, true, false, false);
 #endif
 } // blink_rgb_led with error code
-
-void blink_error(photo_frame_error_t error) {
-    Serial.print(F("Blinking error: "));
-    Serial.print(error.message);
-    Serial.print(F(" (Code: "));
-    Serial.print(error.code);
-    Serial.print(F(", Blink count: "));
-    Serial.print(error.blink_count);
-    Serial.println(F(")"));
-
-#if defined(LED_BUILTIN)
-    blink_builtin_led(error);
-#else
-    Serial.println(F("No built-in LED available for error indication."));
-#endif
-} // blink_error
 
 long read_refresh_seconds(bool is_battery_low) {
     Serial.println(F("Reading potentiometer..."));

@@ -924,13 +924,29 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
         return false;
     }
 
+    // Check file size matches expected dimensions
+    size_t expectedSize = width * height;
+    size_t actualSize = file.size();
+    if (actualSize != expectedSize) {
+        Serial.print("File size mismatch - expected: ");
+        Serial.print(expectedSize);
+        Serial.print(", actual: ");
+        Serial.println(actualSize);
+        Serial.println("Cannot continue with mismatched file size");
+        return false;
+    }
+
     display.setFullWindow();
     display.firstPage();
 
     do {
         display.fillScreen(GxEPD_WHITE);
         auto startTime = millis();
-        uint32_t idx   = 0;
+        
+        // Try sequential reading first (more reliable than random seeking)
+        file.seek(0); // Start from beginning
+        bool useSequentialRead = true;
+        int consecutiveReadFailures = 0;
 
         for (int y = 0; y < height; y++) {
             // Yield every 10 rows to prevent watchdog timeout
@@ -941,30 +957,58 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
             for (int x = 0; x < width; x++) {
                 uint8_t color;
                 uint16_t pixelColor;
-                idx          = (y * width + x);
+                uint32_t idx = (y * width + x);
 
-                int byteRead = 0;
+                int byteRead = -1;
 
-                // Move to the pixel position in the file
-                if (file.seek(idx)) {
+                if (useSequentialRead) {
+                    // Sequential read - more reliable
                     byteRead = file.read();
+                    if (byteRead < 0) {
+                        consecutiveReadFailures++;
+                        if (consecutiveReadFailures > 10) {
+                            Serial.println("Too many sequential read failures, switching to seek mode");
+                            useSequentialRead = false;
+                        }
+                    } else {
+                        consecutiveReadFailures = 0;
+                    }
+                }
+                
+                if (!useSequentialRead || byteRead < 0) {
+                    // Fallback to seek method if sequential fails
+                    bool seekSuccess = file.seek(idx);
+                    if (seekSuccess) {
+                        byteRead = file.read();
+                    }
+                    
+                    if (byteRead < 0) {
+                        Serial.print("File read error at position (");
+                        Serial.print(x);
+                        Serial.print(", ");
+                        Serial.print(y);
+                        Serial.print(") - index: ");
+                        Serial.print(idx);
+                        Serial.print(" - seek success: ");
+                        Serial.print(seekSuccess ? "YES" : "NO");
+                        Serial.print(" - file position: ");
+                        Serial.print(file.position());
+                        Serial.print(" - file size: ");
+                        Serial.print(file.size());
+                        Serial.print(" - available: ");
+                        Serial.println(file.available());
+                    }
                 }
 
                 if (byteRead >= 0) {
-                    color = static_cast<uint8_t>(byteRead); // Read the byte as color value
+                    color = static_cast<uint8_t>(byteRead);
                     photo_frame::renderer::color2Epd(color, pixelColor, x, y);
                     display.drawPixel(x, y, pixelColor);
                 } else {
-                    Serial.print("Error reading pixel data at position (");
-                    Serial.print(x);
-                    Serial.print(", ");
-                    Serial.print(y);
-                    Serial.print(") - index: ");
-                    Serial.print(idx);
-                    Serial.print(" - file position: ");
-                    Serial.println(file.position());
-                    Serial.println("Exiting early due to read error.");
-                    return false; // Exit early if read error occurs
+                    // Use fallback color and continue
+                    color = 0xFF; // White fallback
+                    photo_frame::renderer::color2Epd(color, pixelColor, x, y);
+                    display.drawPixel(x, y, pixelColor);
                 }
 
                 // Yield every 100 pixels to prevent watchdog timeout

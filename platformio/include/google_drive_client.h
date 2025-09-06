@@ -135,6 +135,13 @@ class google_drive_file {
     String mimeType;     ///< MIME type of the file (e.g., "image/jpeg")
     String modifiedTime; ///< Last modification timestamp
 
+    /** Default constructor */
+    google_drive_file() :
+        id(""),
+        name(""),
+        mimeType(""),
+        modifiedTime("") {}
+
     /**
      * @brief Constructor for google_drive_file.
      * @param id Unique file identifier in Google Drive

@@ -3,6 +3,7 @@
 
 #include "datetime_utils.h"
 #include "google_drive.h"
+#include "google_drive_toc_parser.h"
 #include "sd_card.h"
 #include "string_utils.h"
 
@@ -1508,6 +1509,13 @@ google_drive_file google_drive::get_toc_file_by_index(size_t index, photo_frame_
 {
     String tocPath = get_toc_file_path();
     return get_toc_file_by_index(tocPath, index, error);
+}
+
+google_drive_file google_drive::get_toc_file_by_name(const char* filename, photo_frame_error_t* error)
+{
+    String tocPath = get_toc_file_path();
+    google_drive_toc_parser parser(sdCard, tocPath.c_str());
+    return parser.get_file_by_name(filename, error);
 }
 
 // Member function version of cleanup_temporary_files

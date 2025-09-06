@@ -118,13 +118,6 @@ void blink_rgb_led(uint32_t count,
 void blink_rgb_led(photo_frame_error_t error);
 
 /**
- * Blinks either the RGB or the built-in LED according to the specified error
- * and prints the error message to the Serial console.
- * @param error The error containing the message, code, and blink count.
- */
-void blink_error(photo_frame_error_t error);
-
-/**
  * Reads the refresh interval in seconds, adjusting for battery level if specified.
  * @param is_battery_low Indicates if the battery is low, which may affect the refresh rate.
  * @return The refresh interval in seconds.

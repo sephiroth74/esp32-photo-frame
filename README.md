@@ -35,7 +35,14 @@
    - [AZDelivery Real Time Clock](https://www.amazon.it/dp/B077XN4LL4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1) (optional)
    - 3.7 5000mAh LiPo Battery
 
-2. **Setup**
+2. **Hardware Assembly & Wiring**
+   - **📋 [Complete Wiring Diagram](wiring-diagram.md)** - Comprehensive pin connections and assembly guide
+   - **Recommended Board**: DFRobot FireBeetle 2 ESP32-C6 (built-in battery management and solar charging)
+   - **Key Connections**: SPI for display and SD card, I2C for RTC, analog for battery monitoring
+   - **Power Management**: Built-in JST connector for battery, screw terminals for solar panel
+   - **Wakeup Button**: GPIO 3 with pull-down configuration for manual device wakeup
+
+3. **Setup**
    - Clone this repository
    - Open the project in [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/)
    - Configure your hardware settings in `include/config.h` and `src/config.cpp` if needed
@@ -105,6 +112,40 @@
 4. **Build and Upload**
    - Connect your ESP32 board
    - Use PlatformIO to build and upload the firmware
+
+## ESP32-C6 Specific Considerations
+
+### Known Issues and Workarounds
+
+When using **ESP32-C6 boards** (such as DFRobot FireBeetle 2 ESP32-C6), you may encounter I2C/WiFi coexistence issues that can cause JSON parsing errors in Google Drive API responses. The symptoms include:
+
+- JSON parsing errors with truncated responses at exactly 32KB
+- HTTP response corruption with character sequences like `�����`
+- `ArduinoJson` errors: `IncompleteInput` or `InvalidInput`
+
+### **Root Cause**
+ESP32-C6 has hardware-level interference between I2C operations (used for RTC communication) and WiFi operations (used for Google Drive API calls). This interference corrupts incoming WiFi data.
+
+### **Implemented Solution**
+The firmware includes comprehensive workarounds that completely isolate I2C and WiFi operations:
+
+1. **Complete I2C Shutdown**: I2C bus is completely shut down before any WiFi operations begin
+2. **WiFi Operation Isolation**: All network operations (time sync + Google Drive) happen while I2C is disabled  
+3. **Delayed I2C Restart**: I2C is only restarted after WiFi is completely disconnected
+4. **RTC Update Management**: Time fetched during WiFi operations is stored and applied to RTC after I2C restart
+
+### **Alternative Solution**
+For new projects, consider using **ESP32-S3 boards** (like DFRobot FireBeetle 2 ESP32-S3) which don't suffer from these coexistence issues and offer additional benefits:
+- Better I2C/WiFi isolation
+- More memory (PSRAM support)
+- Dual-core architecture
+- More stable operation
+
+### **Code Implementation**
+The workarounds are implemented in:
+- `platformio/src/main.cpp`: I2C shutdown before all WiFi operations
+- `platformio/src/rtc_util.cpp`: Deferred RTC updates after I2C restart
+- `platformio/include/rtc_util.h`: New RTC update function declarations
 
 ## Configuration & Customization
 
