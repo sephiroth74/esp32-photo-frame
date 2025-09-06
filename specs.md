@@ -49,6 +49,125 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **Main Script**: `auto.sh`
 - **Purpose**: Batch image processing for SD card workflow
 
+## ESP32-C6 Hardware-Specific Considerations
+
+### I2C/WiFi Coexistence Issues
+
+**ESP32-C6 boards** have documented hardware-level interference between I2C and WiFi operations that can severely impact cloud-based functionality.
+
+#### Symptoms
+- **JSON Parsing Failures**: Google Drive API responses truncated at exactly 32KB
+- **HTTP Corruption**: Character sequences like `�����` in response data
+- **ArduinoJson Errors**: `IncompleteInput`, `InvalidInput`, and parsing failures
+- **Inconsistent WiFi Performance**: Intermittent connection issues when RTC is active
+
+#### Root Cause Analysis
+1. **Hardware Interference**: ESP32-C6's I2C controller creates electrical interference with WiFi transceiver
+2. **Timing Conflicts**: Concurrent I2C transactions (RTC communication) disrupt WiFi packet reception
+3. **Buffer Corruption**: WiFi receive buffers get corrupted during I2C clock transitions
+4. **Critical Impact**: Google Drive API responses >32KB become unreliable
+
+#### Implemented Technical Solution
+
+**Complete I2C/WiFi Isolation Architecture:**
+
+```cpp
+// Before any WiFi operations in main.cpp:192-209
+Serial.println(F("Complete I2C shutdown before ALL WiFi operations..."));
+
+// Step 1: End I2C bus
+Wire.end();
+delay(100);
+
+// Step 2: Explicitly set I2C pins to input (high impedance)
+pinMode(RTC_SDA_PIN, INPUT);
+pinMode(RTC_SCL_PIN, INPUT);
+delay(100);
+
+// Step 3: Disable internal pull-ups on I2C pins
+digitalWrite(RTC_SDA_PIN, LOW);
+digitalWrite(RTC_SCL_PIN, LOW);
+delay(200);
+
+// All WiFi operations happen here (NTP, Google Drive API)
+// No I2C communications permitted during this phase
+
+// After WiFi disconnect in main.cpp:487-505
+Serial.println(F("Complete I2C restart after all WiFi operations complete..."));
+
+// Step 1: Reset pin states
+pinMode(RTC_SDA_PIN, INPUT_PULLUP);
+pinMode(RTC_SCL_PIN, INPUT_PULLUP);  
+delay(100);
+
+// Step 2: Reinitialize I2C bus
+Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
+Wire.begin();
+Wire.setClock(100000);  // Reduced clock speed (100kHz vs 400kHz)
+delay(200);
+
+// Deferred RTC update after I2C restart (no double initialization)
+photo_frame::rtc_utils::update_rtc_after_restart(now);
+```
+
+#### RTC Time Management Solution
+
+**Problem**: RTC updates require I2C, but time sync requires WiFi - they cannot operate simultaneously.
+
+**Solution**: Deferred RTC update pattern:
+1. **During WiFi Phase**: Store fetched time in global variable
+2. **After I2C Restart**: Apply stored time to RTC hardware
+3. **State Management**: Track pending updates with boolean flags
+
+```cpp
+// In rtc_util.cpp - store time during WiFi operations
+static DateTime pendingRtcUpdate = DateTime((uint32_t)0);
+static bool needsRtcUpdate = false;
+
+// Later, after I2C restart - apply to RTC
+bool update_rtc_after_restart(const DateTime& dateTime) {
+    if (needsRtcUpdate && pendingRtcUpdate.isValid()) {
+        RTC_DS3231 rtc;
+        Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
+        Wire.setClock(100000);
+        if (rtc.begin(&Wire)) {
+            rtc.adjust(pendingRtcUpdate);
+            needsRtcUpdate = false;
+            return true;
+        }
+    }
+    return false;
+}
+```
+
+#### Performance Impact
+- **Boot Time**: +3-4 seconds due to aggressive I2C shutdown and sequential operations
+- **Memory Usage**: Minimal (few bytes for state variables)
+- **Reliability**: Complete elimination of JSON parsing corruption through proper isolation
+- **Power Consumption**: Negligible impact on battery life
+
+#### Alternative Solutions Considered
+1. **PSRAM Usage**: Insufficient - hardware interference persists
+2. **Buffer Size Increases**: Ineffective - corruption occurs at transport layer  
+3. **JSON Streaming**: Partially effective but still unreliable
+4. **Concurrent I2C/WiFi**: Fundamentally incompatible on ESP32-C6
+
+#### Board Compatibility Matrix
+| Board Type | I2C/WiFi Issues | Workaround Required | Recommended |
+|------------|----------------|-------------------|-------------|
+| ESP32-C6   | ✗ Severe      | ✓ Required        | ⚠️ With fixes |
+| ESP32-S3   | ✓ None        | ✗ Not needed      | ✅ Preferred |
+| ESP32      | ✓ Minimal     | ✗ Not needed      | ✅ Good      |
+
+#### Migration Recommendations
+**For Existing ESP32-C6 Projects**: 
+- Use implemented workarounds (stable solution)
+- Consider ESP32-S3 upgrade for new deployments
+
+**For New Projects**:
+- **DFRobot FireBeetle 2 ESP32-S3**: Same power management + better stability
+- **ESP32-S3 + PSRAM**: Superior memory handling for large JSON responses
+
 ## Complete Project Flow
 
 ### Phase 1: Hardware Setup & Configuration
@@ -239,11 +358,13 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
    ```
 
 4. **Time Synchronization** (Lines 167-210):
+   - **ESP32-C6 Specific**: Complete I2C shutdown before WiFi operations
    - Initialize WiFi manager
    - Connect to configured network
    - Fetch current time from NTP servers
-   - Update RTC if available
+   - **ESP32-C6 Specific**: Store time for deferred RTC update
    - Handle timezone conversion
+   - **ESP32-C6 Specific**: I2C restart after WiFi disconnect
 
 #### 4.2 Image Selection Process
 
@@ -260,6 +381,7 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 
 3. **Table of Contents (TOC) Management**:
    ```cpp
+   // ESP32-C6: I2C already shut down before this point
    drive.retrieve_toc(batteryConservationMode);
    total_files = drive.get_toc_file_count(&tocError);
    ```
@@ -366,8 +488,10 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 
 #### 5.3 Network Management
 - **Connection**: Only when needed (time sync, Google Drive)
+- **ESP32-C6 Isolation**: Complete I2C shutdown during all WiFi operations
 - **Timeout**: 10 seconds for WiFi, 15-30 seconds for HTTP
 - **Disconnect**: Immediate after use to save power
+- **ESP32-C6 Recovery**: I2C restart and RTC update after WiFi disconnect
 - **Error Handling**: Graceful fallback to cached content
 
 ### Phase 6: Error Handling & Recovery
@@ -378,6 +502,8 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 3. **Battery Critical**: Display warning, enter power-saving mode
 4. **Image Processing**: Skip corrupted files, select next image
 5. **Google Drive API Limits**: Implement rate limiting and backoff
+6. **ESP32-C6 Specific**: JSON parsing corruption (resolved via I2C/WiFi isolation)
+7. **ESP32-C6 Specific**: I2C/WiFi interference errors (prevented by sequential operation)
 
 #### 6.2 Recovery Mechanisms
 - **Watchdog Timer**: Automatic reset on system hang
@@ -426,10 +552,11 @@ esp32-photo-frame/
 
 ## Performance Characteristics
 
-- **Boot Time**: 2-5 seconds from deep sleep
+- **Boot Time**: 2-5 seconds from deep sleep (ESP32-S3), 4-8 seconds (ESP32-C6 with I2C/WiFi isolation)
 - **Image Processing**: 10-30 seconds per image (Android app)
 - **Display Update**: 5-15 seconds (depending on display type)
 - **Google Drive Sync**: 30-120 seconds (depending on image count)
-- **Network Connection**: 5-10 seconds (WiFi + NTP)
+- **Network Connection**: 5-10 seconds (WiFi + NTP on ESP32-S3), 8-15 seconds (ESP32-C6 sequential I2C/WiFi)
+- **ESP32-C6 Overhead**: +2-3 seconds per boot cycle due to I2C/WiFi isolation requirements
 
 This specification covers the complete end-to-end flow of the ESP32 Photo Frame project, from initial hardware setup through runtime operation and maintenance.

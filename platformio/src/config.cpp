@@ -63,6 +63,13 @@
 #if !defined(RTC_SDA_PIN) || !defined(RTC_SCL_PIN)
 #error "Please define all RTC pins"
 #endif
+
+// ESP32-C6 has I2C/WiFi coexistence issues that cause JSON parsing corruption
+// RTC module is not supported on ESP32-C6 - use NTP-only time instead
+#if defined(CONFIG_IDF_TARGET_ESP32C6)
+#error "RTC module (USE_RTC) is not supported on ESP32-C6 due to I2C/WiFi interference. Remove USE_RTC definition and use NTP-only time synchronization."
+#endif // CONFIG_IDF_TARGET_ESP32C6
+
 #endif // USE_RTC
 
 // Check potentiometer pins are all set

@@ -337,9 +337,7 @@ String sd_card::get_toc_file_path(uint32_t index, const char* toc_file_name) con
 
     toc_file.close();
 
-#if DEBUG_MODE
     Serial.println("Index out of bounds for TOC file");
-#endif
     return ""; // If index is out of bounds, return an empty string
 
 } // end getTocFilePath

@@ -226,6 +226,14 @@ class google_drive {
     google_drive_file get_toc_file_by_index(size_t index, photo_frame_error_t* error = nullptr);
 
     /**
+     * @brief Find a file by name in the TOC file
+     * @param filename Name of the file to search for
+     * @param error Pointer to error code (optional)
+     * @return google_drive_file with the specified name, or empty file if not found
+     */
+    google_drive_file get_toc_file_by_name(const char* filename, photo_frame_error_t* error = nullptr);
+
+    /**
      * @brief Save the current access token to SD card
      * @return Error code indicating success or failure
      */

@@ -240,6 +240,9 @@
 // Maximum number of API requests per time window
 #define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 200 // Conservative limit (Google allows 1000/100s)
 
+// Maximum backoff delay for retries in milliseconds
+#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS 120000UL
+
 // Time window for rate limiting in seconds
 #define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600
 
@@ -323,6 +326,9 @@
 
 // Free space threshold on SD card before cleanup
 // #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
+
+// Force the use of a specific test file
+// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.bin"
 
 // Cleanup temporary files interval (in seconds) - default is once per day
 #ifndef CLEANUP_TEMP_FILES_INTERVAL_SECONDS

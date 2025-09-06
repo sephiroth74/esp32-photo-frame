@@ -30,3 +30,4 @@ platformio/test/oauth_response.json
 android/PhotoFrameProcessor/.kotlin
 android/PhotoFrameProcessor/build/
 android/PhotoFrameProcessor/app/google-services.json
+.claude/settings.local.json

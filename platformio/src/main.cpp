@@ -24,7 +24,6 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-#include <Wire.h>
 
 #include "battery.h"
 #include "board_util.h"
@@ -75,9 +74,6 @@ void setup()
 
     startupTime = millis();
 
-    // Initialize I2C bus early to prevent conflicts between RTC and battery sensor
-    Wire.begin();
-
 #if DEBUG_MODE
     delay(1000);
 #endif
@@ -91,8 +87,7 @@ void setup()
 
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
-    photo_frame::board_utils::toggle_rgb_led(
-        false, true, false); // Set RGB LED to green to indicate initialization
+    // photo_frame::board_utils::toggle_rgb_led(false, true, false); // Set RGB LED to green to indicate initialization
     photo_frame::board_utils::disable_rgb_led(); // Disable RGB LED to save power
 
     Serial.println(F("------------------------------"));
@@ -108,12 +103,6 @@ void setup()
     // if the wakeup reason is undefined, it means the device is starting up after
     // a reset
     bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
-
-#ifdef USE_RTC
-    bool reset_rtc = is_reset && RESET_INVALIDATES_DATE_TIME;
-#else
-    bool reset_rtc = false;
-#endif
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
     bool write_toc = is_reset;
@@ -174,19 +163,12 @@ void setup()
             Serial.println(F("Initializing WiFi manager..."));
             error = wifiManager.init(WIFI_FILENAME, sdCard);
             if (error == photo_frame::error_type::None) {
-#ifdef USE_GOOGLE_DRIVE
-
-#ifdef USE_RTC
-                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
-#else
+                // No RTC module - simple NTP-only time fetching
+                Serial.println(F("Fetching time from NTP servers..."));
                 error = wifiManager.connect();
                 if (error == photo_frame::error_type::None) {
-                    now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
+                    now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
                 }
-#endif // USE_RTC
-#else
-                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, reset_rtc, &error);
-#endif // USE_GOOGLE_DRIVE
             } else {
                 Serial.println(F("WiFi initialization failed"));
 #if !defined(USE_GOOGLE_DRIVE)
@@ -212,12 +194,6 @@ void setup()
     // -------------------------------------------------------------
     // - Read the next image file from the SD card or Google Drive
     // -------------------------------------------------------------
-
-#if defined(USE_GOOGLE_DRIVE) && !defined(USE_RTC)
-    if (error == photo_frame::error_type::None) {
-        error = wifiManager.connect();
-    }
-#endif
 
     Serial.println(F("--------------------------------------"));
     Serial.println(F(" - Find the next image from the SD..."));
@@ -311,6 +287,7 @@ void setup()
 
                 if (error == photo_frame::error_type::None) {
                     // Ensure TOC is up to date (but don't load files into memory)
+                    // I2C is already shut down before all WiFi operations to prevent ESP32-C6 interference
                     drive.retrieve_toc(batteryConservationMode);
 
                     // Get file count efficiently from TOC
@@ -324,11 +301,27 @@ void setup()
                     Serial.print(F("Total files in Google Drive folder: "));
                     Serial.println(total_files);
 
+                    photo_frame::google_drive_file selectedFile;
+
+#ifdef GOOGLE_DRIVE_TEST_FILE
+                    // Use specific test file if defined
+                    Serial.print(F("Using test file: "));
+                    Serial.println(GOOGLE_DRIVE_TEST_FILE);
+                    selectedFile = drive.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
+                    if (tocError != photo_frame::error_type::None) {
+                        Serial.print(F("Test file not found in TOC, falling back to random selection. Error: "));
+                        Serial.println(tocError.code);
+                        // Fallback to random selection
+                        image_index = random(0, total_files);
+                        selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
+                    }
+#else
                     // Generate a random index to start from
                     image_index = random(0, total_files);
 
                     // Get the specific file by index efficiently
-                    photo_frame::google_drive_file selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
+                    selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
+#endif
 
                     if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
                         Serial.print(F("Selected file: "));
@@ -448,6 +441,7 @@ void setup()
     }
 
     wifiManager.disconnect(); // Disconnect from WiFi to save power
+    Serial.println(F("WiFi operations complete - using NTP-only time"));
 
     // -------------------------------------------------------------
     // - Calculate the refresh rate based on the battery level
@@ -476,9 +470,6 @@ void setup()
     }
 
     if (error != photo_frame::error_type::None) {
-#if DEBUG_MODE
-        photo_frame::board_utils::blink_error(error);
-#endif
         display.firstPage();
         do {
             photo_frame::renderer::draw_error(error);

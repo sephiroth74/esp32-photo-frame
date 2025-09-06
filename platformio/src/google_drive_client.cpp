@@ -68,8 +68,6 @@ String readHttpBody(WiFiClientSecure& client)
 // use approved answer here: https://stackoverflow.com/questions/154536/encode-decode-urls-in-c
 static String urlEncode(const String& s)
 {
-    Serial.print(F("Encoding URL: "));
-    Serial.println(s);
     String o;
     const char* hex = "0123456789ABCDEF";
     for (size_t i = 0; i < s.length(); ++i) {
@@ -87,8 +85,12 @@ static String urlEncode(const String& s)
             yield();
         }
     }
+
+#if DEBUG_MODE
     Serial.print(F("Encoded URL: "));
     Serial.println(o);
+#endif // DEBUG_MODE
+
     return o;
 }
 
@@ -287,8 +289,8 @@ bool google_drive_client::handle_rate_limit_response(uint8_t attempt)
     unsigned long backoffDelay = config->backoffBaseDelayMs * (1UL << attempt);
 
     // Cap the delay to prevent excessive waiting (max 2 minutes)
-    if (backoffDelay > 120000UL) {
-        backoffDelay = 120000UL;
+    if (backoffDelay > GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS) {
+        backoffDelay = GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS;
     }
 
     Serial.print(F("Rate limited (HTTP 429). Backing off for "));
@@ -711,10 +713,10 @@ google_drive_client::list_files_in_folder(const char* folderId,
             headers += g_access_token.accessToken;
             String req = build_http_request("GET", path.c_str(), DRIVE_HOST, headers.c_str());
 
-#if DEBUG_MODE
-            Serial.print(F("HTTP request: "));
-            Serial.println(req);
-#endif
+// #if DEBUG_MODE
+//             Serial.print(F("HTTP request: "));
+//             Serial.println(req);
+// #endif
 
             client.print(req);
 
@@ -855,12 +857,6 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
         Serial.println(tokenStart);
         Serial.print(F("nextPageToken value end position: "));
         Serial.println(tokenEnd);
-
-        if(tokenStart < 0) {
-            // print the jsonBody line by line
-            
-        }
-
 #endif // DEBUG_MODE
 
         if (tokenEnd > tokenStart && tokenStart > 0) { // tokenStart cannot be 0
@@ -893,10 +889,6 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
         filesStart = jsonBody.indexOf("\"files\": [");
         if (filesStart < 0) {
             Serial.println(F("No files array found in response"));
-#if DEBUG_MODE
-            Serial.print(F("Response body: "));
-            Serial.println(jsonBody);
-#endif // DEBUG_MODE
             return error_type::JsonParseFailed;
         }
         filesMatchSize = 10;
@@ -1535,11 +1527,11 @@ String google_drive_client::build_http_request(const char* method,
     String req;
     req.reserve(reqLen);
 
-    // Request line: METHOD path HTTP/1.1
+    // Request line: METHOD path HTTP/1.0 (to avoid chunked transfer encoding)
     req = method;
     req += " ";
     req += path;
-    req += " HTTP/1.1\r\nHost: ";
+    req += " HTTP/1.0\r\nHost: ";
     req += host;
     req += "\r\n";
 
