@@ -150,12 +150,12 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo
 
     fs::File file;
     if (!open_and_validate_toc(file, error)) {
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     if (!skip_header(file, error)) {
         file.close();
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     // Skip to the desired index
@@ -168,7 +168,7 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo
             if (error) {
                 *error = error_type::JsonParseFailed;
             }
-            return google_drive_file("", "", "", "");
+            return google_drive_file();
         }
     }
 
@@ -182,7 +182,7 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     return parse_file_line(targetLine.c_str(), error);
@@ -195,12 +195,12 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
 
     fs::File file;
     if (!open_and_validate_toc(file, error)) {
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     if (!skip_header(file, error)) {
         file.close();
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     // Search through all file entries
@@ -241,65 +241,9 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
         *error = error_type::SdCardFileNotFound;
     }
     
-    return google_drive_file("", "", "", "");
+    return google_drive_file();
 }
 
-google_drive_files_list google_drive_toc_parser::load_all_files(photo_frame_error_t* error) {
-    google_drive_files_list result;
-    
-    if (error) {
-        *error = error_type::None;
-    }
-
-    fs::File file;
-    if (!open_and_validate_toc(file, error)) {
-        return result;
-    }
-
-    // Read the fileCount to pre-allocate vector
-    String fileCountLine = file.readStringUntil('\n');
-    int equalPos = fileCountLine.indexOf('=');
-    if (equalPos != -1) {
-        String countStr = fileCountLine.substring(equalPos + 1);
-        countStr.trim();
-        size_t fileCount = countStr.toInt();
-        result.files.reserve(fileCount);
-
-        Serial.print(F("Loading "));
-        Serial.print(fileCount);
-        Serial.println(F(" files from TOC"));
-    }
-
-    // Read file entries line by line
-    while (file.available()) {
-        String line = file.readStringUntil('\n');
-        line.trim();
-
-        if (line.length() == 0) {
-            continue;
-        }
-
-        photo_frame_error_t parseError;
-        google_drive_file driveFile = parse_file_line(line.c_str(), &parseError);
-        
-        if (parseError == error_type::None && driveFile.id.length() > 0) {
-            result.files.push_back(driveFile);
-        }
-
-        // Yield periodically for large files
-        if (result.files.size() % 50 == 0) {
-            yield();
-        }
-    }
-
-    file.close();
-
-    Serial.print(F("Loaded "));
-    Serial.print(result.files.size());
-    Serial.println(F(" files from TOC"));
-
-    return result;
-}
 
 google_drive_file google_drive_toc_parser::parse_file_line(const char* line, photo_frame_error_t* error) {
     if (error) {
@@ -308,40 +252,20 @@ google_drive_file google_drive_toc_parser::parse_file_line(const char* line, pho
 
     String lineStr(line);
     
-    // Parse line: id|name|mimeType|modifiedTime
+    // Parse line: id|name
     int pos1 = lineStr.indexOf('|');
     if (pos1 == -1) {
-        Serial.println(F("Invalid file entry format: missing first separator"));
+        Serial.println(F("Invalid file entry format: missing separator"));
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file("", "", "", "");
-    }
-
-    int pos2 = lineStr.indexOf('|', pos1 + 1);
-    if (pos2 == -1) {
-        Serial.println(F("Invalid file entry format: missing second separator"));
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return google_drive_file("", "", "", "");
-    }
-
-    int pos3 = lineStr.indexOf('|', pos2 + 1);
-    if (pos3 == -1) {
-        Serial.println(F("Invalid file entry format: missing third separator"));
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return google_drive_file("", "", "", "");
+        return google_drive_file("", "");
     }
 
     String id = lineStr.substring(0, pos1);
-    String name = lineStr.substring(pos1 + 1, pos2);
-    String mimeType = lineStr.substring(pos2 + 1, pos3);
-    String modifiedTime = lineStr.substring(pos3 + 1);
+    String name = lineStr.substring(pos1 + 1);
 
-    return google_drive_file(id, name, mimeType, modifiedTime);
+    return google_drive_file(id, name);
 }
 
 bool google_drive_toc_parser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error) {

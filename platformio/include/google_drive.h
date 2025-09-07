@@ -109,8 +109,9 @@ class google_drive {
      *
      * @param batteryConservationMode If true, uses cached TOC even if expired to save battery
      * power.
+     * @return Total number of files in the TOC, or 0 if failed
      */
-    google_drive_files_list retrieve_toc(bool batteryConservationMode = false);
+    size_t retrieve_toc(bool batteryConservationMode = false);
 
     /**
      * @brief Download a file from Google Drive to the SD card.
@@ -250,35 +251,7 @@ class google_drive {
     google_drive_json_config config;  ///< Configuration settings for this Google Drive instance
     image_source_t last_image_source; ///< Source of the last accessed/downloaded image
 
-    /**
-     * @brief Load TOC from local SD card file
-     * @param filePath Path to the TOC file on SD card
-     * @return google_drive_files_list loaded from file
-     */
-    google_drive_files_list load_toc_from_file(const String& filePath);
 
-    /**
-     * @brief Load TOC from local SD card file using streaming parser (for large files)
-     * @param filePath Path to the TOC file on SD card
-     * @return google_drive_files_list loaded from file
-     */
-    google_drive_files_list load_toc_from_file_streaming(const String& filePath);
-
-    /**
-     * @brief Save TOC to local SD card file with memory optimization
-     * @param filePath Path where to save the TOC file
-     * @param filesList Files list to save
-     * @return true if successful, false otherwise
-     */
-    bool save_toc_to_file(const String& filePath, const google_drive_files_list& filesList);
-
-    /**
-     * @brief Save TOC using chunked writing for large file lists
-     * @param file Open file handle
-     * @param filesList Files list to save
-     * @return true if successful, false otherwise
-     */
-    bool save_toc_to_file_chunked(fs::File& file, const google_drive_files_list& filesList);
 };
 
 } // namespace photo_frame

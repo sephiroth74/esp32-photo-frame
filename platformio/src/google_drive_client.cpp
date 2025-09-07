@@ -28,7 +28,7 @@ String readHttpBody(WiFiClientSecure& client)
 
     // Read body in chunks to handle large responses
     String body;
-    body.reserve(65536); // Reserve space for larger responses
+    body.reserve(GOOGLE_DRIVE_BODY_RESERVE_SIZE); // Platform-specific reserve size
     
     char buffer[1024];
     size_t totalRead = 0;
@@ -49,8 +49,8 @@ String readHttpBody(WiFiClientSecure& client)
             yield();
         }
         
-        // Safety limit to prevent memory overflow
-        if (totalRead > 100000) {
+        // Safety limit to prevent memory overflow - platform specific
+        if (totalRead > GOOGLE_DRIVE_SAFETY_LIMIT) {
             Serial.println(F("Response too large, truncating"));
             break;
         }
@@ -666,7 +666,7 @@ google_drive_client::list_files_in_folder(const char* folderId,
     path = DRIVE_LIST_PATH;
     path += "?q=";
     path += encodedQ;
-    path += "&fields=nextPageToken,files(id,name,mimeType,modifiedTime)&orderBy=modifiedTime&pageSize=";
+    path += "&fields=nextPageToken,files(id,name)&pageSize=";
     path += String(pageSize);
     if (strlen(pageToken) > 0) {
         String encodedToken = urlEncode(String(pageToken));
@@ -717,12 +717,6 @@ google_drive_client::list_files_in_folder(const char* folderId,
             String headers = "Authorization: Bearer ";
             headers += g_access_token.accessToken;
             String req = build_http_request("GET", path.c_str(), DRIVE_HOST, headers.c_str());
-
-// #if DEBUG_MODE
-//             Serial.print(F("HTTP request: "));
-//             Serial.println(req);
-// #endif
-
             client.print(req);
 
             // Parse response
@@ -758,8 +752,8 @@ google_drive_client::list_files_in_folder(const char* folderId,
 
                 parseError = parse_file_list_streaming(response.body, outFiles, nextPageToken);
             } else {
-                // For smaller responses, use optimized static allocation
-                StaticJsonDocument<40960> doc;
+                // For smaller responses, use platform-optimized static allocation
+                StaticJsonDocument<GOOGLE_DRIVE_JSON_DOC_SIZE> doc;
                 auto err = deserializeJson(doc, response.body);
                 if (err) {
                     Serial.print(F("JSON parse error: "));
@@ -789,9 +783,7 @@ google_drive_client::list_files_in_folder(const char* folderId,
                         }
 
                         outFiles.emplace_back((const char*)f["id"],
-                            (const char*)f["name"],
-                            (const char*)f["mimeType"],
-                            (const char*)f["modifiedTime"]);
+                            (const char*)f["name"]);
 
                         // Yield every 10 files to prevent watchdog reset
                         if (outFiles.size() % 10 == 0) {
@@ -942,9 +934,7 @@ google_drive_client::parse_file_list_streaming(const String& jsonBody,
                     }
 
                     outFiles.emplace_back((const char*)fileDoc["id"],
-                        (const char*)fileDoc["name"],
-                        (const char*)fileDoc["mimeType"],
-                        (const char*)fileDoc["modifiedTime"]);
+                        (const char*)fileDoc["name"]);
                 } else {
                     Serial.print(F("Failed to parse file entry: "));
                     Serial.println(err.c_str());
@@ -1569,6 +1559,182 @@ void google_drive_client::set_root_ca_certificate(const String& rootCA)
 {
     g_google_root_ca = rootCA;
     Serial.println(F("Root CA certificate set for Google Drive client"));
+}
+
+size_t google_drive_client::list_files_streaming(const char* folderId, fs::File& tocFile, int pageSize)
+{
+    char nextPageToken[GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE] = "";
+    int pageNumber = 1;
+    size_t totalFilesWritten = 0;
+
+    do {
+        Serial.print(F("Fetching page "));
+        Serial.print(pageNumber);
+        Serial.print(F(" with pageSize="));
+        Serial.print(pageSize);
+        Serial.print(F(", current total files="));
+        Serial.println(totalFilesWritten);
+
+        size_t filesThisPage = list_files_in_folder_streaming(folderId, tocFile, pageSize, nextPageToken, nextPageToken);
+        if (filesThisPage == 0) {
+            Serial.print(F("Error fetching page "));
+            Serial.print(pageNumber);
+            Serial.println(F(" - no files returned"));
+            return totalFilesWritten; // Return what we have written so far
+        }
+
+        totalFilesWritten += filesThisPage;
+
+        Serial.print(F("Page "));
+        Serial.print(pageNumber);
+        Serial.print(F(" complete: got "));
+        Serial.print(filesThisPage);
+        Serial.print(F(" files, total now "));
+        Serial.print(totalFilesWritten);
+        Serial.print(F(", nextPageToken size='"));
+        Serial.print(strlen(nextPageToken));
+        Serial.println(F("'"));
+
+        pageNumber++;
+
+        // Safety check to prevent infinite loops
+        if (pageNumber > 50) {
+            Serial.println(F("Warning: Reached maximum page limit (50)"));
+            break;
+        }
+    } while (strlen(nextPageToken) > 0);
+
+    Serial.print(F("Pagination complete: streamed "));
+    Serial.print(totalFilesWritten);
+    Serial.println(F(" total files to TOC"));
+
+    return totalFilesWritten;
+}
+
+size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
+                                                          fs::File& tocFile,
+                                                          int pageSize,
+                                                          char* nextPageToken,
+                                                          const char* pageToken)
+{
+    // Check rate limiting
+    photo_frame_error_t rateLimitError = wait_for_rate_limit();
+    if (rateLimitError != error_type::None) {
+        return 0;
+    }
+
+    // Build the API request URL
+    String q = "'";
+    q += folderId;
+    q += "' in parents";
+    String encodedQ = urlEncode(q);
+
+    String path;
+    path.reserve(strlen(DRIVE_LIST_PATH) + encodedQ.length() + 100);
+    path = DRIVE_LIST_PATH;
+    path += "?q=";
+    path += encodedQ;
+    path += "&fields=nextPageToken,files(id,name)&pageSize=";
+    path += String(pageSize);
+    if (strlen(pageToken) > 0) {
+        String encodedToken = urlEncode(String(pageToken));
+        path += "&pageToken=";
+        path += encodedToken;
+    }
+
+    // Build and send the HTTP request
+    String headers = "Authorization: Bearer ";
+    headers += g_access_token.accessToken;
+    headers += "\r\n";
+
+    String httpRequest = build_http_request("GET", path.c_str(), "www.googleapis.com", headers.c_str());
+
+    WiFiClientSecure client;
+    if (config->useInsecureTls) {
+        client.setInsecure();
+        Serial.println(F("WARNING: Using insecure TLS connection"));
+    }
+
+    if (!client.connect("www.googleapis.com", 443)) {
+        Serial.println(F("Connection to Google Drive failed"));
+        return 0;
+    }
+
+    record_request();
+    client.print(httpRequest);
+
+    HttpResponse response;
+    if (!parse_http_response(client, response)) {
+        client.stop();
+        return 0;
+    }
+
+    client.stop();
+
+    if (response.statusCode != 200) {
+        Serial.print(F("HTTP Error: "));
+        Serial.println(response.statusCode);
+        return 0;
+    }
+
+    // Parse the JSON response and write directly to TOC file
+    return parse_file_list_to_toc(response.body, tocFile, nextPageToken);
+}
+
+size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
+                                                   fs::File& tocFile,
+                                                   char* nextPageToken)
+{
+    size_t filesWritten = 0;
+
+    // Clear the next page token
+    if (nextPageToken) {
+        nextPageToken[0] = '\0';
+    }
+
+    // Parse the JSON using ArduinoJson with static allocation
+    StaticJsonDocument<GOOGLE_DRIVE_JSON_DOC_SIZE> doc;
+    DeserializationError error = deserializeJson(doc, jsonBody);
+    if (error) {
+        Serial.print(F("JSON deserialization failed: "));
+        Serial.println(error.c_str());
+        return 0;
+    }
+
+    // Extract nextPageToken if present
+    if (nextPageToken && doc.containsKey("nextPageToken")) {
+        String token = doc["nextPageToken"].as<String>();
+        if (token.length() < GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE) {
+            strcpy(nextPageToken, token.c_str());
+        }
+    }
+
+    // Process files array
+    if (doc.containsKey("files")) {
+        JsonArray files = doc["files"];
+        for (JsonVariant f : files) {
+            if (!f.containsKey("id") || !f.containsKey("name")) {
+                continue;
+            }
+
+            const char* id = f["id"];
+            const char* name = f["name"];
+
+            // Write directly to TOC file: id|name
+            tocFile.print(id);
+            tocFile.print(F("|"));
+            tocFile.println(name);
+
+            filesWritten++;
+
+            // Yield every 10 files to prevent watchdog reset
+            if (filesWritten % 10 == 0) {
+                yield();
+            }
+        }
+    }
+
+    return filesWritten;
 }
 
 } // namespace photo_frame
