@@ -51,9 +51,8 @@ bool checkMemoryAvailable(size_t requiredBytes)
 
 namespace photo_frame {
 
-google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
+size_t google_drive::retrieve_toc(bool batteryConservationMode)
 {
-    google_drive_files_list result;
 
     logMemoryUsage("TOC Retrieve Start");
 
@@ -82,11 +81,11 @@ google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
 
             if (fileAge <= config.tocMaxAgeSeconds) {
                 Serial.println(F("Using cached TOC file"));
-                return load_toc_from_file(tocFullPath);
+                return get_toc_file_count(tocFullPath);
             } else if (batteryConservationMode) {
                 Serial.println(
                     F("TOC file is old but using cached version due to battery conservation mode"));
-                return load_toc_from_file(tocFullPath);
+                return get_toc_file_count(tocFullPath);
             } else {
                 Serial.println(F("TOC file is too old, will try to fetch from Google Drive"));
                 shouldFetchFromDrive = true;
@@ -94,7 +93,7 @@ google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
         } else if (batteryConservationMode) {
             Serial.println(F("Could not determine TOC file timestamp, but using existing file due "
                              "to battery conservation mode"));
-            return load_toc_from_file(tocFullPath);
+            return get_toc_file_count(tocFullPath);
         } else {
             Serial.println(
                 F("Could not determine TOC file timestamp, will try to fetch from Google Drive"));
@@ -103,8 +102,8 @@ google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
     } else if (!localTocExists) {
         if (batteryConservationMode) {
             Serial.println(F("TOC file does not exist locally and battery conservation mode is on "
-                             "- returning empty list"));
-            return result; // Return empty list to avoid network operation
+                             "- returning 0"));
+            return 0; // Return 0 to avoid network operation
         } else {
             Serial.println(F("TOC file does not exist locally, will fetch from Google Drive"));
             shouldFetchFromDrive = true;
@@ -135,9 +134,9 @@ google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
             // Fallback to local TOC if available and not forced
             if (localTocExists) {
                 Serial.println(F("Falling back to cached TOC file"));
-                return load_toc_from_file(tocFullPath);
+                return get_toc_file_count(tocFullPath);
             }
-            return result; // Return empty list
+            return 0; // Return 0 on error
         }
 
         // Check memory before Google Drive operations
@@ -145,122 +144,68 @@ google_drive_files_list google_drive::retrieve_toc(bool batteryConservationMode)
             Serial.println(F("Insufficient memory for Google Drive operations"));
             if (localTocExists) {
                 Serial.println(F("Falling back to cached TOC file"));
-                return load_toc_from_file(tocFullPath);
+                return get_toc_file_count(tocFullPath);
             }
-            return result; // Return empty list
+            return 0; // Return 0 on error
         }
 
-        // Fetch files from Google Drive
-        std::vector<google_drive_file> files;
-        error = client.list_files(config.folderId.c_str(), files, config.listPageSize);
+        // Stream files directly from Google Drive to TOC file to save memory
+        Serial.println(F("Fetching TOC from Google Drive..."));
+        
+        // Open TOC file for writing
+        fs::File tocFile = sdCard.open(tocFullPath.c_str(), FILE_WRITE);
+        if (!tocFile) {
+            Serial.println(F("Failed to open TOC file for writing"));
+            if (localTocExists) {
+                Serial.println(F("Falling back to cached TOC file"));
+                return get_toc_file_count(tocFullPath);
+            }
+            return 0; // Return 0 on error
+        }
 
-        if (error != error_type::None) {
-            Serial.print(F("Failed to list files from Google Drive: "));
-            Serial.println(error.code);
+        // Write TOC header
+        time_t now = time(NULL);
+        tocFile.print(F("timestamp = "));
+        tocFile.println(now);
+        
+        // Write placeholder for file count - we'll update this later
+        size_t fileCountPos = tocFile.position();
+        tocFile.println(F("fileCount = 0          ")); // Extra spaces for updating later
 
+        // Stream files directly to TOC file
+        size_t totalFiles = client.list_files_streaming(config.folderId.c_str(), tocFile, config.listPageSize);
+        
+        if (totalFiles == 0) {
+            Serial.println(F("Failed to retrieve files from Google Drive"));
+            tocFile.close();
+            sdCard.remove(tocFullPath.c_str()); // Remove incomplete file
+            
             // Fallback to local TOC if available and not forced
             if (localTocExists) {
                 Serial.println(F("Falling back to cached TOC file"));
-                return load_toc_from_file(tocFullPath);
+                return get_toc_file_count(tocFullPath);
             }
-            return result; // Return empty list
+            return 0; // Return 0 on error
         }
 
-        result.files = files;
-
-        // Save to local file for caching
-        save_toc_to_file(tocFullPath, result);
+        // Update the file count in the header
+        tocFile.seek(fileCountPos);
+        tocFile.print(F("fileCount = "));
+        tocFile.print(totalFiles);
+        tocFile.close();
 
         Serial.print(F("Retrieved "));
-        Serial.print(result.files.size());
+        Serial.print(totalFiles);
         Serial.println(F(" files from Google Drive"));
+
+        logMemoryUsage("TOC Retrieve End");
+        return totalFiles;
     }
 
     logMemoryUsage("TOC Retrieve End");
-    return result;
+    return 0;
 }
 
-google_drive_files_list google_drive::load_toc_from_file(const String& filePath)
-{
-    google_drive_files_list result;
-
-    logMemoryUsage("TOC Load Start");
-
-    fs::File file = sdCard.open(filePath.c_str(), FILE_READ);
-    if (!file) {
-        Serial.print(F("Failed to open TOC file: "));
-        Serial.println(filePath);
-        return result;
-    }
-
-    // Skip line 1 (timestamp) and line 2 (fileCount)
-    file.readStringUntil('\n');
-    String fileCountLine = file.readStringUntil('\n');
-
-    // Parse fileCount to pre-allocate vector
-    int equalPos = fileCountLine.indexOf('=');
-    if (equalPos != -1) {
-        String countStr = fileCountLine.substring(equalPos + 1);
-        countStr.trim();
-        size_t fileCount = countStr.toInt();
-        result.files.reserve(fileCount);
-
-        Serial.print(F("Loading "));
-        Serial.print(fileCount);
-        Serial.println(F(" files from plain text TOC"));
-    }
-
-    // Read file entries line by line
-    while (file.available()) {
-        String line = file.readStringUntil('\n');
-        line.trim();
-
-        if (line.length() == 0)
-            continue;
-
-        // Parse line: id|name|mimeType|modifiedTime
-        int pos1 = line.indexOf('|');
-        if (pos1 == -1)
-            continue;
-
-        int pos2 = line.indexOf('|', pos1 + 1);
-        if (pos2 == -1)
-            continue;
-
-        int pos3 = line.indexOf('|', pos2 + 1);
-        if (pos3 == -1)
-            continue;
-
-        String id = line.substring(0, pos1);
-        String name = line.substring(pos1 + 1, pos2);
-        String mimeType = line.substring(pos2 + 1, pos3);
-        String modifiedTime = line.substring(pos3 + 1);
-
-        google_drive_file driveFile(id, name, mimeType, modifiedTime);
-        result.files.push_back(driveFile);
-
-        // Yield periodically for large files
-        if (result.files.size() % 50 == 0) {
-            yield();
-        }
-    }
-
-    file.close();
-
-    Serial.print(F("Loaded "));
-    Serial.print(result.files.size());
-    Serial.println(F(" files from plain text TOC"));
-
-    logMemoryUsage("TOC Load End");
-    return result;
-}
-
-google_drive_files_list google_drive::load_toc_from_file_streaming(const String& filePath)
-{
-    // With plain text format, streaming is not needed - just use the regular function
-    Serial.println(F("Streaming parser not needed for plain text format, using regular parser"));
-    return load_toc_from_file(filePath);
-}
 
 photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
 {
@@ -312,131 +257,6 @@ photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
     return photo_frame::error_type::None;
 }
 
-bool google_drive::save_toc_to_file(const String& filePath,
-    const google_drive_files_list& filesList)
-{
-    const size_t maxFiles = filesList.files.size();
-
-    logMemoryUsage("TOC Save Start");
-
-    // Plain text format uses much less memory than JSON
-    size_t estimatedMemory = 1024; // Much smaller memory requirement
-    if (!checkMemoryAvailable(estimatedMemory)) {
-        Serial.println(F("Insufficient memory for TOC save operation"));
-        return false;
-    }
-
-    // Extract directory path from file path and create directories if needed
-    int lastSlash = filePath.lastIndexOf('/');
-    if (lastSlash > 0) {
-        String dirPath = filePath.substring(0, lastSlash);
-        Serial.print(F("Creating directories for path: "));
-        Serial.println(dirPath);
-
-        if (!sdCard.create_directories(dirPath.c_str())) {
-            Serial.print(F("Failed to create directories for TOC file: "));
-            Serial.println(dirPath);
-            return false;
-        }
-    }
-
-    // Now try to create the file
-    fs::File file = sdCard.open(filePath.c_str(), FILE_WRITE);
-    if (!file) {
-        Serial.print(F("Failed to create TOC file: "));
-        Serial.println(filePath);
-        return false;
-    }
-
-    // Write plain text format
-    // Line 1: timestamp = <value>
-    file.print(F("timestamp = "));
-    file.println(time(NULL));
-
-    // Line 2: fileCount = <value>
-    file.print(F("fileCount = "));
-    file.println(maxFiles);
-
-    // Line 3+: File entries in format: id|name|mimeType|modifiedTime
-    for (const google_drive_file& driveFile : filesList.files) {
-        file.print(driveFile.id);
-        file.print(F("|"));
-        file.print(driveFile.name);
-        file.print(F("|"));
-        file.print(driveFile.mimeType);
-        file.print(F("|"));
-        file.println(driveFile.modifiedTime);
-
-        // Periodically yield to prevent watchdog reset for large lists
-        if (filesList.files.size() > 100) {
-            yield();
-        }
-    }
-
-    file.close();
-
-    Serial.print(F("Saved TOC with "));
-    Serial.print(maxFiles);
-    Serial.print(F(" files to: "));
-    Serial.println(filePath);
-
-    logMemoryUsage("TOC Save End");
-    return true;
-}
-
-bool google_drive::save_toc_to_file_chunked(fs::File& file,
-    const google_drive_files_list& filesList)
-{
-    const size_t totalFiles = filesList.files.size();
-
-    Serial.print(F("Using chunked writing for "));
-    Serial.print(totalFiles);
-    Serial.println(F(" files"));
-
-    // Write plain text header
-    file.print(F("timestamp = "));
-    file.println(time(NULL));
-
-    file.print(F("fileCount = "));
-    file.println(totalFiles);
-
-    // Write files one by one to minimize memory usage
-    for (size_t i = 0; i < totalFiles; i++) {
-        const google_drive_file& driveFile = filesList.files[i];
-
-        file.print(driveFile.id);
-        file.print(F("|"));
-        file.print(driveFile.name);
-        file.print(F("|"));
-        file.print(driveFile.mimeType);
-        file.print(F("|"));
-        file.println(driveFile.modifiedTime);
-
-        // Yield periodically to prevent watchdog reset
-        if (i % 50 == 0) {
-            yield();
-        }
-
-        // Report progress every 100 files
-        if (i % 100 == 0) {
-            Serial.print(F("Processed "));
-            Serial.print(i + 1);
-            Serial.print(F("/"));
-            Serial.println(totalFiles);
-        }
-    }
-
-    file.close();
-
-    Serial.println(F("Chunked TOC save completed"));
-
-    // Report final memory usage
-    size_t freeHeap = ESP.getFreeHeap();
-    Serial.print(F("Free heap after chunked save: "));
-    Serial.println(freeHeap);
-
-    return true;
-}
 
 String google_drive::get_toc_file_path() const
 {
@@ -546,7 +366,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
         if (error) {
             *error = error_type::SdCardFileOpenFailed;
         }
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     // Skip line 1 (timestamp) and line 2 (fileCount)
@@ -559,7 +379,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file("", "", "", "");
+        return google_drive_file();
     }
 
     // Skip to the desired index (line index + 3)
@@ -572,7 +392,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
             if (error) {
                 *error = error_type::JsonParseFailed;
             }
-            return google_drive_file("", "", "", "");
+            return google_drive_file();
         }
     }
 
@@ -586,48 +406,28 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file("", "", "", "");
+        return google_drive_file("", "");
     }
 
-    // Parse the line: id|name|mimeType|modifiedTime
+    // Parse the line: id|name
     int pos1 = targetLine.indexOf('|');
     if (pos1 == -1) {
-        Serial.println(F("Invalid file entry format: missing first separator"));
+        Serial.println(F("Invalid file entry format: missing separator"));
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file("", "", "", "");
-    }
-
-    int pos2 = targetLine.indexOf('|', pos1 + 1);
-    if (pos2 == -1) {
-        Serial.println(F("Invalid file entry format: missing second separator"));
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return google_drive_file("", "", "", "");
-    }
-
-    int pos3 = targetLine.indexOf('|', pos2 + 1);
-    if (pos3 == -1) {
-        Serial.println(F("Invalid file entry format: missing third separator"));
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return google_drive_file("", "", "", "");
+        return google_drive_file("", "");
     }
 
     String id = targetLine.substring(0, pos1);
-    String name = targetLine.substring(pos1 + 1, pos2);
-    String mimeType = targetLine.substring(pos2 + 1, pos3);
-    String modifiedTime = targetLine.substring(pos3 + 1);
+    String name = targetLine.substring(pos1 + 1);
 
     Serial.print(F("Retrieved file at index "));
     Serial.print(index);
     Serial.print(F(": "));
     Serial.println(name);
 
-    return google_drive_file(id, name, mimeType, modifiedTime);
+    return google_drive_file(id, name);
 }
 
 fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t* error)
@@ -920,15 +720,12 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
                     if (line.length() == 0)
                         continue;
 
-                    // Parse line: id|name|mimeType|modifiedTime
+                    // Parse line: id|name
                     int pos1 = line.indexOf('|');
                     if (pos1 == -1)
                         continue;
-                    int pos2 = line.indexOf('|', pos1 + 1);
-                    if (pos2 == -1)
-                        continue;
 
-                    String filename = line.substring(pos1 + 1, pos2);
+                    String filename = line.substring(pos1 + 1);
                     if (filename.length() > 0) {
                         validFilenames.push_back(filename);
                     }
@@ -1133,8 +930,8 @@ photo_frame_error_t google_drive::load_access_token_from_file()
     String tokenContent = tokenFile.readString();
     tokenFile.close();
 
-    // Parse JSON
-    DynamicJsonDocument doc(1024);
+    // Parse JSON with static allocation
+    StaticJsonDocument<1024> doc;
     DeserializationError error = deserializeJson(doc, tokenContent);
 
     if (error) {

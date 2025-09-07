@@ -262,8 +262,20 @@
 // Test with larger page size now that RTC is disabled
 #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 100
 
-// Stream parser threshold in bytes
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768
+// Stream parser threshold in bytes - platform specific
+#ifdef BOARD_HAS_PSRAM
+    // Feather S3 with PSRAM - use aggressive limits to maximize performance
+    #define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // 4MB - avoid streaming for most responses
+    #define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304           // 4MB JSON document buffer
+    #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456       // 6MB response body reserve
+    #define GOOGLE_DRIVE_SAFETY_LIMIT 10485760           // 10MB safety limit
+#else
+    // Standard ESP32 - conservative limits for limited RAM
+    #define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768   // 32KB
+    #define GOOGLE_DRIVE_JSON_DOC_SIZE 40960            // 40KB JSON document buffer
+    #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536        // 64KB response body reserve
+    #define GOOGLE_DRIVE_SAFETY_LIMIT 100000            // 100KB safety limit
+#endif
 
 // -------------------------------------------
 // Google Drive Configuration File

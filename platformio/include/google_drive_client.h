@@ -126,49 +126,29 @@ enum class failure_type {
  * @brief Represents a file from Google Drive.
  *
  * Contains metadata information about a file stored in Google Drive,
- * including its unique identifier, name, MIME type, and modification time.
+ * including its unique identifier and name.
  */
 class google_drive_file {
   public:
     String id;           ///< Unique file identifier in Google Drive
     String name;         ///< Display name of the file
-    String mimeType;     ///< MIME type of the file (e.g., "image/jpeg")
-    String modifiedTime; ///< Last modification timestamp
 
     /** Default constructor */
     google_drive_file() :
         id(""),
-        name(""),
-        mimeType(""),
-        modifiedTime("") {}
+        name("") {}
 
     /**
      * @brief Constructor for google_drive_file.
      * @param id Unique file identifier in Google Drive
      * @param name Display name of the file
-     * @param mimeType MIME type of the file
-     * @param modifiedTime Last modification timestamp
      */
     google_drive_file(const String& id,
-                      const String& name,
-                      const String& mimeType,
-                      const String& modifiedTime) :
+                      const String& name) :
         id(id),
-        name(name),
-        mimeType(mimeType),
-        modifiedTime(modifiedTime) {}
+        name(name) {}
 };
 
-/**
- * @brief Container for a list of Google Drive files.
- *
- * Simple wrapper around a vector of google_drive_file objects,
- * used to return collections of files from API operations.
- */
-class google_drive_files_list {
-  public:
-    std::vector<google_drive_file> files; ///< Vector containing the list of files
-};
 
 /**
  * @class google_drive_client
@@ -230,6 +210,19 @@ class google_drive_client {
     list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 50);
 
     /**
+     * @brief Lists files in a specified Google Drive folder and streams them directly to a TOC file.
+     *
+     * This memory-efficient version writes files directly to the TOC file as they are parsed
+     * from the API response, avoiding the need to keep all files in memory at once.
+     *
+     * @param folderId The ID of the Google Drive folder to list files from.
+     * @param tocFile Open file handle to write TOC entries to
+     * @param pageSize The maximum number of files to retrieve per request (default is 50).
+     * @return Total number of files written to the TOC, or 0 on error
+     */
+    size_t list_files_streaming(const char* folderId, fs::File& tocFile, int pageSize = 50);
+
+    /**
      * @brief Downloads a file from Google Drive to the specified file.
      *
      * @param fileId The unique identifier of the file on Google Drive.
@@ -289,6 +282,21 @@ class google_drive_client {
                                              const char* pageToken = "");
 
     /**
+     * @brief Lists files in a folder with pagination support, streaming directly to TOC file.
+     * @param folderId The ID of the Google Drive folder
+     * @param tocFile Open file handle to write TOC entries to
+     * @param pageSize Maximum number of files per request (default: 10)
+     * @param nextPageToken Pointer to store next page token (optional)
+     * @param pageToken Token for requesting specific page (empty for first page)
+     * @return Number of files written to TOC, or 0 on error
+     */
+    size_t list_files_in_folder_streaming(const char* folderId,
+                                          fs::File& tocFile,
+                                          int pageSize          = 10,
+                                          char* nextPageToken   = nullptr,
+                                          const char* pageToken = "");
+
+    /**
      * @brief Streaming parser for large Google Drive JSON responses.
      * @param jsonBody JSON response body to parse
      * @param outFiles Vector to store parsed file information
@@ -298,6 +306,17 @@ class google_drive_client {
     photo_frame_error_t parse_file_list_streaming(const String& jsonBody,
                                                   std::vector<google_drive_file>& outFiles,
                                                   char* nextPageToken);
+
+    /**
+     * @brief Streaming parser that writes files directly to TOC file.
+     * @param jsonBody JSON response body to parse
+     * @param tocFile Open file handle to write TOC entries to
+     * @param nextPageToken Pointer to store next page token if present
+     * @return Number of files written to TOC, or 0 on error
+     */
+    size_t parse_file_list_to_toc(const String& jsonBody,
+                                  fs::File& tocFile,
+                                  char* nextPageToken);
 
     /**
      * @brief Build HTTP request string with optimized memory allocation

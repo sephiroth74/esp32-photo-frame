@@ -36,7 +36,7 @@ namespace photo_frame {
  * in plain text format. The TOC format is:
  * Line 1: timestamp = <value>
  * Line 2: fileCount = <value>  
- * Line 3+: id|name|mimeType|modifiedTime
+ * Line 3+: id|name
  */
 class google_drive_toc_parser {
 public:
@@ -78,15 +78,8 @@ public:
     google_drive_file get_file_by_name(const char* filename, photo_frame_error_t* error = nullptr);
 
     /**
-     * @brief Load all files from the TOC into a vector
-     * @param error Pointer to error code (optional)
-     * @return Vector of all google_drive_file entries
-     */
-    google_drive_files_list load_all_files(photo_frame_error_t* error = nullptr);
-
-    /**
      * @brief Parse a single TOC line into a google_drive_file
-     * @param line The line to parse in format: id|name|mimeType|modifiedTime
+     * @param line The line to parse in format: id|name
      * @param error Pointer to error code (optional)
      * @return Parsed google_drive_file, or empty file if parse error
      */

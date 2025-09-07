@@ -286,18 +286,15 @@ void setup()
                 }
 
                 if (error == photo_frame::error_type::None) {
-                    // Ensure TOC is up to date (but don't load files into memory)
+                    // Retrieve TOC and get file count directly
                     // I2C is already shut down before all WiFi operations to prevent ESP32-C6 interference
-                    drive.retrieve_toc(batteryConservationMode);
-
-                    // Get file count efficiently from TOC
-                    total_files = drive.get_toc_file_count(&tocError);
+                    total_files = drive.retrieve_toc(batteryConservationMode);
                 } else {
                     Serial.println(F("Google Drive not initialized - skipping"));
                     total_files = 0;
                 }
 
-                if (tocError == photo_frame::error_type::None && total_files > 0) {
+                if (total_files > 0) {
                     Serial.print(F("Total files in Google Drive folder: "));
                     Serial.println(total_files);
 
