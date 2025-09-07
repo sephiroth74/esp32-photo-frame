@@ -48,12 +48,43 @@
    - Open the project in [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/)
    - Configure your hardware settings in `include/config.h` and `src/config.cpp` if needed
 
-3. **Image Source Configuration**
+3. **Image Processing Pipeline (Required for Both Options)**
+
+   **🔧 All images must be processed before use, regardless of storage method**
+   
+   Both Google Drive and local SD card storage require images to be converted to the ESP32-compatible format using either:
+
+   **📋 [Complete Image Processing Guide](docs/image_processing.md)** - Comprehensive documentation for the `auto.sh` script and all helper tools
+
+   ```bash
+   # Black & white processing (800x480 display)
+   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
+
+   # 6-color processing with custom fonts
+   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png,heic --auto \
+     --font "Arial-Bold" --pointsize 32
+   ```
+
+   **Alternative: Android App (NEW)**
+   
+   Use the Android PhotoFrameProcessor app located in `android/PhotoFrameProcessor/` for a user-friendly GUI to process images with:
+   - AI-powered person detection and smart cropping
+   - Automatic EXIF date extraction and labeling
+   - Portrait image pairing for landscape display
+   - Real-time preview of processed results
+
+   **Alternative: Rust Binary Converter**
+   
+   Use the Rust-based `photoframe-processor` tool for high-performance batch processing.
+
+4. **Image Source Configuration**
 
    **Option A: Google Drive Integration (Recommended)**
    
    For cloud-based image storage and automatic synchronization:
    
+   - **First**, process your images using the tools above
+   - Upload the processed `.bin` files to your Google Drive folder
    - Create a Google Service Account in [Google Cloud Console](https://console.cloud.google.com/)
    - Enable the Google Drive API for your project
    - Download the service account JSON key file
@@ -91,34 +122,14 @@
 
    **Option B: Local SD Card Storage**
    
-   For offline image storage, use the sophisticated image processing pipeline:
+   For offline image storage without cloud connectivity:
+   
+   - **First**, process your images using the tools described in step 3 above
+   - Copy the processed `.bin` files directly to your SD card
+   - Insert the SD card into your ESP32 device
+   - The device will display images directly from local storage
 
-   **📋 [Complete Image Processing Guide](docs/image_processing.md)** - Comprehensive documentation for the `auto.sh` script and all helper tools
-
-   ```bash
-   # Black & white processing (800x480 display)
-   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
-
-   # 6-color processing with custom fonts
-   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png,heic --auto \
-     --font "Arial-Bold" --pointsize 32
-
-   # Multiple input directories with verbose output
-   ./scripts/auto.sh -i ~/Photos/2023 -i ~/Photos/2024 -o ~/processed_images -t bw -s 800x480 --auto --verbose
-   ```
-
-   **Auto.sh Script Features:**
-   - **Smart Orientation**: Automatically handles portrait and landscape images with EXIF rotation support
-   - **AI-Powered Cropping**: Optional subject detection for intelligent image composition
-   - **Portrait Pairing**: Intelligently combines portrait images side-by-side into landscape format
-   - **Format Support**: Processes jpg, png, heic, webp, tiff, and other image formats
-   - **Custom Annotations**: Adds filename overlays with configurable fonts, colors, and backgrounds
-   - **Batch Processing**: Handles entire directories with progress tracking and error recovery
-   - **Dual Output**: Generates both .bmp preview files and optimized .bin files for ESP32
-   - **Color Modes**: Supports black & white dithering and 6-color e-paper palettes
-   - **Performance Optimization**: Multi-stage pipeline with temporary file management
-
-4. **Binary to Image Conversion**
+5. **Binary to Image Conversion**
 
    The project includes a powerful Rust-based tool for converting ESP32 binary image files back to viewable formats:
 
@@ -141,7 +152,7 @@
    - 🎨 **Multiple Formats**: BMP, JPEG, PNG output support
    - 📁 **Auto Naming**: Automatically generates output filenames
 
-5. **Build and Upload**
+6. **Build and Upload**
    - Connect your ESP32 board
    - Use PlatformIO to build and upload the firmware
 
