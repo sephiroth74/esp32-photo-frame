@@ -340,7 +340,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 withContext<Unit>(Dispatchers.IO) {
                     Glide.get(appContext).clearDiskCache()
-                    imageProcessor.clearProcessedFiles()
+                    // imageProcessor.clearProcessedFiles() // Commented out to preserve files across processing sessions
                 }
                 
                 val processedFiles = withContext(Dispatchers.IO) {
