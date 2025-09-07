@@ -130,7 +130,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:gravity="center"
-            android:background="#CC000000"
+            android:background="#80000000"
             android:visibility="gone"
             android:elevation="12dp"
             app:layout_constraintTop_toTopOf="parent"
