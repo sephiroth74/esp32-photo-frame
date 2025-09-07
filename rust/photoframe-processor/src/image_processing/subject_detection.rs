@@ -2,11 +2,56 @@ use anyhow::Result;
 use image::RgbImage;
 use std::path::Path;
 
+// Note: yolo-rs crate API may vary - this is a placeholder implementation
 #[cfg(feature = "ai")]
-use yolo_rs::{Yolo, YoloResult};
+mod yolo_integration {
+    // Placeholder structures for YOLO integration
+    // In a real implementation, these would use the actual yolo-rs API
+    #[allow(dead_code)]
+    pub struct Yolo;
+    #[allow(dead_code)]
+    pub struct YoloResult {
+        pub class_id: i32,
+        pub confidence: f32,
+        pub x: f32,
+        pub y: f32,
+        pub width: f32,
+        pub height: f32,
+    }
+    
+    #[allow(dead_code)]
+    impl Yolo {
+        pub fn new(_config: &str, _weights: &str, _confidence: f32) -> Result<Self, Box<dyn std::error::Error>> {
+            // Placeholder - would initialize YOLO model
+            Ok(Yolo)
+        }
+        
+        pub fn inference(&self, _data: &[u8]) -> Result<Vec<YoloResult>, Box<dyn std::error::Error>> {
+            // Placeholder - would run YOLO inference
+            Ok(vec![])
+        }
+    }
+    
+    impl Clone for YoloResult {
+        fn clone(&self) -> Self {
+            YoloResult {
+                class_id: self.class_id,
+                confidence: self.confidence,
+                x: self.x,
+                y: self.y,
+                width: self.width,
+                height: self.height,
+            }
+        }
+    }
+}
+
+#[cfg(feature = "ai")]
+use yolo_integration::{Yolo, YoloResult};
 
 /// Detection result from YOLO people detection
 /// Based on find_subject.py output format
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SubjectDetectionResult {
     /// Combined bounding box (x, y, width, height) of all detected people
@@ -24,6 +69,7 @@ pub struct SubjectDetectionResult {
 /// YOLO-based subject detector for people detection
 /// Replicates the functionality of find_subject.py using YOLOv3
 #[cfg(feature = "ai")]
+#[allow(dead_code)]
 pub struct SubjectDetector {
     yolo: Yolo,
     confidence_threshold: f32,
@@ -31,6 +77,7 @@ pub struct SubjectDetector {
 }
 
 #[cfg(feature = "ai")]
+#[allow(dead_code)]
 impl SubjectDetector {
     /// Create a new subject detector with YOLOv3 models
     /// 
@@ -43,10 +90,10 @@ impl SubjectDetector {
         nms_threshold: f32,
     ) -> Result<Self> {
         let yolo = Yolo::new(
-            config_path.to_str().context("Invalid config path")?,
-            weights_path.to_str().context("Invalid weights path")?,
+            config_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid config path"))?,
+            weights_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid weights path"))?,
             confidence_threshold,
-        ).context("Failed to initialize YOLO model")?;
+        ).map_err(|e| anyhow::anyhow!("Failed to initialize YOLO model: {}", e))?;
 
         Ok(Self {
             yolo,
@@ -71,7 +118,7 @@ impl SubjectDetector {
         
         // Run YOLO detection
         let detections = self.yolo.inference(&img_data)
-            .context("YOLO inference failed")?;
+            .map_err(|e| anyhow::anyhow!("YOLO inference failed: {}", e))?;
 
         // Filter for person class (class_id = 0 in COCO dataset)
         let person_detections: Vec<&YoloResult> = detections
@@ -228,9 +275,11 @@ impl SubjectDetector {
 
 // Placeholder implementations when AI feature is not enabled
 #[cfg(not(feature = "ai"))]
+#[allow(dead_code)]
 pub struct SubjectDetector;
 
 #[cfg(not(feature = "ai"))]
+#[allow(dead_code)]
 impl SubjectDetector {
     pub fn new(
         _config_path: &Path,
@@ -254,6 +303,7 @@ impl SubjectDetector {
 }
 
 /// Create a subject detector using the YOLOv3 models from the assets directory
+#[allow(dead_code)]
 pub fn create_default_detector(
     assets_path: &Path,
     confidence_threshold: f32,

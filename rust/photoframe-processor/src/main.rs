@@ -46,6 +46,15 @@ fn main() -> Result<()> {
         verbose: args.verbose,
         parallel_jobs: if args.jobs == 0 { num_cpus::get() } else { args.jobs },
         output_format: args.output_format.clone(),
+        // YOLO people detection configuration
+        #[cfg(feature = "ai")]
+        detect_people: args.detect_people,
+        #[cfg(feature = "ai")]
+        yolo_assets_dir: args.yolo_assets_dir.clone(),
+        #[cfg(feature = "ai")]
+        yolo_confidence: args.yolo_confidence,
+        #[cfg(feature = "ai")]
+        yolo_nms_threshold: args.yolo_nms_threshold,
     };
 
     if config.verbose {
@@ -55,6 +64,29 @@ fn main() -> Result<()> {
         println!("  Auto processing: {}", config.auto_process);
         println!("  Parallel jobs: {}", config.parallel_jobs);
         println!("  Extensions: {:?}", config.extensions);
+        println!("  Font name: {:?}", config.font_name);
+        println!("  Font Size: {:?}", config.font_size);
+        println!("  Annotation background: {:?}", config.annotation_background);
+        println!("  Output format: {:?}", config.output_format);
+        
+        // AI feature status
+        #[cfg(feature = "ai")]
+        {
+            println!("  AI features: {}", style("ENABLED").green().bold());
+            println!("  People detection: {}", config.detect_people);
+            if config.detect_people {
+                println!("    YOLO assets dir: {:?}", config.yolo_assets_dir);
+                println!("    YOLO confidence: {:.2}", config.yolo_confidence);
+                println!("    YOLO NMS threshold: {:.2}", config.yolo_nms_threshold);
+            }
+        }
+        
+        #[cfg(not(feature = "ai"))]
+        {
+            println!("  AI features: {}", style("DISABLED").red());
+            println!("    Note: Compile with --features ai to enable YOLO people detection");
+        }
+        
         println!();
     }
 
@@ -76,16 +108,15 @@ fn main() -> Result<()> {
     let multi_progress = MultiProgress::new();
     
     // Create discovery progress bar
-    let discovery_pb = multi_progress.add(ProgressBar::new(args.input_dirs.len() as u64));
+    let discovery_pb = multi_progress.add(ProgressBar::new(args.input_paths.len() as u64));
     discovery_pb.set_style(
-        ProgressStyle::with_template("{bar:20.green/blue} {pos:>2}/{len:2} {msg}")
-            .unwrap()
+        ProgressStyle::with_template("{bar:20.green/blue} {pos:>2}/{len:2} {msg}")?
             .progress_chars("██▌ ")
     );
     discovery_pb.set_message("Scanning directories...");
 
     // Discover all images
-    let image_files = engine.discover_images(&args.input_dirs)?;
+    let image_files = engine.discover_images(&args.input_paths)?;
     discovery_pb.finish_with_message(format!("✓ Found {} images", image_files.len()));
     
     if image_files.is_empty() {
@@ -104,8 +135,7 @@ fn main() -> Result<()> {
     for i in 0..thread_count {
         let thread_pb = multi_progress.add(ProgressBar::new(100));
         thread_pb.set_style(
-            ProgressStyle::with_template(&format!("Thread {}: [{{bar:15.blue/cyan}}] {{msg}}", i + 1))
-                .unwrap()
+            ProgressStyle::with_template(&format!("Thread {}: [{{bar:15.blue/cyan}}] {{msg}}", i + 1))?
                 .progress_chars("██▌ ")
         );
         thread_pb.set_message("Waiting...");
@@ -115,8 +145,7 @@ fn main() -> Result<()> {
     // Create completion progress bar
     let completion_pb = multi_progress.add(ProgressBar::new(100));
     completion_pb.set_style(
-        ProgressStyle::with_template("{bar:30.cyan/blue} {percent:>3}% {msg}")
-            .unwrap()
+        ProgressStyle::with_template("{bar:30.cyan/blue} {percent:>3}% {msg}")?
             .progress_chars("██▌ ")
     );
     completion_pb.set_message("Preparing to process...");

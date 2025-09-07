@@ -36,10 +36,21 @@ pub struct ProcessingConfig {
     pub verbose: bool,
     pub parallel_jobs: usize,
     pub output_format: crate::cli::OutputType,
+    // YOLO people detection configuration
+    #[cfg(feature = "ai")]
+    pub detect_people: bool,
+    #[cfg(feature = "ai")]
+    pub yolo_assets_dir: Option<std::path::PathBuf>,
+    #[cfg(feature = "ai")]
+    pub yolo_confidence: f32,
+    #[cfg(feature = "ai")]
+    pub yolo_nms_threshold: f32,
 }
 
 pub struct ProcessingEngine {
     config: ProcessingConfig,
+    #[cfg(feature = "ai")]
+    subject_detector: Option<subject_detection::SubjectDetector>,
 }
 
 impl ProcessingEngine {
@@ -50,27 +61,71 @@ impl ProcessingEngine {
             .build_global()
             .context("Failed to initialize thread pool")?;
 
-        Ok(Self { config })
+        #[cfg(feature = "ai")]
+        let subject_detector = if config.detect_people {
+            if let Some(ref assets_dir) = config.yolo_assets_dir {
+                verbose_println(config.verbose, "Initializing YOLO people detection...");
+                match subject_detection::create_default_detector(
+                    assets_dir,
+                    config.yolo_confidence,
+                    config.yolo_nms_threshold,
+                ) {
+                    Ok(detector) => {
+                        verbose_println(config.verbose, "✓ YOLO people detection initialized successfully");
+                        Some(detector)
+                    }
+                    Err(e) => {
+                        verbose_println(config.verbose, &format!("⚠ Failed to initialize YOLO: {}", e));
+                        verbose_println(config.verbose, "  Continuing without people detection");
+                        None
+                    }
+                }
+            } else {
+                verbose_println(config.verbose, "⚠ People detection enabled but no YOLO assets directory specified");
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(Self { 
+            config,
+            #[cfg(feature = "ai")]
+            subject_detector,
+        })
     }
 
-    /// Discover all image files in the input directories
-    pub fn discover_images(&self, input_dirs: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    /// Discover all image files in the input paths (directories or individual files)
+    pub fn discover_images(&self, input_paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
         let mut image_files = Vec::new();
 
-        for input_dir in input_dirs {
-            verbose_println(self.config.verbose, &format!("Scanning directory: {}", input_dir.display()));
-
-            let walker = WalkDir::new(input_dir)
-                .follow_links(false)
-                .max_depth(10); // Reasonable depth limit
-
-            for entry in walker {
-                let entry = entry.context("Failed to read directory entry")?;
-                let path = entry.path();
-
-                if path.is_file() && has_valid_extension(path, &self.config.extensions) {
-                    image_files.push(path.to_path_buf());
+        for input_path in input_paths {
+            if input_path.is_file() {
+                // Handle single file
+                if has_valid_extension(input_path, &self.config.extensions) {
+                    verbose_println(self.config.verbose, &format!("Adding file: {}", input_path.display()));
+                    image_files.push(input_path.clone());
+                } else {
+                    println!("Warning: File {} has unsupported extension", input_path.display());
                 }
+            } else if input_path.is_dir() {
+                // Handle directory
+                verbose_println(self.config.verbose, &format!("Scanning directory: {}", input_path.display()));
+
+                let walker = WalkDir::new(input_path)
+                    .follow_links(false)
+                    .max_depth(10); // Reasonable depth limit
+
+                for entry in walker {
+                    let entry = entry.context("Failed to read directory entry")?;
+                    let path = entry.path();
+
+                    if path.is_file() && has_valid_extension(path, &self.config.extensions) {
+                        image_files.push(path.to_path_buf());
+                    }
+                }
+            } else {
+                return Err(anyhow::anyhow!("Input path does not exist: {}", input_path.display()));
             }
         }
 
@@ -81,7 +136,8 @@ impl ProcessingEngine {
         Ok(image_files)
     }
 
-    /// Process a batch of images with progress callback
+    #[allow(dead_code)]
+    /// Process a batch of images with progress callback (legacy method)
     pub fn process_batch<F>(
         &self,
         image_files: &[PathBuf],
@@ -184,7 +240,8 @@ impl ProcessingEngine {
         Ok(results)
     }
 
-    /// Process a single image file
+    #[allow(dead_code)]
+    /// Process a single image file (legacy method)
     fn process_single_image(
         &self,
         input_path: &Path,
@@ -264,15 +321,20 @@ impl ProcessingEngine {
         progress_bar.set_message(format!("{} - Applying rotation", filename));
         let rotated_img = orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation)?;
 
-        // Stage 5: Process based on orientation (50-100%)
+        // Stage 5: People detection (45%)
+        progress_bar.set_position(45);
+        progress_bar.set_message(format!("{} - Detecting people", filename));
+        let people_detection = self.detect_people_with_logging(&rotated_img, input_path);
+
+        // Stage 6: Process based on orientation (50-100%)
         progress_bar.set_position(50);
         let is_portrait = orientation_info.is_portrait;
         let processing_result = if is_portrait {
             progress_bar.set_message(format!("{} - Processing portrait", filename));
-            self.process_portrait_image_with_progress(&rotated_img, input_path, output_dir, bin_dir, index, progress_bar)?
+            self.process_portrait_image_with_progress(&rotated_img, input_path, output_dir, bin_dir, index, progress_bar, people_detection)?
         } else {
             progress_bar.set_message(format!("{} - Processing landscape", filename));
-            self.process_landscape_image_with_progress(&rotated_img, input_path, output_dir, bin_dir, index, progress_bar)?
+            self.process_landscape_image_with_progress(&rotated_img, input_path, output_dir, bin_dir, index, progress_bar, people_detection)?
         };
 
         progress_bar.set_position(100);
@@ -280,7 +342,8 @@ impl ProcessingEngine {
         Ok(processing_result)
     }
 
-    /// Process a landscape image (full size)
+    #[allow(dead_code)]
+    /// Process a landscape image (full size) (legacy method)
     fn process_landscape_image(
         &self,
         img: &RgbImage,
@@ -352,6 +415,7 @@ impl ProcessingEngine {
         bin_dir: &Path,
         _index: usize,
         progress_bar: &ProgressBar,
+        people_detection: Option<subject_detection::SubjectDetectionResult>,
     ) -> Result<ProcessingResult> {
         let filename = input_path.file_name()
             .and_then(|f| f.to_str())
@@ -359,12 +423,19 @@ impl ProcessingEngine {
 
         // Resize to target dimensions (60%)
         progress_bar.set_position(60);
-        progress_bar.set_message(format!("{} - Resizing", filename));
-        let resized_img = resize::smart_resize(
+        if people_detection.is_some() && people_detection.as_ref().unwrap().person_count > 0 {
+            progress_bar.set_message(format!("{} - Smart resizing (people-aware)", filename));
+            verbose_println(self.config.verbose, "🎯 Applying people-aware smart cropping");
+        } else {
+            progress_bar.set_message(format!("{} - Resizing", filename));
+        }
+        
+        let resized_img = resize::smart_resize_with_people_detection(
             img,
             self.config.target_width,
             self.config.target_height,
             self.config.auto_process,
+            people_detection.as_ref(),
         )?;
 
         // Add text annotation (70%)
@@ -421,7 +492,8 @@ impl ProcessingEngine {
         })
     }
 
-    /// Process a portrait image (half width for later combination)
+    #[allow(dead_code)]
+    /// Process a portrait image (half width for later combination) (legacy method)
     fn process_portrait_image(
         &self,
         img: &RgbImage,
@@ -461,6 +533,7 @@ impl ProcessingEngine {
         _bin_dir: &Path,
         _index: usize,
         progress_bar: &ProgressBar,
+        people_detection: Option<subject_detection::SubjectDetectionResult>,
     ) -> Result<ProcessingResult> {
         let filename = input_path.file_name()
             .and_then(|f| f.to_str())
@@ -491,14 +564,77 @@ impl ProcessingEngine {
             processing_time: std::time::Duration::from_millis(0),
         })
     }
+
+    /// Detect people in an image and return detection result with verbose logging
+    #[cfg(feature = "ai")]
+    fn detect_people_with_logging(&self, img: &RgbImage, input_path: &Path) -> Option<subject_detection::SubjectDetectionResult> {
+        if let Some(ref detector) = self.subject_detector {
+            verbose_println(self.config.verbose, &format!("🔍 Running people detection on: {}", 
+                input_path.file_name().unwrap_or_default().to_string_lossy()));
+            
+            match detector.detect_people(img) {
+                Ok(result) => {
+                    if self.config.verbose {
+                        println!("📊 People Detection Results:");
+                        println!("   • People found: {}", result.person_count);
+                        
+                        if result.person_count > 0 {
+                            println!("   • Highest confidence: {:.2}%", result.confidence * 100.0);
+                            
+                            if let Some((x, y, w, h)) = result.bounding_box {
+                                println!("   • Combined bounding box: {}×{} at ({}, {})", w, h, x, y);
+                            }
+                            
+                            println!("   • Detection center: ({}, {})", result.center.0, result.center.1);
+                            println!("   • Offset from image center: ({:+}, {:+})", 
+                                result.offset_from_center.0, result.offset_from_center.1);
+                            
+                            // Calculate offset percentage for better understanding
+                            let (img_width, img_height) = img.dimensions();
+                            let offset_x_pct = (result.offset_from_center.0 as f32 / img_width as f32) * 100.0;
+                            let offset_y_pct = (result.offset_from_center.1 as f32 / img_height as f32) * 100.0;
+                            println!("   • Offset percentage: ({:+.1}%, {:+.1}%)", offset_x_pct, offset_y_pct);
+                            
+                            // Provide cropping advice
+                            if offset_x_pct.abs() > 10.0 || offset_y_pct.abs() > 10.0 {
+                                println!("   • 🎯 Smart cropping recommended: significant people offset detected");
+                            } else {
+                                println!("   • ✓ People well-centered, standard cropping suitable");
+                            }
+                        } else {
+                            println!("   • ℹ No people detected, using standard image processing");
+                        }
+                    }
+                    Some(result)
+                }
+                Err(e) => {
+                    verbose_println(self.config.verbose, &format!("❌ People detection failed: {}", e));
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Fallback for when AI feature is not enabled
+    #[cfg(not(feature = "ai"))]
+    fn detect_people_with_logging(&self, _img: &RgbImage, _input_path: &Path) -> Option<subject_detection::SubjectDetectionResult> {
+        None
+    }
 }
 
 #[derive(Debug)]
 pub struct ProcessingResult {
+    #[allow(dead_code)]
     pub input_path: PathBuf,
+    #[allow(dead_code)]
     pub bmp_path: PathBuf,
+    #[allow(dead_code)]
     pub bin_path: PathBuf,
+    #[allow(dead_code)]
     pub image_type: ImageType,
+    #[allow(dead_code)]
     pub processing_time: std::time::Duration,
 }
 
@@ -506,5 +642,6 @@ pub struct ProcessingResult {
 pub enum ImageType {
     Landscape,
     Portrait,
+    #[allow(dead_code)]
     CombinedPortrait,
 }

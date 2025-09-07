@@ -7,12 +7,14 @@ use std::time::{Duration, Instant};
 use crate::utils::ProcessingStats;
 
 /// Batch processing statistics and progress tracking
+#[allow(dead_code)]
 pub struct BatchProcessor {
     pub total_files: usize,
     pub processed_count: AtomicUsize,
     pub start_time: Instant,
 }
 
+#[allow(dead_code)]
 impl BatchProcessor {
     pub fn new(total_files: usize) -> Self {
         Self {
@@ -71,6 +73,7 @@ impl BatchProcessor {
 }
 
 /// Process multiple files in parallel
+#[allow(dead_code)]
 pub fn process_files_parallel<T, F, P>(
     files: &[PathBuf],
     process_fn: F,
@@ -100,6 +103,7 @@ where
 }
 
 /// Group files by type (portrait vs landscape)
+#[allow(dead_code)]
 pub fn group_by_orientation(
     files: &[PathBuf],
     is_portrait_fn: impl Fn(&Path) -> Result<bool>,
@@ -124,6 +128,7 @@ pub fn group_by_orientation(
 }
 
 /// Calculate comprehensive processing statistics
+#[allow(dead_code)]
 pub fn calculate_final_stats(
     results: &[Result<()>],
     processing_time: Duration,
@@ -146,18 +151,19 @@ pub fn calculate_final_stats(
 }
 
 /// Validate batch processing inputs
+#[allow(dead_code)]
 pub fn validate_batch_inputs(
-    input_dirs: &[PathBuf],
+    input_paths: &[PathBuf],
     output_dir: &Path,
     extensions: &[String],
 ) -> Result<()> {
-    // Check input directories exist
-    for dir in input_dirs {
-        if !dir.exists() {
-            return Err(anyhow::anyhow!("Input directory does not exist: {}", dir.display()));
+    // Check input paths exist
+    for path in input_paths {
+        if !path.exists() {
+            return Err(anyhow::anyhow!("Input path does not exist: {}", path.display()));
         }
-        if !dir.is_dir() {
-            return Err(anyhow::anyhow!("Input path is not a directory: {}", dir.display()));
+        if !path.is_dir() && !path.is_file() {
+            return Err(anyhow::anyhow!("Input path is neither a file nor directory: {}", path.display()));
         }
     }
     
@@ -180,6 +186,7 @@ pub fn validate_batch_inputs(
 }
 
 /// Shuffle a vector randomly (for portrait image randomization)
+#[allow(dead_code)]
 pub fn shuffle_vec<T>(mut vec: Vec<T>) -> Vec<T> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
