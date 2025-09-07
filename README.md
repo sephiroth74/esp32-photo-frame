@@ -73,9 +73,11 @@
    - Portrait image pairing for landscape display
    - Real-time preview of processed results
 
-   **Alternative: Rust Binary Converter**
+   **Alternative: Rust Binary Converter (Recommended for Performance)**
    
-   Use the Rust-based `photoframe-processor` tool for high-performance batch processing.
+   Use the high-performance Rust-based `photoframe-processor` tool for batch processing with **5-10x faster processing** and **AI-powered people detection**:
+   
+   **📋 [Complete Rust Processor Documentation](docs/rust-photoframe-processor.md)** - Comprehensive guide with AI features, font support, and performance optimization
 
 4. **Image Source Configuration**
 
@@ -243,6 +245,14 @@ The firmware automatically detects PSRAM availability and adjusts memory limits:
 ## Technical Specifications
 
 For detailed technical documentation including comprehensive error handling system, system architecture, hardware specifications, and API references, see **📋 [Technical Specifications](docs/tech_specs.md)**.
+
+### Documentation Index
+
+- **📋 [Technical Specifications](docs/tech_specs.md)** - System architecture, error handling, and API references
+- **📋 [Image Processing Pipeline](docs/image_processing.md)** - Complete guide for bash/ImageMagick processing
+- **📋 [Rust Image Processor](docs/rust-photoframe-processor.md)** - High-performance Rust tool with AI features
+- **📋 [Binary Format Converter](docs/bin_2_image.md)** - ESP32 binary to image conversion tool
+- **📋 [Wiring Diagram](docs/wiring-diagram.md)** - Hardware assembly and connections
 
 ## Configuration & Customization
 

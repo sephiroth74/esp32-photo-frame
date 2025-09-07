@@ -542,14 +542,20 @@ impl ProcessingEngine {
         // For now, process portraits as individual images
         // TODO: Implement portrait pairing and combination logic
         progress_bar.set_position(60);
-        progress_bar.set_message(format!("{} - Portrait resizing", filename));
+        if people_detection.is_some() && people_detection.as_ref().unwrap().person_count > 0 {
+            progress_bar.set_message(format!("{} - Portrait resizing (people-aware)", filename));
+            verbose_println(self.config.verbose, "🎯 Applying people-aware portrait cropping");
+        } else {
+            progress_bar.set_message(format!("{} - Portrait resizing", filename));
+        }
         let half_width = self.config.target_width / 2;
         
-        let _resized_img = resize::smart_resize(
+        let _resized_img = resize::smart_resize_with_people_detection(
             img,
             half_width,
             self.config.target_height,
             self.config.auto_process,
+            people_detection.as_ref(),
         )?;
 
         progress_bar.set_position(90);
