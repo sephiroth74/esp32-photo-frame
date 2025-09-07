@@ -25,6 +25,7 @@
 
 #include <Arduino.h>
 #include <cstdint>
+#include "_locale.h"
 
 // Forward declarations
 class String;
@@ -77,7 +78,7 @@ typedef class photo_frame_error {
 
     // Default constructor - backward compatible
     photo_frame_error() : 
-        message("No error"), 
+        message(TXT_NO_ERROR), 
         code(0),
         severity(ERROR_SEVERITY_INFO),
         category(ERROR_CATEGORY_GENERAL),
@@ -254,263 +255,263 @@ private:
  */
 namespace error_type {
 // No error
-const photo_frame_error None{"No error", 0, ERROR_SEVERITY_INFO, ERROR_CATEGORY_GENERAL};
+const photo_frame_error None{TXT_NO_ERROR, 0, ERROR_SEVERITY_INFO, ERROR_CATEGORY_GENERAL};
 
 // Storage/SD Card errors (Critical/Error severity)
-const photo_frame_error CardMountFailed{"SD card mount failed", 3, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error NoSdCardAttached{"No SD card attached", 4, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error UnknownSdCardType{"Unknown SD card type", 5, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error CardOpenFileFailed{"Failed to open file on SD card", 6, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardFileNotFound{"File not found on SD card", 7, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardFileOpenFailed{"Failed to open SD card file", 8, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardFileCreateFailed{"Failed to create SD card file", 24, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardDirCreateFailed{"Failed to create SD card directory", 36, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error CardTocOpenFileFailed{"Failed to open TOC file on SD card", 11, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error FileOpenFailed{"File open failed", 20, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error PreferencesOpenFailed{"Preferences open failed", 12, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error CardMountFailed{TXT_CARD_MOUNT_FAILED, 3, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error NoSdCardAttached{TXT_NO_SD_CARD_ATTACHED, 4, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error UnknownSdCardType{TXT_UNKNOWN_SD_CARD_TYPE, 5, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error CardOpenFileFailed{TXT_CARD_OPEN_FILE_FAILED, 6, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardFileNotFound{TXT_SD_CARD_FILE_NOT_FOUND, 7, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardFileOpenFailed{TXT_SD_CARD_FILE_OPEN_FAILED, 8, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardFileCreateFailed{TXT_SD_CARD_FILE_CREATE_FAILED, 24, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardDirCreateFailed{TXT_SD_CARD_DIR_CREATE_FAILED, 36, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error CardTocOpenFileFailed{TXT_CARD_TOC_OPEN_FILE_FAILED, 11, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error FileOpenFailed{TXT_FILE_OPEN_FAILED, 20, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error PreferencesOpenFailed{TXT_PREFERENCES_OPEN_FAILED, 12, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
 
 // SD Card specific errors (100-119) - Enhanced granular errors
-const photo_frame_error SdCardWriteProtected{"SD card is write protected", 100, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardCorrupted{"SD card file system is corrupted", 101, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardInsufficientSpace{"SD card has insufficient free space", 102, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardSlowResponse{"SD card is responding slowly", 103, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardReadOnly{"SD card is in read-only mode", 104, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardBadSector{"SD card has bad sectors", 105, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardSizeInvalid{"SD card reports invalid size", 106, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardInitFailed{"SD card initialization failed", 107, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardVersionUnsupported{"SD card version not supported", 108, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
-const photo_frame_error SdCardFileSystemUnsupported{"SD card file system not supported", 109, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardWriteProtected{TXT_SD_CARD_WRITE_PROTECTED, 100, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardCorrupted{TXT_SD_CARD_CORRUPTED, 101, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardInsufficientSpace{TXT_SD_CARD_INSUFFICIENT_SPACE, 102, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardSlowResponse{TXT_SD_CARD_SLOW_RESPONSE, 103, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardReadOnly{TXT_SD_CARD_READ_ONLY, 104, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardBadSector{TXT_SD_CARD_BAD_SECTOR, 105, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardSizeInvalid{TXT_SD_CARD_SIZE_INVALID, 106, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardInitFailed{TXT_SD_CARD_INIT_FAILED, 107, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardVersionUnsupported{TXT_SD_CARD_VERSION_UNSUPPORTED, 108, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardFileSystemUnsupported{TXT_SD_CARD_FILESYSTEM_UNSUPPORTED, 109, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 
 // Display/Image errors
-const photo_frame_error ImageFormatNotSupported{"Image format not supported", 9, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error NoImagesFound{"No images found", 13, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFormatNotSupported{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 9, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error NoImagesFound{TXT_NO_IMAGES_FOUND, 13, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 
 // Battery errors (Critical severity)
-const photo_frame_error BatteryLevelCritical{"Battery level is critical", 10, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryEmpty{"Battery is empty", 14, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryLevelCritical{TXT_BATTERY_LEVEL_CRITICAL, 10, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryEmpty{TXT_BATTERY_EMPTY, 14, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
 
 // Hardware errors
-const photo_frame_error RTCInitializationFailed{"RTC module not found", 15, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error RTCInitializationFailed{TXT_RTC_MODULE_NOT_FOUND, 15, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
 
 // Authentication errors
-const photo_frame_error JwtCreationFailed{"JWT creation failed", 16, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error TokenMissing{"Token missing", 19, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error JwtCreationFailed{TXT_JWT_CREATION_FAILED, 16, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error TokenMissing{TXT_TOKEN_MISSING, 19, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
 
 // Network errors
-const photo_frame_error HttpPostFailed{"HTTP POST request failed", 17, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpConnectFailed{"HTTP connection failed", 21, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpGetFailed{"HTTP GET request failed", 22, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error DownloadFailed{"File download failed", 23, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error SslCertificateLoadFailed{"SSL certificate load failed", 25, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error RateLimitTimeoutExceeded{"Rate limit timeout exceeded", 26, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiCredentialsNotFound{"WiFi credentials not found", 27, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiConnectionFailed{"WiFi connection failed", 28, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpPostFailed{TXT_HTTP_POST_FAILED, 17, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpConnectFailed{TXT_HTTP_CONNECT_FAILED, 21, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpGetFailed{TXT_HTTP_GET_FAILED, 22, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error DownloadFailed{TXT_DOWNLOAD_FAILED, 23, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error SslCertificateLoadFailed{TXT_SSL_CERTIFICATE_LOAD_FAILED, 25, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error RateLimitTimeoutExceeded{TXT_RATE_LIMIT_TIMEOUT_EXCEEDED, 26, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiCredentialsNotFound{TXT_WIFI_CREDENTIALS_NOT_FOUND, 27, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiConnectionFailed{TXT_WIFI_CONNECTION_FAILED, 28, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
 
 // Network/WiFi specific errors (120-139) - Enhanced granular errors
-const photo_frame_error WifiSignalTooWeak{"WiFi signal is too weak", 120, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiAuthenticationFailed{"WiFi authentication failed", 121, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiDhcpFailed{"WiFi DHCP assignment failed", 122, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiDnsResolutionFailed{"WiFi DNS resolution failed", 123, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiNetworkNotFound{"WiFi network not found", 124, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiPasswordIncorrect{"WiFi password is incorrect", 125, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiChannelBusy{"WiFi channel is busy or congested", 126, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error WifiFrequencyNotSupported{"WiFi frequency not supported", 127, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpRequestTimeout{"HTTP request timed out", 128, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpInvalidResponse{"HTTP response is invalid or malformed", 129, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error SslHandshakeFailed{"SSL/TLS handshake failed", 130, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error NetworkInterfaceDown{"Network interface is down", 131, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error NetworkConfigInvalid{"Network configuration is invalid", 132, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error ProxyConnectionFailed{"Proxy connection failed", 133, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error NetworkTimeoutExceeded{"Network operation timeout exceeded", 134, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiSignalTooWeak{TXT_WIFI_SIGNAL_TOO_WEAK, 120, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiAuthenticationFailed{TXT_WIFI_AUTHENTICATION_FAILED, 121, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiDhcpFailed{TXT_WIFI_DHCP_FAILED, 122, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiDnsResolutionFailed{TXT_WIFI_DNS_RESOLUTION_FAILED, 123, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiNetworkNotFound{TXT_WIFI_NETWORK_NOT_FOUND, 124, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiPasswordIncorrect{TXT_WIFI_PASSWORD_INCORRECT, 125, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiChannelBusy{TXT_WIFI_CHANNEL_BUSY, 126, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error WifiFrequencyNotSupported{TXT_WIFI_FREQUENCY_NOT_SUPPORTED, 127, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpRequestTimeout{TXT_HTTP_REQUEST_TIMEOUT, 128, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpInvalidResponse{TXT_HTTP_INVALID_RESPONSE, 129, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error SslHandshakeFailed{TXT_SSL_HANDSHAKE_FAILED, 130, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error NetworkInterfaceDown{TXT_NETWORK_INTERFACE_DOWN, 131, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error NetworkConfigInvalid{TXT_NETWORK_CONFIG_INVALID, 132, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error ProxyConnectionFailed{TXT_PROXY_CONNECTION_FAILED, 133, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error NetworkTimeoutExceeded{TXT_NETWORK_TIMEOUT_EXCEEDED, 134, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
 
 // General errors
-const photo_frame_error JsonParseFailed{"JSON parsing failed", 18, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_GENERAL};
+const photo_frame_error JsonParseFailed{TXT_JSON_PARSE_FAILED, 18, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_GENERAL};
 
 // Configuration validation errors
-const photo_frame_error ConfigMissingSection{"Configuration section missing", 29, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigMissingField{"Configuration field missing", 30, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigInvalidEmail{"Invalid email address in config", 31, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigInvalidPemKey{"Invalid PEM key in config", 32, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigInvalidPath{"Invalid path in config", 33, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigInvalidFilename{"Invalid filename in config", 34, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigValueOutOfRange{"Configuration value out of range", 35, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigMissingSection{TXT_CONFIG_MISSING_SECTION, 29, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigMissingField{TXT_CONFIG_MISSING_FIELD, 30, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigInvalidEmail{TXT_CONFIG_INVALID_EMAIL, 31, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigInvalidPemKey{TXT_CONFIG_INVALID_PEM_KEY, 32, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigInvalidPath{TXT_CONFIG_INVALID_PATH, 33, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigInvalidFilename{TXT_CONFIG_INVALID_FILENAME, 34, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigValueOutOfRange{TXT_CONFIG_VALUE_OUT_OF_RANGE, 35, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
 
 // Configuration specific errors (140-159) - Enhanced granular errors
-const photo_frame_error ConfigFileCorrupted{"Configuration file is corrupted", 140, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigJsonSyntaxError{"Configuration JSON syntax error", 141, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigVersionMismatch{"Configuration version mismatch", 142, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigFieldTypeMismatch{"Configuration field type mismatch", 143, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigEncryptionKeyInvalid{"Configuration encryption key invalid", 144, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigBackupFailed{"Configuration backup failed", 145, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigRestoreFailed{"Configuration restore failed", 146, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigValidationFailed{"Configuration validation failed", 147, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigDefaultsMissing{"Configuration defaults missing", 148, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigSchemaInvalid{"Configuration schema is invalid", 149, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigAccessDenied{"Configuration file access denied", 150, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigFormatUnsupported{"Configuration format not supported", 151, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigSizeLimitExceeded{"Configuration size limit exceeded", 152, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigDependencyMissing{"Configuration dependency missing", 153, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
-const photo_frame_error ConfigEnvironmentMismatch{"Configuration environment mismatch", 154, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigFileCorrupted{TXT_CONFIG_FILE_CORRUPTED, 140, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigJsonSyntaxError{TXT_CONFIG_JSON_SYNTAX_ERROR, 141, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigVersionMismatch{TXT_CONFIG_VERSION_MISMATCH, 142, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigFieldTypeMismatch{TXT_CONFIG_FIELD_TYPE_MISMATCH, 143, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigEncryptionKeyInvalid{TXT_CONFIG_ENCRYPTION_KEY_INVALID, 144, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigBackupFailed{TXT_CONFIG_BACKUP_FAILED, 145, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigRestoreFailed{TXT_CONFIG_RESTORE_FAILED, 146, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigValidationFailed{TXT_CONFIG_VALIDATION_FAILED, 147, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigDefaultsMissing{TXT_CONFIG_DEFAULTS_MISSING, 148, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigSchemaInvalid{TXT_CONFIG_SCHEMA_INVALID, 149, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigAccessDenied{TXT_CONFIG_ACCESS_DENIED, 150, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigFormatUnsupported{TXT_CONFIG_FORMAT_UNSUPPORTED, 151, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigSizeLimitExceeded{TXT_CONFIG_SIZE_LIMIT_EXCEEDED, 152, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigDependencyMissing{TXT_CONFIG_DEPENDENCY_MISSING, 153, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error ConfigEnvironmentMismatch{TXT_CONFIG_ENVIRONMENT_MISMATCH, 154, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_CONFIG};
 
 // OAuth/Authentication specific errors (40-49)
-const photo_frame_error OAuthTokenExpired{"OAuth access token has expired", 40, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthTokenInvalid{"OAuth access token is invalid or malformed", 41, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthRefreshTokenMissing{"OAuth refresh token is missing", 42, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthRefreshTokenInvalid{"OAuth refresh token is invalid", 43, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthScopeInsufficient{"OAuth token has insufficient permissions", 44, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthJwtSigningFailed{"Failed to sign JWT for service account", 45, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthServiceAccountKeyInvalid{"Service account private key is invalid", 46, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthTokenRequestFailed{"Failed to request OAuth access token", 47, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
-const photo_frame_error OAuthTokenRefreshFailed{"Failed to refresh OAuth access token", 48, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthTokenExpired{TXT_OAUTH_TOKEN_EXPIRED, 40, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthTokenInvalid{TXT_OAUTH_TOKEN_INVALID, 41, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthRefreshTokenMissing{TXT_OAUTH_REFRESH_TOKEN_MISSING, 42, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthRefreshTokenInvalid{TXT_OAUTH_REFRESH_TOKEN_INVALID, 43, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthScopeInsufficient{TXT_OAUTH_SCOPE_INSUFFICIENT, 44, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthJwtSigningFailed{TXT_OAUTH_JWT_SIGNING_FAILED, 45, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthServiceAccountKeyInvalid{TXT_OAUTH_SERVICE_ACCOUNT_KEY_INVALID, 46, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthTokenRequestFailed{TXT_OAUTH_TOKEN_REQUEST_FAILED, 47, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};
+const photo_frame_error OAuthTokenRefreshFailed{TXT_OAUTH_TOKEN_REFRESH_FAILED, 48, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_AUTHENTICATION};
 
 // Google Drive API specific errors (50-69)
-const photo_frame_error GoogleDriveApiQuotaExceeded{"Google Drive API quota exceeded", 50, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveApiRateLimited{"Google Drive API rate limit exceeded", 51, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveFileNotFound{"File not found in Google Drive", 52, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveFolderNotFound{"Folder not found in Google Drive", 53, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDrivePermissionDenied{"Permission denied to access Google Drive resource", 54, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveStorageQuotaExceeded{"Google Drive storage quota exceeded", 55, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveApiDisabled{"Google Drive API is disabled for this project", 56, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveFileTooBig{"File is too large to download", 57, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveFileCorrupted{"Downloaded file appears to be corrupted", 58, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveInvalidQuery{"Invalid query syntax for Google Drive search", 59, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveApiInternalError{"Google Drive API internal server error", 60, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveNetworkTimeout{"Network timeout while contacting Google Drive", 61, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveResponseMalformed{"Malformed response from Google Drive API", 62, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveApiUnavailable{"Google Drive API is temporarily unavailable", 63, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveDownloadInterrupted{"File download was interrupted", 64, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveMetadataInvalid{"Invalid or missing file metadata", 65, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveFolderEmpty{"Google Drive folder contains no files", 66, ERROR_SEVERITY_INFO, ERROR_CATEGORY_NETWORK};
-const photo_frame_error GoogleDriveApiVersionUnsupported{"Unsupported Google Drive API version", 67, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveApiQuotaExceeded{TXT_GOOGLE_DRIVE_API_QUOTA_EXCEEDED, 50, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveApiRateLimited{TXT_GOOGLE_DRIVE_API_RATE_LIMITED, 51, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveFileNotFound{TXT_GOOGLE_DRIVE_FILE_NOT_FOUND, 52, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveFolderNotFound{TXT_GOOGLE_DRIVE_FOLDER_NOT_FOUND, 53, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDrivePermissionDenied{TXT_GOOGLE_DRIVE_PERMISSION_DENIED, 54, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveStorageQuotaExceeded{TXT_GOOGLE_DRIVE_STORAGE_QUOTA_EXCEEDED, 55, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveApiDisabled{TXT_GOOGLE_DRIVE_API_DISABLED, 56, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveFileTooBig{TXT_GOOGLE_DRIVE_FILE_TOO_BIG, 57, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveFileCorrupted{TXT_GOOGLE_DRIVE_FILE_CORRUPTED, 58, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveInvalidQuery{TXT_GOOGLE_DRIVE_INVALID_QUERY, 59, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveApiInternalError{TXT_GOOGLE_DRIVE_API_INTERNAL_ERROR, 60, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveNetworkTimeout{TXT_GOOGLE_DRIVE_NETWORK_TIMEOUT, 61, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveResponseMalformed{TXT_GOOGLE_DRIVE_RESPONSE_MALFORMED, 62, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveApiUnavailable{TXT_GOOGLE_DRIVE_API_UNAVAILABLE, 63, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveDownloadInterrupted{TXT_GOOGLE_DRIVE_DOWNLOAD_INTERRUPTED, 64, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveMetadataInvalid{TXT_GOOGLE_DRIVE_METADATA_INVALID, 65, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveFolderEmpty{TXT_GOOGLE_DRIVE_FOLDER_EMPTY, 66, ERROR_SEVERITY_INFO, ERROR_CATEGORY_NETWORK};
+const photo_frame_error GoogleDriveApiVersionUnsupported{TXT_GOOGLE_DRIVE_API_VERSION_UNSUPPORTED, 67, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
 
 // HTTP specific errors (70-79)
-const photo_frame_error HttpUnauthorized{"HTTP 401: Unauthorized access", 70, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpForbidden{"HTTP 403: Forbidden access", 71, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpNotFound{"HTTP 404: Resource not found", 72, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpTooManyRequests{"HTTP 429: Too many requests", 73, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpInternalServerError{"HTTP 500: Internal server error", 74, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpBadGateway{"HTTP 502: Bad gateway", 75, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpServiceUnavailable{"HTTP 503: Service unavailable", 76, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpGatewayTimeout{"HTTP 504: Gateway timeout", 77, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error HttpBadRequest{"HTTP 400: Bad request", 78, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpUnauthorized{TXT_HTTP_UNAUTHORIZED, 70, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpForbidden{TXT_HTTP_FORBIDDEN, 71, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpNotFound{TXT_HTTP_NOT_FOUND, 72, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpTooManyRequests{TXT_HTTP_TOO_MANY_REQUESTS, 73, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpInternalServerError{TXT_HTTP_INTERNAL_SERVER_ERROR, 74, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpBadGateway{TXT_HTTP_BAD_GATEWAY, 75, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpServiceUnavailable{TXT_HTTP_SERVICE_UNAVAILABLE, 76, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpGatewayTimeout{TXT_HTTP_GATEWAY_TIMEOUT, 77, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error HttpBadRequest{TXT_HTTP_BAD_REQUEST, 78, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_NETWORK};
 
 // Image Processing specific errors (80-99)
-const photo_frame_error ImageFileCorrupted{"Image file appears to be corrupted or invalid", 80, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageFileTooLarge{"Image file is too large for processing", 81, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageDimensionsInvalid{"Image dimensions are invalid or unsupported", 82, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageDimensionsMismatch{"Image dimensions don't match expected size", 83, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageColorDepthUnsupported{"Image color depth is not supported", 84, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImagePixelDataCorrupted{"Pixel data is corrupted or unreadable", 85, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageFileSeekFailed{"Failed to seek to position in image file", 86, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageFileReadFailed{"Failed to read data from image file", 87, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageBufferOverflow{"Image processing buffer overflow", 88, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageBufferUnderflow{"Image processing buffer underflow", 89, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageRenderTimeout{"Image rendering timed out", 90, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageDisplayWriteFailed{"Failed to write pixel data to display", 91, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageFileHeaderInvalid{"Image file header is invalid or missing", 92, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageFileEmpty{"Image file is empty or has no content", 93, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageFileTruncated{"Image file appears to be truncated", 94, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageMemoryAllocationFailed{"Failed to allocate memory for image processing", 95, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImagePaletteInvalid{"Image palette data is invalid", 96, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageConversionFailed{"Failed to convert image data to display format", 97, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageResolutionTooHigh{"Image resolution exceeds display capabilities", 98, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error ImageProcessingAborted{"Image processing was aborted due to error", 99, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileCorrupted{TXT_IMAGE_FILE_CORRUPTED, 80, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileTooLarge{TXT_IMAGE_FILE_TOO_LARGE, 81, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageDimensionsInvalid{TXT_IMAGE_DIMENSIONS_INVALID, 82, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageDimensionsMismatch{TXT_IMAGE_DIMENSIONS_MISMATCH, 83, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageColorDepthUnsupported{TXT_IMAGE_COLOR_DEPTH_UNSUPPORTED, 84, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImagePixelDataCorrupted{TXT_IMAGE_PIXEL_DATA_CORRUPTED, 85, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileSeekFailed{TXT_IMAGE_FILE_SEEK_FAILED, 86, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileReadFailed{TXT_IMAGE_FILE_READ_FAILED, 87, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageBufferOverflow{TXT_IMAGE_BUFFER_OVERFLOW, 88, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageBufferUnderflow{TXT_IMAGE_BUFFER_UNDERFLOW, 89, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageRenderTimeout{TXT_IMAGE_RENDER_TIMEOUT, 90, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageDisplayWriteFailed{TXT_IMAGE_DISPLAY_WRITE_FAILED, 91, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileHeaderInvalid{TXT_IMAGE_FILE_HEADER_INVALID, 92, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileEmpty{TXT_IMAGE_FILE_EMPTY, 93, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageFileTruncated{TXT_IMAGE_FILE_TRUNCATED, 94, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageMemoryAllocationFailed{TXT_IMAGE_MEMORY_ALLOCATION_FAILED, 95, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImagePaletteInvalid{TXT_IMAGE_PALETTE_INVALID, 96, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageConversionFailed{TXT_IMAGE_CONVERSION_FAILED, 97, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageResolutionTooHigh{TXT_IMAGE_RESOLUTION_TOO_HIGH, 98, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageProcessingAborted{TXT_IMAGE_PROCESSING_ABORTED, 99, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 
 // Battery/Power specific errors (160-179) - Enhanced granular errors
-const photo_frame_error BatteryVoltageLow{"Battery voltage is below safe threshold", 160, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryVoltageUnstable{"Battery voltage is unstable or fluctuating", 161, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryTemperatureHigh{"Battery temperature is too high", 162, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryTemperatureLow{"Battery temperature is too low", 163, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryAgingDetected{"Battery shows signs of aging or degradation", 164, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryCalibrationNeeded{"Battery gauge needs recalibration", 165, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryDischargeRateTooHigh{"Battery discharge rate is abnormally high", 166, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryChargeRateTooSlow{"Battery charging rate is too slow", 167, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryCapacityReduced{"Battery capacity has significantly reduced", 168, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryHealthPoor{"Battery health is poor", 169, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryVoltageLow{TXT_BATTERY_VOLTAGE_LOW, 160, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryVoltageUnstable{TXT_BATTERY_VOLTAGE_UNSTABLE, 161, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryTemperatureHigh{TXT_BATTERY_TEMPERATURE_HIGH, 162, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryTemperatureLow{TXT_BATTERY_TEMPERATURE_LOW, 163, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryAgingDetected{TXT_BATTERY_AGING_DETECTED, 164, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryCalibrationNeeded{TXT_BATTERY_CALIBRATION_NEEDED, 165, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryDischargeRateTooHigh{TXT_BATTERY_DISCHARGE_RATE_TOO_HIGH, 166, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryChargeRateTooSlow{TXT_BATTERY_CHARGE_RATE_TOO_SLOW, 167, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryCapacityReduced{TXT_BATTERY_CAPACITY_REDUCED, 168, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryHealthPoor{TXT_BATTERY_HEALTH_POOR, 169, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
 
 // Charging specific errors (170-179)
-const photo_frame_error ChargingFailed{"Battery charging has failed", 170, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargerNotConnected{"Charger is not connected", 171, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargerIncompatible{"Charger is incompatible or insufficient", 172, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargingOverheat{"Charging stopped due to overheating", 173, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargingTimeout{"Charging process timed out", 174, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargeCurrentTooHigh{"Charge current is dangerously high", 175, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargeCurrentTooLow{"Charge current is too low for efficient charging", 176, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargingCircuitFault{"Charging circuit has a fault", 177, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryNotDetected{"Battery is not detected by the system", 178, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryAuthenticationFailed{"Battery authentication failed", 179, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingFailed{TXT_CHARGING_FAILED, 170, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargerNotConnected{TXT_CHARGER_NOT_CONNECTED, 171, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargerIncompatible{TXT_CHARGER_INCOMPATIBLE, 172, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingOverheat{TXT_CHARGING_OVERHEAT, 173, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingTimeout{TXT_CHARGING_TIMEOUT, 174, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargeCurrentTooHigh{TXT_CHARGE_CURRENT_TOO_HIGH, 175, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargeCurrentTooLow{TXT_CHARGE_CURRENT_TOO_LOW, 176, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingCircuitFault{TXT_CHARGING_CIRCUIT_FAULT, 177, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryNotDetected{TXT_BATTERY_NOT_DETECTED, 178, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryAuthenticationFailed{TXT_BATTERY_AUTHENTICATION_FAILED, 179, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
 
 // Power Supply errors (180-189)
-const photo_frame_error PowerSupplyInsufficient{"Power supply is insufficient for operation", 180, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyUnstable{"Power supply voltage is unstable", 181, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyOvervoltage{"Power supply voltage is too high", 182, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyUndervoltage{"Power supply voltage is too low", 183, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerRegulatorFailed{"Power regulator has failed", 184, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyNoise{"Power supply has excessive noise or interference", 185, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyEfficiencyLow{"Power supply efficiency is below threshold", 186, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyOvercurrent{"Power supply overcurrent protection triggered", 187, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyShortCircuit{"Power supply short circuit detected", 188, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSupplyDisconnected{"Power supply has been disconnected", 189, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyInsufficient{TXT_POWER_SUPPLY_INSUFFICIENT, 180, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyUnstable{TXT_POWER_SUPPLY_UNSTABLE, 181, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyOvervoltage{TXT_POWER_SUPPLY_OVERVOLTAGE, 182, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyUndervoltage{TXT_POWER_SUPPLY_UNDERVOLTAGE, 183, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerRegulatorFailed{TXT_POWER_REGULATOR_FAILED, 184, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyNoise{TXT_POWER_SUPPLY_NOISE, 185, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyEfficiencyLow{TXT_POWER_SUPPLY_EFFICIENCY_LOW, 186, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyOvercurrent{TXT_POWER_SUPPLY_OVERCURRENT, 187, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyShortCircuit{TXT_POWER_SUPPLY_SHORT_CIRCUIT, 188, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSupplyDisconnected{TXT_POWER_SUPPLY_DISCONNECTED, 189, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
 
 // Power Management errors (190-199)
-const photo_frame_error PowerSavingModeEnterFailed{"Failed to enter power saving mode", 190, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerSavingModeExitFailed{"Failed to exit power saving mode", 191, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error SleepModeActivationFailed{"Failed to activate sleep mode", 192, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error WakeupSourceInvalid{"Wakeup source configuration is invalid", 193, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerConsumptionTooHigh{"Power consumption exceeds expected limits", 194, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerManagerInitFailed{"Power management system initialization failed", 195, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error ClockFrequencyError{"CPU clock frequency adjustment failed", 196, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error VoltageScalingFailed{"Dynamic voltage scaling failed", 197, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error PowerDomainError{"Power domain control error", 198, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error ThermalThrottlingActive{"Thermal throttling is active due to overheating", 199, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSavingModeEnterFailed{TXT_POWER_SAVING_MODE_ENTER_FAILED, 190, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerSavingModeExitFailed{TXT_POWER_SAVING_MODE_EXIT_FAILED, 191, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error SleepModeActivationFailed{TXT_SLEEP_MODE_ACTIVATION_FAILED, 192, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error WakeupSourceInvalid{TXT_WAKEUP_SOURCE_INVALID, 193, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerConsumptionTooHigh{TXT_POWER_CONSUMPTION_TOO_HIGH, 194, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerManagerInitFailed{TXT_POWER_MANAGER_INIT_FAILED, 195, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error ClockFrequencyError{TXT_CLOCK_FREQUENCY_ERROR, 196, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error VoltageScalingFailed{TXT_VOLTAGE_SCALING_FAILED, 197, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error PowerDomainError{TXT_POWER_DOMAIN_ERROR, 198, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error ThermalThrottlingActive{TXT_THERMAL_THROTTLING_ACTIVE, 199, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_HARDWARE};
 
 // Display Hardware errors (200-219) - Enhanced granular errors
-const photo_frame_error DisplayInitializationFailed{"Display initialization failed", 200, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayDriverError{"Display driver communication error", 201, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplaySpiCommError{"Display SPI communication error", 202, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayBusyTimeout{"Display busy signal timeout", 203, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayResetFailed{"Display reset sequence failed", 204, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayPowerOnFailed{"Display power-on sequence failed", 205, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayPowerOffFailed{"Display power-off sequence failed", 206, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayWakeupFailed{"Display wakeup from sleep failed", 207, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayCommandError{"Display command execution error", 208, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayHardwareFault{"Display hardware fault detected", 209, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayInitializationFailed{TXT_DISPLAY_INITIALIZATION_FAILED, 200, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayDriverError{TXT_DISPLAY_DRIVER_ERROR, 201, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplaySpiCommError{TXT_DISPLAY_SPI_COMM_ERROR, 202, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayBusyTimeout{TXT_DISPLAY_BUSY_TIMEOUT, 203, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayResetFailed{TXT_DISPLAY_RESET_FAILED, 204, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayPowerOnFailed{TXT_DISPLAY_POWER_ON_FAILED, 205, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayPowerOffFailed{TXT_DISPLAY_POWER_OFF_FAILED, 206, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayWakeupFailed{TXT_DISPLAY_WAKEUP_FAILED, 207, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayCommandError{TXT_DISPLAY_COMMAND_ERROR, 208, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayHardwareFault{TXT_DISPLAY_HARDWARE_FAULT, 209, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
 
 // E-Paper Specific errors (210-229)
-const photo_frame_error EpaperRefreshFailed{"E-paper display refresh failed", 210, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperPartialRefreshNotSupported{"E-paper partial refresh not supported", 211, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperGhostingDetected{"E-paper ghosting artifacts detected", 212, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperTemperatureCompensationFailed{"E-paper temperature compensation failed", 213, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperWaveformError{"E-paper waveform selection error", 214, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperVoltageRegulationError{"E-paper voltage regulation error", 215, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperPixelStuckError{"E-paper pixels permanently stuck", 216, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperContrastPoor{"E-paper contrast is poor or faded", 217, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperRefreshTooFrequent{"E-paper refresh rate too frequent", 218, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error EpaperLifetimeExceeded{"E-paper lifetime refresh count exceeded", 219, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperRefreshFailed{TXT_EPAPER_REFRESH_FAILED, 210, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperPartialRefreshNotSupported{TXT_EPAPER_PARTIAL_REFRESH_NOT_SUPPORTED, 211, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperGhostingDetected{TXT_EPAPER_GHOSTING_DETECTED, 212, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperTemperatureCompensationFailed{TXT_EPAPER_TEMPERATURE_COMPENSATION_FAILED, 213, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperWaveformError{TXT_EPAPER_WAVEFORM_ERROR, 214, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperVoltageRegulationError{TXT_EPAPER_VOLTAGE_REGULATION_ERROR, 215, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperPixelStuckError{TXT_EPAPER_PIXEL_STUCK_ERROR, 216, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperContrastPoor{TXT_EPAPER_CONTRAST_POOR, 217, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperRefreshTooFrequent{TXT_EPAPER_REFRESH_TOO_FREQUENT, 218, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error EpaperLifetimeExceeded{TXT_EPAPER_LIFETIME_EXCEEDED, 219, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
 
 // Display Rendering errors (230-249)
-const photo_frame_error DisplayBufferOverflow{"Display rendering buffer overflow", 230, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayBufferUnderflow{"Display rendering buffer underflow", 231, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayMemoryAllocationFailed{"Display memory allocation failed", 232, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayFramebufferCorrupted{"Display framebuffer is corrupted", 233, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayPixelFormatError{"Display pixel format conversion error", 234, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayColorSpaceError{"Display color space conversion error", 235, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayScalingError{"Display image scaling error", 236, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayRotationError{"Display rotation operation error", 237, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayClippingError{"Display content clipping error", 238, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayRenderingTimeout{"Display rendering operation timed out", 239, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayBufferOverflow{TXT_DISPLAY_BUFFER_OVERFLOW, 230, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayBufferUnderflow{TXT_DISPLAY_BUFFER_UNDERFLOW, 231, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayMemoryAllocationFailed{TXT_DISPLAY_MEMORY_ALLOCATION_FAILED, 232, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayFramebufferCorrupted{TXT_DISPLAY_FRAMEBUFFER_CORRUPTED, 233, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayPixelFormatError{TXT_DISPLAY_PIXEL_FORMAT_ERROR, 234, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayColorSpaceError{TXT_DISPLAY_COLOR_SPACE_ERROR, 235, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayScalingError{TXT_DISPLAY_SCALING_ERROR, 236, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayRotationError{TXT_DISPLAY_ROTATION_ERROR, 237, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayClippingError{TXT_DISPLAY_CLIPPING_ERROR, 238, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayRenderingTimeout{TXT_DISPLAY_RENDERING_TIMEOUT, 239, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 
 // Display Configuration errors (250-259)
-const photo_frame_error DisplayResolutionMismatch{"Display resolution configuration mismatch", 250, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayColorDepthUnsupported{"Display color depth not supported", 251, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayOrientationInvalid{"Display orientation setting is invalid", 252, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayRefreshRateInvalid{"Display refresh rate setting is invalid", 253, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayGammaConfigError{"Display gamma correction configuration error", 254, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayBrightnessControlError{"Display brightness control error", 255, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayContrastControlError{"Display contrast control error", 256, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayTimingConfigError{"Display timing configuration error", 257, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayModeNotSupported{"Display mode not supported by hardware", 258, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error DisplayCalibrationRequired{"Display calibration is required", 259, ERROR_SEVERITY_INFO, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayResolutionMismatch{TXT_DISPLAY_RESOLUTION_MISMATCH, 250, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayColorDepthUnsupported{TXT_DISPLAY_COLOR_DEPTH_UNSUPPORTED, 251, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayOrientationInvalid{TXT_DISPLAY_ORIENTATION_INVALID, 252, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayRefreshRateInvalid{TXT_DISPLAY_REFRESH_RATE_INVALID, 253, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayGammaConfigError{TXT_DISPLAY_GAMMA_CONFIG_ERROR, 254, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayBrightnessControlError{TXT_DISPLAY_BRIGHTNESS_CONTROL_ERROR, 255, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayContrastControlError{TXT_DISPLAY_CONTRAST_CONTROL_ERROR, 256, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayTimingConfigError{TXT_DISPLAY_TIMING_CONFIG_ERROR, 257, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayModeNotSupported{TXT_DISPLAY_MODE_NOT_SUPPORTED, 258, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error DisplayCalibrationRequired{TXT_DISPLAY_CALIBRATION_REQUIRED, 259, ERROR_SEVERITY_INFO, ERROR_CATEGORY_DISPLAY};
 
 // Add more errors here
 } // namespace error_type
