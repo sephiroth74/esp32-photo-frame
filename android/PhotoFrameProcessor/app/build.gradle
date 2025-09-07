@@ -58,6 +58,7 @@ dependencies {
 
     // Image processing
     implementation libs.glide
+    implementation libs.shimmer
 
     // Coroutines
     implementation libs.kotlinx.coroutines.android

@@ -11,6 +11,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
@@ -19,13 +20,19 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class ImageProcessor(private val context: Context) {
     
     companion object {
         const val TARGET_WIDTH = 800
+
         const val TARGET_HEIGHT = 480
+
+        @Suppress("unused")
         const val BYTES_PER_PIXEL = 1 // 8-bit color format (RRRGGGBB)
+
         const val TAG = "ImageProcessor"
     }
     
@@ -89,7 +96,7 @@ class ImageProcessor(private val context: Context) {
         }
     }
     
-    suspend fun processAnalyzedImages(
+    fun processAnalyzedImages(
         analyzedImages: List<ProcessedImage>,
         progressCallback: (Int, Int, File?) -> Unit
     ): List<File> {
@@ -160,7 +167,8 @@ class ImageProcessor(private val context: Context) {
     }
     
     // Keep the old method for backward compatibility with URIs
-    suspend fun processImages(
+    @Suppress("unused")
+    fun processImages(
         imageUris: List<Uri>,
         progressCallback: (Int, Int, File?) -> Unit
     ): List<File> {
@@ -227,7 +235,7 @@ class ImageProcessor(private val context: Context) {
             
             // Create paired images
             val pairedFirst = first.copy(pairedWith = second)
-            val pairedSecond = second.copy(pairedWith = first)
+            @Suppress("UnusedVariable") val pairedSecond = second.copy(pairedWith = first)
             
             // Add only the first image to results (it represents the pair)
             results.add(pairedFirst)
@@ -312,6 +320,7 @@ class ImageProcessor(private val context: Context) {
         }
     }
     
+    @Suppress("SameParameterValue")
     private fun createPreviewFromBitmap(bitmap: Bitmap, maxDimension: Int): Bitmap {
         val maxOriginalDimension = maxOf(bitmap.width, bitmap.height)
         
@@ -343,7 +352,7 @@ class ImageProcessor(private val context: Context) {
         // Scale all detections
         val scaledDetections = result.detections.map { detection ->
             val originalBox = detection.boundingBox
-            val scaledBox = android.graphics.RectF(
+            val scaledBox = RectF(
                 originalBox.left * scaleX,
                 originalBox.top * scaleY,
                 originalBox.right * scaleX,
@@ -358,7 +367,7 @@ class ImageProcessor(private val context: Context) {
         // Scale the main person detection if it exists
         val scaledMainPerson = result.mainPerson?.let { mainPerson ->
             val originalBox = mainPerson.boundingBox
-            val scaledBox = android.graphics.RectF(
+            val scaledBox = RectF(
                 originalBox.left * scaleX,
                 originalBox.top * scaleY,
                 originalBox.right * scaleX,
@@ -373,6 +382,7 @@ class ImageProcessor(private val context: Context) {
         return PersonDetectionResult(scaledDetections, scaledMainPerson, result.processingTimeMs)
     }
     
+    @Suppress("unused")
     private fun loadBitmapFromUri(uri: Uri): Bitmap? {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri) ?: return null
@@ -385,6 +395,7 @@ class ImageProcessor(private val context: Context) {
         }
     }
     
+    @Suppress("unused")
     private fun loadBitmapFromUri(uri: Uri, maxDimension: Int): Bitmap? {
         return try {
             // First, get image dimensions without loading the full bitmap
@@ -423,7 +434,7 @@ class ImageProcessor(private val context: Context) {
                     val newWidth = (bitmap.width * scale).toInt()
                     val newHeight = (bitmap.height * scale).toInt()
                     
-                    val scaledBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+                    val scaledBitmap = bitmap.scale(newWidth, newHeight)
                     if (scaledBitmap != bitmap) {
                         bitmap.recycle()
                     }
@@ -489,7 +500,7 @@ class ImageProcessor(private val context: Context) {
         val fileName = try {
             uri.lastPathSegment?.substringAfterLast('/')?.substringBeforeLast('.') 
                 ?: uri.toString().hashCode().toString()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             uri.toString().hashCode().toString()
         }
         
@@ -507,9 +518,25 @@ class ImageProcessor(private val context: Context) {
     private fun processCombinedPortraitImages(
         first: ProcessedImage,
         second: ProcessedImage,
-        index: Int
+        @Suppress("unused") index: Int
     ): ProcessingResult? {
         try {
+            // Extract labels (dates or filenames) from both images
+            val firstLabelText = extractImageLabel(first.originalUri)
+            val secondLabelText = extractImageLabel(second.originalUri)
+            
+            if (firstLabelText != null) {
+                Log.d(TAG, "processCombinedPortraitImages: First image label: $firstLabelText")
+            } else {
+                Log.d(TAG, "processCombinedPortraitImages: No label available for first image")
+            }
+            
+            if (secondLabelText != null) {
+                Log.d(TAG, "processCombinedPortraitImages: Second image label: $secondLabelText")
+            } else {
+                Log.d(TAG, "processCombinedPortraitImages: No label available for second image")
+            }
+            
             // Load both bitmaps
             val firstBitmap = loadAndRotateBitmap(first.originalUri) ?: return null
             val secondBitmap = loadAndRotateBitmap(second.originalUri) ?: return null
@@ -523,8 +550,23 @@ class ImageProcessor(private val context: Context) {
                 secondBitmap, targetPortraitWidth, TARGET_HEIGHT, second.personDetectionResult
             )
             
+            // Add labels to individual portraits if available
+            val firstWithLabel = if (firstLabelText != null) {
+                Log.d(TAG, "processCombinedPortraitImages: Adding label to first image: $firstLabelText")
+                drawDateLabel(resizedFirst, firstLabelText, DateLabelPosition.BOTTOM_RIGHT)
+            } else {
+                resizedFirst
+            }
+            
+            val secondWithLabel = if (secondLabelText != null) {
+                Log.d(TAG, "processCombinedPortraitImages: Adding label to second image: $secondLabelText")
+                drawDateLabel(resizedSecond, secondLabelText, DateLabelPosition.BOTTOM_RIGHT)
+            } else {
+                resizedSecond
+            }
+            
             // Combine images horizontally
-            val combinedBitmap = combineImagesHorizontally(resizedFirst, resizedSecond)
+            val combinedBitmap = combineImagesHorizontally(firstWithLabel, secondWithLabel)
             
             // Convert to grayscale and apply Floyd-Steinberg dithering
             val grayscaleBitmap = convertToGrayscale(combinedBitmap)
@@ -551,6 +593,8 @@ class ImageProcessor(private val context: Context) {
             secondBitmap.recycle()
             resizedFirst.recycle()
             resizedSecond.recycle()
+            if (firstWithLabel != resizedFirst) firstWithLabel.recycle()
+            if (secondWithLabel != resizedSecond) secondWithLabel.recycle()
             combinedBitmap.recycle()
             grayscaleBitmap.recycle()
             ditheredBitmap.recycle()
@@ -572,7 +616,7 @@ class ImageProcessor(private val context: Context) {
             if (originalBitmap == null) return null
             
             return applyExifRotation(uri, originalBitmap)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return null
         }
     }
@@ -608,9 +652,17 @@ class ImageProcessor(private val context: Context) {
         return processImage(processedImage.originalUri, index, processedImage.personDetectionResult)
     }
     
-    private fun processImage(uri: Uri, index: Int, personDetectionResult: PersonDetectionResult? = null): ProcessingResult? {
+    private fun processImage(uri: Uri, @Suppress("unused") index: Int, personDetectionResult: PersonDetectionResult? = null): ProcessingResult? {
         try {
             Log.d(TAG, "processImage: Starting processing for $uri")
+            
+            // Extract label (date or filename) before processing
+            val labelText = extractImageLabel(uri)
+            if (labelText != null) {
+                Log.d(TAG, "processImage: Extracted label: $labelText")
+            } else {
+                Log.d(TAG, "processImage: No label available (no date or filename)")
+            }
             
             // Load bitmap from URI
             val inputStream = context.contentResolver.openInputStream(uri) ?: return null
@@ -638,8 +690,16 @@ class ImageProcessor(private val context: Context) {
                 rotatedBitmap, TARGET_WIDTH, TARGET_HEIGHT, personDetectionResult
             )
             
+            // Add label if date or filename was found
+            val bitmapWithLabel = if (labelText != null) {
+                Log.d(TAG, "processImage: Adding label: $labelText")
+                drawDateLabel(resizedBitmap, labelText, DateLabelPosition.BOTTOM_RIGHT)
+            } else {
+                resizedBitmap
+            }
+            
             // Convert to grayscale and apply Floyd-Steinberg dithering (matching convert.sh --type grey)
-            val grayscaleBitmap = convertToGrayscale(resizedBitmap)
+            val grayscaleBitmap = convertToGrayscale(bitmapWithLabel)
             val ditheredBitmap = applyFloydSteinbergDithering(grayscaleBitmap)
             
             // Convert to 8-bit color format (RRRGGGBB) matching bmp2cpp
@@ -662,6 +722,7 @@ class ImageProcessor(private val context: Context) {
             originalBitmap.recycle()
             if (rotatedBitmap != originalBitmap) rotatedBitmap.recycle()
             resizedBitmap.recycle()
+            if (bitmapWithLabel != resizedBitmap) bitmapWithLabel.recycle()
             grayscaleBitmap.recycle()
             ditheredBitmap.recycle()
             
@@ -693,14 +754,161 @@ class ImageProcessor(private val context: Context) {
             }
             
             return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return bitmap
         }
     }
     
+    private fun extractExifDate(uri: Uri): String? {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val exif = ExifInterface(inputStream)
+            inputStream.close()
+            
+            // Try multiple EXIF date tags in order of preference
+            val dateString = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+                ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
+                ?: exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED)
+            
+            if (dateString != null) {
+                try {
+                    // EXIF date format: "YYYY:MM:DD HH:MM:SS"
+                    val exifFormat = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US)
+                    val date = exifFormat.parse(dateString)
+                    
+                    // Convert to display format: "YYYY/MM/DD"
+                    val displayFormat = SimpleDateFormat("yyyy/MM/dd", Locale.US)
+                    return date?.let { displayFormat.format(it) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "extractExifDate: Error parsing date string '$dateString': ${e.message}")
+                }
+            }
+            
+            return null
+        } catch (e: Exception) {
+            Log.w(TAG, "extractExifDate: Error extracting EXIF date from $uri: ${e.message}")
+            return null
+        }
+    }
+    
+    private fun extractImageLabel(uri: Uri): String? {
+        // First try to get the EXIF date
+        val dateText = extractExifDate(uri)
+        if (dateText != null) {
+            return dateText
+        }
+        
+        // Fallback to filename if no date is available
+        return try {
+            val fileName = when (uri.scheme) {
+                "content" -> {
+                    // For content URIs, try to get the display name
+                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex != -1 && cursor.moveToFirst()) {
+                            cursor.getString(nameIndex)
+                        } else null
+                    } ?: uri.lastPathSegment
+                }
+                "file" -> {
+                    // For file URIs, extract filename from path
+                    uri.lastPathSegment
+                }
+                else -> uri.lastPathSegment
+            }
+            
+            // Clean up the filename - remove extension and sanitize
+            fileName?.let { name ->
+                val nameWithoutExtension = name.substringBeforeLast('.')
+                // Keep only alphanumeric, spaces, hyphens, and underscores
+                nameWithoutExtension.replace(Regex("[^a-zA-Z0-9\\s_-]"), "")
+                    .trim()
+                    .take(20) // Limit length for display
+                    .takeIf { it.isNotBlank() }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "extractImageLabel: Error extracting filename from $uri: ${e.message}")
+            null
+        }
+    }
+    
+    @Suppress("SameParameterValue")
+    private fun drawDateLabel(bitmap: Bitmap, dateText: String, position: DateLabelPosition = DateLabelPosition.BOTTOM_RIGHT): Bitmap {
+        val mutableBitmap = bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(mutableBitmap)
+        
+        // Calculate font size based on image dimensions (similar to your reference images)
+        val baseFontSize = minOf(bitmap.width, bitmap.height) * 0.04f // 4% of smallest dimension
+        val fontSize = baseFontSize.coerceAtLeast(16f).coerceAtMost(32f)
+        
+        // Create paint for text background (dark rectangle)
+        val backgroundPaint = Paint().apply {
+            color = Color.BLACK
+            alpha = 180 // Semi-transparent
+            isAntiAlias = true
+        }
+        
+        // Create paint for text
+        val textPaint = Paint().apply {
+            color = Color.WHITE
+            textSize = fontSize
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        
+        // Measure text dimensions
+        val textBounds = android.graphics.Rect()
+        textPaint.getTextBounds(dateText, 0, dateText.length, textBounds)
+        val textWidth = textBounds.width()
+        val textHeight = textBounds.height()
+        
+        // Add padding around text
+        val padding = fontSize * 0.3f
+        val backgroundWidth = textWidth + (padding * 2)
+        val backgroundHeight = textHeight + (padding * 2)
+        
+        // Calculate position based on DateLabelPosition
+        val (backgroundLeft, backgroundTop) = when (position) {
+            DateLabelPosition.BOTTOM_RIGHT -> {
+                val left = bitmap.width - backgroundWidth - padding
+                val top = bitmap.height - backgroundHeight - padding
+                Pair(left, top)
+            }
+            DateLabelPosition.BOTTOM_LEFT -> {
+                val left = padding
+                val top = bitmap.height - backgroundHeight - padding
+                Pair(left, top)
+            }
+        }
+        
+        // Draw background rectangle
+        canvas.drawRoundRect(
+            backgroundLeft,
+            backgroundTop,
+            backgroundLeft + backgroundWidth,
+            backgroundTop + backgroundHeight,
+            padding / 2,
+            padding / 2,
+            backgroundPaint
+        )
+        
+        // Draw text
+        val textX = backgroundLeft + padding
+        val textY = backgroundTop + backgroundHeight - padding - textBounds.bottom
+        canvas.drawText(dateText, textX, textY, textPaint)
+        
+        return mutableBitmap
+    }
+    
+    enum class DateLabelPosition {
+        BOTTOM_RIGHT,
+        BOTTOM_LEFT
+    }
+    
+    @Suppress("SameParameterValue")
     private fun resizeBitmapWithPersonDetection(
-        bitmap: Bitmap, 
-        targetWidth: Int, 
+        bitmap: Bitmap,
+        targetWidth: Int,
         targetHeight: Int,
         personDetectionResult: PersonDetectionResult?
     ): Bitmap {
@@ -876,24 +1084,28 @@ class ImageProcessor(private val context: Context) {
     }
     
     private fun resizeBitmap(bitmap: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {
-        // Calculate scaling to maintain aspect ratio
+        // Calculate scaling to fill the entire target area (crop-to-fill)
         val scaleX = targetWidth.toFloat() / bitmap.width
         val scaleY = targetHeight.toFloat() / bitmap.height
-        val scale = minOf(scaleX, scaleY)
+        val scale = maxOf(scaleX, scaleY) // Use maxOf instead of minOf to fill completely
         
         val scaledWidth = (bitmap.width * scale).toInt()
         val scaledHeight = (bitmap.height * scale).toInt()
         
         val scaledBitmap = bitmap.scale(scaledWidth, scaledHeight)
         
-        // Create final bitmap with exact target dimensions, centering the scaled image
-        val finalBitmap = createBitmap(targetWidth, targetHeight)
-        val canvas = Canvas(finalBitmap)
-        canvas.drawColor(Color.BLACK) // Fill background with black
+        // Calculate crop region to get center portion of scaled image
+        val cropX = (scaledWidth - targetWidth) / 2
+        val cropY = (scaledHeight - targetHeight) / 2
         
-        val left = (targetWidth - scaledWidth) / 2f
-        val top = (targetHeight - scaledHeight) / 2f
-        canvas.drawBitmap(scaledBitmap, left, top, null)
+        // Create final bitmap by cropping the center portion
+        val finalBitmap = Bitmap.createBitmap(
+            scaledBitmap,
+            cropX.coerceAtLeast(0),
+            cropY.coerceAtLeast(0),
+            targetWidth,
+            targetHeight
+        )
         
         scaledBitmap.recycle()
         return finalBitmap
@@ -987,6 +1199,7 @@ class ImageProcessor(private val context: Context) {
         return buffer
     }
     
+    @Suppress("unused")
     fun clearProcessedFiles() {
         outputDir.listFiles()?.forEach { file ->
             if (file.extension == "bin" || file.extension == "bmp") {

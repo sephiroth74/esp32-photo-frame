@@ -41,6 +41,15 @@ class MainActivity : AppCompatActivity() {
     ) { uris ->
         Log.d(TAG, "pickImagesLauncher: Received ${uris.size} images from picker")
         if (uris.isNotEmpty()) {
+            // Show loading overlay with fade in animation during analysis
+            binding.analysisProgressText.text = "Analyzing ${uris.size} images..."
+            binding.analysisLoadingOverlay.alpha = 0f
+            binding.analysisLoadingOverlay.visibility = View.VISIBLE
+            binding.analysisLoadingOverlay.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .start()
+            
             viewModel.addImages(uris)
             updateUI()
         } else {
@@ -72,6 +81,9 @@ class MainActivity : AppCompatActivity() {
         
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        // Set up the custom toolbar
+        setSupportActionBar(binding.toolbar)
         
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         Log.d(TAG, "onCreate: ViewModel initialized")
@@ -125,8 +137,20 @@ class MainActivity : AppCompatActivity() {
     
     private fun observeViewModel() {
         viewModel.selectedImages.observe(this) { images ->
-            Log.d(TAG, "selectedImages observer: ${images.size} images, valid: ${images.count { !it.isInvalid }}")
             imageAdapter.updateImages(images)
+            
+            // Hide loading overlay with fade out animation when images are ready
+            if (binding.analysisLoadingOverlay.visibility == View.VISIBLE) {
+                binding.analysisLoadingOverlay.animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction {
+                        binding.analysisLoadingOverlay.visibility = View.GONE
+                        binding.analysisLoadingOverlay.alpha = 1f // Reset for next time
+                    }
+                    .start()
+            }
+            
             updateUI()
         }
         
@@ -169,7 +193,7 @@ class MainActivity : AppCompatActivity() {
         val isImporting = viewModel.isImporting.value == true
         val isBusy = isProcessing || isImporting
         
-        binding.progressBar.visibility = if (isBusy) View.VISIBLE else View.GONE
+        // Progress is now handled by individual shimmer effects on images
         binding.pickImagesFab.isEnabled = !isBusy
     }
     
@@ -184,16 +208,10 @@ class MainActivity : AppCompatActivity() {
         val hasValidImages = images?.any { !it.isInvalid } == true
         val shouldEnable = hasImages && !isBusy && hasValidImages
         
-        Log.d(TAG, "updateProcessButtonState: images=${images?.size ?: 0}, hasImages=$hasImages, isProcessing=$isProcessing, isImporting=$isImporting, isBusy=$isBusy")
-        Log.d(TAG, "updateProcessButtonState: hasValidImages=$hasValidImages, shouldEnable=$shouldEnable")
-        Log.d(TAG, "updateProcessButtonState: processMenuItem=$processMenuItem, currentEnabled=${processMenuItem?.isEnabled}")
-        
         if (processMenuItem == null) {
-            Log.w(TAG, "updateProcessButtonState: processMenuItem is null, invalidating options menu to force creation")
             invalidateOptionsMenu()
         } else {
             processMenuItem?.isEnabled = shouldEnable
-            Log.d(TAG, "updateProcessButtonState: after update enabled=${processMenuItem?.isEnabled}")
         }
     }
     
@@ -203,7 +221,6 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun updateUI() {
-        Log.d(TAG, "updateUI: Called")
         updateProcessButtonState()
         updateClearAllButtonState()
         
@@ -336,20 +353,16 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        Log.d(TAG, "onCreateOptionsMenu: Creating options menu")
         menuInflater.inflate(R.menu.main_menu, menu)
         processMenuItem = menu.findItem(R.id.action_process)
         shareMenuItem = menu.findItem(R.id.action_share)
         clearAllMenuItem = menu.findItem(R.id.action_clear_all)
-        
-        Log.d(TAG, "onCreateOptionsMenu: Menu items initialized - process: $processMenuItem, share: $shareMenuItem, clear: $clearAllMenuItem")
         
         // Update initial states
         updateProcessButtonState()
         shareMenuItem?.isEnabled = viewModel.processedFiles.value?.isNotEmpty() == true
         updateClearAllButtonState()
         
-        Log.d(TAG, "onCreateOptionsMenu: Initial states set")
         return true
     }
     

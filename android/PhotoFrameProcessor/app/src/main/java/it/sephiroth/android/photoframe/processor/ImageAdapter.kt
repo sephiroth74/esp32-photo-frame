@@ -12,6 +12,12 @@ import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
+import com.facebook.shimmer.ShimmerFrameLayout
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -91,9 +97,73 @@ class ImageAdapter(
         private val missingPortraitOverlay: View = itemView.findViewById(R.id.missingPortraitOverlay)
         private val missingPortraitText: TextView = itemView.findViewById(R.id.missingPortraitText)
         private val pairLabel: TextView = itemView.findViewById(R.id.pairLabel)
+        private val shimmerPlaceholder: View = itemView.findViewById(R.id.shimmerPlaceholder)
+        private val processingOverlay: LinearLayout = itemView.findViewById(R.id.processingOverlay)
+        
+        private fun showShimmer() {
+            shimmerPlaceholder.visibility = View.VISIBLE
+        }
+        
+        private fun hideShimmer() {
+            // Brief overlay for individual image loading
+            Handler(Looper.getMainLooper()).postDelayed({
+                shimmerPlaceholder.visibility = View.GONE
+            }, 300) // Short delay for individual image loading
+        }
+        
+        private fun showProcessingOverlay() {
+            processingOverlay.visibility = View.VISIBLE
+        }
+        
+        private fun hideProcessingOverlay() {
+            processingOverlay.visibility = View.GONE
+        }
+        
+        private fun createGlideListener(): RequestListener<android.graphics.drawable.Drawable> {
+            return object : RequestListener<android.graphics.drawable.Drawable> {
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<android.graphics.drawable.Drawable>?,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    hideShimmer()
+                    return false
+                }
+                
+                override fun onResourceReady(
+                    resource: android.graphics.drawable.Drawable?,
+                    model: Any?,
+                    target: Target<android.graphics.drawable.Drawable>?,
+                    dataSource: com.bumptech.glide.load.DataSource?,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    hideShimmer()
+                    return false
+                }
+            }
+        }
         
         fun bind(processedImage: ProcessedImage) {
             Log.v(TAG, "bind: Binding image ${processedImage.originalUri} - Invalid: ${processedImage.isInvalid}, Portrait: ${processedImage.isPortrait}, Processing: ${processedImage.processingState}")
+            
+            // Handle processing state overlay
+            when (processedImage.processingState) {
+                ProcessingState.IN_QUEUE, ProcessingState.PROCESSING -> {
+                    showProcessingOverlay()
+                    hideShimmer()
+                    return // Don't process the rest of the binding while processing
+                }
+                ProcessingState.COMPLETED, ProcessingState.IDLE -> {
+                    hideProcessingOverlay()
+                }
+            }
+            
+            // Clear any previous image and show shimmer immediately
+            imageView.setImageDrawable(null)
+            firstPortraitImage.setImageDrawable(null)
+            secondPortraitImage.setImageDrawable(null)
+            showShimmer()
             
             // Handle invalid images or missing paired portraits
             if (processedImage.isInvalid || (processedImage.isPortrait && processedImage.pairedWith == null)) {
@@ -110,6 +180,8 @@ class ImageAdapter(
                 Glide.with(itemView.context)
                     .load(processedImage.originalUri)
                     .centerCrop()
+                    .placeholder(android.R.color.transparent)
+                    .listener(createGlideListener())
                     .into(imageView)
                     
             } else if (processedImage.isPortrait && processedImage.pairedWith != null) {
@@ -125,7 +197,9 @@ class ImageAdapter(
                     Glide.with(itemView.context)
                         .load(processedImage.previewFile)
                         .centerCrop()
+                        .placeholder(android.R.color.transparent)
                         .skipMemoryCache(true)
+                        .listener(createGlideListener())
                         .into(imageView)
                         
                     // Show processed label
@@ -139,14 +213,45 @@ class ImageAdapter(
                     missingPortraitOverlay.visibility = View.GONE
                     missingPortraitText.visibility = View.GONE
                     
+                    // Counter to track when both images finish loading
+                    var loadedCount = 0
+                    val pairedImageListener = object : RequestListener<android.graphics.drawable.Drawable> {
+                        override fun onLoadFailed(
+                            e: GlideException?,
+                            model: Any?,
+                            target: Target<android.graphics.drawable.Drawable>?,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            loadedCount++
+                            if (loadedCount >= 2) hideShimmer()
+                            return false
+                        }
+                        
+                        override fun onResourceReady(
+                            resource: android.graphics.drawable.Drawable?,
+                            model: Any?,
+                            target: Target<android.graphics.drawable.Drawable>?,
+                            dataSource: com.bumptech.glide.load.DataSource?,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            loadedCount++
+                            if (loadedCount >= 2) hideShimmer()
+                            return false
+                        }
+                    }
+                    
                     Glide.with(itemView.context)
                         .load(processedImage.originalUri)
                         .centerCrop()
+                        .placeholder(android.R.color.transparent)
+                        .listener(pairedImageListener)
                         .into(firstPortraitImage)
                         
                     Glide.with(itemView.context)
                         .load(processedImage.pairedWith.originalUri)
                         .centerCrop()
+                        .placeholder(android.R.color.transparent)
+                        .listener(pairedImageListener)
                         .into(secondPortraitImage)
                         
                     // Show pair label
@@ -166,12 +271,16 @@ class ImageAdapter(
                     Glide.with(itemView.context)
                         .load(processedImage.previewFile)
                         .centerCrop()
+                        .placeholder(android.R.color.transparent)
                         .skipMemoryCache(true)
+                        .listener(createGlideListener())
                         .into(imageView)
                 } else {
                     Glide.with(itemView.context)
                         .load(processedImage.originalUri)
                         .centerCrop()
+                        .placeholder(android.R.color.transparent)
+                        .listener(createGlideListener())
                         .into(imageView)
                 }
                 

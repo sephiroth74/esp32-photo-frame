@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.2.10"
-agp = "8.12.2"
+agp = "8.13.0"
 compileSdk = "36"
 minSdk = "24"
 targetSdk = "34"
@@ -9,7 +9,7 @@ jvmTarget = "21"
 # AndroidX
 core-ktx = "1.17.0"
 appcompat = "1.7.1"
-material = "1.12.0"
+material = "1.13.0"
 constraintlayout = "2.2.1"
 activity-ktx = "1.10.1"
 fragment-ktx = "1.8.9"
@@ -22,6 +22,7 @@ google-api-services-drive = "v3-rev20220815-2.0.0"
 
 # Image Processing
 glide = "5.0.4"
+shimmer = "0.5.0"
 
 # Coroutines
 coroutines = "1.10.2"
@@ -57,6 +58,7 @@ google-api-services-drive = { group = "com.google.apis", name = "google-api-serv
 
 # Image Processing
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+shimmer = { group = "com.facebook.shimmer", name = "shimmer", version.ref = "shimmer" }
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
