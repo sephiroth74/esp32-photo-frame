@@ -1,0 +1,67 @@
+[package]
+name = "photoframe-processor"
+version = "0.1.0"
+edition = "2021"
+authors = ["Alessandro Crugnola"]
+description = "High-performance image processor for ESP32 Photo Frame project"
+license = "MIT"
+repository = "https://github.com/sephiroth74/arduino/esp32-photo-frame"
+keywords = ["esp32", "e-paper", "image-processing", "photo-frame"]
+categories = ["multimedia::images", "command-line-utilities"]
+
+[[bin]]
+name = "photoframe-processor"
+path = "src/main.rs"
+
+[dependencies]
+# Core image processing
+image = { version = "0.25.8", features = ["jpeg", "png", "webp", "tiff"] }
+imageproc = "0.25"
+fast_image_resize = "5.3.0"
+
+# CLI interface
+clap = { version = "4.4", features = ["derive"] }
+indicatif = "0.18.0"
+console = "0.16.0"
+
+# File and path handling
+walkdir = "2.0"
+rayon = "1.11.0"
+anyhow = "1.0.99"
+
+# EXIF data handling  
+kamadak-exif = "0.6.1"
+
+# Text rendering
+ab_glyph = "0.2.31"
+fontdue = "0.9.3"
+
+# AI/ML for people detection
+yolo-rs = { version = "0.2.0", optional = true }
+ndarray = { version = "0.16.1", optional = true }
+
+# Parallel processing
+crossbeam-channel = "0.5.15"
+num_cpus = "1.17.0"
+
+# Serialization for configuration
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.143"
+
+# Optional AI features - commented out until needed
+# candle-core = { version = "0.4", optional = true }
+# candle-nn = { version = "0.4", optional = true }  
+# candle-transformers = { version = "0.4", optional = true }
+
+[features]
+default = []
+ai = ["yolo-rs", "ndarray"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1

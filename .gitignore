@@ -33,3 +33,4 @@ android/PhotoFrameProcessor/app/google-services.json
 .claude/settings.local.json
 rust/bin2bmp/target/
 platformio/compile_commands.json
+rust/photoframe-processor/target/
