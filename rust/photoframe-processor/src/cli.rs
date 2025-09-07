@@ -44,31 +44,70 @@ Key Features:
 • ESP32-optimized binary format generation
 
 Example Usage:
-  # Basic black & white processing (both BMP and binary files)
-  photoframe-processor -i ~/Photos -o ~/processed -t bw -s 800x480 --auto
+  # Basic black & white processing (default 800x480, both BMP and binary files)
+  photoframe-processor -i ~/Photos -o ~/processed --auto
 
-  # 6-color processing with only binary output
-  photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 800x480 \\
+  # Process single image file
+  photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed
+
+  # 6-color processing with only binary output and custom size
+  photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
     --output-format bin --font \"Arial-Bold\" --pointsize 32 --auto --verbose
 
-  # Multiple input directories with BMP-only output
-  photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -o ~/processed \\
-    -t bw -s 800x480 --output-format bmp --auto --jobs 8
+  # Multiple input directories and files with BMP-only output
+  photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
+    -t bw --output-format bmp --auto --jobs 8"
+)]
+#[cfg_attr(feature = "ai", command(
+    long_about = "
+ESP32 Photo Frame - Image Processor (Rust Implementation)
+
+This tool processes photos for ESP32-based e-paper photo frames with significant performance
+improvements over the bash/ImageMagick pipeline. It handles smart orientation detection,
+portrait image pairing, text annotations, and generates optimized binary files.
+
+Key Features:
+• 5-10x faster processing than bash scripts
+• Parallel batch processing with progress tracking  
+• Smart portrait image combination
+• EXIF orientation handling
+• Floyd-Steinberg dithering for e-paper displays
+• ESP32-optimized binary format generation
+• YOLO-based people detection for smart cropping (AI feature enabled)
+
+Example Usage:
+  # Basic black & white processing (default 800x480, both BMP and binary files)
+  photoframe-processor -i ~/Photos -o ~/processed --auto
+
+  # Process single image file
+  photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed
+
+  # 6-color processing with only binary output and custom size
+  photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
+    --output-format bin --font \"Arial-Bold\" --pointsize 32 --auto --verbose
+
+  # Multiple input directories and files with BMP-only output
+  photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
+    -t bw --output-format bmp --auto --jobs 8
+
+  # With YOLO people detection for smart cropping (requires ai feature and YOLO models)
+  photoframe-processor -i ~/Photos -o ~/processed --detect-people --yolo-assets ./assets \\
+    --yolo-confidence 0.6 --yolo-nms 0.4 --auto --verbose
 
 For complete documentation, see: https://github.com/sephiroth74/arduino/esp32-photo-frame
 "
-)]
+))]
 pub struct Args {
-    /// Input directories containing images (can be specified multiple times)
-    #[arg(short = 'i', long = "input", required = true, value_name = "DIR")]
-    pub input_dirs: Vec<PathBuf>,
+    /// Input directories or single image files (can be specified multiple times)
+    #[arg(short = 'i', long = "input", required = true, value_name = "DIR|FILE")]
+    pub input_paths: Vec<PathBuf>,
 
     /// Output directory for processed images
     #[arg(short = 'o', long = "output", required = true, value_name = "DIR")]
     pub output_dir: PathBuf,
 
     /// Target display size (format: WIDTHxHEIGHT, e.g., 800x480)
-    #[arg(short = 's', long = "size", required = true, value_name = "WIDTHxHEIGHT")]
+    #[arg(short = 's', long = "size", default_value = "800x480", value_name = "WIDTHxHEIGHT")]
     pub size: String,
 
     /// Processing type: bw (black & white) or 6c (6-color)
@@ -95,8 +134,8 @@ pub struct Args {
     #[arg(long = "pointsize", default_value = "24", value_name = "SIZE")]
     pub pointsize: u32,
 
-    /// Font family for annotations
-    #[arg(long = "font", default_value = "Arial", value_name = "FONT")]
+    /// Font family for annotations (Note: Currently uses built-in bitmap font, custom fonts not yet supported)
+    #[arg(long = "font", default_value = "UbuntuMono-Nerd-Font-Bold", value_name = "FONT")]
     pub font: String,
 
     /// Background color for text annotations (hex with alpha, e.g., #00000040)
@@ -118,6 +157,27 @@ pub struct Args {
     /// Benchmark mode: compare processing time against bash auto.sh
     #[arg(long = "benchmark")]
     pub benchmark: bool,
+
+    /// Enable YOLO-based people detection for smart cropping (requires ai feature)
+    #[cfg(feature = "ai")]
+    #[arg(long = "detect-people")]
+    pub detect_people: bool,
+
+    /// Path to YOLO assets directory containing yolov3.cfg and yolov3.weights
+    #[cfg(feature = "ai")]
+    #[arg(long = "yolo-assets", value_name = "DIR", 
+          help = "Directory containing yolov3.cfg and yolov3.weights files")]
+    pub yolo_assets_dir: Option<PathBuf>,
+
+    /// YOLO confidence threshold for people detection (0.0-1.0)
+    #[cfg(feature = "ai")]
+    #[arg(long = "yolo-confidence", default_value = "0.5", value_name = "THRESHOLD")]
+    pub yolo_confidence: f32,
+
+    /// YOLO NMS (Non-Maximum Suppression) threshold (0.0-1.0)
+    #[cfg(feature = "ai")]
+    #[arg(long = "yolo-nms", default_value = "0.4", value_name = "THRESHOLD")]
+    pub yolo_nms_threshold: f32,
 }
 
 impl Args {
@@ -228,7 +288,7 @@ mod tests {
 impl Default for Args {
     fn default() -> Self {
         Self {
-            input_dirs: vec![],
+            input_paths: vec![],
             output_dir: PathBuf::new(),
             size: "800x480".to_string(),
             processing_type: ColorType::BlackWhite,
@@ -243,6 +303,14 @@ impl Default for Args {
             verbose: false,
             validate_only: false,
             benchmark: false,
+            #[cfg(feature = "ai")]
+            detect_people: false,
+            #[cfg(feature = "ai")]
+            yolo_assets_dir: None,
+            #[cfg(feature = "ai")]
+            yolo_confidence: 0.5,
+            #[cfg(feature = "ai")]
+            yolo_nms_threshold: 0.4,
         }
     }
 }

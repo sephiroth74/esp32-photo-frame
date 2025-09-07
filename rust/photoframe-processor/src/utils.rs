@@ -37,18 +37,18 @@ pub fn format_duration(duration: Duration) -> String {
 
 /// Validate command line arguments
 pub fn validate_inputs(args: &Args) -> Result<()> {
-    // Validate input directories
-    for input_dir in &args.input_dirs {
-        if !input_dir.exists() {
+    // Validate input paths (directories or files)
+    for input_path in &args.input_paths {
+        if !input_path.exists() {
             return Err(anyhow::anyhow!(
-                "Input directory does not exist: {}",
-                input_dir.display()
+                "Input path does not exist: {}",
+                input_path.display()
             ));
         }
-        if !input_dir.is_dir() {
+        if !input_path.is_dir() && !input_path.is_file() {
             return Err(anyhow::anyhow!(
-                "Input path is not a directory: {}",
-                input_dir.display()
+                "Input path is neither a file nor a directory: {}",
+                input_path.display()
             ));
         }
     }
@@ -101,6 +101,68 @@ pub fn validate_inputs(args: &Args) -> Result<()> {
             "Invalid annotation background color format: '{}'. Expected hex format like #RRGGBBAA",
             args.annotate_background
         ));
+    }
+
+    // Validate YOLO configuration (only when AI feature is enabled)
+    #[cfg(feature = "ai")]
+    {
+        if args.detect_people {
+            // Validate YOLO assets directory
+            if let Some(assets_dir) = &args.yolo_assets_dir {
+                if !assets_dir.exists() {
+                    return Err(anyhow::anyhow!(
+                        "YOLO assets directory does not exist: {}",
+                        assets_dir.display()
+                    ));
+                }
+                if !assets_dir.is_dir() {
+                    return Err(anyhow::anyhow!(
+                        "YOLO assets path is not a directory: {}",
+                        assets_dir.display()
+                    ));
+                }
+
+                // Check for required YOLO files
+                let config_file = assets_dir.join("yolov3.cfg");
+                let weights_file = assets_dir.join("yolov3.weights");
+
+                if !config_file.exists() {
+                    return Err(anyhow::anyhow!(
+                        "YOLO config file not found: {}. Expected yolov3.cfg in assets directory.",
+                        config_file.display()
+                    ));
+                }
+
+                if !weights_file.exists() {
+                    return Err(anyhow::anyhow!(
+                        "YOLO weights file not found: {}. Download yolov3.weights from: \
+                         https://pjreddie.com/media/files/yolov3.weights",
+                        weights_file.display()
+                    ));
+                }
+            } else {
+                return Err(anyhow::anyhow!(
+                    "YOLO assets directory is required when people detection is enabled. \
+                     Use --yolo-assets <DIR> to specify the directory containing yolov3.cfg and yolov3.weights"
+                ));
+            }
+
+            // Validate confidence threshold
+            if args.yolo_confidence < 0.0 || args.yolo_confidence > 1.0 {
+                return Err(anyhow::anyhow!(
+                    "YOLO confidence threshold must be between 0.0 and 1.0, got: {}",
+                    args.yolo_confidence
+                ));
+            }
+
+            // Validate NMS threshold
+            if args.yolo_nms_threshold < 0.0 || args.yolo_nms_threshold > 1.0 {
+                return Err(anyhow::anyhow!(
+                    "YOLO NMS threshold must be between 0.0 and 1.0, got: {}",
+                    args.yolo_nms_threshold
+                ));
+            }
+        }
     }
 
     Ok(())
@@ -176,16 +238,19 @@ pub fn verbose_println(verbose: bool, message: &str) {
 }
 
 /// Print warning message
+#[allow(dead_code)]
 pub fn warn_println(message: &str) {
     println!("{} {}", style("[WARNING]").yellow().bold(), message);
 }
 
 /// Print error message
+#[allow(dead_code)]
 pub fn error_println(message: &str) {
     eprintln!("{} {}", style("[ERROR]").red().bold(), message);
 }
 
 /// Calculate processing statistics
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ProcessingStats {
     pub total_files: usize,
@@ -198,6 +263,7 @@ pub struct ProcessingStats {
 }
 
 impl ProcessingStats {
+    #[allow(dead_code)]
     pub fn new(total_files: usize) -> Self {
         Self {
             total_files,
@@ -210,6 +276,7 @@ impl ProcessingStats {
         }
     }
 
+    #[allow(dead_code)]
     pub fn success_rate(&self) -> f64 {
         if self.total_files == 0 {
             0.0
@@ -218,6 +285,7 @@ impl ProcessingStats {
         }
     }
 
+    #[allow(dead_code)]
     pub fn average_duration(&self) -> Duration {
         if self.successful == 0 {
             Duration::new(0, 0)

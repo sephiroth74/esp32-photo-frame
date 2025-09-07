@@ -61,6 +61,7 @@ pub fn rgb_to_esp32_color(pixel: &Rgb<u8>) -> u8 {
 /// 
 /// This is the reverse operation of rgb_to_esp32_color()
 /// Used primarily for testing and validation
+#[allow(dead_code)]
 pub fn esp32_color_to_rgb(color8: u8) -> [u8; 3] {
     // Extract components
     let r3 = (color8 >> 5) & 0x07; // 3 bits for red
@@ -76,6 +77,7 @@ pub fn esp32_color_to_rgb(color8: u8) -> [u8; 3] {
 }
 
 /// Validate that a binary file has the correct size for given dimensions
+#[allow(dead_code)]
 pub fn validate_binary_size(binary_data: &[u8], width: u32, height: u32) -> Result<()> {
     let expected_size = (width * height) as usize;
     let actual_size = binary_data.len();
@@ -96,6 +98,7 @@ pub fn validate_binary_size(binary_data: &[u8], width: u32, height: u32) -> Resu
 /// Generate a C header file with the binary data as an array
 /// 
 /// This matches the OutputFormat::CArray functionality from bmp2cpp
+#[allow(dead_code)]
 pub fn generate_c_header(
     binary_data: &[u8],
     variable_name: &str,
@@ -150,6 +153,7 @@ const unsigned char {variable_name}[{size}] PROGMEM = {{
 }
 
 /// Statistics about color usage in the binary data
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ColorStats {
     pub unique_colors: std::collections::HashMap<u8, u32>,
@@ -158,6 +162,7 @@ pub struct ColorStats {
 }
 
 impl ColorStats {
+    #[allow(dead_code)]
     pub fn analyze(binary_data: &[u8]) -> Self {
         let mut color_counts = std::collections::HashMap::new();
         
@@ -177,10 +182,12 @@ impl ColorStats {
         }
     }
 
+    #[allow(dead_code)]
     pub fn unique_color_count(&self) -> usize {
         self.unique_colors.len()
     }
 
+    #[allow(dead_code)]
     pub fn color_usage_percent(&self, color: u8) -> f64 {
         if let Some(&count) = self.unique_colors.get(&color) {
             (count as f64 / self.total_pixels as f64) * 100.0

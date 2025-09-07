@@ -5,6 +5,7 @@ use image::{ImageBuffer, Rgb, RgbImage};
 /// 
 /// This creates a single landscape image by placing two portrait images
 /// side by side with an optional divider line between them.
+#[allow(dead_code)]
 pub fn combine_portraits(
     left_img: &RgbImage,
     right_img: &RgbImage,
@@ -67,6 +68,7 @@ pub fn combine_portraits(
 }
 
 /// Resize image to exact dimensions (placeholder implementation)
+#[allow(dead_code)]
 fn resize_to_exact(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage> {
     // TODO: Use proper high-quality resizing
     // For now, use simple nearest neighbor
@@ -87,6 +89,7 @@ fn resize_to_exact(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage> 
 /// 
 /// This function groups portrait images into pairs, handling odd numbers
 /// by duplicating the last image if necessary
+#[allow(dead_code)]
 pub fn pair_portrait_images(portraits: Vec<RgbImage>) -> Vec<(RgbImage, RgbImage)> {
     let mut pairs = Vec::new();
     let mut iter = portraits.into_iter();

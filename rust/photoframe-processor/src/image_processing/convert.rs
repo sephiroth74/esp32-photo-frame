@@ -114,6 +114,7 @@ fn apply_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
 
 /// 6-color palette for e-paper displays
 /// These are the standard colors supported by most 6-color e-paper displays
+#[allow(dead_code)]
 const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
     (0, 0, 0),       // Black
     (255, 255, 255), // White  
@@ -124,6 +125,7 @@ const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
 ];
 
 /// Find the closest color in the 6-color palette
+#[allow(dead_code)]
 fn _find_closest_6_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
     let mut min_distance = f32::MAX;
     let mut closest_color = SIX_COLOR_PALETTE[0];

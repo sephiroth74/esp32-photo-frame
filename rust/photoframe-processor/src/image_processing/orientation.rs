@@ -45,6 +45,7 @@ impl From<u32> for ExifOrientation {
 
 impl ExifOrientation {
     /// Get a human-readable description of the orientation
+    #[allow(dead_code)]
     pub fn description(&self) -> &'static str {
         match self {
             ExifOrientation::Undefined => "Undefined",
@@ -71,9 +72,13 @@ impl ExifOrientation {
 pub struct OrientationInfo {
     pub exif_orientation: ExifOrientation,
     pub is_portrait: bool,
+    #[allow(dead_code)]
     pub original_width: u32,
+    #[allow(dead_code)]
     pub original_height: u32,
+    #[allow(dead_code)]
     pub effective_width: u32,
+    #[allow(dead_code)]
     pub effective_height: u32,
 }
 
