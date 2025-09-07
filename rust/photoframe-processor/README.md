@@ -231,6 +231,7 @@ cargo bench
 - [ ] **Cloud Integration**: Direct Google Drive/Cloud storage processing
 - [ ] **GUI Interface**: Cross-platform desktop application
 - [ ] **Web Service**: REST API for remote processing
+- [ ] **Avoid Duplicate Processing**: Skip already processed images based on image name
 
 ## 📄 License
 
