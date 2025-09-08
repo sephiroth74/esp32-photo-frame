@@ -6,53 +6,6 @@ use std::num::NonZeroU32;
 use super::orientation::get_effective_target_dimensions;
 use super::subject_detection::SubjectDetectionResult;
 
-/// Smart resize function that handles aspect ratio and cropping
-/// 
-/// This function implements crop-to-fill behavior similar to ImageMagick's geometry operators
-/// used in the bash scripts. It will crop the image to fit the target aspect ratio perfectly.
-pub fn smart_resize(
-    img: &RgbImage,
-    target_width: u32,
-    target_height: u32,
-    auto_process: bool,
-) -> Result<RgbImage> {
-    let (src_width, src_height) = img.dimensions();
-    
-    // Determine if image is portrait for auto-process consideration
-    let image_is_portrait = src_height > src_width;
-    
-    // Get effective target dimensions (may be swapped in auto mode)
-    let (eff_width, eff_height) = get_effective_target_dimensions(
-        image_is_portrait,
-        target_width,
-        target_height,
-        auto_process,
-    );
-
-    // Calculate crop dimensions to maintain aspect ratio
-    let target_aspect = eff_width as f64 / eff_height as f64;
-    let source_aspect = src_width as f64 / src_height as f64;
-
-    let (crop_width, crop_height) = if source_aspect > target_aspect {
-        // Source is wider - crop width
-        let new_width = (src_height as f64 * target_aspect) as u32;
-        (new_width.min(src_width), src_height)
-    } else {
-        // Source is taller - crop height
-        let new_height = (src_width as f64 / target_aspect) as u32;
-        (src_width, new_height.min(src_height))
-    };
-
-    // Calculate crop offset to center the crop
-    let crop_x = (src_width.saturating_sub(crop_width)) / 2;
-    let crop_y = (src_height.saturating_sub(crop_height)) / 2;
-
-    // Crop the image
-    let cropped = crop_image(img, crop_x, crop_y, crop_width, crop_height)?;
-
-    // Resize to exact target dimensions
-    resize_image(&cropped, eff_width, eff_height)
-}
 
 /// Smart resize with people detection-aware cropping
 /// 
@@ -209,19 +162,25 @@ fn crop_image(
 ) -> Result<RgbImage> {
     let (img_width, img_height) = img.dimensions();
     
-    // Validate crop parameters
-    if x + width > img_width || y + height > img_height {
-        return Err(anyhow::anyhow!(
-            "Crop dimensions exceed image bounds: crop({},{},{}x{}) on {}x{} image",
-            x, y, width, height, img_width, img_height
-        ));
+    // Adjust crop parameters to fit within image bounds
+    let adjusted_x = x.min(img_width.saturating_sub(1));
+    let adjusted_y = y.min(img_height.saturating_sub(1));
+    let adjusted_width = width.min(img_width - adjusted_x);
+    let adjusted_height = height.min(img_height - adjusted_y);
+    
+    // Log adjustment if bounds were exceeded (for debugging) 
+    if x != adjusted_x || y != adjusted_y || width != adjusted_width || height != adjusted_height {
+        eprintln!("⚠ Adjusted crop bounds: crop({},{},{}x{}) → crop({},{},{}x{}) on {}x{} image",
+            x, y, width, height, adjusted_x, adjusted_y, adjusted_width, adjusted_height, img_width, img_height);
     }
+    
+    let (final_x, final_y, final_width, final_height) = (adjusted_x, adjusted_y, adjusted_width, adjusted_height);
 
-    let mut output = ImageBuffer::new(width, height);
+    let mut output = ImageBuffer::new(final_width, final_height);
     
     for (out_x, out_y, pixel) in output.enumerate_pixels_mut() {
-        let src_x = x + out_x;
-        let src_y = y + out_y;
+        let src_x = final_x + out_x;
+        let src_y = final_y + out_y;
         
         if let Some(src_pixel) = img.get_pixel_checked(src_x, src_y) {
             *pixel = *src_pixel;
@@ -232,7 +191,7 @@ fn crop_image(
 }
 
 /// Resize an image to exact dimensions using high-quality algorithm
-fn resize_image(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage> {
+pub fn resize_image(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage> {
     let (src_width, src_height) = img.dimensions();
     
     if src_width == width && src_height == height {
@@ -340,7 +299,7 @@ mod tests {
     fn test_smart_resize_landscape_to_landscape() {
         // 200x100 landscape image to 100x50 landscape target
         let img = create_test_image(200, 100);
-        let result = smart_resize(&img, 100, 50, false).unwrap();
+        let result = smart_resize_with_people_detection(&img, 100, 50, false, None).unwrap();
         
         assert_eq!(result.dimensions(), (100, 50));
     }
@@ -349,7 +308,7 @@ mod tests {
     fn test_smart_resize_with_auto_process() {
         // 100x200 portrait image to 800x480 landscape target with auto
         let img = create_test_image(100, 200);
-        let result = smart_resize(&img, 800, 480, true).unwrap();
+        let result = smart_resize_with_people_detection(&img, 800, 480, true, None).unwrap();
         
         // With auto-process, dimensions should be swapped to 480x800
         assert_eq!(result.dimensions(), (480, 800));

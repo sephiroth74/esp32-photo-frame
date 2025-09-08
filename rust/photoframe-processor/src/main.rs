@@ -9,7 +9,7 @@ mod image_processing;
 mod utils;
 
 use cli::{Args, ColorType};
-use image_processing::{ProcessingConfig, ProcessingEngine, ProcessingType};
+use image_processing::{ImageType, ProcessingConfig, ProcessingEngine, ProcessingType};
 use utils::{create_progress_bar, format_duration, validate_inputs};
 
 impl From<ColorType> for ProcessingType {
@@ -46,15 +46,9 @@ fn main() -> Result<()> {
         verbose: args.verbose,
         parallel_jobs: if args.jobs == 0 { num_cpus::get() } else { args.jobs },
         output_format: args.output_format.clone(),
-        // YOLO people detection configuration
-        #[cfg(feature = "ai")]
+        // Python people detection configuration
         detect_people: args.detect_people,
-        #[cfg(feature = "ai")]
-        yolo_assets_dir: args.yolo_assets_dir.clone(),
-        #[cfg(feature = "ai")]
-        yolo_confidence: args.yolo_confidence,
-        #[cfg(feature = "ai")]
-        yolo_nms_threshold: args.yolo_nms_threshold,
+        python_script_path: args.python_script_path.clone(),
     };
 
     if config.verbose {
@@ -69,34 +63,22 @@ fn main() -> Result<()> {
         println!("  Annotation background: {:?}", config.annotation_background);
         println!("  Output format: {:?}", config.output_format);
         
-        // AI feature status
-        #[cfg(feature = "ai")]
-        {
-            println!("  AI features: {}", style("ENABLED").green().bold());
-            println!("  People detection: {}", config.detect_people);
-            if config.detect_people {
-                println!("    YOLO assets dir: {:?}", config.yolo_assets_dir);
-                println!("    YOLO confidence: {:.2}", config.yolo_confidence);
-                println!("    YOLO NMS threshold: {:.2}", config.yolo_nms_threshold);
+        // People detection status
+        println!("  People detection: {}", config.detect_people);
+        if config.detect_people {
+            if let Some(ref path) = config.python_script_path {
+                println!("    Python script: {}", path.display());
+            } else {
+                println!("    Python script: not specified");
             }
-        }
-        
-        #[cfg(not(feature = "ai"))]
-        {
-            println!("  AI features: {}", style("DISABLED").red());
-            println!("    Note: Compile with --features ai to enable YOLO people detection");
         }
         
         println!();
     }
 
-    // Create output directories
+    // Create output directory
     std::fs::create_dir_all(&args.output_dir)
         .context("Failed to create output directory")?;
-    
-    let bin_dir = args.output_dir.join("bin");
-    std::fs::create_dir_all(&bin_dir)
-        .context("Failed to create binary output directory")?;
 
     // Store values before moving config
     let parallel_jobs = config.parallel_jobs;
@@ -150,11 +132,10 @@ fn main() -> Result<()> {
     );
     completion_pb.set_message("Preparing to process...");
 
-    // Process all images with multi-progress support
-    let results = engine.process_batch_with_progress(
+    // Process all images with smart portrait pairing
+    let results = engine.process_batch_with_smart_pairing(
         &image_files, 
         &args.output_dir, 
-        &bin_dir, 
         &main_progress,
         &thread_progress_bars,
         &completion_pb
@@ -176,27 +157,150 @@ fn main() -> Result<()> {
     let failed = results.len() - successful;
     let total_time = start_time.elapsed();
 
+    // Calculate processing statistics
+    let mut people_hits = 0;
+    let mut people_misses = 0;
+    let mut total_people_found = 0;
+    let mut portraits_processed = 0;
+    let mut landscapes_processed = 0;
+
+    for result in &results {
+        if let Ok(processing_result) = result {
+            if processing_result.people_detected {
+                people_hits += 1;
+                total_people_found += processing_result.people_count;
+            } else {
+                people_misses += 1;
+            }
+            
+            // Count image types
+            match processing_result.image_type {
+                ImageType::Portrait => portraits_processed += 1,
+                ImageType::Landscape => landscapes_processed += 1,
+                ImageType::CombinedPortrait => landscapes_processed += 1, // Combined portraits count as landscapes
+            }
+        }
+    }
+
     println!("{}", style("Results Summary:").bold().green());
     println!("  Successfully processed: {}", style(successful).bold().green());
     if failed > 0 {
         println!("  Failed: {}", style(failed).bold().red());
     }
+    
+    // Image type statistics
+    if portraits_processed > 0 || landscapes_processed > 0 {
+        println!();
+        println!("{}", style("Image Types:").bold().blue());
+        if landscapes_processed > 0 {
+            println!("  Landscape images: {}", style(landscapes_processed).bold().cyan());
+        }
+        if portraits_processed > 0 {
+            println!("  Portrait images: {} (combined into landscape pairs)", style(portraits_processed).bold().magenta());
+        }
+    }
+    
+    // People detection statistics (only show if AI feature was used)
+    if people_hits > 0 || people_misses > 0 {
+        println!();
+        println!("{}", style("People Detection Results:").bold().cyan());
+        println!("  Images with people detected: {}", style(people_hits).bold().green());
+        println!("  Images without people: {}", style(people_misses).bold().yellow());
+        if people_hits > 0 {
+            println!("  Total people found: {}", style(total_people_found).bold().cyan());
+            println!("  Average people per image: {:.1}", 
+                style(format!("{:.1}", total_people_found as f64 / people_hits as f64)).dim());
+        }
+        let detection_rate = if (people_hits + people_misses) > 0 {
+            (people_hits as f64 / (people_hits + people_misses) as f64) * 100.0
+        } else {
+            0.0
+        };
+        println!("  People detection rate: {:.1}%", 
+            style(format!("{:.1}%", detection_rate)).bold());
+    }
+    
+    // Detailed processing results
+    if successful > 0 {
+        println!();
+        println!("{}", style("Detailed Processing Results:").bold().blue());
+        let mut success_count = 0;
+        for (i, result) in results.iter().enumerate() {
+            if let Ok(processing_result) = result {
+                success_count += 1;
+                let filename = if i < image_files.len() {
+                    image_files[i].file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("unknown")
+                } else {
+                    "unknown"
+                };
+                
+                // Show image type
+                let image_type = match processing_result.image_type {
+                    ImageType::Portrait => style("Portrait").magenta(),
+                    ImageType::Landscape => style("Landscape").cyan(),
+                    ImageType::CombinedPortrait => style("Combined").yellow(),
+                };
+                
+                // Show people detection result
+                let people_info = if processing_result.people_detected {
+                    if processing_result.people_count == 1 {
+                        style(format!("✓ {} person", processing_result.people_count)).green()
+                    } else {
+                        style(format!("✓ {} people", processing_result.people_count)).green()
+                    }
+                } else {
+                    style(format!("○ No people")).dim()
+                };
+                
+                println!("  {}: {} [{}] - {}", 
+                    style(format!("#{}", success_count)).dim(),
+                    style(filename).bold(),
+                    image_type,
+                    people_info
+                );
+            }
+        }
+    }
+    
+    println!();
+    println!("{}", style("Performance:").bold().blue());
     println!("  Total processing time: {}", style(format_duration(total_time)).bold());
     println!("  Average time per image: {}", 
         style(format_duration(total_time / image_files.len() as u32)).dim());
     
     println!();
     println!("{}", style("Output files:").bold());
-    println!("  BMP files: {}", args.output_dir.display());
-    println!("  Binary files: {}", bin_dir.display());
+    println!("  All files: {}", args.output_dir.display());
 
     if failed > 0 {
         println!();
         println!("{}", style("Errors encountered:").bold().red());
+        let mut error_count = 0;
         for (i, result) in results.iter().enumerate() {
             if let Err(e) = result {
-                println!("  {}: {}", style(format!("Image {}", i + 1)).dim(), e);
+                error_count += 1;
+                // Try to get the actual filename from the image_files list
+                let filename = if i < image_files.len() {
+                    image_files[i].file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("unknown")
+                } else {
+                    "unknown"
+                };
+                println!("  {}: {} - {}", 
+                    style(format!("#{}", error_count)).dim(), 
+                    style(filename).bold().red(),
+                    e
+                );
             }
+        }
+        
+        if error_count > 0 {
+            println!();
+            println!("{}", style(format!("⚠ {} errors occurred during processing", error_count)).bold().yellow());
+            println!("  Check image files and try again with --verbose for more details");
         }
     }
 

@@ -19,9 +19,6 @@ pub enum OutputType {
     /// Generate only binary files for ESP32
     #[value(name = "bin")]
     Bin,
-    /// Generate both BMP and binary files
-    #[value(name = "both")]
-    Both,
 }
 
 #[derive(Parser, Debug)]
@@ -42,38 +39,7 @@ Key Features:
 • EXIF orientation handling
 • Floyd-Steinberg dithering for e-paper displays
 • ESP32-optimized binary format generation
-
-Example Usage:
-  # Basic black & white processing (default 800x480, both BMP and binary files)
-  photoframe-processor -i ~/Photos -o ~/processed --auto
-
-  # Process single image file
-  photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed
-
-  # 6-color processing with only binary output and custom size
-  photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
-    --output-format bin --font \"Arial-Bold\" --pointsize 32 --auto --verbose
-
-  # Multiple input directories and files with BMP-only output
-  photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
-    -t bw --output-format bmp --auto --jobs 8"
-)]
-#[cfg_attr(feature = "ai", command(
-    long_about = "
-ESP32 Photo Frame - Image Processor (Rust Implementation)
-
-This tool processes photos for ESP32-based e-paper photo frames with significant performance
-improvements over the bash/ImageMagick pipeline. It handles smart orientation detection,
-portrait image pairing, text annotations, and generates optimized binary files.
-
-Key Features:
-• 5-10x faster processing than bash scripts
-• Parallel batch processing with progress tracking  
-• Smart portrait image combination
-• EXIF orientation handling
-• Floyd-Steinberg dithering for e-paper displays
-• ESP32-optimized binary format generation
-• YOLO-based people detection for smart cropping (AI feature enabled)
+• People detection for smart cropping via find_subject.py
 
 Example Usage:
   # Basic black & white processing (default 800x480, both BMP and binary files)
@@ -90,13 +56,10 @@ Example Usage:
   photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
     -t bw --output-format bmp --auto --jobs 8
 
-  # With YOLO people detection for smart cropping (requires ai feature and YOLO models)
-  photoframe-processor -i ~/Photos -o ~/processed --detect-people --yolo-assets ./assets \\
-    --yolo-confidence 0.6 --yolo-nms 0.4 --auto --verbose
-
-For complete documentation, see: https://github.com/sephiroth74/arduino/esp32-photo-frame
-"
-))]
+  # With people detection for smart cropping (requires find_subject.py script)
+  photoframe-processor -i ~/Photos -o ~/processed --detect-people \\
+    --python-script ./scripts/private/find_subject.py --auto --verbose"
+)]
 pub struct Args {
     /// Input directories or single image files (can be specified multiple times)
     #[arg(short = 'i', long = "input", required = true, value_name = "DIR|FILE")]
@@ -114,8 +77,8 @@ pub struct Args {
     #[arg(short = 't', long = "type", default_value = "bw")]
     pub processing_type: ColorType,
 
-    /// Output format: bmp (BMP only), bin (binary only), or both
-    #[arg(long = "output-format", default_value = "both")]
+    /// Output format: bmp (BMP only) or bin (binary only)
+    #[arg(long = "output-format", default_value = "bmp")]
     pub output_format: OutputType,
 
     /// Custom palette file for color processing (optional)
@@ -158,26 +121,14 @@ pub struct Args {
     #[arg(long = "benchmark")]
     pub benchmark: bool,
 
-    /// Enable YOLO-based people detection for smart cropping (requires ai feature)
-    #[cfg(feature = "ai")]
+    /// Enable people detection for smart cropping using find_subject.py script
     #[arg(long = "detect-people")]
     pub detect_people: bool,
 
-    /// Path to YOLO assets directory containing yolov3.cfg and yolov3.weights
-    #[cfg(feature = "ai")]
-    #[arg(long = "yolo-assets", value_name = "DIR", 
-          help = "Directory containing yolov3.cfg and yolov3.weights files")]
-    pub yolo_assets_dir: Option<PathBuf>,
-
-    /// YOLO confidence threshold for people detection (0.0-1.0)
-    #[cfg(feature = "ai")]
-    #[arg(long = "yolo-confidence", default_value = "0.5", value_name = "THRESHOLD")]
-    pub yolo_confidence: f32,
-
-    /// YOLO NMS (Non-Maximum Suppression) threshold (0.0-1.0)
-    #[cfg(feature = "ai")]
-    #[arg(long = "yolo-nms", default_value = "0.4", value_name = "THRESHOLD")]
-    pub yolo_nms_threshold: f32,
+    /// Path to find_subject.py script for people detection
+    #[arg(long = "python-script", value_name = "FILE", 
+          help = "Path to find_subject.py script for people detection")]
+    pub python_script_path: Option<PathBuf>,
 }
 
 impl Args {
@@ -292,7 +243,7 @@ impl Default for Args {
             output_dir: PathBuf::new(),
             size: "800x480".to_string(),
             processing_type: ColorType::BlackWhite,
-            output_format: OutputType::Both,
+            output_format: OutputType::Bmp,
             palette: None,
             extensions_str: "jpg,png".to_string(),
             auto_process: false,
@@ -303,14 +254,8 @@ impl Default for Args {
             verbose: false,
             validate_only: false,
             benchmark: false,
-            #[cfg(feature = "ai")]
             detect_people: false,
-            #[cfg(feature = "ai")]
-            yolo_assets_dir: None,
-            #[cfg(feature = "ai")]
-            yolo_confidence: 0.5,
-            #[cfg(feature = "ai")]
-            yolo_nms_threshold: 0.4,
+            python_script_path: None,
         }
     }
 }

@@ -1,5 +1,7 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python3
 # -*- coding: utf-8 -*-
+
+# wget https://data.pjreddie.com/files/yolov3.weights
 
 """find_subject.py
 This script detects people in an input image using a pre-trained YOLO model (YOLOv3) via OpenCV's DNN module.
@@ -41,8 +43,9 @@ import cv2
 import numpy as np
 import argparse
 import sys, os
+import json
 
-def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, confidence_threshold=0.5, nms_threshold=0.4):
+def detect_people_yolo(args):
     """
     Detects people in an image using a pre-trained YOLO model.
 
@@ -55,15 +58,27 @@ def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, c
         nms_threshold (float): Non-maximum suppression threshold.
     """
 
+    names = args.names
+    image_path = args.image
+    config_path = args.config
+    weights_path = args.weights
+    confidence_threshold = args.confidence
+    nms_threshold = args.nms_threshold
+    output_format = args.output_format
+
     # Load COCO class names
-    with open(coco_names_path, 'r') as f:
+    with open(names, 'r') as f:
         classes = [line.strip() for line in f.readlines()]
 
     # Filter for 'person' class index
     try:
         person_class_id = classes.index('person')
     except ValueError:
-        print("Error: 'person' class not found in coco.names. Please ensure the file is correct.")
+        if output_format == 'json':
+            print(json.dumps({"error": "'person' class not found in coco.names. Please ensure the file is correct."}))
+        else:   
+            print("Error: 'person' class not found in coco.names. Please ensure the file is correct.")
+
         sys.exit(1)
         return
 
@@ -85,11 +100,24 @@ def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, c
     # Load the input image
     image = cv2.imread(image_path)
     if image is None:
-        print(f"Error: Could not load image from {image_path}")
+        if output_format == 'json':
+            print(json.dumps({"error": f"Could not load image from {image_path}"}))
+        else:
+            print(f"Error: Could not load image from {image_path}")
         sys.exit(1)
         return
 
     height, width, _ = image.shape
+
+    # Create the root json object
+    root = {
+        "image": os.path.basename(image_path),
+        "imagesize": {"width": width, "height": height},
+        "box": [],
+        "center": [],
+        "offset": [],
+        "detections": [],
+    }
 
     # Create a blob from the image
     # The image is scaled to 416x416, and the pixel values are scaled to [0, 1]
@@ -127,6 +155,8 @@ def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, c
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
 
+                root["detections"].append({"box": [x, y, w, h], "confidence": round(float(confidence), 2), "class": classes[class_id], "class_id": int(class_id)})
+
     # Apply Non-Maximum Suppression to suppress weak, overlapping bounding boxes
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, confidence_threshold, nms_threshold)
 
@@ -134,7 +164,8 @@ def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, c
     w_max, h_max = 0, 0
 
     # print image size
-    print(f"imagesize: {width},{height}")
+    if output_format == 'text':
+        print(f"imagesize: {width},{height}")
 
     if len(indexes) > 0:
         for i in indexes.flatten():
@@ -148,33 +179,46 @@ def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, c
             w_max = max(w_max, right)
             h_max = max(h_max, bottom)
 
-            # label = str(classes[class_ids[i]])
             confidence = str(round(confidences[i], 2))
 
-            # color = (0, 255, 0)  # Green color for bounding box
-
-            # Draw bounding box
-            # cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
-            # Draw label and confidence
-            # text = f"{label}: {confidence} (rect: {x}, {y}, {w}, {h})"
-            # cv2.putText(image, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-            # print(f"Detected {label} with confidence {confidence} at (x={x}, y={y}, w={w}, h={h})")
+            if args.debug:
+                label = str(classes[class_ids[i]])
+                color = (0, 255, 0)  # Green color for bounding box
+                # Draw bounding box
+                cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+                # Draw label and confidence
+                text = f"{label}: {confidence} (rect: {x}, {y}, {w}, {h})"
+                cv2.putText(image, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
     else:
-        print("No people detected in the image.")
-
-        print(r"box: 0,0,${width},${height}")
-        print(r"center: ${width//2},${height//2}")
-        print(r"offset: 0,0")
+        if output_format == 'json':
+            root["error"] = "No people detected in the image."
+            root["box"] = [0, 0, width, height]
+            root["center"] = [width // 2, height // 2]
+            root["offset"] = [0, 0]
+            print(json.dumps(root))
+        else:
+            print("No people detected in the image.")
+            print(r"box: 0,0,${width},${height}")
+            print(r"center: ${width//2},${height//2}")
+            print(r"offset: 0,0")
         sys.exit(0)
         return
 
     # print(f"Bounding box coordinates: x_min={x_min}, y_min={y_min}, w_max={w_max}, h_max={h_max}")
-    print(f"box: {x_min},{y_min},{w_max},{h_max}")
+
+    if output_format == 'json':
+        root["box"] = [x_min, y_min, w_max, h_max]
+    else:
+        print(f"box: {x_min},{y_min},{w_max},{h_max}")
 
     # print the x,y coordinates of the center of the bounding box
     center_x = (x_min + w_max) // 2
     center_y = (y_min + h_max) // 2
-    print(f"center: {center_x},{center_y}")
+
+    if output_format == 'json':
+        root["center"] = [center_x, center_y]
+    else:
+        print(f"center: {center_x},{center_y}")
 
     # print the offset of center_x, center_y related to the image center
     image_center_x = width // 2
@@ -182,17 +226,22 @@ def detect_people_yolo(image_path, config_path, weights_path, coco_names_path, c
     offset_x = center_x - image_center_x
     offset_y = center_y - image_center_y
     # print(f"Offset from image center: (offset_x={offset_x}, offset_y={offset_y})")
-    print(f"offset: {offset_x},{offset_y}")
 
-    # Draw the bounding box on the image
-    # cv2.rectangle(image, (x_min, y_min), (w_max, h_max), (255, 0, 0), 4)
-    # cv2.imshow("People Detection", image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    # now crop the image to the given bounding box, using the x_min, y_min, w_max, h_max coordinates as center of the cropped image
+    if output_format == 'json':
+        root["offset"] = [offset_x, offset_y]
+        print(json.dumps(root, indent=2))
+    else:
+        print(f"offset: {offset_x},{offset_y}")
 
-    # cv2.imshow("Cropped Image", image)
-    # cv2.waitKey(0)
+    if args.debug:
+        # Draw the bounding box on the image
+        cv2.rectangle(image, (x_min, y_min), (w_max, h_max), (255, 0, 0), 4)
+        cv2.imshow("People Detection", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        # now crop the image to the given bounding box, using the x_min, y_min, w_max, h_max coordinates as center of the cropped image
+        # cv2.imshow("Cropped Image", image)
+        cv2.waitKey(0)
     cv2.destroyAllWindows()
     sys.exit(0)
 
@@ -207,7 +256,9 @@ if __name__ == "__main__":
     parser.add_argument("--names", type=str, default=script_dir + "/assets/coco.names", help="Path to COCO names file.")
     parser.add_argument("--confidence", type=float, default=0.70, help="Minimum confidence threshold.")
     parser.add_argument("--nms_threshold", type=float, default=0.4, help="Non-maximum suppression threshold.")
+    parser.add_argument("--output-format", type=str, choices=['text', 'json'], default='text', help="Output format: 'text' or 'json'.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode. Will display images with detections.")
 
     args = parser.parse_args()
 
-    detect_people_yolo(args.image, args.config, args.weights, args.names, args.confidence, args.nms_threshold)
+    detect_people_yolo(args)
