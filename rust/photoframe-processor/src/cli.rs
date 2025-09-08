@@ -19,6 +19,12 @@ pub enum OutputType {
     /// Generate only binary files for ESP32
     #[value(name = "bin")]
     Bin,
+    /// Generate only JPG files
+    #[value(name = "jpg")]
+    Jpg,
+    /// Generate only PNG files
+    #[value(name = "png")]
+    Png,
 }
 
 #[derive(Parser, Debug)]
@@ -52,9 +58,12 @@ Example Usage:
   photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
     --output-format bin --font \"Arial-Bold\" --pointsize 32 --auto --verbose
 
-  # Multiple input directories and files with BMP-only output
+  # Multiple input directories and files with JPG-only output
   photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
-    -t bw --output-format bmp --auto --jobs 8
+    -t bw --output-format jpg --auto --jobs 8
+
+  # PNG output format
+  photoframe-processor -i ~/Photos -o ~/processed --output-format png --auto
 
   # With people detection for smart cropping (requires find_subject.py script)
   photoframe-processor -i ~/Photos -o ~/processed --detect-people \\
@@ -62,11 +71,11 @@ Example Usage:
 )]
 pub struct Args {
     /// Input directories or single image files (can be specified multiple times)
-    #[arg(short = 'i', long = "input", required = true, value_name = "DIR|FILE")]
+    #[arg(short = 'i', long = "input", required_unless_present = "find_hash", value_name = "DIR|FILE")]
     pub input_paths: Vec<PathBuf>,
 
     /// Output directory for processed images
-    #[arg(short = 'o', long = "output", required = true, value_name = "DIR")]
+    #[arg(short = 'o', long = "output", required_unless_present = "find_hash", value_name = "DIR", default_value = ".")]
     pub output_dir: PathBuf,
 
     /// Target display size (format: WIDTHxHEIGHT, e.g., 800x480)
@@ -77,7 +86,7 @@ pub struct Args {
     #[arg(short = 't', long = "type", default_value = "bw")]
     pub processing_type: ColorType,
 
-    /// Output format: bmp (BMP only) or bin (binary only)
+    /// Output format: bmp (BMP only), bin (binary only), jpg (JPG only), or png (PNG only)
     #[arg(long = "output-format", default_value = "bmp")]
     pub output_format: OutputType,
 
@@ -97,8 +106,11 @@ pub struct Args {
     #[arg(long = "pointsize", default_value = "24", value_name = "SIZE")]
     pub pointsize: u32,
 
-    /// Font family for annotations (Note: Currently uses built-in bitmap font, custom fonts not yet supported)
-    #[arg(long = "font", default_value = "UbuntuMono-Nerd-Font-Bold", value_name = "FONT")]
+    /// Font specification for annotations. Supports three formats:
+    /// - Font name: "Arial" (searches system fonts)
+    /// - Font filename: "Arial.ttf" (searches in font directories)  
+    /// - Full path: "/System/Library/Fonts/Arial.ttf" (loads directly)
+    #[arg(long = "font", default_value = "Arial", value_name = "FONT")]
     pub font: String,
 
     /// Background color for text annotations (hex with alpha, e.g., #00000040)
@@ -129,6 +141,14 @@ pub struct Args {
     #[arg(long = "python-script", value_name = "FILE", 
           help = "Path to find_subject.py script for people detection")]
     pub python_script_path: Option<PathBuf>,
+
+    /// Force processing even if output files already exist (bypass duplicate check)
+    #[arg(long = "force")]
+    pub force: bool,
+
+    /// Find original filename that matches the given hash (format: 8 hex characters like '7af9ecca')
+    #[arg(long = "find-hash", value_name = "HASH")]
+    pub find_hash: Option<String>,
 }
 
 impl Args {
@@ -256,6 +276,8 @@ impl Default for Args {
             benchmark: false,
             detect_people: false,
             python_script_path: None,
+            force: false,
+            find_hash: None,
         }
     }
 }

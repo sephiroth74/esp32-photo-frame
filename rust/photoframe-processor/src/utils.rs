@@ -3,6 +3,9 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::time::Duration;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use walkdir::WalkDir;
 
 use crate::cli::Args;
 
@@ -164,6 +167,7 @@ pub fn has_valid_extension(path: &Path, extensions: &[String]) -> bool {
 }
 
 /// Generate a safe filename by removing/replacing invalid characters
+#[allow(dead_code)]
 pub fn sanitize_filename(filename: &str) -> String {
     filename
         .chars()
@@ -180,18 +184,44 @@ pub fn sanitize_filename(filename: &str) -> String {
         .to_string()
 }
 
-/// Create output filename based on input filename and processing type
+/// Generate a short hash from filename for use in output filenames
+pub fn generate_filename_hash(filename: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    filename.hash(&mut hasher);
+    let hash = hasher.finish();
+    
+    // Use first 8 characters of hex representation for a short hash
+    // The hash is 64-bit so we take the lower 32 bits and format as 8 hex chars
+    format!("{:08x}", (hash & 0xffffffff) as u32)
+}
+
+/// Create output filename based on input filename hash and processing type
 pub fn create_output_filename(input_path: &Path, suffix: Option<&str>, extension: &str) -> String {
     let stem = input_path.file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image");
     
-    let sanitized_stem = sanitize_filename(stem);
+    let filename_hash = generate_filename_hash(stem);
     
     match suffix {
-        Some(suffix) => format!("{}_{}.{}", sanitized_stem, suffix, extension),
-        None => format!("{}.{}", sanitized_stem, extension),
+        Some(suffix) => format!("{}_{}.{}", filename_hash, suffix, extension),
+        None => format!("{}.{}", filename_hash, extension),
     }
+}
+
+/// Create combined portrait filename using hashes of both filenames
+pub fn create_combined_portrait_filename(left_path: &Path, right_path: &Path, extension: &str) -> String {
+    let left_stem = left_path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image1");
+    let right_stem = right_path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image2");
+    
+    let left_hash = generate_filename_hash(left_stem);
+    let right_hash = generate_filename_hash(right_stem);
+    
+    format!("combined_{}_{}.{}", left_hash, right_hash, extension)
 }
 
 /// Print verbose information if verbose mode is enabled
@@ -211,6 +241,38 @@ pub fn warn_println(message: &str) {
 #[allow(dead_code)]
 pub fn error_println(message: &str) {
     eprintln!("{} {}", style("[ERROR]").red().bold(), message);
+}
+
+/// Find original filename that matches a given hash
+/// This searches through the provided directory and returns all filenames that produce the given hash
+pub fn find_original_filename_for_hash(search_dirs: &[&Path], target_hash: &str, extensions: &[String]) -> Result<Vec<String>> {
+    let mut matches = Vec::new();
+    
+    for search_dir in search_dirs {
+        if !search_dir.exists() {
+            continue;
+        }
+        
+        let walker = WalkDir::new(search_dir)
+            .follow_links(false)
+            .max_depth(10);
+            
+        for entry in walker {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if path.is_file() && has_valid_extension(path, extensions) {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    let hash = generate_filename_hash(stem);
+                    if hash == target_hash {
+                        matches.push(path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(matches)
 }
 
 /// Calculate processing statistics
@@ -293,7 +355,34 @@ mod tests {
     #[test]
     fn test_create_output_filename() {
         let path = Path::new("/path/to/image.jpg");
-        assert_eq!(create_output_filename(path, None, "bmp"), "image.bmp");
-        assert_eq!(create_output_filename(path, Some("processed"), "bin"), "image_processed.bin");
+        let result = create_output_filename(path, None, "bmp");
+        assert!(result.ends_with(".bmp"));
+        assert!(result.len() == 12); // 8 chars for hash + ".bmp"
+        
+        let result_with_suffix = create_output_filename(path, Some("portrait"), "bin");
+        assert!(result_with_suffix.ends_with(".bin"));
+        assert!(result_with_suffix.contains("_portrait"));
+    }
+
+    #[test]
+    fn test_generate_filename_hash() {
+        let hash1 = generate_filename_hash("test.jpg");
+        let hash2 = generate_filename_hash("test.jpg");
+        let hash3 = generate_filename_hash("different.jpg");
+        
+        assert_eq!(hash1, hash2); // Same input should give same hash
+        assert_ne!(hash1, hash3); // Different input should give different hash
+        assert_eq!(hash1.len(), 8); // Should be 8 characters
+    }
+
+    #[test] 
+    fn test_create_combined_portrait_filename() {
+        let left_path = Path::new("/path/to/image1.jpg");
+        let right_path = Path::new("/path/to/image2.jpg");
+        let result = create_combined_portrait_filename(left_path, right_path, "bmp");
+        
+        assert!(result.starts_with("combined_"));
+        assert!(result.ends_with(".bmp"));
+        assert!(result.matches('_').count() == 2); // Should have exactly 2 underscores
     }
 }

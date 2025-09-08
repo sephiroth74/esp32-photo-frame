@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use imageproc::drawing::{draw_text_mut, text_size};
 use ab_glyph::{FontRef, PxScale, Font, ScaleFont};
@@ -42,15 +42,15 @@ pub fn add_filename_annotation(
     let actual_text_height = (ascent + descent.abs()).ceil() as u32;
     
     // Calculate background rectangle with reasonable padding
-    let padding_x = 6;
-    let padding_y = 4;
+    let padding_x = 4;
+    let padding_y = 2;
     let bg_width = text_width as u32 + (padding_x * 2);
     let bg_height = actual_text_height + (padding_y * 2);
     
     let (img_width, img_height) = annotated_img.dimensions();
     
     // Position in bottom-right corner with margin from image edge
-    let margin = 10;
+    let margin = 4;
     let rect_x = img_width.saturating_sub(bg_width + margin);
     let rect_y = img_height.saturating_sub(bg_height + margin);
     
@@ -74,7 +74,7 @@ pub fn add_filename_annotation(
     // Calculate text center position: the baseline should be positioned so that
     // the visual center of the text aligns with the background center
     // Fine-tuning: need to move text down to reduce top padding
-    let text_visual_center_offset = ascent * 0.5; // About 50% of ascent above baseline
+    let text_visual_center_offset = ascent * 0.6; // About 50% of ascent above baseline
     let text_y = bg_center_y as f32 - text_visual_center_offset;
     
     // Draw text using imageproc with proper font rendering
@@ -91,14 +91,35 @@ pub fn add_filename_annotation(
     Ok(annotated_img)
 }
 
-/// Load font based on font name with fallback to system default font
-fn load_font(font_name: &str) -> Result<FontRef<'static>> {
-    // Try to load system font first
-    if let Ok(font) = load_system_font(font_name) {
+/// Load font based on font specification with smart detection
+/// 
+/// Supports three formats:
+/// 1. Font name: "Arial" -> searches system font directories
+/// 2. Font filename: "Arial.ttf" -> searches in common font directories  
+/// 3. Full path: "/System/Library/Fonts/Supplemental/Arial.ttf" -> loads directly
+fn load_font(font_spec: &str) -> Result<FontRef<'static>> {
+    // Strategy 1: Check if it's a full path (absolute path)
+    if is_absolute_path(font_spec) {
+        if let Ok(font) = load_font_from_path(font_spec) {
+            return Ok(font);
+        }
+        return Err(anyhow::anyhow!("Font file not found at path: {}", font_spec));
+    }
+    
+    // Strategy 2: Check if it's a font filename (ends with .ttf, .otf, .ttc, etc.)
+    if is_font_filename(font_spec) {
+        if let Ok(font) = load_font_by_filename(font_spec) {
+            return Ok(font);
+        }
+        // Continue to name-based search as fallback
+    }
+    
+    // Strategy 3: Treat as font name and search system directories
+    if let Ok(font) = load_system_font(font_spec) {
         return Ok(font);
     }
     
-    // Fallback to common system fonts
+    // Strategy 4: Fallback to common system fonts
     if let Ok(font) = load_embedded_font() {
         return Ok(font);
     }
@@ -119,8 +140,88 @@ fn load_font(font_name: &str) -> Result<FontRef<'static>> {
     }
     
     Err(anyhow::anyhow!(
-        "No suitable fonts found. Please ensure system fonts are available or specify a valid font path."
+        "No suitable fonts found for '{}'. Please ensure system fonts are available or specify a valid font path.", 
+        font_spec
     ))
+}
+
+/// Check if the input is an absolute path
+fn is_absolute_path(path: &str) -> bool {
+    path.starts_with('/') ||                           // Unix/Linux/macOS absolute path
+    path.starts_with('\\') ||                          // Windows UNC path
+    (path.len() > 2 && path.chars().nth(1) == Some(':')) // Windows drive path (C:, D:, etc.)
+}
+
+/// Check if the input looks like a font filename
+fn is_font_filename(filename: &str) -> bool {
+    let lower = filename.to_lowercase();
+    lower.ends_with(".ttf") || 
+    lower.ends_with(".otf") || 
+    lower.ends_with(".ttc") ||
+    lower.ends_with(".woff") ||
+    lower.ends_with(".woff2")
+}
+
+/// Load font directly from a file path
+fn load_font_from_path(font_path: &str) -> Result<FontRef<'static>> {
+    let font_data = std::fs::read(font_path)
+        .with_context(|| format!("Failed to read font file: {}", font_path))?;
+    
+    let font = FontRef::try_from_slice(Box::leak(font_data.into_boxed_slice()))
+        .with_context(|| format!("Failed to parse font file: {}", font_path))?;
+    
+    Ok(font)
+}
+
+/// Load font by searching for filename in common font directories
+fn load_font_by_filename(filename: &str) -> Result<FontRef<'static>> {
+    let font_directories = get_system_font_directories();
+    
+    for dir in font_directories {
+        let expanded_dir = expand_path(dir);
+        let font_path = format!("{}/{}", expanded_dir, filename);
+        if std::path::Path::new(&font_path).exists() {
+            if let Ok(font) = load_font_from_path(&font_path) {
+                return Ok(font);
+            }
+        }
+    }
+    
+    Err(anyhow::anyhow!("Font filename '{}' not found in system directories", filename))
+}
+
+/// Expand paths with ~ to home directory
+fn expand_path(path: &str) -> String {
+    if path.starts_with("~/") {
+        if let Some(home) = std::env::var("HOME").ok() {
+            return path.replacen("~", &home, 1);
+        }
+    }
+    path.to_string()
+}
+
+/// Get common system font directories for different platforms
+fn get_system_font_directories() -> Vec<&'static str> {
+    vec![
+        // macOS
+        "/System/Library/Fonts",
+        "/System/Library/Fonts/Supplemental", 
+        "/Library/Fonts",
+        "~/Library/Fonts",
+        
+        // Linux
+        "/usr/share/fonts",
+        "/usr/share/fonts/truetype",
+        "/usr/share/fonts/TTF",
+        "/usr/share/fonts/opentype",
+        "/usr/local/share/fonts",
+        "~/.fonts",
+        "~/.local/share/fonts",
+        
+        // Windows (via WSL)
+        "/mnt/c/Windows/Fonts",
+        "/mnt/c/Windows/System32/Fonts",
+    ]
 }
 
 /// Attempt to load a system font by name
@@ -129,7 +230,8 @@ fn load_system_font(font_name: &str) -> Result<FontRef<'static>> {
     let font_paths = get_system_font_paths(font_name);
     
     for path in font_paths {
-        if let Ok(font_data) = std::fs::read(&path) {
+        let expanded_path = expand_path(&path);
+        if let Ok(font_data) = std::fs::read(&expanded_path) {
             if let Ok(font) = FontRef::try_from_slice(Box::leak(font_data.into_boxed_slice())) {
                 return Ok(font);
             }
@@ -149,9 +251,13 @@ fn get_system_font_paths(font_name: &str) -> Vec<String> {
     // macOS font paths
     paths.push(format!("/System/Library/Fonts/{}.ttf", font_name));
     paths.push(format!("/System/Library/Fonts/{}.otf", font_name));
+    paths.push(format!("/System/Library/Fonts/Supplemental/{}.ttf", font_name));
+    paths.push(format!("/System/Library/Fonts/Supplemental/{}.otf", font_name));
     paths.push(format!("/Library/Fonts/{}.ttf", font_name));
     paths.push(format!("/Library/Fonts/{}.otf", font_name));
-    
+    paths.push(format!("~/Library/Fonts/{}.otf", font_name));
+    paths.push(format!("~/Library/Fonts/{}.ttf", font_name));
+
     // Linux font paths
     paths.push(format!("/usr/share/fonts/truetype/{}/{}.ttf", normalized_name, normalized_name));
     paths.push(format!("/usr/share/fonts/TTF/{}.ttf", font_name));
@@ -398,5 +504,50 @@ mod tests {
         
         assert!(parse_hex_color("FF0000").is_err()); // Missing #
         assert!(parse_hex_color("#GG0000").is_err()); // Invalid hex
+    }
+
+    #[test]
+    fn test_is_absolute_path() {
+        // Unix/Linux/macOS paths
+        assert!(is_absolute_path("/System/Library/Fonts/Arial.ttf"));
+        assert!(is_absolute_path("/usr/share/fonts/font.ttf"));
+        
+        // Windows paths
+        assert!(is_absolute_path("C:\\Windows\\Fonts\\arial.ttf"));
+        assert!(is_absolute_path("D:\\Fonts\\font.ttf"));
+        assert!(is_absolute_path("\\\\server\\share\\fonts\\font.ttf"));
+        
+        // Relative paths
+        assert!(!is_absolute_path("Arial.ttf"));
+        assert!(!is_absolute_path("fonts/Arial.ttf"));
+        assert!(!is_absolute_path("./Arial.ttf"));
+        assert!(!is_absolute_path("../fonts/Arial.ttf"));
+    }
+
+    #[test]
+    fn test_is_font_filename() {
+        assert!(is_font_filename("Arial.ttf"));
+        assert!(is_font_filename("Arial.TTF")); // Case insensitive
+        assert!(is_font_filename("font.otf"));
+        assert!(is_font_filename("font.ttc"));
+        assert!(is_font_filename("font.woff"));
+        assert!(is_font_filename("font.woff2"));
+        
+        assert!(!is_font_filename("Arial")); // Just name
+        assert!(!is_font_filename("Arial.txt")); // Wrong extension
+        assert!(!is_font_filename("/path/to/Arial")); // Path without extension
+    }
+
+    #[test]
+    fn test_expand_path() {
+        // Mock HOME environment for testing
+        std::env::set_var("HOME", "/Users/testuser");
+        
+        assert_eq!(expand_path("~/Library/Fonts"), "/Users/testuser/Library/Fonts");
+        assert_eq!(expand_path("/System/Library/Fonts"), "/System/Library/Fonts");
+        assert_eq!(expand_path("relative/path"), "relative/path");
+        
+        // Clean up
+        std::env::remove_var("HOME");
     }
 }

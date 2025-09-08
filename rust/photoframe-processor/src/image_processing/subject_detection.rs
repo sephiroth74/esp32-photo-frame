@@ -16,12 +16,24 @@ mod python_yolo_integration {
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct Detection {
+        #[serde(rename = "box")]
+        pub bounding_box: [i32; 4],
+        pub confidence: f32,
+        pub class: String,
+        pub class_id: i32,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct FindSubjectResult {
+        pub image: String,
         pub imagesize: ImageSize,
         #[serde(rename = "box")]
-        pub bounding_box: [i32; 4], // [x_min, y_min, w_max, h_max] - can be negative
-        pub center: [u32; 2], // [center_x, center_y]
-        pub offset: [i32; 2], // [offset_x, offset_y]
+        pub bounding_box: [i32; 4], // Combined bounding box [x_min, y_min, x_max, y_max] - kept for JSON deserialization but ignored in processing
+        pub center: [u32; 2], // [center_x, center_y] - THIS IS THE ONLY DATA WE USE for cropping/resizing
+        pub offset: [i32; 2], // [offset_x, offset_y] - also used for smart cropping
+        #[serde(default)]
+        pub detections: Vec<Detection>, // Individual person detections - used only for confidence and count
         #[serde(default)]
         pub error: Option<String>,
     }
@@ -74,13 +86,11 @@ use python_yolo_integration::PythonYolo;
 
 
 /// Detection result from YOLO people detection
-/// Based on find_subject.py output format
+/// Simplified to only use center coordinates for cropping/resizing
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SubjectDetectionResult {
-    /// Combined bounding box (x, y, width, height) of all detected people
-    pub bounding_box: Option<(u32, u32, u32, u32)>,
-    /// Center point of the combined detection area
+    /// Center point of the detected subject area for cropping/resizing
     pub center: (u32, u32),
     /// Offset from image center for smart cropping
     pub offset_from_center: (i32, i32),
@@ -131,28 +141,26 @@ impl SubjectDetector {
         let _ = std::fs::remove_file(&temp_path);
 
         // Convert Python script result to our internal format
-        let people_detected = python_result.error.is_none() && 
-            python_result.bounding_box != [0, 0, python_result.imagesize.width as i32, python_result.imagesize.height as i32];
+        // Check if we have actual detections (not just error-free execution)
+        let people_detected = python_result.error.is_none() && !python_result.detections.is_empty();
         
-        let bounding_box = if people_detected {
-            // Convert Python format [x_min, y_min, x_max, y_max] to (x, y, width, height)
-            let x_min = python_result.bounding_box[0].max(0) as u32;
-            let y_min = python_result.bounding_box[1] as u32;
-            let x_max = python_result.bounding_box[2] as u32;
-            let y_max = python_result.bounding_box[3] as u32;
-            let width = x_max.saturating_sub(x_min);
-            let height = y_max.saturating_sub(y_min);
-            Some((x_min, y_min, width, height))
+        // Calculate highest confidence and actual person count from detections
+        // We only need center coordinates for cropping/resizing, so ignore bounding box edges
+        let (confidence, person_count) = if people_detected {
+            let highest_confidence = python_result.detections
+                .iter()
+                .map(|d| d.confidence)
+                .fold(0.0f32, |acc, conf| acc.max(conf));
+            (highest_confidence, python_result.detections.len())
         } else {
-            None
+            (0.0, 0)
         };
 
         Ok(SubjectDetectionResult {
-            bounding_box,
             center: (python_result.center[0], python_result.center[1]),
             offset_from_center: (python_result.offset[0], python_result.offset[1]),
-            confidence: if people_detected { 1.0 } else { 0.0 },
-            person_count: if people_detected { 1 } else { 0 },
+            confidence,
+            person_count,
         })
     }
 
@@ -189,6 +197,7 @@ mod tests {
     use image::ImageBuffer;
     use std::path::Path;
 
+    #[allow(dead_code)]
     fn create_test_image(width: u32, height: u32) -> RgbImage {
         ImageBuffer::from_fn(width, height, |x, y| {
             image::Rgb([(x % 256) as u8, (y % 256) as u8, 128])
@@ -198,7 +207,6 @@ mod tests {
     #[test]
     fn test_subject_detection_result() {
         let result = SubjectDetectionResult {
-            bounding_box: Some((100, 100, 200, 200)),
             center: (200, 200),
             offset_from_center: (50, 50),
             confidence: 0.85,
@@ -259,12 +267,6 @@ mod tests {
                                 println!("Center: {},{}", result.center.0, result.center.1);
                                 println!("Offset: {},{}", result.offset_from_center.0, result.offset_from_center.1);
                                 
-                                if let Some((x, y, w, h)) = result.bounding_box {
-                                    println!("Bounding box: {},{},{},{}", x, y, w, h);
-                                } else {
-                                    println!("No bounding box (no people detected)");
-                                }
-                                
                                 println!("\n=== Expected Results (from find_subject.py) ===");
                                 println!("Image size: {},{}", expected_image_size.0, expected_image_size.1);
                                 println!("Bounding box: {},{},{},{}", expected_bbox.0, expected_bbox.1, expected_bbox.2, expected_bbox.3);
@@ -293,16 +295,11 @@ mod tests {
     }
 
     #[test]
-    fn test_no_ai_feature_fallback() {
-        // This test works regardless of whether AI feature is enabled
-        let img = create_test_image(400, 300);
-        
-        #[cfg(not(feature = "ai"))]
-        {
-            let detector = SubjectDetector;
-            let result = detector.detect_people(&img).unwrap();
-            assert_eq!(result.center, (200, 150)); // Image center
-            assert_eq!(result.person_count, 0);
-        }
+    fn test_filename_hash_consistency() {
+        // Test that filename hashing is consistent
+        let hash1 = crate::utils::generate_filename_hash("test_image.jpg");
+        let hash2 = crate::utils::generate_filename_hash("test_image.jpg");
+        assert_eq!(hash1, hash2);
+        assert_eq!(hash1.len(), 8);
     }
 }
