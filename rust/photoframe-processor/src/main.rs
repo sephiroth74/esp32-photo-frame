@@ -9,8 +9,8 @@ mod image_processing;
 mod utils;
 
 use cli::{Args, ColorType};
-use image_processing::{ImageType, ProcessingConfig, ProcessingEngine, ProcessingType};
-use utils::{create_progress_bar, format_duration, validate_inputs};
+use image_processing::{ImageType, ProcessingConfig, ProcessingEngine, ProcessingType, SkipReason};
+use utils::{create_progress_bar, format_duration, validate_inputs, find_original_filename_for_hash};
 
 impl From<ColorType> for ProcessingType {
     fn from(color_type: ColorType) -> Self {
@@ -19,6 +19,84 @@ impl From<ColorType> for ProcessingType {
             ColorType::SixColor => ProcessingType::SixColor,
         }
     }
+}
+
+/// Handle hash lookup functionality
+fn handle_hash_lookup(target_hash: &str, args: &Args) -> Result<()> {
+    // Validate hash format (8 hex characters)
+    if target_hash.len() != 8 || !target_hash.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(anyhow::anyhow!(
+            "Invalid hash format '{}'. Expected 8 hex characters (e.g., '7af9ecca')",
+            target_hash
+        ));
+    }
+
+    println!("{}", style(format!("Searching for original filename with hash: {}", target_hash)).bold().cyan());
+    println!();
+
+    // Use current directory if no search directories specified
+    let search_dirs: Vec<std::path::PathBuf> = if args.input_paths.is_empty() {
+        vec![std::env::current_dir()?]
+    } else {
+        args.input_paths.clone()
+    };
+
+    // Convert to Path references
+    let search_paths: Vec<&std::path::Path> = search_dirs.iter().map(|p| p.as_path()).collect();
+
+    // Use default extensions if not specified
+    let extensions = args.extensions();
+    
+    println!("Search directories:");
+    for path in &search_paths {
+        println!("  {}", path.display());
+    }
+    println!("Extensions: {:?}", extensions);
+    println!();
+
+    // Find matching filenames
+    let matches = find_original_filename_for_hash(&search_paths, target_hash, &extensions)?;
+
+    if matches.is_empty() {
+        println!("{}", style("No matching files found").yellow().bold());
+        println!();
+        println!("Tips:");
+        println!("  • Make sure you're searching in the correct directories");
+        println!("  • Check that the hash is correct (8 hex characters)");  
+        println!("  • Verify the file extensions match: {:?}", extensions);
+    } else {
+        println!("{}", style(format!("Found {} matching file(s):", matches.len())).green().bold());
+        println!();
+        
+        for (i, file_path) in matches.iter().enumerate() {
+            let path = std::path::Path::new(file_path);
+            let filename = path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown");
+            let stem = path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown");
+            
+            println!("  {}: {}", 
+                style(format!("#{}", i + 1)).dim(),
+                style(filename).bold().green()
+            );
+            println!("      Path: {}", style(file_path).dim());
+            println!("      Stem: {} → Hash: {}", 
+                style(stem).cyan(), 
+                style(target_hash).yellow()
+            );
+            println!();
+        }
+        
+        if matches.len() == 1 {
+            println!("{}", style("✓ Exact match found!").green().bold());
+        } else {
+            println!("{}", style("⚠ Multiple matches found - this is unusual but possible").yellow().bold());
+        }
+    }
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -30,7 +108,13 @@ fn main() -> Result<()> {
     println!("{}", style("High-performance Rust implementation").dim());
     println!();
 
-    // Validate inputs
+    // Handle hash lookup mode
+    if let Some(target_hash) = &args.find_hash {
+        handle_hash_lookup(target_hash, &args)?;
+        return Ok(());
+    }
+
+    // Validate inputs (skip for hash lookup mode)
     validate_inputs(&args)?;
 
     // Create processing configuration
@@ -49,6 +133,8 @@ fn main() -> Result<()> {
         // Python people detection configuration
         detect_people: args.detect_people,
         python_script_path: args.python_script_path.clone(),
+        // Duplicate handling
+        force: args.force,
     };
 
     if config.verbose {
@@ -133,7 +219,7 @@ fn main() -> Result<()> {
     completion_pb.set_message("Preparing to process...");
 
     // Process all images with smart portrait pairing
-    let results = engine.process_batch_with_smart_pairing(
+    let (results, skipped_results) = engine.process_batch_with_smart_pairing(
         &image_files, 
         &args.output_dir, 
         &main_progress,
@@ -155,6 +241,7 @@ fn main() -> Result<()> {
     // Print results summary
     let successful = results.iter().filter(|r| r.is_ok()).count();
     let failed = results.len() - successful;
+    let skipped = skipped_results.len();
     let total_time = start_time.elapsed();
 
     // Calculate processing statistics
@@ -186,6 +273,9 @@ fn main() -> Result<()> {
     println!("  Successfully processed: {}", style(successful).bold().green());
     if failed > 0 {
         println!("  Failed: {}", style(failed).bold().red());
+    }
+    if skipped > 0 {
+        println!("  Skipped (already exist): {}", style(skipped).bold().yellow());
     }
     
     // Image type statistics
@@ -260,6 +350,31 @@ fn main() -> Result<()> {
                     image_type,
                     people_info
                 );
+                
+                // For combined portraits, show individual portrait detection results
+                if let Some(ref individual_results) = processing_result.individual_portraits {
+                    for (idx, portrait) in individual_results.iter().enumerate() {
+                        let portrait_filename = portrait.path.file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("unknown");
+                        
+                        let portrait_people_info = if portrait.people_detected {
+                            if portrait.people_count == 1 {
+                                style(format!("✓ {} person (conf: {:.0}%)", portrait.people_count, portrait.confidence * 100.0)).green()
+                            } else {
+                                style(format!("✓ {} people (conf: {:.0}%)", portrait.people_count, portrait.confidence * 100.0)).green()
+                            }
+                        } else {
+                            style(format!("○ No people")).dim()
+                        };
+                        
+                        println!("    └─ {}: {} - {}", 
+                            style(format!("Portrait {}", idx + 1)).dim(),
+                            style(portrait_filename).bold(),
+                            portrait_people_info
+                        );
+                    }
+                }
             }
         }
     }
@@ -302,6 +417,37 @@ fn main() -> Result<()> {
             println!("{}", style(format!("⚠ {} errors occurred during processing", error_count)).bold().yellow());
             println!("  Check image files and try again with --verbose for more details");
         }
+    }
+
+    // Show skipped files if any
+    if !skipped_results.is_empty() {
+        println!();
+        println!("{}", style("Skipped files (already exist):").bold().yellow());
+        for (i, skipped) in skipped_results.iter().enumerate() {
+            let filename = skipped.input_path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown");
+            
+            let reason_desc = match skipped.reason {
+                SkipReason::LandscapeExists => "skipped",
+                SkipReason::PortraitInCombined => "skipped",
+            };
+            
+            let existing_filename = skipped.existing_output_path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown");
+            
+            println!("  {}: {} - {} (existing: {})", 
+                style(format!("#{}", i + 1)).dim(), 
+                style(filename).bold().yellow(),
+                reason_desc,
+                style(existing_filename).dim()
+            );
+        }
+        
+        println!();
+        println!("{}", style(format!("ℹ {} files skipped to avoid duplicates", skipped_results.len())).bold().blue());
+        println!("  Use --force to process all files regardless of existing outputs");
     }
 
     Ok(())

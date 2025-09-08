@@ -26,7 +26,7 @@ Run from command line with required arguments:
     --config        Path to YOLOv3 config file (.cfg)
     --weights       Path to YOLOv3 weights file (.weights)
     --names         Path to COCO names file (.names)
-    --confidence    Minimum confidence threshold (default: 0.75)
+    --confidence    Minimum confidence threshold (default: 0.7)
     --nms_threshold Non-maximum suppression threshold (default: 0.4)
 
 Example:
@@ -110,14 +110,16 @@ def detect_people_yolo(args):
     height, width, _ = image.shape
 
     # Create the root json object
-    root = {
-        "image": os.path.basename(image_path),
-        "imagesize": {"width": width, "height": height},
-        "box": [],
-        "center": [],
-        "offset": [],
-        "detections": [],
-    }
+    if output_format == 'json':
+        root = {
+            "image": os.path.basename(image_path),
+            "imagesize": {"width": width, "height": height},
+            "total_detections": 0,
+            "box": [],
+            "center": [],
+            "offset": [],
+            "detections": [],
+        }
 
     # Create a blob from the image
     # The image is scaled to 416x416, and the pixel values are scaled to [0, 1]
@@ -131,6 +133,7 @@ def detect_people_yolo(args):
     boxes = []
     confidences = []
     class_ids = []
+    total_detections = 0
 
     # Iterate over each output layer and detection
     for out in outs:
@@ -155,7 +158,8 @@ def detect_people_yolo(args):
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
 
-                root["detections"].append({"box": [x, y, w, h], "confidence": round(float(confidence), 2), "class": classes[class_id], "class_id": int(class_id)})
+                # root["detections"].append({"box": [x, y, w, h], "confidence": round(float(confidence), 2), "class": classes[class_id], "class_id": int(class_id)})
+                # total_detections += 1
 
     # Apply Non-Maximum Suppression to suppress weak, overlapping bounding boxes
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, confidence_threshold, nms_threshold)
@@ -170,6 +174,8 @@ def detect_people_yolo(args):
     if len(indexes) > 0:
         for i in indexes.flatten():
             x, y, w, h = boxes[i]
+            class_id = class_ids[i]
+
 
             right = x + w
             bottom = y + h
@@ -181,6 +187,11 @@ def detect_people_yolo(args):
 
             confidence = str(round(confidences[i], 2))
 
+            total_detections += 1            
+
+            if output_format == 'json':
+                root["detections"].append({"box": [x, y, w, h], "confidence": round(float(confidence), 2), "class": classes[class_id], "class_id": int(class_id)})
+
             if args.debug:
                 label = str(classes[class_ids[i]])
                 color = (0, 255, 0)  # Green color for bounding box
@@ -188,7 +199,7 @@ def detect_people_yolo(args):
                 cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
                 # Draw label and confidence
                 text = f"{label}: {confidence} (rect: {x}, {y}, {w}, {h})"
-                cv2.putText(image, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                cv2.putText(image, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
     else:
         if output_format == 'json':
             root["error"] = "No people detected in the image."
@@ -227,7 +238,9 @@ def detect_people_yolo(args):
     offset_y = center_y - image_center_y
     # print(f"Offset from image center: (offset_x={offset_x}, offset_y={offset_y})")
 
+
     if output_format == 'json':
+        root["total_detections"] = total_detections
         root["offset"] = [offset_x, offset_y]
         print(json.dumps(root, indent=2))
     else:

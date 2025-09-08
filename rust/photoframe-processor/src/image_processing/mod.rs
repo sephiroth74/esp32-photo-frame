@@ -13,9 +13,10 @@ use indicatif::ProgressBar;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::collections::HashSet;
 use walkdir::WalkDir;
 
-use crate::utils::{has_valid_extension, verbose_println};
+use crate::utils::{has_valid_extension, verbose_println, create_combined_portrait_filename, generate_filename_hash};
 use combine::combine_processed_portraits;
 
 #[derive(Debug, Clone)]
@@ -40,6 +41,8 @@ pub struct ProcessingConfig {
     // Python people detection configuration
     pub detect_people: bool,
     pub python_script_path: Option<PathBuf>,
+    // Duplicate handling
+    pub force: bool,
 }
 
 pub struct ProcessingEngine {
@@ -85,6 +88,66 @@ impl ProcessingEngine {
         })
     }
 
+    /// Scan destination folder for existing files and create skip mapping
+    fn scan_existing_outputs(&self, output_dir: &Path) -> Result<(HashSet<String>, HashSet<String>)> {
+        let mut existing_landscape_hashes = HashSet::new();
+        let mut existing_portrait_hashes = HashSet::new();
+        
+        if !output_dir.exists() {
+            return Ok((existing_landscape_hashes, existing_portrait_hashes));
+        }
+        
+        for entry in std::fs::read_dir(output_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                // Check for BMP or BIN files
+                if filename.ends_with(".bmp") || filename.ends_with(".bin") {
+                    let stem = filename.rsplit_once('.').map(|(s, _)| s).unwrap_or(filename);
+                    
+                    if stem.starts_with("combined_") {
+                        // Parse combined portrait filenames: "combined_{hash1}_{hash2}"
+                        if let Some(hashes_part) = stem.strip_prefix("combined_") {
+                            // Split by underscore - with hashes, this is much simpler since hashes don't contain underscores
+                            if let Some(underscore_pos) = hashes_part.find('_') {
+                                let (hash1, hash2) = hashes_part.split_at(underscore_pos);
+                                let hash2 = &hash2[1..]; // Remove the leading underscore
+                                
+                                // Check that these look like valid hashes (8 hex characters)
+                                if hash1.len() == 8 && hash2.len() == 8 && 
+                                   hash1.chars().all(|c| c.is_ascii_hexdigit()) &&
+                                   hash2.chars().all(|c| c.is_ascii_hexdigit()) {
+                                    existing_portrait_hashes.insert(hash1.to_string());
+                                    existing_portrait_hashes.insert(hash2.to_string());
+                                    
+                                    verbose_println(self.config.verbose, &format!(
+                                        "Found existing combined portrait: {} (contains hashes {} and {})", 
+                                        filename, hash1, hash2
+                                    ));
+                                }
+                            }
+                        }
+                    } else {
+                        // Regular landscape image - check if it looks like a hash
+                        if stem.len() == 8 && stem.chars().all(|c| c.is_ascii_hexdigit()) {
+                            existing_landscape_hashes.insert(stem.to_string());
+                            verbose_println(self.config.verbose, &format!(
+                                "Found existing landscape: {} (hash: {})", filename, stem
+                            ));
+                        } else {
+                            verbose_println(self.config.verbose, &format!(
+                                "Skipping file with non-hash filename: {}", filename
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok((existing_landscape_hashes, existing_portrait_hashes))
+    }
+
     /// Discover all image files in the input paths (directories or individual files)
     pub fn discover_images(&self, input_paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
         let mut image_files = Vec::new();
@@ -126,8 +189,95 @@ impl ProcessingEngine {
         Ok(image_files)
     }
 
+    /// Filter out images that already exist in the output directory (unless --force is used)
+    /// Returns (images_to_process, skipped_results)
+    pub fn filter_existing_images(&self, image_files: &[PathBuf], output_dir: &Path) -> Result<(Vec<PathBuf>, Vec<SkippedResult>)> {
+        if self.config.force {
+            verbose_println(self.config.verbose, "Force mode enabled - processing all images regardless of existing files");
+            return Ok((image_files.to_vec(), vec![]));
+        }
+
+        let (existing_landscape_hashes, existing_portrait_hashes) = self.scan_existing_outputs(output_dir)?;
+        let mut images_to_process = Vec::new();
+        let mut skipped_results = Vec::new();
+
+        for image_path in image_files {
+            let stem = image_path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown");
+            
+            let filename_hash = generate_filename_hash(stem);
+
+            // Check if this image should be skipped
+            let should_skip = if existing_landscape_hashes.contains(&filename_hash) {
+                // Landscape image already exists
+                let existing_bmp = output_dir.join(format!("{}.bmp", filename_hash));
+                let existing_bin = output_dir.join(format!("{}.bin", filename_hash));
+                let existing_path = if existing_bmp.exists() { existing_bmp } else { existing_bin };
+                
+                skipped_results.push(SkippedResult {
+                    input_path: image_path.clone(),
+                    reason: SkipReason::LandscapeExists,
+                    existing_output_path: existing_path,
+                });
+                true
+            } else if existing_portrait_hashes.contains(&filename_hash) {
+                // Portrait image is already part of a combined image
+                // Find the combined file that contains this portrait hash
+                let mut combined_path = None;
+                for entry in std::fs::read_dir(output_dir)? {
+                    let entry = entry?;
+                    let filename = entry.file_name();
+                    let filename_str = filename.to_string_lossy();
+                    
+                    if (filename_str.ends_with(".bmp") || filename_str.ends_with(".bin")) && 
+                       filename_str.starts_with("combined_") && 
+                       filename_str.contains(&filename_hash) {
+                        combined_path = Some(entry.path());
+                        break;
+                    }
+                }
+                
+                if let Some(path) = combined_path {
+                    skipped_results.push(SkippedResult {
+                        input_path: image_path.clone(),
+                        reason: SkipReason::PortraitInCombined,
+                        existing_output_path: path,
+                    });
+                    true
+                } else {
+                    false // Shouldn't happen, but be safe
+                }
+            } else {
+                false
+            };
+
+            if !should_skip {
+                images_to_process.push(image_path.clone());
+            }
+        }
+
+        let skipped_count = skipped_results.len();
+        let processing_count = images_to_process.len();
+        
+        if skipped_count > 0 {
+            verbose_println(self.config.verbose, &format!(
+                "Duplicate check: {} images to process, {} skipped (already exist)", 
+                processing_count, skipped_count
+            ));
+        } else {
+            verbose_println(self.config.verbose, &format!(
+                "Duplicate check: {} images to process, no duplicates found", 
+                processing_count
+            ));
+        }
+
+        Ok((images_to_process, skipped_results))
+    }
+
 
     /// Process a batch of images with smart portrait pairing and multi-progress support
+    /// Returns (processing_outcomes, skipped_results)
     pub fn process_batch_with_smart_pairing(
         &self,
         image_files: &[PathBuf],
@@ -135,15 +285,25 @@ impl ProcessingEngine {
         main_progress: &ProgressBar,
         thread_progress_bars: &[ProgressBar],
         completion_progress: &ProgressBar,
-    ) -> Result<Vec<Result<ProcessingResult>>> {
+    ) -> Result<(Vec<Result<ProcessingResult>>, Vec<SkippedResult>)> {
+        completion_progress.set_message("Checking for duplicate files...");
+        
+        // Filter out images that already exist (unless --force is used)
+        let (images_to_process, skipped_results) = self.filter_existing_images(image_files, output_dir)?;
+        
+        if images_to_process.is_empty() {
+            completion_progress.set_message("No images to process");
+            return Ok((vec![], skipped_results));
+        }
+        
         completion_progress.set_message("Analyzing image orientations...");
         
         // Separate portrait and landscape images
         let mut portrait_files = Vec::new();
         let mut landscape_files = Vec::new();
         
-        for (i, path) in image_files.iter().enumerate() {
-            let progress = (i as f64 / image_files.len() as f64) * 10.0; // First 10% for analysis
+        for (i, path) in images_to_process.iter().enumerate() {
+            let progress = (i as f64 / images_to_process.len() as f64) * 10.0; // First 10% for analysis
             main_progress.set_position(progress as u64);
             
             // Use fast orientation detection (no full image loading)
@@ -201,7 +361,7 @@ impl ProcessingEngine {
         main_progress.set_position(100);
         completion_progress.set_message("Batch processing complete");
         
-        Ok(all_results)
+        Ok((all_results, skipped_results))
     }
 
     /// Process a batch of images with multi-progress support (original method for landscapes)
@@ -369,6 +529,7 @@ impl ProcessingEngine {
             self.config.target_height,
             self.config.auto_process,
             people_detection.as_ref(),
+            self.config.verbose,
         )?;
 
         // Add text annotation (70%)
@@ -388,10 +549,15 @@ impl ProcessingEngine {
         let processed_img = convert::process_image(&annotated_img, &self.config.processing_type)?;
 
         // Generate output filenames in the same directory
-        let output_filename = crate::utils::create_output_filename(input_path, None, "bmp");
+        let output_filename = match &self.config.output_format {
+            crate::cli::OutputType::Bmp => crate::utils::create_output_filename(input_path, None, "bmp"),
+            crate::cli::OutputType::Bin => crate::utils::create_output_filename(input_path, None, "bin"),
+            crate::cli::OutputType::Jpg => crate::utils::create_output_filename(input_path, None, "jpg"),
+            crate::cli::OutputType::Png => crate::utils::create_output_filename(input_path, None, "png"),
+        };
         let bin_filename = crate::utils::create_output_filename(input_path, None, "bin");
 
-        let bmp_path = output_dir.join(&output_filename);
+        let output_path = output_dir.join(&output_filename);
         let bin_path = output_dir.join(&bin_filename);
 
         // Save files based on output format configuration
@@ -399,8 +565,8 @@ impl ProcessingEngine {
             crate::cli::OutputType::Bmp => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving BMP", filename));
-                processed_img.save(&bmp_path)
-                    .with_context(|| format!("Failed to save BMP: {}", bmp_path.display()))?;
+                processed_img.save(&output_path)
+                    .with_context(|| format!("Failed to save BMP: {}", output_path.display()))?;
             }
             crate::cli::OutputType::Bin => {
                 progress_bar.set_position(90);
@@ -409,16 +575,29 @@ impl ProcessingEngine {
                 std::fs::write(&bin_path, binary_data)
                     .with_context(|| format!("Failed to save binary: {}", bin_path.display()))?;
             }
+            crate::cli::OutputType::Jpg => {
+                progress_bar.set_position(90);
+                progress_bar.set_message(format!("{} - Saving JPG", filename));
+                processed_img.save(&output_path)
+                    .with_context(|| format!("Failed to save JPG: {}", output_path.display()))?;
+            }
+            crate::cli::OutputType::Png => {
+                progress_bar.set_position(90);
+                progress_bar.set_message(format!("{} - Saving PNG", filename));
+                processed_img.save(&output_path)
+                    .with_context(|| format!("Failed to save PNG: {}", output_path.display()))?;
+            }
         }
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
-            bmp_path,
+            bmp_path: output_path.clone(),
             bin_path,
             image_type: ImageType::Landscape,
             processing_time: start_time.elapsed(),
             people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
             people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
+            individual_portraits: None,
         })
     }
 
@@ -457,6 +636,7 @@ impl ProcessingEngine {
             self.config.target_height,
             self.config.auto_process,
             people_detection.as_ref(),
+            self.config.verbose,
         )?;
 
         // Add text annotation (70%)
@@ -476,10 +656,15 @@ impl ProcessingEngine {
         let processed_img = convert::process_image(&annotated_img, &self.config.processing_type)?;
 
         // Generate output filenames with portrait suffix
-        let output_filename = crate::utils::create_output_filename(input_path, Some("portrait"), "bmp");
+        let output_filename = match &self.config.output_format {
+            crate::cli::OutputType::Bmp => crate::utils::create_output_filename(input_path, Some("portrait"), "bmp"),
+            crate::cli::OutputType::Bin => crate::utils::create_output_filename(input_path, Some("portrait"), "bin"),
+            crate::cli::OutputType::Jpg => crate::utils::create_output_filename(input_path, Some("portrait"), "jpg"),
+            crate::cli::OutputType::Png => crate::utils::create_output_filename(input_path, Some("portrait"), "png"),
+        };
         let bin_filename = crate::utils::create_output_filename(input_path, Some("portrait"), "bin");
 
-        let bmp_path = output_dir.join(&output_filename);
+        let output_path = output_dir.join(&output_filename);
         let bin_path = output_dir.join(&bin_filename);
 
         // Save files based on output format configuration
@@ -487,8 +672,8 @@ impl ProcessingEngine {
             crate::cli::OutputType::Bmp => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving portrait BMP", filename));
-                processed_img.save(&bmp_path)
-                    .with_context(|| format!("Failed to save portrait BMP: {}", bmp_path.display()))?;
+                processed_img.save(&output_path)
+                    .with_context(|| format!("Failed to save portrait BMP: {}", output_path.display()))?;
             }
             crate::cli::OutputType::Bin => {
                 progress_bar.set_position(90);
@@ -497,6 +682,18 @@ impl ProcessingEngine {
                 std::fs::write(&bin_path, binary_data)
                     .with_context(|| format!("Failed to save portrait binary: {}", bin_path.display()))?;
             }
+            crate::cli::OutputType::Jpg => {
+                progress_bar.set_position(90);
+                progress_bar.set_message(format!("{} - Saving portrait JPG", filename));
+                processed_img.save(&output_path)
+                    .with_context(|| format!("Failed to save portrait JPG: {}", output_path.display()))?;
+            }
+            crate::cli::OutputType::Png => {
+                progress_bar.set_position(90);
+                progress_bar.set_message(format!("{} - Saving portrait PNG", filename));
+                processed_img.save(&output_path)
+                    .with_context(|| format!("Failed to save portrait PNG: {}", output_path.display()))?;
+            }
         }
 
         verbose_println(self.config.verbose, 
@@ -504,12 +701,13 @@ impl ProcessingEngine {
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
-            bmp_path,
+            bmp_path: output_path.clone(),
             bin_path,
             image_type: ImageType::Portrait,
             processing_time: start_time.elapsed(),
             people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
             people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
+            individual_portraits: None,
         })
     }
 
@@ -529,11 +727,6 @@ impl ProcessingEngine {
                         
                         if result.person_count > 0 {
                             println!("   • Highest confidence: {:.2}%", result.confidence * 100.0);
-                            
-                            if let Some((x, y, w, h)) = result.bounding_box {
-                                println!("   • Combined bounding box: {}×{} at ({}, {})", w, h, x, y);
-                            }
-                            
                             println!("   • Detection center: ({}, {})", result.center.0, result.center.1);
                             println!("   • Offset from image center: ({:+}, {:+})", 
                                 result.offset_from_center.0, result.offset_from_center.1);
@@ -581,13 +774,50 @@ impl ProcessingEngine {
 
         verbose_println(self.config.verbose, &format!("Processing {} portrait images", portrait_files.len()));
 
-        // Load all portrait images and apply EXIF rotations
-        completion_progress.set_message("Loading and rotating portrait images...");
+        // Process portraits in batches to avoid memory exhaustion
+        completion_progress.set_message("Processing portrait pairs in batches...");
+        const BATCH_SIZE: usize = 20; // Process 20 portraits at a time (10 pairs)
+        
+        let mut all_results = Vec::new();
+        let mut processed_count = 0;
+        
+        // Process portraits in batches
+        for (_batch_idx, batch) in portrait_files.chunks(BATCH_SIZE).enumerate() {
+            completion_progress.set_message("Processing portrait batch...");
+            
+            let batch_results = self.process_portrait_batch(
+                batch, 
+                output_dir, 
+                main_progress, 
+                thread_progress_bars, 
+                &mut processed_count,
+                portrait_files.len()
+            )?;
+            
+            all_results.extend(batch_results);
+        }
+
+        completion_progress.set_message("Portrait pairing complete");
+        Ok(all_results)
+    }
+
+    /// Process a single batch of portrait images
+    fn process_portrait_batch(
+        &self,
+        portrait_batch: &[PathBuf],
+        output_dir: &Path,
+        main_progress: &ProgressBar,
+        thread_progress_bars: &[ProgressBar],
+        processed_count: &mut usize,
+        total_portraits: usize,
+    ) -> Result<Vec<Result<ProcessingResult>>> {
+        // Load and process this batch of portraits
         let mut portrait_data = Vec::new();
         
-        for (i, path) in portrait_files.iter().enumerate() {
-            let progress = (i as f64 / portrait_files.len() as f64) * 30.0; // First 30% for loading
-            main_progress.set_position(progress as u64);
+        for (_i, path) in portrait_batch.iter().enumerate() {
+            // Update progress based on total portraits processed
+            let total_progress = (*processed_count as f64 / total_portraits as f64) * 40.0 + 60.0; // 60-100% range
+            main_progress.set_position(total_progress as u64);
             
             match image::open(path) {
                 Ok(img) => {
@@ -625,6 +855,7 @@ impl ProcessingEngine {
                         self.config.target_height,
                         self.config.auto_process,
                         people_detection.as_ref(),
+                        self.config.verbose,
                     )?;
                     
                     // 4. Apply image processing (B&W conversion + Floyd-Steinberg dithering)
@@ -643,7 +874,8 @@ impl ProcessingEngine {
                         processed_img
                     };
                     
-                    portrait_data.push((final_img, path.clone()));
+                    portrait_data.push((final_img, path.clone(), people_detection));
+                    *processed_count += 1;
                 }
                 Err(e) => {
                     verbose_println(self.config.verbose, &format!("⚠ Failed to load {}: {}", path.display(), e));
@@ -652,19 +884,18 @@ impl ProcessingEngine {
         }
 
         // Randomize portrait order for more interesting combinations
-        completion_progress.set_message("Randomizing portrait pairs...");
         use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         portrait_data.shuffle(&mut rng);
         
-        // If odd number of portraits, discard the last one
+        // If odd number of portraits in this batch, discard the last one
         if portrait_data.len() % 2 == 1 {
             let discarded = portrait_data.pop().unwrap();
-            verbose_println(self.config.verbose, &format!("ℹ Discarding leftover portrait: {}", 
+            verbose_println(self.config.verbose, &format!("ℹ Discarding leftover portrait from batch: {}", 
                 discarded.1.file_name().unwrap_or_default().to_string_lossy()));
         }
 
-        // Create pairs from randomized images
+        // Create pairs from randomized images with their detection results
         let image_pairs: Vec<(RgbImage, RgbImage)> = portrait_data
             .chunks_exact(2)
             .map(|chunk| (chunk[0].0.clone(), chunk[1].0.clone()))
@@ -674,59 +905,45 @@ impl ProcessingEngine {
             .chunks_exact(2)
             .map(|chunk| (chunk[0].1.clone(), chunk[1].1.clone()))
             .collect();
-
-        verbose_println(self.config.verbose, &format!("Created {} portrait pairs", image_pairs.len()));
-
-        // Process each pair in parallel
-        completion_progress.set_message("Processing portrait pairs...");
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        use std::collections::HashMap;
-        
-        let processed_count = AtomicUsize::new(0);
-        let thread_assignment = Arc::new(Mutex::new(HashMap::new()));
-        let next_thread_id = AtomicUsize::new(0);
-
-        let results: Vec<Result<ProcessingResult>> = image_pairs
-            .par_iter()
-            .zip(path_pairs.par_iter())
-            .enumerate()
-            .map(|(index, ((left_img, right_img), (left_path, right_path)))| {
-                // Get or assign thread progress bar
-                let current_thread_id = rayon::current_thread_index().unwrap_or(0);
-                let pb_index = {
-                    let mut assignment = thread_assignment.lock().unwrap();
-                    if let Some(&pb_index) = assignment.get(&current_thread_id) {
-                        pb_index
-                    } else {
-                        let pb_index = next_thread_id.fetch_add(1, Ordering::SeqCst) % thread_progress_bars.len();
-                        assignment.insert(current_thread_id, pb_index);
-                        pb_index
-                    }
-                };
-                
-                let thread_pb = &thread_progress_bars[pb_index];
-                
-                let result = self.process_portrait_pair_with_progress(
-                    left_img, right_img,
-                    left_path, right_path,
-                    output_dir,
-                    index,
-                    thread_pb,
-                );
-
-                // Update progress
-                let completed = processed_count.fetch_add(1, Ordering::SeqCst) + 1;
-                let progress = 50.0 + (completed as f64 / image_pairs.len() as f64) * 50.0; // Second 50% for processing
-                main_progress.set_position(progress as u64);
-                
-                thread_pb.set_message("Idle");
-                
-                result
-            })
+            
+        let detection_pairs: Vec<(Option<subject_detection::SubjectDetectionResult>, Option<subject_detection::SubjectDetectionResult>)> = portrait_data
+            .chunks_exact(2)
+            .map(|chunk| (chunk[0].2.clone(), chunk[1].2.clone()))
             .collect();
 
-        completion_progress.set_message("Portrait pairing complete");
-        Ok(results)
+        verbose_println(self.config.verbose, &format!("Created {} portrait pairs from batch", image_pairs.len()));
+
+        // Process each pair sequentially to avoid memory pressure
+        let mut batch_results = Vec::new();
+        
+        for (i, (((left_img, right_img), (left_path, right_path)), (left_detection, right_detection))) in 
+            image_pairs.iter()
+                .zip(path_pairs.iter())
+                .zip(detection_pairs.iter())
+                .enumerate() {
+            
+            // Use a simple thread progress bar for this pair
+            let thread_pb = &thread_progress_bars[i % thread_progress_bars.len()];
+            
+            let result = self.process_portrait_pair_with_progress(
+                left_img, right_img,
+                left_path, right_path,
+                left_detection, right_detection,
+                output_dir,
+                i,
+                thread_pb,
+            );
+            
+            batch_results.push(result);
+            
+            // Update progress
+            let pair_progress = (*processed_count as f64 / total_portraits as f64) * 40.0 + 60.0;
+            main_progress.set_position(pair_progress as u64);
+            
+            thread_pb.set_message("Idle");
+        }
+
+        Ok(batch_results)
     }
 
     /// Process a single portrait pair by combining them into a landscape image
@@ -736,6 +953,8 @@ impl ProcessingEngine {
         right_img: &RgbImage,
         left_path: &Path,
         right_path: &Path,
+        left_detection: &Option<subject_detection::SubjectDetectionResult>,
+        right_detection: &Option<subject_detection::SubjectDetectionResult>,
         output_dir: &Path,
         _index: usize,
         progress_bar: &ProgressBar,
@@ -761,33 +980,40 @@ impl ProcessingEngine {
 
         progress_bar.set_position(70);
 
-        // Generate combined filename: "combined_{filename1}_{filename2}"
-        let left_stem = left_path.file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown");
-        let right_stem = right_path.file_stem()
-            .and_then(|s| s.to_str()) 
-            .unwrap_or("unknown");
-        
-        let combined_filename = format!("combined_{}_{}", left_stem, right_stem);
-        let output_filename = format!("{}.bmp", combined_filename);
-        let bin_filename = format!("{}.bin", combined_filename);
+        // Generate combined filename using hashes: "combined_{hash1}_{hash2}"
+        let output_filename = match &self.config.output_format {
+            crate::cli::OutputType::Bmp => create_combined_portrait_filename(left_path, right_path, "bmp"),
+            crate::cli::OutputType::Bin => create_combined_portrait_filename(left_path, right_path, "bin"),
+            crate::cli::OutputType::Jpg => create_combined_portrait_filename(left_path, right_path, "jpg"),
+            crate::cli::OutputType::Png => create_combined_portrait_filename(left_path, right_path, "png"),
+        };
+        let bin_filename = create_combined_portrait_filename(left_path, right_path, "bin");
 
-        let bmp_path = output_dir.join(&output_filename);
+        let output_path = output_dir.join(&output_filename);
         let bin_path = output_dir.join(&bin_filename);
 
         // Images are already processed, just save the combined result
         match self.config.output_format {
             crate::cli::OutputType::Bmp => {
                 progress_bar.set_message(format!("Saving combined BMP"));
-                combined_img.save(&bmp_path)
-                    .with_context(|| format!("Failed to save combined BMP: {}", bmp_path.display()))?;
+                combined_img.save(&output_path)
+                    .with_context(|| format!("Failed to save combined BMP: {}", output_path.display()))?;
             }
             crate::cli::OutputType::Bin => {
                 progress_bar.set_message(format!("Generating combined binary"));
                 let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
                 std::fs::write(&bin_path, &binary_data)
                     .with_context(|| format!("Failed to save combined binary: {}", bin_path.display()))?;
+            }
+            crate::cli::OutputType::Jpg => {
+                progress_bar.set_message(format!("Saving combined JPG"));
+                combined_img.save(&output_path)
+                    .with_context(|| format!("Failed to save combined JPG: {}", output_path.display()))?;
+            }
+            crate::cli::OutputType::Png => {
+                progress_bar.set_message(format!("Saving combined PNG"));
+                combined_img.save(&output_path)
+                    .with_context(|| format!("Failed to save combined PNG: {}", output_path.display()))?;
             }
         }
 
@@ -796,17 +1022,45 @@ impl ProcessingEngine {
         verbose_println(self.config.verbose, 
             &format!("✅ Combined portrait pair completed in {:.2}s", start_time.elapsed().as_secs_f32()));
 
+        // Create individual portrait results for the summary
+        let individual_portraits = vec![
+            IndividualPortraitResult {
+                path: left_path.to_path_buf(),
+                people_detected: left_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                people_count: left_detection.as_ref().map_or(0, |d| d.person_count),
+                confidence: left_detection.as_ref().map_or(0.0, |d| d.confidence),
+            },
+            IndividualPortraitResult {
+                path: right_path.to_path_buf(),
+                people_detected: right_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                people_count: right_detection.as_ref().map_or(0, |d| d.person_count),
+                confidence: right_detection.as_ref().map_or(0.0, |d| d.confidence),
+            },
+        ];
+
+        // Calculate combined statistics
+        let combined_people_detected = individual_portraits.iter().any(|p| p.people_detected);
+        let combined_people_count = individual_portraits.iter().map(|p| p.people_count).sum();
+
         Ok(ProcessingResult {
             input_path: left_path.to_path_buf(), // Use first image as representative
-            bmp_path,
+            bmp_path: output_path.clone(),
             bin_path,
-            image_type: ImageType::Portrait,
+            image_type: ImageType::CombinedPortrait,
             processing_time: start_time.elapsed(),
-            people_detected: false, // Portrait combination doesn't use people detection currently
-            people_count: 0,
+            people_detected: combined_people_detected,
+            people_count: combined_people_count,
+            individual_portraits: Some(individual_portraits),
         })
     }
 
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum ProcessingOutcome {
+    Success(ProcessingResult),
+    Skipped(SkippedResult),
 }
 
 #[derive(Debug)]
@@ -825,6 +1079,37 @@ pub struct ProcessingResult {
     pub people_detected: bool,
     #[allow(dead_code)]
     pub people_count: usize,
+    // For combined portraits, store individual results
+    #[allow(dead_code)]
+    pub individual_portraits: Option<Vec<IndividualPortraitResult>>,
+}
+
+#[derive(Debug)]
+pub struct SkippedResult {
+    #[allow(dead_code)]
+    pub input_path: PathBuf,
+    #[allow(dead_code)]
+    pub reason: SkipReason,
+    #[allow(dead_code)]
+    pub existing_output_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub enum SkipReason {
+    LandscapeExists,
+    PortraitInCombined,
+}
+
+#[derive(Debug)]
+pub struct IndividualPortraitResult {
+    #[allow(dead_code)]
+    pub path: PathBuf,
+    #[allow(dead_code)]
+    pub people_detected: bool,
+    #[allow(dead_code)]
+    pub people_count: usize,
+    #[allow(dead_code)]
+    pub confidence: f32,
 }
 
 #[derive(Debug)]
