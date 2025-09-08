@@ -2,52 +2,76 @@ use anyhow::Result;
 use image::RgbImage;
 use std::path::Path;
 
-// Note: yolo-rs crate API may vary - this is a placeholder implementation
-#[cfg(feature = "ai")]
-mod yolo_integration {
-    // Placeholder structures for YOLO integration
-    // In a real implementation, these would use the actual yolo-rs API
-    #[allow(dead_code)]
-    pub struct Yolo;
-    #[allow(dead_code)]
-    pub struct YoloResult {
-        pub class_id: i32,
-        pub confidence: f32,
-        pub x: f32,
-        pub y: f32,
-        pub width: f32,
-        pub height: f32,
+// People detection using existing find_subject.py script
+mod python_yolo_integration {
+    use std::path::Path;
+    use std::process::Command;
+    use anyhow::Result;
+    use serde::{Deserialize, Serialize};
+    
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct ImageSize {
+        pub width: u32,
+        pub height: u32,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct FindSubjectResult {
+        pub imagesize: ImageSize,
+        #[serde(rename = "box")]
+        pub bounding_box: [i32; 4], // [x_min, y_min, w_max, h_max] - can be negative
+        pub center: [u32; 2], // [center_x, center_y]
+        pub offset: [i32; 2], // [offset_x, offset_y]
+        #[serde(default)]
+        pub error: Option<String>,
     }
     
-    #[allow(dead_code)]
-    impl Yolo {
-        pub fn new(_config: &str, _weights: &str, _confidence: f32) -> Result<Self, Box<dyn std::error::Error>> {
-            // Placeholder - would initialize YOLO model
-            Ok(Yolo)
+    pub struct PythonYolo {
+        script_path: String,
+    }
+    
+    impl PythonYolo {
+        pub fn new(script_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+            let script_path = Path::new(script_path);
+            
+            if !script_path.exists() {
+                return Err(format!("find_subject.py script not found: {}", script_path.display()).into());
+            }
+            
+            Ok(PythonYolo {
+                script_path: script_path.to_string_lossy().to_string(),
+            })
         }
         
-        pub fn inference(&self, _data: &[u8]) -> Result<Vec<YoloResult>, Box<dyn std::error::Error>> {
-            // Placeholder - would run YOLO inference
-            Ok(vec![])
-        }
-    }
-    
-    impl Clone for YoloResult {
-        fn clone(&self) -> Self {
-            YoloResult {
-                class_id: self.class_id,
-                confidence: self.confidence,
-                x: self.x,
-                y: self.y,
-                width: self.width,
-                height: self.height,
+        pub fn detect_people(&self, img_path: &str) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
+            // Run find_subject.py script with JSON output
+            // python3 find_subject.py --image image.jpg --output-format json
+            let output = Command::new("python3")
+                .arg(&self.script_path)
+                .arg("--image")
+                .arg(img_path)
+                .arg("--output-format")
+                .arg("json")
+                .output()
+                .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?;
+            
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(format!("find_subject.py failed: {}", stderr).into());
             }
+            
+            // Parse JSON output from Python script
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let result: FindSubjectResult = serde_json::from_str(&stdout)
+                .map_err(|e| format!("Failed to parse JSON output: {} | Raw output: {}", e, stdout))?;
+            
+            Ok(result)
         }
     }
 }
 
-#[cfg(feature = "ai")]
-use yolo_integration::{Yolo, YoloResult};
+use python_yolo_integration::PythonYolo;
+
 
 /// Detection result from YOLO people detection
 /// Based on find_subject.py output format
@@ -66,273 +90,104 @@ pub struct SubjectDetectionResult {
     pub person_count: usize,
 }
 
-/// YOLO-based subject detector for people detection
-/// Replicates the functionality of find_subject.py using YOLOv3
-#[cfg(feature = "ai")]
+/// Python-based subject detector using find_subject.py
 #[allow(dead_code)]
 pub struct SubjectDetector {
-    yolo: Yolo,
-    confidence_threshold: f32,
-    nms_threshold: f32,
+    python_yolo: PythonYolo,
 }
 
-#[cfg(feature = "ai")]
 #[allow(dead_code)]
 impl SubjectDetector {
-    /// Create a new subject detector with YOLOv3 models
+    /// Create a new subject detector using find_subject.py
     /// 
-    /// This loads the YOLOv3 configuration, weights, and class names
-    /// from the assets directory, matching find_subject.py behavior
-    pub fn new(
-        config_path: &Path,
-        weights_path: &Path,
-        confidence_threshold: f32,
-        nms_threshold: f32,
-    ) -> Result<Self> {
-        let yolo = Yolo::new(
-            config_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid config path"))?,
-            weights_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid weights path"))?,
-            confidence_threshold,
-        ).map_err(|e| anyhow::anyhow!("Failed to initialize YOLO model: {}", e))?;
+    /// This uses the existing Python script for people detection,
+    /// which already implements YOLOv3 with proper configuration
+    pub fn new(script_path: &Path) -> Result<Self> {
+        let python_yolo = PythonYolo::new(
+            script_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid script path"))?,
+        ).map_err(|e| anyhow::anyhow!("Failed to initialize Python YOLO: {}", e))?;
 
         Ok(Self {
-            yolo,
-            confidence_threshold,
-            nms_threshold,
+            python_yolo,
         })
     }
 
     /// Detect people in an image and return detection result
     /// 
-    /// This replicates the detect_people_yolo function from find_subject.py:
-    /// 1. Runs YOLO inference on the image
-    /// 2. Filters for 'person' class detections
-    /// 3. Applies non-maximum suppression
-    /// 4. Calculates combined bounding box and center point
-    /// 5. Returns offset from image center for smart cropping
+    /// This uses the existing find_subject.py script which already implements:
+    /// 1. YOLOv3 people detection
+    /// 2. Non-maximum suppression
+    /// 3. Combined bounding box calculation
+    /// 4. Center point and offset computation
     pub fn detect_people(&self, img: &RgbImage) -> Result<SubjectDetectionResult> {
-        let (width, height) = img.dimensions();
+        // Save image to temporary file for Python script
+        let temp_path = self.save_temp_image(img)?;
         
-        // Convert RgbImage to format expected by YOLO
-        let img_data = self.prepare_image_for_yolo(img)?;
+        // Run Python script for people detection
+        let python_result = self.python_yolo.detect_people(&temp_path)
+            .map_err(|e| anyhow::anyhow!("Python detection failed: {}", e))?;
         
-        // Run YOLO detection
-        let detections = self.yolo.inference(&img_data)
-            .map_err(|e| anyhow::anyhow!("YOLO inference failed: {}", e))?;
+        // Clean up temporary file
+        let _ = std::fs::remove_file(&temp_path);
 
-        // Filter for person class (class_id = 0 in COCO dataset)
-        let person_detections: Vec<&YoloResult> = detections
-            .iter()
-            .filter(|detection| {
-                detection.class_id == 0 && // Person class in COCO
-                detection.confidence > self.confidence_threshold
-            })
-            .collect();
-
-        if person_detections.is_empty() {
-            // No people detected - return image center as fallback
-            return Ok(SubjectDetectionResult {
-                bounding_box: None,
-                center: (width / 2, height / 2),
-                offset_from_center: (0, 0),
-                confidence: 0.0,
-                person_count: 0,
-            });
-        }
-
-        // Apply Non-Maximum Suppression to remove overlapping detections
-        let filtered_detections = self.apply_nms(&person_detections)?;
-
-        // Calculate combined bounding box (like find_subject.py lines 133-149)
-        let mut x_min = f32::INFINITY;
-        let mut y_min = f32::INFINITY;
-        let mut x_max = 0.0f32;
-        let mut y_max = 0.0f32;
-        let mut max_confidence = 0.0f32;
-
-        for detection in &filtered_detections {
-            let x = detection.x * width as f32;
-            let y = detection.y * height as f32;
-            let w = detection.width * width as f32;
-            let h = detection.height * height as f32;
-
-            // Convert center coordinates to bounding box
-            let left = x - w / 2.0;
-            let top = y - h / 2.0;
-            let right = x + w / 2.0;
-            let bottom = y + h / 2.0;
-
-            x_min = x_min.min(left);
-            y_min = y_min.min(top);
-            x_max = x_max.max(right);
-            y_max = y_max.max(bottom);
-            max_confidence = max_confidence.max(detection.confidence);
-        }
-
-        // Convert to integer coordinates
-        let bbox_x = x_min.max(0.0) as u32;
-        let bbox_y = y_min.max(0.0) as u32;
-        let bbox_width = (x_max - x_min).max(0.0) as u32;
-        let bbox_height = (y_max - y_min).max(0.0) as u32;
-
-        // Calculate center point (like find_subject.py lines 175-177)
-        let center_x = (bbox_x + bbox_width / 2).min(width);
-        let center_y = (bbox_y + bbox_height / 2).min(height);
-
-        // Calculate offset from image center (like find_subject.py lines 180-185)
-        let image_center_x = width / 2;
-        let image_center_y = height / 2;
-        let offset_x = center_x as i32 - image_center_x as i32;
-        let offset_y = center_y as i32 - image_center_y as i32;
-
-        Ok(SubjectDetectionResult {
-            bounding_box: Some((bbox_x, bbox_y, bbox_width, bbox_height)),
-            center: (center_x, center_y),
-            offset_from_center: (offset_x, offset_y),
-            confidence: max_confidence,
-            person_count: filtered_detections.len(),
-        })
-    }
-
-    /// Prepare image data for YOLO input
-    fn prepare_image_for_yolo(&self, img: &RgbImage) -> Result<Vec<u8>> {
-        // Convert RgbImage to Vec<u8> in BGR format (OpenCV format)
-        let mut img_data = Vec::new();
-        for pixel in img.pixels() {
-            img_data.push(pixel[2]); // B
-            img_data.push(pixel[1]); // G  
-            img_data.push(pixel[0]); // R
-        }
-        Ok(img_data)
-    }
-
-    /// Apply Non-Maximum Suppression to filter overlapping detections
-    fn apply_nms(&self, detections: &[&YoloResult]) -> Result<Vec<YoloResult>> {
-        // Simple NMS implementation
-        // In production, you'd want a more sophisticated algorithm
-        let mut filtered = Vec::new();
-        let mut processed = vec![false; detections.len()];
-
-        for (i, detection) in detections.iter().enumerate() {
-            if processed[i] {
-                continue;
-            }
-
-            filtered.push((*detection).clone());
-            processed[i] = true;
-
-            // Mark overlapping detections as processed
-            for (j, other) in detections.iter().enumerate().skip(i + 1) {
-                if processed[j] {
-                    continue;
-                }
-
-                let iou = self.calculate_iou(detection, other);
-                if iou > self.nms_threshold {
-                    processed[j] = true;
-                }
-            }
-        }
-
-        Ok(filtered)
-    }
-
-    /// Calculate Intersection over Union (IoU) between two detections
-    fn calculate_iou(&self, det1: &YoloResult, det2: &YoloResult) -> f32 {
-        // Convert center coordinates to corner coordinates
-        let x1_min = det1.x - det1.width / 2.0;
-        let y1_min = det1.y - det1.height / 2.0;
-        let x1_max = det1.x + det1.width / 2.0;
-        let y1_max = det1.y + det1.height / 2.0;
-
-        let x2_min = det2.x - det2.width / 2.0;
-        let y2_min = det2.y - det2.height / 2.0;
-        let x2_max = det2.x + det2.width / 2.0;
-        let y2_max = det2.y + det2.height / 2.0;
-
-        // Calculate intersection
-        let inter_x_min = x1_min.max(x2_min);
-        let inter_y_min = y1_min.max(y2_min);
-        let inter_x_max = x1_max.min(x2_max);
-        let inter_y_max = y1_max.min(y2_max);
-
-        let inter_width = (inter_x_max - inter_x_min).max(0.0);
-        let inter_height = (inter_y_max - inter_y_min).max(0.0);
-        let intersection = inter_width * inter_height;
-
-        // Calculate union
-        let area1 = det1.width * det1.height;
-        let area2 = det2.width * det2.height;
-        let union = area1 + area2 - intersection;
-
-        if union > 0.0 {
-            intersection / union
+        // Convert Python script result to our internal format
+        let people_detected = python_result.error.is_none() && 
+            python_result.bounding_box != [0, 0, python_result.imagesize.width as i32, python_result.imagesize.height as i32];
+        
+        let bounding_box = if people_detected {
+            // Convert Python format [x_min, y_min, x_max, y_max] to (x, y, width, height)
+            let x_min = python_result.bounding_box[0].max(0) as u32;
+            let y_min = python_result.bounding_box[1] as u32;
+            let x_max = python_result.bounding_box[2] as u32;
+            let y_max = python_result.bounding_box[3] as u32;
+            let width = x_max.saturating_sub(x_min);
+            let height = y_max.saturating_sub(y_min);
+            Some((x_min, y_min, width, height))
         } else {
-            0.0
-        }
-    }
-}
+            None
+        };
 
-// Placeholder implementations when AI feature is not enabled
-#[cfg(not(feature = "ai"))]
-#[allow(dead_code)]
-pub struct SubjectDetector;
-
-#[cfg(not(feature = "ai"))]
-#[allow(dead_code)]
-impl SubjectDetector {
-    pub fn new(
-        _config_path: &Path,
-        _weights_path: &Path,
-        _confidence_threshold: f32,
-        _nms_threshold: f32,
-    ) -> Result<Self> {
-        Ok(Self)
-    }
-
-    pub fn detect_people(&self, img: &RgbImage) -> Result<SubjectDetectionResult> {
-        let (width, height) = img.dimensions();
         Ok(SubjectDetectionResult {
-            bounding_box: None,
-            center: (width / 2, height / 2),
-            offset_from_center: (0, 0),
-            confidence: 0.0,
-            person_count: 0,
+            bounding_box,
+            center: (python_result.center[0], python_result.center[1]),
+            offset_from_center: (python_result.offset[0], python_result.offset[1]),
+            confidence: if people_detected { 1.0 } else { 0.0 },
+            person_count: if people_detected { 1 } else { 0 },
         })
     }
+
+    /// Save image to temporary file for Python script
+    fn save_temp_image(&self, img: &RgbImage) -> Result<String> {
+        // Create temporary file path
+        let temp_dir = std::env::temp_dir();
+        let temp_filename = format!("yolo_input_{}.jpg", std::process::id());
+        let temp_path = temp_dir.join(temp_filename);
+        
+        // Save image as JPEG
+        img.save(&temp_path)?;
+        
+        Ok(temp_path.to_string_lossy().to_string())
+    }
 }
 
-/// Create a subject detector using the YOLOv3 models from the assets directory
+/// Create a subject detector using the find_subject.py script
 #[allow(dead_code)]
-pub fn create_default_detector(
-    assets_path: &Path,
-    confidence_threshold: f32,
-    nms_threshold: f32,
-) -> Result<SubjectDetector> {
-    let config_path = assets_path.join("yolov3.cfg");
-    let weights_path = assets_path.join("yolov3.weights");
-
-    if !config_path.exists() {
+pub fn create_default_detector(script_path: &Path) -> Result<SubjectDetector> {
+    if !script_path.exists() {
         return Err(anyhow::anyhow!(
-            "YOLOv3 config file not found: {}",
-            config_path.display()
+            "find_subject.py script not found: {}",
+            script_path.display()
         ));
     }
 
-    if !weights_path.exists() {
-        return Err(anyhow::anyhow!(
-            "YOLOv3 weights file not found: {}. Download from: https://pjreddie.com/media/files/yolov3.weights",
-            weights_path.display()
-        ));
-    }
-
-    SubjectDetector::new(&config_path, &weights_path, confidence_threshold, nms_threshold)
+    SubjectDetector::new(script_path)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use image::ImageBuffer;
+    use std::path::Path;
 
     fn create_test_image(width: u32, height: u32) -> RgbImage {
         ImageBuffer::from_fn(width, height, |x, y| {
@@ -353,6 +208,88 @@ mod tests {
         assert_eq!(result.person_count, 1);
         assert_eq!(result.center, (200, 200));
         assert_eq!(result.offset_from_center, (50, 50));
+    }
+
+    /// Test people detection on known image with expected results
+    /// Expected results from find_subject.py:
+    /// - Image size: 4080,3072
+    /// - Bounding box: -5,449,3402,3102  
+    /// - Center: 1698,1775
+    /// - Offset: -342,239
+    #[test]
+    fn test_people_detection_pxl_night_image() {
+        let test_image_path = "/Users/alessandro/Desktop/arduino/photos/photos/PXL_20231231_193442105.NIGHT.jpg";
+        
+        // Skip test if image doesn't exist (CI environment)
+        if !Path::new(test_image_path).exists() {
+            println!("Skipping test - image not found: {}", test_image_path);
+            return;
+        }
+
+        // Expected results from Python find_subject.py
+        let expected_image_size = (4080, 3072);
+        let expected_bbox = (-5i32, 449u32, 3402u32, 3102u32); // x can be negative
+        let expected_center = (1698, 1775);
+        let expected_offset = (-342i32, 239i32);
+
+        // Load the test image
+        let img = match image::open(test_image_path) {
+            Ok(img) => img.to_rgb8(),
+            Err(e) => {
+                println!("Failed to load test image: {}", e);
+                return;
+            }
+        };
+
+        // Verify image dimensions match expected
+        assert_eq!(img.dimensions(), expected_image_size, 
+            "Image dimensions don't match expected size");
+
+        {
+            // Test with Python find_subject.py script
+            let script_path = Path::new("/Users/alessandro/Documents/git/sephiroth74/arduino/esp32-photo-frame/scripts/private/find_subject.py");
+            if script_path.exists() {
+                match create_default_detector(script_path) {
+                    Ok(detector) => {
+                        match detector.detect_people(&img) {
+                            Ok(result) => {
+                                println!("\n=== Python Detection Results ===");
+                                println!("Image size: {},{}", img.dimensions().0, img.dimensions().1);
+                                println!("People detected: {}", result.person_count);
+                                println!("Center: {},{}", result.center.0, result.center.1);
+                                println!("Offset: {},{}", result.offset_from_center.0, result.offset_from_center.1);
+                                
+                                if let Some((x, y, w, h)) = result.bounding_box {
+                                    println!("Bounding box: {},{},{},{}", x, y, w, h);
+                                } else {
+                                    println!("No bounding box (no people detected)");
+                                }
+                                
+                                println!("\n=== Expected Results (from find_subject.py) ===");
+                                println!("Image size: {},{}", expected_image_size.0, expected_image_size.1);
+                                println!("Bounding box: {},{},{},{}", expected_bbox.0, expected_bbox.1, expected_bbox.2, expected_bbox.3);
+                                println!("Center: {},{}", expected_center.0, expected_center.1);
+                                println!("Offset: {},{}", expected_offset.0, expected_offset.1);
+                                
+                                // Since we're calling the same Python script, results should match exactly
+                                assert_eq!(result.person_count, 1, "Should detect 1 person");
+                                assert_eq!(result.center, expected_center, "Center should match exactly");
+                                assert_eq!(result.offset_from_center, expected_offset, "Offset should match exactly");
+                                
+                                println!("\n✅ Python Detection Validation PASSED!");
+                                println!("   People detected: {} (expected: 1)", result.person_count);
+                                println!("   Center: ({}, {}) matches expected", result.center.0, result.center.1);
+                                println!("   Offset: ({}, {}) matches expected", result.offset_from_center.0, result.offset_from_center.1);
+                            }
+                            Err(e) => println!("Detection failed: {}", e),
+                        }
+                    }
+                    Err(e) => println!("Failed to create detector: {}", e),
+                }
+            } else {
+                println!("find_subject.py script not found - skipping Python test");
+            }
+        }
     }
 
     #[test]

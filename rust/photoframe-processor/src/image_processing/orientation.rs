@@ -82,6 +82,44 @@ pub struct OrientationInfo {
     pub effective_height: u32,
 }
 
+/// Fast orientation detection using only image headers (no full image loading)
+/// 
+/// This is much faster than detect_orientation() for batch processing
+pub fn detect_orientation_fast(image_path: &Path) -> Result<OrientationInfo> {
+    // Get image dimensions without loading the full image
+    let image_reader = image::ImageReader::open(image_path)?;
+    let (original_width, original_height) = image_reader.into_dimensions()?;
+    
+    // Try to read EXIF orientation
+    let exif_orientation = read_exif_orientation(image_path).unwrap_or(ExifOrientation::Undefined);
+    
+    // Calculate effective dimensions after EXIF rotation
+    let (effective_width, effective_height) = if exif_orientation.is_rotated_portrait() {
+        // Image is rotated 90°, so dimensions are swapped in EXIF
+        (original_height, original_width)
+    } else {
+        (original_width, original_height)
+    };
+    
+    // Determine if the image is portrait based on effective dimensions
+    let is_portrait = if exif_orientation.is_rotated_portrait() {
+        // For 90° rotated images, check the effective dimensions
+        effective_height > effective_width // Taller than wide after rotation
+    } else {
+        // For non-rotated images, check original dimensions
+        effective_height > effective_width // Taller than wide
+    };
+    
+    Ok(OrientationInfo {
+        exif_orientation,
+        is_portrait,
+        original_width,
+        original_height,
+        effective_width,
+        effective_height,
+    })
+}
+
 /// Detect image orientation from EXIF data and image dimensions
 /// 
 /// This matches the logic from utils.sh:extract_image_info()

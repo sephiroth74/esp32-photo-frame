@@ -1,6 +1,66 @@
 use anyhow::Result;
 use image::{ImageBuffer, Rgb, RgbImage};
 
+use super::resize::resize_image;
+
+/// Combine two already-processed portrait images side by side
+/// 
+/// This function assumes both images are already at half-width size (e.g., 400x480)
+/// and just places them side by side without any resizing
+pub fn combine_processed_portraits(
+    left_img: &RgbImage,
+    right_img: &RgbImage,
+    target_width: u32,
+    target_height: u32,
+) -> Result<RgbImage> {
+    let mut combined = ImageBuffer::new(target_width, target_height);
+    let half_width = target_width / 2;
+    
+    // Left image should already be half_width x target_height
+    let left_width = left_img.width().min(half_width);
+    let left_height = left_img.height().min(target_height);
+    
+    // Right image should already be half_width x target_height  
+    let right_width = right_img.width().min(half_width);
+    let right_height = right_img.height().min(target_height);
+    
+    // Copy left image to left half
+    for y in 0..left_height {
+        for x in 0..left_width {
+            if let Some(pixel) = left_img.get_pixel_checked(x, y) {
+                combined.put_pixel(x, y, *pixel);
+            }
+        }
+    }
+    
+    // Copy right image to right half
+    for y in 0..right_height {
+        for x in 0..right_width {
+            let dst_x = half_width + x;
+            if dst_x < target_width {
+                if let Some(pixel) = right_img.get_pixel_checked(x, y) {
+                    combined.put_pixel(dst_x, y, *pixel);
+                }
+            }
+        }
+    }
+    
+    // Draw white 3px vertical divider line between the two images
+    let divider_width = 3;
+    let divider_start = half_width.saturating_sub(divider_width / 2);
+    let divider_end = (half_width + divider_width / 2).min(target_width);
+    
+    for y in 0..target_height {
+        for x in divider_start..divider_end {
+            if x < target_width {
+                combined.put_pixel(x, y, Rgb([255, 255, 255])); // White divider
+            }
+        }
+    }
+    
+    Ok(combined)
+}
+
 /// Combine two portrait images side by side into a landscape image
 /// 
 /// This creates a single landscape image by placing two portrait images
@@ -18,35 +78,37 @@ pub fn combine_portraits(
     
     let half_width = target_width / 2;
     
-    // Resize both images to half width if needed
-    let left_resized = if left_img.width() != half_width || left_img.height() != target_height {
-        resize_to_exact(left_img, half_width, target_height)?
-    } else {
-        left_img.clone()
-    };
+    // Resize both images to fit within half width while preserving aspect ratio
+    let left_resized = resize_to_fit(left_img, half_width, target_height)?;
+    let right_resized = resize_to_fit(right_img, half_width, target_height)?;
     
-    let right_resized = if right_img.width() != half_width || right_img.height() != target_height {
-        resize_to_exact(right_img, half_width, target_height)?
-    } else {
-        right_img.clone()
-    };
+    // Center and copy left image to left half
+    let left_offset_x = (half_width.saturating_sub(left_resized.width())) / 2;
+    let left_offset_y = (target_height.saturating_sub(left_resized.height())) / 2;
     
-    // Copy left image to left half
-    for y in 0..target_height {
-        for x in 0..half_width {
-            if let Some(pixel) = left_resized.get_pixel_checked(x, y) {
-                combined.put_pixel(x, y, *pixel);
+    for y in 0..left_resized.height() {
+        for x in 0..left_resized.width() {
+            let dst_x = left_offset_x + x;
+            let dst_y = left_offset_y + y;
+            if dst_x < half_width && dst_y < target_height {
+                if let Some(pixel) = left_resized.get_pixel_checked(x, y) {
+                    combined.put_pixel(dst_x, dst_y, *pixel);
+                }
             }
         }
     }
     
-    // Copy right image to right half
-    for y in 0..target_height {
-        for x in 0..half_width {
-            let dst_x = half_width + x;
-            if dst_x < target_width {
+    // Center and copy right image to right half
+    let right_offset_x = half_width + (half_width.saturating_sub(right_resized.width())) / 2;
+    let right_offset_y = (target_height.saturating_sub(right_resized.height())) / 2;
+    
+    for y in 0..right_resized.height() {
+        for x in 0..right_resized.width() {
+            let dst_x = right_offset_x + x;
+            let dst_y = right_offset_y + y;
+            if dst_x < target_width && dst_y < target_height {
                 if let Some(pixel) = right_resized.get_pixel_checked(x, y) {
-                    combined.put_pixel(dst_x, y, *pixel);
+                    combined.put_pixel(dst_x, dst_y, *pixel);
                 }
             }
         }
@@ -67,22 +129,32 @@ pub fn combine_portraits(
     Ok(combined)
 }
 
-/// Resize image to exact dimensions (placeholder implementation)
+/// Resize image to fit within given dimensions while preserving aspect ratio
+fn resize_to_fit(img: &RgbImage, max_width: u32, max_height: u32) -> Result<RgbImage> {
+    let (current_width, current_height) = img.dimensions();
+    
+    // Calculate scaling factor to fit within bounds while preserving aspect ratio
+    let width_scale = max_width as f64 / current_width as f64;
+    let height_scale = max_height as f64 / current_height as f64;
+    let scale = width_scale.min(height_scale);
+    
+    // Calculate new dimensions
+    let new_width = (current_width as f64 * scale) as u32;
+    let new_height = (current_height as f64 * scale) as u32;
+    
+    // Ensure minimum size of 1x1
+    let final_width = new_width.max(1);
+    let final_height = new_height.max(1);
+    
+    // Use the same high-quality resizing function from resize module
+    resize_image(img, final_width, final_height)
+}
+
+/// Resize image to exact dimensions using high-quality algorithm (legacy)
 #[allow(dead_code)]
 fn resize_to_exact(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage> {
-    // TODO: Use proper high-quality resizing
-    // For now, use simple nearest neighbor
-    let (src_width, src_height) = img.dimensions();
-    let mut resized = ImageBuffer::new(width, height);
-    
-    for (x, y, pixel) in resized.enumerate_pixels_mut() {
-        let src_x = (x * src_width / width).min(src_width - 1);
-        let src_y = (y * src_height / height).min(src_height - 1);
-        
-        *pixel = *img.get_pixel(src_x, src_y);
-    }
-    
-    Ok(resized)
+    // Use the same high-quality resizing function from resize module
+    resize_image(img, width, height)
 }
 
 /// Pair portrait images for combination

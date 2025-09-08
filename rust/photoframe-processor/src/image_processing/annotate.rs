@@ -1,7 +1,7 @@
 use anyhow::Result;
 use image::{Rgb, RgbImage};
 use imageproc::drawing::{draw_text_mut, text_size};
-use ab_glyph::{FontRef, PxScale};
+use ab_glyph::{FontRef, PxScale, Font, ScaleFont};
 use std::path::Path;
 
 /// Add date annotation to an image (extracted from EXIF data)
@@ -30,13 +30,22 @@ pub fn add_filename_annotation(
     let scale = PxScale::from(font_size);
     
     // Calculate text dimensions using imageproc
-    let (text_width, text_height) = text_size(scale, &font, &display_text);
+    let (text_width, _text_height) = text_size(scale, &font, &display_text);
     
-    // Calculate background rectangle with padding
-    let padding_x = 8;
-    let padding_y = 6;
+    // Get font metrics for baseline positioning
+    let scaled_font = font.as_scaled(scale);
+    let ascent = scaled_font.ascent();
+    
+    // Use a more conservative approach for background height
+    // Use font ascent + descent for more accurate height calculation
+    let descent = scaled_font.descent();
+    let actual_text_height = (ascent + descent.abs()).ceil() as u32;
+    
+    // Calculate background rectangle with reasonable padding
+    let padding_x = 6;
+    let padding_y = 4;
     let bg_width = text_width as u32 + (padding_x * 2);
-    let bg_height = text_height as u32 + (padding_y * 2);
+    let bg_height = actual_text_height + (padding_y * 2);
     
     let (img_width, img_height) = annotated_img.dimensions();
     
@@ -55,9 +64,18 @@ pub fn add_filename_annotation(
         bg_r, bg_g, bg_b, bg_a
     );
     
-    // Calculate text position within the background rectangle
+    // Calculate properly centered text position within the background rectangle
     let text_x = rect_x + padding_x;
-    let text_y = rect_y + padding_y;
+    
+    // More direct centering approach using actual text dimensions
+    // Position the text so its visual center aligns with the background center
+    let bg_center_y = rect_y + (bg_height / 2);
+    
+    // Calculate text center position: the baseline should be positioned so that
+    // the visual center of the text aligns with the background center
+    // Fine-tuning: need to move text down to reduce top padding
+    let text_visual_center_offset = ascent * 0.5; // About 50% of ascent above baseline
+    let text_y = bg_center_y as f32 - text_visual_center_offset;
     
     // Draw text using imageproc with proper font rendering
     draw_text_mut(

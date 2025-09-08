@@ -103,63 +103,27 @@ pub fn validate_inputs(args: &Args) -> Result<()> {
         ));
     }
 
-    // Validate YOLO configuration (only when AI feature is enabled)
-    #[cfg(feature = "ai")]
+    // Validate Python script configuration
     {
         if args.detect_people {
-            // Validate YOLO assets directory
-            if let Some(assets_dir) = &args.yolo_assets_dir {
-                if !assets_dir.exists() {
+            // Validate Python script path
+            if let Some(script_path) = &args.python_script_path {
+                if !script_path.exists() {
                     return Err(anyhow::anyhow!(
-                        "YOLO assets directory does not exist: {}",
-                        assets_dir.display()
+                        "Python script does not exist: {}",
+                        script_path.display()
                     ));
                 }
-                if !assets_dir.is_dir() {
+                if !script_path.is_file() {
                     return Err(anyhow::anyhow!(
-                        "YOLO assets path is not a directory: {}",
-                        assets_dir.display()
-                    ));
-                }
-
-                // Check for required YOLO files
-                let config_file = assets_dir.join("yolov3.cfg");
-                let weights_file = assets_dir.join("yolov3.weights");
-
-                if !config_file.exists() {
-                    return Err(anyhow::anyhow!(
-                        "YOLO config file not found: {}. Expected yolov3.cfg in assets directory.",
-                        config_file.display()
-                    ));
-                }
-
-                if !weights_file.exists() {
-                    return Err(anyhow::anyhow!(
-                        "YOLO weights file not found: {}. Download yolov3.weights from: \
-                         https://pjreddie.com/media/files/yolov3.weights",
-                        weights_file.display()
+                        "Python script path is not a file: {}",
+                        script_path.display()
                     ));
                 }
             } else {
                 return Err(anyhow::anyhow!(
-                    "YOLO assets directory is required when people detection is enabled. \
-                     Use --yolo-assets <DIR> to specify the directory containing yolov3.cfg and yolov3.weights"
-                ));
-            }
-
-            // Validate confidence threshold
-            if args.yolo_confidence < 0.0 || args.yolo_confidence > 1.0 {
-                return Err(anyhow::anyhow!(
-                    "YOLO confidence threshold must be between 0.0 and 1.0, got: {}",
-                    args.yolo_confidence
-                ));
-            }
-
-            // Validate NMS threshold
-            if args.yolo_nms_threshold < 0.0 || args.yolo_nms_threshold > 1.0 {
-                return Err(anyhow::anyhow!(
-                    "YOLO NMS threshold must be between 0.0 and 1.0, got: {}",
-                    args.yolo_nms_threshold
+                    "Python script path is required when people detection is enabled. \
+                     Use --python-script <FILE> to specify the path to find_subject.py"
                 ));
             }
         }
