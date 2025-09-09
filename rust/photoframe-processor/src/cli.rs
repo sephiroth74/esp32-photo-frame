@@ -9,6 +9,9 @@ pub enum ColorType {
     /// 6-color processing (matches auto.sh -t 6c)
     #[value(name = "6c")]
     SixColor,
+    /// 6-color processing (matches auto.sh -t 7c)
+    #[value(name = "7c")]
+    SevenColor,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -90,9 +93,6 @@ pub struct Args {
     #[arg(long = "output-format", default_value = "bmp")]
     pub output_format: OutputType,
 
-    /// Custom palette file for color processing (optional)
-    #[arg(short = 'p', long = "palette", value_name = "FILE")]
-    pub palette: Option<PathBuf>,
 
     /// Comma-separated list of image extensions to process
     #[arg(long = "extensions", default_value = "jpg,jpeg,png,heic,webp,tiff")]
@@ -149,6 +149,10 @@ pub struct Args {
     /// Find original filename that matches the given hash (format: 8 hex characters like '7af9ecca')
     #[arg(long = "find-hash", value_name = "HASH")]
     pub find_hash: Option<String>,
+
+    /// Enable debug mode: visualize detection boxes and crop area without processing
+    #[arg(long = "debug")]
+    pub debug: bool,
 }
 
 impl Args {
@@ -264,7 +268,6 @@ impl Default for Args {
             size: "800x480".to_string(),
             processing_type: ColorType::BlackWhite,
             output_format: OutputType::Bmp,
-            palette: None,
             extensions_str: "jpg,png".to_string(),
             auto_process: false,
             pointsize: 24,
@@ -278,6 +281,7 @@ impl Default for Args {
             python_script_path: None,
             force: false,
             find_hash: None,
+            debug: false,
         }
     }
 }

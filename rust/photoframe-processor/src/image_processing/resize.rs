@@ -90,7 +90,7 @@ pub fn smart_resize_with_people_detection(
 /// Example: image 1100x1000, center (900,900), crop 800x480
 /// - Ideal: left=500, top=660, right=1300, bottom=1140
 /// - Clamped: left=300, top=520, right=1100, bottom=1000 (maintains 800x480)
-fn calculate_people_aware_crop_offset(
+pub fn calculate_people_aware_crop_offset(
     src_width: u32,
     src_height: u32,
     crop_width: u32,
@@ -119,7 +119,7 @@ fn calculate_people_aware_crop_offset(
 }
 
 /// Calculate standard center crop offset
-fn standard_crop_offset(src_width: u32, src_height: u32, crop_width: u32, crop_height: u32) -> (u32, u32) {
+pub fn standard_crop_offset(src_width: u32, src_height: u32, crop_width: u32, crop_height: u32) -> (u32, u32) {
     let crop_x = (src_width.saturating_sub(crop_width)) / 2;
     let crop_y = (src_height.saturating_sub(crop_height)) / 2;
     (crop_x, crop_y)

@@ -8,21 +8,25 @@ pub mod batch;
 pub mod subject_detection;
 
 use anyhow::{Context, Result};
-use image::RgbImage;
+use image::{Rgb, RgbImage};
+use imageproc::drawing::draw_hollow_rect_mut;
+use imageproc::rect::Rect;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::collections::HashSet;
 use walkdir::WalkDir;
 
-use crate::utils::{has_valid_extension, verbose_println, create_combined_portrait_filename, generate_filename_hash};
+use crate::utils::{create_combined_portrait_filename, generate_filename_hash, has_valid_extension, verbose_println};
 use combine::combine_processed_portraits;
+use orientation::get_effective_target_dimensions;
 
 #[derive(Debug, Clone)]
 pub enum ProcessingType {
     BlackWhite,
     SixColor,
+    SevenColor,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +47,8 @@ pub struct ProcessingConfig {
     pub python_script_path: Option<PathBuf>,
     // Duplicate handling
     pub force: bool,
+    // Debug mode
+    pub debug: bool,
 }
 
 pub struct ProcessingEngine {
@@ -697,7 +703,7 @@ impl ProcessingEngine {
         }
 
         verbose_println(self.config.verbose, 
-            &format!("ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs."));
+            &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
@@ -774,187 +780,120 @@ impl ProcessingEngine {
 
         verbose_println(self.config.verbose, &format!("Processing {} portrait images", portrait_files.len()));
 
-        // Process portraits in batches to avoid memory exhaustion
-        completion_progress.set_message("Processing portrait pairs in batches...");
-        const BATCH_SIZE: usize = 20; // Process 20 portraits at a time (10 pairs)
+        // Randomize portrait order for more interesting combinations
+        let mut portrait_files = portrait_files.to_vec();
+        use rand::seq::SliceRandom;
+        let mut rng = rand::rng();
+        portrait_files.shuffle(&mut rng);
         
-        let mut all_results = Vec::new();
-        let mut processed_count = 0;
-        
-        // Process portraits in batches
-        for (_batch_idx, batch) in portrait_files.chunks(BATCH_SIZE).enumerate() {
-            completion_progress.set_message("Processing portrait batch...");
-            
-            let batch_results = self.process_portrait_batch(
-                batch, 
-                output_dir, 
-                main_progress, 
-                thread_progress_bars, 
-                &mut processed_count,
-                portrait_files.len()
-            )?;
-            
-            all_results.extend(batch_results);
+        // If odd number of portraits, discard the last one
+        if portrait_files.len() % 2 == 1 {
+            let discarded = portrait_files.pop().unwrap();
+            verbose_println(self.config.verbose, &format!("ℹ Discarding leftover portrait: {}", 
+                discarded.file_name().unwrap_or_default().to_string_lossy()));
         }
 
+        // Create pairs from randomized portraits
+        let portrait_pairs: Vec<(PathBuf, PathBuf)> = portrait_files
+            .chunks_exact(2)
+            .map(|chunk| (chunk[0].clone(), chunk[1].clone()))
+            .collect();
+            
+        verbose_println(self.config.verbose, &format!("Created {} portrait pairs", portrait_pairs.len()));
+
+        completion_progress.set_message("Processing portrait pairs in parallel...");
+        
+        // Process each pair individually using the thread pool (just like landscapes)
+        let results = self.process_portrait_pairs_parallel(
+            &portrait_pairs,
+            output_dir,
+            main_progress,
+            thread_progress_bars,
+            completion_progress,
+        )?;
+
         completion_progress.set_message("Portrait pairing complete");
-        Ok(all_results)
+        Ok(results)
     }
 
-    /// Process a single batch of portrait images
-    fn process_portrait_batch(
+    /// Process portrait pairs in parallel using the thread pool (similar to landscape processing)
+    fn process_portrait_pairs_parallel(
         &self,
-        portrait_batch: &[PathBuf],
+        portrait_pairs: &[(PathBuf, PathBuf)],
         output_dir: &Path,
         main_progress: &ProgressBar,
         thread_progress_bars: &[ProgressBar],
-        processed_count: &mut usize,
-        total_portraits: usize,
+        completion_progress: &ProgressBar,
     ) -> Result<Vec<Result<ProcessingResult>>> {
-        // Load and process this batch of portraits
-        let mut portrait_data = Vec::new();
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::collections::HashMap;
         
-        for (_i, path) in portrait_batch.iter().enumerate() {
-            // Update progress based on total portraits processed
-            let total_progress = (*processed_count as f64 / total_portraits as f64) * 40.0 + 60.0; // 60-100% range
-            main_progress.set_position(total_progress as u64);
-            
-            match image::open(path) {
-                Ok(img) => {
-                    let rgb_img = img.to_rgb8();
-                    
-                    // 1. Apply EXIF rotation to get final orientation
-                    let rotated_img = match orientation::detect_orientation(path, &rgb_img) {
-                        Ok(orientation_info) => {
-                            match orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation) {
-                                Ok(rotated) => rotated,
-                                Err(e) => {
-                                    verbose_println(self.config.verbose, &format!("⚠ Failed to apply rotation to {}: {}", path.display(), e));
-                                    rgb_img
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            verbose_println(self.config.verbose, &format!("⚠ Failed to detect orientation for {}: {}", path.display(), e));
-                            rgb_img
-                        }
-                    };
-                    
-                    // 2. Detect people if enabled (for smart cropping)
-                    let people_detection = if self.subject_detector.is_some() {
-                        self.detect_people_with_logging(&rotated_img, path)
+        let processed_count = AtomicUsize::new(0);
+        let thread_assignment = Arc::new(Mutex::new(HashMap::new()));
+        let next_thread_id = AtomicUsize::new(0);
+        
+        completion_progress.set_message("Processing portrait pairs in parallel...");
+        
+        let results: Vec<Result<ProcessingResult>> = portrait_pairs
+            .par_iter()
+            .enumerate()
+            .map(|(index, (left_path, right_path))| {
+                // Get or assign thread progress bar
+                let current_thread_id = rayon::current_thread_index().unwrap_or(0);
+                let pb_index = {
+                    let mut assignment = thread_assignment.lock().unwrap();
+                    if let Some(&pb_index) = assignment.get(&current_thread_id) {
+                        pb_index
                     } else {
-                        None
-                    };
-                    
-                    // 3. Smart crop and resize to half-landscape size (e.g., 400x480)
-                    let half_width = self.config.target_width / 2;
-                    let resized_img = resize::smart_resize_with_people_detection(
-                        &rotated_img,
-                        half_width,
-                        self.config.target_height,
-                        self.config.auto_process,
-                        people_detection.as_ref(),
-                        self.config.verbose,
-                    )?;
-                    
-                    // 4. Apply image processing (B&W conversion + Floyd-Steinberg dithering)
-                    let processed_img = convert::process_image(&resized_img, &self.config.processing_type)?;
-                    
-                    // 5. Apply annotation if configured
-                    let final_img = if !self.config.font_name.is_empty() {
-                        annotate::add_filename_annotation(
-                            &processed_img,
-                            path,
-                            &self.config.font_name,
-                            self.config.font_size, // Normal font size since image is already at final size
-                            &self.config.annotation_background,
-                        )?
-                    } else {
-                        processed_img
-                    };
-                    
-                    portrait_data.push((final_img, path.clone(), people_detection));
-                    *processed_count += 1;
-                }
-                Err(e) => {
-                    verbose_println(self.config.verbose, &format!("⚠ Failed to load {}: {}", path.display(), e));
-                }
-            }
-        }
-
-        // Randomize portrait order for more interesting combinations
-        use rand::seq::SliceRandom;
-        let mut rng = rand::rng();
-        portrait_data.shuffle(&mut rng);
-        
-        // If odd number of portraits in this batch, discard the last one
-        if portrait_data.len() % 2 == 1 {
-            let discarded = portrait_data.pop().unwrap();
-            verbose_println(self.config.verbose, &format!("ℹ Discarding leftover portrait from batch: {}", 
-                discarded.1.file_name().unwrap_or_default().to_string_lossy()));
-        }
-
-        // Create pairs from randomized images with their detection results
-        let image_pairs: Vec<(RgbImage, RgbImage)> = portrait_data
-            .chunks_exact(2)
-            .map(|chunk| (chunk[0].0.clone(), chunk[1].0.clone()))
-            .collect();
-            
-        let path_pairs: Vec<(PathBuf, PathBuf)> = portrait_data
-            .chunks_exact(2)
-            .map(|chunk| (chunk[0].1.clone(), chunk[1].1.clone()))
-            .collect();
-            
-        let detection_pairs: Vec<(Option<subject_detection::SubjectDetectionResult>, Option<subject_detection::SubjectDetectionResult>)> = portrait_data
-            .chunks_exact(2)
-            .map(|chunk| (chunk[0].2.clone(), chunk[1].2.clone()))
+                        let pb_index = next_thread_id.fetch_add(1, Ordering::Relaxed) % thread_progress_bars.len();
+                        assignment.insert(current_thread_id, pb_index);
+                        pb_index
+                    }
+                };
+                
+                let thread_pb = &thread_progress_bars[pb_index];
+                
+                // Update thread progress
+                let left_filename = left_path.file_name().and_then(|f| f.to_str()).unwrap_or("unknown");
+                let right_filename = right_path.file_name().and_then(|f| f.to_str()).unwrap_or("unknown");
+                thread_pb.set_message(format!("Processing {} + {}", left_filename, right_filename));
+                
+                // Process the portrait pair
+                let result = self.process_single_portrait_pair_with_progress(
+                    left_path, 
+                    right_path,
+                    output_dir, 
+                    index,
+                    thread_pb
+                );
+                
+                // Update main progress
+                let count = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
+                main_progress.inc(1);
+                main_progress.set_message(format!("Completed: {}/{}", count, portrait_pairs.len()));
+                
+                // Update completion progress
+                let progress_percent = (count as f64 / portrait_pairs.len() as f64) * 100.0;
+                completion_progress.set_position(progress_percent as u64);
+                completion_progress.set_message(format!("Processing pairs: {}/{}", count, portrait_pairs.len()));
+                
+                // Mark thread as idle
+                thread_pb.set_message("Idle");
+                
+                result
+            })
             .collect();
 
-        verbose_println(self.config.verbose, &format!("Created {} portrait pairs from batch", image_pairs.len()));
-
-        // Process each pair sequentially to avoid memory pressure
-        let mut batch_results = Vec::new();
-        
-        for (i, (((left_img, right_img), (left_path, right_path)), (left_detection, right_detection))) in 
-            image_pairs.iter()
-                .zip(path_pairs.iter())
-                .zip(detection_pairs.iter())
-                .enumerate() {
-            
-            // Use a simple thread progress bar for this pair
-            let thread_pb = &thread_progress_bars[i % thread_progress_bars.len()];
-            
-            let result = self.process_portrait_pair_with_progress(
-                left_img, right_img,
-                left_path, right_path,
-                left_detection, right_detection,
-                output_dir,
-                i,
-                thread_pb,
-            );
-            
-            batch_results.push(result);
-            
-            // Update progress
-            let pair_progress = (*processed_count as f64 / total_portraits as f64) * 40.0 + 60.0;
-            main_progress.set_position(pair_progress as u64);
-            
-            thread_pb.set_message("Idle");
-        }
-
-        Ok(batch_results)
+        completion_progress.set_message("Finalizing portrait results...");
+        Ok(results)
     }
 
-    /// Process a single portrait pair by combining them into a landscape image
-    fn process_portrait_pair_with_progress(
+
+    /// Process a single portrait pair from raw image files (complete pipeline)
+    fn process_single_portrait_pair_with_progress(
         &self,
-        left_img: &RgbImage,
-        right_img: &RgbImage,
         left_path: &Path,
         right_path: &Path,
-        left_detection: &Option<subject_detection::SubjectDetectionResult>,
-        right_detection: &Option<subject_detection::SubjectDetectionResult>,
         output_dir: &Path,
         _index: usize,
         progress_bar: &ProgressBar,
@@ -967,20 +906,125 @@ impl ProcessingEngine {
             .and_then(|f| f.to_str())
             .unwrap_or("unknown");
         
-        verbose_println(self.config.verbose, &format!("Combining portraits: {} + {}", left_filename, right_filename));
+        verbose_println(self.config.verbose, &format!("Processing portrait pair: {} + {}", left_filename, right_filename));
 
+        // Stage 1: Load both images (10%)
+        progress_bar.set_position(10);
+        progress_bar.set_message(format!("Loading {} + {}", left_filename, right_filename));
+        
+        let left_img = image::open(left_path)
+            .with_context(|| format!("Failed to open left image: {}", left_path.display()))?
+            .to_rgb8();
+        let right_img = image::open(right_path)
+            .with_context(|| format!("Failed to open right image: {}", right_path.display()))?
+            .to_rgb8();
+
+        // Stage 2: Apply EXIF rotation (20%)
         progress_bar.set_position(20);
-        progress_bar.set_message(format!("Combining {} + {}", left_filename, right_filename));
+        progress_bar.set_message(format!("Applying rotation to {} + {}", left_filename, right_filename));
+        
+        let left_rotated = match orientation::detect_orientation(left_path, &left_img) {
+            Ok(orientation_info) => {
+                orientation::apply_rotation(&left_img, orientation_info.exif_orientation)
+                    .unwrap_or_else(|_| left_img.clone())
+            }
+            Err(_) => left_img.clone(),
+        };
+        
+        let right_rotated = match orientation::detect_orientation(right_path, &right_img) {
+            Ok(orientation_info) => {
+                orientation::apply_rotation(&right_img, orientation_info.exif_orientation)
+                    .unwrap_or_else(|_| right_img.clone())
+            }
+            Err(_) => right_img.clone(),
+        };
 
-        // Images are already fully processed (rotated, cropped, resized, processed, annotated)
-        // Just combine them side by side using simple placement
-        let combined_img = combine_processed_portraits(left_img, right_img, self.config.target_width, self.config.target_height)?;
+        // Stage 3: People detection (30%)
+        progress_bar.set_position(30);
+        progress_bar.set_message(format!("Detecting people in {} + {}", left_filename, right_filename));
+        
+        let left_detection = if self.subject_detector.is_some() {
+            self.detect_people_with_logging(&left_rotated, left_path)
+        } else {
+            None
+        };
+        
+        let right_detection = if self.subject_detector.is_some() {
+            self.detect_people_with_logging(&right_rotated, right_path)
+        } else {
+            None
+        };
 
+        // Stage 4: Resize to half-width (40%)
+        progress_bar.set_position(40);
+        progress_bar.set_message(format!("Resizing {} + {}", left_filename, right_filename));
+        
+        let half_width = self.config.target_width / 2;
+        
+        let left_resized = resize::smart_resize_with_people_detection(
+            &left_rotated,
+            half_width,
+            self.config.target_height,
+            self.config.auto_process,
+            left_detection.as_ref(),
+            self.config.verbose,
+        )?;
+        
+        let right_resized = resize::smart_resize_with_people_detection(
+            &right_rotated,
+            half_width,
+            self.config.target_height,
+            self.config.auto_process,
+            right_detection.as_ref(),
+            self.config.verbose,
+        )?;
+
+        // Stage 5: Apply image processing (50%)
+        progress_bar.set_position(50);
+        progress_bar.set_message(format!("Processing colors for {} + {}", left_filename, right_filename));
+        
+        let left_processed = convert::process_image(&left_resized, &self.config.processing_type)?;
+        let right_processed = convert::process_image(&right_resized, &self.config.processing_type)?;
+
+        // Stage 6: Apply annotations (60%)
         progress_bar.set_position(60);
+        progress_bar.set_message(format!("Adding annotations to {} + {}", left_filename, right_filename));
+        
+        let left_annotated = if !self.config.font_name.is_empty() {
+            annotate::add_filename_annotation(
+                &left_processed,
+                left_path,
+                &self.config.font_name,
+                self.config.font_size,
+                &self.config.annotation_background,
+            )?
+        } else {
+            left_processed
+        };
+        
+        let right_annotated = if !self.config.font_name.is_empty() {
+            annotate::add_filename_annotation(
+                &right_processed,
+                right_path,
+                &self.config.font_name,
+                self.config.font_size,
+                &self.config.annotation_background,
+            )?
+        } else {
+            right_processed
+        };
 
+        // Stage 7: Combine images (70%)
         progress_bar.set_position(70);
+        progress_bar.set_message(format!("Combining {} + {}", left_filename, right_filename));
+        
+        let combined_img = combine_processed_portraits(&left_annotated, &right_annotated, self.config.target_width, self.config.target_height)?;
 
-        // Generate combined filename using hashes: "combined_{hash1}_{hash2}"
+        // Stage 8: Save final result (80%)
+        progress_bar.set_position(80);
+        progress_bar.set_message(format!("Saving combined image"));
+        
+        // Generate combined filename
         let output_filename = match &self.config.output_format {
             crate::cli::OutputType::Bmp => create_combined_portrait_filename(left_path, right_path, "bmp"),
             crate::cli::OutputType::Bin => create_combined_portrait_filename(left_path, right_path, "bin"),
@@ -992,35 +1036,32 @@ impl ProcessingEngine {
         let output_path = output_dir.join(&output_filename);
         let bin_path = output_dir.join(&bin_filename);
 
-        // Images are already processed, just save the combined result
+        // Save based on output format
         match self.config.output_format {
             crate::cli::OutputType::Bmp => {
-                progress_bar.set_message(format!("Saving combined BMP"));
                 combined_img.save(&output_path)
                     .with_context(|| format!("Failed to save combined BMP: {}", output_path.display()))?;
             }
             crate::cli::OutputType::Bin => {
-                progress_bar.set_message(format!("Generating combined binary"));
                 let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
                 std::fs::write(&bin_path, &binary_data)
                     .with_context(|| format!("Failed to save combined binary: {}", bin_path.display()))?;
             }
             crate::cli::OutputType::Jpg => {
-                progress_bar.set_message(format!("Saving combined JPG"));
                 combined_img.save(&output_path)
                     .with_context(|| format!("Failed to save combined JPG: {}", output_path.display()))?;
             }
             crate::cli::OutputType::Png => {
-                progress_bar.set_message(format!("Saving combined PNG"));
                 combined_img.save(&output_path)
                     .with_context(|| format!("Failed to save combined PNG: {}", output_path.display()))?;
             }
         }
 
         progress_bar.set_position(100);
+        progress_bar.set_message(format!("Completed {} + {}", left_filename, right_filename));
         
         verbose_println(self.config.verbose, 
-            &format!("✅ Combined portrait pair completed in {:.2}s", start_time.elapsed().as_secs_f32()));
+            &format!("✅ Portrait pair completed in {:.2}s", start_time.elapsed().as_secs_f32()));
 
         // Create individual portrait results for the summary
         let individual_portraits = vec![
@@ -1052,6 +1093,351 @@ impl ProcessingEngine {
             people_count: combined_people_count,
             individual_portraits: Some(individual_portraits),
         })
+    }
+
+    /// Process images in debug mode - visualize detection boxes and crop area
+    pub fn process_debug_batch(
+        &self,
+        input_files: Vec<PathBuf>,
+        output_dir: &Path,
+    ) -> Result<Vec<ProcessingResult>> {
+        if !self.config.debug {
+            return Err(anyhow::anyhow!("Debug processing called but debug mode not enabled"));
+        }
+
+        let subject_detector = self.subject_detector.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Debug mode requires people detection"))?;
+
+        let mut results = Vec::new();
+
+        for input_path in input_files {
+            let result = self.process_debug_single(&input_path, output_dir, subject_detector)?;
+            results.push(result);
+        }
+
+        Ok(results)
+    }
+
+    /// Process a single image in debug mode
+    fn process_debug_single(
+        &self,
+        input_path: &Path,
+        output_dir: &Path,
+        subject_detector: &subject_detection::SubjectDetector,
+    ) -> Result<ProcessingResult> {
+        let filename = input_path.file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("unknown");
+
+        verbose_println(self.config.verbose, &format!("🔍 Debug processing: {}", filename));
+
+        // Load original image
+        let img = image::open(input_path)
+            .with_context(|| format!("Failed to load image: {}", input_path.display()))?
+            .to_rgb8();
+
+        // Run people detection
+        let detection_result = subject_detector.detect_people(&img)?;
+
+        // For debug mode, we also need the raw JSON data from find_subject.py to draw all boxes
+        let raw_detection_data = self.get_raw_detection_data(&img, subject_detector)?;
+
+        // Create annotated image with detection boxes
+        let mut annotated_img = img.clone();
+        self.draw_debug_annotations(&mut annotated_img, &detection_result, &raw_detection_data)?;
+
+        // Generate output filename
+        let output_filename = match &self.config.output_format {
+            crate::cli::OutputType::Bmp => crate::utils::create_output_filename(input_path, Some("debug"), "bmp"),
+            crate::cli::OutputType::Bin => crate::utils::create_output_filename(input_path, Some("debug"), "bin"), // Will save as image anyway
+            crate::cli::OutputType::Jpg => crate::utils::create_output_filename(input_path, Some("debug"), "jpg"),
+            crate::cli::OutputType::Png => crate::utils::create_output_filename(input_path, Some("debug"), "png"),
+        };
+
+        let output_path = output_dir.join(&output_filename);
+
+        // Save annotated image (no processing, just the annotations)
+        annotated_img.save(&output_path)
+            .with_context(|| format!("Failed to save debug image: {}", output_path.display()))?;
+
+        verbose_println(self.config.verbose, &format!("✅ Debug image saved: {}", output_filename));
+
+        Ok(ProcessingResult {
+            input_path: input_path.to_path_buf(),
+            bmp_path: output_path,
+            bin_path: output_dir.join("dummy.bin"), // Not used in debug mode
+            image_type: ImageType::Landscape, // Debug doesn't distinguish
+            processing_time: std::time::Duration::from_millis(0),
+            people_detected: detection_result.person_count > 0,
+            people_count: detection_result.person_count,
+            individual_portraits: None,
+        })
+    }
+
+    /// Get raw detection data from find_subject.py for debug visualization
+    fn get_raw_detection_data(
+        &self,
+        img: &RgbImage,
+        _subject_detector: &subject_detection::SubjectDetector,
+    ) -> Result<subject_detection::python_yolo_integration::FindSubjectResult> {
+        // Save image to temporary file for Python script
+        let temp_dir = std::env::temp_dir();
+        let temp_filename = format!("debug_input_{}.jpg", std::process::id());
+        let temp_path = temp_dir.join(temp_filename);
+        
+        // Save image as JPEG
+        img.save(&temp_path)?;
+        
+        // Run Python script directly to get raw JSON
+        let output = std::process::Command::new("python3")
+            .arg(self.config.python_script_path.as_ref().unwrap())
+            .arg("--image")
+            .arg(&temp_path)
+            .arg("--output-format")
+            .arg("json")
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to execute find_subject.py: {}", e))?;
+        
+        // Clean up temporary file
+        let _ = std::fs::remove_file(&temp_path);
+        
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow::anyhow!("find_subject.py failed: {}", stderr));
+        }
+        
+        // Parse JSON output
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let result: subject_detection::python_yolo_integration::FindSubjectResult = serde_json::from_str(&stdout)
+            .map_err(|e| anyhow::anyhow!("Failed to parse JSON output: {} | Raw: {}", e, stdout))?;
+        
+        Ok(result)
+    }
+
+    /// Draw debug annotations on the image
+    fn draw_debug_annotations(
+        &self,
+        img: &mut RgbImage,
+        detection_result: &subject_detection::SubjectDetectionResult,
+        raw_data: &subject_detection::python_yolo_integration::FindSubjectResult,
+    ) -> Result<()> {
+        let (img_width, img_height) = img.dimensions();
+
+        // Colors for different box types
+        let green = Rgb([0u8, 255u8, 0u8]); // Individual detections (green boxes)
+        let blue = Rgb([0u8, 0u8, 255u8]);  // Global bounding box (blue box)
+        let red = Rgb([255u8, 0u8, 0u8]);   // Crop area (red box)
+
+        if detection_result.person_count > 0 {
+            // 1. Draw individual detection boxes (GREEN)
+            for (i, detection) in raw_data.detections.iter().enumerate() {
+                let bbox = &detection.bounding_box;
+                // Individual detections use [x, y, width, height] format
+                let x = bbox[0].max(0) as u32;
+                let y = bbox[1].max(0) as u32; 
+                let width = bbox[2].max(0) as u32;
+                let height = bbox[3].max(0) as u32;
+                
+                // Clamp to image boundaries
+                let x = x.min(img_width.saturating_sub(1));
+                let y = y.min(img_height.saturating_sub(1));
+                let width = width.min(img_width.saturating_sub(x));
+                let height = height.min(img_height.saturating_sub(y));
+                
+                if width > 0 && height > 0 {
+                    let rect = Rect::at(x as i32, y as i32).of_size(width, height);
+                    draw_hollow_rect_mut(img, rect, green);
+                    
+                    // Draw label with class and confidence
+                    let label = format!("{} {:.0}%", detection.class, detection.confidence * 100.0);
+                    self.draw_label(img, x, y, &label, green)?;
+                    
+                    verbose_println(self.config.verbose, &format!("  🟢 Detection {}: {} at ({}, {}) {}x{} conf:{:.2}", 
+                        i+1, detection.class, x, y, width, height, detection.confidence));
+                }
+            }
+
+            // 2. Draw global bounding box (BLUE) 
+            let global_bbox = &raw_data.bounding_box;
+            let gx_min = global_bbox[0].max(0) as u32;
+            let gy_min = global_bbox[1].max(0) as u32;
+            let gx_max = global_bbox[2].max(0).min(img_width as i32) as u32;
+            let gy_max = global_bbox[3].max(0).min(img_height as i32) as u32;
+            
+            if gx_max > gx_min && gy_max > gy_min {
+                let gwidth = gx_max - gx_min;
+                let gheight = gy_max - gy_min;
+                
+                // Draw thick blue box (3 pixel thick stroke)
+                for offset in 0..3 {
+                    let thick_rect = Rect::at((gx_min as i32) - offset, (gy_min as i32) - offset)
+                        .of_size(gwidth + (offset * 2) as u32, gheight + (offset * 2) as u32);
+                    draw_hollow_rect_mut(img, thick_rect, blue);
+                }
+                
+                verbose_println(self.config.verbose, &format!("  🔵 Global box: ({}, {}) {}x{}", gx_min, gy_min, gwidth, gheight));
+            }
+
+            // 3. Draw center point as a cross
+            let center_x = detection_result.center.0;
+            let center_y = detection_result.center.1;
+            
+            // Draw a larger, more visible cross (20x20)
+            for i in 0..20 {
+                // Horizontal line
+                if center_x >= 10 && center_x + 10 < img_width && center_y < img_height {
+                    img.put_pixel(center_x - 10 + i, center_y, green);
+                }
+                // Vertical line  
+                if center_y >= 10 && center_y + 10 < img_height && center_x < img_width {
+                    img.put_pixel(center_x, center_y - 10 + i, green);
+                }
+            }
+
+            verbose_println(self.config.verbose, &format!("  ✚ Subject center: ({}, {})", center_x, center_y));
+        }
+
+        // 4. Draw crop area (RED) - EXACT same logic as actual processing
+        let (crop_x, crop_y, crop_width, crop_height) = self.calculate_actual_crop_area(img_width, img_height, detection_result)?;
+
+        let crop_rect = Rect::at(crop_x as i32, crop_y as i32)
+            .of_size(crop_width, crop_height);
+        draw_hollow_rect_mut(img, crop_rect, red);
+
+        verbose_println(self.config.verbose, &format!("  🔴 Crop area: ({}, {}) {}x{}", crop_x, crop_y, crop_width, crop_height));
+
+        Ok(())
+    }
+
+    /// Calculate the exact crop area that would be used in actual processing
+    /// This replicates the logic from smart_resize_with_people_detection
+    fn calculate_actual_crop_area(
+        &self,
+        src_width: u32,
+        src_height: u32,
+        detection_result: &subject_detection::SubjectDetectionResult,
+    ) -> Result<(u32, u32, u32, u32)> {
+        // Determine if image is portrait for auto-process consideration
+        let image_is_portrait = src_height > src_width;
+        
+        // Get effective target dimensions (may be swapped in auto mode)
+        let (eff_width, eff_height) = get_effective_target_dimensions(
+            image_is_portrait,
+            self.config.target_width,
+            self.config.target_height,
+            self.config.auto_process,
+        );
+
+        // Calculate crop dimensions to maintain aspect ratio
+        let target_aspect = eff_width as f64 / eff_height as f64;
+        let source_aspect = src_width as f64 / src_height as f64;
+
+        let (crop_width, crop_height) = if source_aspect > target_aspect {
+            // Source is wider - crop width
+            let new_width = (src_height as f64 * target_aspect) as u32;
+            (new_width.min(src_width), src_height)
+        } else {
+            // Source is taller - crop height
+            let new_height = (src_width as f64 / target_aspect) as u32;
+            (src_width, new_height.min(src_height))
+        };
+
+        // Calculate crop offset - use people detection if available
+        let (crop_x, crop_y) = if detection_result.person_count > 0 {
+            // Use people-aware cropping
+            resize::calculate_people_aware_crop_offset(
+                src_width, src_height,
+                crop_width, crop_height,
+                detection_result
+            )
+        } else {
+            // No people detected, use standard center cropping
+            resize::standard_crop_offset(src_width, src_height, crop_width, crop_height)
+        };
+
+        Ok((crop_x, crop_y, crop_width, crop_height))
+    }
+
+    /// Draw a text label with background for visibility
+    fn draw_label(
+        &self,
+        img: &mut RgbImage,
+        x: u32,
+        y: u32,
+        text: &str,
+        color: Rgb<u8>,
+    ) -> Result<()> {
+        // Use simple pixel-based text representation
+        self.draw_simple_text(img, x, y, text, color);
+        Ok(())
+    }
+
+    /// Simple pixel-based text drawing with actual readable characters
+    fn draw_simple_text(&self, img: &mut RgbImage, x: u32, y: u32, text: &str, color: Rgb<u8>) {
+        let char_width = 6u32;
+        let char_height = 8u32;
+        let text_width = (text.len() * char_width as usize) as u32;
+        
+        let (img_width, img_height) = img.dimensions();
+        
+        // Draw black background
+        for dy in 0..char_height {
+            for dx in 0..text_width {
+                let px = x + dx;
+                let py = y.saturating_sub(char_height) + dy;
+                if px < img_width && py < img_height {
+                    img.put_pixel(px, py, Rgb([0u8, 0u8, 0u8])); // Black background
+                }
+            }
+        }
+        
+        // Draw each character
+        for (i, ch) in text.chars().enumerate() {
+            let char_x = x + (i * char_width as usize) as u32;
+            let char_y = y.saturating_sub(char_height);
+            self.draw_char(img, char_x, char_y, ch, color);
+        }
+    }
+
+    /// Draw a single character using a simple 5x7 pixel font
+    fn draw_char(&self, img: &mut RgbImage, x: u32, y: u32, ch: char, color: Rgb<u8>) {
+        let (img_width, img_height) = img.dimensions();
+        
+        // Simple 5x7 bitmap font patterns (each u32 represents a row, bits 0-4 are pixels)
+        let pattern = match ch {
+            'p' | 'P' => [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],  // P
+            'e' | 'E' => [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],  // E
+            'r' | 'R' => [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],  // R
+            's' | 'S' => [0b11111, 0b10000, 0b10000, 0b11110, 0b00001, 0b00001, 0b11111],  // S
+            'o' | 'O' => [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],  // O
+            'n' | 'N' => [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],  // N
+            '0' => [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110],        // 0
+            '1' => [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],        // 1
+            '2' => [0b01110, 0b10001, 0b00001, 0b00110, 0b01000, 0b10000, 0b11111],        // 2
+            '3' => [0b01110, 0b10001, 0b00001, 0b00110, 0b00001, 0b10001, 0b01110],        // 3
+            '4' => [0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010],        // 4
+            '5' => [0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110],        // 5
+            '6' => [0b01110, 0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110],        // 6
+            '7' => [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b10000],        // 7
+            '8' => [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110],        // 8
+            '9' => [0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00001, 0b01110],        // 9
+            '%' => [0b11001, 0b11010, 0b00100, 0b01000, 0b10000, 0b01011, 0b10011],        // %
+            ' ' => [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000],        // space
+            _ => [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],          // default (O)
+        };
+        
+        // Draw the character pixel by pixel
+        for (row, &pattern_row) in pattern.iter().enumerate() {
+            for col in 0..5 {
+                if pattern_row & (1 << (4 - col)) != 0 {
+                    let px = x + col;
+                    let py = y + row as u32;
+                    if px < img_width && py < img_height {
+                        img.put_pixel(px, py, color);
+                    }
+                }
+            }
+        }
     }
 
 }

@@ -250,11 +250,12 @@ def detect_people_yolo(args):
         # Draw the bounding box on the image
         cv2.rectangle(image, (x_min, y_min), (w_max, h_max), (255, 0, 0), 4)
         cv2.imshow("People Detection", image)
+
+        # Wait for a key press and close the image window
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         # now crop the image to the given bounding box, using the x_min, y_min, w_max, h_max coordinates as center of the cropped image
         # cv2.imshow("Cropped Image", image)
-        cv2.waitKey(0)
     cv2.destroyAllWindows()
     sys.exit(0)
 

@@ -194,24 +194,36 @@ fi
 result=$("$find_subject_script" --image "$input_file")
 if [ $? -ne 0 ]; then
     echo "no subject(s) could not be found in the image!"
-    exit 1
+
+    # in this case, we will just center the crop
+    imagesize="${source_width},${source_height}"
+    box="0,0,${source_width},${source_height}"
+    center_x=$((source_width / 2))
+    center_y=$((source_height / 2))
+    offset="0,0"
+    offset_x=0
+    offset_y=0
+
+    # exit 1
+else
+    # result will be in the format:
+    # imagesize: 1848,4000
+    # box: 335,541,1577,2312
+    # center: 956,1426
+    # offset: 32,-574
+    # if an error occurs, the script will return a non-zero exit code and an error message like:
+    # Error: Could not load image from /Users/alessandro/Desktop/arduino/photos/photos/IMG_7913.jpeg
+
+    # Parse the result
+    imagesize=$(echo "$result" | grep "imagesize" | cut -d ':' -f 2 | tr -d ' ')
+    box=$(echo "$result" | grep "box" | cut -d ':' -f 2 | tr -d ' ')
+    center=$(echo "$result" | grep "center" | cut -d ':' -f 2 | tr -d ' ')
+    offset=$(echo "$result" | grep "offset" | cut -d ':' -f 2 | tr -d ' ')
+
+    # Extract the center offset from the offset variable
+    center_x=$(echo "$offset" | cut -d ',' -f 1)
+    center_y=$(echo "$offset" | cut -d ',' -f 2)
 fi
-
-# result will be in the format:
-# imagesize: 1848,4000
-# box: 335,541,1577,2312
-# center: 956,1426
-# offset: 32,-574
-
-# Parse the result
-imagesize=$(echo "$result" | grep "imagesize" | cut -d ':' -f 2 | tr -d ' ')
-box=$(echo "$result" | grep "box" | cut -d ':' -f 2 | tr -d ' ')
-center=$(echo "$result" | grep "center" | cut -d ':' -f 2 | tr -d ' ')
-offset=$(echo "$result" | grep "offset" | cut -d ':' -f 2 | tr -d ' ')
-
-# Extract the center offset from the offset variable
-center_x=$(echo "$offset" | cut -d ',' -f 1)
-center_y=$(echo "$offset" | cut -d ',' -f 2)
 
 if [[ "$verbose" == true ]]; then
     echo "imagesize: $imagesize"

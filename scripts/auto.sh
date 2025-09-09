@@ -6,9 +6,8 @@
 # expected arguments:
 # -i <input_directory> (can be multiple)
 # -o <output_directory>
-# -t type (either bw or 6c) [optional, default: bw]
+# -t type (either bw, 6c or 7c) [optional, default: bw]
 # -p <palette_file> [optional, default: none]
-# -c <colors> (only if palette is not specified) [optional, default: 0]
 # -s|--size <target_size> (target size in pixels, either width or height, depending on the image orientation)
 # --pointsize <pointsize> [optional, default: 24]
 # --font <font> [optional, default: 'UbuntuMono-Nerd-Font-Bold']
@@ -29,7 +28,7 @@ annotate_background='#00000040'
 auto_process=false
 verbose=false
 extensions=()
-target_size=""
+target_size="800x480"
 target_width=0
 target_height=0
 default_extensions=("jpg" "jpeg" "png")
@@ -54,7 +53,7 @@ usage() {
     echo "Options:"
     echo "  -i, --input <directory>  Input directory containing images (can be specified multiple times)"
     echo "  -o, --output <directory> Output directory for resized and annotated images"
-    echo "  -t, --type <type>        Type of image processing (bw or 6c, default: bw)"
+    echo "  -t, --type <type>        Type of image processing (bw, 6c or 7c, default: bw)"
     echo "  -p, --palette <file>     Palette file for color processing (optional)"
     echo "  -s, --size <target_size> Target size in pixels (width or height depending on orientation)"
     echo "  --pointsize <size>       Point size for the annotation (default: $pointsize)"
@@ -152,25 +151,24 @@ fi
 
 # Validate type
 if [[ -z "$type" ]]; then
-    echo "Error: Type must be specified (bw or 6c)."
+    echo "Error: Type must be specified (bw, 6c or 7c)."
     usage
 fi
 
-if [[ "$type" != "bw" && "$type" != "6c" ]]; then
-    echo "Error: Type must be either 'bw' or '6c'."
+if [[ "$type" != "bw" && "$type" != "6c" && "$type" != "7c" ]]; then
+    echo "Error: Type must be either 'bw', '6c' or '7c'."
     usage
 fi
 
 # Create output directory if it doesn't exist
 mkdir -p "$output_dir"  
 
-# if type if 6c and palette is not specified, then set colors to 6
-if [[ "$type" == "6c" && -z "$palette" ]]; then
+# if type if color then the argument colors must be specified
+if [[ "$type" == "6c" ]]; then
     colors=6
-fi
-
-# if type is bw and palette is not specified, then set colors to 0
-if [[ "$type" == "bw" && -z "$palette" ]]; then
+elif [[ "$type" == "7c" ]]; then
+    colors=7
+else
     colors=0
 fi
 
@@ -225,7 +223,9 @@ fi
 # clean up the tmp_dir and intermediate_dir
 if [[ -d "$intermediate_dir" ]]; then
     set +e
+    setopt nullglob
     rm -rf "$intermediate_dir"/*
+    unsetopt nullglob
     set -e
 fi  
 
@@ -363,7 +363,12 @@ total_landscape_images=${#landscape_images[@]}
 total_portrait_images=${#portrait_images[@]}
 
 for image in "${landscape_images[@]}"; do
-    output_file="${intermediate_dir}/$(basename "$image")"
+    basename1=$(basename "$image")
+    extension1="${basename1##*.}"
+    base64_file1=$(echo -n "$basename1" | base64 -w0 | tr '/' '-')
+    output_file="${intermediate_dir}/${base64_file1}.jpg"
+    # output_file="${intermediate_dir}/$(basename "$image")"
+
     command_to_run="$auto_resize_and_annotate_command -i \"$image\" -o \"$output_file\" --size \"$target_size\""
 
     s1=$(date +%s%N)
@@ -404,6 +409,7 @@ tmp_size="$((target_width / 2))x$((target_height))"
 echo "Processing portrait images..."
 for image in "${portrait_images[@]}"; do
     output_file="${intermediate_dir}/$(basename "$image")"
+    
     command_to_run="$auto_resize_and_annotate_command -i \"$image\" -o \"$output_file\" --size \"$tmp_size\""
 
     s1=$(date +%s%N)
@@ -459,11 +465,14 @@ else
 
         s1=$(date +%s%N)
 
-        output_file="${intermediate_dir}/combined_portrait_$((i / 2 + 1)).jpg"
-        command_to_run="$combine_images_script --size \"$target_size\" \"$image1\" \"${image2}\" \"$output_file\""
-
         basename1=$(basename "$image1")
         basename2=$(basename "$image2")
+
+        base64_file1=$(echo -n "$basename1" | base64 -w0 | tr '/' '-')
+        base64_file2=$(echo -n "$basename2" | base64 -w0 | tr '/' '-')
+        output_file="${intermediate_dir}/combined_${base64_file1}_${base64_file2}.jpg"
+        command_to_run="$combine_images_script --size \"$target_size\" \"$image1\" \"${image2}\" \"$output_file\""
+
 
         echo "command: $command_to_run"
 
@@ -503,10 +512,10 @@ command_to_run="$convert_script"
 
 if [[ "$type" == "bw" ]]; then
     command_to_run+=" --type grey"
-elif [[ "$type" == "6c" ]]; then
+elif [[ "$type" == "6c" || "$type" == "7c" ]]; then
     command_to_run+=" --type color"
 else
-    echo "Error: Invalid type specified. Must be either 'bw' or '6c'."
+    echo "Error: Invalid type specified. Must be either 'bw', '6c' or '7c'."
     exit 1
 fi
 
@@ -517,11 +526,11 @@ if [[ -n "$palette" ]]; then
         exit 1
     fi
     command_to_run+=" --palette \"$palette\""
-else
-    # if colors is specified, then add it to the command
-    if [[ "$colors" -gt 0 ]]; then
-        command_to_run+=" --colors \"$colors\""
-    fi
+fi
+
+# if colors is specified, then add it to the command
+if [[ "$colors" -gt 0 ]]; then
+    command_to_run+=" --colors \"$colors\""
 fi
 
 for image in "${tmp_landscape_images[@]}"; do
