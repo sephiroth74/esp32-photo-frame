@@ -1283,34 +1283,35 @@ bool is_orange(uint8_t r, uint8_t g, uint8_t b) { return (r > 4 && g > 2 && g < 
 
 void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
 #ifdef DISP_6C
+    // Binary files use RGB compression: ((r / 32) << 5) + ((g / 32) << 2) + (b / 64)
+    // Pre-computed values for 6-color display palette:
     switch (color) {
-    case 0xff: // 255
+    case 0xFF: // White (255,255,255) → 255
         pixelColor = GxEPD_WHITE;
         break;
-    case 0x00: // 0
+    case 0x00: // Black (0,0,0) → 0
         pixelColor = GxEPD_BLACK;
         break;
-    case 0xe0: // 224
+    case 0xE0: // Red (255,0,0) → 224
         pixelColor = GxEPD_RED;
         break;
-    case 0x1c: // 28
+    case 0x1C: // Green (0,255,0) → 28
         pixelColor = GxEPD_GREEN;
         break;
-    case 0xfc: // 252
-        pixelColor = GxEPD_YELLOW;
-        break;
-    case 0x03: // 3
+    case 0x03: // Blue (0,0,255) → 3
         pixelColor = GxEPD_BLUE;
         break;
+    case 0xFC: // Yellow (255,255,0) → 252
+        pixelColor = GxEPD_YELLOW;
+        break;
     default:
-        // extract the rgb values from the color byte
+        // Handle intermediate values by extracting RGB components
         uint8_t r = (color >> 5) & 0x07; // from 0 to 7
         uint8_t g = (color >> 2) & 0x07; // from 0 to 7
         uint8_t b = color & 0x03;        // from 0 to 3
 
-        // Improved color mapping: use the dominant channel to determine color
+        // Map to closest 6-color display color
         if (is_dominant(r, g, b)) {
-            // Use the dominant channel to determine the color
             if (r > g && r > b) {
                 pixelColor = GxEPD_RED;
             } else if (g > r && g > b) {
@@ -1318,80 +1319,55 @@ void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
             } else if (b > r && b > g) {
                 pixelColor = GxEPD_BLUE;
             } else {
-                pixelColor = GxEPD_WHITE; // Fallback to white if no dominant channel
+                pixelColor = GxEPD_WHITE;
             }
         } else {
             if (is_yellow(r, g, b)) {
                 pixelColor = GxEPD_YELLOW;
             } else if (is_light_grey(r, g, b)) {
-                pixelColor = GxEPD_WHITE; // Light grey
-            } else if (is_dark_grey(r, g, b)) {
-                pixelColor = GxEPD_BLACK; // Dark grey
-            } else {
-                // Fallback to white if no match
                 pixelColor = GxEPD_WHITE;
-
-                uint8_t r8 = (r * 255) / 7; // scale to 0-255
-                uint8_t g8 = (g * 255) / 7; // scale to 0-255
-                uint8_t b8 = (b * 255) / 3; // scale to 0-255
-
-                Serial.print("Unknown color: ");
-                Serial.print(color, HEX);
-                Serial.print(" - RGB values: R=");
-                Serial.print(r);
-                Serial.print(", G=");
-                Serial.print(g);
-                Serial.print(", B=");
-                Serial.print(b);
-
-                Serial.print(" - RGB8 values: R=");
-                Serial.print(r8);
-                Serial.print(", G=");
-                Serial.print(g8);
-                Serial.print(", B=");
-                Serial.print(b8);
-
-                Serial.print(" - at position (");
-                Serial.print(x);
-                Serial.print(", ");
-                Serial.print(y);
-                Serial.println(")");
+            } else if (is_dark_grey(r, g, b)) {
+                pixelColor = GxEPD_BLACK;
+            } else {
+                pixelColor = GxEPD_WHITE; // Default fallback
             }
         }
+        break;
     }
 
 #elif defined(DISP_7C_F)
+    // Binary files use RGB compression: ((r / 32) << 5) + ((g / 32) << 2) + (b / 64)
+    // Pre-computed values for 7-color display palette:
     switch (color) {
-    case 0xff: // 255
+    case 0xFF: // White (255,255,255) → 255
         pixelColor = GxEPD_WHITE;
         break;
-    case 0x00: // 0
+    case 0x00: // Black (0,0,0) → 0
         pixelColor = GxEPD_BLACK;
         break;
-    case 0x01: // 1
+    case 0xE0: // Red (255,0,0) → 224
         pixelColor = GxEPD_RED;
         break;
-    case 0x02: // 2
+    case 0x1C: // Green (0,255,0) → 28
         pixelColor = GxEPD_GREEN;
         break;
-    case 0x03: // 3
+    case 0x03: // Blue (0,0,255) → 3
         pixelColor = GxEPD_BLUE;
         break;
-    case 0x04: // 4
+    case 0xFC: // Yellow (255,255,0) → 252
         pixelColor = GxEPD_YELLOW;
         break;
-    case 0x05: // 5
+    case 0xF4: // Orange (255,165,0) → 244
         pixelColor = GxEPD_ORANGE;
         break;
     default:
-        // extract the rgb values from the color byte
+        // Handle intermediate values by extracting RGB components
         uint8_t r = (color >> 5) & 0x07; // from 0 to 7
         uint8_t g = (color >> 2) & 0x07; // from 0 to 7
         uint8_t b = color & 0x03;        // from 0 to 3
 
-        // Improved color mapping for 7-color display: use the dominant channel to determine color
+        // Map to closest 7-color display color
         if (is_dominant(r, g, b)) {
-            // Use the dominant channel to determine the color
             if (r > g && r > b) {
                 pixelColor = GxEPD_RED;
             } else if (g > r && g > b) {
@@ -1399,7 +1375,7 @@ void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
             } else if (b > r && b > g) {
                 pixelColor = GxEPD_BLUE;
             } else {
-                pixelColor = GxEPD_WHITE; // Fallback to white if no dominant channel
+                pixelColor = GxEPD_WHITE;
             }
         } else {
             if (is_orange(r, g, b)) {
@@ -1407,40 +1383,14 @@ void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
             } else if (is_yellow(r, g, b)) {
                 pixelColor = GxEPD_YELLOW;
             } else if (is_light_grey(r, g, b)) {
-                pixelColor = GxEPD_WHITE; // Light grey
-            } else if (is_dark_grey(r, g, b)) {
-                pixelColor = GxEPD_BLACK; // Dark grey
-            } else {
-                // Fallback to white if no match
                 pixelColor = GxEPD_WHITE;
-
-                uint8_t r8 = (r * 255) / 7; // scale to 0-255
-                uint8_t g8 = (g * 255) / 7; // scale to 0-255
-                uint8_t b8 = (b * 255) / 3; // scale to 0-255
-
-                Serial.print("Unknown color: ");
-                Serial.print(color, HEX);
-                Serial.print(" - RGB values: R=");
-                Serial.print(r);
-                Serial.print(", G=");
-                Serial.print(g);
-                Serial.print(", B=");
-                Serial.print(b);
-
-                Serial.print(" - RGB8 values: R=");
-                Serial.print(r8);
-                Serial.print(", G=");
-                Serial.print(g8);
-                Serial.print(", B=");
-                Serial.print(b8);
-
-                Serial.print(" - at position (");
-                Serial.print(x);
-                Serial.print(", ");
-                Serial.print(y);
-                Serial.println(")");
+            } else if (is_dark_grey(r, g, b)) {
+                pixelColor = GxEPD_BLACK;
+            } else {
+                pixelColor = GxEPD_WHITE; // Default fallback
             }
         }
+        break;
     }
 
 #elif defined(DISP_BW_V2)
