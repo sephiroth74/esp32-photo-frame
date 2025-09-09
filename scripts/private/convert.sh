@@ -124,9 +124,11 @@ if [ "$type" = "grey" ]; then
     command="$command -type Palette -depth 8 -alpha off -compress none BMP3:\"$output_file\""
 else
     command="magick $input_file -auto-level -dither FloydSteinberg"
-    if [ -z "$palette" ]; then
+    # if colors is specified, and bigger than 0, then add it to the command
+    if [[ "$colors" -gt 0 ]]; then
         command="$command -colors $colors"
-    else
+    fi
+    if [ -n "$palette" ]; then
         command="$command -remap $palette"
     fi
     command="$command -type Palette -depth 8 -alpha off -compress none BMP3:\"$output_file\""

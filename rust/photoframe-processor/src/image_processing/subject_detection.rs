@@ -3,7 +3,7 @@ use image::RgbImage;
 use std::path::Path;
 
 // People detection using existing find_subject.py script
-mod python_yolo_integration {
+pub mod python_yolo_integration {
     use std::path::Path;
     use std::process::Command;
     use anyhow::Result;

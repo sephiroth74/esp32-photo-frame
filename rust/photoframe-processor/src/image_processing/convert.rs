@@ -8,10 +8,12 @@ use super::ProcessingType;
 /// This applies the appropriate color processing based on the processing type:
 /// - BlackWhite: Convert to grayscale and apply Floyd-Steinberg dithering
 /// - SixColor: Reduce to 6-color palette and apply dithering
+/// - SevenColor: Reduce to 7-color palette and apply dithering
 pub fn process_image(img: &RgbImage, processing_type: &ProcessingType) -> Result<RgbImage> {
     match processing_type {
         ProcessingType::BlackWhite => apply_bw_processing(img),
         ProcessingType::SixColor => apply_6c_processing(img),
+        ProcessingType::SevenColor => apply_7c_processing(img),
     }
 }
 
@@ -26,8 +28,12 @@ fn apply_bw_processing(img: &RgbImage) -> Result<RgbImage> {
 
 /// Apply 6-color processing with palette reduction and dithering
 fn apply_6c_processing(img: &RgbImage) -> Result<RgbImage> {
-    // Apply 6-color palette reduction with Floyd-Steinberg dithering
-    apply_6_color_floyd_steinberg_dithering(img)
+    apply_floyd_steinberg_dithering_with_palette(img, &SIX_COLOR_PALETTE)
+}
+
+/// Apply 7-color processing with palette reduction and dithering
+fn apply_7c_processing(img: &RgbImage) -> Result<RgbImage> {
+    apply_floyd_steinberg_dithering_with_palette(img, &SEVEN_COLOR_PALETTE)
 }
 
 /// Convert RGB image to grayscale using luminance weights
@@ -111,24 +117,12 @@ fn apply_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
     Ok(output)
 }
 
-/// 6-color palette for e-paper displays
-/// These are the standard colors supported by most 6-color e-paper displays
-#[allow(dead_code)]
-const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
-    (0, 0, 0),       // Black
-    (255, 255, 255), // White  
-    (255, 0, 0),     // Red
-    (0, 255, 0),     // Green
-    (0, 0, 255),     // Blue
-    (255, 255, 0),   // Yellow
-];
-
-/// Find the closest color in the 6-color palette
-fn find_closest_6_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
+/// Generic function to find the closest color in any palette
+fn find_closest_color(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8, u8) {
     let mut min_distance = f32::MAX;
-    let mut closest_color = SIX_COLOR_PALETTE[0];
+    let mut closest_color = palette[0];
     
-    for &(pr, pg, pb) in &SIX_COLOR_PALETTE {
+    for &(pr, pg, pb) in palette {
         // Calculate Euclidean distance in RGB space
         let dr = (r as f32) - (pr as f32);
         let dg = (g as f32) - (pg as f32);
@@ -145,14 +139,9 @@ fn find_closest_6_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
     closest_color
 }
 
-/// Apply Floyd-Steinberg dithering with 6-color palette
-/// 
-/// This implements Floyd-Steinberg error diffusion for 6-color e-paper displays
-fn apply_6_color_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
+/// Create working buffers for Floyd-Steinberg dithering
+fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<Vec<f32>>) {
     let (width, height) = img.dimensions();
-    let mut output = RgbImage::new(width, height);
-    
-    // Convert to working buffer with error accumulation for each color channel
     let mut working_r: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
     let mut working_g: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
     let mut working_b: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
@@ -174,67 +163,115 @@ fn apply_6_color_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
         working_b.push(row_b);
     }
     
-    // Apply Floyd-Steinberg dithering with 6-color palette
+    (working_r, working_g, working_b)
+}
+
+/// Apply Floyd-Steinberg error distribution to neighboring pixels
+fn distribute_floyd_steinberg_error(
+    working_r: &mut [Vec<f32>],
+    working_g: &mut [Vec<f32>],
+    working_b: &mut [Vec<f32>],
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    error_r: f32,
+    error_g: f32,
+    error_b: f32,
+) {
+    // Floyd-Steinberg error distribution:
+    //     * 7/16
+    // 3/16 5/16 1/16
+    
+    if x + 1 < width {
+        let next_x = (x + 1) as usize;
+        let curr_y = y as usize;
+        working_r[curr_y][next_x] += error_r * 7.0 / 16.0;
+        working_g[curr_y][next_x] += error_g * 7.0 / 16.0;
+        working_b[curr_y][next_x] += error_b * 7.0 / 16.0;
+    }
+    
+    if y + 1 < height {
+        let next_y = (y + 1) as usize;
+        let curr_x = x as usize;
+        
+        if x > 0 {
+            let prev_x = (x - 1) as usize;
+            working_r[next_y][prev_x] += error_r * 3.0 / 16.0;
+            working_g[next_y][prev_x] += error_g * 3.0 / 16.0;
+            working_b[next_y][prev_x] += error_b * 3.0 / 16.0;
+        }
+        
+        working_r[next_y][curr_x] += error_r * 5.0 / 16.0;
+        working_g[next_y][curr_x] += error_g * 5.0 / 16.0;
+        working_b[next_y][curr_x] += error_b * 5.0 / 16.0;
+        
+        if x + 1 < width {
+            let next_x = (x + 1) as usize;
+            working_r[next_y][next_x] += error_r * 1.0 / 16.0;
+            working_g[next_y][next_x] += error_g * 1.0 / 16.0;
+            working_b[next_y][next_x] += error_b * 1.0 / 16.0;
+        }
+    }
+}
+
+/// Generic Floyd-Steinberg dithering with any color palette
+/// 
+/// This implements Floyd-Steinberg error diffusion for any color palette
+fn apply_floyd_steinberg_dithering_with_palette(img: &RgbImage, palette: &[(u8, u8, u8)]) -> Result<RgbImage> {
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+    
+    // Create working buffers with error accumulation for each color channel
+    let (mut working_r, mut working_g, mut working_b) = create_working_buffers(img);
+    
+    // Apply Floyd-Steinberg dithering with the given palette
     for y in 0..height {
         for x in 0..width {
-            let old_r = working_r[y as usize][x as usize];
-            let old_g = working_g[y as usize][x as usize];
-            let old_b = working_b[y as usize][x as usize];
+            let y_idx = y as usize;
+            let x_idx = x as usize;
             
-            // Find closest color in 6-color palette
-            let (new_r, new_g, new_b) = find_closest_6_color(
+            let old_r = working_r[y_idx][x_idx];
+            let old_g = working_g[y_idx][x_idx];
+            let old_b = working_b[y_idx][x_idx];
+            
+            // Find closest color in palette
+            let (new_r, new_g, new_b) = find_closest_color(
                 old_r.clamp(0.0, 255.0) as u8,
                 old_g.clamp(0.0, 255.0) as u8,
                 old_b.clamp(0.0, 255.0) as u8,
+                palette,
             );
             
             // Set the new pixel values
-            working_r[y as usize][x as usize] = new_r as f32;
-            working_g[y as usize][x as usize] = new_g as f32;
-            working_b[y as usize][x as usize] = new_b as f32;
+            working_r[y_idx][x_idx] = new_r as f32;
+            working_g[y_idx][x_idx] = new_g as f32;
+            working_b[y_idx][x_idx] = new_b as f32;
             
             // Calculate error for each channel
             let error_r = old_r - (new_r as f32);
             let error_g = old_g - (new_g as f32);
             let error_b = old_b - (new_b as f32);
             
-            // Distribute error to neighboring pixels using Floyd-Steinberg weights
-            // Floyd-Steinberg error distribution:
-            //     * 7/16
-            // 3/16 5/16 1/16
-            
-            if x + 1 < width {
-                working_r[y as usize][(x + 1) as usize] += error_r * 7.0 / 16.0;
-                working_g[y as usize][(x + 1) as usize] += error_g * 7.0 / 16.0;
-                working_b[y as usize][(x + 1) as usize] += error_b * 7.0 / 16.0;
-            }
-            
-            if y + 1 < height {
-                if x > 0 {
-                    working_r[(y + 1) as usize][(x - 1) as usize] += error_r * 3.0 / 16.0;
-                    working_g[(y + 1) as usize][(x - 1) as usize] += error_g * 3.0 / 16.0;
-                    working_b[(y + 1) as usize][(x - 1) as usize] += error_b * 3.0 / 16.0;
-                }
-                
-                working_r[(y + 1) as usize][x as usize] += error_r * 5.0 / 16.0;
-                working_g[(y + 1) as usize][x as usize] += error_g * 5.0 / 16.0;
-                working_b[(y + 1) as usize][x as usize] += error_b * 5.0 / 16.0;
-                
-                if x + 1 < width {
-                    working_r[(y + 1) as usize][(x + 1) as usize] += error_r * 1.0 / 16.0;
-                    working_g[(y + 1) as usize][(x + 1) as usize] += error_g * 1.0 / 16.0;
-                    working_b[(y + 1) as usize][(x + 1) as usize] += error_b * 1.0 / 16.0;
-                }
-            }
+            // Distribute error to neighboring pixels
+            distribute_floyd_steinberg_error(
+                &mut working_r,
+                &mut working_g,
+                &mut working_b,
+                x, y, width, height,
+                error_r, error_g, error_b,
+            );
         }
     }
     
     // Convert back to image
     for y in 0..height {
         for x in 0..width {
-            let r = working_r[y as usize][x as usize].clamp(0.0, 255.0) as u8;
-            let g = working_g[y as usize][x as usize].clamp(0.0, 255.0) as u8;
-            let b = working_b[y as usize][x as usize].clamp(0.0, 255.0) as u8;
+            let y_idx = y as usize;
+            let x_idx = x as usize;
+            let r = working_r[y_idx][x_idx].clamp(0.0, 255.0) as u8;
+            let g = working_g[y_idx][x_idx].clamp(0.0, 255.0) as u8;
+            let b = working_b[y_idx][x_idx].clamp(0.0, 255.0) as u8;
             
             output.put_pixel(x, y, Rgb([r, g, b]));
         }
@@ -242,6 +279,31 @@ fn apply_6_color_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
     
     Ok(output)
 }
+
+/// 6-color palette for e-paper displays
+/// These are the standard colors supported by most 6-color e-paper displays
+const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
+    (0, 0, 0),       // Black
+    (255, 255, 255), // White  
+    (255, 0, 0),     // Red
+    (0, 255, 0),     // Green
+    (0, 0, 255),     // Blue
+    (255, 255, 0),   // Yellow
+];
+
+
+/// 7-color palette for e-paper displays
+/// These are the standard colors supported by most 7-color e-paper displays
+const SEVEN_COLOR_PALETTE: [(u8, u8, u8); 7] = [
+    (0, 0, 0),       // Black
+    (255, 255, 255), // White  
+    (255, 0, 0),     // Red
+    (0, 255, 0),     // Green
+    (0, 0, 255),     // Blue
+    (255, 255, 0),   // Yellow
+    (255, 165, 0),   // Orange
+];
+
 
 #[cfg(test)]
 mod tests {
@@ -291,10 +353,10 @@ mod tests {
 
     #[test]
     fn test_find_closest_6_color() {
-        assert_eq!(find_closest_6_color(0, 0, 0), (0, 0, 0));     // Black
-        assert_eq!(find_closest_6_color(255, 255, 255), (255, 255, 255)); // White
-        assert_eq!(find_closest_6_color(200, 0, 0), (255, 0, 0)); // Close to red
-        assert_eq!(find_closest_6_color(128, 128, 0), (255, 255, 0)); // Close to yellow
+        assert_eq!(find_closest_color(0, 0, 0, &SIX_COLOR_PALETTE), (0, 0, 0));     // Black
+        assert_eq!(find_closest_color(255, 255, 255, &SIX_COLOR_PALETTE), (255, 255, 255)); // White
+        assert_eq!(find_closest_color(200, 0, 0, &SIX_COLOR_PALETTE), (255, 0, 0)); // Close to red
+        assert_eq!(find_closest_color(128, 128, 0, &SIX_COLOR_PALETTE), (255, 255, 0)); // Close to yellow
     }
 
     #[test]
@@ -337,12 +399,59 @@ mod tests {
             Rgb([intensity, intensity, 0]) // Yellow-ish gradient
         });
         
-        let result = apply_6_color_floyd_steinberg_dithering(&img).unwrap();
+        let result = apply_floyd_steinberg_dithering_with_palette(&img, &SIX_COLOR_PALETTE).unwrap();
         
         // Verify all pixels are from the 6-color palette
         for pixel in result.pixels() {
             let color = (pixel[0], pixel[1], pixel[2]);
             assert!(SIX_COLOR_PALETTE.contains(&color), "Found non-palette color: {:?}", color);
+        }
+    }
+
+    #[test]
+    fn test_find_closest_7_color() {
+        assert_eq!(find_closest_color(0, 0, 0, &SEVEN_COLOR_PALETTE), (0, 0, 0));     // Black
+        assert_eq!(find_closest_color(255, 255, 255, &SEVEN_COLOR_PALETTE), (255, 255, 255)); // White
+        assert_eq!(find_closest_color(200, 0, 0, &SEVEN_COLOR_PALETTE), (255, 0, 0)); // Close to red
+        assert_eq!(find_closest_color(200, 240, 0, &SEVEN_COLOR_PALETTE), (255, 255, 0)); // Close to yellow (more green-biased)
+        assert_eq!(find_closest_color(200, 100, 0, &SEVEN_COLOR_PALETTE), (255, 165, 0)); // Close to orange
+    }
+
+    #[test]
+    fn test_process_image_7c() {
+        let img = ImageBuffer::from_fn(4, 4, |x, y| {
+            match (x % 2, y % 2) {
+                (0, 0) => Rgb([255, 0, 0]),   // Red
+                (1, 0) => Rgb([0, 255, 0]),   // Green
+                (0, 1) => Rgb([0, 0, 255]),   // Blue
+                (1, 1) => Rgb([255, 165, 0]), // Orange
+                _ => unreachable!(),
+            }
+        });
+        
+        let result = process_image(&img, &ProcessingType::SevenColor).unwrap();
+        
+        // Should only contain colors from the 7-color palette
+        for pixel in result.pixels() {
+            let color = (pixel[0], pixel[1], pixel[2]);
+            assert!(SEVEN_COLOR_PALETTE.contains(&color), "Found non-palette color: {:?}", color);
+        }
+    }
+
+    #[test]
+    fn test_7_color_dithering() {
+        // Create a simple gradient that should be dithered
+        let img = ImageBuffer::from_fn(8, 8, |x, _| {
+            let intensity = (x * 255 / 8) as u8;
+            Rgb([intensity, intensity / 2, 0]) // Orange-ish gradient
+        });
+        
+        let result = apply_floyd_steinberg_dithering_with_palette(&img, &SEVEN_COLOR_PALETTE).unwrap();
+        
+        // Verify all pixels are from the 7-color palette
+        for pixel in result.pixels() {
+            let color = (pixel[0], pixel[1], pixel[2]);
+            assert!(SEVEN_COLOR_PALETTE.contains(&color), "Found non-palette color: {:?}", color);
         }
     }
 }

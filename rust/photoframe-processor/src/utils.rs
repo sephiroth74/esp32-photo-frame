@@ -6,6 +6,7 @@ use std::time::Duration;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use walkdir::WalkDir;
+use base64::{engine::general_purpose, Engine as _};
 
 use crate::cli::Args;
 
@@ -60,21 +61,6 @@ pub fn validate_inputs(args: &Args) -> Result<()> {
     args.parse_size()
         .map_err(|e| anyhow::anyhow!("Size validation failed: {}", e))?;
 
-    // Validate palette file if provided
-    if let Some(palette_path) = &args.palette {
-        if !palette_path.exists() {
-            return Err(anyhow::anyhow!(
-                "Palette file does not exist: {}",
-                palette_path.display()
-            ));
-        }
-        if !palette_path.is_file() {
-            return Err(anyhow::anyhow!(
-                "Palette path is not a file: {}",
-                palette_path.display()
-            ));
-        }
-    }
 
     // Validate extensions
     let extensions = args.parse_extensions();
@@ -195,21 +181,31 @@ pub fn generate_filename_hash(filename: &str) -> String {
     format!("{:08x}", (hash & 0xffffffff) as u32)
 }
 
-/// Create output filename based on input filename hash and processing type
+/// Encode filename to base64 and replace '/' with '-' to match auto.sh convention
+/// This matches: echo -n "$basename" | base64 -w0 | tr '/' '-'
+pub fn encode_filename_base64(filename: &str) -> String {
+    let encoded = general_purpose::STANDARD.encode(filename.as_bytes());
+    encoded.replace('/', "-")
+}
+
+/// Create output filename based on input filename base64 encoding to match auto.sh convention
+/// Landscape: base64(basename).extension
+/// With suffix: base64(basename)_suffix.extension  
 pub fn create_output_filename(input_path: &Path, suffix: Option<&str>, extension: &str) -> String {
     let stem = input_path.file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image");
     
-    let filename_hash = generate_filename_hash(stem);
+    let base64_filename = encode_filename_base64(stem);
     
     match suffix {
-        Some(suffix) => format!("{}_{}.{}", filename_hash, suffix, extension),
-        None => format!("{}.{}", filename_hash, extension),
+        Some(suffix) => format!("{}_{}.{}", base64_filename, suffix, extension),
+        None => format!("{}.{}", base64_filename, extension),
     }
 }
 
-/// Create combined portrait filename using hashes of both filenames
+/// Create combined portrait filename using base64 encoding to match auto.sh convention  
+/// Format: combined_base64(basename1)_base64(basename2).extension
 pub fn create_combined_portrait_filename(left_path: &Path, right_path: &Path, extension: &str) -> String {
     let left_stem = left_path.file_stem()
         .and_then(|s| s.to_str())
@@ -218,10 +214,10 @@ pub fn create_combined_portrait_filename(left_path: &Path, right_path: &Path, ex
         .and_then(|s| s.to_str())
         .unwrap_or("image2");
     
-    let left_hash = generate_filename_hash(left_stem);
-    let right_hash = generate_filename_hash(right_stem);
+    let base64_file1 = encode_filename_base64(left_stem);
+    let base64_file2 = encode_filename_base64(right_stem);
     
-    format!("combined_{}_{}.{}", left_hash, right_hash, extension)
+    format!("combined_{}_{}.{}", base64_file1, base64_file2, extension)
 }
 
 /// Print verbose information if verbose mode is enabled
@@ -357,11 +353,13 @@ mod tests {
         let path = Path::new("/path/to/image.jpg");
         let result = create_output_filename(path, None, "bmp");
         assert!(result.ends_with(".bmp"));
-        assert!(result.len() == 12); // 8 chars for hash + ".bmp"
+        // Base64 encoding of "image" should be "aW1hZ2U="
+        assert_eq!(result, "aW1hZ2U=.bmp");
         
         let result_with_suffix = create_output_filename(path, Some("portrait"), "bin");
         assert!(result_with_suffix.ends_with(".bin"));
         assert!(result_with_suffix.contains("_portrait"));
+        assert_eq!(result_with_suffix, "aW1hZ2U=_portrait.bin");
     }
 
     #[test]
@@ -384,5 +382,33 @@ mod tests {
         assert!(result.starts_with("combined_"));
         assert!(result.ends_with(".bmp"));
         assert!(result.matches('_').count() == 2); // Should have exactly 2 underscores
+        
+        // Base64 encoding of "image1" = "aW1hZ2Ux", "image2" = "aW1hZ2Uy"
+        assert_eq!(result, "combined_aW1hZ2Ux_aW1hZ2Uy.bmp");
+    }
+
+    #[test]
+    fn test_encode_filename_base64() {
+        // Test basic encoding
+        assert_eq!(encode_filename_base64("image"), "aW1hZ2U=");
+        assert_eq!(encode_filename_base64("test"), "dGVzdA==");
+        
+        // Test '/' replacement with '-' using a string that produces '/' in base64
+        // "sure." encodes to "c3VyZS4=" which contains no '/', but "???>" produces "Pz8/Pg==" with '/'
+        let test_string = "???>";  // This should produce base64 with '/' characters
+        let encoded = encode_filename_base64(test_string);
+        let raw_base64 = general_purpose::STANDARD.encode(test_string.as_bytes());
+        
+        // Verify our function replaces '/' with '-'
+        let expected = raw_base64.replace('/', "-");
+        assert_eq!(encoded, expected);
+        
+        // Make sure no '/' characters remain
+        assert!(!encoded.contains('/'));
+        
+        // Test that the replacement actually happened if there were '/' chars in raw base64
+        if raw_base64.contains('/') {
+            assert!(encoded.contains('-'));
+        }
     }
 }

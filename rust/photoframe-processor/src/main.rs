@@ -9,7 +9,7 @@ mod image_processing;
 mod utils;
 
 use cli::{Args, ColorType};
-use image_processing::{ImageType, ProcessingConfig, ProcessingEngine, ProcessingType, SkipReason};
+use image_processing::{ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult, ProcessingType, SkipReason};
 use utils::{create_progress_bar, format_duration, validate_inputs, find_original_filename_for_hash};
 
 impl From<ColorType> for ProcessingType {
@@ -17,6 +17,7 @@ impl From<ColorType> for ProcessingType {
         match color_type {
             ColorType::BlackWhite => ProcessingType::BlackWhite,
             ColorType::SixColor => ProcessingType::SixColor,
+            ColorType::SevenColor => ProcessingType::SevenColor,
         }
     }
 }
@@ -135,6 +136,8 @@ fn main() -> Result<()> {
         python_script_path: args.python_script_path.clone(),
         // Duplicate handling
         force: args.force,
+        // Debug mode
+        debug: args.debug,
     };
 
     if config.verbose {
@@ -159,7 +162,21 @@ fn main() -> Result<()> {
             }
         }
         
+        // Debug mode status
+        if config.debug {
+            println!("  Debug mode: enabled - will visualize detection boxes");
+        }
+        
         println!();
+    }
+
+    // Validate debug mode requirements
+    if config.debug {
+        if !config.detect_people || config.python_script_path.is_none() {
+            return Err(anyhow::anyhow!(
+                "Debug mode requires people detection to be enabled with --detect-people and --python-script <PATH>"
+            ));
+        }
     }
 
     // Create output directory
@@ -168,6 +185,7 @@ fn main() -> Result<()> {
 
     // Store values before moving config
     let parallel_jobs = config.parallel_jobs;
+    let debug_mode = config.debug;
     
     // Initialize processing engine
     let engine = ProcessingEngine::new(config)?;
@@ -203,7 +221,7 @@ fn main() -> Result<()> {
     for i in 0..thread_count {
         let thread_pb = multi_progress.add(ProgressBar::new(100));
         thread_pb.set_style(
-            ProgressStyle::with_template(&format!("Thread {}: [{{bar:15.blue/cyan}}] {{msg}}", i + 1))?
+            ProgressStyle::with_template(&format!("Job {:02}: [{{bar:15.blue/cyan}}] {{msg}}", i + 1))?
                 .progress_chars("██▌ ")
         );
         thread_pb.set_message("Waiting...");
@@ -218,14 +236,30 @@ fn main() -> Result<()> {
     );
     completion_pb.set_message("Preparing to process...");
 
-    // Process all images with smart portrait pairing
-    let (results, skipped_results) = engine.process_batch_with_smart_pairing(
-        &image_files, 
-        &args.output_dir, 
-        &main_progress,
-        &thread_progress_bars,
-        &completion_pb
-    )?;
+    // Process images based on mode
+    let (results, skipped_results) = if debug_mode {
+        completion_pb.set_message("Debug mode: visualizing detection boxes...");
+        
+        // In debug mode, process all images as a flat list (no pairing)
+        let debug_results = engine.process_debug_batch(image_files.clone(), &args.output_dir)?;
+        
+        // Convert to the expected format (no skipped results in debug mode)
+        let ok_results: Vec<Result<ProcessingResult, anyhow::Error>> = debug_results
+            .into_iter()
+            .map(|r| Ok(r))
+            .collect();
+        
+        (ok_results, Vec::new())
+    } else {
+        // Normal processing with smart portrait pairing
+        engine.process_batch_with_smart_pairing(
+            &image_files, 
+            &args.output_dir, 
+            &main_progress,
+            &thread_progress_bars,
+            &completion_pb
+        )?
+    };
 
     // Finish all progress bars
     main_progress.finish_with_message("✓ Processing complete!");
