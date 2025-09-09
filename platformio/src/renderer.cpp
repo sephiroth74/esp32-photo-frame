@@ -1277,7 +1277,9 @@ bool is_dark_grey(uint8_t r, uint8_t g, uint8_t b) { return (r < 3 && g < 3 && b
 
 bool is_yellow(uint8_t r, uint8_t g, uint8_t b) { return (r > 3 && g > 3 && b < 2); };
 
-#endif // DISP_6C
+bool is_orange(uint8_t r, uint8_t g, uint8_t b) { return (r > 4 && g > 2 && g < r && b < 2); };
+
+#endif // DISP_6C || DISP_7C_F
 
 void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
 #ifdef DISP_6C
@@ -1359,8 +1361,87 @@ void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
     }
 
 #elif defined(DISP_7C_F)
-#error                                                                                             \
-    "DISP_7C_F is not supported in this code snippet. Please define the color2Epd function for DISP_7C_F."
+    switch (color) {
+    case 0xff: // 255
+        pixelColor = GxEPD_WHITE;
+        break;
+    case 0x00: // 0
+        pixelColor = GxEPD_BLACK;
+        break;
+    case 0x01: // 1
+        pixelColor = GxEPD_RED;
+        break;
+    case 0x02: // 2
+        pixelColor = GxEPD_GREEN;
+        break;
+    case 0x03: // 3
+        pixelColor = GxEPD_BLUE;
+        break;
+    case 0x04: // 4
+        pixelColor = GxEPD_YELLOW;
+        break;
+    case 0x05: // 5
+        pixelColor = GxEPD_ORANGE;
+        break;
+    default:
+        // extract the rgb values from the color byte
+        uint8_t r = (color >> 5) & 0x07; // from 0 to 7
+        uint8_t g = (color >> 2) & 0x07; // from 0 to 7
+        uint8_t b = color & 0x03;        // from 0 to 3
+
+        // Improved color mapping for 7-color display: use the dominant channel to determine color
+        if (is_dominant(r, g, b)) {
+            // Use the dominant channel to determine the color
+            if (r > g && r > b) {
+                pixelColor = GxEPD_RED;
+            } else if (g > r && g > b) {
+                pixelColor = GxEPD_GREEN;
+            } else if (b > r && b > g) {
+                pixelColor = GxEPD_BLUE;
+            } else {
+                pixelColor = GxEPD_WHITE; // Fallback to white if no dominant channel
+            }
+        } else {
+            if (is_orange(r, g, b)) {
+                pixelColor = GxEPD_ORANGE;
+            } else if (is_yellow(r, g, b)) {
+                pixelColor = GxEPD_YELLOW;
+            } else if (is_light_grey(r, g, b)) {
+                pixelColor = GxEPD_WHITE; // Light grey
+            } else if (is_dark_grey(r, g, b)) {
+                pixelColor = GxEPD_BLACK; // Dark grey
+            } else {
+                // Fallback to white if no match
+                pixelColor = GxEPD_WHITE;
+
+                uint8_t r8 = (r * 255) / 7; // scale to 0-255
+                uint8_t g8 = (g * 255) / 7; // scale to 0-255
+                uint8_t b8 = (b * 255) / 3; // scale to 0-255
+
+                Serial.print("Unknown color: ");
+                Serial.print(color, HEX);
+                Serial.print(" - RGB values: R=");
+                Serial.print(r);
+                Serial.print(", G=");
+                Serial.print(g);
+                Serial.print(", B=");
+                Serial.print(b);
+
+                Serial.print(" - RGB8 values: R=");
+                Serial.print(r8);
+                Serial.print(", G=");
+                Serial.print(g8);
+                Serial.print(", B=");
+                Serial.print(b8);
+
+                Serial.print(" - at position (");
+                Serial.print(x);
+                Serial.print(", ");
+                Serial.print(y);
+                Serial.println(")");
+            }
+        }
+    }
 
 #elif defined(DISP_BW_V2)
     if (color > 127) {

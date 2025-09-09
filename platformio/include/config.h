@@ -155,9 +155,9 @@
 // #define NTP_TIMEOUT 15000
 
 // e-Paper display
-// #define DISP_BW_V2 // Black and White e-Paper display (GDEH0154D67)
-// #define DISP_7C_F        // 7-color e-Paper display (GDEY073C46)
-// #define DISP_6C             // 6-color e-Paper display (GDEP073E01)
+// #define DISP_BW_V2       // Black and White e-Paper display (GDEH0154D67)
+// #define DISP_7C_F        // 7-color e-Paper display (GDEY073D46)
+// #define DISP_6C          // 6-color e-Paper display (GDEP073E01)
 
 // #define USE_DESPI_DRIVER // Use Despi driver for e-Paper display
 // #define USE_WAVESHARE_DRIVER // Use Waveshare driver for e-Paper display
