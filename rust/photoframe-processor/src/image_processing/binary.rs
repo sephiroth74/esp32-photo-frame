@@ -35,43 +35,44 @@ pub fn convert_to_esp32_binary(img: &RgbImage) -> Result<Vec<u8>> {
     Ok(binary_data)
 }
 
-/// Convert a single RGB pixel to ESP32 8-bit color format
+/// Convert RGB pixel to ESP32 color format using bmp2cpp approach
 /// 
-/// The ESP32 uses a compressed color format:
-/// - Red: 3 bits (0-7) - divide by 32 to get 3-bit value
-/// - Green: 3 bits (0-7) - divide by 32 to get 3-bit value  
-/// - Blue: 2 bits (0-3) - divide by 64 to get 2-bit value
+/// This uses the same RGB compression format as the bmp2cpp project:
+/// - Red: 3 bits (0-7) - divide by 32, shift left 5 positions  
+/// - Green: 3 bits (0-7) - divide by 32, shift left 2 positions
+/// - Blue: 2 bits (0-3) - divide by 64, no shift
 /// 
 /// Final format: RRRGGGBB
+/// 
+/// This matches exactly what the 6-color e-paper display expects and ensures
+/// compatibility with existing bmp2cpp generated files.
 pub fn rgb_to_esp32_color(pixel: &Rgb<u8>) -> u8 {
     let r = pixel[0];
     let g = pixel[1];
     let b = pixel[2];
 
-    // Convert 8-bit color channels to reduced bit depths
-    let r3 = (r / 32) & 0x07; // 3 bits: 0-7
-    let g3 = (g / 32) & 0x07; // 3 bits: 0-7  
-    let b2 = (b / 64) & 0x03; // 2 bits: 0-3
-
-    // Combine into 8-bit value: RRRGGGBB
-    (r3 << 5) | (g3 << 2) | b2
+    // Use the exact same formula as bmp2cpp project
+    ((r / 32) << 5) + ((g / 32) << 2) + (b / 64)
 }
 
-/// Convert ESP32 8-bit color back to RGB (for validation/debugging)
+/// Convert ESP32 compressed color back to RGB (for validation/debugging)
 /// 
 /// This is the reverse operation of rgb_to_esp32_color()
+/// Extracts the RRRGGGBB format back to full 8-bit RGB values
 /// Used primarily for testing and validation
 #[allow(dead_code)]
 pub fn esp32_color_to_rgb(color8: u8) -> [u8; 3] {
-    // Extract components
-    let r3 = (color8 >> 5) & 0x07; // 3 bits for red
-    let g3 = (color8 >> 2) & 0x07; // 3 bits for green
-    let b2 = color8 & 0x03;        // 2 bits for blue
+    // Extract the compressed components
+    let r3 = (color8 >> 5) & 0x07; // 3 bits for red (0-7)
+    let g3 = (color8 >> 2) & 0x07; // 3 bits for green (0-7)  
+    let b2 = color8 & 0x03;        // 2 bits for blue (0-3)
 
-    // Scale back to 8-bit values
-    let r8 = r3 * (255 / 7); // Scale 3-bit to 8-bit
-    let g8 = g3 * (255 / 7); // Scale 3-bit to 8-bit
-    let b8 = b2 * (255 / 3); // Scale 2-bit to 8-bit
+    // Scale back to 8-bit values using proper scaling
+    // For 3-bit values (0-7): multiply by 36.43 ≈ (255/7) = 36
+    // For 2-bit values (0-3): multiply by 85 = (255/3) = 85
+    let r8 = if r3 == 7 { 255 } else { r3 * 36 };
+    let g8 = if g3 == 7 { 255 } else { g3 * 36 };
+    let b8 = if b2 == 3 { 255 } else { b2 * 85 };
 
     [r8, g8, b8]
 }
