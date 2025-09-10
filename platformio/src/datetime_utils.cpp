@@ -56,12 +56,22 @@ int format_datetime(char* buffer, size_t buffer_size, const tm& timeinfo, const 
 }
 
 int format_datetime(char* buffer, size_t buffer_size, const time_t& timeinfo, const char* format) {
+    Serial.print(F("[datetime_utils] format_datetime: "));
+    Serial.println(timeinfo);
+
     if (format == nullptr) {
         format = dateTimeFormatLong;
     }
 
     struct tm* tm_info = localtime(&timeinfo);
-    return format_datetime(buffer, buffer_size, *tm_info, format);
+    Serial.print(F("[datetime_utils] format_datetime: "));
+    Serial.print(tm_info->tm_hour);
+    Serial.print(F(":"));
+    Serial.print(tm_info->tm_min);
+    Serial.println();
+
+    // return format_datetime(buffer, buffer_size, *tm_info, format);
+    return strftime(buffer, buffer_size, format, tm_info);
 }
 
 } // namespace datetime_utils

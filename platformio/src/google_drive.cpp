@@ -171,6 +171,7 @@ size_t google_drive::retrieve_toc(bool batteryConservationMode)
         // Write placeholder for file count - we'll update this later
         size_t fileCountPos = tocFile.position();
         tocFile.println(F("fileCount = 0          ")); // Extra spaces for updating later
+        tocFile.flush(); // ensures header is written
 
         // Stream files directly to TOC file
         size_t totalFiles = client.list_files_streaming(config.folderId.c_str(), tocFile, config.listPageSize);
@@ -192,7 +193,11 @@ size_t google_drive::retrieve_toc(bool batteryConservationMode)
         tocFile.seek(fileCountPos);
         tocFile.print(F("fileCount = "));
         tocFile.print(totalFiles);
+        tocFile.flush();
         tocFile.close();
+
+        Serial.print(F("TOC file closed: "));
+        Serial.println(tocFullPath);
 
         Serial.print(F("Retrieved "));
         Serial.print(totalFiles);
@@ -359,15 +364,19 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
         *error = error_type::None;
     }
 
+    Serial.print(F("[google_drive] Getting TOC file at index: "));
+    Serial.println(index);
+
     fs::File file = sdCard.open(filePath.c_str(), FILE_READ);
     if (!file) {
-        Serial.print(F("Failed to open TOC file for file entry: "));
+        Serial.print(F("[google_drive] Failed to open TOC file for file entry: "));
         Serial.println(filePath);
         if (error) {
             *error = error_type::SdCardFileOpenFailed;
         }
         return google_drive_file();
     }
+
 
     // Skip line 1 (timestamp) and line 2 (fileCount)
     String line1 = file.readStringUntil('\n');
@@ -386,7 +395,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
     for (size_t i = 0; i < index; i++) {
         String skipLine = file.readStringUntil('\n');
         if (skipLine.length() == 0) {
-            Serial.print(F("TOC file ended before reaching index "));
+            Serial.print(F("[google_drive] TOC file ended before reaching index "));
             Serial.println(index);
             file.close();
             if (error) {
@@ -401,7 +410,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
     file.close();
 
     if (targetLine.length() == 0) {
-        Serial.print(F("No file entry found at index "));
+        Serial.print(F("[google_drive] No file entry found at index "));
         Serial.println(index);
         if (error) {
             *error = error_type::JsonParseFailed;
@@ -412,7 +421,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
     // Parse the line: id|name
     int pos1 = targetLine.indexOf('|');
     if (pos1 == -1) {
-        Serial.println(F("Invalid file entry format: missing separator"));
+        Serial.println(F("[google_drive] Invalid file entry format: missing separator"));
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -422,7 +431,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
     String id = targetLine.substring(0, pos1);
     String name = targetLine.substring(pos1 + 1);
 
-    Serial.print(F("Retrieved file at index "));
+    Serial.print(F("[google_drive] Retrieved file at index "));
     Serial.print(index);
     Serial.print(F(": "));
     Serial.println(name);
@@ -502,16 +511,16 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
     tempFile.close();
 
     if (downloadError != error_type::None) {
-        Serial.print(F("Failed to download file from Google Drive: "));
+        Serial.print(F("[google_drive] Failed to download file from Google Drive: "));
         Serial.println(downloadError.code);
 
         // Clean up temporary file on download failure
-        Serial.print(F("Cleaning up temporary file: "));
+        Serial.print(F("[google_drive] Cleaning up temporary file: "));
         Serial.println(tempPath);
         if (!sdCard.remove(tempPath.c_str())) {
-            Serial.println(F("Warning: Failed to remove temporary file"));
+            Serial.println(F("[google_drive] Warning: Failed to remove temporary file"));
         } else {
-            Serial.println(F("Temporary file cleaned up successfully"));
+            Serial.println(F("[google_drive] Temporary file cleaned up successfully"));
         }
 
         if (error) {
@@ -1304,6 +1313,9 @@ size_t google_drive::get_toc_file_count(photo_frame_error_t* error)
 
 google_drive_file google_drive::get_toc_file_by_index(size_t index, photo_frame_error_t* error)
 {
+    Serial.print(F("[google_drive] Getting TOC file by index: "));
+    Serial.println(index);
+
     String tocPath = get_toc_file_path();
     return get_toc_file_by_index(tocPath, index, error);
 }

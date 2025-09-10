@@ -1372,7 +1372,6 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
     Serial.print(response.statusMessage);
     Serial.print(F(", Body length: "));
     Serial.println(response.body.length());
-
     return true;
 }
 
@@ -1727,11 +1726,18 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
 
             filesWritten++;
 
+            // In google_drive_client.cpp, modify the loop:
+            if (filesWritten % 50 == 0) { // Every 50 files instead of just at the end
+                tocFile.flush();
+                yield();
+            }
+
             // Yield every 10 files to prevent watchdog reset
             if (filesWritten % 10 == 0) {
                 yield();
             }
         }
+        tocFile.flush();
     }
 
     return filesWritten;

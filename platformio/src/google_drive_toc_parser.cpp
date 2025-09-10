@@ -144,6 +144,9 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
 }
 
 google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* error) {
+    Serial.print(F("Getting TOC file at index: "));
+    Serial.println(index);
+
     if (error) {
         *error = error_type::None;
     }
@@ -189,6 +192,9 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo
 }
 
 google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename, photo_frame_error_t* error) {
+    Serial.print(F("Getting TOC file by name: "));
+    Serial.println(filename);
+    
     if (error) {
         *error = error_type::None;
     }
@@ -283,6 +289,7 @@ bool google_drive_toc_parser::open_and_validate_toc(fs::File& file, photo_frame_
 }
 
 bool google_drive_toc_parser::skip_header(fs::File& file, photo_frame_error_t* error) {
+    Serial.println(F("Skipping TOC header lines..."));
     // Skip line 1 (timestamp) and line 2 (fileCount)
     String line1 = file.readStringUntil('\n');
     String line2 = file.readStringUntil('\n');
