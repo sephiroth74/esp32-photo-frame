@@ -4,9 +4,16 @@ This document describes the complete flow and architecture of the ESP32 Photo Fr
 
 ## Project Overview
 
-The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display. It supports two main image sources:
+The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information and weather display. It supports two main image sources:
 - **Local SD Card**: Images processed and stored locally
 - **Google Drive**: Cloud-based image storage with local caching
+
+### Key Features
+- **Dual image sources**: SD card and Google Drive cloud storage
+- **Weather display**: Real-time weather overlay with configurable units and timezone
+- **Smart power management**: Battery-aware refresh intervals and features
+- **Status information**: Time, image count, battery level, and charging status
+- **Multiple display formats**: Black & white, 6-color, and 7-color e-paper support
 
 ## Architecture Components
 
@@ -553,6 +560,7 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
      draw_last_update(now, refresh_delay.refresh_seconds);
      draw_image_info(image_index, total_files, image_source);
      draw_battery_status(battery_info);
+     draw_weather_info(weather_data, gravity);
    } while (display.nextPage());
    ```
 
@@ -561,6 +569,7 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
    - Image index and total count
    - Image source indicator (local/cloud)
    - Battery level and charging status
+   - Weather information overlay (temperature, min/max, sunrise/sunset, date)
 
 #### 4.4 Power Management (Lines 588-607)
 
@@ -837,8 +846,9 @@ This comprehensive error system enables proactive maintenance, rapid troubleshoo
 esp32-photo-frame/
 ├── platformio/                    # ESP32/Arduino firmware
 │   ├── src/main.cpp               # Main application logic
-│   ├── src/                       # Core modules (battery, wifi, display, etc.)
+│   ├── src/                       # Core modules (battery, wifi, display, weather, etc.)
 │   ├── include/config/            # Board-specific configurations
+│   ├── weather_example.json       # Weather configuration template
 │   └── platformio.ini             # Build configuration
 ├── android/PhotoFrameProcessor/   # Android companion app
 │   └── app/src/main/             # Kotlin source code

@@ -73,6 +73,7 @@ struct WeatherData {
     bool is_day = true;                // True if daytime, false if nighttime
     float wind_speed = 0.0f;           // Wind speed in km/h
     bool valid = false;                // True if data is valid
+    String temperature_unit = "°C";    // Temperature unit from API (e.g., "°C", "°F")
     
     // Daily forecast data
     float temp_min = 0.0f;             // Daily minimum temperature in Celsius
@@ -111,6 +112,9 @@ struct WeatherConfig {
     uint8_t battery_threshold = 15;         // Disable weather below this battery %
     uint32_t max_age_hours = 3;            // Max age before weather is considered stale
     String timezone = "auto";               // Timezone (e.g., "Europe/Berlin", "auto")
+    String temperature_unit = "celsius";    // Temperature unit ("celsius", "fahrenheit")
+    String wind_speed_unit = "kmh";         // Wind speed unit ("kmh", "mph", "ms", "kn")
+    String precipitation_unit = "mm";       // Precipitation unit ("mm", "inch")
 
     /// Validate configuration values (only essential checks, other values are clamped)
     bool is_valid() const {

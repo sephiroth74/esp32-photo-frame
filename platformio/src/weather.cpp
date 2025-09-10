@@ -122,10 +122,12 @@ String WeatherManager::build_api_url() const {
     url += "?latitude=" + String(config.latitude, 4);
     url += "&longitude=" + String(config.longitude, 4);
     url += "&daily=sunrise,sunset,apparent_temperature_max,apparent_temperature_min";
-    url += "&hourly=is_day";
     url += "&current=is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,apparent_temperature";
     url += "&timezone=" + config.timezone;
     url += "&forecast_days=1";
+    url += "&temperature_unit=" + config.temperature_unit;
+    url += "&wind_speed_unit=" + config.wind_speed_unit;
+    url += "&precipitation_unit=" + config.precipitation_unit;
     
     return url;
 }
@@ -236,6 +238,18 @@ bool WeatherManager::parse_weather_response(const String& json_response, Weather
     } else {
         Serial.println("WeatherManager: No weather code in response");
         return false;
+    }
+    
+    // Extract temperature unit from current_units if available
+    if (doc.containsKey("current_units")) {
+        JsonObject current_units = doc["current_units"];
+        if (current_units.containsKey("apparent_temperature")) {
+            weather_data.temperature_unit = current_units["apparent_temperature"].as<String>();
+        } else {
+            weather_data.temperature_unit = "°C"; // Default fallback
+        }
+    } else {
+        weather_data.temperature_unit = "°C"; // Default fallback
     }
     
     // Extract daily forecast data if available
@@ -419,6 +433,7 @@ void WeatherManager::save_weather_cache() {
     doc["last_update"] = current_weather.last_update;
     doc["description"] = current_weather.description;
     doc["valid"] = true;
+    doc["temperature_unit"] = current_weather.temperature_unit;
     
     // Save daily forecast data
     doc["temp_min"] = current_weather.temp_min;
@@ -474,6 +489,7 @@ bool WeatherManager::load_weather_cache() {
     current_weather.description = doc["description"].as<String>();
     current_weather.valid = true;
     current_weather.icon = wmo_code_to_icon(current_weather.weather_code, current_weather.is_day, current_weather.wind_speed);
+    current_weather.temperature_unit = doc["temperature_unit"] | "°C"; // Default to Celsius for backwards compatibility
     
     // Load daily forecast data (with defaults for backwards compatibility)
     current_weather.temp_min = doc["temp_min"] | 0.0f;
@@ -543,6 +559,9 @@ bool WeatherManager::parse_config_json(const String& json_content, WeatherConfig
     weather_config.max_age_hours = constrain(max_age, WEATHER_MAX_AGE_HOURS_MIN_VALUE, WEATHER_MAX_AGE_HOURS_MAX_VALUE);
     
     weather_config.timezone = doc["timezone"] | "auto";
+    weather_config.temperature_unit = doc["temperature_unit"] | "celsius";
+    weather_config.wind_speed_unit = doc["wind_speed_unit"] | "kmh";
+    weather_config.precipitation_unit = doc["precipitation_unit"] | "mm";
     
     return weather_config.is_valid();
 }
@@ -554,11 +573,14 @@ bool WeatherManager::create_example_config() {
     doc["enabled"] = false;  // Disabled by default
     doc["latitude"] = 40.7128;
     doc["longitude"] = -74.0060;
-    doc["update_interval_minutes"] = 60;
+    doc["update_interval_minutes"] = 120;
     doc["celsius"] = true;
     doc["battery_threshold"] = 15;
     doc["max_age_hours"] = 3;
-    doc["timezone"] = "Europe/Berlin";
+    doc["timezone"] = "auto";
+    doc["temperature_unit"] = "celsius";
+    doc["wind_speed_unit"] = "kmh";
+    doc["precipitation_unit"] = "mm";
     
     // Add documentation comments
     doc["_comment"] = "Weather configuration for ESP32 Photo Frame";

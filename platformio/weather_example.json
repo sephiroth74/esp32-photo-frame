@@ -1,32 +1,41 @@
 {
   "_comment": "Weather configuration for ESP32 Photo Frame",
-  "_instructions": "1. Copy this file to your SD card as 'weather_config.json', 2. Set enabled=true, 3. Update latitude/longitude for your location, 4. Adjust settings as needed",
-  "_location_note": "Find your coordinates at: https://www.latlong.net/ or use your phone's GPS",
+  "_instructions": "Copy this file as 'weather.json' to your SD card and update the settings",
   
   "enabled": false,
   "latitude": 40.7128,
   "longitude": -74.0060,
+  "timezone": "America/New_York",
+  
   "update_interval_minutes": 60,
-  "celsius": true,
   "battery_threshold": 15,
   "max_age_hours": 3,
-  "timezone": "auto",
   
-  "_examples": {
-    "_new_york": { "latitude": 40.7128, "longitude": -74.0060, "name": "New York City, NY" },
-    "_london": { "latitude": 51.5074, "longitude": -0.1278, "name": "London, UK" },
-    "_tokyo": { "latitude": 35.6762, "longitude": 139.6503, "name": "Tokyo, Japan" },
-    "_sydney": { "latitude": -33.8688, "longitude": 151.2093, "name": "Sydney, Australia" },
-    "_san_francisco": { "latitude": 37.7749, "longitude": -122.4194, "name": "San Francisco, CA" }
+  "celsius": true,
+  "temperature_unit": "celsius",
+  "wind_speed_unit": "kmh",
+  "precipitation_unit": "mm",
+  
+  "_location_examples": {
+    "new_york": { "latitude": 40.7128, "longitude": -74.0060, "timezone": "America/New_York" },
+    "london": { "latitude": 51.5074, "longitude": -0.1278, "timezone": "Europe/London" },
+    "tokyo": { "latitude": 35.6762, "longitude": 139.6503, "timezone": "Asia/Tokyo" },
+    "sydney": { "latitude": -33.8688, "longitude": 151.2093, "timezone": "Australia/Sydney" },
+    "berlin": { "latitude": 52.5200, "longitude": 13.4050, "timezone": "Europe/Berlin" }
   },
   
-  "_settings_explanation": {
-    "enabled": "Set to true to enable weather display",
-    "latitude": "Your location latitude (-90 to 90)",
-    "longitude": "Your location longitude (-180 to 180)", 
-    "update_interval_minutes": "How often to check for weather updates (15-1440 minutes)",
-    "celsius": "true for Celsius, false for Fahrenheit",
-    "battery_threshold": "Disable weather below this battery percentage (5-50%)",
-    "max_age_hours": "Max age before weather data is considered stale (1-24 hours)"
-  }
+  "_unit_options": {
+    "temperature_unit": ["celsius", "fahrenheit"],
+    "wind_speed_unit": ["kmh", "mph", "ms", "kn"],
+    "precipitation_unit": ["mm", "inch"]
+  },
+  
+  "_setup_instructions": [
+    "1. Set 'enabled' to true to activate weather display",
+    "2. Update 'latitude' and 'longitude' with your location coordinates",
+    "3. Set 'timezone' to your local timezone (e.g., 'Europe/Berlin')",
+    "4. Choose your preferred units for temperature, wind speed, and precipitation",
+    "5. Copy this file as 'weather.json' to the root of your SD card",
+    "6. Restart your photo frame to load the new configuration"
+  ]
 }
