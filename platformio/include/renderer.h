@@ -29,6 +29,7 @@
 #include "config.h"
 #include "errors.h"
 #include "google_drive.h"
+#include "weather.h"
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
@@ -174,11 +175,13 @@ typedef enum alignment {
  * the display boundaries.
  */
 typedef enum gravity {
-    TOP_LEFT,     ///< Position at top-left corner
-    TOP_RIGHT,    ///< Position at top-right corner
-    BOTTOM_LEFT,  ///< Position at bottom-left corner
-    BOTTOM_RIGHT, ///< Position at bottom-right corner
-    TOP_CENTER,   ///< Position at top-center
+    TOP_LEFT,        ///< Position at top-left corner
+    TOP_RIGHT,       ///< Position at top-right corner
+    BOTTOM_LEFT,     ///< Position at bottom-left corner
+    BOTTOM_RIGHT,    ///< Position at bottom-right corner
+    TOP_CENTER,      ///< Position at top-center
+    TOP_CENTER_LEFT, ///< Position at top-center-left (for weather display)
+    TOP_CENTER_RIGHT ///< Position at top-center-right
 } gravity_t;
 
 namespace photo_frame {
@@ -373,6 +376,32 @@ void draw_battery_status(photo_frame::battery_info_t battery_info);
  * top center corner of the display. It is useful for providing context when viewing images.
  */
 void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source);
+
+/**
+ * Draws current weather information on the e-paper display.
+ * @param weather_data The weather data to display (temperature, icon, etc.)
+ * @param gravity The position where to display the weather (default: TOP_CENTER_LEFT)
+ * @note This function displays a weather icon and temperature on the status bar.
+ * Only displays if weather data is valid and not stale.
+ */
+void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, 
+                       gravity_t gravity = TOP_CENTER_LEFT);
+
+/**
+ * Draws a rounded rectangle with optional background fill on the e-paper display.
+ * @param x X-coordinate of the top-left corner
+ * @param y Y-coordinate of the top-left corner
+ * @param width Width of the rectangle
+ * @param height Height of the rectangle
+ * @param fill_lines If true, draws horizontal fill lines with gaps for semi-transparent effect
+ * @param line_spacing Spacing between fill lines (default: 4 pixels)
+ * @param color Color to use for drawing (default: GxEPD_BLACK)
+ * @note This function creates a rounded rectangle with shortened edges at corners
+ * and optional fill pattern. Useful for creating background boxes for UI elements.
+ */
+void draw_rounded_rect(int16_t x, int16_t y, int16_t width, int16_t height, 
+                       bool fill_lines = true, int16_t line_spacing = 4, 
+                       uint16_t color = GxEPD_BLACK);
 
 /**
  * @brief Draws a bitmap image from a file on the e-paper display.

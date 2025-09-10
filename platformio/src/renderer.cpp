@@ -409,7 +409,116 @@ void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_s
 {
     Serial.println("drawImageInfo: " + String(index) + " / " + String(total_images));
     String message = String(index + 1) + " / " + String(total_images);
-    draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloud_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
+    draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloudy_day_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
+}
+
+void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, gravity_t gravity) {
+    // Only display if weather data is valid and not stale (max 3 hours old)
+    if (!weather_data.is_displayable(10800)) { // 3 hours = 10800 seconds
+        Serial.println("drawWeatherInfo: Weather data invalid or stale, skipping display");
+        return;
+    }
+    
+    Serial.printf("drawWeatherInfo: %.1f°C, %s\n", 
+                  weather_data.temperature, weather_data.description.c_str());
+    
+    // Calculate position based on gravity (positioned in bottom-left area like the image)
+    int16_t base_x = 20;  // Left margin
+    int16_t base_y = DISP_HEIGHT - 120;  // Bottom area
+    
+    if (gravity == TOP_CENTER_LEFT) {
+        base_x = 20;
+        base_y = 20;  // Top area instead
+    }
+    
+    // Calculate background box dimensions
+    int16_t box_width = 220;   // Width for icon + text content
+    int16_t box_height = 80;   // Height for all weather info
+    int16_t box_x = base_x - 10;  // Padding around content
+    int16_t box_y = base_y - 10;  // Padding around content
+    
+    // Draw rounded background box using reusable function
+    draw_rounded_rect(box_x, box_y, box_width, box_height, true, 4, GxEPD_BLACK);
+    
+    // Get weather icon mapped to system icon
+    icon_name_t weather_icon = photo_frame::weather::weather_icon_to_system_icon(weather_data.icon);
+    
+    // Draw weather icon
+    const unsigned char* icon_bitmap = getBitmap(weather_icon, 48);
+    if (icon_bitmap) {
+        display.drawBitmap(base_x, base_y, icon_bitmap, 48, 48, GxEPD_BLACK);
+    }
+    
+    // Position text to the right of icon
+    int16_t text_x = base_x + 60;
+    int16_t text_y = base_y;
+    
+    // Draw main temperature (large text)
+    String main_temp = String((int)weather_data.temperature) + "°";
+    draw_string(text_x, text_y, main_temp.c_str(), GxEPD_BLACK);
+    text_y += 20;
+    
+    // Draw high/low temperatures if available
+    if (weather_data.has_daily_data && weather_data.temp_min != 0.0f && weather_data.temp_max != 0.0f) {
+        String temp_range = String((int)weather_data.temp_min) + "°/" + String((int)weather_data.temp_max) + "°";
+        draw_string(text_x, text_y, temp_range.c_str(), GxEPD_BLACK);
+        text_y += 16;
+    }
+    
+    // Draw sunrise time if available
+    if (weather_data.has_daily_data && weather_data.sunrise_time > 0) {
+        char sunrise_buffer[16];
+        if (photo_frame::datetime_utils::format_datetime(sunrise_buffer, sizeof(sunrise_buffer), 
+                                                          weather_data.sunrise_time, "%H:%M") > 0) {
+            String sunrise_text = "sunrise " + String(sunrise_buffer);
+            draw_string(text_x, text_y, sunrise_text.c_str(), GxEPD_BLACK);
+            text_y += 16;
+        }
+    }
+    
+    // Draw sunset time if available  
+    if (weather_data.has_daily_data && weather_data.sunset_time > 0) {
+        char sunset_buffer[16];  
+        if (photo_frame::datetime_utils::format_datetime(sunset_buffer, sizeof(sunset_buffer),
+                                                          weather_data.sunset_time, "%H:%M") > 0) {
+            String sunset_text = "sunset: " + String(sunset_buffer);
+            draw_string(text_x, text_y, sunset_text.c_str(), GxEPD_BLACK);
+            text_y += 16;
+        }
+    }
+    
+    // Draw current date
+    time_t now = time(NULL);
+    char date_buffer[32];
+    if (photo_frame::datetime_utils::format_datetime(date_buffer, sizeof(date_buffer), 
+                                                      now, "%Y/%m/%d") > 0) {
+        draw_string(text_x, text_y, date_buffer, GxEPD_BLACK);
+    }
+}
+
+void draw_rounded_rect(int16_t x, int16_t y, int16_t width, int16_t height, 
+                       bool fill_lines, int16_t line_spacing, uint16_t color) {
+    // Input validation
+    if (width <= 0 || height <= 0) return;
+    
+    // Draw background fill with horizontal lines and gaps for semi-transparent effect
+    if (fill_lines) {
+        for (int dy = 2; dy < height - 2; dy += line_spacing) {
+            display.drawFastHLine(x + 2, y + dy, width - 4, color);
+        }
+    }
+    
+    // Draw rounded corners effect by drawing shorter lines at corners
+    display.drawFastHLine(x + 4, y, width - 8, color);              // Top edge (shortened)
+    display.drawFastHLine(x + 4, y + height - 1, width - 8, color); // Bottom edge (shortened)
+    display.drawFastVLine(x, y + 4, height - 8, color);             // Left edge (shortened)
+    display.drawFastVLine(x + width - 1, y + 4, height - 8, color); // Right edge (shortened)
+    
+    // Add corner rounding pixels for smooth appearance
+    display.drawPixel(x + 2, y + 2, color);                     // Top-left corner
+    display.drawPixel(x + width - 3, y + 2, color);             // Top-right corner
+    display.drawPixel(x + 2, y + height - 3, color);            // Bottom-left corner
+    display.drawPixel(x + width - 3, y + height - 3, color);    // Bottom-right corner
 }
 
 void draw_battery_status(photo_frame::battery_info_t battery_info) {
@@ -530,6 +639,18 @@ void draw_side_message(gravity_t gravity, const char* message, int32_t x_offset,
         y = DISP_HEIGHT - rect.y;
         break;
     }
+    case TOP_CENTER_LEFT: {
+        // Position between left edge and center
+        x = DISP_WIDTH / 4 - rect.width / 2;
+        y = -rect.y;
+        break;
+    }
+    case TOP_CENTER_RIGHT: {
+        // Position between center and right edge
+        x = (3 * DISP_WIDTH / 4) - rect.width / 2;
+        y = -rect.y;
+        break;
+    }
     default: {
         Serial.println("drawSideMessage: Invalid gravity type");
         return;
@@ -582,6 +703,18 @@ void draw_side_message_with_icon(gravity_t gravity,
     case BOTTOM_RIGHT: {
         x = DISP_WIDTH - rect.width - 20;
         y = DISP_HEIGHT - rect.y;
+        break;
+    }
+    case TOP_CENTER_LEFT: {
+        // Position between left edge and center, accounting for icon
+        x = DISP_WIDTH / 4 - (rect.width + icon_size + 2) / 2;
+        y = -rect.y;
+        break;
+    }
+    case TOP_CENTER_RIGHT: {
+        // Position between center and right edge, accounting for icon  
+        x = (3 * DISP_WIDTH / 4) - (rect.width + icon_size + 2) / 2;
+        y = -rect.y;
         break;
     }
     default: {

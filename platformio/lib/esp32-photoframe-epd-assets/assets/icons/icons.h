@@ -57,12 +57,26 @@ typedef enum icon_name {
   battery_full_180deg,
   battery_full_270deg,
   battery_full_90deg,
-  cloud_0deg,
+  clear_sky_day_0deg,
+  clear_sky_night_0deg,
+  cloudy_day_0deg,
+  cloudy_day_rain_0deg,
+  cloudy_night_0deg,
+  cloudy_night_rain_0deg,
   error_icon,
+  fog_0deg,
   ionizing_radiation_symbol,
   micro_sd_card_0deg,
+  overcast_0deg,
+  overcast_wind_rain_0deg,
+  rain_0deg,
+  snow_0deg,
+  snow_rain_0deg,
+  thunderstorm_0deg,
   warning_icon,
   wi_time_10,
+  wind_0deg,
+  wind_rain_0deg,
 } icon_name_t;
 
 constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
@@ -668,18 +682,93 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
-  case cloud_0deg:
+  case clear_sky_day_0deg:
     switch (size) {
-    case 12: return cloud_0deg_12x12;
-    case 16: return cloud_0deg_16x16;
-    case 24: return cloud_0deg_24x24;
-    case 32: return cloud_0deg_32x32;
-    case 48: return cloud_0deg_48x48;
-    case 64: return cloud_0deg_64x64;
-    case 96: return cloud_0deg_96x96;
-    case 128: return cloud_0deg_128x128;
-    case 160: return cloud_0deg_160x160;
-    case 196: return cloud_0deg_196x196;
+    case 12: return clear_sky_day_0deg_12x12;
+    case 16: return clear_sky_day_0deg_16x16;
+    case 24: return clear_sky_day_0deg_24x24;
+    case 32: return clear_sky_day_0deg_32x32;
+    case 48: return clear_sky_day_0deg_48x48;
+    case 64: return clear_sky_day_0deg_64x64;
+    case 96: return clear_sky_day_0deg_96x96;
+    case 128: return clear_sky_day_0deg_128x128;
+    case 160: return clear_sky_day_0deg_160x160;
+    case 196: return clear_sky_day_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case clear_sky_night_0deg:
+    switch (size) {
+    case 12: return clear_sky_night_0deg_12x12;
+    case 16: return clear_sky_night_0deg_16x16;
+    case 24: return clear_sky_night_0deg_24x24;
+    case 32: return clear_sky_night_0deg_32x32;
+    case 48: return clear_sky_night_0deg_48x48;
+    case 64: return clear_sky_night_0deg_64x64;
+    case 96: return clear_sky_night_0deg_96x96;
+    case 128: return clear_sky_night_0deg_128x128;
+    case 160: return clear_sky_night_0deg_160x160;
+    case 196: return clear_sky_night_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case cloudy_day_0deg:
+    switch (size) {
+    case 12: return cloudy_day_0deg_12x12;
+    case 16: return cloudy_day_0deg_16x16;
+    case 24: return cloudy_day_0deg_24x24;
+    case 32: return cloudy_day_0deg_32x32;
+    case 48: return cloudy_day_0deg_48x48;
+    case 64: return cloudy_day_0deg_64x64;
+    case 96: return cloudy_day_0deg_96x96;
+    case 128: return cloudy_day_0deg_128x128;
+    case 160: return cloudy_day_0deg_160x160;
+    case 196: return cloudy_day_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case cloudy_day_rain_0deg:
+    switch (size) {
+    case 12: return cloudy_day_rain_0deg_12x12;
+    case 16: return cloudy_day_rain_0deg_16x16;
+    case 24: return cloudy_day_rain_0deg_24x24;
+    case 32: return cloudy_day_rain_0deg_32x32;
+    case 48: return cloudy_day_rain_0deg_48x48;
+    case 64: return cloudy_day_rain_0deg_64x64;
+    case 96: return cloudy_day_rain_0deg_96x96;
+    case 128: return cloudy_day_rain_0deg_128x128;
+    case 160: return cloudy_day_rain_0deg_160x160;
+    case 196: return cloudy_day_rain_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case cloudy_night_0deg:
+    switch (size) {
+    case 12: return cloudy_night_0deg_12x12;
+    case 16: return cloudy_night_0deg_16x16;
+    case 24: return cloudy_night_0deg_24x24;
+    case 32: return cloudy_night_0deg_32x32;
+    case 48: return cloudy_night_0deg_48x48;
+    case 64: return cloudy_night_0deg_64x64;
+    case 96: return cloudy_night_0deg_96x96;
+    case 128: return cloudy_night_0deg_128x128;
+    case 160: return cloudy_night_0deg_160x160;
+    case 196: return cloudy_night_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case cloudy_night_rain_0deg:
+    switch (size) {
+    case 12: return cloudy_night_rain_0deg_12x12;
+    case 16: return cloudy_night_rain_0deg_16x16;
+    case 24: return cloudy_night_rain_0deg_24x24;
+    case 32: return cloudy_night_rain_0deg_32x32;
+    case 48: return cloudy_night_rain_0deg_48x48;
+    case 64: return cloudy_night_rain_0deg_64x64;
+    case 96: return cloudy_night_rain_0deg_96x96;
+    case 128: return cloudy_night_rain_0deg_128x128;
+    case 160: return cloudy_night_rain_0deg_160x160;
+    case 196: return cloudy_night_rain_0deg_196x196;
     default:
       return nullptr;
     }
@@ -695,6 +784,21 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     case 128: return error_icon_128x128;
     case 160: return error_icon_160x160;
     case 196: return error_icon_196x196;
+    default:
+      return nullptr;
+    }
+  case fog_0deg:
+    switch (size) {
+    case 12: return fog_0deg_12x12;
+    case 16: return fog_0deg_16x16;
+    case 24: return fog_0deg_24x24;
+    case 32: return fog_0deg_32x32;
+    case 48: return fog_0deg_48x48;
+    case 64: return fog_0deg_64x64;
+    case 96: return fog_0deg_96x96;
+    case 128: return fog_0deg_128x128;
+    case 160: return fog_0deg_160x160;
+    case 196: return fog_0deg_196x196;
     default:
       return nullptr;
     }
@@ -728,6 +832,96 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+  case overcast_0deg:
+    switch (size) {
+    case 12: return overcast_0deg_12x12;
+    case 16: return overcast_0deg_16x16;
+    case 24: return overcast_0deg_24x24;
+    case 32: return overcast_0deg_32x32;
+    case 48: return overcast_0deg_48x48;
+    case 64: return overcast_0deg_64x64;
+    case 96: return overcast_0deg_96x96;
+    case 128: return overcast_0deg_128x128;
+    case 160: return overcast_0deg_160x160;
+    case 196: return overcast_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case overcast_wind_rain_0deg:
+    switch (size) {
+    case 12: return overcast_wind_rain_0deg_12x12;
+    case 16: return overcast_wind_rain_0deg_16x16;
+    case 24: return overcast_wind_rain_0deg_24x24;
+    case 32: return overcast_wind_rain_0deg_32x32;
+    case 48: return overcast_wind_rain_0deg_48x48;
+    case 64: return overcast_wind_rain_0deg_64x64;
+    case 96: return overcast_wind_rain_0deg_96x96;
+    case 128: return overcast_wind_rain_0deg_128x128;
+    case 160: return overcast_wind_rain_0deg_160x160;
+    case 196: return overcast_wind_rain_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case rain_0deg:
+    switch (size) {
+    case 12: return rain_0deg_12x12;
+    case 16: return rain_0deg_16x16;
+    case 24: return rain_0deg_24x24;
+    case 32: return rain_0deg_32x32;
+    case 48: return rain_0deg_48x48;
+    case 64: return rain_0deg_64x64;
+    case 96: return rain_0deg_96x96;
+    case 128: return rain_0deg_128x128;
+    case 160: return rain_0deg_160x160;
+    case 196: return rain_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case snow_0deg:
+    switch (size) {
+    case 12: return snow_0deg_12x12;
+    case 16: return snow_0deg_16x16;
+    case 24: return snow_0deg_24x24;
+    case 32: return snow_0deg_32x32;
+    case 48: return snow_0deg_48x48;
+    case 64: return snow_0deg_64x64;
+    case 96: return snow_0deg_96x96;
+    case 128: return snow_0deg_128x128;
+    case 160: return snow_0deg_160x160;
+    case 196: return snow_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case snow_rain_0deg:
+    switch (size) {
+    case 12: return snow_rain_0deg_12x12;
+    case 16: return snow_rain_0deg_16x16;
+    case 24: return snow_rain_0deg_24x24;
+    case 32: return snow_rain_0deg_32x32;
+    case 48: return snow_rain_0deg_48x48;
+    case 64: return snow_rain_0deg_64x64;
+    case 96: return snow_rain_0deg_96x96;
+    case 128: return snow_rain_0deg_128x128;
+    case 160: return snow_rain_0deg_160x160;
+    case 196: return snow_rain_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case thunderstorm_0deg:
+    switch (size) {
+    case 12: return thunderstorm_0deg_12x12;
+    case 16: return thunderstorm_0deg_16x16;
+    case 24: return thunderstorm_0deg_24x24;
+    case 32: return thunderstorm_0deg_32x32;
+    case 48: return thunderstorm_0deg_48x48;
+    case 64: return thunderstorm_0deg_64x64;
+    case 96: return thunderstorm_0deg_96x96;
+    case 128: return thunderstorm_0deg_128x128;
+    case 160: return thunderstorm_0deg_160x160;
+    case 196: return thunderstorm_0deg_196x196;
+    default:
+      return nullptr;
+    }
   case warning_icon:
     switch (size) {
     case 12: return warning_icon_12x12;
@@ -755,6 +949,36 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     case 128: return wi_time_10_128x128;
     case 160: return wi_time_10_160x160;
     case 196: return wi_time_10_196x196;
+    default:
+      return nullptr;
+    }
+  case wind_0deg:
+    switch (size) {
+    case 12: return wind_0deg_12x12;
+    case 16: return wind_0deg_16x16;
+    case 24: return wind_0deg_24x24;
+    case 32: return wind_0deg_32x32;
+    case 48: return wind_0deg_48x48;
+    case 64: return wind_0deg_64x64;
+    case 96: return wind_0deg_96x96;
+    case 128: return wind_0deg_128x128;
+    case 160: return wind_0deg_160x160;
+    case 196: return wind_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case wind_rain_0deg:
+    switch (size) {
+    case 12: return wind_rain_0deg_12x12;
+    case 16: return wind_rain_0deg_16x16;
+    case 24: return wind_rain_0deg_24x24;
+    case 32: return wind_rain_0deg_32x32;
+    case 48: return wind_rain_0deg_48x48;
+    case 64: return wind_rain_0deg_64x64;
+    case 96: return wind_rain_0deg_96x96;
+    case 128: return wind_rain_0deg_128x128;
+    case 160: return wind_rain_0deg_160x160;
+    case 196: return wind_rain_0deg_196x196;
     default:
       return nullptr;
     }

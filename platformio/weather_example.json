@@ -1,0 +1,32 @@
+{
+  "_comment": "Weather configuration for ESP32 Photo Frame",
+  "_instructions": "1. Copy this file to your SD card as 'weather_config.json', 2. Set enabled=true, 3. Update latitude/longitude for your location, 4. Adjust settings as needed",
+  "_location_note": "Find your coordinates at: https://www.latlong.net/ or use your phone's GPS",
+  
+  "enabled": false,
+  "latitude": 40.7128,
+  "longitude": -74.0060,
+  "update_interval_minutes": 60,
+  "celsius": true,
+  "battery_threshold": 15,
+  "max_age_hours": 3,
+  "timezone": "auto",
+  
+  "_examples": {
+    "_new_york": { "latitude": 40.7128, "longitude": -74.0060, "name": "New York City, NY" },
+    "_london": { "latitude": 51.5074, "longitude": -0.1278, "name": "London, UK" },
+    "_tokyo": { "latitude": 35.6762, "longitude": 139.6503, "name": "Tokyo, Japan" },
+    "_sydney": { "latitude": -33.8688, "longitude": 151.2093, "name": "Sydney, Australia" },
+    "_san_francisco": { "latitude": 37.7749, "longitude": -122.4194, "name": "San Francisco, CA" }
+  },
+  
+  "_settings_explanation": {
+    "enabled": "Set to true to enable weather display",
+    "latitude": "Your location latitude (-90 to 90)",
+    "longitude": "Your location longitude (-180 to 180)", 
+    "update_interval_minutes": "How often to check for weather updates (15-1440 minutes)",
+    "celsius": "true for Celsius, false for Fahrenheit",
+    "battery_threshold": "Disable weather below this battery percentage (5-50%)",
+    "max_age_hours": "Max age before weather data is considered stale (1-24 hours)"
+  }
+}

@@ -9,6 +9,7 @@
 - **Dual Image Sources**: Display images from SD card or Google Drive cloud storage
 - **Google Drive Integration**: Automatic image synchronization and caching from Google Drive folders
 - **Smart Image Processing**: Automatic resizing, annotation, and format conversion
+- **Weather Display**: Real-time weather information with configurable location, timezone, and update intervals
 - Battery voltage monitoring and reporting with power-saving modes
 - Real-time clock integration for scheduled refresh and time-based features
 - Potentiometer to regulate the refresh delay
@@ -252,6 +253,7 @@ For detailed technical documentation including comprehensive error handling syst
 ### Documentation Index
 
 - **📋 [Technical Specifications](docs/tech_specs.md)** - System architecture, error handling, and API references
+- **📋 [Weather Display](docs/weather.md)** - Weather integration setup, configuration, and API usage
 - **📋 [Image Processing Pipeline](docs/image_processing.md)** - Complete guide for bash/ImageMagick processing
 - **📋 [Rust Image Processor](docs/rust-photoframe-processor.md)** - High-performance Rust tool with AI features
 - **📋 [Binary Format Converter](docs/bin_2_image.md)** - ESP32 binary to image conversion tool
