@@ -29,7 +29,9 @@
 #include "config.h"
 #include "errors.h"
 #include "google_drive.h"
+#ifdef USE_WEATHER
 #include "weather.h"
+#endif
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
@@ -377,6 +379,7 @@ void draw_battery_status(photo_frame::battery_info_t battery_info);
  */
 void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source);
 
+#ifdef USE_WEATHER
 /**
  * Draws current weather information on the e-paper display.
  * @param weather_data The weather data to display (temperature, icon, etc.)
@@ -386,6 +389,7 @@ void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_s
  */
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, 
                        gravity_t gravity = TOP_CENTER_LEFT);
+#endif
 
 /**
  * Draws a rounded rectangle with optional background fill on the e-paper display.

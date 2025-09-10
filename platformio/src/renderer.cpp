@@ -412,6 +412,7 @@ void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_s
     draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloud_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
 }
 
+#ifdef USE_WEATHER
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, gravity_t gravity) {
     // Only display if weather data is valid and not stale (max 3 hours old)
     if (!weather_data.is_displayable(10800)) { // 3 hours = 10800 seconds
@@ -495,6 +496,7 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, gr
         draw_string(text_x, text_y, date_buffer, GxEPD_BLACK);
     }
 }
+#endif
 
 void draw_rounded_rect(int16_t x, int16_t y, int16_t width, int16_t height, 
                        bool fill_lines, int16_t line_spacing, uint16_t color) {

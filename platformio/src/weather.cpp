@@ -20,6 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "config.h"
+
+#ifdef USE_WEATHER
 #include "weather.h"
 #include <assets/icons/icons.h>
 
@@ -28,8 +31,7 @@ namespace weather {
 
 // Static constants
 const char* WeatherManager::OPENMETEO_API_BASE = "https://api.open-meteo.com/v1/forecast";
-const char* WeatherManager::WEATHER_CONFIG_FILE = "/weather_config.json";
-const char* WeatherManager::WEATHER_CACHE_FILE = "/weather_cache.json";
+
 
 WeatherManager::WeatherManager() {
     // Initialize with default values
@@ -111,7 +113,7 @@ uint32_t WeatherManager::get_adaptive_interval(uint8_t battery_percent) const {
     uint32_t final_interval = constrain(base_interval, min_interval, max_interval);
     
     // Debug logging for power management decisions
-    Serial.printf("WeatherManager: Adaptive interval - Battery: %d%%, Failures: %d, Base: %ds, Final: %ds\n",
+    Serial.printf("WeatherManager: Adaptive interval - Battery: %d%%, Failures: %d, Base: %ds, Final: %lds\n",
                   battery_percent, consecutive_failures, config.update_interval_minutes * 60, final_interval);
     
     return final_interval;
@@ -662,3 +664,5 @@ const unsigned char* get_weather_icon_bitmap(weather_icon_t weather_icon, uint16
 
 } // namespace weather
 } // namespace photo_frame
+
+#endif // USE_WEATHER

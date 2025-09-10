@@ -435,6 +435,7 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
    ```
    /wifi.txt              # WiFi credentials (SSID:PASSWORD)
    /google_drive_config.json  # Google Drive config (if using cloud)
+   /weather.json             # Weather display configuration (optional)
    /certs/google_root_ca.pem  # SSL certificate (if using secure TLS)
    /bin-bw/               # Binary image files directory
    /gdrive/cache/         # Google Drive cache directory
