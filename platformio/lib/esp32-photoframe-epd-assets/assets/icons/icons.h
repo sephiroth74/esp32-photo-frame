@@ -73,6 +73,8 @@ typedef enum icon_name {
   rain_0deg,
   snow_0deg,
   snow_rain_0deg,
+  sunrise_0deg,
+  sunset_0deg,
   thunderstorm_0deg,
   warning_icon,
   wi_time_10,
@@ -920,6 +922,36 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     case 128: return snow_rain_0deg_128x128;
     case 160: return snow_rain_0deg_160x160;
     case 196: return snow_rain_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case sunrise_0deg:
+    switch (size) {
+    case 12: return sunrise_0deg_12x12;
+    case 16: return sunrise_0deg_16x16;
+    case 24: return sunrise_0deg_24x24;
+    case 32: return sunrise_0deg_32x32;
+    case 48: return sunrise_0deg_48x48;
+    case 64: return sunrise_0deg_64x64;
+    case 96: return sunrise_0deg_96x96;
+    case 128: return sunrise_0deg_128x128;
+    case 160: return sunrise_0deg_160x160;
+    case 196: return sunrise_0deg_196x196;
+    default:
+      return nullptr;
+    }
+  case sunset_0deg:
+    switch (size) {
+    case 12: return sunset_0deg_12x12;
+    case 16: return sunset_0deg_16x16;
+    case 24: return sunset_0deg_24x24;
+    case 32: return sunset_0deg_32x32;
+    case 48: return sunset_0deg_48x48;
+    case 64: return sunset_0deg_64x64;
+    case 96: return sunset_0deg_96x96;
+    case 128: return sunset_0deg_128x128;
+    case 160: return sunset_0deg_160x160;
+    case 196: return sunset_0deg_196x196;
     default:
       return nullptr;
     }

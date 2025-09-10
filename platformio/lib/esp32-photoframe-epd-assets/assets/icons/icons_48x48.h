@@ -56,6 +56,8 @@
 #include "48x48/rain_0deg_48x48.h"
 #include "48x48/snow_0deg_48x48.h"
 #include "48x48/snow_rain_0deg_48x48.h"
+#include "48x48/sunrise_0deg_48x48.h"
+#include "48x48/sunset_0deg_48x48.h"
 #include "48x48/thunderstorm_0deg_48x48.h"
 #include "48x48/warning_icon_48x48.h"
 #include "48x48/wi_time_10_48x48.h"

@@ -10,7 +10,6 @@
 #include "FreeSans/FreeSans_22pt8b.h"
 #include "FreeSans/FreeSans_24pt8b.h"
 #include "FreeSans/FreeSans_26pt8b.h"
-#include "FreeSans/FreeSans_48pt8b_temperature.h"
 #include "FreeSans/FreeSans_4pt8b.h"
 #include "FreeSans/FreeSans_5pt8b.h"
 #include "FreeSans/FreeSans_6pt8b.h"
@@ -28,7 +27,6 @@
 #define FONT_22pt8b FreeSans_22pt8b
 #define FONT_24pt8b FreeSans_24pt8b
 #define FONT_26pt8b FreeSans_26pt8b
-#define FONT_48pt8b_temperature FreeSans_48pt8b_temperature
 #define FONT_4pt8b FreeSans_4pt8b
 #define FONT_5pt8b FreeSans_5pt8b
 #define FONT_6pt8b FreeSans_6pt8b

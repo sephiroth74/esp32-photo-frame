@@ -56,6 +56,8 @@
 #include "64x64/rain_0deg_64x64.h"
 #include "64x64/snow_0deg_64x64.h"
 #include "64x64/snow_rain_0deg_64x64.h"
+#include "64x64/sunrise_0deg_64x64.h"
+#include "64x64/sunset_0deg_64x64.h"
 #include "64x64/thunderstorm_0deg_64x64.h"
 #include "64x64/warning_icon_64x64.h"
 #include "64x64/wi_time_10_64x64.h"

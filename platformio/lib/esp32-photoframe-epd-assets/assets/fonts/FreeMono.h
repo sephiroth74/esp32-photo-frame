@@ -10,7 +10,6 @@
 #include "FreeMono/FreeMono_22pt8b.h"
 #include "FreeMono/FreeMono_24pt8b.h"
 #include "FreeMono/FreeMono_26pt8b.h"
-#include "FreeMono/FreeMono_48pt8b_temperature.h"
 #include "FreeMono/FreeMono_4pt8b.h"
 #include "FreeMono/FreeMono_5pt8b.h"
 #include "FreeMono/FreeMono_6pt8b.h"
@@ -28,7 +27,6 @@
 #define FONT_22pt8b FreeMono_22pt8b
 #define FONT_24pt8b FreeMono_24pt8b
 #define FONT_26pt8b FreeMono_26pt8b
-#define FONT_48pt8b_temperature FreeMono_48pt8b_temperature
 #define FONT_4pt8b FreeMono_4pt8b
 #define FONT_5pt8b FreeMono_5pt8b
 #define FONT_6pt8b FreeMono_6pt8b

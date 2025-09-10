@@ -10,7 +10,6 @@
 #include "Montserrat_Regular/Montserrat_Regular_22pt8b.h"
 #include "Montserrat_Regular/Montserrat_Regular_24pt8b.h"
 #include "Montserrat_Regular/Montserrat_Regular_26pt8b.h"
-#include "Montserrat_Regular/Montserrat_Regular_48pt8b_temperature.h"
 #include "Montserrat_Regular/Montserrat_Regular_4pt8b.h"
 #include "Montserrat_Regular/Montserrat_Regular_5pt8b.h"
 #include "Montserrat_Regular/Montserrat_Regular_6pt8b.h"
@@ -28,7 +27,6 @@
 #define FONT_22pt8b Montserrat_Regular_22pt8b
 #define FONT_24pt8b Montserrat_Regular_24pt8b
 #define FONT_26pt8b Montserrat_Regular_26pt8b
-#define FONT_48pt8b_temperature Montserrat_Regular_48pt8b_temperature
 #define FONT_4pt8b Montserrat_Regular_4pt8b
 #define FONT_5pt8b Montserrat_Regular_5pt8b
 #define FONT_6pt8b Montserrat_Regular_6pt8b
