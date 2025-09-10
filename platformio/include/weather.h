@@ -22,6 +22,8 @@
 
 #pragma once
 
+#ifdef USE_WEATHER
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -138,8 +140,6 @@ private:
     uint32_t last_attempt = 0;
     static const uint8_t MAX_FAILURES = 5;
     static const char* OPENMETEO_API_BASE;
-    static const char* WEATHER_CONFIG_FILE;
-    static const char* WEATHER_CACHE_FILE;
 
     /// Map WMO weather code to weather icon considering day/night and wind
     weather_icon_t wmo_code_to_icon(uint8_t wmo_code, bool is_day, float wind_speed) const;
@@ -211,3 +211,5 @@ const unsigned char* get_weather_icon_bitmap(weather_icon_t weather_icon, uint16
 
 } // namespace weather
 } // namespace photo_frame
+
+#endif // USE_WEATHER

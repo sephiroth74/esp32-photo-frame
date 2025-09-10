@@ -149,3 +149,14 @@ const char* LOCAL_FILE_EXTENSION = ".bmp";
 #error "Please define all wakeup pin settings"
 #endif // WAKEUP_PIN && WAKEUP_PIN_MODE && WAKEUP_LEVEL
 #endif // WAKEUP_EXT1 || WAKEUP_EXT0
+
+
+#ifdef USE_WEATHER
+#ifndef WEATHER_CONFIG_FILE
+#error "WEATHER_CONFIG_FILE must be defined"
+#endif // WEATHER_CONFIG_FILE
+
+#ifndef WEATHER_CACHE_FILE
+#error "WEATHER_CACHE_FILE must be defined"
+#endif // WEATHER_CACHE_FILE
+#endif // USE_WEATHER

@@ -665,10 +665,10 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
 
     uint64_t usedBytes = sdCard.used_bytes();
     uint64_t totalBytes = sdCard.total_bytes();
-    uint64_t cardSize = sdCard.card_size();
     uint64_t freeBytes = totalBytes - usedBytes;
-
+    
 #if DEBUG_MODE
+    uint64_t cardSize = sdCard.card_size();
 
     Serial.print(F("SD card size: "));
     Serial.println(cardSize / 1024 / 1024);

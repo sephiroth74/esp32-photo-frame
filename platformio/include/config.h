@@ -26,7 +26,7 @@
 #include "_locale.h"
 #include <Arduino.h>
 
-#define STR(x)  #x
+#define STR(x) #x
 #define XSTR(x) STR(x)
 
 /// ---- Customizable settings ----
@@ -230,6 +230,17 @@
 // be only used for caching and temporary storage
 // #define USE_GOOGLE_DRIVE
 
+// -------------------------------------------
+// Weather Display
+// -------------------------------------------
+
+// Uncomment to enable weather display functionality
+// This will enable the weather overlay panel with real-time weather information
+// including temperature, min/max, sunrise/sunset times, and current date
+#define USE_WEATHER
+// #define WEATHER_CONFIG_FILE "/weather_config.json"
+// #define WEATHER_CACHE_FILE "/weather_cache.json"
+
 // Path to the Google Drive configuration JSON file on the sd-card
 // This file must be uploaded to your SD card and contain all Google Drive settings
 // #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
@@ -258,23 +269,23 @@
 // Maximum wait time for rate limiting in milliseconds
 #define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000
 
-// Maximum number of files to retrieve per API request  
+// Maximum number of files to retrieve per API request
 // Test with larger page size now that RTC is disabled
 #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 100
 
 // Stream parser threshold in bytes - platform specific
 #ifdef BOARD_HAS_PSRAM
-    // Feather S3 with PSRAM - use aggressive limits to maximize performance
-    #define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // 4MB - avoid streaming for most responses
-    #define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304           // 4MB JSON document buffer
-    #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456       // 6MB response body reserve
-    #define GOOGLE_DRIVE_SAFETY_LIMIT 10485760           // 10MB safety limit
+// Feather S3 with PSRAM - use aggressive limits to maximize performance
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304 // 4MB - avoid streaming for most responses
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456 // 6MB response body reserve
+#define GOOGLE_DRIVE_SAFETY_LIMIT 10485760 // 10MB safety limit
 #else
-    // Standard ESP32 - conservative limits for limited RAM
-    #define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768   // 32KB
-    #define GOOGLE_DRIVE_JSON_DOC_SIZE 40960            // 40KB JSON document buffer
-    #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536        // 64KB response body reserve
-    #define GOOGLE_DRIVE_SAFETY_LIMIT 100000            // 100KB safety limit
+// Standard ESP32 - conservative limits for limited RAM
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768 // 32KB
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960 // 40KB JSON document buffer
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536 // 64KB response body reserve
+#define GOOGLE_DRIVE_SAFETY_LIMIT 100000 // 100KB safety limit
 #endif
 
 // -------------------------------------------
@@ -359,12 +370,12 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #include XSTR(LOCAL_CONFIG_FILE)
 
-#define PREFS_NAMESPACE        "photo_frame"
+#define PREFS_NAMESPACE "photo_frame"
 
 #define MICROSECONDS_IN_SECOND 1000000
-#define SECONDS_IN_MINUTE      60
-#define SECONDS_IN_HOUR        3600
-#define SECONDS_IN_DAY         86400
+#define SECONDS_IN_MINUTE 60
+#define SECONDS_IN_HOUR 3600
+#define SECONDS_IN_DAY 86400
 
 // Maximum deep sleep duration to prevent overflow (24 hours)
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY
@@ -415,11 +426,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 // HTTP operation timeouts
 #ifndef HTTP_CONNECT_TIMEOUT
 #define HTTP_CONNECT_TIMEOUT 15000 // 15 seconds for connection
-#endif                             // HTTP_CONNECT_TIMEOUT
+#endif // HTTP_CONNECT_TIMEOUT
 
 #ifndef HTTP_REQUEST_TIMEOUT
 #define HTTP_REQUEST_TIMEOUT 30000 // 30 seconds for full request
-#endif                             // HTTP_REQUEST_TIMEOUT
+#endif // HTTP_REQUEST_TIMEOUT
 
 #ifndef NTP_SERVER1
 #define NTP_SERVER1 "pool.ntp.org"
@@ -443,8 +454,8 @@ extern const char* LOCAL_FILE_EXTENSION;
 #define ACCENT_COLOR GxEPD_RED // red for 6
 #else
 #define ACCENT_COLOR GxEPD_BLACK // default to black if no display type is defined
-#endif                           // DISP_BW_V2 or DISP_7C_F or DISP_6C
-#endif                           // ACCENT_COLOR
+#endif // DISP_BW_V2 or DISP_7C_F or DISP_6C
+#endif // ACCENT_COLOR
 
 #ifdef USE_GOOGLE_DRIVE
 
@@ -509,16 +520,25 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #ifndef SD_CARD_FREE_SPACE_THRESHOLD
 #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
-#endif                                                // SD_CARD_FREE_SPACE_THRESHOLD
+#endif // SD_CARD_FREE_SPACE_THRESHOLD
 
 // Google Drive folder structure defines
 #ifndef GOOGLE_DRIVE_TEMP_DIR
 #define GOOGLE_DRIVE_TEMP_DIR "temp"
 #endif
 
-#ifndef GOOGLE_DRIVE_CACHE_DIR  
+#ifndef GOOGLE_DRIVE_CACHE_DIR
 #define GOOGLE_DRIVE_CACHE_DIR "cache"
 #endif
+
+#ifdef USE_WEATHER
+#ifndef WEATHER_CONFIG_FILE
+#define WEATHER_CONFIG_FILE "/weather_config.json"
+#endif // WEATHER_CONFIG_FILE
+#ifndef WEATHER_CACHE_FILE
+#define WEATHER_CACHE_FILE "/weather_cache.json"
+#endif // WEATHER_CACHE_FILE
+#endif // USE_WEATHER
 
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
