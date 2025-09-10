@@ -34,3 +34,4 @@ android/PhotoFrameProcessor/app/google-services.json
 rust/bin2bmp/target/
 platformio/compile_commands.json
 rust/photoframe-processor/target/
+platformio/weather_config.json

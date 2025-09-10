@@ -3,11 +3,12 @@ name = "photoframe-processor"
 version = "0.1.0"
 edition = "2021"
 authors = ["Alessandro Crugnola"]
-description = "High-performance image processor for ESP32 Photo Frame project"
+description = "High-performance image processor for converting images to binary or bitmaps ready files to be displayed on ESP32 board with e-paper display."
 license = "MIT"
 repository = "https://github.com/sephiroth74/arduino/esp32-photo-frame"
-keywords = ["esp32", "e-paper", "image-processing", "photo-frame"]
-categories = ["multimedia::images", "command-line-utilities"]
+keywords = ["esp32", "e-paper", "image-processing", "cli", "embedded"]
+categories = ["multimedia::images", "command-line-utilities", "embedded"]
+readme = "README.md"
 
 [[bin]]
 name = "photoframe-processor"
@@ -34,12 +35,10 @@ kamadak-exif = "0.6.1"
 
 # Text rendering
 ab_glyph = "0.2.31"
-fontdue = "0.9.3"
 rusttype = "0.9.3"
 
 
 # Parallel processing
-crossbeam-channel = "0.5.15"
 num_cpus = "1.17.0"
 
 # Serialization for configuration
@@ -54,8 +53,6 @@ regex = "1.11.2"
 
 # Random number generation for portrait pairing
 rand = "0.9.2"
-
-
 
 
 [profile.release]

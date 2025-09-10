@@ -34,6 +34,7 @@
 #include "sd_card.h"
 #include "string_utils.h"
 #include "wifi_manager.h"
+#include "weather.h"
 
 #include <assets/icons/icons.h>
 
@@ -56,6 +57,7 @@ photo_frame::battery_reader battery_reader;
 
 photo_frame::sd_card sdCard(SD_CS_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_SCK_PIN);
 photo_frame::wifi_manager wifiManager;
+photo_frame::weather::WeatherManager weatherManager;
 Preferences prefs;
 
 unsigned long startupTime = 0;
@@ -162,12 +164,44 @@ void setup()
         if (error == photo_frame::error_type::None) {
             Serial.println(F("Initializing WiFi manager..."));
             error = wifiManager.init(WIFI_FILENAME, sdCard);
+            
+            // Initialize weather manager (loads config from SD card)
+            Serial.println(F("Initializing weather manager..."));
+            if (!weatherManager.begin()) {
+                Serial.println(F("Weather manager initialization failed or disabled"));
+                // Weather failure is not critical - continue without weather
+            } else {
+                Serial.println(F("Weather manager initialized successfully"));
+            }
+            
             if (error == photo_frame::error_type::None) {
                 // No RTC module - simple NTP-only time fetching
                 Serial.println(F("Fetching time from NTP servers..."));
                 error = wifiManager.connect();
                 if (error == photo_frame::error_type::None) {
                     now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
+                    
+                    // Piggyback weather fetch on existing WiFi session (with power management)
+                    bool batteryConservationMode = battery_info.is_critical();
+                    if (weatherManager.is_configured() && !batteryConservationMode && weatherManager.needs_update(battery_info.percent)) {
+                        Serial.println(F("Fetching weather data during WiFi session..."));
+                        if (weatherManager.fetch_weather()) {
+                            Serial.println(F("Weather data updated successfully"));
+                            weatherManager.reset_failures(); // Reset failure count on success
+                        } else {
+                            Serial.print(F("Weather fetch failed ("));
+                            Serial.print(weatherManager.get_failure_count());
+                            Serial.println(F(" consecutive failures)"));
+                        }
+                    } else if (weatherManager.is_configured()) {
+                        if (batteryConservationMode) {
+                            Serial.print(F("Skipping weather update due to critical battery level ("));
+                            Serial.print(battery_info.percent);
+                            Serial.println(F("%) - preserving power"));
+                        } else {
+                            Serial.println(F("Weather update not needed at this time"));
+                        }
+                    }
                 }
             } else {
                 Serial.println(F("WiFi initialization failed"));
@@ -517,6 +551,14 @@ void setup()
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
+                
+                // Display weather info if available and battery permits (full update path)
+                if (!battery_info.is_critical()) {
+                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                    if (current_weather.is_displayable()) {
+                        photo_frame::renderer::draw_weather_info(current_weather, TOP_CENTER_LEFT);
+                    }
+                }
 
                 page_index++;
             } while (display.nextPage()); // Clear the display
@@ -557,6 +599,14 @@ void setup()
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
+                
+                // Display weather info if available and battery permits (partial update path)
+                if (!battery_info.is_critical()) {
+                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                    if (current_weather.is_displayable()) {
+                        photo_frame::renderer::draw_weather_info(current_weather, TOP_CENTER_LEFT);
+                    }
+                }
                 // display.displayWindow(0, 0, display.width(), display.height());
 
             } while (display.nextPage()); // Clear the display
