@@ -10,7 +10,6 @@
 #include "Raleway_Regular/Raleway_Regular_22pt8b.h"
 #include "Raleway_Regular/Raleway_Regular_24pt8b.h"
 #include "Raleway_Regular/Raleway_Regular_26pt8b.h"
-#include "Raleway_Regular/Raleway_Regular_48pt8b_temperature.h"
 #include "Raleway_Regular/Raleway_Regular_4pt8b.h"
 #include "Raleway_Regular/Raleway_Regular_5pt8b.h"
 #include "Raleway_Regular/Raleway_Regular_6pt8b.h"
@@ -28,7 +27,6 @@
 #define FONT_22pt8b Raleway_Regular_22pt8b
 #define FONT_24pt8b Raleway_Regular_24pt8b
 #define FONT_26pt8b Raleway_Regular_26pt8b
-#define FONT_48pt8b_temperature Raleway_Regular_48pt8b_temperature
 #define FONT_4pt8b Raleway_Regular_4pt8b
 #define FONT_5pt8b Raleway_Regular_5pt8b
 #define FONT_6pt8b Raleway_Regular_6pt8b

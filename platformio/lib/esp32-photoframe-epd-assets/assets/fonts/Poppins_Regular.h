@@ -10,7 +10,6 @@
 #include "Poppins_Regular/Poppins_Regular_22pt8b.h"
 #include "Poppins_Regular/Poppins_Regular_24pt8b.h"
 #include "Poppins_Regular/Poppins_Regular_26pt8b.h"
-#include "Poppins_Regular/Poppins_Regular_48pt8b_temperature.h"
 #include "Poppins_Regular/Poppins_Regular_4pt8b.h"
 #include "Poppins_Regular/Poppins_Regular_5pt8b.h"
 #include "Poppins_Regular/Poppins_Regular_6pt8b.h"
@@ -28,7 +27,6 @@
 #define FONT_22pt8b Poppins_Regular_22pt8b
 #define FONT_24pt8b Poppins_Regular_24pt8b
 #define FONT_26pt8b Poppins_Regular_26pt8b
-#define FONT_48pt8b_temperature Poppins_Regular_48pt8b_temperature
 #define FONT_4pt8b Poppins_Regular_4pt8b
 #define FONT_5pt8b Poppins_Regular_5pt8b
 #define FONT_6pt8b Poppins_Regular_6pt8b

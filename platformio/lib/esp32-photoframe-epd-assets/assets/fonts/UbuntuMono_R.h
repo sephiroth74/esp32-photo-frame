@@ -10,7 +10,6 @@
 #include "UbuntuMono_R/UbuntuMono_R_22pt8b.h"
 #include "UbuntuMono_R/UbuntuMono_R_24pt8b.h"
 #include "UbuntuMono_R/UbuntuMono_R_26pt8b.h"
-#include "UbuntuMono_R/UbuntuMono_R_48pt8b_temperature.h"
 #include "UbuntuMono_R/UbuntuMono_R_4pt8b.h"
 #include "UbuntuMono_R/UbuntuMono_R_5pt8b.h"
 #include "UbuntuMono_R/UbuntuMono_R_6pt8b.h"
@@ -28,7 +27,6 @@
 #define FONT_22pt8b UbuntuMono_R_22pt8b
 #define FONT_24pt8b UbuntuMono_R_24pt8b
 #define FONT_26pt8b UbuntuMono_R_26pt8b
-#define FONT_48pt8b_temperature UbuntuMono_R_48pt8b_temperature
 #define FONT_4pt8b UbuntuMono_R_4pt8b
 #define FONT_5pt8b UbuntuMono_R_5pt8b
 #define FONT_6pt8b UbuntuMono_R_6pt8b

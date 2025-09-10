@@ -56,6 +56,8 @@
 #include "32x32/rain_0deg_32x32.h"
 #include "32x32/snow_0deg_32x32.h"
 #include "32x32/snow_rain_0deg_32x32.h"
+#include "32x32/sunrise_0deg_32x32.h"
+#include "32x32/sunset_0deg_32x32.h"
 #include "32x32/thunderstorm_0deg_32x32.h"
 #include "32x32/warning_icon_32x32.h"
 #include "32x32/wi_time_10_32x32.h"
