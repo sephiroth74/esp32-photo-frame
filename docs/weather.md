@@ -18,8 +18,8 @@ The ESP32 Photo Frame includes an optional weather display feature that shows co
 
 ### 1. Copy Configuration File
 ```bash
-# Copy the example configuration to your SD card
-cp weather_example.json /path/to/sdcard/weather.json
+# Copy the example configuration from platformio folder to your SD card
+cp platformio/weather_example.json /path/to/sdcard/weather.json
 ```
 
 ### 2. Configure Your Location
@@ -31,7 +31,10 @@ Edit `weather.json` on your SD card:
   "longitude": -74.0060,
   "timezone": "America/New_York",
   "update_interval_minutes": 60,
-  "celsius": true
+  "celsius": true,
+  "temperature_unit": "celsius",
+  "wind_speed_unit": "kmh",
+  "precipitation_unit": "mm"
 }
 ```
 
@@ -55,7 +58,10 @@ The weather feature will automatically initialize and start displaying weather i
   "update_interval_minutes": 60,
   "celsius": true,
   "battery_threshold": 15,
-  "max_age_hours": 3
+  "max_age_hours": 3,
+  "temperature_unit": "celsius",
+  "wind_speed_unit": "kmh", 
+  "precipitation_unit": "mm"
 }
 ```
 
@@ -69,10 +75,18 @@ The weather feature will automatically initialize and start displaying weather i
 | `timezone` | string | - | `"auto"` | Timezone (e.g., "Europe/Berlin", "auto") |
 | `update_interval_minutes` | integer | 60-1440* | `60` | Weather update frequency (min 1 hour) |
 | `celsius` | boolean | - | `true` | Temperature unit (true=°C, false=°F) |
+| `temperature_unit` | string | - | `"celsius"` | API temperature unit ("celsius", "fahrenheit") |
+| `wind_speed_unit` | string | - | `"kmh"` | API wind speed unit ("kmh", "mph", "ms", "kn") |
+| `precipitation_unit` | string | - | `"mm"` | API precipitation unit ("mm", "inch") |
 | `battery_threshold` | integer | 5-50* | `15` | Disable weather below this battery % |
 | `max_age_hours` | integer | 1-24* | `3` | Max age before data is stale |
 
 *Values outside valid ranges are automatically clamped to the nearest valid value.
+
+**Unit Options:**
+- **Temperature**: "celsius" (°C), "fahrenheit" (°F)
+- **Wind Speed**: "kmh" (km/h), "mph" (miles/h), "ms" (m/s), "kn" (knots)
+- **Precipitation**: "mm" (millimeters), "inch" (inches)
 
 ### Example Locations
 ```json
@@ -125,8 +139,8 @@ The system implements smart failure recovery:
 │                    [Main Image]                             │
 │                                                             │
 │ ┌─────────────────┐                                         │
-│ │ ☁️  22°         │                                         │
-│ │     14°/22°     │                                         │
+│ │ ☁️  22°C        │                                         │
+│ │     14°C/22°C   │                                         │
 │ │     sunrise 6:54│                                         │
 │ │     sunset: 19:44│                                        │
 │ │     2024/12/20  │                                         │
@@ -139,8 +153,8 @@ The system implements smart failure recovery:
 The weather information is displayed in a dedicated rounded panel in the bottom-left corner:
 
 - **Weather Icon** (48x48px): Condition-specific icon on the left
-- **Current Temperature**: Large, prominent display (e.g., "22°")
-- **Daily Range**: Min/max temperatures (e.g., "14°/22°")
+- **Current Temperature**: Large, prominent display with API units (e.g., "22°C")
+- **Daily Range**: Min/max temperatures with units (e.g., "14°C/22°C")
 - **Sunrise Time**: Local sunrise time (e.g., "sunrise 6:54")
 - **Sunset Time**: Local sunset time (e.g., "sunset: 19:44")
 - **Current Date**: Today's date (e.g., "2024/12/20")
@@ -180,15 +194,20 @@ The weather display uses dedicated weather-specific icons that automatically ada
 
 ### API Endpoint
 ```
-https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset,apparent_temperature_max,apparent_temperature_min&hourly=is_day&current=is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,apparent_temperature&timezone={timezone}&forecast_days=1
+https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset,apparent_temperature_max,apparent_temperature_min&current=is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,apparent_temperature&timezone={timezone}&forecast_days=1&temperature_unit={temp_unit}&wind_speed_unit={wind_unit}&precipitation_unit={precip_unit}
 ```
 
 **API Parameters:**
-- **Current Data**: Apparent temperature, weather conditions, wind speed, precipitation
+- **Current Data**: Apparent temperature, weather conditions, wind speed, precipitation, day/night status
 - **Daily Data**: Min/max apparent temperatures, sunrise/sunset times
-- **Hourly Data**: Day/night status for accurate icon selection
 - **Timezone**: Configurable from `weather.json` (e.g., "Europe/Berlin", "America/New_York")
+- **Units**: All measurement units are configurable via `weather.json`
 - **Forecast**: 1-day forecast for daily min/max temperatures
+
+**Example with Units:**
+```
+https://api.open-meteo.com/v1/forecast?latitude=47.3667&longitude=8.55&daily=sunrise,sunset,apparent_temperature_max,apparent_temperature_min&current=is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,apparent_temperature&timezone=Europe%2FBerlin&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch
+```
 
 ### Data Storage
 - **Configuration**: `/weather.json` on SD card

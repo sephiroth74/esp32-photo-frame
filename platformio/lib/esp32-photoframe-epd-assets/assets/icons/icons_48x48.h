@@ -42,6 +42,7 @@
 #include "48x48/battery_full_90deg_48x48.h"
 #include "48x48/clear_sky_day_0deg_48x48.h"
 #include "48x48/clear_sky_night_0deg_48x48.h"
+#include "48x48/cloud_0deg_48x48.h"
 #include "48x48/cloudy_day_0deg_48x48.h"
 #include "48x48/cloudy_day_rain_0deg_48x48.h"
 #include "48x48/cloudy_night_0deg_48x48.h"

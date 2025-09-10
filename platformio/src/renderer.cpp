@@ -409,7 +409,7 @@ void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_s
 {
     Serial.println("drawImageInfo: " + String(index) + " / " + String(total_images));
     String message = String(index + 1) + " / " + String(total_images);
-    draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloudy_day_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
+    draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloud_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
 }
 
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, gravity_t gravity) {
@@ -453,14 +453,14 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, gr
     int16_t text_x = base_x + 60;
     int16_t text_y = base_y;
     
-    // Draw main temperature (large text)
-    String main_temp = String((int)weather_data.temperature) + "°";
+    // Draw main temperature with unit (large text)
+    String main_temp = String((int)weather_data.temperature) + weather_data.temperature_unit;
     draw_string(text_x, text_y, main_temp.c_str(), GxEPD_BLACK);
     text_y += 20;
     
-    // Draw high/low temperatures if available
+    // Draw high/low temperatures with units if available
     if (weather_data.has_daily_data && weather_data.temp_min != 0.0f && weather_data.temp_max != 0.0f) {
-        String temp_range = String((int)weather_data.temp_min) + "°/" + String((int)weather_data.temp_max) + "°";
+        String temp_range = String((int)weather_data.temp_min) + weather_data.temperature_unit + "/" + String((int)weather_data.temp_max) + weather_data.temperature_unit;
         draw_string(text_x, text_y, temp_range.c_str(), GxEPD_BLACK);
         text_y += 16;
     }

@@ -42,6 +42,7 @@
 #include "24x24/battery_full_90deg_24x24.h"
 #include "24x24/clear_sky_day_0deg_24x24.h"
 #include "24x24/clear_sky_night_0deg_24x24.h"
+#include "24x24/cloud_0deg_24x24.h"
 #include "24x24/cloudy_day_0deg_24x24.h"
 #include "24x24/cloudy_day_rain_0deg_24x24.h"
 #include "24x24/cloudy_night_0deg_24x24.h"

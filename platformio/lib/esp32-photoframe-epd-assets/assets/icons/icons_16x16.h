@@ -42,6 +42,7 @@
 #include "16x16/battery_full_90deg_16x16.h"
 #include "16x16/clear_sky_day_0deg_16x16.h"
 #include "16x16/clear_sky_night_0deg_16x16.h"
+#include "16x16/cloud_0deg_16x16.h"
 #include "16x16/cloudy_day_0deg_16x16.h"
 #include "16x16/cloudy_day_rain_0deg_16x16.h"
 #include "16x16/cloudy_night_0deg_16x16.h"
