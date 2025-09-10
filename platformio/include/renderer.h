@@ -182,8 +182,6 @@ typedef enum gravity {
     BOTTOM_LEFT,     ///< Position at bottom-left corner
     BOTTOM_RIGHT,    ///< Position at bottom-right corner
     TOP_CENTER,      ///< Position at top-center
-    TOP_CENTER_LEFT, ///< Position at top-center-left (for weather display)
-    TOP_CENTER_RIGHT ///< Position at top-center-right
 } gravity_t;
 
 namespace photo_frame {
@@ -387,25 +385,26 @@ void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_s
  * @note This function displays a weather icon and temperature on the status bar.
  * Only displays if weather data is valid and not stale.
  */
-void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, 
-                       gravity_t gravity = TOP_CENTER_LEFT);
+void draw_weather_info(const photo_frame::weather::WeatherData& weather_data);
 #endif
 
 /**
- * Draws a rounded rectangle with optional background fill on the e-paper display.
+ * Draws a rounded rectangle with dithering transparency on the e-paper display.
  * @param x X-coordinate of the top-left corner
  * @param y Y-coordinate of the top-left corner
  * @param width Width of the rectangle
  * @param height Height of the rectangle
- * @param fill_lines If true, draws horizontal fill lines with gaps for semi-transparent effect
- * @param line_spacing Spacing between fill lines (default: 4 pixels)
- * @param color Color to use for drawing (default: GxEPD_BLACK)
- * @note This function creates a rounded rectangle with shortened edges at corners
- * and optional fill pattern. Useful for creating background boxes for UI elements.
+ * @param radius Corner radius for rounded edges
+ * @param color Color to use for drawing
+ * @param transparency Transparency level (0=opaque, 128=50% checkerboard, 255=invisible)
+ * @note Creates semi-transparent effects using dithering patterns:
+ *       0-64: ~75% opacity, 65-128: ~50% opacity, 129-192: ~25% opacity, 193+: ~12% opacity
+ *       Useful for creating background boxes that don't completely obscure underlying content.
  */
 void draw_rounded_rect(int16_t x, int16_t y, int16_t width, int16_t height, 
-                       bool fill_lines = true, int16_t line_spacing = 4, 
-                       uint16_t color = GxEPD_BLACK);
+                       uint16_t radius, 
+                       uint16_t color, 
+                       uint8_t transparency = 128);
 
 /**
  * @brief Draws a bitmap image from a file on the e-paper display.

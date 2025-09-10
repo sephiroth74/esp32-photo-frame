@@ -278,6 +278,7 @@ bool WeatherManager::parse_weather_response(const String& json_response, Weather
                 
                 // Convert ISO 8601 datetime to Unix timestamp
                 // Format expected: "2024-12-20T06:54"
+                // We want to save the sunrise and sunset times just as 
                 struct tm tm_sunrise = {};
                 struct tm tm_sunset = {};
                 

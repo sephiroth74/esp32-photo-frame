@@ -271,7 +271,7 @@
 
 // Maximum number of files to retrieve per API request
 // Test with larger page size now that RTC is disabled
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 100
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 200
 
 // Stream parser threshold in bytes - platform specific
 #ifdef BOARD_HAS_PSRAM

@@ -168,7 +168,7 @@ void setup()
         if (error == photo_frame::error_type::None) {
             Serial.println(F("Initializing WiFi manager..."));
             error = wifiManager.init(WIFI_FILENAME, sdCard);
-            
+
 #ifdef USE_WEATHER
             // Initialize weather manager (loads config from SD card)
             Serial.println(F("Initializing weather manager..."));
@@ -177,14 +177,14 @@ void setup()
                 // Weather failure is not critical - continue without weather
             }
 #endif
-            
+
             if (error == photo_frame::error_type::None) {
                 // No RTC module - simple NTP-only time fetching
                 Serial.println(F("Fetching time from NTP servers..."));
                 error = wifiManager.connect();
                 if (error == photo_frame::error_type::None) {
                     now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
-                    
+
 #ifdef USE_WEATHER
                     // Piggyback weather fetch on existing WiFi session (with power management)
                     bool batteryConservationMode = battery_info.is_critical();
@@ -529,6 +529,7 @@ void setup()
         const char* img_filename = file.name();
 
         if (!has_partial_update) { // if the display does not support partial update
+            Serial.println(F("Warning: Display does not support partial update!"));
             display.setFullWindow();
             display.fillScreen(GxEPD_WHITE);
 
@@ -540,8 +541,7 @@ void setup()
 
                 file.seek(0); // Reset file pointer to the beginning
 #if defined(EPD_USE_BINARY_FILE)
-                bool success = photo_frame::renderer::draw_binary_from_file(
-                    file, img_filename, DISP_WIDTH, DISP_HEIGHT);
+                bool success = photo_frame::renderer::draw_binary_from_file(file, img_filename, DISP_WIDTH, DISP_HEIGHT);
 #else
                 bool success = photo_frame::renderer::draw_bitmap_from_file(file, img_filename, 0, 0, false);
 #endif
@@ -557,16 +557,11 @@ void setup()
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
-                
+
 #ifdef USE_WEATHER
-                // Display weather info if available and battery permits (full update path)
-                if (!battery_info.is_critical()) {
-                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-                    if (current_weather.is_displayable()) {
-                        photo_frame::renderer::draw_weather_info(current_weather, TOP_CENTER_LEFT);
-                    }
-                }
-#endif
+                // not yet implemented
+                Serial.println(F("*** Weather information is not yet implemented ***"));
+#endif // USE_WEATHER
 
                 page_index++;
             } while (display.nextPage()); // Clear the display
@@ -574,6 +569,7 @@ void setup()
             file.close(); // Close the file after drawing
 
         } else {
+            Serial.println(F("Using partial update mode"));
 #ifdef EPD_USE_BINARY_FILE
             bool success = photo_frame::renderer::draw_binary_from_file_buffered(
                 file, img_filename, DISP_WIDTH, DISP_HEIGHT);
@@ -598,28 +594,25 @@ void setup()
             display.firstPage();
             do {
                 if (has_partial_update) {
+                    Serial.println(F("Clearing top area with partial update"));
                     display.fillScreen(GxEPD_WHITE);
                 } else {
+                    Serial.println(F("Warning: Display does not support partial update!"));
                     display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
                 }
-                // display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
-
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
-                
-#ifdef USE_WEATHER
-                // Display weather info if available and battery permits (partial update path)
-                if (!battery_info.is_critical()) {
-                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-                    if (current_weather.is_displayable()) {
-                        photo_frame::renderer::draw_weather_info(current_weather, TOP_CENTER_LEFT);
-                    }
-                }
-#endif
-                // display.displayWindow(0, 0, display.width(), display.height());
-
             } while (display.nextPage()); // Clear the display
+
+#ifdef USE_WEATHER
+            if (!battery_info.is_critical()) {
+                photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                if (current_weather.is_displayable()) {
+                    photo_frame::renderer::draw_weather_info(current_weather);
+                }
+            }
+#endif // USE_WEATHER
         }
     }
 
