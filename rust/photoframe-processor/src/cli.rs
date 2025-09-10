@@ -59,7 +59,7 @@ Example Usage:
 
   # 6-color processing with only binary output and custom size
   photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
-    --output-format bin --font \"Arial-Bold\" --pointsize 32 --auto --verbose
+    --output-format bin --font \"Arial-Bold\" --pointsize 22 --auto --verbose
 
   # Multiple input directories and files with JPG-only output
   photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
@@ -70,7 +70,13 @@ Example Usage:
 
   # With people detection for smart cropping (requires find_subject.py script)
   photoframe-processor -i ~/Photos -o ~/processed --detect-people \\
-    --python-script ./scripts/private/find_subject.py --auto --verbose"
+    --python-script ./scripts/private/find_subject.py --auto --verbose
+
+  # Process images without filename annotations
+  photoframe-processor -i ~/Photos -o ~/processed --auto
+
+  # Process images with filename annotations enabled
+  photoframe-processor -i ~/Photos -o ~/processed --auto --annotate"
 )]
 pub struct Args {
     /// Input directories or single image files (can be specified multiple times)
@@ -103,7 +109,7 @@ pub struct Args {
     pub auto_process: bool,
 
     /// Font size for filename annotations
-    #[arg(long = "pointsize", default_value = "24", value_name = "SIZE")]
+    #[arg(long = "pointsize", default_value = "22", value_name = "SIZE")]
     pub pointsize: u32,
 
     /// Font specification for annotations. Supports three formats:
@@ -153,6 +159,10 @@ pub struct Args {
     /// Enable debug mode: visualize detection boxes and crop area without processing
     #[arg(long = "debug")]
     pub debug: bool,
+
+    /// Enable filename annotations on processed images (default: false)
+    #[arg(long = "annotate")]
+    pub annotate: bool,
 }
 
 impl Args {
@@ -282,6 +292,7 @@ impl Default for Args {
             force: false,
             find_hash: None,
             debug: false,
+            annotate: false,
         }
     }
 }

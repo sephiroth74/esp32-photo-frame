@@ -138,6 +138,8 @@ fn main() -> Result<()> {
         force: args.force,
         // Debug mode
         debug: args.debug,
+        // Annotation control
+        annotate: args.annotate,
     };
 
     if config.verbose {
@@ -166,6 +168,9 @@ fn main() -> Result<()> {
         if config.debug {
             println!("  Debug mode: enabled - will visualize detection boxes");
         }
+        
+        // Annotation status
+        println!("  Filename annotations: {}", if config.annotate { "enabled" } else { "disabled" });
         
         println!();
     }

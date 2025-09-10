@@ -49,6 +49,8 @@ pub struct ProcessingConfig {
     pub force: bool,
     // Debug mode
     pub debug: bool,
+    // Annotation control
+    pub annotate: bool,
 }
 
 pub struct ProcessingEngine {
@@ -308,9 +310,8 @@ impl ProcessingEngine {
         let mut portrait_files = Vec::new();
         let mut landscape_files = Vec::new();
         
-        for (i, path) in images_to_process.iter().enumerate() {
-            let progress = (i as f64 / images_to_process.len() as f64) * 10.0; // First 10% for analysis
-            main_progress.set_position(progress as u64);
+        for (_i, path) in images_to_process.iter().enumerate() {
+            // Analysis phase - don't update main progress during analysis as it's tracking actual image processing
             
             // Use fast orientation detection (no full image loading)
             match orientation::detect_orientation_fast(path) {
@@ -336,7 +337,7 @@ impl ProcessingEngine {
         
         let mut all_results = Vec::new();
         
-        // Process landscape images normally (10-60% progress)
+        // Process landscape images (each increments main progress by 1)
         if !landscape_files.is_empty() {
             completion_progress.set_message("Processing landscape images...");
             let landscape_results = self.process_batch_with_progress(
@@ -349,10 +350,10 @@ impl ProcessingEngine {
             all_results.extend(landscape_results);
         }
         
-        // Process portrait images in pairs (60-100% progress)  
+        // Process portrait images in pairs
         if !portrait_files.is_empty() {
             completion_progress.set_message("Processing portrait pairs...");
-            main_progress.set_position(60);
+            // Don't reset main_progress position - let it continue from where landscapes left off
             
             let portrait_results = self.process_portrait_pairs_with_progress(
                 &portrait_files,
@@ -364,7 +365,7 @@ impl ProcessingEngine {
             all_results.extend(portrait_results);
         }
         
-        main_progress.set_position(100);
+        // Main progress should already be at 100% from incremental updates
         completion_progress.set_message("Batch processing complete");
         
         Ok((all_results, skipped_results))
@@ -520,7 +521,7 @@ impl ProcessingEngine {
             .and_then(|f| f.to_str())
             .unwrap_or("unknown");
 
-        // Resize to target dimensions (60%)
+        // Resize to target dimensions (60-65%)
         progress_bar.set_position(60);
         if people_detection.is_some() && people_detection.as_ref().unwrap().person_count > 0 {
             progress_bar.set_message(format!("{} - Smart resizing (people-aware)", filename));
@@ -529,6 +530,7 @@ impl ProcessingEngine {
             progress_bar.set_message(format!("{} - Resizing", filename));
         }
         
+        progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
             img,
             self.config.target_width,
@@ -537,22 +539,30 @@ impl ProcessingEngine {
             people_detection.as_ref(),
             self.config.verbose,
         )?;
+        progress_bar.set_position(65); // Resize complete
 
-        // Add text annotation (70%)
+        // Add text annotation (70%) - conditional based on config
         progress_bar.set_position(70);
-        progress_bar.set_message(format!("{} - Adding annotation", filename));
-        let annotated_img = annotate::add_filename_annotation(
-            &resized_img,
-            input_path,
-            &self.config.font_name,
-            self.config.font_size,
-            &self.config.annotation_background,
-        )?;
+        let annotated_img = if self.config.annotate {
+            progress_bar.set_message(format!("{} - Adding annotation", filename));
+            annotate::add_filename_annotation(
+                &resized_img,
+                input_path,
+                &self.config.font_name,
+                self.config.font_size,
+                &self.config.annotation_background,
+            )?
+        } else {
+            progress_bar.set_message(format!("{} - Skipping annotation", filename));
+            resized_img
+        };
 
-        // Apply color conversion and dithering (80%)
+        // Apply color conversion and dithering (80-85%)
         progress_bar.set_position(80);
         progress_bar.set_message(format!("{} - Color processing", filename));
+        progress_bar.set_position(82); // Show progress during color processing
         let processed_img = convert::process_image(&annotated_img, &self.config.processing_type)?;
+        progress_bar.set_position(85); // Color processing complete
 
         // Generate output filenames in the same directory
         let output_filename = match &self.config.output_format {
@@ -566,32 +576,38 @@ impl ProcessingEngine {
         let output_path = output_dir.join(&output_filename);
         let bin_path = output_dir.join(&bin_filename);
 
-        // Save files based on output format configuration
+        // Save files based on output format configuration (90-95%)
         match &self.config.output_format {
             crate::cli::OutputType::Bmp => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving BMP", filename));
                 processed_img.save(&output_path)
                     .with_context(|| format!("Failed to save BMP: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Bin => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Generating binary", filename));
+                progress_bar.set_position(92);
                 let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                progress_bar.set_position(94);
                 std::fs::write(&bin_path, binary_data)
                     .with_context(|| format!("Failed to save binary: {}", bin_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Jpg => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving JPG", filename));
                 processed_img.save(&output_path)
                     .with_context(|| format!("Failed to save JPG: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Png => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving PNG", filename));
                 processed_img.save(&output_path)
                     .with_context(|| format!("Failed to save PNG: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
         }
 
@@ -636,6 +652,7 @@ impl ProcessingEngine {
         // For now, process as half-width landscape to fit the display
         let half_width = self.config.target_width / 2;
         
+        progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
             img,
             half_width,
@@ -644,17 +661,23 @@ impl ProcessingEngine {
             people_detection.as_ref(),
             self.config.verbose,
         )?;
+        progress_bar.set_position(65); // Resize complete
 
-        // Add text annotation (70%)
+        // Add text annotation (70%) - conditional based on config
         progress_bar.set_position(70);
-        progress_bar.set_message(format!("{} - Adding annotation", filename));
-        let annotated_img = annotate::add_filename_annotation(
-            &resized_img,
-            input_path,
-            &self.config.font_name,
-            self.config.font_size,
-            &self.config.annotation_background,
-        )?;
+        let annotated_img = if self.config.annotate {
+            progress_bar.set_message(format!("{} - Adding annotation", filename));
+            annotate::add_filename_annotation(
+                &resized_img,
+                input_path,
+                &self.config.font_name,
+                self.config.font_size,
+                &self.config.annotation_background,
+            )?
+        } else {
+            progress_bar.set_message(format!("{} - Skipping annotation", filename));
+            resized_img
+        };
 
         // Apply color conversion and dithering (80%)
         progress_bar.set_position(80);
@@ -673,32 +696,39 @@ impl ProcessingEngine {
         let output_path = output_dir.join(&output_filename);
         let bin_path = output_dir.join(&bin_filename);
 
-        // Save files based on output format configuration
+        // Save files based on output format configuration (90-95%)
         match &self.config.output_format {
             crate::cli::OutputType::Bmp => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving portrait BMP", filename));
                 processed_img.save(&output_path)
                     .with_context(|| format!("Failed to save portrait BMP: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Bin => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Generating portrait binary", filename));
+                progress_bar.set_position(92);
                 let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                progress_bar.set_position(94);
+                progress_bar.set_message(format!("{} - Saving portrait binary", filename));
                 std::fs::write(&bin_path, binary_data)
                     .with_context(|| format!("Failed to save portrait binary: {}", bin_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Jpg => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving portrait JPG", filename));
                 processed_img.save(&output_path)
                     .with_context(|| format!("Failed to save portrait JPG: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Png => {
                 progress_bar.set_position(90);
                 progress_bar.set_message(format!("{} - Saving portrait PNG", filename));
                 processed_img.save(&output_path)
                     .with_context(|| format!("Failed to save portrait PNG: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
         }
 
@@ -867,15 +897,18 @@ impl ProcessingEngine {
                     thread_pb
                 );
                 
-                // Update main progress
-                let count = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
-                main_progress.inc(1);
-                main_progress.set_message(format!("Completed: {}/{}", count, portrait_pairs.len()));
+                // Update main progress - increment by 2 since we processed 2 images
+                let pairs_processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
+                main_progress.inc(2); // Each pair processes 2 images
+                let images_processed = pairs_processed * 2;
+                let total_portrait_images = portrait_pairs.len() * 2;
+                main_progress.set_message(format!("Completed: {}/{}", images_processed, total_portrait_images));
                 
                 // Update completion progress
-                let progress_percent = (count as f64 / portrait_pairs.len() as f64) * 100.0;
+                let progress_percent = (pairs_processed as f64 / portrait_pairs.len() as f64) * 100.0;
                 completion_progress.set_position(progress_percent as u64);
-                completion_progress.set_message(format!("Processing pairs: {}/{}", count, portrait_pairs.len()));
+                completion_progress.set_message(format!("Processing pairs: {}/{} ({} images)", 
+                    pairs_processed, portrait_pairs.len(), images_processed));
                 
                 // Mark thread as idle
                 thread_pb.set_message("Idle");
@@ -955,12 +988,13 @@ impl ProcessingEngine {
             None
         };
 
-        // Stage 4: Resize to half-width (40%)
+        // Stage 4: Resize to half-width (40-50%)
         progress_bar.set_position(40);
         progress_bar.set_message(format!("Resizing {} + {}", left_filename, right_filename));
         
         let half_width = self.config.target_width / 2;
         
+        progress_bar.set_position(42); // Show progress during left resize
         let left_resized = resize::smart_resize_with_people_detection(
             &left_rotated,
             half_width,
@@ -970,6 +1004,7 @@ impl ProcessingEngine {
             self.config.verbose,
         )?;
         
+        progress_bar.set_position(46); // Show progress during right resize
         let right_resized = resize::smart_resize_with_people_detection(
             &right_rotated,
             half_width,
@@ -978,49 +1013,58 @@ impl ProcessingEngine {
             right_detection.as_ref(),
             self.config.verbose,
         )?;
+        progress_bar.set_position(50); // Both resizes complete
 
-        // Stage 5: Apply image processing (50%)
+        // Stage 5: Apply image processing (50-55%)
         progress_bar.set_position(50);
         progress_bar.set_message(format!("Processing colors for {} + {}", left_filename, right_filename));
         
+        progress_bar.set_position(52); // Processing left image colors
         let left_processed = convert::process_image(&left_resized, &self.config.processing_type)?;
+        progress_bar.set_position(54); // Processing right image colors  
         let right_processed = convert::process_image(&right_resized, &self.config.processing_type)?;
+        progress_bar.set_position(55); // Color processing complete
 
-        // Stage 6: Apply annotations (60%)
+        // Stage 6: Apply annotations (60-65%) - conditional based on config
         progress_bar.set_position(60);
-        progress_bar.set_message(format!("Adding annotations to {} + {}", left_filename, right_filename));
-        
-        let left_annotated = if !self.config.font_name.is_empty() {
-            annotate::add_filename_annotation(
+        let (left_annotated, right_annotated) = if self.config.annotate {
+            progress_bar.set_message(format!("Adding annotations to {} + {}", left_filename, right_filename));
+            
+            progress_bar.set_position(62); // Annotating left image
+            let left_annotated = annotate::add_filename_annotation(
                 &left_processed,
                 left_path,
                 &self.config.font_name,
                 self.config.font_size,
                 &self.config.annotation_background,
-            )?
-        } else {
-            left_processed
-        };
-        
-        let right_annotated = if !self.config.font_name.is_empty() {
-            annotate::add_filename_annotation(
+            )?;
+            
+            progress_bar.set_position(64); // Annotating right image
+            let right_annotated = annotate::add_filename_annotation(
                 &right_processed,
                 right_path,
                 &self.config.font_name,
                 self.config.font_size,
                 &self.config.annotation_background,
-            )?
+            )?;
+            progress_bar.set_position(65); // Annotations complete
+            
+            (left_annotated, right_annotated)
         } else {
-            right_processed
+            progress_bar.set_message(format!("Skipping annotations for {} + {}", left_filename, right_filename));
+            progress_bar.set_position(65);
+            (left_processed, right_processed)
         };
 
-        // Stage 7: Combine images (70%)
+        // Stage 7: Combine images (70-75%)
         progress_bar.set_position(70);
         progress_bar.set_message(format!("Combining {} + {}", left_filename, right_filename));
         
+        progress_bar.set_position(72); // Show progress during combining
         let combined_img = combine_processed_portraits(&left_annotated, &right_annotated, self.config.target_width, self.config.target_height)?;
+        progress_bar.set_position(75); // Combining complete
 
-        // Stage 8: Save final result (80%)
+        // Stage 8: Save final result (80-90%)
         progress_bar.set_position(80);
         progress_bar.set_message(format!("Saving combined image"));
         
@@ -1039,21 +1083,35 @@ impl ProcessingEngine {
         // Save based on output format
         match self.config.output_format {
             crate::cli::OutputType::Bmp => {
+                progress_bar.set_position(85);
+                progress_bar.set_message(format!("Saving BMP: {} + {}", left_filename, right_filename));
                 combined_img.save(&output_path)
                     .with_context(|| format!("Failed to save combined BMP: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Bin => {
+                progress_bar.set_position(85);
+                progress_bar.set_message(format!("Converting to binary: {} + {}", left_filename, right_filename));
                 let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
+                progress_bar.set_position(90);
+                progress_bar.set_message(format!("Saving binary: {} + {}", left_filename, right_filename));
                 std::fs::write(&bin_path, &binary_data)
                     .with_context(|| format!("Failed to save combined binary: {}", bin_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Jpg => {
+                progress_bar.set_position(85);
+                progress_bar.set_message(format!("Saving JPG: {} + {}", left_filename, right_filename));
                 combined_img.save(&output_path)
                     .with_context(|| format!("Failed to save combined JPG: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
             crate::cli::OutputType::Png => {
+                progress_bar.set_position(85);
+                progress_bar.set_message(format!("Saving PNG: {} + {}", left_filename, right_filename));
                 combined_img.save(&output_path)
                     .with_context(|| format!("Failed to save combined PNG: {}", output_path.display()))?;
+                progress_bar.set_position(95);
             }
         }
 
