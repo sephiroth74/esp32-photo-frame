@@ -39,7 +39,7 @@ DateTime fetch_remote_datetime(wifi_manager& wifiManager, photo_frame_error_t* e
     if (!wifiManager.is_connected()) {
         *error = wifiManager.connect();
         if (error && *error != error_type::None) {
-            Serial.println(F("Failed to connect to WiFi!"));
+            Serial.println(F("[rtc_util] Failed to connect to WiFi!"));
             return DateTime();
         }
     }
@@ -47,7 +47,7 @@ DateTime fetch_remote_datetime(wifi_manager& wifiManager, photo_frame_error_t* e
 }
 
 DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error_t* error) {
-    Serial.print("Initializing RTC, reset: ");
+    Serial.print("[rtc_util] Initializing RTC, reset: ");
     Serial.println(reset ? "true" : "false");
 
     DateTime now;
@@ -64,51 +64,51 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
 
     if (!rtc.begin(&Wire)) {
         // set the error if provided
-        Serial.println(F("Couldn't find RTC"));
-        
+        Serial.println(F("[rtc_util] Couldn't find RTC"));
+
         // I2C is already shut down by caller to prevent ESP32-C6 WiFi interference
         now = fetch_remote_datetime(wifiManager, error);
         
         if (!now.isValid() || (error && *error != error_type::None)) {
-            Serial.println(F("Failed to fetch time from WiFi!"));
+            Serial.println(F("[rtc_util] Failed to fetch time from WiFi!"));
             if (error) {
                 *error = error_type::RTCInitializationFailed;
             }
         } else {
-            Serial.println(F("Using NTP time only - RTC hardware unavailable"));
+            Serial.println(F("[rtc_util] Using NTP time only - RTC hardware unavailable"));
         }
 
     } else {
-        Serial.println(F("RTC initialized successfully!"));
+        Serial.println(F("[rtc_util] RTC initialized successfully!"));
         rtc.disable32K();
         if (rtc.lostPower() || reset) {
             // Set the time to a default value if the RTC lost power
-            Serial.println(F("RTC lost power (or force is true), setting the time!"));
-            
+            Serial.println(F("[rtc_util] RTC lost power (or force is true), setting the time!"));
+
             // I2C is already shut down by caller to prevent ESP32-C6 WiFi interference
             now = fetch_remote_datetime(wifiManager, error);
             
             if (error && *error != error_type::None) {
-                Serial.println(F("Failed to fetch time from WiFi!"));
-                Serial.println(F("Cannot synchronize RTC - both RTC and WiFi failed"));
+                Serial.println(F("[rtc_util] Failed to fetch time from WiFi!"));
+                Serial.println(F("[rtc_util] Cannot synchronize RTC - both RTC and WiFi failed"));
                 return DateTime(); // Return invalid DateTime
             } else {
                 // Store the time for RTC update after I2C is restarted by caller
                 pendingRtcUpdate = now;
                 needsRtcUpdate = true;
-                Serial.println(F("Time fetched from WiFi, RTC will be updated after I2C restart"));
+                Serial.println(F("[rtc_util] Time fetched from WiFi, RTC will be updated after I2C restart"));
             }
         } else {
-            Serial.println(F("RTC is running!"));
+            Serial.println(F("[rtc_util] RTC is running!"));
             now = rtc.now();
         }
     }
 
 #else
-    Serial.println(F("RTC module is not used, fetching time from WiFi..."));
+    Serial.println(F("[rtc_util] RTC module is not used, fetching time from WiFi..."));
     now = fetch_remote_datetime(wifiManager, error);
     if (!now.isValid() || (error && *error != error_type::None)) {
-        Serial.println(F("Failed to fetch time from WiFi!"));
+        Serial.println(F("[rtc_util] Failed to fetch time from WiFi!"));
         if (error) {
             *error = error_type::RTCInitializationFailed;
         }
@@ -120,14 +120,14 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
 bool update_rtc_after_restart(const DateTime& dateTime) {
 #ifdef USE_RTC
     if (needsRtcUpdate && pendingRtcUpdate.isValid()) {
-        Serial.println(F("Updating RTC with time fetched during WiFi operations..."));
+        Serial.println(F("[rtc_util] Updating RTC with time fetched during WiFi operations..."));
         
         RTC_DS3231 rtc;
         // I2C should already be initialized by caller, don't reinitialize
         
         if (rtc.begin(&Wire)) {
             rtc.adjust(pendingRtcUpdate);
-            Serial.print(F("RTC updated successfully with time: "));
+            Serial.print(F("[rtc_util] RTC updated successfully with time: "));
             Serial.println(pendingRtcUpdate.timestamp(DateTime::TIMESTAMP_FULL));
             
             // Clear the pending update
@@ -135,23 +135,23 @@ bool update_rtc_after_restart(const DateTime& dateTime) {
             pendingRtcUpdate = DateTime((uint32_t)0);
             return true;
         } else {
-            Serial.println(F("Failed to reconnect to RTC for time update"));
+            Serial.println(F("[rtc_util] Failed to reconnect to RTC for time update"));
             return false;
         }
     } else if (dateTime.isValid()) {
         // Use the provided dateTime if no pending update
-        Serial.println(F("Updating RTC with provided time..."));
+        Serial.println(F("[rtc_util] Updating RTC with provided time..."));
         
         RTC_DS3231 rtc;
         // I2C should already be initialized by caller, don't reinitialize
         
         if (rtc.begin(&Wire)) {
             rtc.adjust(dateTime);
-            Serial.print(F("RTC updated successfully with provided time: "));
+            Serial.print(F("[rtc_util] RTC updated successfully with provided time: "));
             Serial.println(dateTime.timestamp(DateTime::TIMESTAMP_FULL));
             return true;
         } else {
-            Serial.println(F("Failed to connect to RTC for time update"));
+            Serial.println(F("[rtc_util] Failed to connect to RTC for time update"));
             return false;
         }
     }
@@ -163,7 +163,7 @@ void format_date_time(time_t time, char* buffer, const uint8_t buffer_size, cons
     struct tm* tm_info = localtime(&time);
     memset(buffer, 0, buffer_size);
 
-    Serial.print("Size of buffer: ");
+    Serial.print(F("[rtc_util] Size of buffer: "));
     Serial.println(buffer_size);
 
     strftime(buffer, buffer_size, format, tm_info);

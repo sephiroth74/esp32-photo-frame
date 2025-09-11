@@ -38,14 +38,14 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     }
 
     if (!sdCard.file_exists(config_file)) {
-        Serial.print(F("WiFi config file not found: "));
+        Serial.print(F("[wifi_manager] WiFi config file not found: "));
         Serial.println(config_file);
         return error_type::WifiCredentialsNotFound;
     }
 
     fs::File file = sdCard.open(config_file, FILE_READ);
     if (!file) {
-        Serial.print(F("Failed to open WiFi config file: "));
+        Serial.print(F("[wifi_manager] Failed to open WiFi config file: "));
         Serial.println(config_file);
         return error_type::SdCardFileOpenFailed;
     }
@@ -59,11 +59,11 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     file.close();
 
     if (_ssid.isEmpty()) {
-        Serial.println(F("SSID not found in config file"));
+        Serial.println(F("[wifi_manager] SSID not found in config file"));
         return error_type::WifiCredentialsNotFound;
     }
 
-    Serial.print(F("Loaded WiFi credentials for SSID: "));
+    Serial.print(F("[wifi_manager] Loaded WiFi credentials for SSID: "));
     Serial.println(_ssid);
 
     _initialized = true;
@@ -71,7 +71,7 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
 }
 
 void wifi_manager::set_timezone(const char* timezone) {
-    Serial.print(F("Setting timezone to: "));
+    Serial.print(F("[wifi_manager] Setting timezone to: "));
     Serial.println(timezone);
     setenv("TZ", timezone, 1);
     tzset();
@@ -80,22 +80,22 @@ void wifi_manager::set_timezone(const char* timezone) {
 photo_frame_error_t wifi_manager::connect() {
     // Check if the WiFi manager is initialized
     if (!_initialized) {
-        Serial.println(F("WiFi manager not initialized"));
+        Serial.println(F("[wifi_manager] WiFi manager not initialized"));
         return error_type::WifiCredentialsNotFound;
     }
 
     // then check if we're already connected
     if (_connected) {
-        Serial.println(F("Already connected to WiFi"));
+        Serial.println(F("[wifi_manager] Already connected to WiFi"));
         return error_type::None;
     }
 
     if (_ssid.isEmpty() || _password.isEmpty()) {
-        Serial.println(F("WiFi credentials are empty"));
+        Serial.println(F("[wifi_manager] WiFi credentials are empty"));
         return error_type::WifiCredentialsNotFound;
     }
 
-    Serial.print(F("Connecting to WiFi network: "));
+    Serial.print(F("[wifi_manager] Connecting to WiFi network: "));
     Serial.println(_ssid);
 
     WiFi.mode(WIFI_STA);
@@ -105,7 +105,7 @@ photo_frame_error_t wifi_manager::connect() {
     bool connected                = false;
 
     for (uint8_t attempt = 0; attempt < maxRetries && !connected; attempt++) {
-        Serial.print(F("WiFi connection attempt "));
+        Serial.print(F("[wifi_manager] WiFi connection attempt "));
         Serial.print(attempt + 1);
         Serial.print(F("/"));
         Serial.println(maxRetries);
@@ -124,10 +124,10 @@ photo_frame_error_t wifi_manager::connect() {
         if (connection_status == WL_CONNECTED) {
             connected  = true;
             _connected = true;
-            Serial.print(F("WiFi connected! IP address: "));
+            Serial.print(F("[wifi_manager] WiFi connected! IP address: "));
             Serial.println(WiFi.localIP());
         } else {
-            Serial.print(F("WiFi connection failed (attempt "));
+            Serial.print(F("[wifi_manager] WiFi connection failed (attempt "));
             Serial.print(attempt + 1);
             Serial.println(F(")"));
 
@@ -139,7 +139,7 @@ photo_frame_error_t wifi_manager::connect() {
                 unsigned long jitter       = random(0, backoffDelay / 4); // Add up to 25% jitter
                 backoffDelay += jitter;
 
-                Serial.print(F("Retrying in "));
+                Serial.print(F("[wifi_manager] Retrying in "));
                 Serial.print(backoffDelay);
                 Serial.println(F("ms..."));
                 delay(backoffDelay);
@@ -148,7 +148,7 @@ photo_frame_error_t wifi_manager::connect() {
     }
 
     if (!connected) {
-        Serial.println(F("Failed to connect to WiFi after all retries!"));
+        Serial.println(F("[wifi_manager] Failed to connect to WiFi after all retries!"));
         _connected = false;
         return error_type::WifiConnectionFailed;
     }
@@ -162,7 +162,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     }
 
     if (!is_connected()) {
-        Serial.println(F("Not connected to WiFi, cannot fetch time"));
+        Serial.println(F("[wifi_manager] Not connected to WiFi, cannot fetch time"));
         if (error) {
             *error = error_type::WifiConnectionFailed;
         }
@@ -172,7 +172,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     set_timezone(TIMEZONE);
     configTime(0, 0, NTP_SERVER1, NTP_SERVER2);
 
-    Serial.print(F("Waiting for NTP time sync..."));
+    Serial.print(F("[wifi_manager] Waiting for NTP time sync..."));
 
     unsigned long startTime = millis();
     time_t now = time(nullptr);
@@ -200,7 +200,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
 
         getLocalTime(&timeinfo);
 
-        Serial.print("Current time is: ");
+        Serial.print(F("[wifi_manager] Current time is: "));
         Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 
         return DateTime(timeinfo.tm_year + 1900,
@@ -212,7 +212,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     }
 
     Serial.println();
-    Serial.println(F("Failed to obtain time from NTP server within timeout"));
+    Serial.println(F("[wifi_manager] Failed to obtain time from NTP server within timeout"));
     if (error) {
         *error = error_type::HttpGetFailed;
     }
@@ -221,11 +221,11 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
 
 void wifi_manager::disconnect() {
     if (_connected) {
-        Serial.println(F("Disconnecting from WiFi..."));
+        Serial.println(F("[wifi_manager] Disconnecting from WiFi..."));
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         _connected = false;
-        Serial.println(F("WiFi disconnected and turned off"));
+        Serial.println(F("[wifi_manager] WiFi disconnected and turned off"));
     }
 }
 
