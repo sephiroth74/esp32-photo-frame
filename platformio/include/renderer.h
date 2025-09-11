@@ -378,6 +378,9 @@ void draw_battery_status(photo_frame::battery_info_t battery_info);
 void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source);
 
 #ifdef USE_WEATHER
+
+rect_t get_weather_info_rect();
+
 /**
  * Draws current weather information on the e-paper display.
  * @param weather_data The weather data to display (temperature, icon, etc.)
@@ -385,7 +388,7 @@ void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_s
  * @note This function displays a weather icon and temperature on the status bar.
  * Only displays if weather data is valid and not stale.
  */
-void draw_weather_info(const photo_frame::weather::WeatherData& weather_data);
+void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect);
 #endif
 
 /**

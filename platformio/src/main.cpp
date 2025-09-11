@@ -23,6 +23,7 @@
 #define LOG_TO_FILE 1
 
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <Preferences.h>
 
 #include "battery.h"
@@ -32,6 +33,7 @@
 #include "renderer.h"
 #include "rtc_util.h"
 #include "sd_card.h"
+#include "spi_manager.h"
 #include "string_utils.h"
 #include "wifi_manager.h"
 #ifdef USE_WEATHER
@@ -46,6 +48,14 @@
 
 // Google Drive instance (initialized from JSON config)
 photo_frame::google_drive drive;
+#endif
+
+#ifdef USE_SHARED_SPI
+
+// Helper function to cleanup temporary files from LittleFS
+void cleanup_temp_image_file() {
+    photo_frame::spi_manager::SPIManager::cleanup_temp_files("*.tmp");
+}
 #endif
 
 #ifndef USE_SENSOR_MAX1704X
@@ -358,13 +368,31 @@ void setup()
 
                     // Get the specific file by index efficiently
                     selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
-#endif
+#endif // GOOGLE_DRIVE_TEST_FILE
 
                     if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
                         Serial.print(F("Selected file: "));
                         Serial.println(selectedFile.name);
 
-                        // if the selected file already exists in the sdcard, then use it
+#ifdef USE_SHARED_SPI
+                        // In shared SPI mode, download directly to LittleFS to enable early SD card closure
+                        // Use .tmp extension to match existing cleanup pattern
+                        String littlefsPath = "/temp_image.tmp";
+                        
+                        // Check battery level before downloading file
+                        if (batteryConservationMode) {
+                            Serial.print(
+                                F("Skipping file download due to critical battery level ("));
+                            Serial.print(battery_info.percent);
+                            Serial.println(F("%) - will use cached files if available"));
+                            error = photo_frame::error_type::BatteryLevelCritical;
+                        } else {
+                            // Download directly to LittleFS - much more efficient!
+                            file = drive.download_file_to_littlefs(selectedFile, littlefsPath, &error);
+                            // Note: image source is set to IMAGE_SOURCE_CLOUD inside download_file_to_littlefs
+                        }
+#else // !USE_SHARED_SPI
+                        // Standard mode: use SD card cache
                         String localFilePath = drive.get_cached_file_path(selectedFile.name);
                         if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
                             Serial.println(
@@ -372,7 +400,6 @@ void setup()
                             file = sdCard.open(localFilePath.c_str(), FILE_READ);
                             drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
                         } else {
-
                             // Check battery level before downloading file
                             if (batteryConservationMode) {
                                 Serial.print(
@@ -386,11 +413,19 @@ void setup()
                                 // Note: image source is set to IMAGE_SOURCE_CLOUD inside download_file
                             }
                         }
+#endif // USE_SHARED_SPI
                     } else {
                         Serial.print(F("Failed to get file by index. Error code: "));
                         Serial.println(tocError.code);
                         error = tocError;
                     }
+
+#ifdef USE_SHARED_SPI
+                    // Close SD card early since we'll download directly to LittleFS
+                    // This saves significant power during download and rendering phases
+                    Serial.println(F("Closing SD card early - TOC operations complete, switching to LittleFS"));
+                    sdCard.end();
+#endif // USE_SHARED_SPI
 
                     if (error == photo_frame::error_type::None && file) {
                         Serial.println(F("File downloaded and ready for display!"));
@@ -410,7 +445,7 @@ void setup()
                 }
             }
 
-#else
+#else // !USE_GOOGLE_DRIVE
             if (!prefs.begin(PREFS_NAMESPACE, false)) {
                 Serial.println(F("Failed to open preferences!"));
                 error = photo_frame::error_type::PreferencesOpenFailed;
@@ -467,7 +502,11 @@ void setup()
                         Serial.println(image_index);
                         error = photo_frame::error_type::SdCardFileNotFound;
                     } else {
+#ifdef USE_SHARED_SPI
+                        #error "not implemented"
+#else
                         file = sdCard.open(image_file_path.c_str(), FILE_READ);
+#endif
                     }
                 }
             }
@@ -492,6 +531,7 @@ void setup()
     // --------------------------------------
     // - Initialize E-Paper display
     // --------------------------------------
+    Serial.println(F("--------------------------------------"));
     Serial.println(F("- Initializing E-Paper display..."));
     Serial.println(F("--------------------------------------"));
 
@@ -559,14 +599,22 @@ void setup()
                 photo_frame::renderer::draw_battery_status(battery_info);
 
 #ifdef USE_WEATHER
-                // not yet implemented
-                Serial.println(F("*** Weather information is not yet implemented ***"));
+                if (!battery_info.is_critical()) {
+                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                    if (current_weather.is_displayable()) {
+                        rect_t box = photo_frame::renderer::get_weather_info_rect();
+                        photo_frame::renderer::draw_weather_info(current_weather, box);
+                    }
+                }
 #endif // USE_WEATHER
 
                 page_index++;
             } while (display.nextPage()); // Clear the display
 
             file.close(); // Close the file after drawing
+#ifdef USE_SHARED_SPI
+            cleanup_temp_image_file(); // Clean up temporary LittleFS file
+#endif
 
         } else {
             Serial.println(F("Using partial update mode"));
@@ -578,6 +626,9 @@ void setup()
                 file, img_filename, 0, 0, false);
 #endif
             file.close(); // Close the file after drawing
+#ifdef USE_SHARED_SPI
+            cleanup_temp_image_file(); // Clean up temporary LittleFS file
+#endif
 
             if (!success) {
                 Serial.println(F("Failed to draw bitmap from file!"));
@@ -609,7 +660,14 @@ void setup()
             if (!battery_info.is_critical()) {
                 photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
                 if (current_weather.is_displayable()) {
-                    photo_frame::renderer::draw_weather_info(current_weather);
+                    rect_t box = photo_frame::renderer::get_weather_info_rect();
+
+                    display.setPartialWindow(box.x, box.y, box.width, box.height);
+                    display.firstPage();
+                    do {
+                        photo_frame::renderer::draw_weather_info(current_weather, box);
+                    } while (display.nextPage());
+
                 }
             }
 #endif // USE_WEATHER
@@ -619,7 +677,10 @@ void setup()
     if (file) {
         file.close(); // Close the file after drawing
     }
-    sdCard.end(); // Close the SD card
+    
+#ifndef USE_SHARED_SPI
+    sdCard.end(); // Close the SD card (already closed early in USE_SHARED_SPI mode)
+#endif
 
     photo_frame::board_utils::disable_rgb_led();
 
