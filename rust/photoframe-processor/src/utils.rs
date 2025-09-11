@@ -1,12 +1,12 @@
 use anyhow::Result;
+use base64::{engine::general_purpose, Engine as _};
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::path::Path;
-use std::time::Duration;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::path::Path;
+use std::time::Duration;
 use walkdir::WalkDir;
-use base64::{engine::general_purpose, Engine as _};
 
 use crate::cli::Args;
 
@@ -15,10 +15,10 @@ pub fn create_progress_bar(total: u64) -> ProgressBar {
     let pb = ProgressBar::new(total);
     pb.set_style(
         ProgressStyle::with_template(
-            "{spinner:.blue} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} {msg} ({eta})"
+            "{spinner:.blue} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} {msg} ({eta})",
         )
         .unwrap()
-        .progress_chars("#>-")
+        .progress_chars("#>-"),
     );
     pb
 }
@@ -27,7 +27,7 @@ pub fn create_progress_bar(total: u64) -> ProgressBar {
 pub fn format_duration(duration: Duration) -> String {
     let total_secs = duration.as_secs();
     let millis = duration.subsec_millis();
-    
+
     if total_secs >= 60 {
         let mins = total_secs / 60;
         let secs = total_secs % 60;
@@ -60,7 +60,6 @@ pub fn validate_inputs(args: &Args) -> Result<()> {
     // Validate size format
     args.parse_size()
         .map_err(|e| anyhow::anyhow!("Size validation failed: {}", e))?;
-
 
     // Validate extensions
     let extensions = args.parse_extensions();
@@ -126,9 +125,9 @@ fn is_valid_hex_color(color: &str) -> bool {
     if !color.starts_with('#') {
         return false;
     }
-    
+
     let hex_part = &color[1..];
-    
+
     // Accept #RGB, #RRGGBB, #RRGGBBAA formats
     match hex_part.len() {
         3 | 6 | 8 => hex_part.chars().all(|c| c.is_ascii_hexdigit()),
@@ -175,7 +174,7 @@ pub fn generate_filename_hash(filename: &str) -> String {
     let mut hasher = DefaultHasher::new();
     filename.hash(&mut hasher);
     let hash = hasher.finish();
-    
+
     // Use first 8 characters of hex representation for a short hash
     // The hash is 64-bit so we take the lower 32 bits and format as 8 hex chars
     format!("{:08x}", (hash & 0xffffffff) as u32)
@@ -192,12 +191,13 @@ pub fn encode_filename_base64(filename: &str) -> String {
 /// Landscape: base64(basename).extension
 /// With suffix: base64(basename)_suffix.extension  
 pub fn create_output_filename(input_path: &Path, suffix: Option<&str>, extension: &str) -> String {
-    let stem = input_path.file_stem()
+    let stem = input_path
+        .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image");
-    
+
     let base64_filename = encode_filename_base64(stem);
-    
+
     match suffix {
         Some(suffix) => format!("{}_{}.{}", base64_filename, suffix, extension),
         None => format!("{}.{}", base64_filename, extension),
@@ -206,17 +206,23 @@ pub fn create_output_filename(input_path: &Path, suffix: Option<&str>, extension
 
 /// Create combined portrait filename using base64 encoding to match auto.sh convention  
 /// Format: combined_base64(basename1)_base64(basename2).extension
-pub fn create_combined_portrait_filename(left_path: &Path, right_path: &Path, extension: &str) -> String {
-    let left_stem = left_path.file_stem()
+pub fn create_combined_portrait_filename(
+    left_path: &Path,
+    right_path: &Path,
+    extension: &str,
+) -> String {
+    let left_stem = left_path
+        .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image1");
-    let right_stem = right_path.file_stem()
+    let right_stem = right_path
+        .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image2");
-    
+
     let base64_file1 = encode_filename_base64(left_stem);
     let base64_file2 = encode_filename_base64(right_stem);
-    
+
     format!("combined_{}_{}.{}", base64_file1, base64_file2, extension)
 }
 
@@ -241,22 +247,24 @@ pub fn error_println(message: &str) {
 
 /// Find original filename that matches a given hash
 /// This searches through the provided directory and returns all filenames that produce the given hash
-pub fn find_original_filename_for_hash(search_dirs: &[&Path], target_hash: &str, extensions: &[String]) -> Result<Vec<String>> {
+pub fn find_original_filename_for_hash(
+    search_dirs: &[&Path],
+    target_hash: &str,
+    extensions: &[String],
+) -> Result<Vec<String>> {
     let mut matches = Vec::new();
-    
+
     for search_dir in search_dirs {
         if !search_dir.exists() {
             continue;
         }
-        
-        let walker = WalkDir::new(search_dir)
-            .follow_links(false)
-            .max_depth(10);
-            
+
+        let walker = WalkDir::new(search_dir).follow_links(false).max_depth(10);
+
         for entry in walker {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_file() && has_valid_extension(path, extensions) {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                     let hash = generate_filename_hash(stem);
@@ -267,7 +275,7 @@ pub fn find_original_filename_for_hash(search_dirs: &[&Path], target_hash: &str,
             }
         }
     }
-    
+
     Ok(matches)
 }
 
@@ -334,7 +342,7 @@ mod tests {
         assert!(is_valid_hex_color("#000000"));
         assert!(is_valid_hex_color("#00000000"));
         assert!(is_valid_hex_color("#FF00FF80"));
-        
+
         assert!(!is_valid_hex_color("000000"));
         assert!(!is_valid_hex_color("#GG0000"));
         assert!(!is_valid_hex_color("#00"));
@@ -344,7 +352,10 @@ mod tests {
     #[test]
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("normal.jpg"), "normal.jpg");
-        assert_eq!(sanitize_filename("file/with\\bad:chars"), "file_with_bad_chars");
+        assert_eq!(
+            sanitize_filename("file/with\\bad:chars"),
+            "file_with_bad_chars"
+        );
         assert_eq!(sanitize_filename("file*with?quotes\""), "file_with_quotes_");
     }
 
@@ -355,7 +366,7 @@ mod tests {
         assert!(result.ends_with(".bmp"));
         // Base64 encoding of "image" should be "aW1hZ2U="
         assert_eq!(result, "aW1hZ2U=.bmp");
-        
+
         let result_with_suffix = create_output_filename(path, Some("portrait"), "bin");
         assert!(result_with_suffix.ends_with(".bin"));
         assert!(result_with_suffix.contains("_portrait"));
@@ -367,22 +378,22 @@ mod tests {
         let hash1 = generate_filename_hash("test.jpg");
         let hash2 = generate_filename_hash("test.jpg");
         let hash3 = generate_filename_hash("different.jpg");
-        
+
         assert_eq!(hash1, hash2); // Same input should give same hash
         assert_ne!(hash1, hash3); // Different input should give different hash
         assert_eq!(hash1.len(), 8); // Should be 8 characters
     }
 
-    #[test] 
+    #[test]
     fn test_create_combined_portrait_filename() {
         let left_path = Path::new("/path/to/image1.jpg");
         let right_path = Path::new("/path/to/image2.jpg");
         let result = create_combined_portrait_filename(left_path, right_path, "bmp");
-        
+
         assert!(result.starts_with("combined_"));
         assert!(result.ends_with(".bmp"));
         assert!(result.matches('_').count() == 2); // Should have exactly 2 underscores
-        
+
         // Base64 encoding of "image1" = "aW1hZ2Ux", "image2" = "aW1hZ2Uy"
         assert_eq!(result, "combined_aW1hZ2Ux_aW1hZ2Uy.bmp");
     }
@@ -392,20 +403,20 @@ mod tests {
         // Test basic encoding
         assert_eq!(encode_filename_base64("image"), "aW1hZ2U=");
         assert_eq!(encode_filename_base64("test"), "dGVzdA==");
-        
+
         // Test '/' replacement with '-' using a string that produces '/' in base64
         // "sure." encodes to "c3VyZS4=" which contains no '/', but "???>" produces "Pz8/Pg==" with '/'
-        let test_string = "???>";  // This should produce base64 with '/' characters
+        let test_string = "???>"; // This should produce base64 with '/' characters
         let encoded = encode_filename_base64(test_string);
         let raw_base64 = general_purpose::STANDARD.encode(test_string.as_bytes());
-        
+
         // Verify our function replaces '/' with '-'
         let expected = raw_base64.replace('/', "-");
         assert_eq!(encoded, expected);
-        
+
         // Make sure no '/' characters remain
         assert!(!encoded.contains('/'));
-        
+
         // Test that the replacement actually happened if there were '/' chars in raw base64
         if raw_base64.contains('/') {
             assert!(encoded.contains('-'));

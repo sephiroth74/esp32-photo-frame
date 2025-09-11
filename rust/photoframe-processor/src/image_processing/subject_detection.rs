@@ -4,11 +4,11 @@ use std::path::Path;
 
 // People detection using existing find_subject.py script
 pub mod python_yolo_integration {
-    use std::path::Path;
-    use std::process::Command;
     use anyhow::Result;
     use serde::{Deserialize, Serialize};
-    
+    use std::path::Path;
+    use std::process::Command;
+
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct ImageSize {
         pub width: u32,
@@ -37,25 +37,32 @@ pub mod python_yolo_integration {
         #[serde(default)]
         pub error: Option<String>,
     }
-    
+
     pub struct PythonYolo {
         script_path: String,
     }
-    
+
     impl PythonYolo {
         pub fn new(script_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
             let script_path = Path::new(script_path);
-            
+
             if !script_path.exists() {
-                return Err(format!("find_subject.py script not found: {}", script_path.display()).into());
+                return Err(format!(
+                    "find_subject.py script not found: {}",
+                    script_path.display()
+                )
+                .into());
             }
-            
+
             Ok(PythonYolo {
                 script_path: script_path.to_string_lossy().to_string(),
             })
         }
-        
-        pub fn detect_people(&self, img_path: &str) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
+
+        pub fn detect_people(
+            &self,
+            img_path: &str,
+        ) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
             // Run find_subject.py script with JSON output
             // python3 find_subject.py --image image.jpg --output-format json
             let output = Command::new("python3")
@@ -66,24 +73,27 @@ pub mod python_yolo_integration {
                 .arg("json")
                 .output()
                 .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?;
-            
+
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(format!("find_subject.py failed: {}", stderr).into());
             }
-            
+
             // Parse JSON output from Python script
             let stdout = String::from_utf8_lossy(&output.stdout);
-            let result: FindSubjectResult = serde_json::from_str(&stdout)
-                .map_err(|e| format!("Failed to parse JSON output: {} | Raw output: {}", e, stdout))?;
-            
+            let result: FindSubjectResult = serde_json::from_str(&stdout).map_err(|e| {
+                format!(
+                    "Failed to parse JSON output: {} | Raw output: {}",
+                    e, stdout
+                )
+            })?;
+
             Ok(result)
         }
     }
 }
 
 use python_yolo_integration::PythonYolo;
-
 
 /// Detection result from YOLO people detection
 /// Simplified to only use center coordinates for cropping/resizing
@@ -109,21 +119,22 @@ pub struct SubjectDetector {
 #[allow(dead_code)]
 impl SubjectDetector {
     /// Create a new subject detector using find_subject.py
-    /// 
+    ///
     /// This uses the existing Python script for people detection,
     /// which already implements YOLOv3 with proper configuration
     pub fn new(script_path: &Path) -> Result<Self> {
         let python_yolo = PythonYolo::new(
-            script_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid script path"))?,
-        ).map_err(|e| anyhow::anyhow!("Failed to initialize Python YOLO: {}", e))?;
+            script_path
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid script path"))?,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to initialize Python YOLO: {}", e))?;
 
-        Ok(Self {
-            python_yolo,
-        })
+        Ok(Self { python_yolo })
     }
 
     /// Detect people in an image and return detection result
-    /// 
+    ///
     /// This uses the existing find_subject.py script which already implements:
     /// 1. YOLOv3 people detection
     /// 2. Non-maximum suppression
@@ -132,22 +143,25 @@ impl SubjectDetector {
     pub fn detect_people(&self, img: &RgbImage) -> Result<SubjectDetectionResult> {
         // Save image to temporary file for Python script
         let temp_path = self.save_temp_image(img)?;
-        
+
         // Run Python script for people detection
-        let python_result = self.python_yolo.detect_people(&temp_path)
+        let python_result = self
+            .python_yolo
+            .detect_people(&temp_path)
             .map_err(|e| anyhow::anyhow!("Python detection failed: {}", e))?;
-        
+
         // Clean up temporary file
         let _ = std::fs::remove_file(&temp_path);
 
         // Convert Python script result to our internal format
         // Check if we have actual detections (not just error-free execution)
         let people_detected = python_result.error.is_none() && !python_result.detections.is_empty();
-        
+
         // Calculate highest confidence and actual person count from detections
         // We only need center coordinates for cropping/resizing, so ignore bounding box edges
         let (confidence, person_count) = if people_detected {
-            let highest_confidence = python_result.detections
+            let highest_confidence = python_result
+                .detections
                 .iter()
                 .map(|d| d.confidence)
                 .fold(0.0f32, |acc, conf| acc.max(conf));
@@ -170,10 +184,10 @@ impl SubjectDetector {
         let temp_dir = std::env::temp_dir();
         let temp_filename = format!("yolo_input_{}.jpg", std::process::id());
         let temp_path = temp_dir.join(temp_filename);
-        
+
         // Save image as JPEG
         img.save(&temp_path)?;
-        
+
         Ok(temp_path.to_string_lossy().to_string())
     }
 }
@@ -226,8 +240,9 @@ mod tests {
     /// - Offset: -342,239
     #[test]
     fn test_people_detection_pxl_night_image() {
-        let test_image_path = "/Users/alessandro/Desktop/arduino/photos/photos/PXL_20231231_193442105.NIGHT.jpg";
-        
+        let test_image_path =
+            "/Users/alessandro/Desktop/arduino/photos/photos/PXL_20231231_193442105.NIGHT.jpg";
+
         // Skip test if image doesn't exist (CI environment)
         if !Path::new(test_image_path).exists() {
             println!("Skipping test - image not found: {}", test_image_path);
@@ -250,8 +265,11 @@ mod tests {
         };
 
         // Verify image dimensions match expected
-        assert_eq!(img.dimensions(), expected_image_size, 
-            "Image dimensions don't match expected size");
+        assert_eq!(
+            img.dimensions(),
+            expected_image_size,
+            "Image dimensions don't match expected size"
+        );
 
         {
             // Test with Python find_subject.py script
@@ -262,26 +280,57 @@ mod tests {
                         match detector.detect_people(&img) {
                             Ok(result) => {
                                 println!("\n=== Python Detection Results ===");
-                                println!("Image size: {},{}", img.dimensions().0, img.dimensions().1);
+                                println!(
+                                    "Image size: {},{}",
+                                    img.dimensions().0,
+                                    img.dimensions().1
+                                );
                                 println!("People detected: {}", result.person_count);
                                 println!("Center: {},{}", result.center.0, result.center.1);
-                                println!("Offset: {},{}", result.offset_from_center.0, result.offset_from_center.1);
-                                
+                                println!(
+                                    "Offset: {},{}",
+                                    result.offset_from_center.0, result.offset_from_center.1
+                                );
+
                                 println!("\n=== Expected Results (from find_subject.py) ===");
-                                println!("Image size: {},{}", expected_image_size.0, expected_image_size.1);
-                                println!("Bounding box: {},{},{},{}", expected_bbox.0, expected_bbox.1, expected_bbox.2, expected_bbox.3);
+                                println!(
+                                    "Image size: {},{}",
+                                    expected_image_size.0, expected_image_size.1
+                                );
+                                println!(
+                                    "Bounding box: {},{},{},{}",
+                                    expected_bbox.0,
+                                    expected_bbox.1,
+                                    expected_bbox.2,
+                                    expected_bbox.3
+                                );
                                 println!("Center: {},{}", expected_center.0, expected_center.1);
                                 println!("Offset: {},{}", expected_offset.0, expected_offset.1);
-                                
+
                                 // Since we're calling the same Python script, results should match exactly
                                 assert_eq!(result.person_count, 1, "Should detect 1 person");
-                                assert_eq!(result.center, expected_center, "Center should match exactly");
-                                assert_eq!(result.offset_from_center, expected_offset, "Offset should match exactly");
-                                
+                                assert_eq!(
+                                    result.center, expected_center,
+                                    "Center should match exactly"
+                                );
+                                assert_eq!(
+                                    result.offset_from_center, expected_offset,
+                                    "Offset should match exactly"
+                                );
+
                                 println!("\n✅ Python Detection Validation PASSED!");
-                                println!("   People detected: {} (expected: 1)", result.person_count);
-                                println!("   Center: ({}, {}) matches expected", result.center.0, result.center.1);
-                                println!("   Offset: ({}, {}) matches expected", result.offset_from_center.0, result.offset_from_center.1);
+                                println!(
+                                    "   People detected: {} (expected: 1)",
+                                    result.person_count
+                                );
+                                println!(
+                                    "   Center: ({}, {}) matches expected",
+                                    result.center.0, result.center.1
+                                );
+                                println!(
+                                    "   Offset: ({}, {}) matches expected",
+                                    result.offset_from_center.0, result.offset_from_center.1
+                                );
                             }
                             Err(e) => println!("Detection failed: {}", e),
                         }

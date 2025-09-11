@@ -55,6 +55,10 @@ const char* TXT_SD_CARD_SIZE_INVALID = "SD card reports invalid size";
 const char* TXT_SD_CARD_INIT_FAILED = "SD card initialization failed";
 const char* TXT_SD_CARD_VERSION_UNSUPPORTED = "SD card version not supported";
 const char* TXT_SD_CARD_FILESYSTEM_UNSUPPORTED = "SD card file system not supported";
+// LittleFS Specific Errors (110-119)  
+const char* TXT_LITTLEFS_INIT_FAILED = "LittleFS initialization failed";
+const char* TXT_LITTLEFS_FILE_CREATE_FAILED = "Failed to create LittleFS file";
+const char* TXT_LITTLEFS_FILE_OPEN_FAILED = "Failed to open LittleFS file";
 
 // Network/WiFi Specific Errors (120-139)
 const char* TXT_WIFI_SIGNAL_TOO_WEAK = "WiFi signal is too weak";

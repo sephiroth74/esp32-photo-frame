@@ -2,14 +2,14 @@ use anyhow::Result;
 use image::{Rgb, RgbImage};
 
 /// Convert an RGB image to ESP32 binary format
-/// 
+///
 /// This function converts RGB pixel data to the 8-bit format used by the ESP32 photo frame:
 /// - 3 bits for red (values 0-7)
-/// - 3 bits for green (values 0-7) 
+/// - 3 bits for green (values 0-7)
 /// - 2 bits for blue (values 0-3)
-/// 
+///
 /// The format is: RRRGGGBB (8 bits total per pixel)
-/// 
+///
 /// This matches the logic from bmp2cpp/src/main.rs:217-218:
 /// ```rust
 /// let color8 = ((color.r() / 32) << 5) + ((color.g() / 32) << 2) + (color.b() / 64);
@@ -36,14 +36,14 @@ pub fn convert_to_esp32_binary(img: &RgbImage) -> Result<Vec<u8>> {
 }
 
 /// Convert RGB pixel to ESP32 color format using bmp2cpp approach
-/// 
+///
 /// This uses the same RGB compression format as the bmp2cpp project:
 /// - Red: 3 bits (0-7) - divide by 32, shift left 5 positions  
 /// - Green: 3 bits (0-7) - divide by 32, shift left 2 positions
 /// - Blue: 2 bits (0-3) - divide by 64, no shift
-/// 
+///
 /// Final format: RRRGGGBB
-/// 
+///
 /// This matches exactly what the 6-color e-paper display expects and ensures
 /// compatibility with existing bmp2cpp generated files.
 pub fn rgb_to_esp32_color(pixel: &Rgb<u8>) -> u8 {
@@ -56,7 +56,7 @@ pub fn rgb_to_esp32_color(pixel: &Rgb<u8>) -> u8 {
 }
 
 /// Convert ESP32 compressed color back to RGB (for validation/debugging)
-/// 
+///
 /// This is the reverse operation of rgb_to_esp32_color()
 /// Extracts the RRRGGGBB format back to full 8-bit RGB values
 /// Used primarily for testing and validation
@@ -64,8 +64,8 @@ pub fn rgb_to_esp32_color(pixel: &Rgb<u8>) -> u8 {
 pub fn esp32_color_to_rgb(color8: u8) -> [u8; 3] {
     // Extract the compressed components
     let r3 = (color8 >> 5) & 0x07; // 3 bits for red (0-7)
-    let g3 = (color8 >> 2) & 0x07; // 3 bits for green (0-7)  
-    let b2 = color8 & 0x03;        // 2 bits for blue (0-3)
+    let g3 = (color8 >> 2) & 0x07; // 3 bits for green (0-7)
+    let b2 = color8 & 0x03; // 2 bits for blue (0-3)
 
     // Scale back to 8-bit values using proper scaling
     // For 3-bit values (0-7): multiply by 36.43 ≈ (255/7) = 36
@@ -97,7 +97,7 @@ pub fn validate_binary_size(binary_data: &[u8], width: u32, height: u32) -> Resu
 }
 
 /// Generate a C header file with the binary data as an array
-/// 
+///
 /// This matches the OutputFormat::CArray functionality from bmp2cpp
 #[allow(dead_code)]
 pub fn generate_c_header(
@@ -108,7 +108,7 @@ pub fn generate_c_header(
     height: u32,
 ) -> String {
     let header_guard = format!("_{}_H_", variable_name.to_uppercase());
-    
+
     // Split data into rows for better readability
     let chunks: Vec<String> = binary_data
         .chunks(width as usize)
@@ -166,7 +166,7 @@ impl ColorStats {
     #[allow(dead_code)]
     pub fn analyze(binary_data: &[u8]) -> Self {
         let mut color_counts = std::collections::HashMap::new();
-        
+
         for &color in binary_data {
             *color_counts.entry(color).or_insert(0) += 1;
         }
@@ -207,10 +207,10 @@ mod tests {
     fn test_rgb_to_esp32_color() {
         // Test pure colors
         assert_eq!(rgb_to_esp32_color(&Rgb([255, 255, 255])), 0xFF); // White: 11111111
-        assert_eq!(rgb_to_esp32_color(&Rgb([0, 0, 0])), 0x00);       // Black: 00000000
-        assert_eq!(rgb_to_esp32_color(&Rgb([255, 0, 0])), 0xE0);     // Red:   11100000
-        assert_eq!(rgb_to_esp32_color(&Rgb([0, 255, 0])), 0x1C);     // Green: 00011100
-        assert_eq!(rgb_to_esp32_color(&Rgb([0, 0, 255])), 0x03);     // Blue:  00000011
+        assert_eq!(rgb_to_esp32_color(&Rgb([0, 0, 0])), 0x00); // Black: 00000000
+        assert_eq!(rgb_to_esp32_color(&Rgb([255, 0, 0])), 0xE0); // Red:   11100000
+        assert_eq!(rgb_to_esp32_color(&Rgb([0, 255, 0])), 0x1C); // Green: 00011100
+        assert_eq!(rgb_to_esp32_color(&Rgb([0, 0, 255])), 0x03); // Blue:  00000011
     }
 
     #[test]
@@ -225,8 +225,8 @@ mod tests {
         // Red should be approximately preserved
         let red_rgb = esp32_color_to_rgb(0xE0);
         assert!(red_rgb[0] > 200); // Should be close to 255
-        assert!(red_rgb[1] < 50);  // Should be close to 0
-        assert!(red_rgb[2] < 50);  // Should be close to 0
+        assert!(red_rgb[1] < 50); // Should be close to 0
+        assert!(red_rgb[2] < 50); // Should be close to 0
     }
 
     #[test]
@@ -234,9 +234,9 @@ mod tests {
         // Create a small test image
         let img: RgbImage = ImageBuffer::new(2, 2);
         let binary_data = convert_to_esp32_binary(&img).unwrap();
-        
+
         assert_eq!(binary_data.len(), 4); // 2x2 = 4 pixels
-        
+
         // All pixels should be black (0x00) since we created an empty image
         assert!(binary_data.iter().all(|&b| b == 0x00));
     }
@@ -244,10 +244,10 @@ mod tests {
     #[test]
     fn test_validate_binary_size() {
         let data = vec![0u8; 100];
-        
+
         // Valid size
         assert!(validate_binary_size(&data, 10, 10).is_ok());
-        
+
         // Invalid size
         assert!(validate_binary_size(&data, 5, 5).is_err());
         assert!(validate_binary_size(&data, 20, 20).is_err());
@@ -257,11 +257,11 @@ mod tests {
     fn test_color_stats() {
         let data = vec![0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xE0];
         let stats = ColorStats::analyze(&data);
-        
+
         assert_eq!(stats.total_pixels, 6);
         assert_eq!(stats.unique_color_count(), 3);
         assert_eq!(stats.most_common_color, Some((0xFF, 3)));
-        
+
         // Test percentages
         assert!((stats.color_usage_percent(0xFF) - 50.0).abs() < 0.1);
         assert!((stats.color_usage_percent(0x00) - 33.33).abs() < 0.1);
@@ -271,7 +271,7 @@ mod tests {
     fn test_generate_c_header() {
         let data = vec![0x00, 0xFF, 0xE0, 0x1C];
         let header = generate_c_header(&data, "TEST_IMAGE", "test.bmp", 2, 2);
-        
+
         assert!(header.contains("#ifndef _TEST_IMAGE_H_"));
         assert!(header.contains("const unsigned char TEST_IMAGE[4]"));
         assert!(header.contains("0x00, 0xFF"));

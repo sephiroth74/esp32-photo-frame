@@ -1,5 +1,5 @@
 use anyhow::Result;
-use fast_image_resize::{images::Image, Resizer, ResizeOptions};
+use fast_image_resize::{images::Image, ResizeOptions, Resizer};
 use image::{ImageBuffer, Rgb, RgbImage};
 use std::num::NonZeroU32;
 
@@ -7,9 +7,8 @@ use super::orientation::get_effective_target_dimensions;
 use super::subject_detection::SubjectDetectionResult;
 use crate::utils::verbose_println;
 
-
 /// Smart resize with people detection-aware cropping
-/// 
+///
 /// This function uses YOLO detection results to make intelligent cropping decisions,
 /// focusing on detected people rather than just center-cropping the image.
 pub fn smart_resize_with_people_detection(
@@ -21,10 +20,10 @@ pub fn smart_resize_with_people_detection(
     verbose: bool,
 ) -> Result<RgbImage> {
     let (src_width, src_height) = img.dimensions();
-    
+
     // Determine if image is portrait for auto-process consideration
     let image_is_portrait = src_height > src_width;
-    
+
     // Get effective target dimensions (may be swapped in auto mode)
     let (eff_width, eff_height) = get_effective_target_dimensions(
         image_is_portrait,
@@ -52,9 +51,11 @@ pub fn smart_resize_with_people_detection(
         if detection.person_count > 0 {
             // Use people-aware cropping
             calculate_people_aware_crop_offset(
-                src_width, src_height,
-                crop_width, crop_height,
-                detection
+                src_width,
+                src_height,
+                crop_width,
+                crop_height,
+                detection,
             )
         } else {
             // No people detected, use standard center cropping
@@ -70,8 +71,12 @@ pub fn smart_resize_with_people_detection(
         Ok(cropped) => cropped,
         Err(_) => {
             // People-aware cropping resulted in invalid dimensions, fall back to center crop
-            verbose_println(verbose, "⚠ People-aware cropping failed, falling back to center crop");
-            let (center_x, center_y) = standard_crop_offset(src_width, src_height, crop_width, crop_height);
+            verbose_println(
+                verbose,
+                "⚠ People-aware cropping failed, falling back to center crop",
+            );
+            let (center_x, center_y) =
+                standard_crop_offset(src_width, src_height, crop_width, crop_height);
             crop_image(img, center_x, center_y, crop_width, crop_height, verbose)?
         }
     };
@@ -81,10 +86,10 @@ pub fn smart_resize_with_people_detection(
 }
 
 /// Calculate crop offset using people detection results
-/// 
+///
 /// Given a center point (x, y), calculates crop box (left, top) that:
 /// 1. Centers the crop box on the subject as much as possible
-/// 2. Maintains exact crop dimensions (crop_width x crop_height) 
+/// 2. Maintains exact crop dimensions (crop_width x crop_height)
 /// 3. Clamps to image boundaries with proper adjustment
 ///
 /// Example: image 1100x1000, center (900,900), crop 800x480
@@ -101,25 +106,30 @@ pub fn calculate_people_aware_crop_offset(
         // No people detected, use standard center crop
         return standard_crop_offset(src_width, src_height, crop_width, crop_height);
     }
-    
+
     let center_x = detection.center.0;
     let center_y = detection.center.1;
-    
+
     // Calculate ideal crop position to center on detected subject
     // This gives us the top-left corner of the crop box
     let ideal_left = center_x.saturating_sub(crop_width / 2);
     let ideal_top = center_y.saturating_sub(crop_height / 2);
-    
+
     // Constrain to image boundaries while maintaining exact crop dimensions
     // If the crop box would extend beyond the image, shift it back
     let crop_left = ideal_left.min(src_width.saturating_sub(crop_width));
     let crop_top = ideal_top.min(src_height.saturating_sub(crop_height));
-    
+
     (crop_left, crop_top)
 }
 
 /// Calculate standard center crop offset
-pub fn standard_crop_offset(src_width: u32, src_height: u32, crop_width: u32, crop_height: u32) -> (u32, u32) {
+pub fn standard_crop_offset(
+    src_width: u32,
+    src_height: u32,
+    crop_width: u32,
+    crop_height: u32,
+) -> (u32, u32) {
     let crop_x = (src_width.saturating_sub(crop_width)) / 2;
     let crop_y = (src_height.saturating_sub(crop_height)) / 2;
     (crop_x, crop_y)
@@ -135,36 +145,54 @@ fn crop_image(
     verbose: bool,
 ) -> Result<RgbImage> {
     let (img_width, img_height) = img.dimensions();
-    
+
     // Adjust crop parameters to fit within image bounds
     let adjusted_x = x.min(img_width.saturating_sub(1));
     let adjusted_y = y.min(img_height.saturating_sub(1));
     let adjusted_width = width.min(img_width - adjusted_x);
     let adjusted_height = height.min(img_height - adjusted_y);
-    
+
     // Check for minimum viable dimensions (at least 10x10 pixels)
     const MIN_CROP_SIZE: u32 = 10;
     if adjusted_width < MIN_CROP_SIZE || adjusted_height < MIN_CROP_SIZE {
         return Err(anyhow::anyhow!(
             "Crop dimensions too small after adjustment: {}x{} (minimum: {}x{})",
-            adjusted_width, adjusted_height, MIN_CROP_SIZE, MIN_CROP_SIZE
+            adjusted_width,
+            adjusted_height,
+            MIN_CROP_SIZE,
+            MIN_CROP_SIZE
         ));
     }
-    
-    // Log adjustment if bounds were exceeded (for debugging) 
+
+    // Log adjustment if bounds were exceeded (for debugging)
     if x != adjusted_x || y != adjusted_y || width != adjusted_width || height != adjusted_height {
-        verbose_println(verbose, &format!("⚠ Adjusted crop bounds: crop({},{},{}x{}) → crop({},{},{}x{}) on {}x{} image",
-            x, y, width, height, adjusted_x, adjusted_y, adjusted_width, adjusted_height, img_width, img_height));
+        verbose_println(
+            verbose,
+            &format!(
+                "⚠ Adjusted crop bounds: crop({},{},{}x{}) → crop({},{},{}x{}) on {}x{} image",
+                x,
+                y,
+                width,
+                height,
+                adjusted_x,
+                adjusted_y,
+                adjusted_width,
+                adjusted_height,
+                img_width,
+                img_height
+            ),
+        );
     }
-    
-    let (final_x, final_y, final_width, final_height) = (adjusted_x, adjusted_y, adjusted_width, adjusted_height);
+
+    let (final_x, final_y, final_width, final_height) =
+        (adjusted_x, adjusted_y, adjusted_width, adjusted_height);
 
     let mut output = ImageBuffer::new(final_width, final_height);
-    
+
     for (out_x, out_y, pixel) in output.enumerate_pixels_mut() {
         let src_x = final_x + out_x;
         let src_y = final_y + out_y;
-        
+
         if let Some(src_pixel) = img.get_pixel_checked(src_x, src_y) {
             *pixel = *src_pixel;
         }
@@ -176,21 +204,23 @@ fn crop_image(
 /// Resize an image to exact dimensions using high-quality algorithm
 pub fn resize_image(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage> {
     let (src_width, src_height) = img.dimensions();
-    
+
     if src_width == width && src_height == height {
         return Ok(img.clone());
     }
 
     // Convert to the format expected by fast_image_resize
-    let src_pixels: Vec<u8> = img.pixels()
-        .flat_map(|p| [p[0], p[1], p[2]])
-        .collect();
+    let src_pixels: Vec<u8> = img.pixels().flat_map(|p| [p[0], p[1], p[2]]).collect();
 
     // Create source image for fast_image_resize
-    let src_width_nz = NonZeroU32::new(src_width).ok_or_else(|| anyhow::anyhow!("Source width is zero"))?;
-    let src_height_nz = NonZeroU32::new(src_height).ok_or_else(|| anyhow::anyhow!("Source height is zero"))?;
-    let dst_width_nz = NonZeroU32::new(width).ok_or_else(|| anyhow::anyhow!("Target width is zero"))?;
-    let dst_height_nz = NonZeroU32::new(height).ok_or_else(|| anyhow::anyhow!("Target height is zero"))?;
+    let src_width_nz =
+        NonZeroU32::new(src_width).ok_or_else(|| anyhow::anyhow!("Source width is zero"))?;
+    let src_height_nz =
+        NonZeroU32::new(src_height).ok_or_else(|| anyhow::anyhow!("Source height is zero"))?;
+    let dst_width_nz =
+        NonZeroU32::new(width).ok_or_else(|| anyhow::anyhow!("Target width is zero"))?;
+    let dst_height_nz =
+        NonZeroU32::new(height).ok_or_else(|| anyhow::anyhow!("Target height is zero"))?;
 
     let src_image = Image::from_vec_u8(
         src_width_nz.into(),
@@ -215,7 +245,7 @@ pub fn resize_image(img: &RgbImage, width: u32, height: u32) -> Result<RgbImage>
     // Convert back to RgbImage
     let dst_pixels = dst_image.buffer();
     let mut output = ImageBuffer::new(width, height);
-    
+
     for (i, pixel) in output.pixels_mut().enumerate() {
         let base_idx = i * 3;
         if base_idx + 2 < dst_pixels.len() {
@@ -237,11 +267,7 @@ mod tests {
 
     fn create_test_image(width: u32, height: u32) -> RgbImage {
         ImageBuffer::from_fn(width, height, |x, y| {
-            Rgb([
-                (x % 256) as u8,
-                (y % 256) as u8,
-                ((x + y) % 256) as u8,
-            ])
+            Rgb([(x % 256) as u8, (y % 256) as u8, ((x + y) % 256) as u8])
         })
     }
 
@@ -249,9 +275,9 @@ mod tests {
     fn test_crop_image() {
         let img = create_test_image(100, 100);
         let cropped = crop_image(&img, 10, 10, 50, 50, false).unwrap();
-        
+
         assert_eq!(cropped.dimensions(), (50, 50));
-        
+
         // Verify pixel values match the source region
         let original_pixel = img.get_pixel(15, 15);
         let cropped_pixel = cropped.get_pixel(5, 5); // 15-10, 15-10
@@ -261,14 +287,14 @@ mod tests {
     #[test]
     fn test_crop_bounds_validation() {
         let img = create_test_image(50, 50);
-        
+
         // Test crop that exceeds bounds - should be adjusted automatically
         let result = crop_image(&img, 10, 10, 50, 50, false);
         assert!(result.is_ok());
         let cropped = result.unwrap();
         // Should be adjusted to fit within bounds: 40x40 instead of 50x50
         assert_eq!(cropped.dimensions(), (40, 40));
-        
+
         // This should succeed normally
         let result = crop_image(&img, 10, 10, 40, 40, false);
         assert!(result.is_ok());
@@ -278,7 +304,7 @@ mod tests {
     fn test_resize_image() {
         let img = create_test_image(100, 100);
         let resized = resize_image(&img, 50, 50).unwrap();
-        
+
         assert_eq!(resized.dimensions(), (50, 50));
     }
 
@@ -287,7 +313,7 @@ mod tests {
         // 200x100 landscape image to 100x50 landscape target
         let img = create_test_image(200, 100);
         let result = smart_resize_with_people_detection(&img, 100, 50, false, None, false).unwrap();
-        
+
         assert_eq!(result.dimensions(), (100, 50));
     }
 
@@ -296,7 +322,7 @@ mod tests {
         // 100x200 portrait image to 800x480 landscape target with auto
         let img = create_test_image(100, 200);
         let result = smart_resize_with_people_detection(&img, 800, 480, true, None, false).unwrap();
-        
+
         // With auto-process, dimensions should be swapped to 480x800
         assert_eq!(result.dimensions(), (480, 800));
     }
@@ -305,29 +331,43 @@ mod tests {
     fn test_people_aware_crop_boundary_clamping() {
         // Test the user's example: image 1100x1000, center (900,900), crop 800x480
         // Expected result: left=300, top=520 (maintains 800x480 dimensions)
-        
+
         let detection = SubjectDetectionResult {
             center: (900, 900),
             offset_from_center: (0, 0), // Not used in this calculation
             confidence: 0.9,
             person_count: 1,
         };
-        
+
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
             1100, // src_width
-            1000, // src_height  
+            1000, // src_height
             800,  // crop_width
             480,  // crop_height
-            &detection
+            &detection,
         );
-        
+
         // Verify the result matches expected values
-        assert_eq!(crop_left, 300, "Left should be 300 to maintain 800px width within 1100px image");
-        assert_eq!(crop_top, 520, "Top should be 520 to maintain 480px height within 1000px image");
-        
+        assert_eq!(
+            crop_left, 300,
+            "Left should be 300 to maintain 800px width within 1100px image"
+        );
+        assert_eq!(
+            crop_top, 520,
+            "Top should be 520 to maintain 480px height within 1000px image"
+        );
+
         // Verify the crop box dimensions are exactly as requested
-        assert_eq!(crop_left + 800, 1100, "Right edge should be at image boundary");
-        assert_eq!(crop_top + 480, 1000, "Bottom edge should be at image boundary");
+        assert_eq!(
+            crop_left + 800,
+            1100,
+            "Right edge should be at image boundary"
+        );
+        assert_eq!(
+            crop_top + 480,
+            1000,
+            "Bottom edge should be at image boundary"
+        );
     }
 
     #[test]
@@ -339,15 +379,15 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
         };
-        
+
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
-            800,  // src_width
-            600,  // src_height
-            400,  // crop_width  
-            200,  // crop_height
-            &detection
+            800, // src_width
+            600, // src_height
+            400, // crop_width
+            200, // crop_height
+            &detection,
         );
-        
+
         // Should center perfectly: left = 400-200=200, top = 300-100=200
         assert_eq!(crop_left, 200);
         assert_eq!(crop_top, 200);
@@ -362,15 +402,15 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
         };
-        
+
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
             1000, // src_width
             1000, // src_height
             200,  // crop_width
             200,  // crop_height
-            &detection
+            &detection,
         );
-        
+
         // Should be clamped to (0, 0) since center is too close to edges
         assert_eq!(crop_left, 0);
         assert_eq!(crop_top, 0);
@@ -385,18 +425,18 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
         };
-        
+
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
             1000, // src_width
             1000, // src_height
             200,  // crop_width
             200,  // crop_height
-            &detection
+            &detection,
         );
-        
+
         // Should be clamped to maintain 200x200 crop within 1000x1000 image
         assert_eq!(crop_left, 800); // 1000 - 200 = 800
-        assert_eq!(crop_top, 800);  // 1000 - 200 = 800
+        assert_eq!(crop_top, 800); // 1000 - 200 = 800
     }
 
     #[test]
@@ -408,15 +448,15 @@ mod tests {
             confidence: 0.0,
             person_count: 0, // No people detected
         };
-        
+
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
             1000, // src_width
             600,  // src_height
             400,  // crop_width
             200,  // crop_height
-            &detection
+            &detection,
         );
-        
+
         // Should use standard center crop: (1000-400)/2 = 300, (600-200)/2 = 200
         assert_eq!(crop_left, 300);
         assert_eq!(crop_top, 200);
@@ -431,15 +471,15 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
         };
-        
+
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
             1000, // src_width
             1000, // src_height
             1000, // crop_width - same as image
             1000, // crop_height - same as image
-            &detection
+            &detection,
         );
-        
+
         // Should be (0, 0) since crop is same size as image
         assert_eq!(crop_left, 0);
         assert_eq!(crop_top, 0);

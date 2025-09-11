@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use image::{imageops, RgbImage};
 use exif::{In, Reader, Tag, Value};
+use image::{imageops, RgbImage};
 use std::path::Path;
 
 /// EXIF orientation values
@@ -63,7 +63,10 @@ impl ExifOrientation {
     /// Check if this orientation represents a portrait image
     /// Based on utils.sh:24-28 logic for RightTop and LeftBottom
     pub fn is_rotated_portrait(&self) -> bool {
-        matches!(self, ExifOrientation::RightTop | ExifOrientation::LeftBottom)
+        matches!(
+            self,
+            ExifOrientation::RightTop | ExifOrientation::LeftBottom
+        )
     }
 }
 
@@ -83,16 +86,16 @@ pub struct OrientationInfo {
 }
 
 /// Fast orientation detection using only image headers (no full image loading)
-/// 
+///
 /// This is much faster than detect_orientation() for batch processing
 pub fn detect_orientation_fast(image_path: &Path) -> Result<OrientationInfo> {
     // Get image dimensions without loading the full image
     let image_reader = image::ImageReader::open(image_path)?;
     let (original_width, original_height) = image_reader.into_dimensions()?;
-    
+
     // Try to read EXIF orientation
     let exif_orientation = read_exif_orientation(image_path).unwrap_or(ExifOrientation::Undefined);
-    
+
     // Calculate effective dimensions after EXIF rotation
     let (effective_width, effective_height) = if exif_orientation.is_rotated_portrait() {
         // Image is rotated 90°, so dimensions are swapped in EXIF
@@ -100,7 +103,7 @@ pub fn detect_orientation_fast(image_path: &Path) -> Result<OrientationInfo> {
     } else {
         (original_width, original_height)
     };
-    
+
     // Determine if the image is portrait based on effective dimensions
     let is_portrait = if exif_orientation.is_rotated_portrait() {
         // For 90° rotated images, check the effective dimensions
@@ -109,7 +112,7 @@ pub fn detect_orientation_fast(image_path: &Path) -> Result<OrientationInfo> {
         // For non-rotated images, check original dimensions
         effective_height > effective_width // Taller than wide
     };
-    
+
     Ok(OrientationInfo {
         exif_orientation,
         is_portrait,
@@ -121,14 +124,14 @@ pub fn detect_orientation_fast(image_path: &Path) -> Result<OrientationInfo> {
 }
 
 /// Detect image orientation from EXIF data and image dimensions
-/// 
+///
 /// This matches the logic from utils.sh:extract_image_info()
 pub fn detect_orientation(image_path: &Path, img: &RgbImage) -> Result<OrientationInfo> {
     let (original_width, original_height) = img.dimensions();
-    
+
     // Try to read EXIF orientation
     let exif_orientation = read_exif_orientation(image_path).unwrap_or(ExifOrientation::Undefined);
-    
+
     // Calculate effective dimensions after EXIF rotation
     let (effective_width, effective_height) = if exif_orientation.is_rotated_portrait() {
         // Image is rotated 90°, so dimensions are swapped in EXIF
@@ -136,7 +139,7 @@ pub fn detect_orientation(image_path: &Path, img: &RgbImage) -> Result<Orientati
     } else {
         (original_width, original_height)
     };
-    
+
     // Determine if the image is portrait based on effective dimensions
     // This matches utils.sh:30-35 logic
     let is_portrait = if exif_orientation.is_rotated_portrait() {
@@ -144,7 +147,7 @@ pub fn detect_orientation(image_path: &Path, img: &RgbImage) -> Result<Orientati
     } else {
         effective_height > effective_width // Taller than wide
     };
-    
+
     Ok(OrientationInfo {
         exif_orientation,
         is_portrait,
@@ -157,15 +160,20 @@ pub fn detect_orientation(image_path: &Path, img: &RgbImage) -> Result<Orientati
 
 /// Read EXIF orientation tag from an image file
 fn read_exif_orientation(image_path: &Path) -> Result<ExifOrientation> {
-    let file = std::fs::File::open(image_path)
-        .with_context(|| format!("Failed to open image for EXIF reading: {}", image_path.display()))?;
-    
+    let file = std::fs::File::open(image_path).with_context(|| {
+        format!(
+            "Failed to open image for EXIF reading: {}",
+            image_path.display()
+        )
+    })?;
+
     let mut buf_reader = std::io::BufReader::new(file);
     let exif_reader = Reader::new();
-    
-    let exif = exif_reader.read_from_container(&mut buf_reader)
+
+    let exif = exif_reader
+        .read_from_container(&mut buf_reader)
         .context("Failed to read EXIF data")?;
-    
+
     // Look for orientation tag
     if let Some(field) = exif.get_field(Tag::Orientation, In::PRIMARY) {
         if let Value::Short(values) = &field.value {
@@ -174,12 +182,12 @@ fn read_exif_orientation(image_path: &Path) -> Result<ExifOrientation> {
             }
         }
     }
-    
+
     Ok(ExifOrientation::Undefined)
 }
 
 /// Apply EXIF rotation to an image
-/// 
+///
 /// This function handles all 8 possible EXIF orientations by applying
 /// the appropriate combination of rotations and flips
 pub fn apply_rotation(img: &RgbImage, orientation: ExifOrientation) -> Result<RgbImage> {
@@ -222,7 +230,7 @@ pub fn apply_rotation(img: &RgbImage, orientation: ExifOrientation) -> Result<Rg
 }
 
 /// Check if dimensions should be swapped based on auto-process mode and orientation
-/// 
+///
 /// This implements the logic from auto_resize_and_annotate.sh where it swaps
 /// target dimensions if auto mode is enabled and the orientation doesn't match
 pub fn should_swap_dimensions(
@@ -234,9 +242,9 @@ pub fn should_swap_dimensions(
     if !auto_process {
         return false;
     }
-    
+
     let target_is_portrait = target_height > target_width;
-    
+
     // Swap if image orientation doesn't match target orientation
     image_is_portrait != target_is_portrait
 }
@@ -280,17 +288,17 @@ mod tests {
         // Auto-process disabled - never swap
         assert!(!should_swap_dimensions(true, 800, 480, false));
         assert!(!should_swap_dimensions(false, 800, 480, false));
-        
+
         // Auto-process enabled
         // Portrait image (true) with landscape target (800x480) -> swap
         assert!(should_swap_dimensions(true, 800, 480, true));
-        
+
         // Landscape image (false) with landscape target (800x480) -> no swap
         assert!(!should_swap_dimensions(false, 800, 480, true));
-        
+
         // Portrait image (true) with portrait target (480x800) -> no swap
         assert!(!should_swap_dimensions(true, 480, 800, true));
-        
+
         // Landscape image (false) with portrait target (480x800) -> swap
         assert!(should_swap_dimensions(false, 480, 800, true));
     }
@@ -302,13 +310,13 @@ mod tests {
             get_effective_target_dimensions(true, 800, 480, false),
             (800, 480)
         );
-        
+
         // Auto-process enabled, portrait image with landscape target -> swap
         assert_eq!(
             get_effective_target_dimensions(true, 800, 480, true),
             (480, 800)
         );
-        
+
         // Auto-process enabled, landscape image with landscape target -> no swap
         assert_eq!(
             get_effective_target_dimensions(false, 800, 480, true),
@@ -319,7 +327,10 @@ mod tests {
     #[test]
     fn test_orientation_descriptions() {
         assert_eq!(ExifOrientation::TopLeft.description(), "Normal");
-        assert_eq!(ExifOrientation::RightTop.description(), "Rotated 90° CW (portrait)");
+        assert_eq!(
+            ExifOrientation::RightTop.description(),
+            "Rotated 90° CW (portrait)"
+        );
         assert_eq!(ExifOrientation::BottomRight.description(), "Rotated 180°");
     }
 }
