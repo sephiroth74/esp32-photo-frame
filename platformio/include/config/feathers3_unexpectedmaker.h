@@ -114,7 +114,7 @@
 #define LOCALE en_US  // Default to English for new configuration
 
 // Google Drive integration - fully enabled since no I2C/WiFi conflicts
-#define USE_GOOGLE_DRIVE
+// Google Drive is now enabled globally in config.h
 #define GOOGLE_DRIVE_CONFIG_FILEPATH "/google_drive_config.json"
 
 // Service account cleanup interval

@@ -36,12 +36,10 @@
 #error "Please define only one display type: either DISP_BW_V2 or DISP_7C_F or DISP_6C"
 #endif
 
-// check if GOOGLE_DRIVE_CONFIG_FILEPATH is defined
-#if defined(USE_GOOGLE_DRIVE)
+// check if GOOGLE_DRIVE_CONFIG_FILEPATH is defined (required for Google Drive functionality)
 #if !defined(GOOGLE_DRIVE_CONFIG_FILEPATH)
-#error "GOOGLE_DRIVE_CONFIG_FILEPATH must be defined when USE_GOOGLE_DRIVE is defined"
+#error "GOOGLE_DRIVE_CONFIG_FILEPATH must be defined for Google Drive functionality"
 #endif // GOOGLE_DRIVE_CONFIG_FILEPATH
-#endif // USE_GOOGLE_DRIVE
 
 // Check all SD-Card pins are defined
 #if !defined(SD_CS_PIN) || !defined(SD_MISO_PIN) || !defined(SD_MOSI_PIN) || !defined(SD_SCK_PIN)
