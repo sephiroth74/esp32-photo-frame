@@ -14,11 +14,17 @@ High-performance Rust implementation of the ESP32 Photo Frame image processing p
 
 - **Smart Orientation Detection**: Reads EXIF data and handles all 8 orientation modes
 - **Portrait Pairing**: Automatically combines portrait images side-by-side
+- **Multi-Format Output**: Support for BMP, Binary, JPG, and PNG with organized subdirectories
 - **High-Quality Resizing**: Uses Lanczos3 filtering for optimal image quality
 - **Floyd-Steinberg Dithering**: Professional-grade dithering for e-paper displays
 - **Text Annotations**: Filename overlays with customizable fonts and backgrounds
+- **AI People Detection**: Optional smart cropping based on person detection (with YOLOv3)
+- **Auto Color Correction**: Intelligent color/saturation/levels adjustment using ImageMagick
 - **ESP32 Binary Format**: Generates optimized .bin files for direct ESP32 loading
 - **Progress Tracking**: Real-time progress bars with ETA estimates
+- **Debug Visualization**: Detection box overlay for AI debugging
+- **Duplicate Handling**: Smart skip logic to avoid reprocessing existing images
+- **Hash Lookup**: Find original filenames from output file hashes
 - **Comprehensive Validation**: Input validation with helpful error messages
 
 ## 📦 Installation
@@ -56,26 +62,42 @@ cargo build --release --features ai
 # Black & white processing (matches auto.sh -t bw)
 ./photoframe-processor -i ~/Photos -o ~/processed -t bw -s 800x480 --auto
 
-# 6-color processing
-./photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 800x480 --auto
+# 6-color processing with multiple output formats
+./photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 800x480 --output-format bmp,bin,jpg --auto
+
+# Generate only binary files for ESP32
+./photoframe-processor -i ~/Photos -o ~/processed -t bw -s 800x480 --output-format bin --auto
 ```
 
 ### Advanced Usage
 
 ```bash
-# Multiple input directories with custom settings
+# Multiple input directories with custom settings and formats
 ./photoframe-processor \
   -i ~/Photos/2023 -i ~/Photos/2024 \
   -o ~/processed_photos \
   -t bw -s 800x480 \
+  --output-format bmp,bin,png \
   --font "Arial-Bold" \
   --pointsize 32 \
   --extensions jpg,png,heic,webp \
   --jobs 8 \
   --auto --verbose
 
+# With AI people detection and auto color correction
+./photoframe-processor \
+  -i ~/Photos -o ~/processed \
+  -t 6c -s 800x480 \
+  --output-format bmp,bin,jpg \
+  --detect-people --python-script ./scripts/private/find_subject.py \
+  --auto-color --annotate --force
+
 # Validate files without processing
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --validate-only
+
+# Debug mode with detection visualization
+./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --debug \
+  --detect-people --python-script ./scripts/private/find_subject.py --output-format png
 
 # Benchmark against bash script
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --benchmark
@@ -88,13 +110,20 @@ cargo build --release --features ai
 | `-i, --input <DIR>` | Input directories (can specify multiple) | **Required** |
 | `-o, --output <DIR>` | Output directory for processed images | **Required** |
 | `-s, --size <WIDTHxHEIGHT>` | Target display resolution (e.g., 800x480) | **Required** |
-| `-t, --type <TYPE>` | Processing type: `bw` or `6c` | `bw` |
-| `-p, --palette <FILE>` | Custom palette file for color processing | None |
+| `-t, --type <TYPE>` | Processing type: `bw`, `6c`, or `7c` | `bw` |
+| `--output-format <FORMATS>` | Output formats: comma-separated list of `bmp`, `bin`, `jpg`, `png` | `bmp` |
 | `--extensions <LIST>` | File extensions to process (comma-separated) | `jpg,jpeg,png,heic,webp,tiff` |
 | `--auto` | Enable automatic orientation handling | `false` |
-| `--pointsize <SIZE>` | Font size for annotations | `24` |
+| `--pointsize <SIZE>` | Font size for annotations | `22` |
 | `--font <FONT>` | Font family for annotations | `Arial` |
 | `--annotate_background <COLOR>` | Text background color (hex with alpha) | `#00000040` |
+| `--annotate` | Enable filename annotations on images | `false` |
+| `--auto-color` | Enable automatic color correction | `false` |
+| `--detect-people` | Enable AI people detection for smart cropping | `false` |
+| `--python-script <PATH>` | Path to find_subject.py script for people detection | None |
+| `--debug` | Debug mode: visualize detection boxes | `false` |
+| `--force` | Process all files, bypassing duplicate checks | `false` |
+| `--find-hash <HASH>` | Find original filename for given hash | None |
 | `-j, --jobs <N>` | Number of parallel processing jobs (0 = auto) | `0` |
 | `-v, --verbose` | Enable detailed output | `false` |
 | `--validate-only` | Only validate inputs, don't process | `false` |
@@ -102,18 +131,39 @@ cargo build --release --features ai
 
 ## 📁 Output Structure
 
+### Multiple Output Formats (--output-format bmp,bin,jpg,png)
+
 ```
 output_directory/
-├── image1.bmp              # Standard BMP files for preview
-├── image2.bmp
-├── combined_portrait_1.bmp # Combined portrait images
-├── combined_portrait_2.bmp
-└── bin/                    # Binary files for ESP32
-    ├── image1.bin
-    ├── image2.bin
-    ├── combined_portrait_1.bin
-    └── combined_portrait_2.bin
+├── bmp/                    # Standard BMP files for preview/debugging
+│   ├── dGVzdF9pbWFnZQ==.bmp
+│   ├── combined_ABC123_DEF456.bmp
+│   └── ...
+├── bin/                    # Binary files for ESP32
+│   ├── dGVzdF9pbWFnZQ==.bin
+│   ├── combined_ABC123_DEF456.bin
+│   └── ...
+├── jpg/                    # Compressed JPEG files for sharing
+│   ├── dGVzdF9pbWFnZQ==.jpg
+│   ├── combined_ABC123_DEF456.jpg
+│   └── ...
+└── png/                    # Lossless PNG files
+    ├── dGVzdF9pbWFnZQ==.png
+    ├── combined_ABC123_DEF456.png
+    └── ...
 ```
+
+### Single Output Format (--output-format bin)
+
+```
+output_directory/
+└── bin/                    # Only binary files
+    ├── dGVzdF9pbWFnZQ==.bin
+    ├── combined_ABC123_DEF456.bin
+    └── ...
+```
+
+**Note**: Filenames are base64-encoded versions of original filenames for consistent cross-platform compatibility. Combined portraits use the format `combined_{hash1}_{hash2}` where each hash represents one of the paired portrait images.
 
 ## 🔄 Processing Pipeline
 
@@ -122,9 +172,13 @@ output_directory/
 3. **Portrait Shuffling**: Randomizes portrait order for varied combinations
 4. **Smart Resizing**: Crop-to-fill with intelligent aspect ratio handling
 5. **Text Annotation**: Adds filename overlays with semi-transparent backgrounds
-6. **Color Processing**: Applies grayscale conversion or 6-color palette reduction
+6. **Color Processing**: Applies grayscale conversion or 6-color/7-color palette reduction
 7. **Dithering**: Floyd-Steinberg error diffusion for optimal e-paper display
-8. **Binary Generation**: Creates ESP32-compatible .bin files with 8-bit RRRGGGBB format
+8. **Multi-Format Output**: Generates multiple output formats with organized directory structure:
+   - **BMP**: Standard bitmap files for viewing and debugging
+   - **Binary**: ESP32-compatible .bin files with 8-bit RRRGGGBB format
+   - **JPG**: Compressed files for web sharing and storage efficiency
+   - **PNG**: Lossless files with transparency support
 9. **Portrait Combination**: Merges portrait pairs into landscape layouts
 
 ## 🎨 Color Processing
@@ -139,6 +193,12 @@ output_directory/
   - Black, White, Red, Green, Blue, Yellow
 - Uses Euclidean distance in RGB space for color matching
 - Applies error diffusion for optimal color distribution
+
+### 7-Color Mode (`-t 7c`)
+- Enhanced palette with 7 e-paper colors:
+  - Black, White, Red, Green, Blue, Yellow, Orange
+- Supports displays with orange color capability
+- Advanced dithering for improved color accuracy
 
 ## 📊 Performance Comparison
 
@@ -224,14 +284,18 @@ cargo bench
 
 ## 🔮 Future Enhancements
 
-- [ ] **AI Subject Detection**: Optional person detection for intelligent cropping
+- [x] **AI Subject Detection**: ✅ Optional person detection for intelligent cropping
+- [x] **Multi-Format Output**: ✅ Support for multiple output formats with organized directories
+- [x] **Auto Color Correction**: ✅ Intelligent color/saturation/levels adjustment
+- [x] **Avoid Duplicate Processing**: ✅ Skip already processed images based on image name
+- [x] **Debug Visualization**: ✅ Detection box overlay for AI debugging
 - [ ] **GPU Acceleration**: CUDA/OpenCL support for massive performance gains
 - [ ] **Custom Dithering**: Configurable dithering algorithms and patterns
 - [ ] **Batch Resume**: Resume interrupted batch processing
 - [ ] **Cloud Integration**: Direct Google Drive/Cloud storage processing
 - [ ] **GUI Interface**: Cross-platform desktop application
 - [ ] **Web Service**: REST API for remote processing
-- [ ] **Avoid Duplicate Processing**: Skip already processed images based on image name
+- [ ] **Animation Support**: Process and optimize GIF/video frames for slideshow displays
 
 ## 📄 License
 

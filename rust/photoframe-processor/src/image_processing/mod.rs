@@ -44,7 +44,7 @@ pub struct ProcessingConfig {
     pub extensions: Vec<String>,
     pub verbose: bool,
     pub parallel_jobs: usize,
-    pub output_format: crate::cli::OutputType,
+    pub output_formats: Vec<crate::cli::OutputType>,
     // Python people detection configuration
     pub detect_people: bool,
     pub python_script_path: Option<PathBuf>,
@@ -64,6 +64,83 @@ pub struct ProcessingEngine {
 }
 
 impl ProcessingEngine {
+    /// Create output subdirectories for each format and return format-specific paths
+    fn create_format_directories(&self, base_output_dir: &Path) -> Result<()> {
+        for format in &self.config.output_formats {
+            let format_dir = match format {
+                crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
+                crate::cli::OutputType::Bin => base_output_dir.join("bin"),
+                crate::cli::OutputType::Jpg => base_output_dir.join("jpg"),
+                crate::cli::OutputType::Png => base_output_dir.join("png"),
+            };
+
+            std::fs::create_dir_all(&format_dir).with_context(|| {
+                format!(
+                    "Failed to create format directory: {}",
+                    format_dir.display()
+                )
+            })?;
+
+            verbose_println(
+                self.config.verbose,
+                &format!("Created output directory: {}", format_dir.display()),
+            );
+        }
+        Ok(())
+    }
+
+    /// Get the output path for a specific format
+    fn get_format_output_path(
+        &self,
+        base_output_dir: &Path,
+        input_path: &Path,
+        format: &crate::cli::OutputType,
+        suffix: Option<&str>,
+    ) -> PathBuf {
+        let format_dir = match format {
+            crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
+            crate::cli::OutputType::Bin => base_output_dir.join("bin"),
+            crate::cli::OutputType::Jpg => base_output_dir.join("jpg"),
+            crate::cli::OutputType::Png => base_output_dir.join("png"),
+        };
+
+        let extension = match format {
+            crate::cli::OutputType::Bmp => "bmp",
+            crate::cli::OutputType::Bin => "bin",
+            crate::cli::OutputType::Jpg => "jpg",
+            crate::cli::OutputType::Png => "png",
+        };
+
+        let filename = crate::utils::create_output_filename(input_path, suffix, extension);
+        format_dir.join(filename)
+    }
+
+    /// Get the combined portrait output path for a specific format
+    fn get_combined_format_output_path(
+        &self,
+        base_output_dir: &Path,
+        left_path: &Path,
+        right_path: &Path,
+        format: &crate::cli::OutputType,
+    ) -> PathBuf {
+        let format_dir = match format {
+            crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
+            crate::cli::OutputType::Bin => base_output_dir.join("bin"),
+            crate::cli::OutputType::Jpg => base_output_dir.join("jpg"),
+            crate::cli::OutputType::Png => base_output_dir.join("png"),
+        };
+
+        let extension = match format {
+            crate::cli::OutputType::Bmp => "bmp",
+            crate::cli::OutputType::Bin => "bin",
+            crate::cli::OutputType::Jpg => "jpg",
+            crate::cli::OutputType::Png => "png",
+        };
+
+        let filename = create_combined_portrait_filename(left_path, right_path, extension);
+        format_dir.join(filename)
+    }
+
     pub fn new(config: ProcessingConfig) -> Result<Self> {
         // Initialize thread pool with specified number of jobs
         rayon::ThreadPoolBuilder::new()
@@ -356,6 +433,11 @@ impl ProcessingEngine {
         thread_progress_bars: &[ProgressBar],
         completion_progress: &ProgressBar,
     ) -> Result<(Vec<Result<ProcessingResult>>, Vec<SkippedResult>)> {
+        completion_progress.set_message("Creating output directories...");
+
+        // Create subdirectories for each output format
+        self.create_format_directories(output_dir)?;
+
         completion_progress.set_message("Checking for duplicate files...");
 
         // Filter out images that already exist (unless --force is used)
@@ -699,68 +781,52 @@ impl ProcessingEngine {
             convert::process_image(&color_corrected_img, &self.config.processing_type)?;
         progress_bar.set_position(85); // Color processing complete
 
-        // Generate output filenames in the same directory
-        let output_filename = match &self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                crate::utils::create_output_filename(input_path, None, "bmp")
-            }
-            crate::cli::OutputType::Bin => {
-                crate::utils::create_output_filename(input_path, None, "bin")
-            }
-            crate::cli::OutputType::Jpg => {
-                crate::utils::create_output_filename(input_path, None, "jpg")
-            }
-            crate::cli::OutputType::Png => {
-                crate::utils::create_output_filename(input_path, None, "png")
-            }
-        };
-        let bin_filename = crate::utils::create_output_filename(input_path, None, "bin");
+        // Save files to multiple formats (90-95%)
+        progress_bar.set_position(90);
 
-        let output_path = output_dir.join(&output_filename);
-        let bin_path = output_dir.join(&bin_filename);
+        let mut saved_paths = std::collections::HashMap::new();
+        let progress_per_format = 5.0 / self.config.output_formats.len() as f64;
+        let mut current_progress = 90.0;
 
-        // Save files based on output format configuration (90-95%)
-        match &self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Saving BMP", filename));
-                processed_img
-                    .save(&output_path)
-                    .with_context(|| format!("Failed to save BMP: {}", output_path.display()))?;
-                progress_bar.set_position(95);
+        for (_, format) in self.config.output_formats.iter().enumerate() {
+            let format_name = match format {
+                crate::cli::OutputType::Bmp => "BMP",
+                crate::cli::OutputType::Bin => "Binary",
+                crate::cli::OutputType::Jpg => "JPG",
+                crate::cli::OutputType::Png => "PNG",
+            };
+
+            progress_bar.set_message(format!("{} - Saving {}", filename, format_name));
+
+            let output_path = self.get_format_output_path(output_dir, input_path, format, None);
+
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    processed_img.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
+                }
+                crate::cli::OutputType::Bin => {
+                    let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                    std::fs::write(&output_path, binary_data).with_context(|| {
+                        format!("Failed to save binary: {}", output_path.display())
+                    })?;
+                }
             }
-            crate::cli::OutputType::Bin => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Generating binary", filename));
-                progress_bar.set_position(92);
-                let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
-                progress_bar.set_position(94);
-                std::fs::write(&bin_path, binary_data)
-                    .with_context(|| format!("Failed to save binary: {}", bin_path.display()))?;
-                progress_bar.set_position(95);
-            }
-            crate::cli::OutputType::Jpg => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Saving JPG", filename));
-                processed_img
-                    .save(&output_path)
-                    .with_context(|| format!("Failed to save JPG: {}", output_path.display()))?;
-                progress_bar.set_position(95);
-            }
-            crate::cli::OutputType::Png => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Saving PNG", filename));
-                processed_img
-                    .save(&output_path)
-                    .with_context(|| format!("Failed to save PNG: {}", output_path.display()))?;
-                progress_bar.set_position(95);
-            }
+
+            saved_paths.insert(format.clone(), output_path);
+
+            current_progress += progress_per_format;
+            progress_bar.set_position(current_progress as u64);
         }
+
+        progress_bar.set_position(95);
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
-            bmp_path: output_path.clone(),
-            bin_path,
+            output_paths: saved_paths,
             image_type: ImageType::Landscape,
             processing_time: start_time.elapsed(),
             people_detected: people_detection
@@ -851,74 +917,56 @@ impl ProcessingEngine {
             convert::process_image(&color_corrected_img, &self.config.processing_type)?;
         progress_bar.set_position(85);
 
-        // Generate output filenames with portrait suffix
-        let output_filename = match &self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                crate::utils::create_output_filename(input_path, Some("portrait"), "bmp")
-            }
-            crate::cli::OutputType::Bin => {
-                crate::utils::create_output_filename(input_path, Some("portrait"), "bin")
-            }
-            crate::cli::OutputType::Jpg => {
-                crate::utils::create_output_filename(input_path, Some("portrait"), "jpg")
-            }
-            crate::cli::OutputType::Png => {
-                crate::utils::create_output_filename(input_path, Some("portrait"), "png")
-            }
-        };
-        let bin_filename =
-            crate::utils::create_output_filename(input_path, Some("portrait"), "bin");
+        // Save portrait files to multiple formats (90-95%)
+        progress_bar.set_position(90);
 
-        let output_path = output_dir.join(&output_filename);
-        let bin_path = output_dir.join(&bin_filename);
+        let mut saved_paths = std::collections::HashMap::new();
+        let progress_per_format = 5.0 / self.config.output_formats.len() as f64;
+        let mut current_progress = 90.0;
 
-        // Save files based on output format configuration (90-95%)
-        match &self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Saving portrait BMP", filename));
-                processed_img.save(&output_path).with_context(|| {
-                    format!("Failed to save portrait BMP: {}", output_path.display())
-                })?;
-                progress_bar.set_position(95);
+        for format in &self.config.output_formats {
+            let format_name = match format {
+                crate::cli::OutputType::Bmp => "portrait BMP",
+                crate::cli::OutputType::Bin => "portrait Binary",
+                crate::cli::OutputType::Jpg => "portrait JPG",
+                crate::cli::OutputType::Png => "portrait PNG",
+            };
+
+            progress_bar.set_message(format!("{} - Saving {}", filename, format_name));
+
+            let output_path =
+                self.get_format_output_path(output_dir, input_path, format, Some("portrait"));
+
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    processed_img.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
+                }
+                crate::cli::OutputType::Bin => {
+                    let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                    std::fs::write(&output_path, binary_data).with_context(|| {
+                        format!("Failed to save portrait binary: {}", output_path.display())
+                    })?;
+                }
             }
-            crate::cli::OutputType::Bin => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Generating portrait binary", filename));
-                progress_bar.set_position(92);
-                let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
-                progress_bar.set_position(94);
-                progress_bar.set_message(format!("{} - Saving portrait binary", filename));
-                std::fs::write(&bin_path, binary_data).with_context(|| {
-                    format!("Failed to save portrait binary: {}", bin_path.display())
-                })?;
-                progress_bar.set_position(95);
-            }
-            crate::cli::OutputType::Jpg => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Saving portrait JPG", filename));
-                processed_img.save(&output_path).with_context(|| {
-                    format!("Failed to save portrait JPG: {}", output_path.display())
-                })?;
-                progress_bar.set_position(95);
-            }
-            crate::cli::OutputType::Png => {
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!("{} - Saving portrait PNG", filename));
-                processed_img.save(&output_path).with_context(|| {
-                    format!("Failed to save portrait PNG: {}", output_path.display())
-                })?;
-                progress_bar.set_position(95);
-            }
+
+            saved_paths.insert(format.clone(), output_path);
+
+            current_progress += progress_per_format;
+            progress_bar.set_position(current_progress as u64);
         }
+
+        progress_bar.set_position(95);
 
         verbose_println(self.config.verbose, 
             &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
-            bmp_path: output_path.clone(),
-            bin_path,
+            output_paths: saved_paths,
             image_type: ImageType::Portrait,
             processing_time: start_time.elapsed(),
             people_detected: people_detection
@@ -1359,79 +1407,52 @@ impl ProcessingEngine {
         progress_bar.set_message(format!("Saving combined image"));
         std::thread::yield_now();
 
-        // Generate combined filename
-        let output_filename = match &self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                create_combined_portrait_filename(left_path, right_path, "bmp")
-            }
-            crate::cli::OutputType::Bin => {
-                create_combined_portrait_filename(left_path, right_path, "bin")
-            }
-            crate::cli::OutputType::Jpg => {
-                create_combined_portrait_filename(left_path, right_path, "jpg")
-            }
-            crate::cli::OutputType::Png => {
-                create_combined_portrait_filename(left_path, right_path, "png")
-            }
-        };
-        let bin_filename = create_combined_portrait_filename(left_path, right_path, "bin");
+        // Save combined files to multiple formats (75-95%)
+        progress_bar.set_position(75);
 
-        let output_path = output_dir.join(&output_filename);
-        let bin_path = output_dir.join(&bin_filename);
+        let mut saved_paths = std::collections::HashMap::new();
+        let progress_per_format = 20.0 / self.config.output_formats.len() as f64;
+        let mut current_progress = 75.0;
 
-        // Save based on output format
-        match self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                progress_bar.set_position(85);
-                progress_bar.set_message(format!(
-                    "Saving BMP: {} + {}",
-                    left_filename, right_filename
-                ));
-                combined_img.save(&output_path).with_context(|| {
-                    format!("Failed to save combined BMP: {}", output_path.display())
-                })?;
-                progress_bar.set_position(95);
+        for format in &self.config.output_formats {
+            let format_name = match format {
+                crate::cli::OutputType::Bmp => "combined BMP",
+                crate::cli::OutputType::Bin => "combined Binary",
+                crate::cli::OutputType::Jpg => "combined JPG",
+                crate::cli::OutputType::Png => "combined PNG",
+            };
+
+            progress_bar.set_message(format!(
+                "Saving {}: {} + {}",
+                format_name, left_filename, right_filename
+            ));
+
+            let output_path =
+                self.get_combined_format_output_path(output_dir, left_path, right_path, format);
+
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    combined_img.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
+                }
+                crate::cli::OutputType::Bin => {
+                    let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
+                    std::fs::write(&output_path, &binary_data).with_context(|| {
+                        format!("Failed to save combined binary: {}", output_path.display())
+                    })?;
+                }
             }
-            crate::cli::OutputType::Bin => {
-                progress_bar.set_position(85);
-                progress_bar.set_message(format!(
-                    "Converting to binary: {} + {}",
-                    left_filename, right_filename
-                ));
-                let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
-                progress_bar.set_position(90);
-                progress_bar.set_message(format!(
-                    "Saving binary: {} + {}",
-                    left_filename, right_filename
-                ));
-                std::fs::write(&bin_path, &binary_data).with_context(|| {
-                    format!("Failed to save combined binary: {}", bin_path.display())
-                })?;
-                progress_bar.set_position(95);
-            }
-            crate::cli::OutputType::Jpg => {
-                progress_bar.set_position(85);
-                progress_bar.set_message(format!(
-                    "Saving JPG: {} + {}",
-                    left_filename, right_filename
-                ));
-                combined_img.save(&output_path).with_context(|| {
-                    format!("Failed to save combined JPG: {}", output_path.display())
-                })?;
-                progress_bar.set_position(95);
-            }
-            crate::cli::OutputType::Png => {
-                progress_bar.set_position(85);
-                progress_bar.set_message(format!(
-                    "Saving PNG: {} + {}",
-                    left_filename, right_filename
-                ));
-                combined_img.save(&output_path).with_context(|| {
-                    format!("Failed to save combined PNG: {}", output_path.display())
-                })?;
-                progress_bar.set_position(95);
-            }
+
+            saved_paths.insert(format.clone(), output_path);
+
+            current_progress += progress_per_format;
+            progress_bar.set_position(current_progress as u64);
         }
+
+        progress_bar.set_position(95);
 
         progress_bar.set_position(100);
         progress_bar.set_message(format!("Completed {} + {}", left_filename, right_filename));
@@ -1470,8 +1491,7 @@ impl ProcessingEngine {
 
         Ok(ProcessingResult {
             input_path: left_path.to_path_buf(), // Use first image as representative
-            bmp_path: output_path.clone(),
-            bin_path,
+            output_paths: saved_paths,
             image_type: ImageType::CombinedPortrait,
             processing_time: start_time.elapsed(),
             people_detected: combined_people_detected,
@@ -1539,39 +1559,42 @@ impl ProcessingEngine {
         let mut annotated_img = img.clone();
         self.draw_debug_annotations(&mut annotated_img, &detection_result, &raw_detection_data)?;
 
-        // Generate output filename
-        let output_filename = match &self.config.output_format {
-            crate::cli::OutputType::Bmp => {
-                crate::utils::create_output_filename(input_path, Some("debug"), "bmp")
-            }
-            crate::cli::OutputType::Bin => {
-                crate::utils::create_output_filename(input_path, Some("debug"), "bin")
-            } // Will save as image anyway
-            crate::cli::OutputType::Jpg => {
-                crate::utils::create_output_filename(input_path, Some("debug"), "jpg")
-            }
-            crate::cli::OutputType::Png => {
-                crate::utils::create_output_filename(input_path, Some("debug"), "png")
-            }
-        };
+        // Save debug images to multiple formats
+        let mut saved_paths = std::collections::HashMap::new();
 
-        let output_path = output_dir.join(&output_filename);
+        for format in &self.config.output_formats {
+            // Debug mode always saves as image format (no binary)
+            let actual_format = match format {
+                crate::cli::OutputType::Bin => &crate::cli::OutputType::Png, // Convert bin to PNG for debug
+                _ => format,
+            };
 
-        // Save annotated image (no processing, just the annotations)
-        annotated_img
-            .save(&output_path)
-            .with_context(|| format!("Failed to save debug image: {}", output_path.display()))?;
+            let output_path =
+                self.get_format_output_path(output_dir, input_path, actual_format, Some("debug"));
 
-        verbose_println(
-            self.config.verbose,
-            &format!("✅ Debug image saved: {}", output_filename),
-        );
+            // Save annotated image (no processing, just the annotations)
+            annotated_img.save(&output_path).with_context(|| {
+                format!("Failed to save debug image: {}", output_path.display())
+            })?;
+
+            saved_paths.insert(format.clone(), output_path.clone());
+
+            verbose_println(
+                self.config.verbose,
+                &format!(
+                    "✅ Debug image saved: {}",
+                    output_path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                ),
+            );
+        }
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
-            bmp_path: output_path,
-            bin_path: output_dir.join("dummy.bin"), // Not used in debug mode
-            image_type: ImageType::Landscape,       // Debug doesn't distinguish
+            output_paths: saved_paths,
+            image_type: ImageType::Landscape, // Debug doesn't distinguish
             processing_time: std::time::Duration::from_millis(0),
             people_detected: detection_result.person_count > 0,
             people_count: detection_result.person_count,
@@ -1926,9 +1949,7 @@ pub struct ProcessingResult {
     #[allow(dead_code)]
     pub input_path: PathBuf,
     #[allow(dead_code)]
-    pub bmp_path: PathBuf,
-    #[allow(dead_code)]
-    pub bin_path: PathBuf,
+    pub output_paths: std::collections::HashMap<crate::cli::OutputType, PathBuf>,
     #[allow(dead_code)]
     pub image_type: ImageType,
     #[allow(dead_code)]
