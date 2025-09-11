@@ -14,7 +14,7 @@ pub enum ColorType {
     SevenColor,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Hash)]
 pub enum OutputType {
     /// Generate only BMP files
     #[value(name = "bmp")]
@@ -61,11 +61,10 @@ Example Usage:
   photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
     --output-format bin --font \"Arial-Bold\" --pointsize 22 --auto --verbose
 
-  # Multiple input directories and files with JPG-only output
-  photoframe-processor -i ~/Photos/2023 -i ~/Photos/2024 -i ~/single.jpg -o ~/processed \\
-    -t bw --output-format jpg --auto --jobs 8
+  # Multiple output formats (creates subdirectories: bmp/, bin/, jpg/)
+  photoframe-processor -i ~/Photos -o ~/processed --output-format bmp,bin,jpg --auto
 
-  # PNG output format
+  # PNG output format only
   photoframe-processor -i ~/Photos -o ~/processed --output-format png --auto
 
   # With people detection for smart cropping (requires find_subject.py script)
@@ -111,9 +110,9 @@ pub struct Args {
     #[arg(short = 't', long = "type", default_value = "bw")]
     pub processing_type: ColorType,
 
-    /// Output format: bmp (BMP only), bin (binary only), jpg (JPG only), or png (PNG only)
+    /// Output formats: comma-separated list of bmp, bin, jpg, png (e.g., "bmp,bin" or "jpg")
     #[arg(long = "output-format", default_value = "bmp")]
-    pub output_format: OutputType,
+    pub output_formats_str: String,
 
     /// Comma-separated list of image extensions to process
     #[arg(long = "extensions", default_value = "jpg,jpeg,png,heic,webp,tiff")]
@@ -229,6 +228,45 @@ impl Args {
             .collect()
     }
 
+    /// Parse the output formats string into a vector of OutputType
+    pub fn parse_output_formats(&self) -> Result<Vec<OutputType>, String> {
+        let mut formats = Vec::new();
+
+        for format_str in self.output_formats_str.split(',') {
+            let format_str = format_str.trim().to_lowercase();
+            if format_str.is_empty() {
+                continue;
+            }
+
+            match format_str.as_str() {
+                "bmp" => formats.push(OutputType::Bmp),
+                "bin" => formats.push(OutputType::Bin),
+                "jpg" | "jpeg" => formats.push(OutputType::Jpg),
+                "png" => formats.push(OutputType::Png),
+                _ => {
+                    return Err(format!(
+                        "Invalid output format '{}'. Valid formats: bmp, bin, jpg, png",
+                        format_str
+                    ))
+                }
+            }
+        }
+
+        if formats.is_empty() {
+            return Err("No valid output formats specified".to_string());
+        }
+
+        // Remove duplicates while preserving order
+        let mut unique_formats = Vec::new();
+        for format in formats {
+            if !unique_formats.contains(&format) {
+                unique_formats.push(format);
+            }
+        }
+
+        Ok(unique_formats)
+    }
+
     // Getters that match the expected interface
     pub fn target_width(&self) -> u32 {
         self.parse_size().unwrap().0
@@ -240,6 +278,11 @@ impl Args {
 
     pub fn extensions(&self) -> Vec<String> {
         self.parse_extensions()
+    }
+
+    pub fn output_formats(&self) -> Vec<OutputType> {
+        self.parse_output_formats()
+            .unwrap_or_else(|_| vec![OutputType::Bmp])
     }
 }
 
@@ -308,7 +351,7 @@ impl Default for Args {
             output_dir: PathBuf::new(),
             size: "800x480".to_string(),
             processing_type: ColorType::BlackWhite,
-            output_format: OutputType::Bmp,
+            output_formats_str: "bmp".to_string(),
             extensions_str: "jpg,png".to_string(),
             auto_process: false,
             pointsize: 24,

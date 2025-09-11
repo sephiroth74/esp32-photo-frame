@@ -164,7 +164,7 @@ fn main() -> Result<()> {
         } else {
             args.jobs
         },
-        output_format: args.output_format.clone(),
+        output_formats: args.output_formats(),
         // Python people detection configuration
         detect_people: args.detect_people,
         python_script_path: args.python_script_path.clone(),
@@ -194,7 +194,7 @@ fn main() -> Result<()> {
             "  Annotation background: {:?}",
             config.annotation_background
         );
-        println!("  Output format: {:?}", config.output_format);
+        println!("  Output formats: {:?}", config.output_formats);
 
         // People detection status
         println!("  People detection: {}", config.detect_people);
