@@ -93,10 +93,10 @@ namespace renderer {
      */
     void init_display()
     {
-        Serial.println("Initializing e-paper display...");
+        Serial.println("[renderer] Initializing e-paper display...");
 
         if (!digitalPinIsValid(EPD_BUSY_PIN) || !digitalPinIsValid(EPD_RST_PIN) || !digitalPinIsValid(EPD_DC_PIN) || !digitalPinIsValid(EPD_CS_PIN)) {
-            Serial.println("Invalid e-paper display pins!");
+            Serial.println("[renderer] Invalid e-paper display pins!");
             return;
         }
 
@@ -105,11 +105,11 @@ namespace renderer {
         pinMode(EPD_CS_PIN, OUTPUT);
 
 #if defined(USE_HSPI_FOR_EPD)
-        hspi.begin(EPD_SCK_PIN, EPD_MOSI_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        hspi.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
         display.epd2.selectSPI(hspi, device_settings);
-#elif defined(USE_HSPI_FOR_EPD)
+#elif defined(USE_HSPI_FOR_EPD) or defined(USE_SHARED_SPI)
         SPI.end();
-        SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+        SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
 #endif // USE_HSPI_FOR_EPD
 
 #ifdef USE_DESPI_DRIVER
@@ -125,17 +125,17 @@ namespace renderer {
         display.setTextWrap(false);
 
         auto pages = display.pages();
-        Serial.printf("Display pages: %d\n", pages);
+        Serial.printf("[renderer] Display pages: %d\n", pages);
         if (pages > 1) {
-            Serial.printf("Display page height: %d\n", display.pageHeight());
+            Serial.printf("[renderer] Display page height: %d\n", display.pageHeight());
         }
-        Serial.printf("Display width: %d\n", display.width());
-        Serial.printf("Display height: %d\n", display.height());
-        Serial.printf("Full refresh time: %d\n", display.epd2.full_refresh_time);
-        Serial.printf("Display has color: %s\n", display.epd2.hasColor ? "true" : "false");
-        Serial.printf("Display has partial update: %s\n",
+        Serial.printf("[renderer] Display width: %d\n", display.width());
+        Serial.printf("[renderer] Display height: %d\n", display.height());
+        Serial.printf("[renderer] Full refresh time: %d\n", display.epd2.full_refresh_time);
+        Serial.printf("[renderer] Display has color: %s\n", display.epd2.hasColor ? "true" : "false");
+        Serial.printf("[renderer] Display has partial update: %s\n",
             display.epd2.hasPartialUpdate ? "true" : "false");
-        Serial.printf("Display has fast partial update: %s\n",
+        Serial.printf("[renderer] Display has fast partial update: %s\n",
             display.epd2.hasFastPartialUpdate ? "true" : "false");
 
         // display.setFullWindow();
@@ -149,7 +149,7 @@ namespace renderer {
      */
     void power_off()
     {
-        Serial.println("Powering off e-paper display...");
+        Serial.println("[renderer] Powering off e-paper display...");
         // display.hibernate();
         display.powerOff(); // turns off the display
         delay(100); // wait for the display to power off
@@ -227,7 +227,7 @@ namespace renderer {
      */
     void draw_string(int16_t x, int16_t y, const char* text, uint16_t color)
     {
-        Serial.printf("drawString: x=%d y=%d text='%s' color=0x%04X\n", x, y, text, color);
+        Serial.printf("[renderer] drawString: x=%d y=%d text='%s' color=0x%04X\n", x, y, text, color);
         display.setTextColor(color);
         display.setCursor(x, y);
         display.print(text);
@@ -336,7 +336,7 @@ namespace renderer {
     void draw_error(photo_frame_error error)
     {
         if (error == error_type::None) {
-            Serial.println("drawError: No error to display");
+            Serial.println("[renderer] drawError: No error to display");
             return;
         }
 
@@ -391,9 +391,9 @@ namespace renderer {
 
     void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const String& errMsgLn2)
     {
-        Serial.println("drawError[1]: " + errMsgLn1);
+        Serial.println("[renderer] drawError[1]: " + errMsgLn1);
         if (!errMsgLn2.isEmpty()) {
-            Serial.println("drawError[2]: " + errMsgLn2);
+            Serial.println("[renderer] drawError[2]: " + errMsgLn2);
         }
 
         display.setFont(&FONT_26pt8b);
@@ -411,7 +411,6 @@ namespace renderer {
         }
 
         if (bitmap_196x196) {
-            Serial.println("drawError: Drawing error bitmap");
             display.drawInvertedBitmap(DISP_WIDTH / 2 - 196 / 2,
                 DISP_HEIGHT / 2 - 196 / 2 - 21,
                 bitmap_196x196,
@@ -419,125 +418,119 @@ namespace renderer {
                 196,
                 ACCENT_COLOR);
         } else {
-            Serial.println("Error: No bitmap provided for drawError");
+            Serial.println("[renderer] Error: No bitmap provided for drawError");
         }
         return;
     } // end drawError
 
     void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source)
     {
-        Serial.println("drawImageInfo: " + String(index) + " / " + String(total_images));
+        Serial.println("[renderer] drawImageInfo: " + String(index) + " / " + String(total_images));
         String message = String(index + 1) + " / " + String(total_images);
         draw_side_message_with_icon(gravity::TOP_CENTER, image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD ? icon_name::cloud_0deg : icon_name::micro_sd_card_0deg, message.c_str(), -4, -2);
     }
 
 #ifdef USE_WEATHER
-    void draw_weather_info(const photo_frame::weather::WeatherData& weather_data)
+
+    rect_t get_weather_info_rect() { return { 16 - 8, DISP_HEIGHT - 88 - 8, 184, 88 }; }
+
+    void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect)
     {
         // Only display if weather data is valid and not stale (max 3 hours old)
         if (!weather_data.is_displayable(10800)) { // 3 hours = 10800 seconds
-            Serial.println("[renderer]drawWeatherInfo: Weather data invalid or stale, skipping display");
+            Serial.println("[renderer] drawWeatherInfo: Weather data invalid or stale, skipping display");
             return;
         }
 
-        Serial.printf("drawWeatherInfo: %.1f°C, %s\n", weather_data.temperature, weather_data.description.c_str());
+        Serial.printf("[renderer] drawWeatherInfo: %.1f°C, %s\n", weather_data.temperature, weather_data.description.c_str());
 
         // Calculate position based on gravity (positioned in bottom-left area like the image)
-        int16_t box_width = 184; // Width for icon + text content
-        int16_t box_height = 88; // Height for all weather info
+        int16_t box_x = box_rect.x;
+        int16_t box_y = box_rect.y;
+        uint16_t box_width = box_rect.width;
+        uint16_t box_height = box_rect.height;
 
-        int16_t base_x = 16; // Left margin
-        int16_t base_y = DISP_HEIGHT - box_height; // Bottom area
-
-        // Calculate background box dimensions
-        int16_t box_x = base_x - 8; // Padding around content
-        int16_t box_y = base_y - 8; // Padding around content
-
-        display.setPartialWindow(box_x, box_y, box_width, box_height);
-        display.firstPage();
+        int16_t base_x = box_x + 8;
+        int16_t base_y = box_y + 8;
 
         auto text_color = GxEPD_WHITE;
         auto icon_color = GxEPD_WHITE;
         auto background_color = GxEPD_BLACK;
 
-        do {
+        // Draw rounded background box using reusable function with 50% transparency
+        // draw_rounded_rect(box_x, box_y, box_width, box_height, 10, background_color, 128);
+        display.fillRoundRect(box_x, box_y, box_width, box_height, 4, background_color);
 
-            // Draw rounded background box using reusable function with 50% transparency
-            // draw_rounded_rect(box_x, box_y, box_width, box_height, 10, background_color, 128);
-            display.fillRoundRect(box_x, box_y, box_width, box_height, 4, background_color);
+        // Get weather icon mapped to system icon
+        icon_name_t weather_icon = photo_frame::weather::weather_icon_to_system_icon(weather_data.icon);
 
-            // Get weather icon mapped to system icon
-            icon_name_t weather_icon = photo_frame::weather::weather_icon_to_system_icon(weather_data.icon);
+        // Draw weather icon
+        const unsigned char* icon_bitmap = getBitmap(weather_icon, 48);
+        if (icon_bitmap) {
+            // draw the weather icon centered vertically
+            display.drawInvertedBitmap(base_x, base_y + 10, icon_bitmap, 48, 48, icon_color);
+        }
 
-            // Draw weather icon
-            const unsigned char* icon_bitmap = getBitmap(weather_icon, 48);
-            if (icon_bitmap) {
-                // draw the weather icon centered vertically
-                display.drawInvertedBitmap(base_x, base_y + 10, icon_bitmap, 48, 48, icon_color);
+        // Position text to the right of icon
+        int16_t text_x = base_x + 60;
+        int16_t text_y = base_y;
+
+        auto temperature_unit = weather_data.temperature_unit;
+        temperature_unit.replace("°", "\260"); // remove degree symbol for display
+
+        // Draw main temperature with unit (large text)
+        String main_temp = String((int)weather_data.temperature) + " " + temperature_unit;
+
+        display.setFont(&FONT_14pt8b);
+        draw_string(text_x, text_y + 18, main_temp.c_str(), text_color);
+        text_y += 34;
+
+        // Draw high/low temperatures with units if available
+        if (weather_data.has_daily_data && weather_data.temp_min != 0.0f && weather_data.temp_max != 0.0f) {
+            String temp_range = String((int)weather_data.temp_min) + " " + temperature_unit + "/" + String((int)weather_data.temp_max) + " " + temperature_unit;
+            display.setFont(&FONT_9pt8b);
+            draw_string(text_x, text_y, temp_range.c_str(), text_color);
+            text_y += 20;
+        }
+
+        int16_t icon_y = 0;
+
+        // Draw sunrise time if available
+        if (weather_data.has_daily_data) {
+            char sunrise_buffer[16];
+            Serial.print(F("[renderer] drawWeatherInfo: sunrise time: "));
+            Serial.println(weather_data.sunrise_time);
+
+            if (photo_frame::datetime_utils::format_datetime(sunrise_buffer, sizeof(sunrise_buffer), weather_data.sunrise_time, "%H:%M") > 0) {
+                display.setFont(&FONT_7pt8b);
+                draw_string(text_x + 18, text_y, sunrise_buffer, text_color);
+                icon_y = text_y - 12;
+                text_y += 16;
             }
+        }
 
-            // Position text to the right of icon
-            int16_t text_x = base_x + 60;
-            int16_t text_y = base_y;
-
-            auto temperature_unit = weather_data.temperature_unit;
-            temperature_unit.replace("°", "\260"); // remove degree symbol for display
-
-            // Draw main temperature with unit (large text)
-            String main_temp = String((int)weather_data.temperature) + " " + temperature_unit;
-
-            display.setFont(&FONT_14pt8b);
-            draw_string(text_x, text_y + 18, main_temp.c_str(), text_color);
-            text_y += 34;
-
-            // Draw high/low temperatures with units if available
-            if (weather_data.has_daily_data && weather_data.temp_min != 0.0f && weather_data.temp_max != 0.0f) {
-                String temp_range = String((int)weather_data.temp_min) + " " + temperature_unit + "/" + String((int)weather_data.temp_max) + " " + temperature_unit;
-                display.setFont(&FONT_9pt8b);
-                draw_string(text_x, text_y, temp_range.c_str(), text_color);
-                text_y += 20;
-            }
-
-            int16_t icon_y = 0;
-
-            // Draw sunrise time if available
-            if (weather_data.has_daily_data) {
-                char sunrise_buffer[16];
-                Serial.print(F("[renderer] drawWeatherInfo: sunrise time: "));
-                Serial.println(weather_data.sunrise_time);
-
-                if (photo_frame::datetime_utils::format_datetime(sunrise_buffer, sizeof(sunrise_buffer), weather_data.sunrise_time, "%H:%M") > 0) {
-                    display.setFont(&FONT_7pt8b);
-                    draw_string(text_x + 18, text_y, sunrise_buffer, text_color);
+        // Draw sunset time if available
+        if (weather_data.has_daily_data) {
+            char sunset_buffer[16];
+            if (photo_frame::datetime_utils::format_datetime(sunset_buffer, sizeof(sunset_buffer), weather_data.sunset_time, "%H:%M") > 0) {
+                display.setFont(&FONT_7pt8b);
+                draw_string(text_x + 18, text_y, sunset_buffer, text_color);
+                if (icon_y > 0) {
+                    icon_y += 8;
+                } else {
                     icon_y = text_y - 12;
-                    text_y += 16;
                 }
+                text_y += 16;
             }
+        }
 
-            // Draw sunset time if available
-            if (weather_data.has_daily_data) {
-                char sunset_buffer[16];
-                if (photo_frame::datetime_utils::format_datetime(sunset_buffer, sizeof(sunset_buffer), weather_data.sunset_time, "%H:%M") > 0) {
-                    display.setFont(&FONT_7pt8b);
-                    draw_string(text_x + 18, text_y, sunset_buffer, text_color);
-                    if(icon_y > 0) {
-                        icon_y += 8;
-                    } else {
-                        icon_y = text_y - 12;
-                    }
-                    text_y += 16;
-                }
+        // draw the sunset icon in the middle of sunrise/sunset text
+        if (icon_y > 0) {
+            const unsigned char* sunset_icon = getBitmap(icon_name::sunset_0deg, 16);
+            if (sunset_icon) {
+                display.drawInvertedBitmap(text_x, icon_y, sunset_icon, 16, 16, icon_color);
             }
-
-            // draw the sunset icon in the middle of sunrise/sunset text
-            if(icon_y > 0) {
-                const unsigned char* sunset_icon = getBitmap(icon_name::sunset_0deg, 16);
-                if (sunset_icon) {
-                    display.drawInvertedBitmap(text_x, icon_y, sunset_icon, 16, 16, icon_color);
-                }
-            }
-
-        } while (display.nextPage()); // Clear the display
+        }
     }
 #endif
 
@@ -563,8 +556,10 @@ namespace renderer {
             return;
 
         // Calculate corner radius (about 1/8 of the smaller dimension)
-        if (radius < 2) radius = 2; // Minimum radius
-        if (radius > 10) radius = 10; // Maximum radius for performance
+        if (radius < 2)
+            radius = 2; // Minimum radius
+        if (radius > 10)
+            radius = 10; // Maximum radius for performance
 
         // Draw rounded rectangle with dithering for semi-transparency
         for (int16_t py = 0; py < height; py++) {
@@ -577,7 +572,7 @@ namespace renderer {
                 // Check if we're in a corner region
                 bool inCorner = false;
                 int16_t corner_x = 0, corner_y = 0;
-                
+
                 // Top-left corner
                 if (px < radius && py < radius) {
                     corner_x = radius - px;
@@ -609,7 +604,7 @@ namespace renderer {
                     // Calculate distance from corner center
                     int16_t dist_squared = corner_x * corner_x + corner_y * corner_y;
                     int16_t radius_squared = radius * radius;
-                    
+
                     // Skip pixel if outside rounded corner
                     if (dist_squared > radius_squared) {
                         drawPixel = false;
@@ -619,7 +614,7 @@ namespace renderer {
                 if (drawPixel) {
                     // Create dithering pattern based on transparency level
                     bool draw_pixel = false;
-                    
+
                     if (transparency == 0) {
                         // Fully opaque - draw all pixels
                         draw_pixel = true;
@@ -628,7 +623,7 @@ namespace renderer {
                         draw_pixel = false;
                     } else {
                         // Semi-transparent - use dithering patterns based on transparency level
-                        
+
                         if (transparency <= 64) {
                             // ~75% opacity: Draw 3 out of 4 pixels (sparse transparency)
                             draw_pixel = !((px % 2 == 1) && (py % 2 == 1));
@@ -643,7 +638,7 @@ namespace renderer {
                             draw_pixel = (px % 4 == 0) && (py % 4 == 0);
                         }
                     }
-                    
+
                     // Draw pixel if pattern allows it
                     if (draw_pixel) {
                         display.drawPixel(x + px, y + py, color);
@@ -661,7 +656,7 @@ namespace renderer {
 
     void draw_battery_status(photo_frame::battery_info_t battery_info)
     {
-        Serial.println("drawBatteryStatus");
+        Serial.println("[renderer] drawBatteryStatus");
 
         auto battery_voltage = battery_info.millivolts;
 
@@ -704,7 +699,7 @@ namespace renderer {
 
     void draw_last_update(const DateTime& lastUpdate, long refresh_seconds)
     {
-        Serial.println("drawLastUpdate: " + lastUpdate.timestamp());
+        Serial.println("[renderer] drawLastUpdate: " + lastUpdate.timestamp());
         char dateTimeBuffer[32] = { 0 }; // Buffer to hold formatted date and time
         photo_frame::datetime_utils::format_datetime(
             dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate);
@@ -779,7 +774,7 @@ namespace renderer {
             break;
         }
         default: {
-            Serial.println("drawSideMessage: Invalid gravity type");
+            Serial.println("[renderer] drawSideMessage: Invalid gravity type");
             return;
         }
         }
@@ -797,7 +792,7 @@ namespace renderer {
         const uint16_t icon_size = 16;
         const unsigned char* icon = getBitmap(icon_name, icon_size); // ensure the icon is loaded
         if (!icon) {
-            Serial.println("drawSizeMessageWithIcon: Icon not found");
+            Serial.println("[renderer] drawSideMessageWithIcon: Icon not found");
             return;
         }
 
@@ -835,7 +830,7 @@ namespace renderer {
         }
 
         default: {
-            Serial.println("drawSizeMessageWithIcon: Invalid gravity type");
+            Serial.println("[renderer] drawSizeMessageWithIcon: Invalid gravity type");
             return;
         }
         }
@@ -854,11 +849,11 @@ namespace renderer {
         bool with_color)
     {
         if (!file) {
-            Serial.println("File not open or invalid");
+            Serial.println("[renderer] drawBitmapFromFile: File not open or invalid");
             return false;
         }
 
-        Serial.println("drawBitmapFromFile: " + String(filename));
+        Serial.println("[renderer] drawBitmapFromFile: " + String(filename));
 
         bool valid = false; // valid format to be handled
         bool flip = true; // bitmap is stored bottom-to-top
@@ -868,7 +863,7 @@ namespace renderer {
 
         // Parse BMP header
         auto signature = read16(file);
-        Serial.print("BMP signature: ");
+        Serial.print("[renderer] BMP signature: ");
         Serial.println(signature, HEX);
 
         if (signature == 0x4D42) // BMP signature
@@ -887,19 +882,21 @@ namespace renderer {
             Serial.println("format: " + String(format));
             if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
             {
-                Serial.print("File size: ");
+#if DEBUG_MODE
+                Serial.print("[renderer] File size: ");
                 Serial.println(fileSize);
-                Serial.print("Image Offset: ");
+                Serial.print("[renderer] Image Offset: ");
                 Serial.println(imageOffset);
-                Serial.print("Header size: ");
+                Serial.print("[renderer] Header size: ");
                 Serial.println(headerSize);
-                Serial.print("Bit Depth: ");
+                Serial.print("[renderer] Bit Depth: ");
                 Serial.println(depth);
-                Serial.print("Image size: ");
+                Serial.print("[renderer] Image size: ");
                 Serial.print(width);
                 Serial.print('x');
                 Serial.println(height);
-                // BMP rows are padded (if needed) to 4-byte boundary
+#endif // DEBUG_MODE
+       // BMP rows are padded (if needed) to 4-byte boundary
                 uint32_t rowSize = (width * depth / 8 + 3) & ~3;
                 if (depth < 8)
                     rowSize = ((width * depth + 8 - depth) / 8 + 3) & ~3;
@@ -1064,17 +1061,17 @@ namespace renderer {
             }
         }
         if (!valid) {
-            Serial.println("bitmap format not handled.");
+            Serial.println("[renderer] bitmap format not handled.");
             return false;
         } else {
-            Serial.println("bitmap loaded successfully.");
+            Serial.println("[renderer] bitmap loaded successfully.");
             return true;
         }
     } // end drawBitmapFromFile
 
     bool draw_binary_from_file(File& file, const char* filename, int width, int height)
     {
-        Serial.print("draw_binary_from_file: ");
+        Serial.print("[renderer] draw_binary_from_file: ");
         Serial.print(filename);
         Serial.print(", width: ");
         Serial.print(width);
@@ -1090,7 +1087,7 @@ namespace renderer {
         }
 
         if (!file) {
-            Serial.println("File not open or invalid");
+            Serial.println("[renderer] File not open or invalid");
             return false;
         }
 
@@ -1135,16 +1132,16 @@ namespace renderer {
             }
         }
         auto elapsedTime = millis() - startTime;
-        Serial.print("Image rendered in: ");
+        Serial.print("[renderer] Image rendered in: ");
         Serial.print(elapsedTime);
         Serial.println(" ms");
-        Serial.println("Binary file processed successfully");
+        Serial.println("[renderer] Binary file processed successfully");
         return true;
     }
 
     bool draw_binary_from_file_buffered(File& file, const char* filename, int width, int height)
     {
-        Serial.print("draw_binary_from_file_buffered: ");
+        Serial.print("[renderer] draw_binary_from_file_buffered: ");
         Serial.print(filename);
         Serial.print(", width: ");
         Serial.print(width);
@@ -1160,7 +1157,7 @@ namespace renderer {
         }
 
         if (!file) {
-            Serial.println("File not open or invalid");
+            Serial.println("[renderer] File not open or invalid");
             return false;
         }
 
@@ -1204,7 +1201,7 @@ namespace renderer {
                         if (byteRead < 0) {
                             consecutiveReadFailures++;
                             if (consecutiveReadFailures > 10) {
-                                Serial.println("Too many sequential read failures, switching to seek mode");
+                                Serial.println("[renderer] Too many sequential read failures, switching to seek mode");
                                 useSequentialRead = false;
                             }
                         } else {
@@ -1255,7 +1252,7 @@ namespace renderer {
             Serial.print(elapsedTime);
             Serial.println(" ms");
         } while (display.nextPage());
-        Serial.println("Binary file processed successfully");
+        Serial.println("[renderer] Binary file processed successfully");
         return true; // Return true if the file was processed successfully
     }
 
@@ -1268,17 +1265,17 @@ namespace renderer {
     {
 
         if (!file) {
-            Serial.println("File not open or invalid");
+            Serial.println("[renderer] File not open or invalid");
             return false;
         }
-        Serial.println("drawBitmapFromSD_Buffered: " + String(filename) + ", x: " + String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) + ", partial_update: " + String(partial_update));
+        Serial.println("[renderer] drawBitmapFromSD_Buffered: " + String(filename) + ", x: " + String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) + ", partial_update: " + String(partial_update));
 
         bool valid = false; // valid format to be handled
         bool flip = true; // bitmap is stored bottom-to-top
         bool has_multicolors = (display.epd2.panel == GxEPD2::ACeP565) || (display.epd2.panel == GxEPD2::GDEY073D46);
         uint32_t startTime = millis();
         if ((x >= display.width()) || (y >= display.height())) {
-            Serial.println("drawBitmapFromSD_Buffered: x or y out of bounds");
+            Serial.println("[renderer] drawBitmapFromSD_Buffered: x or y out of bounds");
             return false;
         }
         // Parse BMP header
@@ -1286,7 +1283,7 @@ namespace renderer {
         uint16_t signature = read16(file);
         if (signature == 0x4D42) // BMP signature
         {
-            Serial.println("BMP signature: " + String(signature));
+            Serial.println("[renderer] BMP signature: " + String(signature));
 
             uint32_t fileSize = read32(file);
             uint32_t creatorBytes = read32(file);
@@ -1299,24 +1296,28 @@ namespace renderer {
             uint16_t depth = read16(file); // bits per pixel
             uint32_t format = read32(file);
 
-            Serial.println("planes: " + String(planes));
-            Serial.println("format: " + String(format));
+#if DEBUG_MODE
+            Serial.println("[renderer] planes: " + String(planes));
+            Serial.println("[renderer] format: " + String(format));
+#endif
 
             if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
             {
-                Serial.print("File size: ");
+#if DEBUG_MODE
+                Serial.print("[renderer] File size: ");
                 Serial.println(fileSize);
-                Serial.print("Image Offset: ");
+                Serial.print("[renderer] Image Offset: ");
                 Serial.println(imageOffset);
-                Serial.print("Header size: ");
+                Serial.print("[renderer] Header size: ");
                 Serial.println(headerSize);
-                Serial.print("Bit Depth: ");
+                Serial.print("[renderer] Bit Depth: ");
                 Serial.println(depth);
-                Serial.print("Image size: ");
+                Serial.print("[renderer] Image size: ");
                 Serial.print(width);
                 Serial.print('x');
                 Serial.println(height);
-                // BMP rows are padded (if needed) to 4-byte boundary
+#endif // DEBUG_MODE
+       // BMP rows are padded (if needed) to 4-byte boundary
                 uint32_t rowSize = (width * depth / 8 + 3) & ~3;
                 if (depth < 8)
                     rowSize = ((width * depth + 8 - depth) / 8 + 3) & ~3;
@@ -1478,21 +1479,21 @@ namespace renderer {
                                 }
                             } // end pixel
                         } // end line
-                        Serial.print("page loaded in ");
+                        Serial.print("[renderer] page loaded in ");
                         Serial.print(millis() - startTime);
                         Serial.println(" ms");
                     } while (display.nextPage());
-                    Serial.print("loaded in ");
+                    Serial.print("[renderer] loaded in ");
                     Serial.print(millis() - startTime);
                     Serial.println(" ms");
                 }
             }
         }
         if (!valid) {
-            Serial.println("bitmap format not handled (signature: " + String(signature) + ").");
+            Serial.println("[renderer] bitmap format not handled (signature: " + String(signature) + ").");
             return false;
         } else {
-            Serial.println("bitmap loaded successfully.");
+            Serial.println("[renderer] bitmap loaded successfully.");
             return true;
         }
     } // end drawBitmapFromFile_Buffered
