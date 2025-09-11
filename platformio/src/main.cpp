@@ -42,13 +42,11 @@
 
 #include <assets/icons/icons.h>
 
-#if defined(USE_GOOGLE_DRIVE)
 #include "google_drive.h"
 #include "google_drive_client.h"
 
 // Google Drive instance (initialized from JSON config)
 photo_frame::google_drive drive;
-#endif
 
 #ifdef USE_SHARED_SPI
 
@@ -221,10 +219,6 @@ void setup()
                 }
             } else {
                 Serial.println(F("WiFi initialization failed"));
-#if !defined(USE_GOOGLE_DRIVE)
-                Serial.println(F("Continuing without WiFi"));
-                error = photo_frame::error_type::None;
-#endif
             }
         } else {
             Serial.println(F("Skipping datetime fetch due to SD card error!"));
@@ -257,7 +251,6 @@ void setup()
             sdCard.print_stats(); // Print SD card statistics
 #endif
 
-#ifdef USE_GOOGLE_DRIVE
             // Initialize Google Drive from JSON configuration file
             Serial.println(F("Initializing Google Drive from JSON config..."));
             error = drive.initialize_from_json(sdCard, GOOGLE_DRIVE_CONFIG_FILEPATH);
@@ -445,72 +438,6 @@ void setup()
                 }
             }
 
-#else // !USE_GOOGLE_DRIVE
-            if (!prefs.begin(PREFS_NAMESPACE, false)) {
-                Serial.println(F("Failed to open preferences!"));
-                error = photo_frame::error_type::PreferencesOpenFailed;
-            } else {
-                Serial.println(F("Preferences opened successfully!"));
-
-                // upon reset, write the TOC (Table of Contents) to the SD card
-                if (write_toc || !sdCard.file_exists(TOC_FILENAME)) {
-                    Serial.println(F("Writing TOC to SD card..."));
-
-                    error = sdCard.write_images_toc(
-                        &total_files, TOC_FILENAME, SD_DIRNAME, LOCAL_FILE_EXTENSION);
-                    // Remove the old total_files key
-                    prefs.remove("total_files");
-
-                    if (error == photo_frame::error_type::None) {
-                        // Save the total number of files to preferences
-                        prefs.putUInt("total_files", total_files);
-                    } else {
-                        Serial.print(F("Failed to write TOC! Error code: "));
-                        Serial.println(error.code);
-                    }
-                } else {
-                    // Read the total number of files from preferences
-                    total_files = prefs.getUInt("total_files", 0);
-
-                    Serial.print(F("Total files from preferences: "));
-                    Serial.println(total_files);
-                }
-
-                prefs.end(); // Close the preferences
-
-                if (total_files == 0) {
-                    Serial.println(F("No image files found on the SD card!"));
-                    error = photo_frame::error_type::NoImagesFound;
-                } else {
-                    // Generate a random index to start from
-
-#ifdef DEBUG_IMAGE_INDEX
-                    image_index = DEBUG_IMAGE_INDEX;
-                    Serial.print(F("Using debug image index: "));
-                    Serial.println(image_index);
-#else
-                    image_index = random(0, total_files);
-#endif // DEBUG_IMAGE_INDEX
-
-                    Serial.print(F("Next image index: "));
-                    Serial.println(image_index);
-
-                    String image_file_path = sdCard.get_toc_file_path(image_index);
-
-                    if (image_file_path.isEmpty()) {
-                        Serial.print(F("Image file path is empty at index: "));
-                        Serial.println(image_index);
-                        error = photo_frame::error_type::SdCardFileNotFound;
-                    } else {
-#ifdef USE_SHARED_SPI
-                        #error "not implemented"
-#else
-                        file = sdCard.open(image_file_path.c_str(), FILE_READ);
-#endif
-                    }
-                }
-            }
-#endif // USE_GOOGLE_DRIVE
         }
     } else {
         Serial.println(F("skipped"));

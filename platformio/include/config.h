@@ -225,10 +225,9 @@
 // Google Drive
 // -------------------------------------------
 
-// Uncomment to use Google Drive as image source
-// This will enable the use of Google Drive for image storage and retrieval, while the sd-card will
-// be only used for caching and temporary storage
-// #define USE_GOOGLE_DRIVE
+// Google Drive is used as the primary image source
+// The sd-card is used for caching and temporary storage
+#define USE_GOOGLE_DRIVE
 
 // -------------------------------------------
 // Weather Display
@@ -457,13 +456,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 #endif // DISP_BW_V2 or DISP_7C_F or DISP_6C
 #endif // ACCENT_COLOR
 
-#ifdef USE_GOOGLE_DRIVE
-
+// Path to the Google Drive configuration JSON file on the sd-card
+// This file must be uploaded to your SD card and contain all Google Drive settings
 #ifndef GOOGLE_DRIVE_CONFIG_FILEPATH
 #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
 #endif // GOOGLE_DRIVE_CONFIG_FILEPATH
-
-#endif // USE_GOOGLE_DRIVE
 
 #ifndef LOCALE
 #define LOCALE en_US

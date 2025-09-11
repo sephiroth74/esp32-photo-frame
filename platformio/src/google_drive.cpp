@@ -621,10 +621,28 @@ fs::File google_drive::download_file_to_littlefs(google_drive_file file, const S
         photo_frame_error_t access_token_error = load_access_token_from_file();
         if (access_token_error != error_type::None) {
             Serial.println(F("[google_drive] Failed to load cached access token"));
-            if (error) {
-                *error = error_type::OAuthTokenRequestFailed;
+            // If token is missing/expired, try to get a new token
+            if (access_token_error == error_type::TokenMissing) {
+                Serial.println(F("[google_drive] Attempting to get new access token..."));
+                photo_frame_error_t refresh_error = client.get_access_token();
+                if (refresh_error != error_type::None) {
+                    Serial.println(F("[google_drive] Failed to get new access token"));
+                    if (error) {
+                        *error = refresh_error;
+                    }
+                    return emptyFile;
+                } else {
+                    Serial.println(F("[google_drive] New access token obtained successfully"));
+                    // Save the new token to cache
+                    save_access_token_to_file();
+                }
+            } else {
+                // Other token loading errors
+                if (error) {
+                    *error = error_type::OAuthTokenRequestFailed;
+                }
+                return emptyFile;
             }
-            return emptyFile;
         } else {
             Serial.println(F("[google_drive] Using cached access token"));
         }

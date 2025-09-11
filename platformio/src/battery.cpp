@@ -92,13 +92,13 @@ bool battery_info_t::is_charging() const { return millivolts > BATTERY_CHARGING_
 
 void battery_reader::init() const {
 #ifdef USE_SENSOR_MAX1704X
-    Serial.println(F("Initializing MAX1704X Battery Reader on Wire"));
+    Serial.println(F("[battery] Initializing MAX1704X Battery Reader on Wire"));
 #if defined(MAX1704X_SDA_PIN) && defined(MAX1704X_SCL_PIN)
     TheWire.setPins(MAX1704X_SDA_PIN, MAX1704X_SCL_PIN);
 #endif
     TheWire.setTimeOut((uint16_t)SENSOR_MAX1704X_TIMEOUT);
 #else
-    Serial.print(F("Initializing battery_reader on pin "));
+    Serial.print(F("[battery] Initializing battery_reader on pin "));
     Serial.println(pin);
     pinMode(pin, INPUT);
     // Set the pin to use the ADC with no attenuation
@@ -111,11 +111,11 @@ battery_info_t battery_reader::read() const {
 #ifdef USE_SENSOR_MAX1704X
 
     unsigned long ms = millis();
-    Serial.println(F("Reading battery level from MAX1704X sensor"));
+    Serial.println(F("[battery] Reading battery level from MAX1704X sensor"));
     do {
         if ((millis() - ms) > SENSOR_MAX1704X_TIMEOUT) {
             Serial.println();
-            Serial.println(F("MAX1704X sensor initialization timed out!"));
+            Serial.println(F("[battery] MAX1704X sensor initialization timed out!"));
             return battery_info_t::full();
         }
         delay(200); // Wait a bit before trying again
@@ -123,11 +123,11 @@ battery_info_t battery_reader::read() const {
     } while (!max1704x.begin(&TheWire));
 
     Serial.println();
-    Serial.println(F("MAX1704X initialized.."));
+    Serial.println(F("[battery] MAX1704X initialized.."));
     delay(1000); // Allow some time for the sensor to initialize
 
     if (!max1704x.isDeviceReady()) {
-        Serial.println(F("MAX1704X device is not ready!"));
+        Serial.println(F("[battery] MAX1704X device is not ready!"));
         return battery_info_t::full();
     }
 
@@ -135,7 +135,7 @@ battery_info_t battery_reader::read() const {
     float percent     = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
-    Serial.print(F("Battery reading: "));
+    Serial.print(F("[battery] Battery reading: "));
     Serial.print("voltage: ");
     Serial.print(voltage);
     Serial.print("V, percent: ");
@@ -163,7 +163,7 @@ battery_info_t battery_reader::read() const {
     uint8_t percent  = calc_battery_percentage(voltage);
 
 #if DEBUG_MODE
-    Serial.print(F("Battery reading: "));
+    Serial.print(F("[battery] Battery reading: "));
     Serial.print("raw: ");
     Serial.print(raw);
     Serial.print(", millivolts: ");
