@@ -443,6 +443,7 @@ impl ProcessingEngine {
     }
 
 
+    
     /// Process a single image file with detailed progress tracking
     fn process_single_image_with_progress(
         &self,
@@ -458,36 +459,51 @@ impl ProcessingEngine {
         
         verbose_println(self.config.verbose, &format!("Processing: {}", input_path.display()));
 
-        // Stage 1: Load image (10%)
+        // Stage 1: Load image (10-15%)
         progress_bar.set_position(10);
         progress_bar.set_message(format!("{} - Loading", filename));
+        std::thread::yield_now();
+        progress_bar.set_position(12);
         let img = image::open(input_path)
             .with_context(|| format!("Failed to open image: {}", input_path.display()))?;
+        progress_bar.set_position(15);
 
-        // Stage 2: Convert to RGB (20%)
-        progress_bar.set_position(20);
+        // Stage 2: Convert to RGB (15-20%)
+        progress_bar.set_position(15);
         progress_bar.set_message(format!("{} - Converting to RGB", filename));
+        std::thread::yield_now();
+        progress_bar.set_position(17);
         let rgb_img = img.to_rgb8();
+        progress_bar.set_position(20);
 
-        // Stage 3: Detect orientation (30%)
-        progress_bar.set_position(30);
+        // Stage 3: Detect orientation (20-30%)
+        progress_bar.set_position(20);
         progress_bar.set_message(format!("{} - Detecting orientation", filename));
+        std::thread::yield_now();
+        progress_bar.set_position(25);
         let orientation_info = orientation::detect_orientation(input_path, &rgb_img)?;
+        progress_bar.set_position(30);
         
         verbose_println(self.config.verbose, &format!(
             "Image orientation: {:?}, is_portrait: {}",
             orientation_info.exif_orientation, orientation_info.is_portrait
         ));
 
-        // Stage 4: Apply rotation (40%)
-        progress_bar.set_position(40);
+        // Stage 4: Apply rotation (30-40%)
+        progress_bar.set_position(30);
         progress_bar.set_message(format!("{} - Applying rotation", filename));
+        std::thread::yield_now();
+        progress_bar.set_position(35);
         let rotated_img = orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation)?;
+        progress_bar.set_position(40);
 
-        // Stage 5: People detection (45%)
-        progress_bar.set_position(45);
+        // Stage 5: People detection (40-50%)
+        progress_bar.set_position(40);
         progress_bar.set_message(format!("{} - Detecting people", filename));
+        std::thread::yield_now();
+        progress_bar.set_position(45);
         let people_detection = self.detect_people_with_logging(&rotated_img, input_path);
+        progress_bar.set_position(50);
 
         // Stage 6: Process based on orientation (50-100%)
         progress_bar.set_position(50);
@@ -506,6 +522,8 @@ impl ProcessingEngine {
     }
 
 
+
+
     /// Process a landscape image (full size) with detailed progress tracking
     fn process_landscape_image_with_progress(
         &self,
@@ -521,7 +539,7 @@ impl ProcessingEngine {
             .and_then(|f| f.to_str())
             .unwrap_or("unknown");
 
-        // Resize to target dimensions (60-65%)
+        // Resize to target dimensions (60-70%)
         progress_bar.set_position(60);
         if people_detection.is_some() && people_detection.as_ref().unwrap().person_count > 0 {
             progress_bar.set_message(format!("{} - Smart resizing (people-aware)", filename));
@@ -530,6 +548,7 @@ impl ProcessingEngine {
             progress_bar.set_message(format!("{} - Resizing", filename));
         }
         
+        std::thread::yield_now();
         progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
             img,
@@ -539,28 +558,34 @@ impl ProcessingEngine {
             people_detection.as_ref(),
             self.config.verbose,
         )?;
-        progress_bar.set_position(65); // Resize complete
+        progress_bar.set_position(70); // Resize complete
 
-        // Add text annotation (70%) - conditional based on config
+        // Add text annotation (70-75%) - conditional based on config
         progress_bar.set_position(70);
         let annotated_img = if self.config.annotate {
             progress_bar.set_message(format!("{} - Adding annotation", filename));
-            annotate::add_filename_annotation(
+            std::thread::yield_now();
+            progress_bar.set_position(72);
+            let result = annotate::add_filename_annotation(
                 &resized_img,
                 input_path,
                 &self.config.font_name,
                 self.config.font_size,
                 &self.config.annotation_background,
-            )?
+            )?;
+            progress_bar.set_position(75);
+            result
         } else {
             progress_bar.set_message(format!("{} - Skipping annotation", filename));
+            progress_bar.set_position(75);
             resized_img
         };
 
-        // Apply color conversion and dithering (80-85%)
-        progress_bar.set_position(80);
+        // Apply color conversion and dithering (75-85%)
+        progress_bar.set_position(75);
         progress_bar.set_message(format!("{} - Color processing", filename));
-        progress_bar.set_position(82); // Show progress during color processing
+        std::thread::yield_now();
+        progress_bar.set_position(78); // Show progress during color processing
         let processed_img = convert::process_image(&annotated_img, &self.config.processing_type)?;
         progress_bar.set_position(85); // Color processing complete
 
@@ -651,6 +676,7 @@ impl ProcessingEngine {
         
         // For now, process as half-width landscape to fit the display
         let half_width = self.config.target_width / 2;
+        std::thread::yield_now();
         
         progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
@@ -661,7 +687,7 @@ impl ProcessingEngine {
             people_detection.as_ref(),
             self.config.verbose,
         )?;
-        progress_bar.set_position(65); // Resize complete
+        progress_bar.set_position(70); // Resize complete
 
         // Add text annotation (70%) - conditional based on config
         progress_bar.set_position(70);
@@ -679,10 +705,13 @@ impl ProcessingEngine {
             resized_img
         };
 
-        // Apply color conversion and dithering (80%)
+        // Apply color conversion and dithering (80-85%)
         progress_bar.set_position(80);
         progress_bar.set_message(format!("{} - Color processing", filename));
+        std::thread::yield_now();
+        progress_bar.set_position(82);
         let processed_img = convert::process_image(&annotated_img, &self.config.processing_type)?;
+        progress_bar.set_position(85);
 
         // Generate output filenames with portrait suffix
         let output_filename = match &self.config.output_format {
@@ -941,21 +970,27 @@ impl ProcessingEngine {
         
         verbose_println(self.config.verbose, &format!("Processing portrait pair: {} + {}", left_filename, right_filename));
 
-        // Stage 1: Load both images (10%)
+        // Stage 1: Load both images (10-15%)
         progress_bar.set_position(10);
         progress_bar.set_message(format!("Loading {} + {}", left_filename, right_filename));
+        std::thread::yield_now();
         
+        progress_bar.set_position(12);
         let left_img = image::open(left_path)
             .with_context(|| format!("Failed to open left image: {}", left_path.display()))?
             .to_rgb8();
+        progress_bar.set_position(13);
         let right_img = image::open(right_path)
             .with_context(|| format!("Failed to open right image: {}", right_path.display()))?
             .to_rgb8();
+        progress_bar.set_position(15);
 
-        // Stage 2: Apply EXIF rotation (20%)
-        progress_bar.set_position(20);
+        // Stage 2: Apply EXIF rotation (15-25%)
+        progress_bar.set_position(15);
         progress_bar.set_message(format!("Applying rotation to {} + {}", left_filename, right_filename));
+        std::thread::yield_now();
         
+        progress_bar.set_position(18);
         let left_rotated = match orientation::detect_orientation(left_path, &left_img) {
             Ok(orientation_info) => {
                 orientation::apply_rotation(&left_img, orientation_info.exif_orientation)
@@ -964,6 +999,7 @@ impl ProcessingEngine {
             Err(_) => left_img.clone(),
         };
         
+        progress_bar.set_position(22);
         let right_rotated = match orientation::detect_orientation(right_path, &right_img) {
             Ok(orientation_info) => {
                 orientation::apply_rotation(&right_img, orientation_info.exif_orientation)
@@ -971,30 +1007,36 @@ impl ProcessingEngine {
             }
             Err(_) => right_img.clone(),
         };
+        progress_bar.set_position(25);
 
-        // Stage 3: People detection (30%)
-        progress_bar.set_position(30);
+        // Stage 3: People detection (25-35%)
+        progress_bar.set_position(25);
         progress_bar.set_message(format!("Detecting people in {} + {}", left_filename, right_filename));
+        std::thread::yield_now();
         
+        progress_bar.set_position(28);
         let left_detection = if self.subject_detector.is_some() {
             self.detect_people_with_logging(&left_rotated, left_path)
         } else {
             None
         };
         
+        progress_bar.set_position(32);
         let right_detection = if self.subject_detector.is_some() {
             self.detect_people_with_logging(&right_rotated, right_path)
         } else {
             None
         };
+        progress_bar.set_position(35);
 
-        // Stage 4: Resize to half-width (40-50%)
-        progress_bar.set_position(40);
+        // Stage 4: Resize to half-width (35-45%)
+        progress_bar.set_position(35);
         progress_bar.set_message(format!("Resizing {} + {}", left_filename, right_filename));
+        std::thread::yield_now();
         
         let half_width = self.config.target_width / 2;
         
-        progress_bar.set_position(42); // Show progress during left resize
+        progress_bar.set_position(38); // Show progress during left resize
         let left_resized = resize::smart_resize_with_people_detection(
             &left_rotated,
             half_width,
@@ -1004,7 +1046,7 @@ impl ProcessingEngine {
             self.config.verbose,
         )?;
         
-        progress_bar.set_position(46); // Show progress during right resize
+        progress_bar.set_position(42); // Show progress during right resize
         let right_resized = resize::smart_resize_with_people_detection(
             &right_rotated,
             half_width,
@@ -1013,24 +1055,26 @@ impl ProcessingEngine {
             right_detection.as_ref(),
             self.config.verbose,
         )?;
-        progress_bar.set_position(50); // Both resizes complete
+        progress_bar.set_position(45); // Both resizes complete
 
-        // Stage 5: Apply image processing (50-55%)
-        progress_bar.set_position(50);
+        // Stage 5: Apply image processing (45-55%)
+        progress_bar.set_position(45);
         progress_bar.set_message(format!("Processing colors for {} + {}", left_filename, right_filename));
+        std::thread::yield_now();
         
-        progress_bar.set_position(52); // Processing left image colors
+        progress_bar.set_position(48); // Processing left image colors
         let left_processed = convert::process_image(&left_resized, &self.config.processing_type)?;
-        progress_bar.set_position(54); // Processing right image colors  
+        progress_bar.set_position(52); // Processing right image colors  
         let right_processed = convert::process_image(&right_resized, &self.config.processing_type)?;
         progress_bar.set_position(55); // Color processing complete
 
-        // Stage 6: Apply annotations (60-65%) - conditional based on config
-        progress_bar.set_position(60);
+        // Stage 6: Apply annotations (55-65%) - conditional based on config
+        progress_bar.set_position(55);
         let (left_annotated, right_annotated) = if self.config.annotate {
             progress_bar.set_message(format!("Adding annotations to {} + {}", left_filename, right_filename));
+            std::thread::yield_now();
             
-            progress_bar.set_position(62); // Annotating left image
+            progress_bar.set_position(58); // Annotating left image
             let left_annotated = annotate::add_filename_annotation(
                 &left_processed,
                 left_path,
@@ -1039,7 +1083,7 @@ impl ProcessingEngine {
                 &self.config.annotation_background,
             )?;
             
-            progress_bar.set_position(64); // Annotating right image
+            progress_bar.set_position(62); // Annotating right image
             let right_annotated = annotate::add_filename_annotation(
                 &right_processed,
                 right_path,
@@ -1056,17 +1100,19 @@ impl ProcessingEngine {
             (left_processed, right_processed)
         };
 
-        // Stage 7: Combine images (70-75%)
-        progress_bar.set_position(70);
+        // Stage 7: Combine images (65-75%)
+        progress_bar.set_position(65);
         progress_bar.set_message(format!("Combining {} + {}", left_filename, right_filename));
+        std::thread::yield_now();
         
-        progress_bar.set_position(72); // Show progress during combining
+        progress_bar.set_position(68); // Show progress during combining
         let combined_img = combine_processed_portraits(&left_annotated, &right_annotated, self.config.target_width, self.config.target_height)?;
         progress_bar.set_position(75); // Combining complete
 
-        // Stage 8: Save final result (80-90%)
-        progress_bar.set_position(80);
+        // Stage 8: Save final result (75-95%)
+        progress_bar.set_position(75);
         progress_bar.set_message(format!("Saving combined image"));
+        std::thread::yield_now();
         
         // Generate combined filename
         let output_filename = match &self.config.output_format {
@@ -1152,6 +1198,7 @@ impl ProcessingEngine {
             individual_portraits: Some(individual_portraits),
         })
     }
+
 
     /// Process images in debug mode - visualize detection boxes and crop area
     pub fn process_debug_batch(
