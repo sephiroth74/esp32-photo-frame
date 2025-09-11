@@ -47,7 +47,7 @@ impl BatchProcessor {
 
         let elapsed = self.start_time.elapsed();
         let remaining = self.total_files - processed;
-        
+
         if remaining == 0 {
             return Some(Duration::new(0, 0));
         }
@@ -90,13 +90,13 @@ where
         .par_iter()
         .map(|file_path| {
             let result = process_fn(file_path);
-            
+
             let completed = processor.increment();
             let progress = processor.progress();
             let eta = processor.eta();
-            
+
             progress_callback(completed, progress, eta);
-            
+
             result
         })
         .collect()
@@ -110,20 +110,23 @@ pub fn group_by_orientation(
 ) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let mut portraits = Vec::new();
     let mut landscapes = Vec::new();
-    
+
     for file in files {
         match is_portrait_fn(file) {
             Ok(true) => portraits.push(file.clone()),
             Ok(false) => landscapes.push(file.clone()),
             Err(e) => {
-                eprintln!("Warning: Failed to determine orientation for {}: {}", 
-                         file.display(), e);
+                eprintln!(
+                    "Warning: Failed to determine orientation for {}: {}",
+                    file.display(),
+                    e
+                );
                 // Default to landscape if orientation detection fails
                 landscapes.push(file.clone());
             }
         }
     }
-    
+
     Ok((portraits, landscapes))
 }
 
@@ -138,7 +141,7 @@ pub fn calculate_final_stats(
 ) -> ProcessingStats {
     let successful = results.iter().filter(|r| r.is_ok()).count();
     let failed = results.len() - successful;
-    
+
     ProcessingStats {
         total_files: results.len(),
         successful,
@@ -160,28 +163,34 @@ pub fn validate_batch_inputs(
     // Check input paths exist
     for path in input_paths {
         if !path.exists() {
-            return Err(anyhow::anyhow!("Input path does not exist: {}", path.display()));
+            return Err(anyhow::anyhow!(
+                "Input path does not exist: {}",
+                path.display()
+            ));
         }
         if !path.is_dir() && !path.is_file() {
-            return Err(anyhow::anyhow!("Input path is neither a file nor directory: {}", path.display()));
+            return Err(anyhow::anyhow!(
+                "Input path is neither a file nor directory: {}",
+                path.display()
+            ));
         }
     }
-    
+
     // Validate extensions
     if extensions.is_empty() {
         return Err(anyhow::anyhow!("No file extensions specified"));
     }
-    
+
     // Check if we can create output directory
     if let Some(parent) = output_dir.parent() {
         if !parent.exists() {
             return Err(anyhow::anyhow!(
-                "Output directory parent does not exist: {}", 
+                "Output directory parent does not exist: {}",
                 parent.display()
             ));
         }
     }
-    
+
     Ok(())
 }
 
@@ -191,24 +200,24 @@ pub fn shuffle_vec<T>(mut vec: Vec<T>) -> Vec<T> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
     use std::time::{SystemTime, UNIX_EPOCH};
-    
+
     // Simple pseudo-random shuffle using system time as seed
     let seed = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    
+
     let mut hasher = DefaultHasher::new();
     seed.hash(&mut hasher);
     let mut rng_state = hasher.finish();
-    
+
     for i in (1..vec.len()).rev() {
         // Simple linear congruential generator
         rng_state = rng_state.wrapping_mul(1103515245).wrapping_add(12345);
         let j = (rng_state as usize) % (i + 1);
         vec.swap(i, j);
     }
-    
+
     vec
 }
 
@@ -221,12 +230,12 @@ mod tests {
     #[test]
     fn test_batch_processor_progress() {
         let processor = BatchProcessor::new(10);
-        
+
         assert_eq!(processor.progress(), 0.0);
-        
+
         processor.increment();
         assert!((processor.progress() - 0.1).abs() < 0.01);
-        
+
         // Increment 9 more times
         for _ in 0..9 {
             processor.increment();
@@ -237,14 +246,14 @@ mod tests {
     #[test]
     fn test_batch_processor_eta() {
         let processor = BatchProcessor::new(4);
-        
+
         // No ETA before any processing
         assert!(processor.eta().is_none());
-        
+
         // Process one item with a small delay
         thread::sleep(Duration::from_millis(10));
         processor.increment();
-        
+
         let eta = processor.eta();
         assert!(eta.is_some());
         assert!(eta.unwrap() > Duration::new(0, 0));
@@ -257,13 +266,12 @@ mod tests {
             PathBuf::from("landscape1.jpg"),
             PathBuf::from("portrait2.jpg"),
         ];
-        
-        let is_portrait = |path: &Path| -> Result<bool> {
-            Ok(path.to_string_lossy().contains("portrait"))
-        };
-        
+
+        let is_portrait =
+            |path: &Path| -> Result<bool> { Ok(path.to_string_lossy().contains("portrait")) };
+
         let (portraits, landscapes) = group_by_orientation(&files, is_portrait).unwrap();
-        
+
         assert_eq!(portraits.len(), 2);
         assert_eq!(landscapes.len(), 1);
     }
@@ -272,10 +280,10 @@ mod tests {
     fn test_shuffle_vec() {
         let original = vec![1, 2, 3, 4, 5];
         let shuffled = shuffle_vec(original.clone());
-        
+
         // Should have same length
         assert_eq!(original.len(), shuffled.len());
-        
+
         // Should contain same elements (but possibly different order)
         let mut orig_sorted = original.clone();
         let mut shuf_sorted = shuffled.clone();
@@ -286,12 +294,8 @@ mod tests {
 
     #[test]
     fn test_calculate_final_stats() {
-        let results = vec![
-            Ok(()),
-            Err(anyhow::anyhow!("error")),
-            Ok(()),
-        ];
-        
+        let results = vec![Ok(()), Err(anyhow::anyhow!("error")), Ok(())];
+
         let stats = calculate_final_stats(
             &results,
             Duration::from_secs(10),
@@ -299,7 +303,7 @@ mod tests {
             8, // landscapes_found
             2, // portraits_combined
         );
-        
+
         assert_eq!(stats.total_files, 3);
         assert_eq!(stats.successful, 2);
         assert_eq!(stats.failed, 1);

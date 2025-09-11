@@ -80,15 +80,31 @@ Example Usage:
 )]
 pub struct Args {
     /// Input directories or single image files (can be specified multiple times)
-    #[arg(short = 'i', long = "input", required_unless_present = "find_hash", value_name = "DIR|FILE")]
+    #[arg(
+        short = 'i',
+        long = "input",
+        required_unless_present = "find_hash",
+        value_name = "DIR|FILE"
+    )]
     pub input_paths: Vec<PathBuf>,
 
     /// Output directory for processed images
-    #[arg(short = 'o', long = "output", required_unless_present = "find_hash", value_name = "DIR", default_value = ".")]
+    #[arg(
+        short = 'o',
+        long = "output",
+        required_unless_present = "find_hash",
+        value_name = "DIR",
+        default_value = "."
+    )]
     pub output_dir: PathBuf,
 
     /// Target display size (format: WIDTHxHEIGHT, e.g., 800x480)
-    #[arg(short = 's', long = "size", default_value = "800x480", value_name = "WIDTHxHEIGHT")]
+    #[arg(
+        short = 's',
+        long = "size",
+        default_value = "800x480",
+        value_name = "WIDTHxHEIGHT"
+    )]
     pub size: String,
 
     /// Processing type: bw (black & white) or 6c (6-color)
@@ -98,7 +114,6 @@ pub struct Args {
     /// Output format: bmp (BMP only), bin (binary only), jpg (JPG only), or png (PNG only)
     #[arg(long = "output-format", default_value = "bmp")]
     pub output_format: OutputType,
-
 
     /// Comma-separated list of image extensions to process
     #[arg(long = "extensions", default_value = "jpg,jpeg,png,heic,webp,tiff")]
@@ -120,7 +135,11 @@ pub struct Args {
     pub font: String,
 
     /// Background color for text annotations (hex with alpha, e.g., #00000040)
-    #[arg(long = "annotate_background", default_value = "#00000040", value_name = "COLOR")]
+    #[arg(
+        long = "annotate_background",
+        default_value = "#00000040",
+        value_name = "COLOR"
+    )]
     pub annotate_background: String,
 
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
@@ -144,8 +163,11 @@ pub struct Args {
     pub detect_people: bool,
 
     /// Path to find_subject.py script for people detection
-    #[arg(long = "python-script", value_name = "FILE", 
-          help = "Path to find_subject.py script for people detection")]
+    #[arg(
+        long = "python-script",
+        value_name = "FILE",
+        help = "Path to find_subject.py script for people detection"
+    )]
     pub python_script_path: Option<PathBuf>,
 
     /// Force processing even if output files already exist (bypass duplicate check)
@@ -163,6 +185,10 @@ pub struct Args {
     /// Enable filename annotations on processed images (default: false)
     #[arg(long = "annotate")]
     pub annotate: bool,
+
+    /// Enable automatic color correction before processing (uses ImageMagick if available)
+    #[arg(long = "auto-color")]
+    pub auto_color_correct: bool,
 }
 
 impl Args {
@@ -170,12 +196,17 @@ impl Args {
     pub fn parse_size(&self) -> Result<(u32, u32), String> {
         let parts: Vec<&str> = self.size.split('x').collect();
         if parts.len() != 2 {
-            return Err(format!("Invalid size format '{}'. Use WIDTHxHEIGHT (e.g., 800x480)", self.size));
+            return Err(format!(
+                "Invalid size format '{}'. Use WIDTHxHEIGHT (e.g., 800x480)",
+                self.size
+            ));
         }
 
-        let width = parts[0].parse::<u32>()
+        let width = parts[0]
+            .parse::<u32>()
             .map_err(|_| format!("Invalid width: '{}'", parts[0]))?;
-        let height = parts[1].parse::<u32>()
+        let height = parts[1]
+            .parse::<u32>()
             .map_err(|_| format!("Invalid height: '{}'", parts[1]))?;
 
         if width == 0 || height == 0 {

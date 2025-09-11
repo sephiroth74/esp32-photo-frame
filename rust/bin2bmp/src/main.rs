@@ -6,6 +6,19 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, ValueEnum)]
+pub enum ColorType {
+    /// Black & White processing (matches auto.sh -t bw)
+    #[value(name = "bw")]
+    BlackWhite,
+    /// 6-color processing (matches auto.sh -t 6c)
+    #[value(name = "6c")]
+    SixColor,
+    /// 6-color processing (matches auto.sh -t 7c)
+    #[value(name = "7c")]
+    SevenColor,
+}
+
 #[derive(Parser)]
 #[command(
     name = "bin2bmp",
@@ -25,13 +38,12 @@ struct Args {
     #[arg(short, long, default_value = "800x480")]
     size: String,
 
-    /// Display type
-    #[arg(short = 't', long, default_value = "bw")]
-    display_type: DisplayType,
-
     /// Output format
     #[arg(short, long, default_value = "bmp")]
     format: OutputFormat,
+
+    #[arg(short = 't', long = "type", default_value = "bw")]
+    processing_type: ColorType,
 
     /// Enable verbose output
     #[arg(short, long)]
@@ -42,14 +54,6 @@ struct Args {
     validate_only: bool,
 }
 
-#[derive(Clone, ValueEnum)]
-enum DisplayType {
-    /// Black & White display (DISP_BW_V2)
-    Bw,
-    /// 6-color display (DISP_6C)
-    #[value(name = "6c")]
-    SixColor,
-}
 
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormat {
@@ -61,14 +65,6 @@ enum OutputFormat {
     Png,
 }
 
-impl DisplayType {
-    fn description(&self) -> &'static str {
-        match self {
-            DisplayType::Bw => "Black & White",
-            DisplayType::SixColor => "6-color",
-        }
-    }
-}
 
 impl OutputFormat {
     fn extension(&self) -> &'static str {
@@ -80,9 +76,9 @@ impl OutputFormat {
     }
 }
 
-fn pixel_to_rgb(pixel: u8, display_type: &DisplayType) -> [u8; 3] {
+fn pixel_to_rgb(pixel: u8, display_type: &ColorType) -> [u8; 3] {
     match display_type {
-        DisplayType::Bw => {
+        ColorType::BlackWhite => {
             // Black & White mapping (based on renderer.cpp:1378-1382)
             if pixel > 127 {
                 [255, 255, 255] // White
@@ -90,15 +86,31 @@ fn pixel_to_rgb(pixel: u8, display_type: &DisplayType) -> [u8; 3] {
                 [0, 0, 0] // Black
             }
         }
-        DisplayType::SixColor => {
+        ColorType::SixColor => {
             // 6-color mapping (based on renderer.cpp:1296-1320)
             match pixel {
                 255 => [255, 255, 255], // White
                 0 => [0, 0, 0],          // Black
                 224 => [255, 0, 0],      // Red
-                28 => [0, 255, 0],       // Green
-                252 => [255, 255, 0],    // Yellow
+                28 => [0, 252, 0],       // Green
+                252 => [252, 252, 0],    // Yellow
                 3 => [0, 0, 255],        // Blue
+                _ => {
+                    // Fallback for dithered or unexpected values
+                    [pixel, pixel, pixel] // Grayscale
+                }
+            }
+        }
+        ColorType::SevenColor => {
+            // 6-color mapping (based on renderer.cpp:1296-1320)
+            match pixel {
+                255 => [255, 255, 255], // White
+                0 => [0, 0, 0],          // Black
+                224 => [255, 0, 0],      // Red
+                28 => [0, 252, 0],       // Green
+                252 => [252, 252, 0],    // Yellow
+                3 => [0, 0, 255],        // Blue
+                244 => [252, 108, 0],    // Orange
                 _ => {
                     // Fallback for dithered or unexpected values
                     [pixel, pixel, pixel] // Grayscale
@@ -175,7 +187,7 @@ fn validate_file(args: &Args, width: u32, height: u32) -> Result<Vec<u8>> {
         println!("=== Binary File Analysis ===");
         println!("Input file: {}", args.input);
         println!("Specified dimensions: {}x{}", width, height);
-        println!("Display type: {}", args.display_type.description());
+        println!("Display type: {:?}", args.processing_type);
         println!("Expected size: {} bytes", expected_size);
         println!("Actual size: {} bytes", data.len());
         println!();
@@ -183,7 +195,7 @@ fn validate_file(args: &Args, width: u32, height: u32) -> Result<Vec<u8>> {
 
     if data.len() != expected_size {
         let mut error_lines = vec![
-            format!("File size does not match specified dimensions!"),
+            "File size does not match specified dimensions!".to_string(),
             format!("  Specified: {}x{} (expected {} bytes)", width, height, expected_size),
             format!("  Actual file size: {} bytes", data.len()),
             String::new(),
@@ -261,11 +273,11 @@ fn validate_file(args: &Args, width: u32, height: u32) -> Result<Vec<u8>> {
         println!();
 
         // Validate based on display type
-        match args.display_type {
-            DisplayType::Bw => {
+        match args.processing_type {
+            ColorType::BlackWhite => {
                 println!("✓ Binary validation for B&W display");
             }
-            DisplayType::SixColor => {
+            ColorType::SixColor => {
                 let expected_6c_values = vec![0, 3, 28, 224, 252, 255];
                 println!("Expected 6-color values: {:?}", expected_6c_values);
 
@@ -287,6 +299,30 @@ fn validate_file(args: &Args, width: u32, height: u32) -> Result<Vec<u8>> {
                     println!("\n   This might indicate dithering or incorrect display type");
                 } else {
                     println!("✓ All sampled values match expected 6-color palette");
+                }
+            }
+            ColorType::SevenColor => {
+                let expected_7c_values = vec![0, 3, 28, 224, 252, 255, 244];
+                println!("Expected 7-color values: {:?}", expected_7c_values);
+
+                let unexpected: Vec<u8> = unique_values.iter()
+                    .filter(|&val| !expected_7c_values.contains(val))
+                    .cloned()
+                    .collect();
+
+                if !unexpected.is_empty() {
+                    let show_count = std::cmp::min(10, unexpected.len());
+                    print!("⚠ Warning: Found unexpected values for 7-color display: ");
+                    for (i, val) in unexpected.iter().take(show_count).enumerate() {
+                        if i > 0 { print!(", "); }
+                        print!("{}", val);
+                    }
+                    if unexpected.len() > show_count {
+                        print!(" ... and {} more", unexpected.len() - show_count);
+                    }
+                    println!("\n   This might indicate dithering or incorrect display type");
+                } else {
+                    println!("✓ All sampled values match expected 7-color palette");
                 }
             }
         }
@@ -319,7 +355,7 @@ fn convert_to_image(data: &[u8], args: &Args, width: u32, height: u32) -> Result
         let x = (i as u32) % width;
         let y = (i as u32) / width;
         
-        let rgb = pixel_to_rgb(pixel, &args.display_type);
+        let rgb = pixel_to_rgb(pixel, &args.processing_type);
         img.put_pixel(x, y, Rgb(rgb));
 
         // Update progress bar every 1000 pixels for better performance
@@ -393,7 +429,7 @@ fn main() -> Result<()> {
         println!("  File: {}", args.input);
         println!("  Size: {} bytes", data.len());
         println!("  Dimensions: {}x{}", width, height);
-        println!("  Display type: {}", args.display_type.description());
+        println!("  Display type: {:?}", args.processing_type);
         return Ok(());
     }
 
@@ -428,7 +464,7 @@ fn main() -> Result<()> {
     println!("  Output: {} ({} bytes)", output_file, output_size);
     println!("  Format: {}", args.format.extension().to_uppercase());
     println!("  Dimensions: {}x{}", width, height);
-    println!("  Display type: {}", args.display_type.description());
+    println!("  Display type: {:?}", args.processing_type);
 
     if args.verbose {
         println!();

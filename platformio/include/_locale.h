@@ -80,6 +80,10 @@ extern const char* TXT_SD_CARD_SIZE_INVALID;
 extern const char* TXT_SD_CARD_INIT_FAILED;
 extern const char* TXT_SD_CARD_VERSION_UNSUPPORTED;
 extern const char* TXT_SD_CARD_FILESYSTEM_UNSUPPORTED;
+// LittleFS Specific Errors (110-119)
+extern const char* TXT_LITTLEFS_INIT_FAILED;
+extern const char* TXT_LITTLEFS_FILE_CREATE_FAILED;
+extern const char* TXT_LITTLEFS_FILE_OPEN_FAILED;
 
 // Network/WiFi Specific Errors (120-139)
 extern const char* TXT_WIFI_SIGNAL_TOO_WEAK;
