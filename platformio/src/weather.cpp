@@ -45,24 +45,24 @@ WeatherManager::~WeatherManager() {
 }
 
 bool WeatherManager::begin() {
-    Serial.println("WeatherManager: Initializing...");
+    Serial.println("[WeatherManager] Initializing...");
     
     // Load configuration from SD card
     if (!load_config_from_sd()) {
-        Serial.println("WeatherManager: Failed to load configuration from SD card");
+        Serial.println("[WeatherManager] Failed to load configuration from SD card");
         return false;
     }
     
     // Validate configuration
     if (!config.is_valid()) {
-        Serial.println("WeatherManager: Invalid configuration loaded");
+        Serial.println("[WeatherManager] Invalid configuration loaded");
         return false;
     }
     
     // Try to load cached weather data
     load_weather_cache();
-    
-    Serial.printf("WeatherManager: Initialized for location (%.3f, %.3f)\n", 
+
+    Serial.printf("[WeatherManager] Initialized for location (%.3f, %.3f)\n", 
                   config.latitude, config.longitude);
     return true;
 }
@@ -113,7 +113,7 @@ uint32_t WeatherManager::get_adaptive_interval(uint8_t battery_percent) const {
     uint32_t final_interval = constrain(base_interval, min_interval, max_interval);
     
     // Debug logging for power management decisions
-    Serial.printf("WeatherManager: Adaptive interval - Battery: %d%%, Failures: %d, Base: %ds, Final: %lds\n",
+    Serial.printf("[WeatherManager] Adaptive interval - Battery: %d%%, Failures: %d, Base: %ds, Final: %lds\n",
                   battery_percent, consecutive_failures, config.update_interval_minutes * 60, final_interval);
     
     return final_interval;
@@ -136,22 +136,22 @@ String WeatherManager::build_api_url() const {
 
 bool WeatherManager::fetch_weather() {
     if (!config.is_valid()) {
-        Serial.println("WeatherManager: Invalid configuration, cannot fetch weather");
+        Serial.println("[WeatherManager] Invalid configuration, cannot fetch weather");
         return false;
     }
     
     last_attempt = time(NULL);
-    
-    Serial.println("WeatherManager: Fetching weather data...");
-    
+    consecutive_failures = 0;
+    Serial.println("[WeatherManager] Fetching weather data...");
+
     HTTPClient http;
     http.setTimeout(10000); // 10 second timeout
     
     String url = build_api_url();
-    Serial.printf("WeatherManager: API URL: %s\n", url.c_str());
+    Serial.printf("[WeatherManager] API URL: %s\n", url.c_str());
     
     if (!http.begin(url)) {
-        Serial.println("WeatherManager: Failed to initialize HTTP client");
+        Serial.println("[WeatherManager] Failed to initialize HTTP client");
         consecutive_failures++;
         return false;
     }
@@ -159,7 +159,7 @@ bool WeatherManager::fetch_weather() {
     int http_code = http.GET();
     
     if (http_code != HTTP_CODE_OK) {
-        Serial.printf("WeatherManager: HTTP request failed with code: %d\n", http_code);
+        Serial.printf("[WeatherManager] HTTP request failed with code: %d\n", http_code);
         consecutive_failures++;
         http.end();
         return false;
@@ -167,9 +167,9 @@ bool WeatherManager::fetch_weather() {
     
     String response = http.getString();
     http.end();
-    
-    Serial.printf("WeatherManager: Received response (%d bytes)\n", response.length());
-    
+
+    Serial.printf("[WeatherManager] Received response (%d bytes)\n", response.length());
+
     WeatherData new_weather;
     if (parse_weather_response(response, new_weather)) {
         current_weather = new_weather;
@@ -179,13 +179,13 @@ bool WeatherManager::fetch_weather() {
         
         // Cache the weather data
         save_weather_cache();
-        
-        Serial.printf("WeatherManager: Weather updated - %.1f°C, %s\n", 
-                      current_weather.temperature, 
+
+        Serial.printf("[WeatherManager] Weather updated - %.1f°C, %s\n",
+                      current_weather.temperature,
                       current_weather.description.c_str());
         return true;
     } else {
-        Serial.println("WeatherManager: Failed to parse weather response");
+        Serial.println("[WeatherManager] Failed to parse weather response");
         consecutive_failures++;
         return false;
     }
@@ -196,13 +196,13 @@ bool WeatherManager::parse_weather_response(const String& json_response, Weather
     DeserializationError error = deserializeJson(doc, json_response);
     
     if (error) {
-        Serial.printf("WeatherManager: JSON parsing failed: %s\n", error.c_str());
+        Serial.printf("[WeatherManager] JSON parsing failed: %s\n", error.c_str());
         return false;
     }
     
     // Check if response contains current weather data
     if (!doc.containsKey("current")) {
-        Serial.println("WeatherManager: No current weather data in response");
+        Serial.println("[WeatherManager] No current weather data in response");
         return false;
     }
     
@@ -212,7 +212,7 @@ bool WeatherManager::parse_weather_response(const String& json_response, Weather
     if (current.containsKey("apparent_temperature")) {
         weather_data.temperature = current["apparent_temperature"].as<float>();
     } else {
-        Serial.println("WeatherManager: No apparent temperature data in response");
+        Serial.println("[WeatherManager] No apparent temperature data in response");
         return false;
     }
     
@@ -238,7 +238,7 @@ bool WeatherManager::parse_weather_response(const String& json_response, Weather
         weather_data.icon = wmo_code_to_icon(wmo_code, weather_data.is_day, weather_data.wind_speed);
         weather_data.description = wmo_code_to_description(wmo_code);
     } else {
-        Serial.println("WeatherManager: No weather code in response");
+        Serial.println("[WeatherManager] No weather code in response");
         return false;
     }
     
@@ -292,11 +292,11 @@ bool WeatherManager::parse_weather_response(const String& json_response, Weather
         }
         
         weather_data.has_daily_data = true;
-        Serial.printf("WeatherManager: Daily data - Min: %.1f°C, Max: %.1f°C\n", 
+        Serial.printf("[WeatherManager] Daily data - Min: %.1f°C, Max: %.1f°C\n", 
                       weather_data.temp_min, weather_data.temp_max);
     } else {
         weather_data.has_daily_data = false;
-        Serial.println("WeatherManager: No daily forecast data in response");
+        Serial.println("[WeatherManager] No daily forecast data in response");
     }
     
     return true;
@@ -447,25 +447,25 @@ void WeatherManager::save_weather_cache() {
     
     File cache_file = SD.open(WEATHER_CACHE_FILE, FILE_WRITE);
     if (!cache_file) {
-        Serial.println("WeatherManager: Failed to open cache file for writing");
+        Serial.println("[WeatherManager] Failed to open cache file for writing");
         return;
     }
     
     serializeJson(doc, cache_file);
     cache_file.close();
-    
-    Serial.println("WeatherManager: Weather data cached to SD card");
+
+    Serial.println("[WeatherManager] Weather data cached to SD card");
 }
 
 bool WeatherManager::load_weather_cache() {
     if (!SD.exists(WEATHER_CACHE_FILE)) {
-        Serial.println("WeatherManager: No cached weather data found");
+        Serial.println("[WeatherManager] No cached weather data found");
         return false;
     }
     
     File cache_file = SD.open(WEATHER_CACHE_FILE, FILE_READ);
     if (!cache_file) {
-        Serial.println("WeatherManager: Failed to open cache file for reading");
+        Serial.println("[WeatherManager] Failed to open cache file for reading");
         return false;
     }
     
@@ -474,12 +474,12 @@ bool WeatherManager::load_weather_cache() {
     cache_file.close();
     
     if (error) {
-        Serial.printf("WeatherManager: Failed to parse cache file: %s\n", error.c_str());
+        Serial.printf("[WeatherManager] Failed to parse cache file: %s\n", error.c_str());
         return false;
     }
     
     if (!doc["valid"].as<bool>()) {
-        Serial.println("WeatherManager: Cached weather data marked as invalid");
+        Serial.println("[WeatherManager] Cached weather data marked as invalid");
         return false;
     }
     
@@ -500,21 +500,21 @@ bool WeatherManager::load_weather_cache() {
     current_weather.sunrise_time = doc["sunrise_time"] | 0;
     current_weather.sunset_time = doc["sunset_time"] | 0;
     current_weather.has_daily_data = doc["has_daily_data"] | false;
-    
-    Serial.printf("WeatherManager: Loaded cached weather - %.1f°C, %s\n", 
+
+    Serial.printf("[WeatherManager] Loaded cached weather - %.1f°C, %s\n", 
                   current_weather.temperature, current_weather.description.c_str());
     return true;
 }
 
 bool WeatherManager::load_config_from_sd() {
     if (!SD.exists(WEATHER_CONFIG_FILE)) {
-        Serial.println("WeatherManager: Weather config file not found, creating example config");
+        Serial.println("[WeatherManager] Weather config file not found, creating example config");
         return create_example_config();
     }
     
     File config_file = SD.open(WEATHER_CONFIG_FILE, FILE_READ);
     if (!config_file) {
-        Serial.println("WeatherManager: Failed to open weather config file");
+        Serial.println("[WeatherManager] Failed to open weather config file");
         return false;
     }
     
@@ -524,10 +524,10 @@ bool WeatherManager::load_config_from_sd() {
     WeatherConfig new_config;
     if (parse_config_json(json_content, new_config)) {
         config = new_config;
-        Serial.println("WeatherManager: Configuration loaded successfully");
+        Serial.println("[WeatherManager] Configuration loaded successfully");
         return true;
     } else {
-        Serial.println("WeatherManager: Failed to parse weather configuration");
+        Serial.println("[WeatherManager] Failed to parse weather configuration");
         return false;
     }
 }
@@ -541,7 +541,7 @@ bool WeatherManager::parse_config_json(const String& json_content, WeatherConfig
     DeserializationError error = deserializeJson(doc, json_content);
     
     if (error) {
-        Serial.printf("WeatherManager: JSON parsing error: %s\n", error.c_str());
+        Serial.printf("[WeatherManager] JSON parsing error: %s\n", error.c_str());
         return false;
     }
     
@@ -591,15 +591,15 @@ bool WeatherManager::create_example_config() {
     
     File config_file = SD.open(WEATHER_CONFIG_FILE, FILE_WRITE);
     if (!config_file) {
-        Serial.println("WeatherManager: Failed to create example config file");
+        Serial.println("[WeatherManager] Failed to create example config file");
         return false;
     }
     
     serializeJsonPretty(doc, config_file);
     config_file.close();
-    
-    Serial.printf("WeatherManager: Created example config at %s\n", WEATHER_CONFIG_FILE);
-    Serial.println("WeatherManager: Please edit the config file and set enabled=true");
+
+    Serial.printf("[WeatherManager] Created example config at %s\n", WEATHER_CONFIG_FILE);
+    Serial.println("[WeatherManager] Please edit the config file and set enabled=true");
     return false; // Return false since weather is disabled by default
 }
 

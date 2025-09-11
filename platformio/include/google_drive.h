@@ -124,6 +124,17 @@ class google_drive {
     fs::File download_file(google_drive_file file, photo_frame_error_t* error);
 
     /**
+     * @brief Download a file from Google Drive directly to LittleFS.
+     *
+     * @param file The google_drive_file object representing the file to download.
+     * @param littlefs_path The path where to save the file in LittleFS.
+     * @param error Pointer to store the error code result.
+     * @return fs::File object representing the downloaded file in LittleFS, or empty File on
+     * failure.
+     */
+    fs::File download_file_to_littlefs(google_drive_file file, const String& littlefs_path, photo_frame_error_t* error);
+
+    /**
      * @brief Get the source of the last downloaded/accessed file.
      * @return image_source_t indicating whether the last file was from cloud or local cache
      */
