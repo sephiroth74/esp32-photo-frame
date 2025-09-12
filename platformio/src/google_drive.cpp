@@ -1,6 +1,6 @@
 #include <ArduinoJson.h>
-#include <time.h>
 #include <LittleFS.h>
+#include <time.h>
 
 #include "datetime_utils.h"
 #include "google_drive.h"
@@ -12,11 +12,10 @@
 extern photo_frame::sd_card sdCard;
 
 // Memory monitoring utility
-void logMemoryUsage(const char* context)
-{
-    size_t freeHeap = ESP.getFreeHeap();
-    size_t totalHeap = ESP.getHeapSize();
-    size_t usedHeap = totalHeap - freeHeap;
+void logMemoryUsage(const char* context) {
+    size_t freeHeap    = ESP.getFreeHeap();
+    size_t totalHeap   = ESP.getHeapSize();
+    size_t usedHeap    = totalHeap - freeHeap;
     float usagePercent = (float)usedHeap / totalHeap * 100.0;
 
     Serial.print(F("[google_drive] Memory ["));
@@ -36,9 +35,8 @@ void logMemoryUsage(const char* context)
 }
 
 // Check if we have enough memory for JSON operations
-bool checkMemoryAvailable(size_t requiredBytes)
-{
-    size_t freeHeap = ESP.getFreeHeap();
+bool checkMemoryAvailable(size_t requiredBytes) {
+    size_t freeHeap     = ESP.getFreeHeap();
     size_t safetyMargin = 2048; // Keep 2KB safety margin
 
     if (freeHeap < (requiredBytes + safetyMargin)) {
@@ -53,15 +51,14 @@ bool checkMemoryAvailable(size_t requiredBytes)
 
 namespace photo_frame {
 
-size_t google_drive::retrieve_toc(bool batteryConservationMode)
-{
+size_t google_drive::retrieve_toc(bool batteryConservationMode) {
 
     logMemoryUsage("TOC Retrieve Start");
 
     // Build TOC path using optimized utility function
-    String tocFullPath = string_utils::build_path(config.localPath, config.tocFilename);
+    String tocFullPath        = string_utils::build_path(config.localPath, config.tocFilename);
     bool shouldFetchFromDrive = false;
-    bool localTocExists = sdCard.file_exists(tocFullPath.c_str());
+    bool localTocExists       = sdCard.file_exists(tocFullPath.c_str());
 
     if (localTocExists) {
         // Check file age
@@ -85,29 +82,33 @@ size_t google_drive::retrieve_toc(bool batteryConservationMode)
                 Serial.println(F("[google_drive] Using cached TOC file"));
                 return get_toc_file_count(tocFullPath);
             } else if (batteryConservationMode) {
-                Serial.println(
-                    F("[google_drive] TOC file is old but using cached version due to battery conservation mode"));
+                Serial.println(F("[google_drive] TOC file is old but using cached version due to "
+                                 "battery conservation mode"));
                 return get_toc_file_count(tocFullPath);
             } else {
-                Serial.println(F("[google_drive] TOC file is too old, will try to fetch from Google Drive"));
+                Serial.println(
+                    F("[google_drive] TOC file is too old, will try to fetch from Google Drive"));
                 shouldFetchFromDrive = true;
             }
         } else if (batteryConservationMode) {
-            Serial.println(F("[google_drive] Could not determine TOC file timestamp, but using existing file due "
+            Serial.println(F("[google_drive] Could not determine TOC file timestamp, but using "
+                             "existing file due "
                              "to battery conservation mode"));
             return get_toc_file_count(tocFullPath);
         } else {
-            Serial.println(
-                F("[google_drive] Could not determine TOC file timestamp, will try to fetch from Google Drive"));
+            Serial.println(F("[google_drive] Could not determine TOC file timestamp, will try to "
+                             "fetch from Google Drive"));
             shouldFetchFromDrive = true;
         }
     } else if (!localTocExists) {
         if (batteryConservationMode) {
-            Serial.println(F("[google_drive] TOC file does not exist locally and battery conservation mode is on "
+            Serial.println(F("[google_drive] TOC file does not exist locally and battery "
+                             "conservation mode is on "
                              "- returning 0"));
             return 0; // Return 0 to avoid network operation
         } else {
-            Serial.println(F("[google_drive] TOC file does not exist locally, will fetch from Google Drive"));
+            Serial.println(
+                F("[google_drive] TOC file does not exist locally, will fetch from Google Drive"));
             shouldFetchFromDrive = true;
         }
     }
@@ -169,20 +170,21 @@ size_t google_drive::retrieve_toc(bool batteryConservationMode)
         time_t now = time(NULL);
         tocFile.print(F("timestamp = "));
         tocFile.println(now);
-        
+
         // Write placeholder for file count - we'll update this later
         size_t fileCountPos = tocFile.position();
         tocFile.println(F("fileCount = 0          ")); // Extra spaces for updating later
-        tocFile.flush(); // ensures header is written
+        tocFile.flush();                               // ensures header is written
 
         // Stream files directly to TOC file
-        size_t totalFiles = client.list_files_streaming(config.folderId.c_str(), tocFile, config.listPageSize);
-        
+        size_t totalFiles =
+            client.list_files_streaming(config.folderId.c_str(), tocFile, config.listPageSize);
+
         if (totalFiles == 0) {
             Serial.println(F("[google_drive] Failed to retrieve files from Google Drive"));
             tocFile.close();
             sdCard.remove(tocFullPath.c_str()); // Remove incomplete file
-            
+
             // Fallback to local TOC if available and not forced
             if (localTocExists) {
                 Serial.println(F("[google_drive] Falling back to cached TOC file"));
@@ -213,12 +215,11 @@ size_t google_drive::retrieve_toc(bool batteryConservationMode)
     return 0;
 }
 
-
-photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
-{
+photo_frame_error_t google_drive::create_directories(sd_card& sdCard) {
     // Create necessary directories on the SD card for Google Drive local cache
-    // first make sure the directory doesn't exists and it's not a file, in which case we will try to delete the file and continue
-    // otherwise, if the directory already exists, continue to check subdirectories.
+    // first make sure the directory doesn't exists and it's not a file, in which case we will try
+    // to delete the file and continue otherwise, if the directory already exists, continue to check
+    // subdirectories.
     if (sdCard.file_exists(config.localPath.c_str())) {
         if (sdCard.is_file(config.localPath.c_str())) {
             Serial.print(F("[google_drive] Removing file at path: "));
@@ -236,7 +237,8 @@ photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
 
     // Create root directory
     if (!sdCard.create_directories(config.localPath.c_str())) {
-        Serial.print(F("[google_drive] Failed to create root directory for Google Drive local cache: "));
+        Serial.print(
+            F("[google_drive] Failed to create root directory for Google Drive local cache: "));
         Serial.println(config.localPath);
         return photo_frame::error_type::SdCardDirCreateFailed;
     }
@@ -264,34 +266,27 @@ photo_frame_error_t google_drive::create_directories(sd_card& sdCard)
     return photo_frame::error_type::None;
 }
 
-
-String google_drive::get_toc_file_path() const
-{
+String google_drive::get_toc_file_path() const {
     return string_utils::build_path(config.localPath, config.tocFilename);
 }
 
-String google_drive::get_temp_dir_path() const
-{
+String google_drive::get_temp_dir_path() const {
     return string_utils::build_path(config.localPath, GOOGLE_DRIVE_TEMP_DIR);
 }
 
-String google_drive::get_cache_dir_path() const
-{
+String google_drive::get_cache_dir_path() const {
     return string_utils::build_path(config.localPath, GOOGLE_DRIVE_CACHE_DIR);
 }
 
-String google_drive::get_cached_file_path(const String& filename) const
-{
+String google_drive::get_cached_file_path(const String& filename) const {
     return string_utils::build_path(get_cache_dir_path(), filename);
 }
 
-String google_drive::get_temp_file_path(const String& filename) const
-{
+String google_drive::get_temp_file_path(const String& filename) const {
     return string_utils::build_path(get_temp_dir_path(), filename);
 }
 
-size_t google_drive::get_toc_file_count(const String& filePath, photo_frame_error_t* error)
-{
+size_t google_drive::get_toc_file_count(const String& filePath, photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -359,9 +354,8 @@ size_t google_drive::get_toc_file_count(const String& filePath, photo_frame_erro
 }
 
 google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
-    size_t index,
-    photo_frame_error_t* error)
-{
+                                                      size_t index,
+                                                      photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -378,7 +372,6 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
         }
         return google_drive_file();
     }
-
 
     // Skip line 1 (timestamp) and line 2 (fileCount)
     String line1 = file.readStringUntil('\n');
@@ -430,7 +423,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
         return google_drive_file("", "");
     }
 
-    String id = targetLine.substring(0, pos1);
+    String id   = targetLine.substring(0, pos1);
     String name = targetLine.substring(pos1 + 1);
 
     Serial.print(F("[google_drive] Retrieved file at index "));
@@ -441,8 +434,7 @@ google_drive_file google_drive::get_toc_file_by_index(const String& filePath,
     return google_drive_file(id, name);
 }
 
-fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t* error)
-{
+fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t* error) {
     fs::File emptyFile;
 
     // Initialize error to None
@@ -451,7 +443,7 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
     }
 
     // Create file paths using new directory structure
-    String tempPath = get_temp_file_path(file.name);
+    String tempPath  = get_temp_file_path(file.name);
     String finalPath = get_cached_file_path(file.name);
 
     Serial.print(F("[google_drive] Downloading file: "));
@@ -549,7 +541,8 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
 #endif // DEBUG_MODE
 
     // Move temporary file to final destination
-    bool moveSuccess = sdCard.rename(tempPath.c_str(), finalPath.c_str(), true); // true = overwrite existing
+    bool moveSuccess =
+        sdCard.rename(tempPath.c_str(), finalPath.c_str(), true); // true = overwrite existing
 
     if (!moveSuccess) {
         Serial.print(F("[google_drive] Failed to move file from temp to final location"));
@@ -589,8 +582,9 @@ fs::File google_drive::download_file(google_drive_file file, photo_frame_error_t
     return finalFile;
 }
 
-fs::File google_drive::download_file_to_littlefs(google_drive_file file, const String& littlefs_path, photo_frame_error_t* error)
-{
+fs::File google_drive::download_file_to_littlefs(google_drive_file file,
+                                                 const String& littlefs_path,
+                                                 photo_frame_error_t* error) {
     fs::File emptyFile;
     // Initialize error to None
     if (error) {
@@ -601,7 +595,7 @@ fs::File google_drive::download_file_to_littlefs(google_drive_file file, const S
     Serial.println(file.name);
     Serial.print(F("[google_drive] LittleFS path: "));
     Serial.println(littlefs_path);
-    
+
     // Initialize LittleFS
     if (!photo_frame::spi_manager::SPIManager::init_littlefs()) {
         Serial.println(F("[google_drive] Failed to initialize LittleFS"));
@@ -610,10 +604,10 @@ fs::File google_drive::download_file_to_littlefs(google_drive_file file, const S
         }
         return emptyFile;
     }
-    
+
     // Configure SPI for SD card to access WiFi (client needs SD card SPI configuration)
     photo_frame::spi_manager::SPIManager::configure_spi_for_sd();
-    
+
     // Check if the current access token is still valid (following existing pattern)
     bool token_expired = client.is_token_expired(300);
     if (token_expired) {
@@ -647,7 +641,7 @@ fs::File google_drive::download_file_to_littlefs(google_drive_file file, const S
             Serial.println(F("[google_drive] Using cached access token"));
         }
     }
-    
+
     // Open LittleFS file for writing
     fs::File littlefsFile = LittleFS.open(littlefs_path.c_str(), FILE_WRITE);
     if (!littlefsFile) {
@@ -658,22 +652,22 @@ fs::File google_drive::download_file_to_littlefs(google_drive_file file, const S
         }
         return emptyFile;
     }
-    
+
     // Download file directly to LittleFS
     photo_frame_error_t downloadError = client.download_file(file.id, &littlefsFile);
     littlefsFile.flush();
     littlefsFile.close();
-    
+
     if (downloadError != error_type::None) {
         Serial.print(F("[google_drive] Failed to download file to LittleFS: "));
         Serial.println(downloadError.code);
-        
+
         // Clean up LittleFS file on download failure
         if (LittleFS.exists(littlefs_path.c_str())) {
             LittleFS.remove(littlefs_path.c_str());
             Serial.println(F("[google_drive] Cleaned up failed LittleFS file"));
         }
-        
+
         if (error) {
             *error = downloadError;
         }
@@ -692,25 +686,18 @@ fs::File google_drive::download_file_to_littlefs(google_drive_file file, const S
         }
         return emptyFile;
     }
-    
+
     // Mark as downloaded from cloud since we actually downloaded it
     last_image_source = IMAGE_SOURCE_CLOUD;
-    
+
     return finalFile;
 }
 
-image_source_t google_drive::get_last_image_source() const
-{
-    return last_image_source;
-}
+image_source_t google_drive::get_last_image_source() const { return last_image_source; }
 
-void google_drive::set_last_image_source(image_source_t source)
-{
-    last_image_source = source;
-}
+void google_drive::set_last_image_source(image_source_t source) { last_image_source = source; }
 
-String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootCaPath)
-{
+String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootCaPath) {
     Serial.print(F("[google_drive] Loading Google Drive root CA from: "));
     Serial.println(rootCaPath);
 
@@ -754,7 +741,8 @@ String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootC
     certFile.close();
 
     // Basic validation - check for PEM format markers
-    if (!certContent.startsWith("-----BEGIN CERTIFICATE-----") || !certContent.endsWith("-----END CERTIFICATE-----")) {
+    if (!certContent.startsWith("-----BEGIN CERTIFICATE-----") ||
+        !certContent.endsWith("-----END CERTIFICATE-----")) {
         Serial.println(F("[google_drive] Invalid certificate format - missing PEM markers"));
         return String();
     }
@@ -767,10 +755,10 @@ String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootC
 }
 
 uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
-    const google_drive_json_config& config,
-    boolean force)
-{
-    Serial.print(F("[google_drive] Cleaning up temporary files from previous incomplete downloads... ("));
+                                               const google_drive_json_config& config,
+                                               boolean force) {
+    Serial.print(
+        F("[google_drive] Cleaning up temporary files from previous incomplete downloads... ("));
     Serial.print(F("Local path: "));
     Serial.print(config.localPath);
     Serial.print(F(", Force cleanup: "));
@@ -780,14 +768,15 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
     uint32_t cleanedCount = 0;
 
     if (!sdCard.is_initialized()) {
-        Serial.println(F("[google_drive] SD card not initialized, cannot clean up temporary files"));
+        Serial.println(
+            F("[google_drive] SD card not initialized, cannot clean up temporary files"));
         return 0;
     }
 
-    uint64_t usedBytes = sdCard.used_bytes();
+    uint64_t usedBytes  = sdCard.used_bytes();
     uint64_t totalBytes = sdCard.total_bytes();
-    uint64_t freeBytes = totalBytes - usedBytes;
-    
+    uint64_t freeBytes  = totalBytes - usedBytes;
+
 #if DEBUG_MODE
     uint64_t cardSize = sdCard.card_size();
 
@@ -807,8 +796,8 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
 
     // Calculate 20% threshold of total SD card space first
     uint64_t twentyPercentThreshold = totalBytes * 20 / 100;
-    bool lowSpace = freeBytes < twentyPercentThreshold;
-    bool shouldCleanupImages = force || lowSpace;
+    bool lowSpace                   = freeBytes < twentyPercentThreshold;
+    bool shouldCleanupImages        = force || lowSpace;
 
     // Handle TOC deletion and orphaned file cleanup
     String tocPath = string_utils::build_path(config.localPath, config.tocFilename);
@@ -824,7 +813,8 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
         Serial.print(F(" seconds, max age: "));
         Serial.println(config.tocMaxAgeSeconds);
 
-        // If TOC will be deleted AND we're not doing full cleanup, read filenames for orphaned cleanup
+        // If TOC will be deleted AND we're not doing full cleanup, read filenames for orphaned
+        // cleanup
         if ((force || tocAge > config.tocMaxAgeSeconds) && !shouldCleanupImages) {
             Serial.println(F("[google_drive] Reading TOC file for orphaned cache cleanup..."));
             fs::File tocFile = sdCard.open(tocPath.c_str(), FILE_READ);
@@ -952,7 +942,8 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
         if (force) {
             Serial.println(F("[google_drive] Force cleanup enabled, removing all cached images"));
         } else {
-            Serial.println(F("[google_drive] Low disk space detected, removing cached images to free space"));
+            Serial.println(
+                F("[google_drive] Low disk space detected, removing cached images to free space"));
         }
 
         // Remove all cached images from cache directory
@@ -993,8 +984,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
     return cleanedCount;
 }
 
-photo_frame_error_t google_drive::save_access_token_to_file()
-{
+photo_frame_error_t google_drive::save_access_token_to_file() {
     Serial.println(F("[google_drive] Saving access token to file..."));
 
     const google_drive_access_token* token = client.get_access_token_value();
@@ -1003,7 +993,7 @@ photo_frame_error_t google_drive::save_access_token_to_file()
         return error_type::TokenMissing;
     }
 
-    String tokenPath = string_utils::build_path(config.localPath, "access_token.json");
+    String tokenPath   = string_utils::build_path(config.localPath, "access_token.json");
 
     fs::File tokenFile = SD.open(tokenPath.c_str(), FILE_WRITE);
     if (!tokenFile) {
@@ -1029,8 +1019,7 @@ photo_frame_error_t google_drive::save_access_token_to_file()
     return error_type::None;
 }
 
-photo_frame_error_t google_drive::load_access_token_from_file()
-{
+photo_frame_error_t google_drive::load_access_token_from_file() {
     Serial.println(F("[google_drive] Loading access token from file..."));
 
     String tokenPath = string_utils::build_path(config.localPath, "access_token.json");
@@ -1061,7 +1050,8 @@ photo_frame_error_t google_drive::load_access_token_from_file()
         return error_type::JsonParseFailed;
     }
 
-    if (!doc.containsKey("access_token") || !doc.containsKey("expires_at") || !doc.containsKey("obtained_at")) {
+    if (!doc.containsKey("access_token") || !doc.containsKey("expires_at") ||
+        !doc.containsKey("obtained_at")) {
         Serial.println(F("[google_drive] Invalid token file format"));
         return error_type::JsonParseFailed;
     }
@@ -1069,8 +1059,8 @@ photo_frame_error_t google_drive::load_access_token_from_file()
     google_drive_access_token token;
     strncpy(token.accessToken, doc["access_token"], sizeof(token.accessToken) - 1);
     token.accessToken[sizeof(token.accessToken) - 1] = '\0';
-    token.expiresAt = doc["expires_at"];
-    token.obtainedAt = doc["obtained_at"];
+    token.expiresAt                                  = doc["expires_at"];
+    token.obtainedAt                                 = doc["obtained_at"];
 
     // Check if token is still valid (with 5 minute margin)
     if (token.expired(300)) {
@@ -1090,9 +1080,8 @@ photo_frame_error_t google_drive::load_access_token_from_file()
 }
 
 photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
-    const char* config_filepath,
-    google_drive_json_config& config)
-{
+                                                       const char* config_filepath,
+                                                       google_drive_json_config& config) {
     if (!sd_card.is_initialized()) {
         Serial.println(F("[google_drive] SD card not initialized"));
         return error_type::CardMountFailed;
@@ -1134,18 +1123,21 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
 
     // Validate and extract authentication settings
     if (!doc["authentication"].isNull()) {
-        JsonObject auth = doc["authentication"];
+        JsonObject auth            = doc["authentication"];
         config.serviceAccountEmail = auth["service_account_email"].as<String>();
-        config.privateKeyPem = auth["private_key_pem"].as<String>();
-        config.clientId = auth["client_id"].as<String>();
+        config.privateKeyPem       = auth["private_key_pem"].as<String>();
+        config.clientId            = auth["client_id"].as<String>();
 
         // Validate service account email
         if (config.serviceAccountEmail.isEmpty()) {
-            Serial.println(F("[google_drive] Validation failed: service_account_email is required"));
+            Serial.println(
+                F("[google_drive] Validation failed: service_account_email is required"));
             return error_type::ConfigMissingField;
         }
-        if (config.serviceAccountEmail.indexOf('@') == -1 || config.serviceAccountEmail.indexOf('.') == -1) {
-            Serial.println(F("[google_drive] Validation failed: service_account_email must be a valid email address"));
+        if (config.serviceAccountEmail.indexOf('@') == -1 ||
+            config.serviceAccountEmail.indexOf('.') == -1) {
+            Serial.println(F("[google_drive] Validation failed: service_account_email must be a "
+                             "valid email address"));
             return error_type::ConfigInvalidEmail;
         }
 
@@ -1155,11 +1147,14 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
             return error_type::ConfigMissingField;
         }
         if (!config.privateKeyPem.startsWith("-----BEGIN PRIVATE KEY-----")) {
-            Serial.println(F("[google_drive] Validation failed: private_key_pem must be in PEM format"));
+            Serial.println(
+                F("[google_drive] Validation failed: private_key_pem must be in PEM format"));
             return error_type::ConfigInvalidPemKey;
         }
-        if (!config.privateKeyPem.endsWith("-----END PRIVATE KEY-----") && !config.privateKeyPem.endsWith("-----END PRIVATE KEY-----\n")) {
-            Serial.println(F("[google_drive] Validation failed: private_key_pem must end with proper PEM footer"));
+        if (!config.privateKeyPem.endsWith("-----END PRIVATE KEY-----") &&
+            !config.privateKeyPem.endsWith("-----END PRIVATE KEY-----\n")) {
+            Serial.println(F("[google_drive] Validation failed: private_key_pem must end with "
+                             "proper PEM footer"));
             return error_type::ConfigInvalidPemKey;
         }
 
@@ -1169,7 +1164,8 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
             return error_type::ConfigMissingField;
         }
         if (config.clientId.length() < 10) {
-            Serial.println(F("[google_drive] Validation failed: client_id appears to be too short"));
+            Serial.println(
+                F("[google_drive] Validation failed: client_id appears to be too short"));
             return error_type::ConfigValueOutOfRange;
         }
     } else {
@@ -1179,10 +1175,10 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
 
     // Validate and extract drive settings
     if (!doc["drive"].isNull()) {
-        JsonObject drive = doc["drive"];
-        config.folderId = drive["folder_id"].as<String>();
-        config.rootCaPath = drive["root_ca_path"].as<String>();
-        config.listPageSize = drive["list_page_size"].as<int>();
+        JsonObject drive      = doc["drive"];
+        config.folderId       = drive["folder_id"].as<String>();
+        config.rootCaPath     = drive["root_ca_path"].as<String>();
+        config.listPageSize   = drive["list_page_size"].as<int>();
         config.useInsecureTls = drive["use_insecure_tls"].as<bool>();
 
         // Validate folder ID
@@ -1191,32 +1187,39 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
             return error_type::ConfigMissingField;
         }
         if (config.folderId.length() < 20) {
-            Serial.println(F("[google_drive] Validation failed: folder_id appears to be too short"));
+            Serial.println(
+                F("[google_drive] Validation failed: folder_id appears to be too short"));
             return error_type::ConfigValueOutOfRange;
         }
 
         // Validate root CA path
         if (!config.rootCaPath.isEmpty()) {
             if (!config.rootCaPath.startsWith("/")) {
-                Serial.println(F("[google_drive] Validation failed: root_ca_path must be an absolute path"));
+                Serial.println(
+                    F("[google_drive] Validation failed: root_ca_path must be an absolute path"));
                 return error_type::ConfigInvalidPath;
             }
             if (!config.rootCaPath.endsWith(".pem")) {
-                Serial.println(F("[google_drive] Validation failed: root_ca_path must point to a .pem file"));
+                Serial.println(
+                    F("[google_drive] Validation failed: root_ca_path must point to a .pem file"));
                 return error_type::ConfigInvalidPath;
             }
         } else if (!config.useInsecureTls) {
-            Serial.println(F("[google_drive] Validation failed: root_ca_path is required when use_insecure_tls is false"));
+            Serial.println(F("[google_drive] Validation failed: root_ca_path is required when "
+                             "use_insecure_tls is false"));
             return error_type::ConfigMissingField;
         }
 
         // Validate list page size
         if (config.listPageSize <= 0 || config.listPageSize > GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE) {
-            Serial.print(F("[google_drive] Validation failed: list_page_size must be between 1 and "));
+            Serial.print(
+                F("[google_drive] Validation failed: list_page_size must be between 1 and "));
             Serial.println(GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
 
-            // do not throw an exception, just update the config with GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
-            config.listPageSize = constrain(config.listPageSize, 1, GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
+            // do not throw an exception, just update the config with
+            // GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
+            config.listPageSize =
+                constrain(config.listPageSize, 1, GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
             Serial.print(F("[google_drive] Updated list_page_size to "));
             Serial.println(config.listPageSize);
         }
@@ -1229,9 +1232,9 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
 
     // Validate and extract caching settings
     if (!doc["caching"].isNull()) {
-        JsonObject caching = doc["caching"];
-        config.localPath = caching["local_path"].as<String>();
-        config.tocFilename = caching["toc_filename"].as<String>();
+        JsonObject caching      = doc["caching"];
+        config.localPath        = caching["local_path"].as<String>();
+        config.tocFilename      = caching["toc_filename"].as<String>();
         config.tocMaxAgeSeconds = caching["toc_max_age_seconds"].as<unsigned long>();
 
         // Validate local path
@@ -1240,7 +1243,8 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
             return error_type::ConfigMissingField;
         }
         if (!config.localPath.startsWith("/")) {
-            Serial.println(F("[google_drive] Validation failed: local_path must be an absolute path"));
+            Serial.println(
+                F("[google_drive] Validation failed: local_path must be an absolute path"));
             return error_type::ConfigInvalidPath;
         }
         if (config.localPath.endsWith("/")) {
@@ -1254,17 +1258,21 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
             return error_type::ConfigMissingField;
         }
         if (config.tocFilename.indexOf('/') != -1 || config.tocFilename.indexOf('\\') != -1) {
-            Serial.println(F("[google_drive] Validation failed: toc_filename must be a filename, not a path"));
+            Serial.println(
+                F("[google_drive] Validation failed: toc_filename must be a filename, not a path"));
             return error_type::ConfigInvalidFilename;
         }
         if (config.tocFilename.startsWith(".")) {
-            Serial.println(F("[google_drive] Validation failed: toc_filename cannot start with '.'"));
+            Serial.println(
+                F("[google_drive] Validation failed: toc_filename cannot start with '.'"));
             return error_type::ConfigInvalidFilename;
         }
 
         // Validate TOC max age (1 second to 30 days)
-        if (config.tocMaxAgeSeconds == 0 || config.tocMaxAgeSeconds > GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS) {
-            Serial.println(F("[google_drive] Validation failed: toc_max_age_seconds must be between 1 and 2592000 (30 days)"));
+        if (config.tocMaxAgeSeconds == 0 ||
+            config.tocMaxAgeSeconds > GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS) {
+            Serial.println(F("[google_drive] Validation failed: toc_max_age_seconds must be "
+                             "between 1 and 2592000 (30 days)"));
             return error_type::ConfigValueOutOfRange;
         }
     } else {
@@ -1274,59 +1282,71 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
 
     // Validate and extract rate limiting settings
     if (!doc["rate_limiting"].isNull()) {
-        JsonObject rateLimiting = doc["rate_limiting"];
-        config.maxRequestsPerWindow = rateLimiting["max_requests_per_window"].as<int>();
+        JsonObject rateLimiting       = doc["rate_limiting"];
+        config.maxRequestsPerWindow   = rateLimiting["max_requests_per_window"].as<int>();
         config.rateLimitWindowSeconds = rateLimiting["rate_limit_window_seconds"].as<int>();
-        config.minRequestDelayMs = rateLimiting["min_request_delay_ms"].as<int>();
-        config.maxRetryAttempts = rateLimiting["max_retry_attempts"].as<int>();
-        config.backoffBaseDelayMs = rateLimiting["backoff_base_delay_ms"].as<int>();
-        config.maxWaitTimeMs = rateLimiting["max_wait_time_ms"].as<int>();
+        config.minRequestDelayMs      = rateLimiting["min_request_delay_ms"].as<int>();
+        config.maxRetryAttempts       = rateLimiting["max_retry_attempts"].as<int>();
+        config.backoffBaseDelayMs     = rateLimiting["backoff_base_delay_ms"].as<int>();
+        config.maxWaitTimeMs          = rateLimiting["max_wait_time_ms"].as<int>();
 
         // Validate max requests per window
-        if (config.maxRequestsPerWindow <= 0 || config.maxRequestsPerWindow > GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW) {
-            Serial.print(F("[google_drive] Validation failed: max_requests_per_window must be between 1 and "));
+        if (config.maxRequestsPerWindow <= 0 ||
+            config.maxRequestsPerWindow > GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW) {
+            Serial.print(F("[google_drive] Validation failed: max_requests_per_window must be "
+                           "between 1 and "));
             Serial.println(GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
             return error_type::ConfigValueOutOfRange;
         }
 
         // Validate rate limit window seconds
-        if (config.rateLimitWindowSeconds <= 0 || config.rateLimitWindowSeconds > GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS) {
-            Serial.print(F("[google_drive] Validation failed: rate_limit_window_seconds must be between 1 and "));
+        if (config.rateLimitWindowSeconds <= 0 ||
+            config.rateLimitWindowSeconds > GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS) {
+            Serial.print(F("[google_drive] Validation failed: rate_limit_window_seconds must be "
+                           "between 1 and "));
             Serial.println(GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS);
             return error_type::ConfigValueOutOfRange;
         }
 
         // Validate minimum request delay
-        if (config.minRequestDelayMs < 0 || config.minRequestDelayMs > GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS) {
-            Serial.print(F("[google_drive] Validation failed: min_request_delay_ms must be between 0 and "));
+        if (config.minRequestDelayMs < 0 ||
+            config.minRequestDelayMs > GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS) {
+            Serial.print(
+                F("[google_drive] Validation failed: min_request_delay_ms must be between 0 and "));
             Serial.println(GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS);
             return error_type::ConfigValueOutOfRange;
         }
 
         // Validate max retry attempts
-        if (config.maxRetryAttempts < 0 || config.maxRetryAttempts > GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS) {
-            Serial.print(F("[google_drive] Validation failed: max_retry_attempts must be between 0 and "));
+        if (config.maxRetryAttempts < 0 ||
+            config.maxRetryAttempts > GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS) {
+            Serial.print(
+                F("[google_drive] Validation failed: max_retry_attempts must be between 0 and "));
             Serial.println(GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS);
             return error_type::ConfigValueOutOfRange;
         }
 
         // Validate backoff base delay
-        if (config.backoffBaseDelayMs <= 0 || config.backoffBaseDelayMs > GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS) {
-            Serial.print(F("[google_drive] Validation failed: backoff_base_delay_ms must be between 1 and "));
+        if (config.backoffBaseDelayMs <= 0 ||
+            config.backoffBaseDelayMs > GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS) {
+            Serial.print(F(
+                "[google_drive] Validation failed: backoff_base_delay_ms must be between 1 and "));
             Serial.println(GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS);
             return error_type::ConfigValueOutOfRange;
         }
 
         // Validate max wait time
         if (config.maxWaitTimeMs <= 0 || config.maxWaitTimeMs > GOOGLE_DRIVE_MAX_WAIT_TIME_MS) {
-            Serial.print(F("[google_drive] Validation failed: max_wait_time_ms must be between 1 and "));
+            Serial.print(
+                F("[google_drive] Validation failed: max_wait_time_ms must be between 1 and "));
             Serial.println(GOOGLE_DRIVE_MAX_WAIT_TIME_MS);
             return error_type::ConfigValueOutOfRange;
         }
 
         // Cross-validation: backoff base delay should be less than max wait time
         if (config.backoffBaseDelayMs >= config.maxWaitTimeMs) {
-            Serial.println(F("[google_drive] Validation failed: backoff_base_delay_ms must be less than max_wait_time_ms"));
+            Serial.println(F("[google_drive] Validation failed: backoff_base_delay_ms must be less "
+                             "than max_wait_time_ms"));
             return error_type::ConfigValueOutOfRange;
         }
     } else {
@@ -1353,11 +1373,12 @@ photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
     return error_type::None;
 }
 
-photo_frame_error_t google_drive::initialize_from_json(sd_card& sd_card, const char* config_filepath)
-{
+photo_frame_error_t google_drive::initialize_from_json(sd_card& sd_card,
+                                                       const char* config_filepath) {
     // Load JSON configuration
     google_drive_json_config json_config;
-    photo_frame_error_t load_result = load_google_drive_config_from_json(sd_card, config_filepath, json_config);
+    photo_frame_error_t load_result =
+        load_google_drive_config_from_json(sd_card, config_filepath, json_config);
     if (load_result != error_type::None) {
         Serial.print(F("[google_drive] Failed to load Google Drive config: "));
         Serial.println(load_result.code);
@@ -1367,21 +1388,21 @@ photo_frame_error_t google_drive::initialize_from_json(sd_card& sd_card, const c
     // Create client configuration from JSON
     static google_drive_client_config client_config;
     // Convert String to const char* for compatibility
-    static String email_str = json_config.serviceAccountEmail;
-    static String key_str = json_config.privateKeyPem;
-    static String client_id_str = json_config.clientId;
+    static String email_str           = json_config.serviceAccountEmail;
+    static String key_str             = json_config.privateKeyPem;
+    static String client_id_str       = json_config.clientId;
 
     client_config.serviceAccountEmail = email_str.c_str();
-    client_config.privateKeyPem = key_str.c_str();
-    client_config.clientId = client_id_str.c_str();
-    client_config.useInsecureTls = json_config.useInsecureTls;
+    client_config.privateKeyPem       = key_str.c_str();
+    client_config.clientId            = client_id_str.c_str();
+    client_config.useInsecureTls      = json_config.useInsecureTls;
 
     // Pass rate limiting settings to client
     client_config.rateLimitWindowSeconds = json_config.rateLimitWindowSeconds;
-    client_config.minRequestDelayMs = json_config.minRequestDelayMs;
-    client_config.maxRetryAttempts = json_config.maxRetryAttempts;
-    client_config.backoffBaseDelayMs = json_config.backoffBaseDelayMs;
-    client_config.maxWaitTimeMs = json_config.maxWaitTimeMs;
+    client_config.minRequestDelayMs      = json_config.minRequestDelayMs;
+    client_config.maxRetryAttempts       = json_config.maxRetryAttempts;
+    client_config.backoffBaseDelayMs     = json_config.backoffBaseDelayMs;
+    client_config.maxWaitTimeMs          = json_config.maxWaitTimeMs;
 
     // Initialize this instance's client and config
     client = google_drive_client(client_config);
@@ -1417,14 +1438,12 @@ photo_frame_error_t google_drive::initialize_from_json(sd_card& sd_card, const c
 }
 
 // Overloaded methods that use internal TOC path
-size_t google_drive::get_toc_file_count(photo_frame_error_t* error)
-{
+size_t google_drive::get_toc_file_count(photo_frame_error_t* error) {
     String tocPath = get_toc_file_path();
     return get_toc_file_count(tocPath, error);
 }
 
-google_drive_file google_drive::get_toc_file_by_index(size_t index, photo_frame_error_t* error)
-{
+google_drive_file google_drive::get_toc_file_by_index(size_t index, photo_frame_error_t* error) {
     Serial.print(F("[google_drive] Getting TOC file by index: "));
     Serial.println(index);
 
@@ -1432,16 +1451,15 @@ google_drive_file google_drive::get_toc_file_by_index(size_t index, photo_frame_
     return get_toc_file_by_index(tocPath, index, error);
 }
 
-google_drive_file google_drive::get_toc_file_by_name(const char* filename, photo_frame_error_t* error)
-{
+google_drive_file google_drive::get_toc_file_by_name(const char* filename,
+                                                     photo_frame_error_t* error) {
     String tocPath = get_toc_file_path();
     google_drive_toc_parser parser(sdCard, tocPath.c_str());
     return parser.get_file_by_name(filename, error);
 }
 
 // Member function version of cleanup_temporary_files
-uint32_t google_drive::cleanup_temporary_files(boolean force)
-{
+uint32_t google_drive::cleanup_temporary_files(boolean force) {
     return cleanup_temporary_files(sdCard, config, force);
 }
 

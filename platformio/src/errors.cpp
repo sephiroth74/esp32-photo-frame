@@ -28,46 +28,49 @@ namespace error_utils {
 
 photo_frame_error map_http_status_to_error(int statusCode, const char* context) {
     photo_frame_error error;
-    
+
     switch (statusCode) {
-        case 400: error = error_type::HttpBadRequest; break;
-        case 401: error = error_type::HttpUnauthorized; break;
-        case 403: error = error_type::HttpForbidden; break;
-        case 404: error = error_type::HttpNotFound; break;
-        case 429: error = error_type::HttpTooManyRequests; break;
-        case 500: error = error_type::HttpInternalServerError; break;
-        case 502: error = error_type::HttpBadGateway; break;
-        case 503: error = error_type::HttpServiceUnavailable; break;
-        case 504: error = error_type::HttpGatewayTimeout; break;
-        default: error = error_type::HttpGetFailed; break;
+    case 400: error = error_type::HttpBadRequest; break;
+    case 401: error = error_type::HttpUnauthorized; break;
+    case 403: error = error_type::HttpForbidden; break;
+    case 404: error = error_type::HttpNotFound; break;
+    case 429: error = error_type::HttpTooManyRequests; break;
+    case 500: error = error_type::HttpInternalServerError; break;
+    case 502: error = error_type::HttpBadGateway; break;
+    case 503: error = error_type::HttpServiceUnavailable; break;
+    case 504: error = error_type::HttpGatewayTimeout; break;
+    default:  error = error_type::HttpGetFailed; break;
     }
-    
+
     // Add context if provided
     if (context) {
         error.context = context;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error map_google_drive_error(int statusCode, const char* responseBody, const char* context) {
+photo_frame_error
+map_google_drive_error(int statusCode, const char* responseBody, const char* context) {
     photo_frame_error error;
-    
+
     // First check for specific Google Drive error patterns
     if (responseBody) {
         // Check for specific error messages in response body
         String body = String(responseBody);
-        
+
         if (body.indexOf("quotaExceeded") >= 0 || body.indexOf("rateLimitExceeded") >= 0) {
-            error = (statusCode == 429) ? error_type::GoogleDriveApiRateLimited : error_type::GoogleDriveApiQuotaExceeded;
+            error = (statusCode == 429) ? error_type::GoogleDriveApiRateLimited
+                                        : error_type::GoogleDriveApiQuotaExceeded;
         } else if (body.indexOf("notFound") >= 0) {
             error = error_type::GoogleDriveFileNotFound;
         } else if (body.indexOf("insufficientPermissions") >= 0 || body.indexOf("forbidden") >= 0) {
             error = error_type::GoogleDrivePermissionDenied;
         } else if (body.indexOf("storageQuotaExceeded") >= 0) {
             error = error_type::GoogleDriveStorageQuotaExceeded;
-        } else if (body.indexOf("accessNotConfigured") >= 0 || body.indexOf("apiNotActivated") >= 0) {
+        } else if (body.indexOf("accessNotConfigured") >= 0 ||
+                   body.indexOf("apiNotActivated") >= 0) {
             error = error_type::GoogleDriveApiDisabled;
         } else {
             // Fall back to HTTP status code mapping
@@ -76,29 +79,29 @@ photo_frame_error map_google_drive_error(int statusCode, const char* responseBod
     } else {
         // No response body, use status code mapping
         switch (statusCode) {
-            case 401: error = error_type::OAuthTokenExpired; break;
-            case 403: error = error_type::GoogleDrivePermissionDenied; break;
-            case 404: error = error_type::GoogleDriveFileNotFound; break;
-            case 429: error = error_type::GoogleDriveApiRateLimited; break;
-            case 500: 
-            case 502:
-            case 503: error = error_type::GoogleDriveApiInternalError; break;
-            case 504: error = error_type::GoogleDriveNetworkTimeout; break;
-            default: error = map_http_status_to_error(statusCode, "Google Drive API"); break;
+        case 401: error = error_type::OAuthTokenExpired; break;
+        case 403: error = error_type::GoogleDrivePermissionDenied; break;
+        case 404: error = error_type::GoogleDriveFileNotFound; break;
+        case 429: error = error_type::GoogleDriveApiRateLimited; break;
+        case 500:
+        case 502:
+        case 503: error = error_type::GoogleDriveApiInternalError; break;
+        case 504: error = error_type::GoogleDriveNetworkTimeout; break;
+        default:  error = map_http_status_to_error(statusCode, "Google Drive API"); break;
         }
     }
-    
+
     if (context) {
         error.context = context;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
 photo_frame_error create_oauth_error(const char* errorType, const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "invalid_token") == 0) {
         error = error_type::OAuthTokenInvalid;
     } else if (strcmp(errorType, "expired_token") == 0) {
@@ -110,19 +113,21 @@ photo_frame_error create_oauth_error(const char* errorType, const char* context)
     } else {
         error = error_type::OAuthTokenRequestFailed;
     }
-    
+
     if (context) {
         error.context = context;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error create_image_error(const char* errorType, const char* filename, 
-                                    const char* dimensions, const char* context) {
+photo_frame_error create_image_error(const char* errorType,
+                                     const char* filename,
+                                     const char* dimensions,
+                                     const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "corrupted") == 0) {
         error = error_type::ImageFileCorrupted;
     } else if (strcmp(errorType, "too_large") == 0) {
@@ -154,11 +159,11 @@ photo_frame_error create_image_error(const char* errorType, const char* filename
     } else if (strcmp(errorType, "conversion_failed") == 0) {
         error = error_type::ImageConversionFailed;
     } else if (strcmp(errorType, "resolution_too_high") == 0) {
-        error = error_type::ImageResolutionTooHigh;    
+        error = error_type::ImageResolutionTooHigh;
     } else {
         error = error_type::ImageProcessingAborted;
     }
-    
+
     // Build context string from available information
     String contextStr = "";
     if (filename) {
@@ -166,69 +171,88 @@ photo_frame_error create_image_error(const char* errorType, const char* filename
         contextStr += filename;
     }
     if (dimensions) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Size: ";
         contextStr += dimensions;
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         // Note: Using static buffer for context string
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error validate_image_dimensions(int width, int height, int maxWidth, int maxHeight, 
-                                          const char* filename) {
+photo_frame_error validate_image_dimensions(int width,
+                                            int height,
+                                            int maxWidth,
+                                            int maxHeight,
+                                            const char* filename) {
     char dimensions[64];
     snprintf(dimensions, sizeof(dimensions), "%dx%d", width, height);
-    
+
     if (width <= 0 || height <= 0) {
-        return create_image_error("invalid_dimensions", filename, dimensions, "Width or height is zero or negative");
+        return create_image_error(
+            "invalid_dimensions", filename, dimensions, "Width or height is zero or negative");
     }
-    
+
     if (width > maxWidth || height > maxHeight) {
         char maxDimensions[64];
         snprintf(maxDimensions, sizeof(maxDimensions), "Max: %dx%d", maxWidth, maxHeight);
         return create_image_error("resolution_too_high", filename, dimensions, maxDimensions);
     }
-    
+
     return error_type::None;
 }
 
-photo_frame_error validate_image_file_size(size_t fileSize, size_t expectedMinSize, size_t expectedMaxSize,
-                                          const char* filename) {
+photo_frame_error validate_image_file_size(size_t fileSize,
+                                           size_t expectedMinSize,
+                                           size_t expectedMaxSize,
+                                           const char* filename) {
     if (fileSize == 0) {
         return create_image_error("empty_file", filename, nullptr, "File has zero bytes");
     }
-    
+
     if (fileSize < expectedMinSize) {
         char sizeInfo[128];
-        snprintf(sizeInfo, sizeof(sizeInfo), "Size: %zu bytes, Min expected: %zu bytes", fileSize, expectedMinSize);
+        snprintf(sizeInfo,
+                 sizeof(sizeInfo),
+                 "Size: %zu bytes, Min expected: %zu bytes",
+                 fileSize,
+                 expectedMinSize);
         return create_image_error("truncated", filename, nullptr, sizeInfo);
     }
-    
+
     if (fileSize > expectedMaxSize) {
         char sizeInfo[128];
-        snprintf(sizeInfo, sizeof(sizeInfo), "Size: %zu bytes, Max allowed: %zu bytes", fileSize, expectedMaxSize);
+        snprintf(sizeInfo,
+                 sizeof(sizeInfo),
+                 "Size: %zu bytes, Max allowed: %zu bytes",
+                 fileSize,
+                 expectedMaxSize);
         return create_image_error("too_large", filename, nullptr, sizeInfo);
     }
-    
+
     return error_type::None;
 }
 
-photo_frame_error create_battery_error(const char* errorType, float voltage, float percentage, 
-                                      float temperature, const char* context) {
+photo_frame_error create_battery_error(const char* errorType,
+                                       float voltage,
+                                       float percentage,
+                                       float temperature,
+                                       const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "voltage_low") == 0) {
         error = error_type::BatteryVoltageLow;
     } else if (strcmp(errorType, "voltage_unstable") == 0) {
@@ -258,7 +282,7 @@ photo_frame_error create_battery_error(const char* errorType, float voltage, flo
     } else {
         error = error_type::BatteryEmpty; // Default fallback
     }
-    
+
     // Build context string with battery metrics
     String contextStr = "";
     if (voltage >= 0) {
@@ -267,65 +291,73 @@ photo_frame_error create_battery_error(const char* errorType, float voltage, flo
         contextStr += "V";
     }
     if (percentage >= 0) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Level: ";
         contextStr += String(percentage, 1);
         contextStr += "%";
     }
     if (temperature > -999) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Temp: ";
         contextStr += String(temperature, 1);
         contextStr += "°C";
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error validate_battery_voltage(float voltage, float minVoltage, float maxVoltage, 
-                                          const char* context) {
+photo_frame_error
+validate_battery_voltage(float voltage, float minVoltage, float maxVoltage, const char* context) {
     if (voltage < minVoltage) {
         return create_battery_error("voltage_low", voltage, -1, -999, context);
     }
-    
+
     if (voltage > maxVoltage) {
         char contextStr[128];
-        snprintf(contextStr, sizeof(contextStr), "Voltage %.2fV exceeds maximum %.2fV%s%s", 
-                voltage, maxVoltage, context ? ", " : "", context ? context : "");
+        snprintf(contextStr,
+                 sizeof(contextStr),
+                 "Voltage %.2fV exceeds maximum %.2fV%s%s",
+                 voltage,
+                 maxVoltage,
+                 context ? ", " : "",
+                 context ? context : "");
         return create_battery_error("voltage_unstable", voltage, -1, -999, contextStr);
     }
-    
+
     return error_type::None;
 }
 
-photo_frame_error validate_battery_temperature(float temperature, float minTemp, float maxTemp, 
-                                              const char* context) {
+photo_frame_error
+validate_battery_temperature(float temperature, float minTemp, float maxTemp, const char* context) {
     if (temperature < minTemp) {
         return create_battery_error("temperature_low", -1, -1, temperature, context);
     }
-    
+
     if (temperature > maxTemp) {
         return create_battery_error("temperature_high", -1, -1, temperature, context);
     }
-    
+
     return error_type::None;
 }
 
-photo_frame_error create_charging_error(const char* errorType, float current, float voltage, 
-                                       const char* context) {
+photo_frame_error
+create_charging_error(const char* errorType, float current, float voltage, const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "charging_failed") == 0) {
         error = error_type::ChargingFailed;
     } else if (strcmp(errorType, "charger_not_connected") == 0) {
@@ -347,7 +379,7 @@ photo_frame_error create_charging_error(const char* errorType, float current, fl
     } else {
         error = error_type::ChargingFailed; // Default fallback
     }
-    
+
     // Build context string with charging metrics
     String contextStr = "";
     if (current >= 0) {
@@ -356,30 +388,34 @@ photo_frame_error create_charging_error(const char* errorType, float current, fl
         contextStr += "A";
     }
     if (voltage >= 0) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Voltage: ";
         contextStr += String(voltage, 2);
         contextStr += "V";
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error create_power_supply_error(const char* errorType, float voltage, float current, 
-                                           const char* context) {
+photo_frame_error create_power_supply_error(const char* errorType,
+                                            float voltage,
+                                            float current,
+                                            const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "insufficient") == 0) {
         error = error_type::PowerSupplyInsufficient;
     } else if (strcmp(errorType, "unstable") == 0) {
@@ -403,7 +439,7 @@ photo_frame_error create_power_supply_error(const char* errorType, float voltage
     } else {
         error = error_type::PowerSupplyInsufficient; // Default fallback
     }
-    
+
     // Build context string with power supply metrics
     String contextStr = "";
     if (voltage >= 0) {
@@ -412,30 +448,35 @@ photo_frame_error create_power_supply_error(const char* errorType, float voltage
         contextStr += "V";
     }
     if (current >= 0) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Current: ";
         contextStr += String(current, 3);
         contextStr += "A";
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error create_display_error(const char* errorType, int width, int height, 
-                                      const char* displayMode, const char* context) {
+photo_frame_error create_display_error(const char* errorType,
+                                       int width,
+                                       int height,
+                                       const char* displayMode,
+                                       const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "init_failed") == 0) {
         error = error_type::DisplayInitializationFailed;
     } else if (strcmp(errorType, "driver_error") == 0) {
@@ -467,7 +508,7 @@ photo_frame_error create_display_error(const char* errorType, int width, int hei
     } else {
         error = error_type::DisplayInitializationFailed; // Default fallback
     }
-    
+
     // Build context string with display information
     String contextStr = "";
     if (width > 0 && height > 0) {
@@ -477,29 +518,34 @@ photo_frame_error create_display_error(const char* errorType, int width, int hei
         contextStr += String(height);
     }
     if (displayMode) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Mode: ";
         contextStr += displayMode;
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error create_epaper_error(const char* errorType, int refreshCount, float temperature, 
-                                     const char* waveform, const char* context) {
+photo_frame_error create_epaper_error(const char* errorType,
+                                      int refreshCount,
+                                      float temperature,
+                                      const char* waveform,
+                                      const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "refresh_failed") == 0) {
         error = error_type::EpaperRefreshFailed;
     } else if (strcmp(errorType, "partial_refresh_not_supported") == 0) {
@@ -523,7 +569,7 @@ photo_frame_error create_epaper_error(const char* errorType, int refreshCount, f
     } else {
         error = error_type::EpaperRefreshFailed; // Default fallback
     }
-    
+
     // Build context string with e-paper specific information
     String contextStr = "";
     if (refreshCount >= 0) {
@@ -531,72 +577,97 @@ photo_frame_error create_epaper_error(const char* errorType, int refreshCount, f
         contextStr += String(refreshCount);
     }
     if (temperature > -999) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Temp: ";
         contextStr += String(temperature, 1);
         contextStr += "°C";
     }
     if (waveform) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Waveform: ";
         contextStr += waveform;
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }
 
-photo_frame_error validate_display_resolution(int width, int height, int maxWidth, int maxHeight, 
-                                             const char* context) {
+photo_frame_error validate_display_resolution(int width,
+                                              int height,
+                                              int maxWidth,
+                                              int maxHeight,
+                                              const char* context) {
     if (width <= 0 || height <= 0) {
-        return create_display_error("resolution_mismatch", width, height, nullptr, 
-                                   "Width or height is zero or negative");
+        return create_display_error(
+            "resolution_mismatch", width, height, nullptr, "Width or height is zero or negative");
     }
-    
+
     if (width > maxWidth || height > maxHeight) {
         char contextStr[128];
-        snprintf(contextStr, sizeof(contextStr), "Exceeds maximum %dx%d%s%s", 
-                maxWidth, maxHeight, context ? ", " : "", context ? context : "");
+        snprintf(contextStr,
+                 sizeof(contextStr),
+                 "Exceeds maximum %dx%d%s%s",
+                 maxWidth,
+                 maxHeight,
+                 context ? ", " : "",
+                 context ? context : "");
         return create_display_error("resolution_mismatch", width, height, nullptr, contextStr);
     }
-    
+
     return error_type::None;
 }
 
-photo_frame_error validate_display_refresh_rate(float refreshRate, float minRate, float maxRate, 
-                                               const char* context) {
+photo_frame_error validate_display_refresh_rate(float refreshRate,
+                                                float minRate,
+                                                float maxRate,
+                                                const char* context) {
     if (refreshRate < minRate) {
         char contextStr[128];
-        snprintf(contextStr, sizeof(contextStr), "Rate %.2fHz below minimum %.2fHz%s%s", 
-                refreshRate, minRate, context ? ", " : "", context ? context : "");
+        snprintf(contextStr,
+                 sizeof(contextStr),
+                 "Rate %.2fHz below minimum %.2fHz%s%s",
+                 refreshRate,
+                 minRate,
+                 context ? ", " : "",
+                 context ? context : "");
         return create_display_error("refresh_rate_invalid", -1, -1, nullptr, contextStr);
     }
-    
+
     if (refreshRate > maxRate) {
         char contextStr[128];
-        snprintf(contextStr, sizeof(contextStr), "Rate %.2fHz exceeds maximum %.2fHz%s%s", 
-                refreshRate, maxRate, context ? ", " : "", context ? context : "");
+        snprintf(contextStr,
+                 sizeof(contextStr),
+                 "Rate %.2fHz exceeds maximum %.2fHz%s%s",
+                 refreshRate,
+                 maxRate,
+                 context ? ", " : "",
+                 context ? context : "");
         return create_display_error("refresh_rate_invalid", -1, -1, nullptr, contextStr);
     }
-    
+
     return error_type::None;
 }
 
-photo_frame_error create_display_rendering_error(const char* errorType, size_t bufferSize, 
-                                                size_t memoryUsed, const char* operation, 
-                                                const char* context) {
+photo_frame_error create_display_rendering_error(const char* errorType,
+                                                 size_t bufferSize,
+                                                 size_t memoryUsed,
+                                                 const char* operation,
+                                                 const char* context) {
     photo_frame_error error;
-    
+
     if (strcmp(errorType, "buffer_overflow") == 0) {
         error = error_type::DisplayBufferOverflow;
     } else if (strcmp(errorType, "buffer_underflow") == 0) {
@@ -620,7 +691,7 @@ photo_frame_error create_display_rendering_error(const char* errorType, size_t b
     } else {
         error = error_type::DisplayBufferOverflow; // Default fallback
     }
-    
+
     // Build context string with rendering information
     String contextStr = "";
     if (bufferSize > 0) {
@@ -629,27 +700,30 @@ photo_frame_error create_display_rendering_error(const char* errorType, size_t b
         contextStr += " bytes";
     }
     if (memoryUsed > 0) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Memory used: ";
         contextStr += String(memoryUsed);
         contextStr += " bytes";
     }
     if (operation) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += "Operation: ";
         contextStr += operation;
     }
     if (context) {
-        if (contextStr.length() > 0) contextStr += ", ";
+        if (contextStr.length() > 0)
+            contextStr += ", ";
         contextStr += context;
     }
-    
+
     if (contextStr.length() > 0) {
         static char contextBuffer[256];
         contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
         error.context = contextBuffer;
     }
-    
+
     error.set_timestamp();
     return error;
 }

@@ -30,11 +30,11 @@
 #include "board_util.h"
 #include "config.h"
 #include "errors.h"
+#include "io_utils.h"
 #include "renderer.h"
 #include "rtc_util.h"
 #include "sd_card.h"
 #include "spi_manager.h"
-#include "io_utils.h"
 #include "string_utils.h"
 #include "wifi_manager.h"
 #ifdef USE_WEATHER
@@ -59,10 +59,10 @@ void cleanup_temp_image_file() {
 
 #ifndef USE_SENSOR_MAX1704X
 photo_frame::battery_reader battery_reader(BATTERY_PIN,
-    BATTERY_RESISTORS_RATIO,
-    BATTERY_NUM_READINGS,
-    BATTERY_DELAY_BETWEEN_READINGS);
-#else // USE_SENSOR_MAX1704X
+                                           BATTERY_RESISTORS_RATIO,
+                                           BATTERY_NUM_READINGS,
+                                           BATTERY_DELAY_BETWEEN_READINGS);
+#else  // USE_SENSOR_MAX1704X
 photo_frame::battery_reader battery_reader;
 #endif // USE_SENSOR_MAX1704X
 
@@ -82,8 +82,7 @@ typedef struct {
 
 refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now);
 
-void setup()
-{
+void setup() {
     Serial.begin(115200);
     analogReadResolution(12);
 
@@ -102,7 +101,8 @@ void setup()
 
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
-    // photo_frame::board_utils::toggle_rgb_led(false, true, false); // Set RGB LED to green to indicate initialization
+    // photo_frame::board_utils::toggle_rgb_led(false, true, false); // Set RGB LED to green to
+    // indicate initialization
     photo_frame::board_utils::disable_rgb_led(); // Disable RGB LED to save power
 
     Serial.println(F("------------------------------"));
@@ -120,7 +120,7 @@ void setup()
     bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
     // if in reset state, we will write the TOC (Table of Contents) to the SD
-    bool write_toc = is_reset;
+    bool write_toc       = is_reset;
 
     uint32_t image_index = 0; // Index of the image to display
     uint32_t total_files = 0; // Total number of image files on the SD card
@@ -159,8 +159,8 @@ void setup()
 
         Serial.println(F("Entering deep sleep to preserve battery..."));
         photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
-        return; // Exit if battery is empty
-#endif // BATTERY_POWER_SAVING
+        return;                                                    // Exit if battery is empty
+#endif                                                             // BATTERY_POWER_SAVING
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
     }
@@ -172,7 +172,8 @@ void setup()
     Serial.println(F(" - Fetching current time..."));
     Serial.println(F("--------------------------------------"));
 
-    if (error != photo_frame::error_type::BatteryLevelCritical && error != photo_frame::error_type::BatteryEmpty) {
+    if (error != photo_frame::error_type::BatteryLevelCritical &&
+        error != photo_frame::error_type::BatteryEmpty) {
         error = sdCard.begin(); // Initialize the SD card
         if (error == photo_frame::error_type::None) {
             Serial.println(F("Initializing WiFi manager..."));
@@ -197,7 +198,8 @@ void setup()
 #ifdef USE_WEATHER
                     // Piggyback weather fetch on existing WiFi session (with power management)
                     bool batteryConservationMode = battery_info.is_critical();
-                    if (weatherManager.is_configured() && !batteryConservationMode && weatherManager.needs_update(battery_info.percent)) {
+                    if (weatherManager.is_configured() && !batteryConservationMode &&
+                        weatherManager.needs_update(battery_info.percent)) {
                         Serial.println(F("Fetching weather data during WiFi session..."));
                         if (weatherManager.fetch_weather()) {
                             Serial.println(F("Weather data updated successfully"));
@@ -209,7 +211,8 @@ void setup()
                         }
                     } else if (weatherManager.is_configured()) {
                         if (batteryConservationMode) {
-                            Serial.print(F("Skipping weather update due to critical battery level ("));
+                            Serial.print(
+                                F("Skipping weather update due to critical battery level ("));
                             Serial.print(battery_info.percent);
                             Serial.println(F("%) - preserving power"));
                         } else {
@@ -277,7 +280,7 @@ void setup()
                         Serial.println(F("Failed to open preferences for cleanup check!"));
                         shouldCleanup = true; // Default to cleanup if can't check
                     } else {
-                        time_t now = time(NULL);
+                        time_t now         = time(NULL);
                         time_t lastCleanup = prefs.getULong("last_cleanup", 0);
 
                         if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
@@ -323,7 +326,8 @@ void setup()
                     Serial.println(F("%) - using cached TOC to preserve power"));
                 }
 
-                photo_frame::photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
+                photo_frame::photo_frame_error_t tocError =
+                    photo_frame::error_type::JsonParseFailed;
 
                 if (error == photo_frame::error_type::None) {
                     error = drive.create_directories(sdCard);
@@ -331,7 +335,8 @@ void setup()
 
                 if (error == photo_frame::error_type::None) {
                     // Retrieve TOC and get file count directly
-                    // I2C is already shut down before all WiFi operations to prevent ESP32-C6 interference
+                    // I2C is already shut down before all WiFi operations to prevent ESP32-C6
+                    // interference
                     total_files = drive.retrieve_toc(batteryConservationMode);
                 } else {
                     Serial.println(F("Google Drive not initialized - skipping"));
@@ -350,10 +355,11 @@ void setup()
                     Serial.println(GOOGLE_DRIVE_TEST_FILE);
                     selectedFile = drive.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
                     if (tocError != photo_frame::error_type::None) {
-                        Serial.print(F("Test file not found in TOC, falling back to random selection. Error: "));
+                        Serial.print(F("Test file not found in TOC, falling back to random "
+                                       "selection. Error: "));
                         Serial.println(tocError.code);
                         // Fallback to random selection
-                        image_index = random(0, total_files);
+                        image_index  = random(0, total_files);
                         selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
                     }
 #else
@@ -370,39 +376,45 @@ void setup()
 
                         // Always download to SD card first for better caching
                         String localFilePath = drive.get_cached_file_path(selectedFile.name);
-                        if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
-                            Serial.println(F("File already exists in SD card, using cached version"));
+                        if (sdCard.file_exists(localFilePath.c_str()) &&
+                            sdCard.get_file_size(localFilePath.c_str()) > 0) {
+                            Serial.println(
+                                F("File already exists in SD card, using cached version"));
                             file = sdCard.open(localFilePath.c_str(), FILE_READ);
                             drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
                         } else {
                             // Check battery level before downloading file
                             if (batteryConservationMode) {
-                                Serial.print(F("Skipping file download due to critical battery level ("));
+                                Serial.print(
+                                    F("Skipping file download due to critical battery level ("));
                                 Serial.print(battery_info.percent);
                                 Serial.println(F("%) - will use cached files if available"));
                                 error = photo_frame::error_type::BatteryLevelCritical;
                             } else {
                                 // Download the selected file to SD card
                                 file = drive.download_file(selectedFile, &error);
-                                // Note: image source is set to IMAGE_SOURCE_CLOUD inside download_file
+                                // Note: image source is set to IMAGE_SOURCE_CLOUD inside
+                                // download_file
                             }
                         }
 
 #ifdef USE_SHARED_SPI
-                        // For shared SPI mode: copy file from SD card to LittleFS, then shutdown SD card
+                        // For shared SPI mode: copy file from SD card to LittleFS, then shutdown SD
+                        // card
                         if (error == photo_frame::error_type::None && file) {
                             String littlefsPath = "/temp_image.tmp";
-                            
+
                             // Use utility function to copy file to LittleFS
                             error = photo_frame::io_utils::copy_sd_to_littlefs(file, littlefsPath);
-                            
+
                             // Always close the SD card file after copy attempt (success or failure)
                             file.close();
-                            
+
                             if (error == photo_frame::error_type::None) {
                                 // Copy successful - shutdown SD card and open LittleFS file
-                                Serial.println(F("Shutting down SD card after successful copy to LittleFS"));
-                                
+                                Serial.println(
+                                    F("Shutting down SD card after successful copy to LittleFS"));
+
                                 // Open the LittleFS file for reading
                                 file = LittleFS.open(littlefsPath.c_str(), FILE_READ);
                                 if (!file) {
@@ -412,7 +424,8 @@ void setup()
                             }
                         }
 
-                        // Always close the SD card after the http operations are complete as we now need to use e-paper display
+                        // Always close the SD card after the http operations are complete as we now
+                        // need to use e-paper display
                         sdCard.end();
 #endif // USE_SHARED_SPI
                     } else {
@@ -438,7 +451,6 @@ void setup()
                     }
                 }
             }
-
         }
     } else {
         Serial.println(F("skipped"));
@@ -509,9 +521,11 @@ void setup()
 
                 file.seek(0); // Reset file pointer to the beginning
 #if defined(EPD_USE_BINARY_FILE)
-                bool success = photo_frame::renderer::draw_binary_from_file(file, img_filename, DISP_WIDTH, DISP_HEIGHT);
+                bool success = photo_frame::renderer::draw_binary_from_file(
+                    file, img_filename, DISP_WIDTH, DISP_HEIGHT);
 #else
-                bool success = photo_frame::renderer::draw_bitmap_from_file(file, img_filename, 0, 0, false);
+                bool success =
+                    photo_frame::renderer::draw_bitmap_from_file(file, img_filename, 0, 0, false);
 #endif
 
                 if (!success) {
@@ -523,12 +537,14 @@ void setup()
                 display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
 
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
-                photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
+                photo_frame::renderer::draw_image_info(
+                    image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
 
 #ifdef USE_WEATHER
                 if (!battery_info.is_critical()) {
-                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                    photo_frame::weather::WeatherData current_weather =
+                        weatherManager.get_current_weather();
                     if (current_weather.is_displayable()) {
                         rect_t box = photo_frame::renderer::get_weather_info_rect();
                         photo_frame::renderer::draw_weather_info(current_weather, box);
@@ -580,13 +596,15 @@ void setup()
                     display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
                 }
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
-                photo_frame::renderer::draw_image_info(image_index, total_files, drive.get_last_image_source());
+                photo_frame::renderer::draw_image_info(
+                    image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
             } while (display.nextPage()); // Clear the display
 
 #ifdef USE_WEATHER
             if (!battery_info.is_critical()) {
-                photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                photo_frame::weather::WeatherData current_weather =
+                    weatherManager.get_current_weather();
                 if (current_weather.is_displayable()) {
                     rect_t box = photo_frame::renderer::get_weather_info_rect();
 
@@ -595,7 +613,6 @@ void setup()
                     do {
                         photo_frame::renderer::draw_weather_info(current_weather, box);
                     } while (display.nextPage());
-
                 }
             }
 #endif // USE_WEATHER
@@ -605,7 +622,7 @@ void setup()
     if (file) {
         file.close(); // Close the file after drawing
     }
-    
+
 #ifndef USE_SHARED_SPI
     sdCard.end(); // Close the SD card (already closed early in USE_SHARED_SPI mode)
 #endif
@@ -621,11 +638,13 @@ void setup()
     // Wait before going to sleep
 
     // now go to sleep
-    if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
+    if (!battery_info.is_critical() &&
+        refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
         Serial.print(F("Going to sleep for "));
         Serial.print(refresh_delay.refresh_seconds, DEC);
         Serial.print(F(" seconds ("));
-        Serial.print((unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL)); // Show actual seconds from microseconds
+        Serial.print((unsigned long)(refresh_delay.refresh_microseconds /
+                                     1000000ULL)); // Show actual seconds from microseconds
         Serial.println(F(" seconds from microseconds calculation)..."));
         esp_sleep_enable_timer_wakeup(
             refresh_delay.refresh_microseconds); // wake up after the refresh interval
@@ -638,8 +657,7 @@ void setup()
     photo_frame::board_utils::enter_deep_sleep(wakeup_reason);
 }
 
-void loop()
-{
+void loop() {
     // Nothing to do here, the ESP32 will go to sleep after setup
     // The loop is intentionally left empty
     // All processing is done in the setup function
@@ -654,12 +672,12 @@ void loop()
  * @param now The current time.
  * @return The calculated wakeup delay.
  */
-refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now)
-{
-    refresh_delay_t refresh_delay = { 0, 0 };
+refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now) {
+    refresh_delay_t refresh_delay = {0, 0};
 
     if (!battery_info.is_critical() && now.isValid()) {
-        refresh_delay.refresh_seconds = photo_frame::board_utils::read_refresh_seconds(battery_info.is_low());
+        refresh_delay.refresh_seconds =
+            photo_frame::board_utils::read_refresh_seconds(battery_info.is_low());
 
         Serial.print(F("Refresh seconds read from potentiometer: "));
         Serial.println(refresh_delay.refresh_seconds);
@@ -680,7 +698,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
             } else {
                 // We're past DAY_END_HOUR, schedule for DAY_START_HOUR tomorrow
                 DateTime tomorrow = now + TimeSpan(1, 0, 0, 0); // Add 1 day safely
-                nextRefresh = DateTime(
+                nextRefresh       = DateTime(
                     tomorrow.year(), tomorrow.month(), tomorrow.day(), DAY_START_HOUR, 0, 0);
             }
             refresh_delay.refresh_seconds = nextRefresh.unixtime() - now.unixtime();
@@ -697,13 +715,15 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
             refresh_delay.refresh_microseconds = 0;
             Serial.println(F("Warning: Invalid refresh interval, sleep disabled"));
         } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
-            refresh_delay.refresh_microseconds = (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
+            refresh_delay.refresh_microseconds =
+                (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
             Serial.print(F("Warning: Refresh interval capped to "));
             Serial.print(MAX_DEEP_SLEEP_SECONDS);
             Serial.println(F(" seconds to prevent overflow"));
         } else {
             // Safe calculation using 64-bit arithmetic
-            refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+            refresh_delay.refresh_microseconds =
+                (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         }
 
         char humanReadable[64];

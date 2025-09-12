@@ -85,13 +85,13 @@ int format_duration(char* buffer, size_t buffer_size, long seconds) {
     }
 
     // Calculate time components
-    long hours = seconds / 3600;
-    long minutes = (seconds % 3600) / 60;
+    long hours             = seconds / 3600;
+    long minutes           = (seconds % 3600) / 60;
     long remaining_seconds = seconds % 60;
 
     // Build format string and collect non-zero components
     char temp_buffer[32]; // Temporary buffer for building the string
-    int pos = 0;
+    int pos           = 0;
     bool has_previous = false;
 
     // Add hours if present
@@ -125,7 +125,7 @@ int format_duration(char* buffer, size_t buffer_size, long seconds) {
 
     // Copy to output buffer
     int result = snprintf(buffer, buffer_size, "%s", temp_buffer);
-    
+
     // Return number of characters that would be written (or -1 if truncated)
     return (result >= 0 && result < (int)buffer_size) ? result : -1;
 }

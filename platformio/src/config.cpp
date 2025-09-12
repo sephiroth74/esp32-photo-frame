@@ -23,7 +23,8 @@
 #include "config.h"
 
 // Check all the E-Paper pins are defined
-#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) || !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
+#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) ||                     \
+    !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
 #error "Please define all E-Paper display pins"
 #endif
 
@@ -52,7 +53,7 @@
 
 // Check only one SPI bus is used
 #if defined(USE_HSPI_FOR_SD) && defined(USE_HSPI_FOR_EPD) && defined(USE_SHARED_SPI)
-#error \
+#error                                                                                             \
     "Please define only one SPI bus: either USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD or USE_SHARED_SPI"
 #endif // USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD or USE_SHARED_SPI
 
@@ -65,7 +66,8 @@
 // ESP32-C6 has I2C/WiFi coexistence issues that cause JSON parsing corruption
 // RTC module is not supported on ESP32-C6 - use NTP-only time instead
 #if defined(CONFIG_IDF_TARGET_ESP32C6)
-#error "RTC module (USE_RTC) is not supported on ESP32-C6 due to I2C/WiFi interference. Remove USE_RTC definition and use NTP-only time synchronization."
+#error                                                                                             \
+    "RTC module (USE_RTC) is not supported on ESP32-C6 due to I2C/WiFi interference. Remove USE_RTC definition and use NTP-only time synchronization."
 #endif // CONFIG_IDF_TARGET_ESP32C6
 
 #endif // USE_RTC
@@ -94,11 +96,13 @@
 #endif // DAY_END_HOUR
 
 // validate REFRESH_MIN_INTERVAL_SECONDS and REFRESH_MAX_INTERVAL_SECONDS
-#if (REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) || REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR))
+#if (REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) ||                                     \
+     REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR))
 #error "REFRESH_MIN_INTERVAL_SECONDS must be between 5 minutes and 2 hours"
 #endif // REFRESH_MIN_INTERVAL_SECONDS
 
-#if (REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) || REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR))
+#if (REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) ||                                    \
+     REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR))
 #error "REFRESH_MAX_INTERVAL_SECONDS must be between 10 minutes and 4 hours"
 #endif // REFRESH_MAX_INTERVAL_SECONDS
 
@@ -107,7 +111,7 @@
 #endif // REFRESH_MIN_INTERVAL_SECONDS > REFRESH_MAX_INTERVAL_SECONDS
 
 #if (REFRESH_MAX_INTERVAL_SECONDS > ((24 - DAY_END_HOUR) + DAY_START_HOUR) * SECONDS_IN_HOUR)
-#error \
+#error                                                                                             \
     "REFRESH_MAX_INTERVAL_SECONDS must be less than or equal to the number of seconds between DAY_START_HOUR and DAY_END_HOUR"
 #endif // REFRESH_MAX_INTERVAL_SECONDS > (DAY_END_HOUR - DAY_START_HOUR) * SECONDS_IN_HOUR
 
@@ -143,7 +147,6 @@ const char* LOCAL_FILE_EXTENSION = ".bmp";
 #error "Please define all wakeup pin settings"
 #endif // WAKEUP_PIN && WAKEUP_PIN_MODE && WAKEUP_LEVEL
 #endif // WAKEUP_EXT1 || WAKEUP_EXT0
-
 
 #ifdef USE_WEATHER
 #ifndef WEATHER_CONFIG_FILE

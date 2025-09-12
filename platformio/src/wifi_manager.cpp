@@ -175,13 +175,14 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     Serial.print(F("[wifi_manager] Waiting for NTP time sync..."));
 
     unsigned long startTime = millis();
-    time_t now = time(nullptr);
-    while (now < 1000000000 && (millis() - startTime) < (NTP_TIMEOUT * 1000)) { // NTP_TIMEOUT in seconds
+    time_t now              = time(nullptr);
+    while (now < 1000000000 &&
+           (millis() - startTime) < (NTP_TIMEOUT * 1000)) { // NTP_TIMEOUT in seconds
         delay(200);
         Serial.print(".");
         now = time(nullptr);
     }
-    
+
     if (now < 1000000000) {
         Serial.println("\nNTP time sync timeout!");
         if (error) {
@@ -189,7 +190,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
         }
         return DateTime(); // Invalid DateTime
     }
-    
+
     Serial.println("\nTime synchronized.");
 
     // Print the current time
