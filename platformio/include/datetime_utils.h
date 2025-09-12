@@ -31,10 +31,10 @@ int format_datetime(char* buffer,
 
 /**
  * @brief Format a duration in seconds as a human-readable string
- * 
+ *
  * Formats seconds into a compact time representation like "2h 30m", "5m 15s", or "45s".
  * Only includes non-zero components and adds appropriate spacing.
- * 
+ *
  * @param buffer Output buffer to write the formatted string
  * @param buffer_size Size of the output buffer
  * @param seconds Duration in seconds to format

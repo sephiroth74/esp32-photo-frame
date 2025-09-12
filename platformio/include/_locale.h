@@ -66,7 +66,7 @@ extern const char* TXT_CONFIG_VALUE_OUT_OF_RANGE;
 extern const char* TXT_ERROR_CODE;
 
 // ========================================
-// COMPREHENSIVE ERROR SYSTEM LOCALIZATION  
+// COMPREHENSIVE ERROR SYSTEM LOCALIZATION
 // ========================================
 
 // SD Card Specific Errors (100-119)

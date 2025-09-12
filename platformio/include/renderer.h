@@ -177,11 +177,11 @@ typedef enum alignment {
  * the display boundaries.
  */
 typedef enum gravity {
-    TOP_LEFT,        ///< Position at top-left corner
-    TOP_RIGHT,       ///< Position at top-right corner
-    BOTTOM_LEFT,     ///< Position at bottom-left corner
-    BOTTOM_RIGHT,    ///< Position at bottom-right corner
-    TOP_CENTER,      ///< Position at top-center
+    TOP_LEFT,     ///< Position at top-left corner
+    TOP_RIGHT,    ///< Position at top-right corner
+    BOTTOM_LEFT,  ///< Position at bottom-left corner
+    BOTTOM_RIGHT, ///< Position at bottom-right corner
+    TOP_CENTER,   ///< Position at top-center
 } gravity_t;
 
 namespace photo_frame {
@@ -375,7 +375,9 @@ void draw_battery_status(photo_frame::battery_info_t battery_info);
  * @note This function displays the current image index and total number of images on the
  * top center corner of the display. It is useful for providing context when viewing images.
  */
-void draw_image_info(uint32_t index, uint32_t total_images, photo_frame::image_source_t image_source);
+void draw_image_info(uint32_t index,
+                     uint32_t total_images,
+                     photo_frame::image_source_t image_source);
 
 #ifdef USE_WEATHER
 
@@ -404,9 +406,12 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, re
  *       0-64: ~75% opacity, 65-128: ~50% opacity, 129-192: ~25% opacity, 193+: ~12% opacity
  *       Useful for creating background boxes that don't completely obscure underlying content.
  */
-void draw_rounded_rect(int16_t x, int16_t y, int16_t width, int16_t height, 
-                       uint16_t radius, 
-                       uint16_t color, 
+void draw_rounded_rect(int16_t x,
+                       int16_t y,
+                       int16_t width,
+                       int16_t height,
+                       uint16_t radius,
+                       uint16_t color,
                        uint8_t transparency = 128);
 
 /**

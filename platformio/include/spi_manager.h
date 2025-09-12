@@ -28,39 +28,39 @@
 namespace photo_frame {
 namespace spi_manager {
 
+/**
+ * @brief Manages SPI configuration switching between SD card and e-paper display
+ *
+ * This utility class handles the complexity of using different SPI pins
+ * for SD card and e-paper display when using shared SPI mode on ESP32-C6.
+ */
+class SPIManager {
+  public:
     /**
-     * @brief Manages SPI configuration switching between SD card and e-paper display
-     * 
-     * This utility class handles the complexity of using different SPI pins
-     * for SD card and e-paper display when using shared SPI mode on ESP32-C6.
+     * @brief Configure SPI pins for SD card operations
      */
-    class SPIManager {
-    public:
-        /**
-         * @brief Configure SPI pins for SD card operations
-         */
-        static void configure_spi_for_sd();
+    static void configure_spi_for_sd();
 
-        /**
-         * @brief Configure SPI pins for e-paper display operations  
-         */
-        static void configure_spi_for_epd();
+    /**
+     * @brief Configure SPI pins for e-paper display operations
+     */
+    static void configure_spi_for_epd();
 
-        /**
-         * @brief Initialize LittleFS if not already mounted
-         * @return true if LittleFS is ready, false on error
-         */
-        static bool init_littlefs();
+    /**
+     * @brief Initialize LittleFS if not already mounted
+     * @return true if LittleFS is ready, false on error
+     */
+    static bool init_littlefs();
 
-        /**
-         * @brief Clean up temporary files from LittleFS
-         * @param pattern File pattern to match (e.g., "*.tmp")
-         */
-        static void cleanup_temp_files(const char* pattern = "*.tmp");
+    /**
+     * @brief Clean up temporary files from LittleFS
+     * @param pattern File pattern to match (e.g., "*.tmp")
+     */
+    static void cleanup_temp_files(const char* pattern = "*.tmp");
 
-    private:
-        static bool littlefs_initialized;
-    };
+  private:
+    static bool littlefs_initialized;
+};
 
 } // namespace spi_manager
 } // namespace photo_frame

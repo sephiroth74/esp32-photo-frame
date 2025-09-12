@@ -22,8 +22,8 @@
 
 #pragma once
 
-#include "config.h"
 #include "RTClib.h"
+#include "config.h"
 #include "errors.h"
 #include "sd_card.h"
 #include <WiFi.h>
