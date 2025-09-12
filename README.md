@@ -38,7 +38,9 @@
 
 2. **Hardware Assembly & Wiring**
    - **📋 [Complete Wiring Diagram](docs/wiring-diagram.md)** - Comprehensive pin connections and assembly guide
-   - **Recommended Board**: Unexpected Maker FeatherS3 (now default - USB-C, battery management, **8MB PSRAM with optimized Google Drive performance**, no I2C/WiFi issues)
+   - **Recommended Boards**: 
+     - **Unexpected Maker FeatherS3** (default - USB-C, battery management, **8MB PSRAM with optimized Google Drive performance**, no I2C/WiFi issues)
+     - **Adafruit Huzzah32 Feather v2** (ESP32-S3 dual core, **2MB PSRAM**, excellent battery management, Feather ecosystem)
    - **Alternative**: DFRobot FireBeetle 2 ESP32-C6 (built-in battery management and solar charging, but has I2C/WiFi coexistence issues)
    - **Key Connections**: SPI for display and SD card, I2C for RTC, analog for battery monitoring
    - **Power Management**: Built-in JST connector for battery, screw terminals for solar panel
