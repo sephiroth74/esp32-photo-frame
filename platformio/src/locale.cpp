@@ -26,7 +26,9 @@
 #define STR(s) #s
 #endif // STR
 
-#define X_LOCALE_INC(code) STR(locales / locale_##code.inc)
+// clang-format off
+#define X_LOCALE_INC(code) STR(locales/locale_##code.inc)
 #define LOCALE_INC(code)   X_LOCALE_INC(code)
+// clang-format on
 
 #include LOCALE_INC(LOCALE)
