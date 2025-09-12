@@ -68,7 +68,7 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
 
         // I2C is already shut down by caller to prevent ESP32-C6 WiFi interference
         now = fetch_remote_datetime(wifiManager, error);
-        
+
         if (!now.isValid() || (error && *error != error_type::None)) {
             Serial.println(F("[rtc_util] Failed to fetch time from WiFi!"));
             if (error) {
@@ -87,7 +87,7 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
 
             // I2C is already shut down by caller to prevent ESP32-C6 WiFi interference
             now = fetch_remote_datetime(wifiManager, error);
-            
+
             if (error && *error != error_type::None) {
                 Serial.println(F("[rtc_util] Failed to fetch time from WiFi!"));
                 Serial.println(F("[rtc_util] Cannot synchronize RTC - both RTC and WiFi failed"));
@@ -95,8 +95,9 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
             } else {
                 // Store the time for RTC update after I2C is restarted by caller
                 pendingRtcUpdate = now;
-                needsRtcUpdate = true;
-                Serial.println(F("[rtc_util] Time fetched from WiFi, RTC will be updated after I2C restart"));
+                needsRtcUpdate   = true;
+                Serial.println(
+                    F("[rtc_util] Time fetched from WiFi, RTC will be updated after I2C restart"));
             }
         } else {
             Serial.println(F("[rtc_util] RTC is running!"));
@@ -121,17 +122,17 @@ bool update_rtc_after_restart(const DateTime& dateTime) {
 #ifdef USE_RTC
     if (needsRtcUpdate && pendingRtcUpdate.isValid()) {
         Serial.println(F("[rtc_util] Updating RTC with time fetched during WiFi operations..."));
-        
+
         RTC_DS3231 rtc;
         // I2C should already be initialized by caller, don't reinitialize
-        
+
         if (rtc.begin(&Wire)) {
             rtc.adjust(pendingRtcUpdate);
             Serial.print(F("[rtc_util] RTC updated successfully with time: "));
             Serial.println(pendingRtcUpdate.timestamp(DateTime::TIMESTAMP_FULL));
-            
+
             // Clear the pending update
-            needsRtcUpdate = false;
+            needsRtcUpdate   = false;
             pendingRtcUpdate = DateTime((uint32_t)0);
             return true;
         } else {
@@ -141,10 +142,10 @@ bool update_rtc_after_restart(const DateTime& dateTime) {
     } else if (dateTime.isValid()) {
         // Use the provided dateTime if no pending update
         Serial.println(F("[rtc_util] Updating RTC with provided time..."));
-        
+
         RTC_DS3231 rtc;
         // I2C should already be initialized by caller, don't reinitialize
-        
+
         if (rtc.begin(&Wire)) {
             rtc.adjust(dateTime);
             Serial.print(F("[rtc_util] RTC updated successfully with provided time: "));

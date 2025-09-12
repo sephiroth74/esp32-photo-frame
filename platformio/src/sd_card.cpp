@@ -700,7 +700,7 @@ bool sd_card::is_directory(const char* path) const {
         return false;
     }
 
-    if(!SD.exists(path)) {
+    if (!SD.exists(path)) {
         Serial.println("[sdcard] Directory does not exist.");
         return false;
     }

@@ -24,9 +24,9 @@
 
 namespace photo_frame {
 
-google_drive_toc_parser::google_drive_toc_parser(sd_card& sdCard, const char* tocFilePath)
-    : sdCard_(sdCard), tocFilePath_(tocFilePath) {
-}
+google_drive_toc_parser::google_drive_toc_parser(sd_card& sdCard, const char* tocFilePath) :
+    sdCard_(sdCard),
+    tocFilePath_(tocFilePath) {}
 
 time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
     if (error) {
@@ -58,7 +58,8 @@ time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
     // Parse "timestamp = <number>"
     int equalPos = line.indexOf('=');
     if (equalPos == -1) {
-        Serial.println(F("[google_drive_toc_parser] Invalid TOC format: missing '=' in timestamp line"));
+        Serial.println(
+            F("[google_drive_toc_parser] Invalid TOC format: missing '=' in timestamp line"));
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -121,7 +122,8 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
     // Parse "fileCount = <number>"
     int equalPos = line.indexOf('=');
     if (equalPos == -1) {
-        Serial.println(F("[google_drive_toc_parser] Invalid TOC format: missing '=' in fileCount line"));
+        Serial.println(
+            F("[google_drive_toc_parser] Invalid TOC format: missing '=' in fileCount line"));
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -143,7 +145,8 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
     return fileCount;
 }
 
-google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* error) {
+google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
+                                                             photo_frame_error_t* error) {
     Serial.print(F("[google_drive_toc_parser] Getting TOC file at index: "));
     Serial.println(index);
 
@@ -191,10 +194,11 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index, photo
     return parse_file_line(targetLine.c_str(), error);
 }
 
-google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename, photo_frame_error_t* error) {
+google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename,
+                                                            photo_frame_error_t* error) {
     Serial.print(F("[google_drive_toc_parser] Getting TOC file by name: "));
     Serial.println(filename);
-    
+
     if (error) {
         *error = error_type::None;
     }
@@ -213,27 +217,29 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
     while (file.available()) {
         String line = file.readStringUntil('\n');
         line.trim();
-        
+
         if (line.length() == 0) {
             continue;
         }
 
         // Parse line to get the name
         int pos1 = line.indexOf('|');
-        if (pos1 == -1) continue;
+        if (pos1 == -1)
+            continue;
 
         int pos2 = line.indexOf('|', pos1 + 1);
-        if (pos2 == -1) continue;
+        if (pos2 == -1)
+            continue;
 
         String name = line.substring(pos1 + 1, pos2);
-        
+
         // Check if this is the file we're looking for
         if (name.equals(filename)) {
             file.close();
 
             Serial.print(F("[google_drive_toc_parser] Found file by name: "));
             Serial.println(filename);
-            
+
             return parse_file_line(line.c_str(), error);
         }
     }
@@ -242,22 +248,22 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
 
     Serial.print(F("[google_drive_toc_parser] File not found by name: "));
     Serial.println(filename);
-    
+
     if (error) {
         *error = error_type::SdCardFileNotFound;
     }
-    
+
     return google_drive_file();
 }
 
-
-google_drive_file google_drive_toc_parser::parse_file_line(const char* line, photo_frame_error_t* error) {
+google_drive_file google_drive_toc_parser::parse_file_line(const char* line,
+                                                           photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
 
     String lineStr(line);
-    
+
     // Parse line: id|name
     int pos1 = lineStr.indexOf('|');
     if (pos1 == -1) {
@@ -268,7 +274,7 @@ google_drive_file google_drive_toc_parser::parse_file_line(const char* line, pho
         return google_drive_file("", "");
     }
 
-    String id = lineStr.substring(0, pos1);
+    String id   = lineStr.substring(0, pos1);
     String name = lineStr.substring(pos1 + 1);
 
     return google_drive_file(id, name);
