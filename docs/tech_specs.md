@@ -284,6 +284,8 @@ size_t list_files_streaming(const char* folderId, fs::File& tocFile, int pageSiz
 - `platformio/src/google_drive_client.cpp`: Streaming methods
 - `platformio/src/google_drive.cpp`: TOC streaming integration
 - `platformio/include/google_drive_client.h`: New streaming APIs
+- `platformio/src/io_utils.cpp`: File operations for shared SPI scenarios  
+- `platformio/src/datetime_utils.cpp`: Date and time formatting utilities
 
 **Key Functions**:
 - `list_files_streaming()`: Main streaming orchestrator
