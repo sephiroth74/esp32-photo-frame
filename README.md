@@ -1,13 +1,13 @@
 # Arduino E-Paper Photo Frame
 
-**esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from local SD card storage or Google Drive cloud storage on an e-paper (EPD) display, with features such as battery monitoring, real-time clock (RTC) support, and multi-language localization.
+**esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from Google Drive cloud storage on an e-paper (EPD) display, with features such as battery monitoring, real-time clock (RTC) support, and multi-language localization. The SD card is used for initial operations including local caching, configuration storage, and temporary files, then shut down before display operations to avoid SPI conflicts.
 
 <img src="assets/image001.jpg" alt="ESP32 Photo Frame Example" width="800" />
 
 ## Features
 
-- **Dual Image Sources**: Display images from SD card or Google Drive cloud storage
-- **Google Drive Integration**: Automatic image synchronization and caching from Google Drive folders
+- **Google Drive Integration**: Primary image source with automatic synchronization and caching from Google Drive folders
+- **SD Card Caching**: Local caching system for improved performance and offline capabilities
 - **Smart Image Processing**: Automatic resizing, annotation, and format conversion
 - **Weather Display**: Real-time weather information with configurable location, timezone, and update intervals
 - Battery voltage monitoring and reporting with power-saving modes
@@ -80,11 +80,9 @@
    
    **📋 [Complete Rust Processor Documentation](docs/rust-photoframe-processor.md)** - Comprehensive guide with AI features, font support, and performance optimization
 
-4. **Image Source Configuration**
+4. **Google Drive Configuration (Required)**
 
-   **Option A: Google Drive Integration (Recommended)**
-   
-   For cloud-based image storage and automatic synchronization:
+   Google Drive is the primary and only image source for the photo frame:
    
    - **First**, process your images using the tools above
    - Upload the processed `.bin` files to your Google Drive folder
@@ -123,14 +121,17 @@
    }
    ```
 
-   **Option B: Local SD Card Storage**
+   **SD Card Usage**
    
-   For offline image storage without cloud connectivity:
+   The SD card serves as initial storage for:
    
-   - **First**, process your images using the tools described in step 3 above
-   - Copy the processed `.bin` files directly to your SD card
-   - Insert the SD card into your ESP32 device
-   - The device will display images directly from local storage
+   - **Configuration Files**: Google Drive service account credentials (`google_drive_config.json`)
+   - **Image Caching**: Downloaded images are cached locally for improved performance
+   - **Weather Configuration**: Weather API settings and cached data
+   - **WiFi Credentials**: Network connection information
+   - **Temporary Files**: Processing and download temporary storage
+   
+   **Architecture Note**: The SD card is shut down after image operations complete to avoid SPI conflicts with the e-paper display. On shared SPI boards (e.g., FeatherS3), images are copied to LittleFS before display operations begin.
 
 5. **Binary to Image Conversion**
 

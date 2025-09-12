@@ -4,12 +4,10 @@ This document describes the complete flow and architecture of the ESP32 Photo Fr
 
 ## Project Overview
 
-The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information and weather display. It supports two main image sources:
-- **Local SD Card**: Images processed and stored locally
-- **Google Drive**: Cloud-based image storage with local caching
+The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information and weather display. It uses **Google Drive** as the primary image source with comprehensive local SD card caching for improved performance and offline capabilities.
 
 ### Key Features
-- **Dual image sources**: SD card and Google Drive cloud storage
+- **Google Drive cloud storage**: Primary image source with SD card caching
 - **Weather display**: Real-time weather overlay with configurable units and timezone
 - **Smart power management**: Battery-aware refresh intervals and features
 - **Status information**: Time, image count, battery level, and charging status
@@ -333,11 +331,9 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
    - Battery monitoring settings
    - WiFi and time settings
 
-### Phase 2: Image Source Configuration
+### Phase 2: Google Drive Configuration (Required)
 
-#### Option A: Google Drive Integration (Cloud-Based)
-
-#### 2A.1 Google Cloud Setup
+#### 2.1 Google Cloud Setup
 1. **Create Google Service Account**:
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Create new project or select existing
@@ -350,14 +346,8 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
    - Share with service account email
    - Note the folder ID from URL
 
-#### 2A.2 Device Configuration
-1. **Enable Google Drive** in board config:
-   ```cpp
-   #define USE_GOOGLE_DRIVE
-   #define GOOGLE_DRIVE_CONFIG_FILEPATH "/google_drive_config.json"
-   ```
-
-2. **Create Configuration File** on SD card (`/google_drive_config.json`):
+#### 2.2 Device Configuration
+1. **Create Configuration File** on SD card (`/google_drive_config.json`):
    ```json
    {
      "authentication": {
@@ -387,59 +377,21 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
    }
    ```
 
-#### Option B: Local SD Card Storage
-
-#### 2B.1 Image Processing with Scripts
-1. **Process Images** using `scripts/auto.sh`:
-   ```bash
-   # Black & white processing (800x480 display)
-   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
-   
-   # 6-color processing
-   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png --auto
-   ```
-
-2. **Script Features**:
-   - **Smart Orientation**: Handles portrait/landscape automatically
-   - **Image Combining**: Merges two portraits into landscape
-   - **Format Support**: JPG, PNG, HEIC, and other formats
-   - **Annotation**: Adds filename overlays
-   - **Binary Output**: Generates .bmp and .bin files
-   - **Color Modes**: BW and 6-color e-paper support
-
-#### 2B.2 Android App Processing
-1. **Install Android App**: Build and install `android/PhotoFrameProcessor/`
-
-2. **Process Images**:
-   - Select photos from gallery or share from other apps
-   - App analyzes images for orientation and person detection
-   - **Portrait Images**: Automatically paired and combined side-by-side
-   - **Landscape Images**: Smart-cropped to focus on detected persons
-   - **Person Detection**: Uses MobileNet model for intelligent cropping
-
-3. **Generated Files**:
-   - **Binary Files** (`.bin`): 8-bit color format for ESP32
-   - **Preview Files** (`.bmp`): Visual previews for verification
-   - **File Naming**: Based on original filenames, sanitized for filesystem
-
-4. **File Format Details**:
-   - **Target Resolution**: 800x480 pixels
-   - **Color Format**: 8-bit RRRGGGBB (3-3-2 bits)
-   - **Processing**: Grayscale conversion + Floyd-Steinberg dithering
-   - **Output**: Raw binary data matching ESP32 expectations
+**Note**: All images must be processed before uploading to Google Drive using either the provided scripts, Android app, or Rust tools to convert them to the ESP32-compatible binary format.
 
 ### Phase 3: Device Configuration
 
 #### 3.1 SD Card Setup
+The SD card is used for configuration files, certificates, and Google Drive caching.
+
 1. **Required Files**:
    ```
    /wifi.txt              # WiFi credentials (SSID:PASSWORD)
-   /google_drive_config.json  # Google Drive config (if using cloud)
+   /google_drive_config.json  # Google Drive configuration (required)
    /weather.json             # Weather display configuration (optional)
    /certs/google_root_ca.pem  # SSL certificate (if using secure TLS)
-   /bin-bw/               # Binary image files directory
-   /gdrive/cache/         # Google Drive cache directory
-   /gdrive/temp/          # Google Drive temporary files
+   /gdrive/cache/         # Google Drive cache directory (auto-created)
+   /gdrive/temp/          # Google Drive temporary files (auto-created)
    ```
 
 2. **WiFi Configuration** (`/wifi.txt`):
@@ -524,20 +476,10 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
    - Download if not cached or in battery conservation mode
    - Set image source flag (local cache vs cloud)
 
-##### Local SD Card Workflow (Lines 383-444):
-1. **TOC File Management**:
-   ```cpp
-   if (write_toc || !sdCard.file_exists(TOC_FILENAME)) {
-     error = sdCard.write_images_toc(&total_files, TOC_FILENAME, SD_DIRNAME, LOCAL_FILE_EXTENSION);
-   }
-   ```
-
-2. **Random Selection**:
-   ```cpp
-   image_index = random(0, total_files);
-   String image_file_path = sdCard.get_toc_file_path(image_index);
-   file = sdCard.open(image_file_path.c_str(), FILE_READ);
-   ```
+6. **Storage Optimization for Display Operations**:
+   - **Shared SPI Boards** (e.g., FeatherS3): Copy image from SD card to LittleFS using `io_utils::copy_sd_to_littlefs()`
+   - **All Boards**: SD card is shut down after image operations complete to avoid SPI conflicts with e-paper display
+   - **File Access**: Images accessed from LittleFS (shared SPI) or remain cached for later access (non-shared SPI)
 
 #### 4.3 Display Update Process (Lines 464-574)
 

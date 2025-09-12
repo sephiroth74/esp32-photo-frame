@@ -34,6 +34,7 @@
 #include "rtc_util.h"
 #include "sd_card.h"
 #include "spi_manager.h"
+#include "io_utils.h"
 #include "string_utils.h"
 #include "wifi_manager.h"
 #ifdef USE_WEATHER
@@ -367,58 +368,58 @@ void setup()
                         Serial.print(F("Selected file: "));
                         Serial.println(selectedFile.name);
 
-#ifdef USE_SHARED_SPI
-                        // In shared SPI mode, download directly to LittleFS to enable early SD card closure
-                        // Use .tmp extension to match existing cleanup pattern
-                        String littlefsPath = "/temp_image.tmp";
-                        
-                        // Check battery level before downloading file
-                        if (batteryConservationMode) {
-                            Serial.print(
-                                F("Skipping file download due to critical battery level ("));
-                            Serial.print(battery_info.percent);
-                            Serial.println(F("%) - will use cached files if available"));
-                            error = photo_frame::error_type::BatteryLevelCritical;
-                        } else {
-                            // Download directly to LittleFS - much more efficient!
-                            file = drive.download_file_to_littlefs(selectedFile, littlefsPath, &error);
-                            // Note: image source is set to IMAGE_SOURCE_CLOUD inside download_file_to_littlefs
-                        }
-#else // !USE_SHARED_SPI
-                        // Standard mode: use SD card cache
+                        // Always download to SD card first for better caching
                         String localFilePath = drive.get_cached_file_path(selectedFile.name);
                         if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
-                            Serial.println(
-                                F("File already exists in SD card, using cached version"));
+                            Serial.println(F("File already exists in SD card, using cached version"));
                             file = sdCard.open(localFilePath.c_str(), FILE_READ);
                             drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
                         } else {
                             // Check battery level before downloading file
                             if (batteryConservationMode) {
-                                Serial.print(
-                                    F("Skipping file download due to critical battery level ("));
+                                Serial.print(F("Skipping file download due to critical battery level ("));
                                 Serial.print(battery_info.percent);
                                 Serial.println(F("%) - will use cached files if available"));
                                 error = photo_frame::error_type::BatteryLevelCritical;
                             } else {
-                                // Download the selected file using the new google_drive class
+                                // Download the selected file to SD card
                                 file = drive.download_file(selectedFile, &error);
                                 // Note: image source is set to IMAGE_SOURCE_CLOUD inside download_file
                             }
                         }
+
+#ifdef USE_SHARED_SPI
+                        // For shared SPI mode: copy file from SD card to LittleFS, then shutdown SD card
+                        if (error == photo_frame::error_type::None && file) {
+                            String littlefsPath = "/temp_image.tmp";
+                            
+                            // Use utility function to copy file to LittleFS
+                            error = photo_frame::io_utils::copy_sd_to_littlefs(file, littlefsPath);
+                            
+                            // Always close the SD card file after copy attempt (success or failure)
+                            file.close();
+                            
+                            if (error == photo_frame::error_type::None) {
+                                // Copy successful - shutdown SD card and open LittleFS file
+                                Serial.println(F("Shutting down SD card after successful copy to LittleFS"));
+                                
+                                // Open the LittleFS file for reading
+                                file = LittleFS.open(littlefsPath.c_str(), FILE_READ);
+                                if (!file) {
+                                    Serial.println(F("Failed to open LittleFS file for reading"));
+                                    error = photo_frame::error_type::LittleFSFileOpenFailed;
+                                }
+                            }
+                        }
+
+                        // Always close the SD card after the http operations are complete as we now need to use e-paper display
+                        sdCard.end();
 #endif // USE_SHARED_SPI
                     } else {
                         Serial.print(F("Failed to get file by index. Error code: "));
                         Serial.println(tocError.code);
                         error = tocError;
                     }
-
-#ifdef USE_SHARED_SPI
-                    // Close SD card early since we'll download directly to LittleFS
-                    // This saves significant power during download and rendering phases
-                    Serial.println(F("Closing SD card early - TOC operations complete, switching to LittleFS"));
-                    sdCard.end();
-#endif // USE_SHARED_SPI
 
                     if (error == photo_frame::error_type::None && file) {
                         Serial.println(F("File downloaded and ready for display!"));

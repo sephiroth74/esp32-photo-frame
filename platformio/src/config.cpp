@@ -124,10 +124,6 @@
 #endif // BATTERY_DELAY_BETWEEN_READINGS
 #endif // USE_SENSOR_MAX1704X
 
-#ifndef SD_DIRNAME
-#error "SD_DIRNAME must be defined"
-#endif // SD_DIRNAME
-
 //
 // Define the file extension and directory name based on the display type and EPD_USE_BINARY_FILE
 // setting
