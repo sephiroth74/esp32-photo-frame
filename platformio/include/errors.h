@@ -525,38 +525,71 @@ namespace error_utils {
 
 // Function declarations - implementations are in errors.cpp
 photo_frame_error map_http_status_to_error(int statusCode, const char* context = nullptr);
-photo_frame_error map_google_drive_error(int statusCode, const char* responseBody = nullptr, const char* context = nullptr);
+photo_frame_error map_google_drive_error(int statusCode,
+                                         const char* responseBody = nullptr,
+                                         const char* context      = nullptr);
 photo_frame_error create_oauth_error(const char* errorType, const char* context = nullptr);
-photo_frame_error create_image_error(const char* errorType, const char* filename = nullptr, 
-                                    const char* dimensions = nullptr, const char* context = nullptr);
-photo_frame_error validate_image_dimensions(int width, int height, int maxWidth, int maxHeight, 
+photo_frame_error create_image_error(const char* errorType,
+                                     const char* filename   = nullptr,
+                                     const char* dimensions = nullptr,
+                                     const char* context    = nullptr);
+photo_frame_error validate_image_dimensions(int width,
+                                            int height,
+                                            int maxWidth,
+                                            int maxHeight,
                                             const char* filename = nullptr);
-photo_frame_error validate_image_file_size(size_t fileSize, size_t expectedMinSize, size_t expectedMaxSize,
+photo_frame_error validate_image_file_size(size_t fileSize,
+                                           size_t expectedMinSize,
+                                           size_t expectedMaxSize,
                                            const char* filename = nullptr);
 
 // Battery/Power error helper functions
-photo_frame_error create_battery_error(const char* errorType, float voltage = -1, float percentage = -1, 
-                                      float temperature = -999, const char* context = nullptr);
-photo_frame_error validate_battery_voltage(float voltage, float minVoltage, float maxVoltage, 
+photo_frame_error create_battery_error(const char* errorType,
+                                       float voltage       = -1,
+                                       float percentage    = -1,
+                                       float temperature   = -999,
+                                       const char* context = nullptr);
+photo_frame_error validate_battery_voltage(float voltage,
+                                           float minVoltage,
+                                           float maxVoltage,
                                            const char* context = nullptr);
-photo_frame_error validate_battery_temperature(float temperature, float minTemp, float maxTemp, 
+photo_frame_error validate_battery_temperature(float temperature,
+                                               float minTemp,
+                                               float maxTemp,
                                                const char* context = nullptr);
-photo_frame_error create_charging_error(const char* errorType, float current = -1, float voltage = -1, 
+photo_frame_error create_charging_error(const char* errorType,
+                                        float current       = -1,
+                                        float voltage       = -1,
                                         const char* context = nullptr);
-photo_frame_error create_power_supply_error(const char* errorType, float voltage = -1, float current = -1, 
+photo_frame_error create_power_supply_error(const char* errorType,
+                                            float voltage       = -1,
+                                            float current       = -1,
                                             const char* context = nullptr);
 
 // Display error helper functions
-photo_frame_error create_display_error(const char* errorType, int width = -1, int height = -1, 
-                                      const char* displayMode = nullptr, const char* context = nullptr);
-photo_frame_error create_epaper_error(const char* errorType, int refreshCount = -1, float temperature = -999, 
-                                     const char* waveform = nullptr, const char* context = nullptr);
-photo_frame_error validate_display_resolution(int width, int height, int maxWidth, int maxHeight, 
+photo_frame_error create_display_error(const char* errorType,
+                                       int width               = -1,
+                                       int height              = -1,
+                                       const char* displayMode = nullptr,
+                                       const char* context     = nullptr);
+photo_frame_error create_epaper_error(const char* errorType,
+                                      int refreshCount     = -1,
+                                      float temperature    = -999,
+                                      const char* waveform = nullptr,
+                                      const char* context  = nullptr);
+photo_frame_error validate_display_resolution(int width,
+                                              int height,
+                                              int maxWidth,
+                                              int maxHeight,
                                               const char* context = nullptr);
-photo_frame_error validate_display_refresh_rate(float refreshRate, float minRate, float maxRate, 
+photo_frame_error validate_display_refresh_rate(float refreshRate,
+                                                float minRate,
+                                                float maxRate,
                                                 const char* context = nullptr);
-photo_frame_error create_display_rendering_error(const char* errorType, size_t bufferSize = 0, 
-                                                size_t memoryUsed = 0, const char* operation = nullptr, 
+photo_frame_error create_display_rendering_error(const char* errorType,
+                                                 size_t bufferSize     = 0,
+                                                 size_t memoryUsed     = 0,
+                                                 const char* operation = nullptr,
                                                  const char* context   = nullptr);
 
 } // namespace error_utils

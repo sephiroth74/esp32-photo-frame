@@ -288,7 +288,8 @@
 // Google Drive Configuration File
 // -------------------------------------------
 //
-// Create a JSON file at the path specified by GOOGLE_DRIVE_CONFIG_FILEPATH with the following structure:
+// Create a JSON file at the path specified by GOOGLE_DRIVE_CONFIG_FILEPATH with the following
+// structure:
 //
 // clang-format off
 // {
