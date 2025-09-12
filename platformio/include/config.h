@@ -174,9 +174,6 @@
 // When is defined, the display will use a binary files instead of regular bmp files.
 // #define EPD_USE_BINARY_FILE
 
-// Base directory for the SD card where the images are stored, based on the display type and the
-// value of EPD_USE_BINARY_FILE #define SD_DIRNAME "/bin-bw"
-
 // Forces the display to use the debug image instead of random from toc
 // #define DEBUG_IMAGE_INDEX 381
 

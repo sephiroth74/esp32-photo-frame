@@ -74,6 +74,62 @@ int format_datetime(char* buffer, size_t buffer_size, const time_t& timeinfo, co
     return strftime(buffer, buffer_size, format, tm_info);
 }
 
+int format_duration(char* buffer, size_t buffer_size, long seconds) {
+    if (!buffer || buffer_size == 0) {
+        return -1;
+    }
+
+    if (seconds <= 0) {
+        buffer[0] = '\0';
+        return 0;
+    }
+
+    // Calculate time components
+    long hours = seconds / 3600;
+    long minutes = (seconds % 3600) / 60;
+    long remaining_seconds = seconds % 60;
+
+    // Build format string and collect non-zero components
+    char temp_buffer[32]; // Temporary buffer for building the string
+    int pos = 0;
+    bool has_previous = false;
+
+    // Add hours if present
+    if (hours > 0) {
+        pos += snprintf(temp_buffer + pos, sizeof(temp_buffer) - pos, "%ldh", hours);
+        has_previous = true;
+    }
+
+    // Add minutes if present
+    if (minutes > 0) {
+        if (has_previous && pos < sizeof(temp_buffer) - 1) {
+            temp_buffer[pos++] = ' ';
+        }
+        pos += snprintf(temp_buffer + pos, sizeof(temp_buffer) - pos, "%ldm", minutes);
+        has_previous = true;
+    }
+
+    // Add seconds if present
+    if (remaining_seconds > 0) {
+        if (has_previous && pos < sizeof(temp_buffer) - 1) {
+            temp_buffer[pos++] = ' ';
+        }
+        pos += snprintf(temp_buffer + pos, sizeof(temp_buffer) - pos, "%lds", remaining_seconds);
+    }
+
+    // Ensure null termination
+    if (pos >= sizeof(temp_buffer)) {
+        pos = sizeof(temp_buffer) - 1;
+    }
+    temp_buffer[pos] = '\0';
+
+    // Copy to output buffer
+    int result = snprintf(buffer, buffer_size, "%s", temp_buffer);
+    
+    // Return number of characters that would be written (or -1 if truncated)
+    return (result >= 0 && result < (int)buffer_size) ? result : -1;
+}
+
 } // namespace datetime_utils
 
 } // namespace photo_frame

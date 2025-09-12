@@ -4,7 +4,7 @@
 // Pin definitions based on FeatherS3 pinout
 // https://feathers3.io/pinout.html
 
-#define USE_SHARED_SPI // Use shared SPI for SD card and display
+// #define USE_SHARED_SPI // Use shared SPI for SD card and display
 
 // Pin definitions for FeatherS3
 // SD Card - using SPI pins
@@ -94,7 +94,6 @@
 // Miscellaneous
 #define DEBUG_MODE 1
 #define EPD_USE_BINARY_FILE
-#define SD_DIRNAME "/bin-bw"
 
 // Reset handling
 #define RESET_INVALIDATES_DATE_TIME 1

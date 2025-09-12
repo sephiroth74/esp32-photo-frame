@@ -704,39 +704,19 @@ namespace renderer {
         photo_frame::datetime_utils::format_datetime(
             dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate);
 
-        // format the refresh time string in the format "Refresh: 0' 0" (e.g. "Refresh: 10' 30")
-        String refreshStr = "";
-        if (refresh_seconds > 0) {
-            long hours = refresh_seconds / 3600; // Calculate hours
-            long minutes = refresh_seconds / 60; // Calculate minutes
-            long seconds = refresh_seconds % 60; // Calculate remaining seconds
+        // Format the refresh time using datetime_utils
+        char refreshBuffer[16] = { 0 }; // Buffer for refresh time string (e.g., "2h 30m")
+        photo_frame::datetime_utils::format_duration(refreshBuffer, sizeof(refreshBuffer), refresh_seconds);
 
-            if (hours > 0) {
-                refreshStr += String(hours) + "h"; // Append hours with a single quote
-                minutes -= hours * 60; // Adjust minutes after calculating hours
-                seconds -= hours * 3600; // Adjust seconds after calculating hours
-            }
-
-            if (minutes > 0) {
-                if (refreshStr.length() > 0) {
-                    refreshStr += " "; // Add space if hours were added
-                }
-                refreshStr += String(minutes) + "m"; // Append minutes with a single quote
-                seconds -= minutes * 60; // Adjust seconds after calculating minutes
-            }
-
-            if (seconds > 0) {
-                if (refreshStr.length() > 0) {
-                    refreshStr += " "; // Add space if minutes were added
-                }
-                refreshStr += String(seconds) + "s"; // Append seconds with a double quote
-            }
+        // Build the complete last update string
+        char lastUpdateBuffer[64] = { 0 };
+        if (refreshBuffer[0] != '\0') {
+            snprintf(lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s (%s)", dateTimeBuffer, refreshBuffer);
+        } else {
+            snprintf(lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s", dateTimeBuffer);
         }
 
-        String lastUpdateStr = String(dateTimeBuffer) + (refreshStr ? " (" + String(refreshStr) + ")" : "");
-
-        draw_side_message_with_icon(
-            gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateStr.c_str(), 0, -2);
+        draw_side_message_with_icon(gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateBuffer, 0, -2);
     } // end drawLastUpdate
 
     void draw_side_message(gravity_t gravity, const char* message, int32_t x_offset, int32_t y_offset)
