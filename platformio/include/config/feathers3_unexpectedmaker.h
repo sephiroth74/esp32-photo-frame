@@ -8,19 +8,19 @@
 
 // Pin definitions for FeatherS3
 // SD Card - using SPI pins
-#define SD_CS_PIN   5    // Available digital pin
-#define SD_MISO_PIN 37   // SPI MISO
-#define SD_MOSI_PIN 35   // SPI MOSI  
-#define SD_SCK_PIN  36   // SPI SCK
+#define SD_CS_PIN   5  // Available digital pin
+#define SD_MISO_PIN 37 // SPI MISO
+#define SD_MOSI_PIN 35 // SPI MOSI
+#define SD_SCK_PIN  36 // SPI SCK
 
 // e-Paper Display - using SPI pins (shared with SD card)
-#define EPD_BUSY_PIN 6   // Available digital pin
-#define EPD_RST_PIN  7   // Available digital pin
-#define EPD_DC_PIN   8   // Available digital pin  
-#define EPD_CS_PIN   4   // Available digital pin
-#define EPD_SCK_PIN  36  // Shared SPI SCK
-#define EPD_MOSI_PIN 35  // Shared SPI MOSI
-#define EPD_MISO_PIN 37  // Shared SPI MISO
+#define EPD_BUSY_PIN 6  // Available digital pin
+#define EPD_RST_PIN  7  // Available digital pin
+#define EPD_DC_PIN   8  // Available digital pin
+#define EPD_CS_PIN   4  // Available digital pin
+#define EPD_SCK_PIN  36 // Shared SPI SCK
+#define EPD_MOSI_PIN 35 // Shared SPI MOSI
+#define EPD_MISO_PIN 37 // Shared SPI MISO
 
 // Potentiometer pin - using analog pins
 #define POTENTIOMETER_PWR_PIN   10   // Digital pin for power control
@@ -28,18 +28,18 @@
 #define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC
 
 // Battery monitoring - FeatherS3 has built-in battery voltage divider
-#define BATTERY_PIN                    A13  // Built-in battery voltage pin (GPIO13)
+#define BATTERY_PIN                    A13 // Built-in battery voltage pin (GPIO13)
 #define BATTERY_NUM_READINGS           100
 #define BATTERY_DELAY_BETWEEN_READINGS 10
-#define BATTERY_RESISTORS_RATIO        0.5   // FeatherS3 built-in divider ratio
+#define BATTERY_RESISTORS_RATIO        0.5 // FeatherS3 built-in divider ratio
 
 // RTC module - ESP32-S3 doesn't have I2C/WiFi issues, so RTC is enabled
 #define USE_RTC
-#define RTC_SDA_PIN 8    // I2C SDA (can share with EPD_DC_PIN with proper sequencing)
-#define RTC_SCL_PIN 9    // I2C SCL
+#define RTC_SDA_PIN 8 // I2C SDA (can share with EPD_DC_PIN with proper sequencing)
+#define RTC_SCL_PIN 9 // I2C SCL
 
 // Alternative I2C pins if conflicts arise
-// #define RTC_SDA_PIN 41  // Alternative I2C SDA  
+// #define RTC_SDA_PIN 41  // Alternative I2C SDA
 // #define RTC_SCL_PIN 40  // Alternative I2C SCL
 
 // MAX1704X battery sensor option (alternative to voltage divider)
@@ -53,13 +53,13 @@
 #undef LED_BUILTIN
 #endif // LED_BUILTIN
 
-#define LED_BUILTIN 13  // FeatherS3 RGB LED (NeoPixel)
+#define LED_BUILTIN 13 // FeatherS3 RGB LED (NeoPixel)
 
 // External wakeup configuration
 #define WAKEUP_EXT1
 // Use available RTC GPIO pin for wakeup
 #define WAKEUP_PIN      GPIO_NUM_3
-#define WAKEUP_PIN_MODE INPUT_PULLDOWN  
+#define WAKEUP_PIN_MODE INPUT_PULLDOWN
 #define WAKEUP_LEVEL    ESP_EXT1_WAKEUP_ANY_HIGH
 
 // ESP32-S3 has many RTC IO pins available for deep sleep wakeup
@@ -69,7 +69,7 @@
 #define BATTERY_POWER_SAVING
 
 // Delay before going to sleep in milliseconds
-#define DELAY_BEFORE_SLEEP 10000  // Reduced since no I2C/WiFi conflicts
+#define DELAY_BEFORE_SLEEP 10000 // Reduced since no I2C/WiFi conflicts
 
 // WiFi configuration
 #define WIFI_FILENAME "/wifi.txt"
@@ -78,9 +78,9 @@
 #define TOC_FILENAME "/toc.txt"
 
 // Network timeouts - can be more aggressive since ESP32-S3 is more stable
-#define WIFI_CONNECT_TIMEOUT 8000   // Reduced timeout
+#define WIFI_CONNECT_TIMEOUT 8000 // Reduced timeout
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
-#define NTP_TIMEOUT          10000  // Reduced timeout
+#define NTP_TIMEOUT          10000 // Reduced timeout
 #define NTP_SERVER1          "pool.ntp.org"
 #define NTP_SERVER2          "time.nist.gov"
 
@@ -99,10 +99,10 @@
 #define RESET_INVALIDATES_DATE_TIME 1
 
 // Refresh intervals - can be more frequent due to better power management
-#define REFRESH_MIN_INTERVAL_SECONDS         (5 * SECONDS_IN_MINUTE)   // More frequent
+#define REFRESH_MIN_INTERVAL_SECONDS         (5 * SECONDS_IN_MINUTE) // More frequent
 #define REFRESH_MAX_INTERVAL_SECONDS         (4 * SECONDS_IN_HOUR)
-#define REFRESH_STEP_SECONDS                 (5 * SECONDS_IN_MINUTE)   // Finer steps
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)    // Less conservative
+#define REFRESH_STEP_SECONDS                 (5 * SECONDS_IN_MINUTE) // Finer steps
+#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)   // Less conservative
 
 #define DAY_START_HOUR                       06 // Hour when the day starts (6 AM)
 #define DAY_END_HOUR                         23 // Hour when the day ends (11 PM)
@@ -110,7 +110,7 @@
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 // LOCALE
-#define LOCALE en_US  // Default to English for new configuration
+#define LOCALE en_US // Default to English for new configuration
 
 // Google Drive integration - fully enabled since no I2C/WiFi conflicts
 // Google Drive is now enabled globally in config.h

@@ -23,9 +23,9 @@
 #ifndef __PHOTO_FRAME_ERRORS_H__
 #define __PHOTO_FRAME_ERRORS_H__
 
+#include "_locale.h"
 #include <Arduino.h>
 #include <cstdint>
-#include "_locale.h"
 
 // Forward declarations
 class String;
@@ -36,24 +36,24 @@ namespace photo_frame {
  * @brief Error severity levels for granular error reporting.
  */
 enum error_severity {
-    ERROR_SEVERITY_INFO = 0,      ///< Informational messages
-    ERROR_SEVERITY_WARNING = 1,   ///< Warning conditions
-    ERROR_SEVERITY_ERROR = 2,     ///< Error conditions
-    ERROR_SEVERITY_CRITICAL = 3   ///< Critical system errors
+    ERROR_SEVERITY_INFO     = 0, ///< Informational messages
+    ERROR_SEVERITY_WARNING  = 1, ///< Warning conditions
+    ERROR_SEVERITY_ERROR    = 2, ///< Error conditions
+    ERROR_SEVERITY_CRITICAL = 3  ///< Critical system errors
 };
 
 /**
  * @brief Error categories for better error classification.
  */
 enum error_category {
-    ERROR_CATEGORY_GENERAL = 0,      ///< General errors
-    ERROR_CATEGORY_NETWORK = 1,      ///< Network/WiFi related errors
-    ERROR_CATEGORY_STORAGE = 2,      ///< SD card/file system errors
-    ERROR_CATEGORY_HARDWARE = 3,     ///< Hardware component errors
-    ERROR_CATEGORY_CONFIG = 4,       ///< Configuration validation errors
+    ERROR_CATEGORY_GENERAL        = 0, ///< General errors
+    ERROR_CATEGORY_NETWORK        = 1, ///< Network/WiFi related errors
+    ERROR_CATEGORY_STORAGE        = 2, ///< SD card/file system errors
+    ERROR_CATEGORY_HARDWARE       = 3, ///< Hardware component errors
+    ERROR_CATEGORY_CONFIG         = 4, ///< Configuration validation errors
     ERROR_CATEGORY_AUTHENTICATION = 5, ///< Authentication/JWT errors
-    ERROR_CATEGORY_BATTERY = 6,      ///< Battery related errors
-    ERROR_CATEGORY_DISPLAY = 7       ///< Display/rendering errors
+    ERROR_CATEGORY_BATTERY        = 6, ///< Battery related errors
+    ERROR_CATEGORY_DISPLAY        = 7  ///< Display/rendering errors
 };
 
 /**
@@ -65,20 +65,20 @@ enum error_category {
  */
 typedef class photo_frame_error {
   public:
-    const char* message;     ///< Human-readable error message
-    uint16_t code;          ///< Numeric error code for identification
-    
+    const char* message; ///< Human-readable error message
+    uint16_t code;       ///< Numeric error code for identification
+
     // Enhanced fields for granular reporting
     error_severity severity; ///< Error severity level
     error_category category; ///< Error category for classification
-    uint32_t timestamp;     ///< When error occurred (millis())
-    const char* context;    ///< Additional context/details
+    uint32_t timestamp;      ///< When error occurred (millis())
+    const char* context;     ///< Additional context/details
     const char* source_file; ///< Source file where error occurred
-    uint16_t source_line;   ///< Source line where error occurred
+    uint16_t source_line;    ///< Source line where error occurred
 
     // Default constructor - backward compatible
-    photo_frame_error() : 
-        message(TXT_NO_ERROR), 
+    photo_frame_error() :
+        message(TXT_NO_ERROR),
         code(0),
         severity(ERROR_SEVERITY_INFO),
         category(ERROR_CATEGORY_GENERAL),
@@ -112,11 +112,13 @@ typedef class photo_frame_error {
      * @param file Source file name (optional)
      * @param line Source line number (optional)
      */
-    constexpr photo_frame_error(const char* msg, uint16_t err_code, 
-                               error_severity sev, error_category cat,
-                               const char* ctx = nullptr,
-                               const char* file = nullptr,
-                               uint16_t line = 0) :
+    constexpr photo_frame_error(const char* msg,
+                                uint16_t err_code,
+                                error_severity sev,
+                                error_category cat,
+                                const char* ctx  = nullptr,
+                                const char* file = nullptr,
+                                uint16_t line    = 0) :
         message(msg),
         code(err_code),
         severity(sev),
@@ -140,16 +142,12 @@ typedef class photo_frame_error {
      * @param other Another photo_frame_error to compare with
      * @return True if errors are different (opposite of operator==)
      */
-    constexpr bool operator!=(const photo_frame_error& other) const { 
-        return !(*this == other); 
-    }
+    constexpr bool operator!=(const photo_frame_error& other) const { return !(*this == other); }
 
     /**
      * @brief Set the timestamp to current time.
      */
-    void set_timestamp() {
-        timestamp = millis();
-    }
+    void set_timestamp() { timestamp = millis(); }
 
     /**
      * @brief Log detailed error information to Serial.
@@ -164,19 +162,19 @@ typedef class photo_frame_error {
         Serial.print(category_to_string());
         Serial.print(F("): "));
         Serial.println(message);
-        
+
         if (context) {
             Serial.print(F("  Context: "));
             Serial.println(context);
         }
-        
+
         if (source_file && source_line > 0) {
             Serial.print(F("  Location: "));
             Serial.print(source_file);
             Serial.print(F(":"));
             Serial.println(source_line);
         }
-        
+
         if (timestamp > 0) {
             Serial.print(F("  Time: "));
             Serial.print(timestamp);
@@ -201,22 +199,20 @@ typedef class photo_frame_error {
      * @brief Check if this is a critical error.
      * @return True if error is critical
      */
-    bool is_critical() const {
-        return severity == ERROR_SEVERITY_CRITICAL;
-    }
+    bool is_critical() const { return severity == ERROR_SEVERITY_CRITICAL; }
 
-private:
+  private:
     /**
      * @brief Convert severity enum to string.
      * @return String representation of severity
      */
     const char* severity_to_string() const {
         switch (severity) {
-            case ERROR_SEVERITY_INFO: return "INFO";
-            case ERROR_SEVERITY_WARNING: return "WARN";
-            case ERROR_SEVERITY_ERROR: return "ERROR";
-            case ERROR_SEVERITY_CRITICAL: return "CRITICAL";
-            default: return "UNKNOWN";
+        case ERROR_SEVERITY_INFO:     return "INFO";
+        case ERROR_SEVERITY_WARNING:  return "WARN";
+        case ERROR_SEVERITY_ERROR:    return "ERROR";
+        case ERROR_SEVERITY_CRITICAL: return "CRITICAL";
+        default:                      return "UNKNOWN";
         }
     }
 
@@ -226,25 +222,25 @@ private:
      */
     const char* category_to_string() const {
         switch (category) {
-            case ERROR_CATEGORY_GENERAL: return "General";
-            case ERROR_CATEGORY_NETWORK: return "Network";
-            case ERROR_CATEGORY_STORAGE: return "Storage";
-            case ERROR_CATEGORY_HARDWARE: return "Hardware";
-            case ERROR_CATEGORY_CONFIG: return "Config";
-            case ERROR_CATEGORY_AUTHENTICATION: return "Auth";
-            case ERROR_CATEGORY_BATTERY: return "Battery";
-            case ERROR_CATEGORY_DISPLAY: return "Display";
-            default: return "Unknown";
+        case ERROR_CATEGORY_GENERAL:        return "General";
+        case ERROR_CATEGORY_NETWORK:        return "Network";
+        case ERROR_CATEGORY_STORAGE:        return "Storage";
+        case ERROR_CATEGORY_HARDWARE:       return "Hardware";
+        case ERROR_CATEGORY_CONFIG:         return "Config";
+        case ERROR_CATEGORY_AUTHENTICATION: return "Auth";
+        case ERROR_CATEGORY_BATTERY:        return "Battery";
+        case ERROR_CATEGORY_DISPLAY:        return "Display";
+        default:                            return "Unknown";
         }
     }
 } photo_frame_error_t;
 
 // Helper macros for creating enhanced errors with location info
-#define MAKE_ERROR(msg, code, sev, cat) \
-  photo_frame_error(msg, (uint16_t)(code), sev, cat, nullptr, __FILE__, __LINE__)
+#define MAKE_ERROR(msg, code, sev, cat)                                                            \
+    photo_frame_error(msg, (uint16_t)(code), sev, cat, nullptr, __FILE__, __LINE__)
 
-#define MAKE_ERROR_WITH_CONTEXT(msg, code, sev, cat, ctx) \
-  photo_frame_error(msg, (uint16_t)(code), sev, cat, ctx, __FILE__, __LINE__)
+#define MAKE_ERROR_WITH_CONTEXT(msg, code, sev, cat, ctx)                                          \
+    photo_frame_error(msg, (uint16_t)(code), sev, cat, ctx, __FILE__, __LINE__)
 
 /**
  * @brief Namespace containing predefined error instances.
@@ -254,6 +250,7 @@ private:
  * message, code, severity, and category for consistent error handling.
  */
 namespace error_type {
+// clang-format off
 // No error
 const photo_frame_error None{TXT_NO_ERROR, 0, ERROR_SEVERITY_INFO, ERROR_CATEGORY_GENERAL};
 
@@ -518,6 +515,7 @@ const photo_frame_error DisplayModeNotSupported{TXT_DISPLAY_MODE_NOT_SUPPORTED, 
 const photo_frame_error DisplayCalibrationRequired{TXT_DISPLAY_CALIBRATION_REQUIRED, 259, ERROR_SEVERITY_INFO, ERROR_CATEGORY_DISPLAY};
 
 // Add more errors here
+// clang-format on
 } // namespace error_type
 
 /**
@@ -532,21 +530,21 @@ photo_frame_error create_oauth_error(const char* errorType, const char* context 
 photo_frame_error create_image_error(const char* errorType, const char* filename = nullptr, 
                                     const char* dimensions = nullptr, const char* context = nullptr);
 photo_frame_error validate_image_dimensions(int width, int height, int maxWidth, int maxHeight, 
-                                          const char* filename = nullptr);
+                                            const char* filename = nullptr);
 photo_frame_error validate_image_file_size(size_t fileSize, size_t expectedMinSize, size_t expectedMaxSize,
-                                          const char* filename = nullptr);
+                                           const char* filename = nullptr);
 
 // Battery/Power error helper functions
 photo_frame_error create_battery_error(const char* errorType, float voltage = -1, float percentage = -1, 
                                       float temperature = -999, const char* context = nullptr);
 photo_frame_error validate_battery_voltage(float voltage, float minVoltage, float maxVoltage, 
-                                          const char* context = nullptr);
-photo_frame_error validate_battery_temperature(float temperature, float minTemp, float maxTemp, 
-                                              const char* context = nullptr);
-photo_frame_error create_charging_error(const char* errorType, float current = -1, float voltage = -1, 
-                                       const char* context = nullptr);
-photo_frame_error create_power_supply_error(const char* errorType, float voltage = -1, float current = -1, 
                                            const char* context = nullptr);
+photo_frame_error validate_battery_temperature(float temperature, float minTemp, float maxTemp, 
+                                               const char* context = nullptr);
+photo_frame_error create_charging_error(const char* errorType, float current = -1, float voltage = -1, 
+                                        const char* context = nullptr);
+photo_frame_error create_power_supply_error(const char* errorType, float voltage = -1, float current = -1, 
+                                            const char* context = nullptr);
 
 // Display error helper functions
 photo_frame_error create_display_error(const char* errorType, int width = -1, int height = -1, 
@@ -554,12 +552,12 @@ photo_frame_error create_display_error(const char* errorType, int width = -1, in
 photo_frame_error create_epaper_error(const char* errorType, int refreshCount = -1, float temperature = -999, 
                                      const char* waveform = nullptr, const char* context = nullptr);
 photo_frame_error validate_display_resolution(int width, int height, int maxWidth, int maxHeight, 
-                                             const char* context = nullptr);
+                                              const char* context = nullptr);
 photo_frame_error validate_display_refresh_rate(float refreshRate, float minRate, float maxRate, 
-                                               const char* context = nullptr);
+                                                const char* context = nullptr);
 photo_frame_error create_display_rendering_error(const char* errorType, size_t bufferSize = 0, 
                                                 size_t memoryUsed = 0, const char* operation = nullptr, 
-                                                const char* context = nullptr);
+                                                 const char* context   = nullptr);
 
 } // namespace error_utils
 

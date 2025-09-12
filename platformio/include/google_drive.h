@@ -36,7 +36,6 @@ typedef enum image_source {
     IMAGE_SOURCE_LOCAL_CACHE ///< Image was loaded from local SD card cache
 } image_source_t;
 
-
 /**
  * @brief JSON-based configuration structure for Google Drive settings.
  *
@@ -68,9 +67,9 @@ typedef struct {
  * @param config Output parameter for the loaded configuration
  * @return photo_frame_error_t indicating success or failure
  */
-photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card, 
-                                                      const char* config_filepath, 
-                                                      google_drive_json_config& config);
+photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
+                                                       const char* config_filepath,
+                                                       google_drive_json_config& config);
 
 /**
  * @brief High-level Google Drive interface for file management and caching.
@@ -85,7 +84,10 @@ class google_drive {
     /**
      * @brief Default constructor for google_drive.
      */
-    google_drive() : client(google_drive_client_config{}), config{}, last_image_source(IMAGE_SOURCE_LOCAL_CACHE) {}
+    google_drive() :
+        client(google_drive_client_config{}),
+        config{},
+        last_image_source(IMAGE_SOURCE_LOCAL_CACHE) {}
 
     /**
      * @brief Initialize Google Drive from JSON configuration file.
@@ -132,7 +134,9 @@ class google_drive {
      * @return fs::File object representing the downloaded file in LittleFS, or empty File on
      * failure.
      */
-    fs::File download_file_to_littlefs(google_drive_file file, const String& littlefs_path, photo_frame_error_t* error);
+    fs::File download_file_to_littlefs(google_drive_file file,
+                                       const String& littlefs_path,
+                                       photo_frame_error_t* error);
 
     /**
      * @brief Get the source of the last downloaded/accessed file.
@@ -243,7 +247,8 @@ class google_drive {
      * @param error Pointer to error code (optional)
      * @return google_drive_file with the specified name, or empty file if not found
      */
-    google_drive_file get_toc_file_by_name(const char* filename, photo_frame_error_t* error = nullptr);
+    google_drive_file get_toc_file_by_name(const char* filename,
+                                           photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Save the current access token to SD card
@@ -258,11 +263,9 @@ class google_drive {
     photo_frame_error_t load_access_token_from_file();
 
   private:
-    google_drive_client client; ///< Google Drive client for API operations
+    google_drive_client client;       ///< Google Drive client for API operations
     google_drive_json_config config;  ///< Configuration settings for this Google Drive instance
     image_source_t last_image_source; ///< Source of the last accessed/downloaded image
-
-
 };
 
 } // namespace photo_frame

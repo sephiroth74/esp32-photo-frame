@@ -26,7 +26,7 @@
 #include "_locale.h"
 #include <Arduino.h>
 
-#define STR(x) #x
+#define STR(x)  #x
 #define XSTR(x) STR(x)
 
 /// ---- Customizable settings ----
@@ -272,16 +272,16 @@
 // Stream parser threshold in bytes - platform specific
 #ifdef BOARD_HAS_PSRAM
 // Feather S3 with PSRAM - use aggressive limits to maximize performance
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304 // 4MB - avoid streaming for most responses
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456 // 6MB response body reserve
-#define GOOGLE_DRIVE_SAFETY_LIMIT 10485760 // 10MB safety limit
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // 4MB - avoid streaming for most responses
+#define GOOGLE_DRIVE_JSON_DOC_SIZE           4194304  // 4MB JSON document buffer
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE       6291456  // 6MB response body reserve
+#define GOOGLE_DRIVE_SAFETY_LIMIT            10485760 // 10MB safety limit
 #else
 // Standard ESP32 - conservative limits for limited RAM
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768 // 32KB
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960 // 40KB JSON document buffer
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536 // 64KB response body reserve
-#define GOOGLE_DRIVE_SAFETY_LIMIT 100000 // 100KB safety limit
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768  // 32KB
+#define GOOGLE_DRIVE_JSON_DOC_SIZE           40960  // 40KB JSON document buffer
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE       65536  // 64KB response body reserve
+#define GOOGLE_DRIVE_SAFETY_LIMIT            100000 // 100KB safety limit
 #endif
 
 // -------------------------------------------
@@ -290,6 +290,7 @@
 //
 // Create a JSON file at the path specified by GOOGLE_DRIVE_CONFIG_FILEPATH with the following structure:
 //
+// clang-format off
 // {
 //   "authentication": {
 //     "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
@@ -316,6 +317,7 @@
 //     "max_wait_time_ms": 30000
 //   }
 // }
+// clang-format on
 //
 // Configuration Guide:
 //
@@ -336,7 +338,8 @@
 // - toc_max_age_seconds: Maximum age of cached TOC before refresh (1-2592000 seconds)
 //
 // Rate limiting section:
-// - max_requests_per_window: Maximum API requests per time window (1-100, limited by GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW)
+// - max_requests_per_window: Maximum API requests per time window (1-100, limited by
+// GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW)
 // - rate_limit_window_seconds: Time window for rate limiting (1-3600 seconds)
 // - min_request_delay_ms: Minimum delay between requests (0-10000 ms)
 // - max_retry_attempts: Maximum retry attempts for failed requests (0-10)
@@ -366,12 +369,12 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #include XSTR(LOCAL_CONFIG_FILE)
 
-#define PREFS_NAMESPACE "photo_frame"
+#define PREFS_NAMESPACE        "photo_frame"
 
 #define MICROSECONDS_IN_SECOND 1000000
-#define SECONDS_IN_MINUTE 60
-#define SECONDS_IN_HOUR 3600
-#define SECONDS_IN_DAY 86400
+#define SECONDS_IN_MINUTE      60
+#define SECONDS_IN_HOUR        3600
+#define SECONDS_IN_DAY         86400
 
 // Maximum deep sleep duration to prevent overflow (24 hours)
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY
@@ -422,11 +425,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 // HTTP operation timeouts
 #ifndef HTTP_CONNECT_TIMEOUT
 #define HTTP_CONNECT_TIMEOUT 15000 // 15 seconds for connection
-#endif // HTTP_CONNECT_TIMEOUT
+#endif                             // HTTP_CONNECT_TIMEOUT
 
 #ifndef HTTP_REQUEST_TIMEOUT
 #define HTTP_REQUEST_TIMEOUT 30000 // 30 seconds for full request
-#endif // HTTP_REQUEST_TIMEOUT
+#endif                             // HTTP_REQUEST_TIMEOUT
 
 #ifndef NTP_SERVER1
 #define NTP_SERVER1 "pool.ntp.org"
@@ -450,8 +453,8 @@ extern const char* LOCAL_FILE_EXTENSION;
 #define ACCENT_COLOR GxEPD_RED // red for 6
 #else
 #define ACCENT_COLOR GxEPD_BLACK // default to black if no display type is defined
-#endif // DISP_BW_V2 or DISP_7C_F or DISP_6C
-#endif // ACCENT_COLOR
+#endif                           // DISP_BW_V2 or DISP_7C_F or DISP_6C
+#endif                           // ACCENT_COLOR
 
 // Path to the Google Drive configuration JSON file on the sd-card
 // This file must be uploaded to your SD card and contain all Google Drive settings
@@ -514,7 +517,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 
 #ifndef SD_CARD_FREE_SPACE_THRESHOLD
 #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
-#endif // SD_CARD_FREE_SPACE_THRESHOLD
+#endif                                                // SD_CARD_FREE_SPACE_THRESHOLD
 
 // Google Drive folder structure defines
 #ifndef GOOGLE_DRIVE_TEMP_DIR

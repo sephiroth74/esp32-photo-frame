@@ -23,23 +23,23 @@
 #pragma once
 
 #include "config.h"
+#include "errors.h"
 #include "google_drive_client.h"
 #include "sd_card.h"
-#include "errors.h"
 
 namespace photo_frame {
 
 /**
  * @brief Utility class for parsing Google Drive TOC (Table of Contents) files
- * 
+ *
  * This class provides methods to efficiently read and parse TOC files stored on SD card
  * in plain text format. The TOC format is:
  * Line 1: timestamp = <value>
- * Line 2: fileCount = <value>  
+ * Line 2: fileCount = <value>
  * Line 3+: id|name
  */
 class google_drive_toc_parser {
-public:
+  public:
     /**
      * @brief Constructor
      * @param sdCard Reference to the SD card instance
@@ -83,9 +83,10 @@ public:
      * @param error Pointer to error code (optional)
      * @return Parsed google_drive_file, or empty file if parse error
      */
-    static google_drive_file parse_file_line(const char* line, photo_frame_error_t* error = nullptr);
+    static google_drive_file parse_file_line(const char* line,
+                                             photo_frame_error_t* error = nullptr);
 
-private:
+  private:
     sd_card& sdCard_;
     const char* tocFilePath_;
 

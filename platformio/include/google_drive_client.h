@@ -54,15 +54,14 @@ typedef struct {
     const char* privateKeyPem;       ///< PEM-encoded private key for JWT signing
     const char* clientId;            ///< Client ID from Google Cloud Console
     bool useInsecureTls;             ///< Whether to use insecure TLS connections
-    
-    // Rate limiting configuration
-    int rateLimitWindowSeconds;      ///< Time window for rate limiting in seconds
-    int minRequestDelayMs;           ///< Minimum delay between requests in milliseconds
-    int maxRetryAttempts;            ///< Maximum retry attempts for failed requests
-    int backoffBaseDelayMs;          ///< Base delay for exponential backoff in milliseconds
-    int maxWaitTimeMs;               ///< Maximum wait time for rate limiting in milliseconds
-} google_drive_client_config;
 
+    // Rate limiting configuration
+    int rateLimitWindowSeconds; ///< Time window for rate limiting in seconds
+    int minRequestDelayMs;      ///< Minimum delay between requests in milliseconds
+    int maxRetryAttempts;       ///< Maximum retry attempts for failed requests
+    int backoffBaseDelayMs;     ///< Base delay for exponential backoff in milliseconds
+    int maxWaitTimeMs;          ///< Maximum wait time for rate limiting in milliseconds
+} google_drive_client_config;
 
 typedef struct {
     char accessToken[512];    ///< Access token for Google Drive API
@@ -130,25 +129,19 @@ enum class failure_type {
  */
 class google_drive_file {
   public:
-    String id;           ///< Unique file identifier in Google Drive
-    String name;         ///< Display name of the file
+    String id;   ///< Unique file identifier in Google Drive
+    String name; ///< Display name of the file
 
     /** Default constructor */
-    google_drive_file() :
-        id(""),
-        name("") {}
+    google_drive_file() : id(""), name("") {}
 
     /**
      * @brief Constructor for google_drive_file.
      * @param id Unique file identifier in Google Drive
      * @param name Display name of the file
      */
-    google_drive_file(const String& id,
-                      const String& name) :
-        id(id),
-        name(name) {}
+    google_drive_file(const String& id, const String& name) : id(id), name(name) {}
 };
-
 
 /**
  * @class google_drive_client
@@ -210,7 +203,8 @@ class google_drive_client {
     list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 50);
 
     /**
-     * @brief Lists files in a specified Google Drive folder and streams them directly to a TOC file.
+     * @brief Lists files in a specified Google Drive folder and streams them directly to a TOC
+     * file.
      *
      * This memory-efficient version writes files directly to the TOC file as they are parsed
      * from the API response, avoiding the need to keep all files in memory at once.
@@ -314,9 +308,7 @@ class google_drive_client {
      * @param nextPageToken Pointer to store next page token if present
      * @return Number of files written to TOC, or 0 on error
      */
-    size_t parse_file_list_to_toc(const String& jsonBody,
-                                  fs::File& tocFile,
-                                  char* nextPageToken);
+    size_t parse_file_list_to_toc(const String& jsonBody, fs::File& tocFile, char* nextPageToken);
 
     /**
      * @brief Build HTTP request string with optimized memory allocation
