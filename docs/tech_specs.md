@@ -294,6 +294,123 @@ size_t list_files_streaming(const char* folderId, fs::File& tocFile, int pageSiz
 
 This **streaming architecture represents a paradigm shift** that eliminates the fundamental memory bottleneck, making large Google Drive collections accessible to **every ESP32 variant** regardless of memory configuration.
 
+## Enhanced Google Drive API (2025) 🔧
+
+### Major API Improvements
+
+The Google Drive module has been completely refactored with significant architectural improvements for better reliability, testability, and maintainability.
+
+#### **API Consistency & Parameter Standardization**
+
+**Before (Inconsistent):**
+```cpp
+// Mixed parameter patterns
+drive.retrieve_toc(batteryConservationMode);
+drive.download_file(file, &error);
+drive.cleanup_temporary_files(force);
+```
+
+**After (Consistent):**
+```cpp
+// All methods now consistently accept sd_card& parameter
+drive.retrieve_toc(sdCard, batteryConservationMode);
+drive.download_file(sdCard, file, &error);
+drive.cleanup_temporary_files(sdCard, force);
+```
+
+#### **Enhanced 2-File TOC System**
+
+**Revolutionary Architecture:**
+- **Data File** (`toc_data.txt`): Pure file entries in optimized `id|name` format
+- **Metadata File** (`toc_meta.txt`): Timestamp, file count, and integrity verification data
+- **Data Integrity**: File size verification prevents corruption-related failures
+- **Smart Recovery**: Automatic fallback to cached TOC on network failures
+
+**Implementation Benefits:**
+```cpp
+// Integrity verification built-in
+size_t fileCount = drive.get_toc_file_count(sdCard, &error);
+// Automatic validation of data file size vs expected size
+// Graceful fallback to cached content on corruption detection
+```
+
+#### **Improved Error Handling & Recovery**
+
+**Enhanced Error Management:**
+- **Comprehensive Fallback**: Network failures automatically fall back to cached TOC
+- **Data Validation**: File size and integrity verification before processing
+- **Graceful Degradation**: Continue operation with cached content when cloud unavailable
+- **Context-Aware Errors**: Detailed error reporting with specific failure contexts
+
+**Smart Cache Management:**
+- **Orphaned File Cleanup**: Removes cached files not present in current TOC
+- **Space Monitoring**: Automatically cleans cache when disk space is low (20% threshold)
+- **Temporal File Management**: Age-based cleanup of temporary and cached files
+- **Integrity Verification**: Validates cache file consistency with metadata
+
+#### **Memory Safety & Efficiency**
+
+**Memory Monitoring:**
+```cpp
+// Built-in memory monitoring
+void logMemoryUsage(const char* context);
+bool checkMemoryAvailable(size_t requiredBytes);
+```
+
+**Safe Operations:**
+- **Pre-operation Checks**: Memory availability verification before major operations
+- **Safety Margins**: 2KB safety margin for JSON operations
+- **Resource Cleanup**: Automatic cleanup of failed operations
+- **Streaming Efficiency**: Direct disk writing eliminates intermediate storage
+
+#### **Enhanced Configuration System**
+
+**Removed Deprecated Fields:**
+- **`toc_filename`**: No longer needed - system uses predefined `toc_data.txt` and `toc_meta.txt`
+- **Simplified Config**: Reduced configuration complexity while improving functionality
+
+**Improved Validation:**
+- **Configuration Integrity**: Enhanced JSON validation with specific error messages
+- **Field Validation**: Type checking and dependency validation for all config fields
+- **Range Validation**: Automatic constraint checking for numerical values
+
+#### **Breaking Changes & Migration**
+
+**Configuration File Updates Required:**
+```json
+// REMOVE this deprecated field from google_drive_config.json:
+"toc_filename": "toc.txt"  // ❌ No longer supported
+
+// The system automatically uses:
+// - toc_data.txt (file entries)
+// - toc_meta.txt (metadata)
+```
+
+**API Method Signatures:**
+```cpp
+// OLD API (deprecated):
+drive.retrieve_toc(batteryConservationMode);
+drive.get_toc_file_count(&error);
+
+// NEW API (required):
+drive.retrieve_toc(sdCard, batteryConservationMode);
+drive.get_toc_file_count(sdCard, &error);
+```
+
+#### **Backwards Compatibility**
+
+**Automatic Migration:**
+- **Old TOC Files**: Automatically removed when new system is used
+- **Config Validation**: Graceful handling of deprecated fields
+- **Progressive Upgrade**: Existing installations automatically benefit from improvements
+
+**File System Compatibility:**
+- **Cache Preservation**: Existing cached images remain valid
+- **Directory Structure**: Maintains existing `/gdrive/cache/` and `/gdrive/temp/` structure
+- **SD Card Layout**: No changes to SD card organization required
+
+This enhanced Google Drive API provides **significantly improved reliability** while maintaining the streaming architecture's memory efficiency benefits across all ESP32 platforms.
+
 ## Complete Project Flow
 
 ### Phase 1: Hardware Setup & Configuration
@@ -365,7 +482,6 @@ This **streaming architecture represents a paradigm shift** that eliminates the 
      },
      "caching": {
        "local_path": "/gdrive",
-       "toc_filename": "toc.txt",
        "toc_max_age_seconds": 604800
      },
      "rate_limiting": {
@@ -460,17 +576,22 @@ The SD card is used for configuration files, certificates, and Google Drive cach
    - Check cleanup interval (default: 24 hours)
    - Manage disk space on SD card
 
-3. **Table of Contents (TOC) Management**:
+3. **Table of Contents (TOC) Management** - Enhanced 2-File System:
    ```cpp
    // ESP32-C6: I2C already shut down before this point
-   drive.retrieve_toc(batteryConservationMode);
-   total_files = drive.get_toc_file_count(&tocError);
+   drive.retrieve_toc(sdCard, batteryConservationMode);
+   total_files = drive.get_toc_file_count(sdCard, &tocError);
    ```
+
+   **New TOC Architecture (2025)**:
+   - **Data File** (`toc_data.txt`): Contains file entries in `id|name` format
+   - **Metadata File** (`toc_meta.txt`): Contains timestamp, file count, and data integrity information
+   - **Benefits**: Enhanced data integrity, better error recovery, and corruption detection
 
 4. **Random Image Selection**:
    ```cpp
    image_index = random(0, total_files);
-   google_drive_file selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
+   google_drive_file selectedFile = drive.get_toc_file_by_index(sdCard, image_index, &tocError);
    ```
 
 5. **Smart Caching**:
