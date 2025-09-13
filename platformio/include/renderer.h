@@ -488,7 +488,7 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
  * @param height Height of the binary image in pixels
  * @return True if image was drawn successfully, false otherwise
  */
-bool draw_binary_from_file(File& file, const char* filename, int width, int height);
+bool draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index = -1);
 
 } // namespace renderer
 

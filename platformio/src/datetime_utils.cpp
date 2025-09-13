@@ -56,19 +56,25 @@ int format_datetime(char* buffer, size_t buffer_size, const tm& timeinfo, const 
 }
 
 int format_datetime(char* buffer, size_t buffer_size, const time_t& timeinfo, const char* format) {
+#ifdef DEBUG_DATETIME_UTILS
     Serial.print(F("[datetime_utils] format_datetime: "));
     Serial.println(timeinfo);
+#endif // DEBUG_DATETIME_UTILS
 
     if (format == nullptr) {
         format = dateTimeFormatLong;
     }
 
     struct tm* tm_info = localtime(&timeinfo);
+
+#ifdef DEBUG_DATETIME_UTILS
     Serial.print(F("[datetime_utils] format_datetime: "));
     Serial.print(tm_info->tm_hour);
     Serial.print(F(":"));
     Serial.print(tm_info->tm_min);
     Serial.println();
+#endif // DEBUG_DATETIME_UTILS
+
 
     // return format_datetime(buffer, buffer_size, *tm_info, format);
     return strftime(buffer, buffer_size, format, tm_info);

@@ -17,6 +17,7 @@ void logMemoryUsage(const char* context) {
     size_t usedHeap    = totalHeap - freeHeap;
     float usagePercent = (float)usedHeap / totalHeap * 100.0;
 
+#ifdef DEBUG_MEMORY_USAGE
     Serial.print(F("[google_drive] Memory ["));
     Serial.print(context);
     Serial.print(F("]: Free="));
@@ -26,6 +27,7 @@ void logMemoryUsage(const char* context) {
     Serial.print(F(" ("));
     Serial.print(usagePercent, 1);
     Serial.println(F("%)"));
+#endif // DEBUG_MEMORY_USAGE
 
     // Warning if memory usage is high
     if (usagePercent > 80.0) {
@@ -635,7 +637,7 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
 
     Serial.println(F("[google_drive] File downloaded successfully to temporary location"));
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
     // print the tempFile size
     tempFile = sdCard.open(tempPath.c_str(), FILE_READ);
     if (tempFile) {
@@ -647,7 +649,7 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
         Serial.print(F("[google_drive] Failed to open temporary file: "));
         Serial.println(tempPath);
     }
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 
     // Move temporary file to final destination
     bool moveSuccess =
@@ -850,9 +852,11 @@ String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootC
         return String();
     }
 
+#ifdef DEBUG_GOOGLE_DRIVE
     Serial.print(F("[google_drive] Successfully loaded root CA certificate ("));
     Serial.print(certContent.length());
     Serial.println(F(" bytes)"));
+#endif // DEBUG_GOOGLE_DRIVE
 
     return certContent;
 }
@@ -880,7 +884,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
     uint64_t totalBytes = sdCard.total_bytes();
     uint64_t freeBytes  = totalBytes - usedBytes;
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
     uint64_t cardSize = sdCard.card_size();
 
     Serial.print(F("[google_drive] SD card size: "));
@@ -895,7 +899,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard,
     Serial.print(F("[google_drive] SD card free space: "));
     Serial.println(freeBytes / 1024 / 1024);
 
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 
     // Calculate 20% threshold of total SD card space first
     uint64_t twentyPercentThreshold = totalBytes * 20 / 100;

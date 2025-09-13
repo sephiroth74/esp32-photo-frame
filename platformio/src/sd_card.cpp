@@ -58,22 +58,22 @@ photo_frame_error_t scan_directory(uint32_t* index,
 
             String file_name = entry.substring(entry.lastIndexOf('/') + 1);
 
-#if DEBUG_MODE
+#ifdef DEBUG_SD_CARD
             Serial.print(current_index);
             Serial.print(F(") "));
             Serial.print(entry);
             Serial.print(F("... "));
-#endif
+#endif // DEBUG_SD_CARD
 
             if (file_name.startsWith(".") || entry.endsWith(extension) == false) {
-#if DEBUG_MODE
+#ifdef DEBUG_SD_CARD
                 Serial.println("[sdcard] skipping");
-#endif
+#endif // DEBUG_SD_CARD
                 continue;
             } else {
-#if DEBUG_MODE
+#ifdef DEBUG_SD_CARD
                 Serial.println(F("[sdcard] ok"));
-#endif
+#endif // DEBUG_SD_CARD
             }
 
             if (current_index == *index) {
@@ -111,7 +111,7 @@ photo_frame_error_t sd_card::begin() {
 #else
     Serial.println("[sdcard] Using default SPI for SD card communication.");
 
-#if DEBUG_MODE
+#ifdef DEBUG_SD_CARD
     Serial.print("[sdcard] SCK pin: ");
     Serial.print(sckPin);
     Serial.print(", MISO pin: ");
@@ -120,7 +120,7 @@ photo_frame_error_t sd_card::begin() {
     Serial.print(mosiPin);
     Serial.print(", CS pin: ");
     Serial.print(csPin);
-#endif // DEBUG_MODE
+#endif // DEBUG_SD_CARD
 
     Serial.println();
 
@@ -235,8 +235,10 @@ void sd_card::list_files(const char* extension) const {
         return;
     }
 
+#ifdef DEBUG_SD_CARD
     Serial.print("[sdcard] Listing files on SD card with extension: ");
     Serial.println(extension);
+#endif // DEBUG_SD_CARD
 
     if (!initialized) {
         Serial.println("[sdcard] not initialized.");
@@ -256,9 +258,12 @@ void sd_card::list_files(const char* extension) const {
 
         if (file_name.endsWith(extension) && !file_name.startsWith("/") &&
             !file_name.startsWith(".")) {
+
+#ifdef DEBUG_SD_CARD
             Serial.print(fileCount);
             Serial.print(") entry: ");
             Serial.println(file_name);
+#endif // DEBUG_SD_CARD
 
             fileCount++;
         }
@@ -318,10 +323,13 @@ uint32_t sd_card::count_files(const char* extension) const {
         }
         path = root.getNextFileName(&is_dir);
     }
+    
+#ifdef DEBUG_SD_CARD
     auto elapsed_time = millis() - start_time;
     Serial.print("[sdcard] Time taken to count files: ");
     Serial.print(elapsed_time);
     Serial.println(" ms");
+#endif // DEBUG_SD_CARD
 
     root.close();
     return count;
@@ -416,11 +424,13 @@ bool sd_card::cleanup_dir(const char* path) {
     String entry    = dir.getNextFileName(&isDir);
 
     while (entry && !entry.isEmpty()) {
+#ifdef DEBUG_SD_CARD
         Serial.print("[sdcard] Processing entry: ");
         Serial.print(entry);
         Serial.print(" (isDir: ");
         Serial.print(isDir);
         Serial.println(")");
+#endif // DEBUG_SD_CARD
 
         if (isDir) {
             // Recursively cleanup and remove subdirectory
@@ -455,7 +465,9 @@ bool sd_card::cleanup_dir(const char* path) {
         return false;
     }
 
+#ifdef DEBUG_SD_CARD
     Serial.println("[sdcard] Directory cleanup completed successfully.");
+#endif // DEBUG_SD_CARD
     return true;
 }
 
@@ -646,8 +658,10 @@ bool sd_card::create_directories(const char* path) {
 
             // Check if this directory level exists
             if (!SD.exists(currentPath.c_str())) {
+#ifdef DEBUG_SD_CARD
                 Serial.print(F("[sdcard] Creating directory: "));
                 Serial.println(currentPath);
+#endif // DEBUG_SD_CARD
 
                 if (!SD.mkdir(currentPath.c_str())) {
                     Serial.print(F("[sdcard] Failed to create directory: "));

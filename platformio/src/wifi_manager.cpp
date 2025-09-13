@@ -63,8 +63,10 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
         return error_type::WifiCredentialsNotFound;
     }
 
+#ifdef DEBUG_WIFI
     Serial.print(F("[wifi_manager] Loaded WiFi credentials for SSID: "));
     Serial.println(_ssid);
+#endif // DEBUG_WIFI
 
     _initialized = true;
     return error_type::None;

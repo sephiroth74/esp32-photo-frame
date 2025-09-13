@@ -136,9 +136,9 @@ google_drive_client::google_drive_client(const google_drive_client_config& confi
         requestHistory[i] = 0;
     }
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
     Serial.println(F("[google_drive_client] Google Drive rate limiting initialized"));
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 }
 
 google_drive_client::~google_drive_client() {
@@ -259,13 +259,13 @@ void google_drive_client::record_request() {
         requestHistoryIndex = (requestHistoryIndex + 1) % GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW;
     }
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
     Serial.print(F("[google_drive_client] Request recorded ("));
     Serial.print(requestCount);
     Serial.print(F("/"));
     Serial.print(GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
     Serial.println(F(")"));
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 }
 
 bool google_drive_client::handle_rate_limit_response(uint8_t attempt) {
@@ -402,8 +402,10 @@ photo_frame_error_t google_drive_client::get_access_token() {
     if (jwt.isEmpty())
         return error_type::JwtCreationFailed;
 
+#ifdef DEBUG_GOOGLE_DRIVE
     Serial.print(F("[google_drive_client] JWT created, length: "));
     Serial.println(jwt.length());
+#endif // DEBUG_GOOGLE_DRIVE
 
     String body = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" +
                   urlEncode(jwt);
@@ -494,10 +496,10 @@ photo_frame_error_t google_drive_client::get_access_token() {
             if (err) {
                 Serial.print(F("[google_drive_client] Token parse error: "));
                 Serial.println(err.c_str());
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
                 Serial.print(F("[google_drive_client] Response body: "));
                 Serial.println(response.body);
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
        // Check if this is an OAuth error response
                 if (response.body.indexOf("invalid_grant") >= 0 ||
                     response.body.indexOf("invalid_client") >= 0) {
@@ -626,10 +628,10 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         headers += g_access_token.accessToken;
         String req = build_http_request("GET", path.c_str(), DRIVE_HOST, headers.c_str());
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
         Serial.print(F("[google_drive_client] HTTP Request: "));
         Serial.println(req);
-#endif
+#endif // DEBUG_GOOGLE_DRIVE
 
         client.print(req);
 
@@ -1136,11 +1138,11 @@ String google_drive_client::build_http_request(const char* method,
         req += body;
     }
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
     Serial.print(F("[google_drive_client] Built HTTP request:\n"));
     Serial.print(req);
     Serial.print(F("\n"));
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 
     return req;
 }
@@ -1184,7 +1186,7 @@ size_t google_drive_client::list_files_streaming(const char* folderId,
 
         totalFilesWritten += filesThisPage;
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
         Serial.print(F("[google_drive_client] Page "));
         Serial.print(pageNumber);
         Serial.print(F(" complete: got "));
@@ -1194,7 +1196,7 @@ size_t google_drive_client::list_files_streaming(const char* folderId,
         Serial.print(F(", nextPageToken size='"));
         Serial.print(strlen(nextPageToken));
         Serial.println(F("'"));
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 
         pageNumber++;
 
@@ -1354,12 +1356,12 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
                 continue;
             }
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
             Serial.print(F("[google_drive_client] File ID: "));
             Serial.print(filesWritten);
             Serial.print(F(", name: "));
             Serial.println(name);
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 
             // Write directly to TOC file: id|name using efficient write() operations
             size_t bytesWritten = 0;
@@ -1385,19 +1387,16 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
                 return filesWritten;
             }
 
-#if DEBUG_MODE
+#ifdef DEBUG_GOOGLE_DRIVE
             Serial.print(F("[google_drive_client] Wrote "));
             Serial.print(bytesWritten);
             Serial.println(F(" bytes to TOC file"));
-#endif // DEBUG_MODE
+#endif // DEBUG_GOOGLE_DRIVE
 
             filesWritten++;
 
             // Force flush every 50 files to ensure data persists to disk
             if (filesWritten % 50 == 0) {
-                Serial.print(F("[google_drive_client] Flushing tocFile after "));
-                Serial.print(filesWritten);
-                Serial.println(F(" files"));
                 yield();
             }
         }
@@ -1409,11 +1408,14 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
         Serial.println(filesWritten);
     } else {
         Serial.println(F("[google_drive_client] ERROR: No 'files' array found in JSON response"));
+
+#ifdef DEBUG_GOOGLE_DRIVE
         Serial.println(F("[google_drive_client] Available JSON keys:"));
         for (JsonPair p : doc.as<JsonObject>()) {
             Serial.print(F("  - Key: "));
             Serial.println(p.key().c_str());
         }
+#endif // DEBUG_GOOGLE_DRIVE
     }
 
     return filesWritten;

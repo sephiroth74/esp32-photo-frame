@@ -106,7 +106,8 @@ void setup() {
     photo_frame::board_utils::disable_rgb_led(); // Disable RGB LED to save power
 
     Serial.println(F("------------------------------"));
-    Serial.println(F("Photo Frame v0.1.0"));
+    Serial.print(F("Photo Frame "));
+    Serial.println(F(FIRMWARE_VERSION_STRING));
     Serial.println(F("------------------------------"));
 
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
@@ -523,10 +524,10 @@ void setup() {
                 Serial.print(F("Drawing page: "));
                 Serial.println(page_index);
 
-                file.seek(0); // Reset file pointer to the beginning
+                // Pass the current page index for optimized rendering
 #if defined(EPD_USE_BINARY_FILE)
                 bool success = photo_frame::renderer::draw_binary_from_file(
-                    file, img_filename, DISP_WIDTH, DISP_HEIGHT);
+                    file, img_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
 #else
                 bool success =
                     photo_frame::renderer::draw_bitmap_from_file(file, img_filename, 0, 0, false);

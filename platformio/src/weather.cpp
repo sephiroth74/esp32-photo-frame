@@ -114,12 +114,15 @@ uint32_t WeatherManager::get_adaptive_interval(uint8_t battery_percent) const {
     uint32_t final_interval = constrain(base_interval, min_interval, max_interval);
 
     // Debug logging for power management decisions
+
+#ifdef DEBUG_WEATHER
     Serial.printf("[WeatherManager] Adaptive interval - Battery: %d%%, Failures: %d, Base: %ds, "
                   "Final: %us\n",
                   battery_percent,
                   consecutive_failures,
                   config.update_interval_minutes * 60,
                   final_interval);
+#endif // DEBUG_WEATHER
 
     return final_interval;
 }
@@ -154,7 +157,10 @@ bool WeatherManager::fetch_weather() {
     http.setTimeout(10000); // 10 second timeout
 
     String url = build_api_url();
+
+#ifdef DEBUG_WEATHER
     Serial.printf("[WeatherManager] API URL: %s\n", url.c_str());
+#endif // DEBUG_WEATHER
 
     if (!http.begin(url)) {
         Serial.println("[WeatherManager] Failed to initialize HTTP client");
@@ -174,7 +180,9 @@ bool WeatherManager::fetch_weather() {
     String response = http.getString();
     http.end();
 
+#ifdef DEBUG_WEATHER
     Serial.printf("[WeatherManager] Received response (%d bytes)\n", response.length());
+#endif // DEBUG_WEATHER
 
     WeatherData new_weather;
     if (parse_weather_response(response, new_weather)) {
@@ -186,9 +194,11 @@ bool WeatherManager::fetch_weather() {
         // Cache the weather data
         save_weather_cache();
 
+#ifdef DEBUG_WEATHER
         Serial.printf("[WeatherManager] Weather updated - %.1f°C, %s\n",
                       current_weather.temperature,
                       current_weather.description.c_str());
+#endif // DEBUG_WEATHER
         return true;
     } else {
         Serial.println("[WeatherManager] Failed to parse weather response");
@@ -301,9 +311,12 @@ bool WeatherManager::parse_weather_response(const String& json_response,
         }
 
         weather_data.has_daily_data = true;
+
+#ifdef DEBUG_WEATHER
         Serial.printf("[WeatherManager] Daily data - Min: %.1f°C, Max: %.1f°C\n",
                       weather_data.temp_min,
                       weather_data.temp_max);
+#endif // DEBUG_WEATHER
     } else {
         weather_data.has_daily_data = false;
         Serial.println("[WeatherManager] No daily forecast data in response");
@@ -516,9 +529,12 @@ bool WeatherManager::load_weather_cache() {
     current_weather.sunset_time    = doc["sunset_time"] | 0;
     current_weather.has_daily_data = doc["has_daily_data"] | false;
 
+
+#ifdef DEBUG_WEATHER
     Serial.printf("[WeatherManager] Loaded cached weather - %.1f°C, %s\n",
                   current_weather.temperature,
                   current_weather.description.c_str());
+#endif // DEBUG_WEATHER
     return true;
 }
 

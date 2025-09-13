@@ -246,7 +246,9 @@ void draw_string(int16_t x, int16_t y, const char* text, alignment_t alignment, 
  * Draws a string without alignment
  */
 void draw_string(int16_t x, int16_t y, const char* text, uint16_t color) {
+#ifdef DEBUG_RENDERER
     Serial.printf("[renderer] drawString: x=%d y=%d text='%s' color=0x%04X\n", x, y, text, color);
+#endif // DEBUG_RENDERER
     display.setTextColor(color);
     display.setCursor(x, y);
     display.print(text);
@@ -406,10 +408,12 @@ void draw_error_message(const gravity_t gravity, const uint8_t code) {
 }
 
 void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const String& errMsgLn2) {
+#ifdef DEBUG_RENDERER
     Serial.println("[renderer] drawError[1]: " + errMsgLn1);
     if (!errMsgLn2.isEmpty()) {
         Serial.println("[renderer] drawError[2]: " + errMsgLn2);
     }
+#endif // DEBUG_RENDERER
 
     display.setFont(&FONT_26pt8b);
     if (!errMsgLn2.isEmpty()) {
@@ -441,7 +445,9 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
 void draw_image_info(uint32_t index,
                      uint32_t total_images,
                      photo_frame::image_source_t image_source) {
+#ifdef DEBUG_RENDERER
     Serial.println("[renderer] drawImageInfo: " + String(index) + " / " + String(total_images));
+#endif // DEBUG_RENDERER
     String message = String(index + 1) + " / " + String(total_images);
     draw_side_message_with_icon(gravity::TOP_CENTER,
                                 image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
@@ -464,9 +470,11 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, re
         return;
     }
 
+#ifdef DEBUG_RENDERER
     Serial.printf("[renderer] drawWeatherInfo: %.1f°C, %s\n",
                   weather_data.temperature,
                   weather_data.description.c_str());
+#endif // DEBUG_RENDERER
 
     // Calculate position based on gravity (positioned in bottom-left area like the image)
     int16_t box_x         = box_rect.x;
@@ -524,8 +532,11 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, re
     // Draw sunrise time if available
     if (weather_data.has_daily_data) {
         char sunrise_buffer[16];
+
+#ifdef DEBUG_RENDERER        
         Serial.print(F("[renderer] drawWeatherInfo: sunrise time: "));
         Serial.println(weather_data.sunrise_time);
+#endif // DEBUG_RENDERER
 
         if (photo_frame::datetime_utils::format_datetime(
                 sunrise_buffer, sizeof(sunrise_buffer), weather_data.sunrise_time, "%H:%M") > 0) {
@@ -570,6 +581,7 @@ void draw_rounded_rect(int16_t x,
                        uint16_t color,
                        uint8_t transparency) {
     // Input validation
+#ifdef DEBUG_RENDERER
     Serial.print(F("[renderer] draw_rounded_rect: "));
     Serial.print(x);
     Serial.print(", ");
@@ -584,6 +596,7 @@ void draw_rounded_rect(int16_t x,
     Serial.print(color);
     Serial.print(", transparency=");
     Serial.println(transparency);
+#endif // DEBUG_RENDERER
 
     if (width <= 0 || height <= 0)
         return;
@@ -688,7 +701,9 @@ void draw_rounded_rect(int16_t x,
 }
 
 void draw_battery_status(photo_frame::battery_info_t battery_info) {
+#ifdef DEBUG_RENDERER
     Serial.println("[renderer] drawBatteryStatus");
+#endif // DEBUG_RENDERER
 
     auto battery_voltage    = battery_info.millivolts;
 
@@ -731,7 +746,9 @@ void draw_battery_status(photo_frame::battery_info_t battery_info) {
 }
 
 void draw_last_update(const DateTime& lastUpdate, long refresh_seconds) {
+#ifdef DEBUG_RENDERER
     Serial.println("[renderer] drawLastUpdate: " + lastUpdate.timestamp());
+#endif // DEBUG_RENDERER
     char dateTimeBuffer[32] = {0}; // Buffer to hold formatted date and time
     photo_frame::datetime_utils::format_datetime(
         dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate);
@@ -874,22 +891,25 @@ bool draw_bitmap_from_file(File& file,
 
     // Parse BMP header
     auto signature = read16(file);
+
+#ifdef DEBUG_RENDERER
     Serial.print("[renderer] BMP signature: ");
     Serial.println(signature, HEX);
+#endif // DEBUG_RENDERER
 
     if (signature == 0x4D42) // BMP signature
     {
         uint32_t fileSize = read32(file);
-#if !DEBUG_MODE
+#ifndef DEBUG_RENDERER
         (void)fileSize; // unused
-#endif                  // !DEBUG_MODE
+#endif // !DEBUG_RENDERER
         uint32_t creatorBytes = read32(file);
         (void)creatorBytes;                  // unused
         uint32_t imageOffset = read32(file); // Start of image data
         uint32_t headerSize  = read32(file);
-#if !DEBUG_MODE
+#ifndef DEBUG_RENDERER
         (void)headerSize; // unused
-#endif                    // !DEBUG_MODE
+#endif // !DEBUG_RENDERER
         uint32_t width  = read32(file);
         int32_t height  = (int32_t)read32(file);
         uint16_t planes = read16(file);
@@ -899,7 +919,7 @@ bool draw_bitmap_from_file(File& file,
         Serial.println("format: " + String(format));
         if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
         {
-#if DEBUG_MODE
+#ifdef DEBUG_RENDERER
             Serial.print("[renderer] File size: ");
             Serial.println(fileSize);
             Serial.print("[renderer] Image Offset: ");
@@ -912,7 +932,7 @@ bool draw_bitmap_from_file(File& file,
             Serial.print(width);
             Serial.print('x');
             Serial.println(height);
-#endif // DEBUG_MODE
+#endif // DEBUG_RENDERER
        // BMP rows are padded (if needed) to 4-byte boundary
             uint32_t rowSize = (width * depth / 8 + 3) & ~3;
             if (depth < 8)
@@ -1094,7 +1114,7 @@ bool draw_bitmap_from_file(File& file,
     }
 } // end drawBitmapFromFile
 
-bool draw_binary_from_file(File& file, const char* filename, int width, int height) {
+bool draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index) {
     Serial.print("[renderer] draw_binary_from_file: ");
     Serial.print(filename);
     Serial.print(", width: ");
@@ -1115,11 +1135,37 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
         return false;
     }
 
-    display.fillScreen(GxEPD_WHITE);
     auto startTime = millis();
-    uint32_t idx   = 0;
+    uint32_t pixelsProcessed = 0;
 
-    for (int y = 0; y < height; y++) {
+    // Calculate page boundaries for efficient processing
+    int startY = 0;
+    int endY = height;
+
+    if (page_index >= 0 && display.pages() > 1) {
+        int pageHeight = display.pageHeight();
+        startY = page_index * pageHeight;
+        endY = min(startY + pageHeight, height);
+
+        Serial.print("[renderer] Processing page ");
+        Serial.print(page_index);
+        Serial.print(" of ");
+        Serial.print(display.pages());
+        Serial.print(", rows ");
+        Serial.print(startY);
+        Serial.print(" to ");
+        Serial.print(endY - 1);
+        Serial.println(" (optimized)");
+    } else {
+        Serial.print("[renderer] Processing entire image (");
+        Serial.print(display.pages());
+        Serial.print(" pages, page height: ");
+        Serial.print(display.pageHeight());
+        Serial.println(")");
+    }
+
+    // Only process the rows that belong to the current page (or entire image if page_index = -1)
+    for (int y = startY; y < endY; y++) {
         // Yield every 10 rows to prevent watchdog timeout
         if (y % 10 == 0) {
             yield();
@@ -1128,7 +1174,7 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
         for (int x = 0; x < width; x++) {
             uint8_t color;
             uint16_t pixelColor;
-            idx          = (y * width + x);
+            uint32_t idx = (y * width + x);
 
             int byteRead = 0;
 
@@ -1140,7 +1186,10 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
             if (byteRead >= 0) {
                 color = static_cast<uint8_t>(byteRead); // Read the byte as color value
                 photo_frame::renderer::color2Epd(color, pixelColor, x, y);
+
+                // Always use absolute coordinates - GxEPD2 handles page clipping automatically
                 display.writePixel(x, y, pixelColor);
+                pixelsProcessed++;
             } else {
                 // Create specific image processing error
                 auto error = photo_frame::error_utils::create_image_error(
@@ -1150,16 +1199,19 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
             }
 
             // Yield every 100 pixels to prevent watchdog timeout
-            if (x % 100 == 0) {
+            if (pixelsProcessed % 100 == 0) {
                 yield();
             }
         }
     }
+
     auto elapsedTime = millis() - startTime;
-    Serial.print("[renderer] Image rendered in: ");
+    Serial.print("[renderer] Page rendered in: ");
     Serial.print(elapsedTime);
-    Serial.println(" ms");
-    Serial.println("[renderer] Binary file processed successfully");
+    Serial.print(" ms (");
+    Serial.print(pixelsProcessed);
+    Serial.println(" pixels)");
+    Serial.println("[renderer] Binary file page processed successfully");
     return true;
 }
 
@@ -1193,100 +1245,89 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
         return false;
     }
 
-    display.setFullWindow();
-    display.firstPage();
+    auto startTime = millis();
+    uint32_t pixelsProcessed = 0;
 
-    do {
-        display.fillScreen(GxEPD_WHITE);
-        auto startTime = millis();
+    Serial.print("[renderer] Multi-page buffered display: ");
+    Serial.print(display.pages());
+    Serial.print(" pages, page height: ");
+    Serial.println(display.pageHeight());
 
-        // Try sequential reading first (more reliable than random seeking)
-        file.seek(0); // Start from beginning
-        bool useSequentialRead      = true;
-        int consecutiveReadFailures = 0;
+    // Try sequential reading first (more reliable than random seeking)
+    file.seek(0); // Start from beginning
+    bool useSequentialRead = true;
+    int consecutiveReadFailures = 0;
 
-        for (int y = 0; y < height; y++) {
-            // Yield every 10 rows to prevent watchdog timeout
-            if (y % 10 == 0) {
+    // GxEPD2 handles page clipping automatically - just draw the entire image
+    // The library will only render pixels that belong to the current page
+    for (int y = 0; y < height; y++) {
+        // Yield every 10 rows to prevent watchdog timeout
+        if (y % 10 == 0) {
+            yield();
+        }
+
+        for (int x = 0; x < width; x++) {
+            uint8_t color;
+            uint16_t pixelColor;
+            uint32_t idx = (y * width + x);
+
+            int byteRead = -1;
+
+            if (useSequentialRead) {
+                // Sequential read - more reliable
+                byteRead = file.read();
+                if (byteRead < 0) {
+                    consecutiveReadFailures++;
+                    if (consecutiveReadFailures > 10) {
+                        Serial.println("[renderer] Too many sequential read failures, switching to seek mode");
+                        useSequentialRead = false;
+                    }
+                } else {
+                    consecutiveReadFailures = 0;
+                }
+            }
+
+            if (!useSequentialRead || byteRead < 0) {
+                // Fallback to seek method if sequential fails
+                bool seekSuccess = file.seek(idx);
+                if (seekSuccess) {
+                    byteRead = file.read();
+                }
+
+                if (byteRead < 0) {
+                    auto error = photo_frame::error_utils::create_image_error(
+                        seekSuccess ? "read_failed" : "seek_failed",
+                        filename, nullptr,
+                        seekSuccess ? "Failed to read pixel data" : "Failed to seek to pixel position");
+                    error.log_detailed();
+                    return false;
+                }
+            }
+
+            if (byteRead >= 0) {
+                color = static_cast<uint8_t>(byteRead);
+                photo_frame::renderer::color2Epd(color, pixelColor, x, y);
+
+                // Always use absolute coordinates - GxEPD2 handles page clipping automatically
+                display.writePixel(x, y, pixelColor);
+                pixelsProcessed++;
+            }
+
+            // Yield every 100 pixels to prevent watchdog timeout
+            if (pixelsProcessed % 100 == 0) {
                 yield();
             }
-
-            for (int x = 0; x < width; x++) {
-                uint8_t color;
-                uint16_t pixelColor;
-                uint32_t idx = (y * width + x);
-
-                int byteRead = -1;
-
-                if (useSequentialRead) {
-                    // Sequential read - more reliable
-                    byteRead = file.read();
-                    if (byteRead < 0) {
-                        consecutiveReadFailures++;
-                        if (consecutiveReadFailures > 10) {
-                            Serial.println("[renderer] Too many sequential read failures, "
-                                           "switching to seek mode");
-                            useSequentialRead = false;
-                        }
-                    } else {
-                        consecutiveReadFailures = 0;
-                    }
-                }
-
-                if (!useSequentialRead || byteRead < 0) {
-                    // Fallback to seek method if sequential fails
-                    bool seekSuccess = file.seek(idx);
-                    if (seekSuccess) {
-                        byteRead = file.read();
-                    }
-
-                    if (byteRead < 0) {
-                        // Determine specific error type based on seek success
-                        if (!seekSuccess) {
-                            auto error = photo_frame::error_utils::create_image_error(
-                                "seek_failed",
-                                filename,
-                                nullptr,
-                                "Failed to seek to pixel position");
-                            error.log_detailed();
-                            Serial.println("[renderer] Critical error: Cannot seek in image file. "
-                                           "Aborting rendering.");
-                            return false; // Exit immediately on seek failure
-                        } else {
-                            auto error = photo_frame::error_utils::create_image_error(
-                                "read_failed", filename, nullptr, "Failed to read pixel data");
-                            error.log_detailed();
-                            Serial.println("[renderer] Critical error: Cannot read pixel data. "
-                                           "Aborting rendering.");
-                            return false; // Exit immediately on read failure
-                        }
-                    }
-                }
-
-                if (byteRead >= 0) {
-                    color = static_cast<uint8_t>(byteRead);
-                    photo_frame::renderer::color2Epd(color, pixelColor, x, y);
-                    display.drawPixel(x, y, pixelColor);
-                } else {
-                    // Use fallback color and continue
-                    color = 0xFF; // White fallback
-                    photo_frame::renderer::color2Epd(color, pixelColor, x, y);
-                    display.drawPixel(x, y, pixelColor);
-                }
-
-                // Yield every 100 pixels to prevent watchdog timeout
-                if (x % 100 == 0) {
-                    yield();
-                }
-            }
         }
-        auto elapsedTime = millis() - startTime;
-        Serial.print("Page rendered in: ");
-        Serial.print(elapsedTime);
-        Serial.println(" ms");
-    } while (display.nextPage());
-    Serial.println("[renderer] Binary file processed successfully");
-    return true; // Return true if the file was processed successfully
+    }
+
+    auto elapsedTime = millis() - startTime;
+    Serial.print("[renderer] Buffered page rendered in: ");
+    Serial.print(elapsedTime);
+    Serial.print(" ms (");
+    Serial.print(pixelsProcessed);
+    Serial.println(" pixels)");
+    Serial.println("[renderer] Binary file page processed successfully (buffered)");
+    return true;
 }
 
 bool draw_bitmap_from_file_buffered(File& file,
@@ -1321,30 +1362,30 @@ bool draw_bitmap_from_file_buffered(File& file,
         Serial.println("[renderer] BMP signature: " + String(signature));
 
         uint32_t fileSize = read32(file);
-#if !DEBUG_MODE
+#ifndef DEBUG_RENDERER
         (void)fileSize; // unused
-#endif                  // !DEBUG_MODE
+#endif // !DEBUG_RENDERER
         uint32_t creatorBytes = read32(file);
         (void)creatorBytes;                  // unused
         uint32_t imageOffset = read32(file); // Start of image data
         uint32_t headerSize  = read32(file);
-#if !DEBUG_MODE
+#ifndef DEBUG_RENDERER
         (void)headerSize; // unused
-#endif                    // !DEBUG_MODE
+#endif // !DEBUG_RENDERER
         uint32_t width  = read32(file);
         int32_t height  = (int32_t)read32(file);
         uint16_t planes = read16(file);
         uint16_t depth  = read16(file); // bits per pixel
         uint32_t format = read32(file);
 
-#if DEBUG_MODE
+#ifdef DEBUG_RENDERER
         Serial.println("[renderer] planes: " + String(planes));
         Serial.println("[renderer] format: " + String(format));
-#endif
+#endif // DEBUG_RENDERER
 
         if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
         {
-#if DEBUG_MODE
+#ifdef DEBUG_RENDERER
             Serial.print("[renderer] File size: ");
             Serial.println(fileSize);
             Serial.print("[renderer] Image Offset: ");
@@ -1357,7 +1398,7 @@ bool draw_bitmap_from_file_buffered(File& file,
             Serial.print(width);
             Serial.print('x');
             Serial.println(height);
-#endif // DEBUG_MODE
+#endif // DEBUG_RENDERER
        // BMP rows are padded (if needed) to 4-byte boundary
             uint32_t rowSize = (width * depth / 8 + 3) & ~3;
             if (depth < 8)

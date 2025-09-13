@@ -320,7 +320,7 @@ drive.cleanup_temporary_files(sdCard, force);
 
 #### **Enhanced 2-File TOC System**
 
-**Revolutionary Architecture:**
+**Architecture:**
 - **Data File** (`toc_data.txt`): Pure file entries in optimized `id|name` format
 - **Metadata File** (`toc_meta.txt`): Timestamp, file count, and integrity verification data
 - **Data Integrity**: File size verification prevents corruption-related failures
@@ -617,17 +617,43 @@ The SD card is used for configuration files, certificates, and Google Drive cach
    - Show battery critical warnings
    - Display network connectivity issues
 
-3. **Image Rendering**:
+3. **Image Rendering** - **Optimized Page-Aware Architecture (v0.2.0)**:
    ```cpp
-   // For non-partial update displays
+   // For non-partial update displays with page optimization
    display.firstPage();
+   int page_index = 0;
    do {
-     draw_bitmap_from_file(file, filename, 0, 0, false);
+     // Page-aware rendering - only processes relevant pixels
+     draw_binary_from_file(file, filename, DISP_WIDTH, DISP_HEIGHT, page_index);
      draw_last_update(now, refresh_delay.refresh_seconds);
      draw_image_info(image_index, total_files, image_source);
      draw_battery_status(battery_info);
      draw_weather_info(weather_data, gravity);
+     page_index++;
    } while (display.nextPage());
+   ```
+
+   **Performance Optimization**:
+   - **Improved Rendering Speed**: Reduced from 81+ seconds to ~27 seconds
+   - **Page-Aware Processing**: Only processes pixels for current page (e.g., rows 0-162 for page 0)
+   - **Optimized Pixel Management**: ~128,000 pixels per page vs 384,000 pixels repeated
+   - **Coordinate System**: Uses GxEPD2's automatic page clipping for correct display
+   - **Memory Efficiency**: Maintains low memory usage while improving rendering speed
+
+   **Technical Implementation**:
+   ```cpp
+   // Page boundary calculation
+   if (page_index >= 0 && display.pages() > 1) {
+       int pageHeight = display.pageHeight();
+       startY = page_index * pageHeight;
+       endY = min(startY + pageHeight, height);
+
+       // Only process rows for current page
+       for (int y = startY; y < endY; y++) {
+           // Process pixels using absolute coordinates
+           display.writePixel(x, y, pixelColor);
+       }
+   }
    ```
 
 4. **Status Bar Information**:
