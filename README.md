@@ -277,6 +277,7 @@ For detailed technical documentation including comprehensive error handling syst
 ### Documentation Index
 
 - **📋 [Technical Specifications](docs/tech_specs.md)** - System architecture, error handling, and API references
+- **📋 [Changelog](CHANGELOG.md)** - Version history and release notes
 - **📋 [Weather Display](docs/weather.md)** - Weather integration setup, configuration, and API usage
 - **📋 [Image Processing Pipeline](docs/image_processing.md)** - Complete guide for bash/ImageMagick processing
 - **📋 [Rust Image Processor](docs/rust-photoframe-processor.md)** - High-performance Rust tool with AI features
