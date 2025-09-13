@@ -740,7 +740,14 @@ void draw_battery_status(photo_frame::battery_info_t battery_info) {
     if (battery_info.charge_rate != 0.0) {
         message += " - " + String(battery_info.charge_rate, 2) + "mA";
     }
+#else
+
+#ifdef DEBUG_BATTERY_READER
+    message += "  - " + String(battery_info.raw_millivolts);
+#endif // DEBUG_BATTERY
+
 #endif // USE_SENSOR_MAX1704X
+
 
     draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
 }
@@ -1651,6 +1658,8 @@ bool allocate_renderer_buffers() {
  * Free rendering buffers
  */
 void free_renderer_buffers() {
+    Serial.println("[renderer] Freeing rendering buffers...");
+    
     if (input_buffer) {
         free(input_buffer);
         input_buffer = nullptr;

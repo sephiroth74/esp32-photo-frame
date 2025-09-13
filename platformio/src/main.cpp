@@ -152,6 +152,19 @@ void setup() {
     battery_reader.init();
     photo_frame::battery_info_t battery_info = battery_reader.read();
 
+    // print the battery levels
+    Serial.print(F("Battery level: "));
+    Serial.print(battery_info.percent);
+    Serial.print(F("%, "));
+    Serial.print(battery_info.millivolts);
+    Serial.print(F(" mV"));
+
+#ifdef DEBUG_BATTERY_READER
+    Serial.print(F(", Raw mV: "));
+    Serial.print(battery_info.raw_millivolts);
+#endif // DEBUG_BATTERY_READER
+    Serial.println();
+
     if (battery_info.is_empty()) {
         Serial.println(F("Battery is empty!"));
 #ifdef BATTERY_POWER_SAVING

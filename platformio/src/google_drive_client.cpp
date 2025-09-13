@@ -1310,7 +1310,15 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
         Serial.print(F("[google_drive_client] JSON deserialization failed: "));
         Serial.println(error.c_str());
         Serial.print(F("[google_drive_client] Failed JSON: "));
-        Serial.println(jsonBody);
+        // print line by line to avoid large output
+        int lineStart = 0;
+        int lineEnd   = jsonBody.indexOf('\n');
+        while (lineEnd != -1) {
+            Serial.println(jsonBody.substring(lineStart, lineEnd));
+            lineStart = lineEnd + 1;
+            lineEnd   = jsonBody.indexOf('\n', lineStart);
+        }
+        Serial.println(jsonBody.substring(lineStart)); // print last line
         return 0;
     }
 

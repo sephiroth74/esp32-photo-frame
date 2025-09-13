@@ -35,7 +35,8 @@
 #define BATTERY_PIN                    35 // Built-in battery voltage pin (GPIO13)
 #define BATTERY_NUM_READINGS           100
 #define BATTERY_DELAY_BETWEEN_READINGS 10
-#define BATTERY_RESISTORS_RATIO        0.5  // Adafruit Feather 2:1 voltage divider (100K/100K)
+#define BATTERY_RESISTORS_RATIO        0.4933491686 // Adafruit Feather 2:1 voltage divider (100K/100K)
+
 
 // Built-in LED - Huzzah32 Feather v2 has built-in LED
 #ifdef LED_BUILTIN
@@ -78,6 +79,8 @@
 
 // Miscellaneous
 #define DEBUG_MODE 0 // Disable debug mode for production
+#define DEBUG_BATTERY_READER
+
 #define EPD_USE_BINARY_FILE
 
 // Reset handling
@@ -109,7 +112,7 @@
 #define GOOGLE_DRIVE_BODY_RESERVE_SIZE          2097152 // 2MB response body reserve
 #define GOOGLE_DRIVE_SAFETY_LIMIT               4194304 // 4MB safety limit
 
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 500 // Increased to 500 for better performance
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 250 // Max 1000, but 250 is a good compromise
 
 // Adafruit Huzzah32 Feather v2 advantages:
 // 1. ESP32-PICO-MINI-02 with dual core for excellent performance
