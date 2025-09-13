@@ -259,12 +259,6 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
         Serial.print(totalFiles);
         Serial.println(F(" files written to data file, metadata saved"));
 
-        // Clean up old single-file TOC if it exists
-        if (sdCard.file_exists(tocFullPath.c_str())) {
-            Serial.println(F("[google_drive] Removing old single-file TOC"));
-            sdCard.remove(tocFullPath.c_str());
-        }
-
         Serial.print(F("[google_drive] TOC file closed: "));
         Serial.println(tocFullPath);
 

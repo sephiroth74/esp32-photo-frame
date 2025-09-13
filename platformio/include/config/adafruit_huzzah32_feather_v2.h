@@ -95,7 +95,7 @@
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 // LOCALE
-#define LOCALE en_US // Default to English
+#define LOCALE it_IT // Default to Italian
 
 // Google Drive integration - fully enabled since no I2C/WiFi conflicts
 // Google Drive is now enabled globally in config.h
