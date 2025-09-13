@@ -123,16 +123,19 @@
    ```
 
    **SD Card Usage**
-   
+
    The SD card serves as initial storage for:
-   
+
    - **Configuration Files**: Google Drive service account credentials (`google_drive_config.json`)
    - **Image Caching**: Downloaded images are cached locally for improved performance
    - **Weather Configuration**: Weather API settings and cached data
    - **WiFi Credentials**: Network connection information
    - **Temporary Files**: Processing and download temporary storage
-   
+   - **TOC System**: Two-file Table of Contents system (`toc_data.txt` and `toc_meta.txt`) for enhanced data integrity
+
    **Architecture Note**: The SD card is shut down after image operations complete to avoid SPI conflicts with the e-paper display. On shared SPI boards (e.g., FeatherS3), images are copied to LittleFS before display operations begin.
+
+   **Enhanced TOC System (2025)**: The firmware now uses a robust 2-file TOC system with `toc_data.txt` containing file entries and `toc_meta.txt` containing metadata and integrity information, providing better error recovery and data validation.
 
 5. **Binary to Image Conversion**
 
