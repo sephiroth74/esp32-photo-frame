@@ -99,10 +99,13 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
 
     pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
 
+#ifdef DEBUG_BOARD
     // Read current pin state for debugging
     int pinState = digitalRead(WAKEUP_PIN);
+
     Serial.print(F("Pin state: "));
     Serial.print(pinState);
+#endif // DEBUG_BOARD
 
     // Test EXT0 wakeup configuration
     esp_err_t wakeup_result = esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_LEVEL);
@@ -110,13 +113,14 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
     Serial.print(F(" | EXT0 config: "));
     if (wakeup_result == ESP_OK) {
         Serial.println(F("SUCCESS"));
+
+#ifdef DEBUG_BOARD
         Serial.print(F("[board_util] GPIO "));
         Serial.print(WAKEUP_PIN);
         Serial.print(F(" configured for EXT0 wakeup, level: "));
         Serial.println(WAKEUP_LEVEL == 1 ? "HIGH" : "LOW");
-
-        // Additional test: try to read the configured wakeup source
         Serial.println(F("[board_util] EXT0 wakeup source configured successfully"));
+#endif // DEBUG_BOARD
     } else {
         Serial.print(F("[board_util] FAILED - Error code: "));
         Serial.println(wakeup_result);
@@ -127,9 +131,9 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
 
     bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
-#if DEBUG_MODE
+#ifdef DEBUG_BOARD
     delay_before_sleep = true;
-#endif
+#endif // DEBUG_BOARD
 
     if (delay_before_sleep) {
         Serial.println(
@@ -170,7 +174,7 @@ void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
 } // get_wakeup_reason_string
 
 void print_board_stats() {
-#if DEBUG_MODE
+#ifdef DEBUG_BOARD
     Serial.println(F("[board_util] Board Statistics:"));
     Serial.print(F("[board_util] Heap: "));
     Serial.println(ESP.getHeapSize());
@@ -204,7 +208,7 @@ void disable_rgb_led() {
 }
 
 void toggle_rgb_led(bool red, bool green, bool blue) {
-#if HAS_RGB_LED && DEBUG_MODE
+#if HAS_RGB_LED && defined(DEBUG_BOARD)
     Serial.print(F("[board_util] Toggling RGB LED to R: "));
     Serial.print(red);
     Serial.print(F(", G: "));
@@ -243,10 +247,14 @@ void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
 
     pinMode(LED_BUILTIN, OUTPUT);
     for (int i = 0; i < count; i++) {
-        Serial.print(F("[board_util] Blinking on.."));
+#ifdef DEBUG_BOARD
+        Serial.println(F("[board_util] Blinking on.."));
+#endif // DEBUG_BOARD
         digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
         delay(on_ms);
-        Serial.print(F("[board_util] Blinking off.."));
+#ifdef DEBUG_BOARD
+        Serial.println(F("[board_util] Blinking off.."));
+#endif // DEBUG_BOARD
         digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
         delay(off_ms);
     }
@@ -307,8 +315,10 @@ long read_refresh_seconds(bool is_battery_low) {
     digitalWrite(POTENTIOMETER_PWR_PIN, LOW); // Power off the level shifter
     level /= 10;                              // Average the result
 
+#ifdef DEBUG_BOARD
     Serial.print(F("[board_util] Raw potentiometer pin reading: "));
     Serial.println(level);
+#endif // DEBUG_BOARD
 
     level =
         constrain(level, 0, POTENTIOMETER_INPUT_MAX); // Constrain the level to the maximum value
@@ -316,8 +326,10 @@ long read_refresh_seconds(bool is_battery_low) {
     // invert the value
     level = POTENTIOMETER_INPUT_MAX - level;
 
+#ifdef DEBUG_BOARD
     Serial.print(F("[board_util] Potentiometer value: "));
     Serial.println(level);
+#endif // DEBUG_BOARD
 
     long refresh_seconds = map(level,
                                0,
@@ -328,8 +340,10 @@ long read_refresh_seconds(bool is_battery_low) {
     char buffer[64];
     photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
 
+#ifdef DEBUG_BOARD
     Serial.print(F("[board_util] Refresh seconds: "));
     Serial.println(buffer);
+#endif // DEBUG_BOARD
 
     if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS * 2)) {
         // increase the refresh seconds to the next step

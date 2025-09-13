@@ -29,6 +29,12 @@
 #define STR(x)  #x
 #define XSTR(x) STR(x)
 
+// Version information
+#define FIRMWARE_VERSION_MAJOR 0
+#define FIRMWARE_VERSION_MINOR 2
+#define FIRMWARE_VERSION_PATCH 0
+#define FIRMWARE_VERSION_STRING "v0.2.0"
+
 /// ---- Customizable settings ----
 
 // #define USE_HSPI_FOR_SD  // Use HSPI for SD card communication
@@ -161,6 +167,15 @@
 // When is on, for instance, the display will also print the battery raw value and there will be a
 // delay before entering deep sleep
 // #define DEBUG_MODE 1
+// #define DEBUG_RENDERER
+// #define DEBUG_DATETIME_UTILS
+// #define DEBUG_GOOGLE_DRIVE
+// #define DEBUG_MEMORY_USAGE
+// #define DEBUG_BATTERY_READER
+// #define DEBUG_WEATHER
+// #define DEBUG_WIFI
+// #define DEBUG_SD_CARD
+// #define DEBUG_BOARD
 
 // Toggle the use of the binary file for the e-Paper display
 // When is defined, the display will use a binary files instead of regular bmp files.

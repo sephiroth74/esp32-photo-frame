@@ -233,6 +233,25 @@ While no longer necessary, PSRAM still provides **premium performance** for powe
 - **Zero Stream Parsing**: Eliminate processing overhead entirely
 - **Future-Proofing**: Ready for massive collections (1000+ files)
 
+### **Image Rendering Performance Optimization (v0.2.0)**
+
+The firmware includes improved page-aware rendering that reduces image display time:
+
+**Performance Comparison:**
+| Rendering Stage | Before | After | Improvement |
+|----------------|--------|--------|-------------|
+| **Full Image Rendering** | 81+ seconds | ~27 seconds | 3x faster |
+| **Per-Page Processing** | 27s each × 3 pages | ~9s each × 3 pages | 67% reduction per page |
+| **Pixel Processing** | 384,000 pixels × 3 | ~128,000 pixels/page | Optimized processing |
+
+**Technical Improvements:**
+- **Page-Aware Processing**: Only processes pixels relevant to current display page
+- **Coordinate System**: Uses absolute coordinates with GxEPD2's automatic clipping
+- **Memory Efficiency**: Maintains low memory usage while improving rendering speed
+- **Multi-Page Support**: Optimized for displays requiring multiple page updates (163px height sections)
+
+**Result**: Image display time reduced from over a minute to under 30 seconds.
+
 ### **Automatic Optimization**
 
 The firmware **automatically detects PSRAM** and enables performance bonuses:
