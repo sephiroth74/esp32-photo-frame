@@ -1,12 +1,14 @@
 #include "google_drive_client.h"
+#include <SD.h>
+#include <unistd.h> // For fsync()
 
 // OAuth/Google endpoints
-static const char* TOKEN_HOST      = "oauth2.googleapis.com";
-static const char* TOKEN_PATH      = "/token";
-static const char* DRIVE_HOST      = "www.googleapis.com";
-static const char* DRIVE_LIST_PATH = "/drive/v3/files";
-static const char* SCOPE           = "https://www.googleapis.com/auth/drive.readonly";
-static const char* AUD             = "https://oauth2.googleapis.com/token";
+static const char TOKEN_HOST[] PROGMEM      = "oauth2.googleapis.com";
+static const char TOKEN_PATH[] PROGMEM      = "/token";
+static const char DRIVE_HOST[] PROGMEM      = "www.googleapis.com";
+static const char DRIVE_LIST_PATH[] PROGMEM = "/drive/v3/files";
+static const char SCOPE[] PROGMEM           = "https://www.googleapis.com/auth/drive.readonly";
+static const char AUD[] PROGMEM             = "https://oauth2.googleapis.com/token";
 
 // Global variable to store loaded root CA certificate
 String g_google_root_ca;
@@ -83,12 +85,6 @@ static String urlEncode(const String& s) {
             yield();
         }
     }
-
-#if DEBUG_MODE
-    Serial.print(F("[google_drive_client] Encoded URL: "));
-    Serial.println(o);
-#endif // DEBUG_MODE
-
     return o;
 }
 
@@ -140,7 +136,9 @@ google_drive_client::google_drive_client(const google_drive_client_config& confi
         requestHistory[i] = 0;
     }
 
+#if DEBUG_MODE
     Serial.println(F("[google_drive_client] Google Drive rate limiting initialized"));
+#endif // DEBUG_MODE
 }
 
 google_drive_client::~google_drive_client() {
@@ -261,11 +259,13 @@ void google_drive_client::record_request() {
         requestHistoryIndex = (requestHistoryIndex + 1) % GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW;
     }
 
+#if DEBUG_MODE
     Serial.print(F("[google_drive_client] Request recorded ("));
     Serial.print(requestCount);
     Serial.print(F("/"));
     Serial.print(GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
     Serial.println(F(")"));
+#endif // DEBUG_MODE
 }
 
 bool google_drive_client::handle_rate_limit_response(uint8_t attempt) {
@@ -494,9 +494,11 @@ photo_frame_error_t google_drive_client::get_access_token() {
             if (err) {
                 Serial.print(F("[google_drive_client] Token parse error: "));
                 Serial.println(err.c_str());
+#if DEBUG_MODE
                 Serial.print(F("[google_drive_client] Response body: "));
                 Serial.println(response.body);
-                // Check if this is an OAuth error response
+#endif // DEBUG_MODE
+       // Check if this is an OAuth error response
                 if (response.body.indexOf("invalid_grant") >= 0 ||
                     response.body.indexOf("invalid_client") >= 0) {
                     return photo_frame::error_utils::create_oauth_error(
@@ -546,417 +548,6 @@ photo_frame_error_t google_drive_client::get_access_token() {
     }
 
     return error_type::HttpPostFailed;
-}
-
-photo_frame_error_t google_drive_client::list_files(const char* folderId,
-                                                    std::vector<google_drive_file>& outFiles,
-                                                    int pageSize) {
-    char nextPageToken[GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE] = "";
-    int pageNumber                                          = 1;
-    size_t totalFilesRetrieved                              = 0;
-
-    do {
-        size_t filesBefore = outFiles.size();
-        Serial.print(F("[google_drive_client] Fetching page "));
-        Serial.print(pageNumber);
-        Serial.print(F(" with pageSize="));
-        Serial.print(pageSize);
-        Serial.print(F(", current total files="));
-        Serial.println(filesBefore);
-
-        photo_frame_error_t err =
-            list_files_in_folder(folderId, outFiles, pageSize, nextPageToken, nextPageToken);
-        if (err != error_type::None) {
-            Serial.print(F("[google_drive_client] Error fetching page "));
-            Serial.print(pageNumber);
-            Serial.print(F(": "));
-            Serial.println(err.code);
-            return err;
-        }
-
-        size_t filesThisPage = outFiles.size() - filesBefore;
-        totalFilesRetrieved  = outFiles.size();
-
-        Serial.print(F("[google_drive_client] Page "));
-        Serial.print(pageNumber);
-        Serial.print(F(" complete: got "));
-        Serial.print(filesThisPage);
-        Serial.print(F(" files, total now "));
-        Serial.print(totalFilesRetrieved);
-        Serial.print(F(", nextPageToken size='"));
-        Serial.print(strlen(nextPageToken));
-        Serial.println(F("'"));
-
-        pageNumber++;
-
-        // Safety check to prevent infinite loops
-        if (pageNumber > 20) {
-            Serial.println(F("[google_drive_client] WARNING: Too many pages, breaking to prevent "
-                             "infinite loop"));
-            break;
-        }
-
-    } while (strlen(nextPageToken) > 0);
-
-    Serial.print(F("[google_drive_client] Pagination complete: retrieved "));
-    Serial.print(totalFilesRetrieved);
-    Serial.println(F(" total files"));
-
-    return error_type::None;
-}
-
-photo_frame_error_t
-google_drive_client::list_files_in_folder(const char* folderId,
-                                          std::vector<google_drive_file>& outFiles,
-                                          int pageSize,
-                                          char* nextPageToken,
-                                          const char* pageToken) {
-    Serial.print(F("[google_drive_client] Listing files in folder: "));
-    Serial.print(folderId);
-
-#if DEBUG_MODE
-    Serial.print(F(", page token: "));
-    if (pageToken && strlen(pageToken) > 0) {
-        Serial.print(pageToken);
-    } else {
-        Serial.print(F("N/A"));
-    }
-
-    Serial.print(F(", page size: "));
-    Serial.print(pageSize);
-
-    if (nextPageToken && strlen(nextPageToken) > 0) {
-        Serial.print(F(", next page token: "));
-        Serial.print(nextPageToken);
-    } else {
-        Serial.print(F(", next page token: "));
-        Serial.print(F("N/A"));
-    }
-#endif
-
-    Serial.println();
-
-    // Check if token is expired and refresh if needed
-    if (is_token_expired()) {
-        Serial.println(F("[google_drive_client] Token expired, refreshing before API call"));
-        photo_frame_error_t refreshError = refresh_token();
-        if (refreshError != error_type::None) {
-            Serial.println(F("[google_drive_client] Failed to refresh expired token"));
-            return refreshError;
-        }
-    }
-
-    // Build Google Drive query with optimized String concatenation
-    String q;
-    q.reserve(strlen(folderId) + 15);
-    q = "'";
-    q += folderId;
-    q += "' in parents";
-
-    String encodedQ = urlEncode(q);
-    String path;
-    path.reserve(strlen(DRIVE_LIST_PATH) + encodedQ.length() + 100);
-    path = DRIVE_LIST_PATH;
-    path += "?q=";
-    path += encodedQ;
-    path += "&fields=nextPageToken,files(id,name)&pageSize=";
-    path += String(pageSize);
-    if (strlen(pageToken) > 0) {
-        String encodedToken = urlEncode(String(pageToken));
-        path += "&pageToken=";
-        path += encodedToken;
-    }
-
-    // Apply rate limiting before making the request
-    photo_frame_error_t rateLimitError = wait_for_rate_limit();
-    if (rateLimitError != error_type::None) {
-        Serial.println(
-            F("[google_drive_client] Rate limit wait timeout - aborting files list request"));
-        return rateLimitError;
-    }
-
-    uint8_t attempt = 0;
-    while (attempt < config->maxRetryAttempts) {
-        record_request();
-
-        HttpResponse response;
-        bool networkError = false;
-
-        WiFiClientSecure client;
-
-        if (config->useInsecureTls) {
-            client.setInsecure();
-        } else {
-            if (g_google_root_ca.length() > 0) {
-                client.setCACert(g_google_root_ca.c_str());
-            } else {
-                Serial.println(F("[google_drive_client] WARNING: No root CA certificate loaded, "
-                                 "using insecure connection"));
-                client.setInsecure();
-            }
-        }
-
-        // Attempt connection with timeout
-        client.setTimeout(HTTP_REQUEST_TIMEOUT / 1000);          // Set socket timeout in seconds
-        client.setHandshakeTimeout(HTTP_REQUEST_TIMEOUT / 1000); // Set handshake timeout in seconds
-        unsigned long connectStart = millis();
-        if (!client.connect(DRIVE_HOST, 443)) {
-            Serial.println(F("[google_drive_client] Failed to connect to Google Drive API"));
-            networkError = true;
-        } else if (millis() - connectStart > HTTP_CONNECT_TIMEOUT) {
-            Serial.println(F("[google_drive_client] Google Drive API connection timeout"));
-            client.stop();
-            networkError = true;
-        } else {
-            // Build and send request using helper method
-            String headers = "Authorization: Bearer ";
-            headers += g_access_token.accessToken;
-            String req = build_http_request("GET", path.c_str(), DRIVE_HOST, headers.c_str());
-            client.print(req);
-
-            // Parse response
-            if (!parse_http_response(client, response)) {
-                Serial.println(F("[google_drive_client] Failed to parse HTTP response"));
-                networkError = true;
-            }
-        }
-
-        Serial.print(F("[google_drive_client] HTTP response code: "));
-        Serial.print(response.statusCode);
-        Serial.println();
-
-        client.stop();
-
-        // Classify failure and decide whether to retry
-        failure_type failureType = classify_failure(response.statusCode, networkError);
-
-        if (failureType == failure_type::Permanent) {
-            Serial.print(F("[google_drive_client] Permanent failure (HTTP "));
-            Serial.print(response.statusCode);
-            Serial.println(F("), not retrying file listing"));
-            return photo_frame::error_utils::map_google_drive_error(
-                response.statusCode, response.body.c_str(), "File listing request");
-        }
-
-        // Success case
-        if (response.statusCode == 200 && response.hasContent) {
-            // Parse the JSON response
-            photo_frame_error_t parseError = error_type::None;
-            if (response.body.length() >
-                GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD) { // threshold in bytes
-                Serial.print(F(
-                    "[google_drive_client] Using streaming parser for large response, size is: "));
-                Serial.println(response.body.length());
-
-                parseError = parse_file_list_streaming(response.body, outFiles, nextPageToken);
-            } else {
-                // For smaller responses, use platform-optimized static allocation
-                StaticJsonDocument<GOOGLE_DRIVE_JSON_DOC_SIZE> doc;
-                auto err = deserializeJson(doc, response.body);
-                if (err) {
-                    Serial.print(F("[google_drive_client] JSON parse error: "));
-                    Serial.println(err.c_str());
-
-                    // Fallback to streaming parser
-                    Serial.println(F("[google_drive_client] Falling back to streaming parser"));
-                    parseError = parse_file_list_streaming(response.body, outFiles, nextPageToken);
-                } else {
-                    if (nextPageToken) {
-                        const char* token = doc["nextPageToken"] | "";
-                        safe_strcpy(nextPageToken, token, GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE);
-                    }
-
-                    JsonArray arr = doc["files"].as<JsonArray>();
-                    outFiles.reserve(outFiles.size() + arr.size());
-
-                    for (JsonObject f : arr) {
-                        const char* filename      = (const char*)f["name"];
-                        const char* fileExtension = strrchr(filename, '.');
-                        if (!fileExtension || strcmp(fileExtension, LOCAL_FILE_EXTENSION) != 0) {
-#if DEBUG_MODE
-                            Serial.print(F("[google_drive_client] Skipping file with unsupported "
-                                           "extension: "));
-                            Serial.println(filename);
-#endif // DEBUG_MODE
-                            continue;
-                        }
-
-                        outFiles.emplace_back((const char*)f["id"], (const char*)f["name"]);
-
-                        // Yield every 10 files to prevent watchdog reset
-                        if (outFiles.size() % 10 == 0) {
-                            yield();
-                        }
-                    }
-                    parseError = error_type::None;
-                }
-            }
-
-            return parseError;
-        }
-
-        // Handle transient failures with proper backoff
-        if (attempt < config->maxRetryAttempts - 1) {
-            if (failureType == failure_type::RateLimit) {
-                if (!handle_rate_limit_response(attempt)) {
-                    break;
-                }
-            } else if (failureType == failure_type::TokenExpired) {
-                Serial.println(F("[google_drive_client] Token expired, refreshing..."));
-                photo_frame_error_t refreshError = refresh_token();
-                if (refreshError != error_type::None) {
-                    Serial.println(
-                        F("[google_drive_client] Failed to refresh token, stopping retries"));
-                    break;
-                }
-            } else {
-                if (!handle_transient_failure(attempt, failureType)) {
-                    break;
-                }
-            }
-            attempt++;
-        } else {
-            Serial.println(F("[google_drive_client] Max retry attempts reached for file listing"));
-            break;
-        }
-    }
-
-    return error_type::HttpGetFailed;
-}
-
-photo_frame_error_t
-google_drive_client::parse_file_list_streaming(const String& jsonBody,
-                                               std::vector<google_drive_file>& outFiles,
-                                               char* nextPageToken) {
-    Serial.println(F("[google_drive_client] Using streaming JSON parser for file list"));
-
-    // Extract nextPageToken first using simple string search
-    const char* tokenKey = "\"nextPageToken\":\"";
-    int tokenStart       = jsonBody.indexOf(tokenKey);
-
-    // if token was not found, let's try in another way
-    if (tokenStart < 0) {
-        tokenKey   = "\"nextPageToken\": \"";
-        tokenStart = jsonBody.indexOf(tokenKey);
-    }
-
-    size_t tokenLength = strlen(tokenKey);
-
-    if (tokenStart >= 0 && nextPageToken) {
-        // we need to find the very next '"' char
-        tokenStart   = jsonBody.indexOf("\"", tokenStart + tokenLength);
-        int tokenEnd = jsonBody.indexOf("\"", tokenStart + 1);
-
-#if DEBUG_MODE
-        Serial.print(F("[google_drive_client] nextPageToken value start position: "));
-        Serial.println(tokenStart);
-        Serial.print(F("[google_drive_client] nextPageToken value end position: "));
-        Serial.println(tokenEnd);
-#endif // DEBUG_MODE
-
-        if (tokenEnd > tokenStart && tokenStart > 0) { // tokenStart cannot be 0
-            String token = jsonBody.substring(tokenStart, tokenEnd);
-            safe_strcpy(nextPageToken, token.c_str(), GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE);
-        } else {
-            nextPageToken[0] = '\0';
-        }
-    } else if (nextPageToken) {
-        Serial.println(F("[google_drive_client] No nextPageToken found in response"));
-        nextPageToken[0] = '\0';
-
-        Serial.println(F("[google_drive_client] jsonBody: "));
-        // print the jsonBody line by line
-        for (int i = 0; i < jsonBody.length(); i++) {
-            Serial.print(jsonBody.charAt(i));
-            if (jsonBody.charAt(i) == '\n') {
-                yield();
-            }
-        }
-    }
-
-    // Find files array start
-    // it can be also "files": [
-    int filesStart     = jsonBody.indexOf("\"files\":[");
-    int filesMatchSize = 9;
-
-    if (filesStart < 0) {
-        Serial.println(
-            F("[google_drive_client] No files array found in response, trying alternative format"));
-        filesStart = jsonBody.indexOf("\"files\": [");
-        if (filesStart < 0) {
-            Serial.println(F("[google_drive_client] No files array found in response"));
-            return error_type::JsonParseFailed;
-        }
-        filesMatchSize = 10;
-    }
-
-    filesStart += filesMatchSize; // Move past "files":["
-
-    // Parse individual file objects
-    int pos        = filesStart;
-    int braceCount = 0;
-    int fileStart  = -1;
-
-    for (int i = pos; i < jsonBody.length(); i++) {
-        char c = jsonBody.charAt(i);
-
-        // Yield every 500 characters to prevent watchdog timeout on large JSON
-        if (i % 500 == 0) {
-            yield();
-        }
-
-        if (c == '{') {
-            if (braceCount == 0) {
-                fileStart = i;
-            }
-            braceCount++;
-        } else if (c == '}') {
-            braceCount--;
-            if (braceCount == 0 && fileStart >= 0) {
-                // Extract single file JSON
-                String fileJson = jsonBody.substring(fileStart, i + 1);
-
-                // Parse single file with small buffer
-                StaticJsonDocument<512> fileDoc;
-                DeserializationError err = deserializeJson(fileDoc, fileJson);
-
-                if (err == DeserializationError::Ok) {
-                    const char* filename = fileDoc["name"];
-                    // we should skip those files which extension doesn't match LOCAL_FILE_EXTENSION
-                    const char* fileExtension = strrchr(filename, '.');
-                    if (!fileExtension || strcmp(fileExtension, LOCAL_FILE_EXTENSION) != 0) {
-#if DEBUG_MODE
-                        Serial.print(
-                            F("[google_drive_client] Skipping file with unsupported extension: "));
-                        Serial.println(filename);
-#endif // DEBUG_MODE
-                        continue;
-                    }
-
-                    outFiles.emplace_back((const char*)fileDoc["id"], (const char*)fileDoc["name"]);
-                } else {
-                    Serial.print(F("[google_drive_client] Failed to parse file entry: "));
-                    Serial.println(err.c_str());
-                }
-
-                fileStart = -1;
-
-                // Yield every 5 files to prevent watchdog reset
-                if (outFiles.size() % 5 == 0) {
-                    yield();
-                }
-            }
-        } else if (c == ']' && braceCount == 0) {
-            // End of files array
-            break;
-        }
-    }
-
-    Serial.print(F("[google_drive_client] Streaming parser processed "));
-    Serial.print(outFiles.size());
-    Serial.println(F(" files"));
-
-    return error_type::None;
 }
 
 photo_frame_error_t google_drive_client::download_file(const String& fileId, fs::File* outFile) {
@@ -1536,12 +1127,20 @@ String google_drive_client::build_http_request(const char* method,
         req += "\r\n";
     }
 
+    // 1lMQwII5ZbCT-Sus3efmA6AfyMf67-IS4
+
     // End headers and add body
     req += "Connection: close\r\n\r\n";
 
     if (body) {
         req += body;
     }
+
+#if DEBUG_MODE
+    Serial.print(F("[google_drive_client] Built HTTP request:\n"));
+    Serial.print(req);
+    Serial.print(F("\n"));
+#endif // DEBUG_MODE
 
     return req;
 }
@@ -1551,8 +1150,17 @@ void google_drive_client::set_root_ca_certificate(const String& rootCA) {
     Serial.println(F("[google_drive_client] Root CA certificate set for Google Drive client"));
 }
 
-size_t
-google_drive_client::list_files_streaming(const char* folderId, fs::File& tocFile, int pageSize) {
+size_t google_drive_client::list_files_streaming(const char* folderId,
+                                                 sd_card& sdCard,
+                                                 const char* tocFilePath,
+                                                 int pageSize) {
+    Serial.print(F("[google_drive_client] list_files_streaming with folderId="));
+    Serial.print(folderId);
+    Serial.print(F(", tocFilePath="));
+    Serial.print(tocFilePath);
+    Serial.print(F(", pageSize="));
+    Serial.println(pageSize);
+
     char nextPageToken[GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE] = "";
     int pageNumber                                          = 1;
     size_t totalFilesWritten                                = 0;
@@ -1566,7 +1174,7 @@ google_drive_client::list_files_streaming(const char* folderId, fs::File& tocFil
         Serial.println(totalFilesWritten);
 
         size_t filesThisPage = list_files_in_folder_streaming(
-            folderId, tocFile, pageSize, nextPageToken, nextPageToken);
+            folderId, sdCard, tocFilePath, pageSize, nextPageToken, nextPageToken);
         if (filesThisPage == 0) {
             Serial.print(F("[google_drive_client] Error fetching page "));
             Serial.print(pageNumber);
@@ -1576,6 +1184,7 @@ google_drive_client::list_files_streaming(const char* folderId, fs::File& tocFil
 
         totalFilesWritten += filesThisPage;
 
+#if DEBUG_MODE
         Serial.print(F("[google_drive_client] Page "));
         Serial.print(pageNumber);
         Serial.print(F(" complete: got "));
@@ -1585,6 +1194,7 @@ google_drive_client::list_files_streaming(const char* folderId, fs::File& tocFil
         Serial.print(F(", nextPageToken size='"));
         Serial.print(strlen(nextPageToken));
         Serial.println(F("'"));
+#endif // DEBUG_MODE
 
         pageNumber++;
 
@@ -1603,10 +1213,18 @@ google_drive_client::list_files_streaming(const char* folderId, fs::File& tocFil
 }
 
 size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
-                                                           fs::File& tocFile,
+                                                           sd_card& sdCard,
+                                                           const char* tocFilePath,
                                                            int pageSize,
                                                            char* nextPageToken,
                                                            const char* pageToken) {
+    Serial.print(F("[google_drive_client] list_files_in_folder_streaming folderId="));
+    Serial.print(folderId);
+    Serial.print(F(", tocFilePath="));
+    Serial.print(tocFilePath);
+    Serial.print(F(", pageToken="));
+    Serial.println(pageToken);
+
     // Check rate limiting
     photo_frame_error_t rateLimitError = wait_for_rate_limit();
     if (rateLimitError != error_type::None) {
@@ -1669,11 +1287,12 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
     }
 
     // Parse the JSON response and write directly to TOC file
-    return parse_file_list_to_toc(response.body, tocFile, nextPageToken);
+    return parse_file_list_to_toc(response.body, sdCard, tocFilePath, nextPageToken);
 }
 
 size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
-                                                   fs::File& tocFile,
+                                                   sd_card& sdCard,
+                                                   const char* tocFilePath,
                                                    char* nextPageToken) {
     size_t filesWritten = 0;
 
@@ -1688,6 +1307,8 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
     if (error) {
         Serial.print(F("[google_drive_client] JSON deserialization failed: "));
         Serial.println(error.c_str());
+        Serial.print(F("[google_drive_client] Failed JSON: "));
+        Serial.println(jsonBody);
         return 0;
     }
 
@@ -1702,6 +1323,21 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
     // Process files array
     if (doc.containsKey("files")) {
         JsonArray files = doc["files"];
+        Serial.print(F("[google_drive_client] Found files array with "));
+        Serial.print(files.size());
+        Serial.println(F(" entries"));
+
+        // Open TOC file for appending using sdCard instance
+        fs::File tocFile = sdCard.open(tocFilePath, FILE_APPEND, true);
+        if (!tocFile) {
+            Serial.print(F("[google_drive_client] ERROR: Failed to open TOC file for writing: "));
+            Serial.println(tocFilePath);
+            return 0;
+        }
+
+        // Set buffer size for better performance
+        tocFile.setBufferSize(8192);
+
         for (JsonVariant f : files) {
             if (!f.containsKey("id") || !f.containsKey("name")) {
                 continue;
@@ -1710,25 +1346,74 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
             const char* id   = f["id"];
             const char* name = f["name"];
 
-            // Write directly to TOC file: id|name
-            tocFile.print(id);
-            tocFile.print(F("|"));
-            tocFile.println(name);
+            // Check file extension filter
+            const char* fileExtension = strrchr(name, '.');
+            if (!fileExtension || strcmp(fileExtension, LOCAL_FILE_EXTENSION) != 0) {
+                Serial.print(F("[google_drive_client] Skipping file with unsupported extension: "));
+                Serial.println(name);
+                continue;
+            }
+
+#if DEBUG_MODE
+            Serial.print(F("[google_drive_client] File ID: "));
+            Serial.print(filesWritten);
+            Serial.print(F(", name: "));
+            Serial.println(name);
+#endif // DEBUG_MODE
+
+            // Write directly to TOC file: id|name using efficient write() operations
+            size_t bytesWritten = 0;
+
+            // Write ID
+            bytesWritten += tocFile.write((const uint8_t*)id, strlen(id));
+
+            // Write separator
+            bytesWritten += tocFile.write((const uint8_t*)"|", 1);
+
+            // Write name
+            bytesWritten += tocFile.write((const uint8_t*)name, strlen(name));
+
+            // Write newline
+            bytesWritten += tocFile.write((const uint8_t*)"\n", 1);
+
+            tocFile.flush();
+
+            // Debug: Verify write operations succeeded
+            if (bytesWritten == 0) {
+                Serial.println(F("[google_drive_client] ERROR: Failed to write to TOC file!"));
+                tocFile.close();
+                return filesWritten;
+            }
+
+#if DEBUG_MODE
+            Serial.print(F("[google_drive_client] Wrote "));
+            Serial.print(bytesWritten);
+            Serial.println(F(" bytes to TOC file"));
+#endif // DEBUG_MODE
 
             filesWritten++;
 
-            // In google_drive_client.cpp, modify the loop:
-            if (filesWritten % 50 == 0) { // Every 50 files instead of just at the end
-                tocFile.flush();
-                yield();
-            }
-
-            // Yield every 10 files to prevent watchdog reset
-            if (filesWritten % 10 == 0) {
+            // Force flush every 50 files to ensure data persists to disk
+            if (filesWritten % 50 == 0) {
+                Serial.print(F("[google_drive_client] Flushing tocFile after "));
+                Serial.print(filesWritten);
+                Serial.println(F(" files"));
                 yield();
             }
         }
-        tocFile.flush();
+
+        // Final flush and close
+        tocFile.close();
+
+        Serial.print(F("[google_drive_client] Final files written: "));
+        Serial.println(filesWritten);
+    } else {
+        Serial.println(F("[google_drive_client] ERROR: No 'files' array found in JSON response"));
+        Serial.println(F("[google_drive_client] Available JSON keys:"));
+        for (JsonPair p : doc.as<JsonObject>()) {
+            Serial.print(F("  - Key: "));
+            Serial.println(p.key().c_str());
+        }
     }
 
     return filesWritten;

@@ -74,9 +74,6 @@
 // WiFi configuration
 #define WIFI_FILENAME "/wifi.txt"
 
-// SD Card configuration
-#define TOC_FILENAME "/toc.txt"
-
 // Network timeouts - can be more aggressive since ESP32-S3 is more stable
 #define WIFI_CONNECT_TIMEOUT 8000 // Reduced timeout
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"

@@ -138,14 +138,6 @@
 // Filename for WiFi credentials inside the SD Card
 // #define WIFI_FILENAME "/wifi.txt"
 
-// Filename for Table of Contents (TOC) inside the SD Card
-// Note: TOC is created the first time the device is started and contains the list of all images
-// available on the SD card, so that the device can display them in a random order.
-// The TOC is recreated if not found.
-// When new images are added/removed to the SD card, the toc file on the SD card should be deleted
-// so that it will be recreated the next time the device is started.
-// #define TOC_FILENAME "/toc.txt"
-
 // Wifi and NTP settings
 // #define WIFI_CONNECT_TIMEOUT 10000
 // #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
@@ -265,25 +257,6 @@
 // Maximum wait time for rate limiting in milliseconds
 #define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000
 
-// Maximum number of files to retrieve per API request
-// Test with larger page size now that RTC is disabled
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 200
-
-// Stream parser threshold in bytes - platform specific
-#ifdef BOARD_HAS_PSRAM
-// Feather S3 with PSRAM - use aggressive limits to maximize performance
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // 4MB - avoid streaming for most responses
-#define GOOGLE_DRIVE_JSON_DOC_SIZE           4194304  // 4MB JSON document buffer
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE       6291456  // 6MB response body reserve
-#define GOOGLE_DRIVE_SAFETY_LIMIT            10485760 // 10MB safety limit
-#else
-// Standard ESP32 - conservative limits for limited RAM
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768  // 32KB
-#define GOOGLE_DRIVE_JSON_DOC_SIZE           40960  // 40KB JSON document buffer
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE       65536  // 64KB response body reserve
-#define GOOGLE_DRIVE_SAFETY_LIMIT            100000 // 100KB safety limit
-#endif
-
 // -------------------------------------------
 // Google Drive Configuration File
 // -------------------------------------------
@@ -306,7 +279,6 @@
 //   },
 //   "caching": {
 //     "local_path": "/gdrive",
-//     "toc_filename": "toc.txt",
 //     "toc_max_age_seconds": 604800
 //   },
 //   "rate_limiting": {
@@ -335,7 +307,6 @@
 //
 // Caching section:
 // - local_path: Directory on SD card for cached files
-// - toc_filename: Filename for the table of contents file
 // - toc_max_age_seconds: Maximum age of cached TOC before refresh (1-2592000 seconds)
 //
 // Rate limiting section:
@@ -411,9 +382,19 @@ extern const char* LOCAL_FILE_EXTENSION;
 #define WIFI_FILENAME "/wifi.txt"
 #endif // WIFI_FILENAME
 
-#ifndef TOC_FILENAME
-#define TOC_FILENAME "/toc.txt"
-#endif // TOC_FILENAME
+// TOC (Table of Contents) file system - 2-file approach
+#ifndef TOC_DATA_FILENAME
+#define TOC_DATA_FILENAME "toc_data.txt"
+#endif // TOC_DATA_FILENAME
+
+#ifndef TOC_META_FILENAME
+#define TOC_META_FILENAME "toc_meta.txt"
+#endif // TOC_META_FILENAME
+
+// Google Drive OAuth access token cache
+#ifndef ACCESS_TOKEN_FILENAME
+#define ACCESS_TOKEN_FILENAME "access_token.json"
+#endif // ACCESS_TOKEN_FILENAME
 
 #ifndef WIFI_CONNECT_TIMEOUT
 #define WIFI_CONNECT_TIMEOUT 10000
@@ -541,5 +522,52 @@ extern const char* LOCAL_FILE_EXTENSION;
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
 #endif // POTENTIOMETER_INPUT_MAX
+
+// Stream parser threshold in bytes - platform specific
+#ifdef BOARD_HAS_PSRAM
+// Feather S3 with PSRAM - use aggressive limits to maximize performance
+
+#ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304 // 4MB - avoid streaming for most responses
+#endif                                               // GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
+
+#ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer
+#endif                                     // GOOGLE_DRIVE_JSON_DOC_SIZE
+
+#ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456 // 6MB response body reserve
+#endif                                         // GOOGLE_DRIVE_BODY_RESERVE_SIZE
+
+#ifndef GOOGLE_DRIVE_SAFETY_LIMIT
+#define GOOGLE_DRIVE_SAFETY_LIMIT 10485760 // 10MB safety limit
+#endif                                     // GOOGLE_DRIVE_SAFETY_LIMIT
+
+#else
+// Standard ESP32 - conservative limits for limited RAM
+
+#ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768 // 32KB
+#endif                                             // GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
+
+#ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960 // 40KB JSON document buffer
+#endif                                   // GOOGLE_DRIVE_JSON_DOC_SIZE
+
+#ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536 // 64KB response body reserve
+#endif                                       // GOOGLE_DRIVE_BODY_RESERVE_SIZE
+
+#ifndef GOOGLE_DRIVE_SAFETY_LIMIT
+#define GOOGLE_DRIVE_SAFETY_LIMIT 100000 // 100KB safety limit
+#endif                                   // GOOGLE_DRIVE_SAFETY_LIMIT
+
+#endif // BOARD_HAS_PSRAM
+
+#ifndef GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
+// Maximum number of files to retrieve per API request
+// Test with larger page size now that RTC is disabled
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 200
+#endif // GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
 
 #endif // __PHOTO_FRAME_CONFIG_H__

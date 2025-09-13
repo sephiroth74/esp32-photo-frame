@@ -100,6 +100,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_0_bar_180deg:
     switch (size) {
     case 12: return battery_0_bar_180deg_12x12;
@@ -115,6 +116,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_0_bar_270deg:
     switch (size) {
     case 12: return battery_0_bar_270deg_12x12;
@@ -130,6 +132,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_0_bar_90deg:
     switch (size) {
     case 12: return battery_0_bar_90deg_12x12;
@@ -145,6 +148,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_1_bar_0deg:
     switch (size) {
     case 12: return battery_1_bar_0deg_12x12;
@@ -160,6 +164,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_1_bar_180deg:
     switch (size) {
     case 12: return battery_1_bar_180deg_12x12;
@@ -175,6 +180,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_1_bar_270deg:
     switch (size) {
     case 12: return battery_1_bar_270deg_12x12;
@@ -190,6 +196,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_1_bar_90deg:
     switch (size) {
     case 12: return battery_1_bar_90deg_12x12;
@@ -205,6 +212,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_2_bar_0deg:
     switch (size) {
     case 12: return battery_2_bar_0deg_12x12;
@@ -220,6 +228,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_2_bar_180deg:
     switch (size) {
     case 12: return battery_2_bar_180deg_12x12;
@@ -235,6 +244,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_2_bar_270deg:
     switch (size) {
     case 12: return battery_2_bar_270deg_12x12;
@@ -250,6 +260,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_2_bar_90deg:
     switch (size) {
     case 12: return battery_2_bar_90deg_12x12;
@@ -265,6 +276,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_3_bar_0deg:
     switch (size) {
     case 12: return battery_3_bar_0deg_12x12;
@@ -280,6 +292,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_3_bar_180deg:
     switch (size) {
     case 12: return battery_3_bar_180deg_12x12;
@@ -295,6 +308,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_3_bar_270deg:
     switch (size) {
     case 12: return battery_3_bar_270deg_12x12;
@@ -310,6 +324,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_3_bar_90deg:
     switch (size) {
     case 12: return battery_3_bar_90deg_12x12;
@@ -325,6 +340,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_4_bar_0deg:
     switch (size) {
     case 12: return battery_4_bar_0deg_12x12;
@@ -340,6 +356,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_4_bar_180deg:
     switch (size) {
     case 12: return battery_4_bar_180deg_12x12;
@@ -355,6 +372,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_4_bar_270deg:
     switch (size) {
     case 12: return battery_4_bar_270deg_12x12;
@@ -370,6 +388,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_4_bar_90deg:
     switch (size) {
     case 12: return battery_4_bar_90deg_12x12;
@@ -385,6 +404,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_5_bar_0deg:
     switch (size) {
     case 12: return battery_5_bar_0deg_12x12;
@@ -400,6 +420,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_5_bar_180deg:
     switch (size) {
     case 12: return battery_5_bar_180deg_12x12;
@@ -415,6 +436,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_5_bar_270deg:
     switch (size) {
     case 12: return battery_5_bar_270deg_12x12;
@@ -430,6 +452,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_5_bar_90deg:
     switch (size) {
     case 12: return battery_5_bar_90deg_12x12;
@@ -445,6 +468,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_6_bar_0deg:
     switch (size) {
     case 12: return battery_6_bar_0deg_12x12;
@@ -460,6 +484,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_6_bar_180deg:
     switch (size) {
     case 12: return battery_6_bar_180deg_12x12;
@@ -475,6 +500,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_6_bar_270deg:
     switch (size) {
     case 12: return battery_6_bar_270deg_12x12;
@@ -490,6 +516,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_6_bar_90deg:
     switch (size) {
     case 12: return battery_6_bar_90deg_12x12;
@@ -505,6 +532,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_alert_0deg:
     switch (size) {
     case 12: return battery_alert_0deg_12x12;
@@ -520,6 +548,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_alert_180deg:
     switch (size) {
     case 12: return battery_alert_180deg_12x12;
@@ -535,6 +564,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_alert_270deg:
     switch (size) {
     case 12: return battery_alert_270deg_12x12;
@@ -550,6 +580,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_alert_90deg:
     switch (size) {
     case 12: return battery_alert_90deg_12x12;
@@ -565,6 +596,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_charging_full_0deg:
     switch (size) {
     case 12: return battery_charging_full_0deg_12x12;
@@ -580,6 +612,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_charging_full_180deg:
     switch (size) {
     case 12: return battery_charging_full_180deg_12x12;
@@ -595,6 +628,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_charging_full_270deg:
     switch (size) {
     case 12: return battery_charging_full_270deg_12x12;
@@ -610,6 +644,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_charging_full_90deg:
     switch (size) {
     case 12: return battery_charging_full_90deg_12x12;
@@ -625,6 +660,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_full_0deg:
     switch (size) {
     case 12: return battery_full_0deg_12x12;
@@ -640,6 +676,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_full_180deg:
     switch (size) {
     case 12: return battery_full_180deg_12x12;
@@ -655,6 +692,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_full_270deg:
     switch (size) {
     case 12: return battery_full_270deg_12x12;
@@ -670,6 +708,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case battery_full_90deg:
     switch (size) {
     case 12: return battery_full_90deg_12x12;
@@ -685,6 +724,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case clear_sky_day_0deg:
     switch (size) {
     case 12: return clear_sky_day_0deg_12x12;
@@ -700,6 +740,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case clear_sky_night_0deg:
     switch (size) {
     case 12: return clear_sky_night_0deg_12x12;
@@ -715,6 +756,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case cloud_0deg:
     switch (size) {
     case 12: return cloud_0deg_12x12;
@@ -730,6 +772,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case cloudy_day_0deg:
     switch (size) {
     case 12: return cloudy_day_0deg_12x12;
@@ -745,6 +788,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case cloudy_day_rain_0deg:
     switch (size) {
     case 12: return cloudy_day_rain_0deg_12x12;
@@ -760,6 +804,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case cloudy_night_0deg:
     switch (size) {
     case 12: return cloudy_night_0deg_12x12;
@@ -775,6 +820,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case cloudy_night_rain_0deg:
     switch (size) {
     case 12: return cloudy_night_rain_0deg_12x12;
@@ -790,6 +836,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case error_icon:
     switch (size) {
     case 12: return error_icon_12x12;
@@ -805,6 +852,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case fog_0deg:
     switch (size) {
     case 12: return fog_0deg_12x12;
@@ -820,6 +868,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case ionizing_radiation_symbol:
     switch (size) {
     case 12: return ionizing_radiation_symbol_12x12;
@@ -835,6 +884,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case micro_sd_card_0deg:
     switch (size) {
     case 12: return micro_sd_card_0deg_12x12;
@@ -850,6 +900,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case overcast_0deg:
     switch (size) {
     case 12: return overcast_0deg_12x12;
@@ -865,6 +916,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case overcast_wind_rain_0deg:
     switch (size) {
     case 12: return overcast_wind_rain_0deg_12x12;
@@ -880,6 +932,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case rain_0deg:
     switch (size) {
     case 12: return rain_0deg_12x12;
@@ -895,6 +948,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case snow_0deg:
     switch (size) {
     case 12: return snow_0deg_12x12;
@@ -910,6 +964,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case snow_rain_0deg:
     switch (size) {
     case 12: return snow_rain_0deg_12x12;
@@ -925,6 +980,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case sunrise_0deg:
     switch (size) {
     case 12: return sunrise_0deg_12x12;
@@ -940,6 +996,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case sunset_0deg:
     switch (size) {
     case 12: return sunset_0deg_12x12;
@@ -955,6 +1012,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case thunderstorm_0deg:
     switch (size) {
     case 12: return thunderstorm_0deg_12x12;
@@ -970,6 +1028,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case warning_icon:
     switch (size) {
     case 12: return warning_icon_12x12;
@@ -985,6 +1044,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case wi_time_10:
     switch (size) {
     case 12: return wi_time_10_12x12;
@@ -1000,6 +1060,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case wind_0deg:
     switch (size) {
     case 12: return wind_0deg_12x12;
@@ -1015,6 +1076,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   case wind_rain_0deg:
     switch (size) {
     case 12: return wind_rain_0deg_12x12;
@@ -1030,6 +1092,7 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     default:
       return nullptr;
     }
+    break;
   default:
     return nullptr;
   }

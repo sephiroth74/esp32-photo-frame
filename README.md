@@ -109,7 +109,6 @@
      },
      "caching": {
        "local_path": "/gdrive",
-       "toc_filename": "toc.txt",
        "toc_max_age_seconds": 604800
      },
      "rate_limiting": {

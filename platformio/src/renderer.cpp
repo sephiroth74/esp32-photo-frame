@@ -48,11 +48,20 @@ namespace renderer {
 void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y);
 
 // static const uint16_t input_buffer_pixels = 20; // may affect performance
-static const uint16_t input_buffer_pixels = 800; // may affect performance
+static const uint16_t input_buffer_pixels = 200; // Reduced to save DRAM (was 800, 600 bytes saved)
 
-static const uint16_t max_row_width       = 1448; // for up to 6" display 1448x1072
-static const uint16_t max_palette_pixels  = 256;  // for depth <= 8
+static const uint16_t max_row_width       = 800; // Optimized for 800x480 display (was 1448)
+static const uint16_t max_palette_pixels  = 256; // for depth <= 8
 
+#ifdef BOARD_HAS_PSRAM
+// Dynamic PSRAM buffers - moved from static DRAM to save ~1376 bytes
+uint8_t* input_buffer            = nullptr;
+uint8_t* output_row_mono_buffer  = nullptr;
+uint8_t* output_row_color_buffer = nullptr;
+uint8_t* mono_palette_buffer     = nullptr;
+uint8_t* color_palette_buffer    = nullptr;
+uint16_t* rgb_palette_buffer     = nullptr;
+#else  // BOARD_HAS_PSRAM
 uint8_t input_buffer[3 * input_buffer_pixels];        // up to depth 24
 uint8_t output_row_mono_buffer[max_row_width / 8];    // buffer for at least one row of b/w bits
 uint8_t output_row_color_buffer[max_row_width / 8];   // buffer for at least one row of color bits
@@ -60,6 +69,7 @@ uint8_t mono_palette_buffer[max_palette_pixels / 8];  // palette buffer for dept
 uint8_t color_palette_buffer[max_palette_pixels / 8]; // palette buffer for depth <= 8 c/w
 uint16_t rgb_palette_buffer[max_palette_pixels];      // palette buffer for depth <= 8 for buffered
                                                       // graphics, needed for 7-color display
+#endif // BOARD_HAS_PSRAM
 
 uint16_t read8(File& f) {
     uint8_t result;
@@ -135,6 +145,14 @@ void init_display() {
     Serial.printf("[renderer] Display has fast partial update: %s\n",
                   display.epd2.hasFastPartialUpdate ? "true" : "false");
 
+    // Allocate rendering buffers in PSRAM (if available) or regular heap
+#ifdef BOARD_HAS_PSRAM
+    if (!allocate_renderer_buffers()) {
+        Serial.println("[renderer] CRITICAL: Failed to allocate rendering buffers!");
+        // Continue anyway - some functions might work without these buffers
+    }
+#endif // BOARD_HAS_PSRAM
+
     // display.setFullWindow();
     // display.fillScreen(GxEPD_WHITE);
     // display.firstPage(); // use paged drawing mode, sets fillScreen(GxEPD_WHITE)
@@ -146,6 +164,12 @@ void init_display() {
  */
 void power_off() {
     Serial.println("[renderer] Powering off e-paper display...");
+
+#ifdef BOARD_HAS_PSRAM
+    // Free rendering buffers to save memory during sleep
+    free_renderer_buffers();
+#endif // BOARD_HAS_PSRAM
+
     // display.hibernate();
     display.powerOff(); // turns off the display
     delay(100);         // wait for the display to power off
@@ -158,7 +182,7 @@ void power_off() {
 #endif // USE_HSPI_FOR_EPD
 
     return;
-} // end initDisplay
+} // end powerOff
 
 void refresh(bool partial_update_mode) { display.refresh(partial_update_mode); }
 
@@ -166,8 +190,13 @@ void fill_screen(uint16_t color) { display.fillScreen(color); }
 
 bool has_partial_update() {
     // check if the display supports partial update
-    return display.epd2.hasPartialUpdate || display.epd2.hasFastPartialUpdate;
+    return display.epd2.hasPartialUpdate;
 } // end hasPartialUpdate
+
+bool has_fast_partial_update() {
+    // check if the display supports fast partial update
+    return display.epd2.hasFastPartialUpdate;
+} // end hasFastPartialUpdate
 
 /*
  * Returns the string width in pixels
@@ -850,16 +879,22 @@ bool draw_bitmap_from_file(File& file,
 
     if (signature == 0x4D42) // BMP signature
     {
-        uint32_t fileSize     = read32(file);
+        uint32_t fileSize = read32(file);
+#if !DEBUG_MODE
+        (void)fileSize; // unused
+#endif                  // !DEBUG_MODE
         uint32_t creatorBytes = read32(file);
         (void)creatorBytes;                  // unused
         uint32_t imageOffset = read32(file); // Start of image data
         uint32_t headerSize  = read32(file);
-        uint32_t width       = read32(file);
-        int32_t height       = (int32_t)read32(file);
-        uint16_t planes      = read16(file);
-        uint16_t depth       = read16(file); // bits per pixel
-        uint32_t format      = read32(file);
+#if !DEBUG_MODE
+        (void)headerSize; // unused
+#endif                    // !DEBUG_MODE
+        uint32_t width  = read32(file);
+        int32_t height  = (int32_t)read32(file);
+        uint16_t planes = read16(file);
+        uint16_t depth  = read16(file); // bits per pixel
+        uint32_t format = read32(file);
         Serial.println("planes: " + String(planes));
         Serial.println("format: " + String(format));
         if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
@@ -1214,10 +1249,16 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
                                 nullptr,
                                 "Failed to seek to pixel position");
                             error.log_detailed();
+                            Serial.println("[renderer] Critical error: Cannot seek in image file. "
+                                           "Aborting rendering.");
+                            return false; // Exit immediately on seek failure
                         } else {
                             auto error = photo_frame::error_utils::create_image_error(
                                 "read_failed", filename, nullptr, "Failed to read pixel data");
                             error.log_detailed();
+                            Serial.println("[renderer] Critical error: Cannot read pixel data. "
+                                           "Aborting rendering.");
+                            return false; // Exit immediately on read failure
                         }
                     }
                 }
@@ -1279,16 +1320,22 @@ bool draw_bitmap_from_file_buffered(File& file,
     {
         Serial.println("[renderer] BMP signature: " + String(signature));
 
-        uint32_t fileSize     = read32(file);
+        uint32_t fileSize = read32(file);
+#if !DEBUG_MODE
+        (void)fileSize; // unused
+#endif                  // !DEBUG_MODE
         uint32_t creatorBytes = read32(file);
         (void)creatorBytes;                  // unused
         uint32_t imageOffset = read32(file); // Start of image data
         uint32_t headerSize  = read32(file);
-        uint32_t width       = read32(file);
-        int32_t height       = (int32_t)read32(file);
-        uint16_t planes      = read16(file);
-        uint16_t depth       = read16(file); // bits per pixel
-        uint32_t format      = read32(file);
+#if !DEBUG_MODE
+        (void)headerSize; // unused
+#endif                    // !DEBUG_MODE
+        uint32_t width  = read32(file);
+        int32_t height  = (int32_t)read32(file);
+        uint16_t planes = read16(file);
+        uint16_t depth  = read16(file); // bits per pixel
+        uint32_t format = read32(file);
 
 #if DEBUG_MODE
         Serial.println("[renderer] planes: " + String(planes));
@@ -1519,6 +1566,76 @@ bool is_yellow(uint8_t r, uint8_t g, uint8_t b) { return (r > 3 && g > 3 && b < 
 bool is_orange(uint8_t r, uint8_t g, uint8_t b) { return (r > 4 && g > 2 && g < r && b < 2); };
 
 #endif // DISP_6C || DISP_7C_F
+
+/*
+ * Allocate rendering buffers - uses PSRAM when available, falls back to regular heap
+ */
+
+#ifdef BOARD_HAS_PSRAM
+bool allocate_renderer_buffers() {
+    Serial.println("[renderer] Allocating rendering buffers...");
+
+    // Free any existing buffers first
+    free_renderer_buffers();
+
+    // Try to allocate buffers - malloc will use PSRAM automatically if CONFIG_SPIRAM_USE_MALLOC=1
+    input_buffer            = (uint8_t*)malloc(3 * input_buffer_pixels);
+    output_row_mono_buffer  = (uint8_t*)malloc(max_row_width / 8);
+    output_row_color_buffer = (uint8_t*)malloc(max_row_width / 8);
+    mono_palette_buffer     = (uint8_t*)malloc(max_palette_pixels / 8);
+    color_palette_buffer    = (uint8_t*)malloc(max_palette_pixels / 8);
+    rgb_palette_buffer      = (uint16_t*)malloc(max_palette_pixels * sizeof(uint16_t));
+
+    // Check if all allocations succeeded
+    if (!input_buffer || !output_row_mono_buffer || !output_row_color_buffer ||
+        !mono_palette_buffer || !color_palette_buffer || !rgb_palette_buffer) {
+        Serial.println("[renderer] ERROR: Failed to allocate rendering buffers!");
+        free_renderer_buffers(); // Clean up any partial allocations
+        return false;
+    }
+
+    // Report memory usage
+    size_t total_allocated = (3 * input_buffer_pixels) + (max_row_width / 8) * 2 +
+                             (max_palette_pixels / 8) * 2 + (max_palette_pixels * sizeof(uint16_t));
+
+    Serial.printf("[renderer] Successfully allocated %zu bytes for rendering buffers\n",
+                  total_allocated);
+
+    Serial.printf("[renderer] Free PSRAM after allocation: %u bytes\n", ESP.getFreePsram());
+
+    return true;
+}
+
+/*
+ * Free rendering buffers
+ */
+void free_renderer_buffers() {
+    if (input_buffer) {
+        free(input_buffer);
+        input_buffer = nullptr;
+    }
+    if (output_row_mono_buffer) {
+        free(output_row_mono_buffer);
+        output_row_mono_buffer = nullptr;
+    }
+    if (output_row_color_buffer) {
+        free(output_row_color_buffer);
+        output_row_color_buffer = nullptr;
+    }
+    if (mono_palette_buffer) {
+        free(mono_palette_buffer);
+        mono_palette_buffer = nullptr;
+    }
+    if (color_palette_buffer) {
+        free(color_palette_buffer);
+        color_palette_buffer = nullptr;
+    }
+    if (rgb_palette_buffer) {
+        free(rgb_palette_buffer);
+        rgb_palette_buffer = nullptr;
+    }
+}
+#endif // BOARD_HAS_PSRAM
 
 void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
 #ifdef DISP_6C

@@ -89,6 +89,40 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
         Serial.println(F("[board_util] This GPIO pin does not support RTC IO / EXT1 wakeup!"));
     }
 
+#elif defined(WAKEUP_EXT0)
+    Serial.println(F("[board_util] Configuring EXT0 wakeup on RTC IO pin..."));
+
+    // Test if pin supports RTC IO before configuration
+    Serial.print(F("[board_util] Testing RTC IO capability for GPIO "));
+    Serial.print(WAKEUP_PIN);
+    Serial.print(F("... "));
+
+    pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
+
+    // Read current pin state for debugging
+    int pinState = digitalRead(WAKEUP_PIN);
+    Serial.print(F("Pin state: "));
+    Serial.print(pinState);
+
+    // Test EXT0 wakeup configuration
+    esp_err_t wakeup_result = esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_LEVEL);
+
+    Serial.print(F(" | EXT0 config: "));
+    if (wakeup_result == ESP_OK) {
+        Serial.println(F("SUCCESS"));
+        Serial.print(F("[board_util] GPIO "));
+        Serial.print(WAKEUP_PIN);
+        Serial.print(F(" configured for EXT0 wakeup, level: "));
+        Serial.println(WAKEUP_LEVEL == 1 ? "HIGH" : "LOW");
+
+        // Additional test: try to read the configured wakeup source
+        Serial.println(F("[board_util] EXT0 wakeup source configured successfully"));
+    } else {
+        Serial.print(F("[board_util] FAILED - Error code: "));
+        Serial.println(wakeup_result);
+        Serial.println(F("[board_util] This GPIO pin does not support RTC IO / EXT0 wakeup!"));
+    }
+
 #endif // WAKEUP_EXT1
 
     bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
