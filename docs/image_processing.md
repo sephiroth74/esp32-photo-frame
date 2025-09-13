@@ -371,20 +371,22 @@ export MAGICK_DISK_LIMIT=4GB
 
 ## Integration with ESP32 Project
 
-### File Placement
-1. **Copy binary files** from `output_directory/bin/` to SD card
-2. **Directory structure** on SD card:
+### File Upload to Google Drive
+1. **Upload binary files** from `output_directory/bin/` to your Google Drive folder
+2. **Google Drive organization** (optional but recommended):
    ```
-   /bin-bw/           # For black & white displays
+   Your Google Drive Folder/
    ├── image1.bin
    ├── image2.bin
-   └── combined_portrait_1.bin
-   
-   /bin-6c/           # For 6-color displays  
-   ├── image1.bin
-   ├── image2.bin
-   └── combined_portrait_1.bin
+   ├── combined_portrait_1.bin
+   ├── image3.bin
+   └── combined_portrait_2.bin
    ```
+
+3. **Critical Requirements**:
+   - **Share the Google Drive folder** with your service account email (from `google_drive_config.json`)
+   - Ensure the folder ID in your `google_drive_config.json` matches the uploaded folder
+   - Only `.bin` files are supported - do not upload BMP or other formats
 
 ### Binary Format Compatibility
 - **Dimensions**: Must match display resolution exactly
@@ -424,12 +426,13 @@ DISPLAY_SIZE="800x480"
   --auto \
   --verbose
 
-# Step 2: Copy to SD card
-cp "$OUTPUT_DIR"/bin/*.bin /Volumes/SDCARD/bin-bw/
+# Step 2: Upload to Google Drive
+echo "Upload the binary files from $OUTPUT_DIR/bin/ to your Google Drive folder"
+echo "Remember to share the Google Drive folder with your service account email!"
 
 # Step 3: Verify file count
-echo "Processed $(ls "$OUTPUT_DIR"/bin/*.bin | wc -l) images"
-echo "SD card now contains $(ls /Volumes/SDCARD/bin-bw/*.bin | wc -l) files"
+echo "Processed $(ls "$OUTPUT_DIR"/bin/*.bin | wc -l) images ready for upload"
+echo "Upload these .bin files to your shared Google Drive folder"
 ```
 
 ### Batch Processing Multiple Directories
