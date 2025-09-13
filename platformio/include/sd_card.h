@@ -23,12 +23,10 @@
 #ifndef __PHOTO_FRAME_SD_CARD_H__
 #define __PHOTO_FRAME_SD_CARD_H__
 
-#include "FS.h"
 #include "config.h"
 #include "errors.h"
 #include <Arduino.h>
 #include <SD.h>
-#include <SPI.h>
 
 namespace photo_frame {
 
@@ -214,31 +212,6 @@ class sd_card {
     bool is_file(const char* path) const;
 
     /**
-     * List all files in the root directory of the SD card with the specified extension.
-     * Then writes a table of contents (TOC) file named "toc.txt" in the root directory.
-     *
-     * @param total_files Pointer to a variable that will hold the total number of files written to
-     * the TOC.
-     * @param toc_file_name The name of the TOC file to be created (default is "/toc.txt").
-     * @param root_dir The root directory to search for image files (default is "/").
-     * @param extension The file extension to filter files (default is ".bmp").
-     * @return photo_frame_error_t indicating success or failure.
-     */
-    photo_frame_error_t write_images_toc(uint32_t* total_files,
-                                         const char* toc_file_name,
-                                         const char* root_dir,
-                                         const char* extension) const;
-
-    /**
-     * Gets the file path of the TOC file.
-     * @param index The index of the TOC file.
-     * @param toc_file_name The name of the TOC file (default is "toc.txt").
-     * @return The file path of the TOC file as a String.
-     * If the index is out of bounds, it returns an empty String.
-     */
-    String get_toc_file_path(uint32_t index, const char* toc_file_name = TOC_FILENAME) const;
-
-    /**
      * Lists all files in the root directory of the SD card with the specified extension.
      * @param extension The file extension to filter files (e.g., ".jpg", ".png").
      * If the extension is null or empty, it lists all files.
@@ -258,23 +231,6 @@ class sd_card {
     void print_stats() const;
 
     /**
-     * Finds the next image file on the SD card with the specified extension.
-     * @param index Pointer to a variable that will hold the index of the found image.
-     * @param extension The file extension to filter files (e.g., ".jpg", ".png").
-     * If the extension is null or empty, it searches for all files.
-     * @param file_entry Pointer to a sd_card_entry object that will be filled with the file
-     * details.
-     * @return photo_frame_error_t indicating success or failure.
-     * If no image is found, it returns an error indicating that no image was found.
-     * @note This function searches for image files in the root directory of the SD card.
-     * It does not search in subdirectories.
-     * @note If the SD card is not initialized, it will return an error indicating that the SD card
-     * is not initialized.
-     */
-    photo_frame_error_t
-    find_next_image(uint32_t* index, const char* extension, sd_card_entry* file_entry) const;
-
-    /**
      * Counts the number of files with the specified extension in the root directory of the SD card.
      * @param extension The file extension to filter files (e.g., ".jpg", ".png").
      * If the extension is null or empty, it counts all files.
@@ -288,11 +244,13 @@ class sd_card {
      * Opens a file on the SD card.
      * @param path The path to the file to open.
      * @param mode The mode in which to open the file (e.g., FILE_READ, FILE_WRITE).
+     * @param create If true, creates the file if it does not exist (only applicable for write
+     * modes).
      * @return A File object representing the opened file.
      * If the SD card is not initialized or the file cannot be opened, it returns an empty File
      * object.
      */
-    fs::File open(const char* path, const char* mode = FILE_READ);
+    fs::File open(const char* path, const char* mode = FILE_READ, bool create = false);
 
     /**
      * Renames a file on the SD card.

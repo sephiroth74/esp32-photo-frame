@@ -50,7 +50,6 @@ typedef struct {
     int listPageSize;
     bool useInsecureTls;
     String localPath;
-    String tocFilename;
     unsigned long tocMaxAgeSeconds;
     int maxRequestsPerWindow;
     int rateLimitWindowSeconds;
@@ -109,22 +108,25 @@ class google_drive {
      * If the local file (stored in the SD card) exists, it will be used instead of downloading
      * (unless is too old, or force it set to true).
      *
+     * @param sdCard Reference to the SD card object
      * @param batteryConservationMode If true, uses cached TOC even if expired to save battery
      * power.
      * @return Total number of files in the TOC, or 0 if failed
      */
-    size_t retrieve_toc(bool batteryConservationMode = false);
+    size_t retrieve_toc(sd_card& sdCard, bool batteryConservationMode = false);
 
     /**
      * @brief Download a file from Google Drive to the SD card.
      *
+     * @param sdCard Reference to the SD card object
      * @param file The google_drive_file object representing the file to download.
      * @param error Pointer to store the error code result.
      * @return fs::File object representing the downloaded file on the SD card, or empty File on
      * failure.
      */
-    fs::File download_file(google_drive_file file, photo_frame_error_t* error);
+    fs::File download_file(sd_card& sdCard, google_drive_file file, photo_frame_error_t* error);
 
+#if 0
     /**
      * @brief Download a file from Google Drive directly to LittleFS.
      *
@@ -137,6 +139,8 @@ class google_drive {
     fs::File download_file_to_littlefs(google_drive_file file,
                                        const String& littlefs_path,
                                        photo_frame_error_t* error);
+
+#endif
 
     /**
      * @brief Get the source of the last downloaded/accessed file.
@@ -157,7 +161,7 @@ class google_drive {
      * @param force If true, forces the cleanup of temporary files
      * @return Number of temporary files cleaned up
      */
-    static uint32_t
+    uint32_t
     cleanup_temporary_files(sd_card& sdCard, const google_drive_json_config& config, boolean force);
 
     /**
@@ -165,7 +169,7 @@ class google_drive {
      * @param force If true, forces the cleanup of temporary files
      * @return Number of temporary files cleaned up
      */
-    uint32_t cleanup_temporary_files(boolean force);
+    uint32_t cleanup_temporary_files(sd_card& sdCard, boolean force);
 
     /**
      * @brief Load Google Drive root CA certificate from SD card
@@ -180,6 +184,12 @@ class google_drive {
      * @return String containing the full path to the TOC file
      */
     String get_toc_file_path() const;
+
+    /**
+     * @brief Get the full path to the TOC metadata file on SD card
+     * @return String containing the full path to the TOC metadata file
+     */
+    String get_toc_meta_file_path() const;
 
     /**
      * @brief Get the full path to the temp directory on SD card
@@ -209,45 +219,55 @@ class google_drive {
 
     /**
      * @brief Get the file count from a plain text TOC file efficiently
+     * @param sdCard Reference to the SD card object
      * @param filePath Path to the TOC file on SD card
      * @param error Pointer to error code (optional)
      * @return Number of files in the TOC, or 0 if error
      */
-    size_t get_toc_file_count(const String& filePath, photo_frame_error_t* error = nullptr);
+    size_t get_toc_file_count(sd_card& sdCard,
+                              const String& filePath,
+                              photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Get a specific file entry by index from a plain text TOC file
+     * @param sdCard Reference to the SD card object
      * @param filePath Path to the TOC file on SD card
      * @param index Zero-based index of the file to retrieve
      * @param error Pointer to error code (optional)
      * @return google_drive_file at the specified index, or empty file if error
      */
-    google_drive_file get_toc_file_by_index(const String& filePath,
+    google_drive_file get_toc_file_by_index(sd_card& sdCard,
+                                            const String& filePath,
                                             size_t index,
                                             photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Get the file count from the TOC file efficiently
+     * @param sdCard Reference to the SD card object
      * @param error Pointer to error code (optional)
      * @return Number of files in the TOC, or 0 if error
      */
-    size_t get_toc_file_count(photo_frame_error_t* error = nullptr);
+    size_t get_toc_file_count(sd_card& sdCard, photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Get a specific file entry by index from the TOC file
+     * @param sdCard Reference to the SD card object
      * @param index Zero-based index of the file to retrieve
      * @param error Pointer to error code (optional)
      * @return google_drive_file at the specified index, or empty file if error
      */
-    google_drive_file get_toc_file_by_index(size_t index, photo_frame_error_t* error = nullptr);
+    google_drive_file
+    get_toc_file_by_index(sd_card& sdCard, size_t index, photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Find a file by name in the TOC file
+     * @param sdCard Reference to the SD card object
      * @param filename Name of the file to search for
      * @param error Pointer to error code (optional)
      * @return google_drive_file with the specified name, or empty file if not found
      */
-    google_drive_file get_toc_file_by_name(const char* filename,
+    google_drive_file get_toc_file_by_name(sd_card& sdCard,
+                                           const char* filename,
                                            photo_frame_error_t* error = nullptr);
 
     /**

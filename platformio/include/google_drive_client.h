@@ -35,6 +35,7 @@
 
 #include "config.h"
 #include "errors.h"
+#include "sd_card.h"
 
 // Google Drive page token buffer size (Google Drive tokens are typically 100-200 chars)
 // "nextPageToken":
@@ -190,19 +191,6 @@ class google_drive_client {
     photo_frame_error_t get_access_token();
 
     /**
-     * @brief Lists files in a specified Google Drive folder.
-     *
-     * Retrieves a list of files contained within the folder identified by the given folderId.
-     *
-     * @param folderId The ID of the Google Drive folder to list files from.
-     * @param pageSize The maximum number of files to retrieve per request (default is 100).
-     * @param outFiles A vector to store the retrieved files.
-     * @return google_drive_error indicating the result of the operation.
-     */
-    photo_frame_error_t
-    list_files(const char* folderId, std::vector<google_drive_file>& outFiles, int pageSize = 50);
-
-    /**
      * @brief Lists files in a specified Google Drive folder and streams them directly to a TOC
      * file.
      *
@@ -210,11 +198,15 @@ class google_drive_client {
      * from the API response, avoiding the need to keep all files in memory at once.
      *
      * @param folderId The ID of the Google Drive folder to list files from.
-     * @param tocFile Open file handle to write TOC entries to
+     * @param sdCard Reference to the SD card instance for file operations
+     * @param tocFilePath Path to the TOC file to write entries to
      * @param pageSize The maximum number of files to retrieve per request (default is 50).
      * @return Total number of files written to the TOC, or 0 on error
      */
-    size_t list_files_streaming(const char* folderId, fs::File& tocFile, int pageSize = 50);
+    size_t list_files_streaming(const char* folderId,
+                                sd_card& sdCard,
+                                const char* tocFilePath,
+                                int pageSize = 50);
 
     /**
      * @brief Downloads a file from Google Drive to the specified file.
@@ -261,54 +253,34 @@ class google_drive_client {
     bool rsaSignRS256(const String& input, String& sig_b64url);
 
     /**
-     * @brief Lists files in a folder with pagination support.
-     * @param folderId The ID of the Google Drive folder
-     * @param outFiles Vector to store the retrieved files
-     * @param pageSize Maximum number of files per request (default: 10)
-     * @param nextPageToken Pointer to store next page token (optional)
-     * @param pageToken Token for requesting specific page (empty for first page)
-     * @return photo_frame_error_t indicating success or failure
-     */
-    photo_frame_error_t list_files_in_folder(const char* folderId,
-                                             std::vector<google_drive_file>& outFiles,
-                                             int pageSize          = 10,
-                                             char* nextPageToken   = nullptr,
-                                             const char* pageToken = "");
-
-    /**
      * @brief Lists files in a folder with pagination support, streaming directly to TOC file.
      * @param folderId The ID of the Google Drive folder
-     * @param tocFile Open file handle to write TOC entries to
+     * @param sdCard Reference to the SD card instance for file operations
+     * @param tocFilePath Path to the TOC file to write entries to
      * @param pageSize Maximum number of files per request (default: 10)
      * @param nextPageToken Pointer to store next page token (optional)
      * @param pageToken Token for requesting specific page (empty for first page)
      * @return Number of files written to TOC, or 0 on error
      */
     size_t list_files_in_folder_streaming(const char* folderId,
-                                          fs::File& tocFile,
+                                          sd_card& sdCard,
+                                          const char* tocFilePath,
                                           int pageSize          = 10,
                                           char* nextPageToken   = nullptr,
                                           const char* pageToken = "");
 
     /**
-     * @brief Streaming parser for large Google Drive JSON responses.
-     * @param jsonBody JSON response body to parse
-     * @param outFiles Vector to store parsed file information
-     * @param nextPageToken Pointer to store next page token if present
-     * @return photo_frame_error_t indicating parsing success or failure
-     */
-    photo_frame_error_t parse_file_list_streaming(const String& jsonBody,
-                                                  std::vector<google_drive_file>& outFiles,
-                                                  char* nextPageToken);
-
-    /**
      * @brief Streaming parser that writes files directly to TOC file.
      * @param jsonBody JSON response body to parse
-     * @param tocFile Open file handle to write TOC entries to
+     * @param sdCard Reference to the SD card instance for file operations
+     * @param tocFilePath Path to the TOC file to write entries to
      * @param nextPageToken Pointer to store next page token if present
      * @return Number of files written to TOC, or 0 on error
      */
-    size_t parse_file_list_to_toc(const String& jsonBody, fs::File& tocFile, char* nextPageToken);
+    size_t parse_file_list_to_toc(const String& jsonBody,
+                                  sd_card& sdCard,
+                                  const char* tocFilePath,
+                                  char* nextPageToken);
 
     /**
      * @brief Build HTTP request string with optimized memory allocation

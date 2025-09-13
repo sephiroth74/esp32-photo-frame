@@ -110,6 +110,20 @@ photo_frame_error_t sd_card::begin() {
     hspi.begin(sckPin, misoPin, mosiPin, csPin);
 #else
     Serial.println("[sdcard] Using default SPI for SD card communication.");
+
+#if DEBUG_MODE
+    Serial.print("[sdcard] SCK pin: ");
+    Serial.print(sckPin);
+    Serial.print(", MISO pin: ");
+    Serial.print(misoPin);
+    Serial.print(", MOSI pin: ");
+    Serial.print(mosiPin);
+    Serial.print(", CS pin: ");
+    Serial.print(csPin);
+#endif // DEBUG_MODE
+
+    Serial.println();
+
     SPI.begin(sckPin, misoPin, mosiPin, csPin);
     // SPI.setDataMode(SPI_MODE0);
 #endif // USE_HSPI_FOR_SD
@@ -215,36 +229,6 @@ time_t sd_card::get_file_age(const char* path) const {
     return time(NULL) - lastModified;
 }
 
-photo_frame_error_t
-sd_card::find_next_image(uint32_t* index, const char* extension, sd_card_entry* file_entry) const {
-    Serial.print("[sdcard] find_next_image | index: ");
-    Serial.print(*index);
-    Serial.print(", ext: ");
-    Serial.println(extension);
-
-    if (!extension || strlen(extension) == 0 || extension[0] != '.') {
-        Serial.println("[sdcard] Invalid extension provided");
-        return error_type::SdCardFileNotFound;
-    }
-
-    if (!initialized) {
-        return error_type::NoSdCardAttached;
-    }
-
-    uint32_t current_index = 0;
-    if (scan_directory(index, file_entry, "/", extension, current_index) != error_type::None) {
-        if (*index > 0) {
-            Serial.println("[sdcard] No more files in directory");
-            Serial.println("[sdcard] Resetting index to 0 and try again");
-
-            *index        = 0;
-            current_index = 0;
-            return scan_directory(index, file_entry, "/", extension, current_index);
-        }
-    }
-    return error_type::None;
-} // end findNextImage
-
 void sd_card::list_files(const char* extension) const {
     if (!extension || strlen(extension) == 0 || extension[0] != '.') {
         Serial.println("[sdcard] Invalid extension provided");
@@ -300,129 +284,6 @@ bool sd_card::file_exists(const char* path) const {
     return SD.exists(path);
 } // end fileExists
 
-String sd_card::get_toc_file_path(uint32_t index, const char* toc_file_name) const {
-    Serial.print("[sdcard] get_toc_file_path | index: ");
-    Serial.println(index);
-
-    if (!initialized) {
-        Serial.println("[sdcard] SD card not initialized.");
-        return "";
-    }
-
-    if (!toc_file_name || strlen(toc_file_name) == 0) {
-        Serial.println("[sdcard] Invalid TOC file name provided");
-        return "";
-    }
-
-    File toc_file = SD.open(toc_file_name, FILE_READ);
-    if (!toc_file) {
-        Serial.println("[sdcard] Failed to open TOC file");
-        return "";
-    }
-
-    // now read the TOC file and find the entry at the specified index
-    uint32_t current_index = 0;
-    while (toc_file.available()) {
-        String line = toc_file.readStringUntil('\n');
-        if (line.isEmpty()) {
-            continue; // Skip empty lines
-        }
-
-        if (current_index == index) {
-            toc_file.close();
-            return line; // Return the file path at the specified index
-        }
-        current_index++;
-    }
-
-    toc_file.close();
-
-    Serial.println("[sdcard] Index out of bounds for TOC file");
-    return ""; // If index is out of bounds, return an empty string
-
-} // end getTocFilePath
-
-photo_frame_error_t sd_card::write_images_toc(uint32_t* total_files,
-                                              const char* toc_file_name,
-                                              const char* root_dir,
-                                              const char* extension) const {
-    Serial.print("[sdcard] write_images_toc | toc_file_name: ");
-    Serial.print(toc_file_name);
-    Serial.print(", root_dir: ");
-    Serial.print(root_dir);
-    Serial.print(", extension: ");
-    Serial.println(extension);
-
-    if (!initialized) {
-        Serial.println("[sdcard] SD card not initialized.");
-        return error_type::NoSdCardAttached;
-    }
-
-    if (!total_files) {
-        Serial.println("[sdcard] Total files pointer is null");
-        return error_type::SdCardFileNotFound;
-    }
-
-    if (!toc_file_name || strlen(toc_file_name) == 0) {
-        Serial.println("[sdcard] Invalid TOC file name provided");
-        return error_type::SdCardFileNotFound;
-    }
-
-    if (!extension || strlen(extension) == 0 || extension[0] != '.') {
-        Serial.println("[sdcard] Invalid extension provided");
-        return error_type::SdCardFileNotFound;
-    }
-
-    File toc_file = SD.open(toc_file_name, FILE_WRITE);
-    if (!toc_file) {
-        Serial.println("[sdcard] Failed to open TOC file for writing");
-        return error_type::CardTocOpenFileFailed;
-    }
-
-    File root = SD.open(root_dir, FILE_READ);
-    if (!root) {
-        Serial.println("[sdcard] Failed to open root directory");
-        toc_file.close();
-        return error_type::CardOpenFileFailed;
-    }
-
-    unsigned long start_time = millis();
-    uint32_t file_count      = 0;
-    bool is_dir              = false;
-    String entry             = root.getNextFileName(&is_dir);
-    while (entry && !entry.isEmpty()) {
-        String file_name = entry.substring(entry.lastIndexOf('/') + 1);
-        if (!is_dir && file_name.endsWith(extension) && !file_name.startsWith("/") &&
-            !file_name.startsWith(".")) {
-#if DEBUG_MODE
-            Serial.print("[");
-            Serial.print(file_count + 1);
-            Serial.print("] ");
-            Serial.print("Writing file to TOC: ");
-            Serial.println(entry);
-#endif
-            toc_file.println(entry.c_str());
-            file_count++;
-        }
-        entry = root.getNextFileName(&is_dir);
-    }
-    toc_file.close();
-    root.close();
-
-    unsigned long elapsed_time = millis() - start_time;
-    Serial.print("[sdcard] Time taken to write TOC: ");
-    Serial.print(elapsed_time);
-    Serial.println(" ms");
-
-    Serial.print("[sdcard] Total files written to TOC: ");
-    Serial.println(file_count);
-
-    // Set the total files count
-    *total_files = file_count;
-
-    return photo_frame::error_type::None;
-}
-
 uint32_t sd_card::count_files(const char* extension) const {
     Serial.print("[sdcard] count_files | extension: ");
     Serial.println(extension);
@@ -466,7 +327,7 @@ uint32_t sd_card::count_files(const char* extension) const {
     return count;
 } // end getFileCount
 
-fs::File sd_card::open(const char* path, const char* mode) {
+fs::File sd_card::open(const char* path, const char* mode, bool create) {
     Serial.print("[sdcard] sd_card::open | path: ");
     Serial.print(path);
     Serial.print(", mode: ");
@@ -477,7 +338,7 @@ fs::File sd_card::open(const char* path, const char* mode) {
         return fs::File();
     }
 
-    fs::File file = SD.open(path, mode);
+    fs::File file = SD.open(path, mode, create);
     return file;
 } // end open
 

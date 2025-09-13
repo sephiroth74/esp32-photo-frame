@@ -115,7 +115,7 @@ uint32_t WeatherManager::get_adaptive_interval(uint8_t battery_percent) const {
 
     // Debug logging for power management decisions
     Serial.printf("[WeatherManager] Adaptive interval - Battery: %d%%, Failures: %d, Base: %ds, "
-                  "Final: %lds\n",
+                  "Final: %us\n",
                   battery_percent,
                   consecutive_failures,
                   config.update_interval_minutes * 60,

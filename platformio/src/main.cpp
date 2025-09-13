@@ -300,7 +300,7 @@ void setup() {
                 }
 
                 if (shouldCleanup) {
-                    uint32_t cleanedFiles = drive.cleanup_temporary_files(write_toc);
+                    uint32_t cleanedFiles = drive.cleanup_temporary_files(sdCard, write_toc);
                     if (cleanedFiles > 0) {
                         Serial.print(F("Cleaned up "));
                         Serial.print(cleanedFiles);
@@ -337,7 +337,7 @@ void setup() {
                     // Retrieve TOC and get file count directly
                     // I2C is already shut down before all WiFi operations to prevent ESP32-C6
                     // interference
-                    total_files = drive.retrieve_toc(batteryConservationMode);
+                    total_files = drive.retrieve_toc(sdCard, batteryConservationMode);
                 } else {
                     Serial.println(F("Google Drive not initialized - skipping"));
                     total_files = 0;
@@ -359,15 +359,15 @@ void setup() {
                                        "selection. Error: "));
                         Serial.println(tocError.code);
                         // Fallback to random selection
-                        image_index  = random(0, total_files);
+                        image_index  = random(0, drive.get_toc_file_count());
                         selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
                     }
 #else
                     // Generate a random index to start from
-                    image_index = random(0, total_files);
+                    image_index = random(0, drive.get_toc_file_count(sdCard));
 
                     // Get the specific file by index efficiently
-                    selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
+                    selectedFile = drive.get_toc_file_by_index(sdCard, image_index, &tocError);
 #endif // GOOGLE_DRIVE_TEST_FILE
 
                     if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
@@ -392,7 +392,7 @@ void setup() {
                                 error = photo_frame::error_type::BatteryLevelCritical;
                             } else {
                                 // Download the selected file to SD card
-                                file = drive.download_file(selectedFile, &error);
+                                file = drive.download_file(sdCard, selectedFile, &error);
                                 // Note: image source is set to IMAGE_SOURCE_CLOUD inside
                                 // download_file
                             }
@@ -493,13 +493,16 @@ void setup() {
             photo_frame::renderer::draw_error_message(gravity_t::TOP_RIGHT, error.code);
 
             if (error != photo_frame::error_type::BatteryLevelCritical) {
-                photo_frame::renderer::draw_last_update(now, 0);
+                photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
             }
         } while (display.nextPage());
     } else {
-        bool has_partial_update = photo_frame::renderer::has_partial_update();
+        bool has_partial_update      = photo_frame::renderer::has_partial_update();
+        bool has_fast_partial_update = photo_frame::renderer::has_fast_partial_update();
         Serial.print(F("*** Display supports partial update: "));
         Serial.print(has_partial_update ? "Yes" : "No");
+        Serial.print(F(" (fast partial update: "));
+        Serial.print(has_fast_partial_update ? "Yes" : "No");
         Serial.println(F(" *** "));
 
         Serial.print(F("*** Display pages: "));
@@ -508,7 +511,8 @@ void setup() {
 
         const char* img_filename = file.name();
 
-        if (!has_partial_update) { // if the display does not support partial update
+        if (!has_partial_update &&
+            !has_fast_partial_update) { // if the display does not support partial update
             Serial.println(F("Warning: Display does not support partial update!"));
             display.setFullWindow();
             display.fillScreen(GxEPD_WHITE);
@@ -588,13 +592,7 @@ void setup() {
             display.setPartialWindow(0, 0, display.width(), 16);
             display.firstPage();
             do {
-                if (has_partial_update) {
-                    Serial.println(F("Clearing top area with partial update"));
-                    display.fillScreen(GxEPD_WHITE);
-                } else {
-                    Serial.println(F("Warning: Display does not support partial update!"));
-                    display.fillRect(0, 0, display.width(), 16, GxEPD_WHITE);
-                }
+                display.fillScreen(GxEPD_WHITE);
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
                 photo_frame::renderer::draw_image_info(
                     image_index, total_files, drive.get_last_image_source());

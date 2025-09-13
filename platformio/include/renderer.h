@@ -228,6 +228,20 @@ void init_display();
  */
 void power_off();
 
+#ifdef BOARD_HAS_PSRAM
+/**
+ * @brief Allocate rendering buffers in PSRAM (when available) or regular heap
+ * @return true if all buffers were successfully allocated, false otherwise
+ */
+bool allocate_renderer_buffers();
+
+/**
+ * @brief Free rendering buffers to save memory
+ */
+void free_renderer_buffers();
+
+#endif // BOARD_HAS_PSRAM
+
 /**
  * @brief Refreshes the e-paper display to show rendered content.
  * @param partial_update_mode If true, uses partial update for faster refresh (default: false)
@@ -246,6 +260,12 @@ void fill_screen(uint16_t color = GxEPD_WHITE);
  * @return True if partial updates are supported, false otherwise
  */
 bool has_partial_update();
+
+/**
+ * @brief Checks if the display supports fast partial updates.
+ * @return True if fast partial updates are supported, false otherwise
+ */
+bool has_fast_partial_update();
 
 /**
  * Draws a string on the e-paper display at the specified position with alignment.

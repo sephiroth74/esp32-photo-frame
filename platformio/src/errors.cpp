@@ -26,6 +26,8 @@
 namespace photo_frame {
 namespace error_utils {
 
+// Context removed entirely to save maximum DRAM
+
 photo_frame_error map_http_status_to_error(int statusCode, const char* context) {
     photo_frame_error error;
 
@@ -42,10 +44,7 @@ photo_frame_error map_http_status_to_error(int statusCode, const char* context) 
     default:  error = error_type::HttpGetFailed; break;
     }
 
-    // Add context if provided
-    if (context) {
-        error.context = context;
-    }
+    // Context removed to save DRAM
 
     error.set_timestamp();
     return error;
@@ -91,9 +90,7 @@ map_google_drive_error(int statusCode, const char* responseBody, const char* con
         }
     }
 
-    if (context) {
-        error.context = context;
-    }
+    // Context removed to save DRAM
 
     error.set_timestamp();
     return error;
@@ -114,9 +111,7 @@ photo_frame_error create_oauth_error(const char* errorType, const char* context)
         error = error_type::OAuthTokenRequestFailed;
     }
 
-    if (context) {
-        error.context = context;
-    }
+    // Context removed to save DRAM
 
     error.set_timestamp();
     return error;
@@ -164,30 +159,7 @@ photo_frame_error create_image_error(const char* errorType,
         error = error_type::ImageProcessingAborted;
     }
 
-    // Build context string from available information
-    String contextStr = "";
-    if (filename) {
-        contextStr += "File: ";
-        contextStr += filename;
-    }
-    if (dimensions) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Size: ";
-        contextStr += dimensions;
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        // Note: Using static buffer for context string
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
+    // Context removed to save DRAM - error message provides sufficient information
 
     error.set_timestamp();
     return error;
@@ -283,38 +255,8 @@ photo_frame_error create_battery_error(const char* errorType,
         error = error_type::BatteryEmpty; // Default fallback
     }
 
-    // Build context string with battery metrics
-    String contextStr = "";
-    if (voltage >= 0) {
-        contextStr += "Voltage: ";
-        contextStr += String(voltage, 2);
-        contextStr += "V";
-    }
-    if (percentage >= 0) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Level: ";
-        contextStr += String(percentage, 1);
-        contextStr += "%";
-    }
-    if (temperature > -999) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Temp: ";
-        contextStr += String(temperature, 1);
-        contextStr += "°C";
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
+    // Context removed to save DRAM - error message provides sufficient information - error message
+    // provides sufficient information
 
     error.set_timestamp();
     return error;
@@ -380,349 +322,7 @@ create_charging_error(const char* errorType, float current, float voltage, const
         error = error_type::ChargingFailed; // Default fallback
     }
 
-    // Build context string with charging metrics
-    String contextStr = "";
-    if (current >= 0) {
-        contextStr += "Current: ";
-        contextStr += String(current, 2);
-        contextStr += "A";
-    }
-    if (voltage >= 0) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Voltage: ";
-        contextStr += String(voltage, 2);
-        contextStr += "V";
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
-
-    error.set_timestamp();
-    return error;
-}
-
-photo_frame_error create_power_supply_error(const char* errorType,
-                                            float voltage,
-                                            float current,
-                                            const char* context) {
-    photo_frame_error error;
-
-    if (strcmp(errorType, "insufficient") == 0) {
-        error = error_type::PowerSupplyInsufficient;
-    } else if (strcmp(errorType, "unstable") == 0) {
-        error = error_type::PowerSupplyUnstable;
-    } else if (strcmp(errorType, "overvoltage") == 0) {
-        error = error_type::PowerSupplyOvervoltage;
-    } else if (strcmp(errorType, "undervoltage") == 0) {
-        error = error_type::PowerSupplyUndervoltage;
-    } else if (strcmp(errorType, "regulator_failed") == 0) {
-        error = error_type::PowerRegulatorFailed;
-    } else if (strcmp(errorType, "noise") == 0) {
-        error = error_type::PowerSupplyNoise;
-    } else if (strcmp(errorType, "efficiency_low") == 0) {
-        error = error_type::PowerSupplyEfficiencyLow;
-    } else if (strcmp(errorType, "overcurrent") == 0) {
-        error = error_type::PowerSupplyOvercurrent;
-    } else if (strcmp(errorType, "short_circuit") == 0) {
-        error = error_type::PowerSupplyShortCircuit;
-    } else if (strcmp(errorType, "disconnected") == 0) {
-        error = error_type::PowerSupplyDisconnected;
-    } else {
-        error = error_type::PowerSupplyInsufficient; // Default fallback
-    }
-
-    // Build context string with power supply metrics
-    String contextStr = "";
-    if (voltage >= 0) {
-        contextStr += "Voltage: ";
-        contextStr += String(voltage, 2);
-        contextStr += "V";
-    }
-    if (current >= 0) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Current: ";
-        contextStr += String(current, 3);
-        contextStr += "A";
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
-
-    error.set_timestamp();
-    return error;
-}
-
-photo_frame_error create_display_error(const char* errorType,
-                                       int width,
-                                       int height,
-                                       const char* displayMode,
-                                       const char* context) {
-    photo_frame_error error;
-
-    if (strcmp(errorType, "init_failed") == 0) {
-        error = error_type::DisplayInitializationFailed;
-    } else if (strcmp(errorType, "driver_error") == 0) {
-        error = error_type::DisplayDriverError;
-    } else if (strcmp(errorType, "spi_comm_error") == 0) {
-        error = error_type::DisplaySpiCommError;
-    } else if (strcmp(errorType, "busy_timeout") == 0) {
-        error = error_type::DisplayBusyTimeout;
-    } else if (strcmp(errorType, "reset_failed") == 0) {
-        error = error_type::DisplayResetFailed;
-    } else if (strcmp(errorType, "power_on_failed") == 0) {
-        error = error_type::DisplayPowerOnFailed;
-    } else if (strcmp(errorType, "power_off_failed") == 0) {
-        error = error_type::DisplayPowerOffFailed;
-    } else if (strcmp(errorType, "wakeup_failed") == 0) {
-        error = error_type::DisplayWakeupFailed;
-    } else if (strcmp(errorType, "command_error") == 0) {
-        error = error_type::DisplayCommandError;
-    } else if (strcmp(errorType, "hardware_fault") == 0) {
-        error = error_type::DisplayHardwareFault;
-    } else if (strcmp(errorType, "resolution_mismatch") == 0) {
-        error = error_type::DisplayResolutionMismatch;
-    } else if (strcmp(errorType, "color_depth_unsupported") == 0) {
-        error = error_type::DisplayColorDepthUnsupported;
-    } else if (strcmp(errorType, "orientation_invalid") == 0) {
-        error = error_type::DisplayOrientationInvalid;
-    } else if (strcmp(errorType, "mode_not_supported") == 0) {
-        error = error_type::DisplayModeNotSupported;
-    } else {
-        error = error_type::DisplayInitializationFailed; // Default fallback
-    }
-
-    // Build context string with display information
-    String contextStr = "";
-    if (width > 0 && height > 0) {
-        contextStr += "Resolution: ";
-        contextStr += String(width);
-        contextStr += "x";
-        contextStr += String(height);
-    }
-    if (displayMode) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Mode: ";
-        contextStr += displayMode;
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
-
-    error.set_timestamp();
-    return error;
-}
-
-photo_frame_error create_epaper_error(const char* errorType,
-                                      int refreshCount,
-                                      float temperature,
-                                      const char* waveform,
-                                      const char* context) {
-    photo_frame_error error;
-
-    if (strcmp(errorType, "refresh_failed") == 0) {
-        error = error_type::EpaperRefreshFailed;
-    } else if (strcmp(errorType, "partial_refresh_not_supported") == 0) {
-        error = error_type::EpaperPartialRefreshNotSupported;
-    } else if (strcmp(errorType, "ghosting_detected") == 0) {
-        error = error_type::EpaperGhostingDetected;
-    } else if (strcmp(errorType, "temperature_compensation_failed") == 0) {
-        error = error_type::EpaperTemperatureCompensationFailed;
-    } else if (strcmp(errorType, "waveform_error") == 0) {
-        error = error_type::EpaperWaveformError;
-    } else if (strcmp(errorType, "voltage_regulation_error") == 0) {
-        error = error_type::EpaperVoltageRegulationError;
-    } else if (strcmp(errorType, "pixel_stuck") == 0) {
-        error = error_type::EpaperPixelStuckError;
-    } else if (strcmp(errorType, "contrast_poor") == 0) {
-        error = error_type::EpaperContrastPoor;
-    } else if (strcmp(errorType, "refresh_too_frequent") == 0) {
-        error = error_type::EpaperRefreshTooFrequent;
-    } else if (strcmp(errorType, "lifetime_exceeded") == 0) {
-        error = error_type::EpaperLifetimeExceeded;
-    } else {
-        error = error_type::EpaperRefreshFailed; // Default fallback
-    }
-
-    // Build context string with e-paper specific information
-    String contextStr = "";
-    if (refreshCount >= 0) {
-        contextStr += "Refresh count: ";
-        contextStr += String(refreshCount);
-    }
-    if (temperature > -999) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Temp: ";
-        contextStr += String(temperature, 1);
-        contextStr += "°C";
-    }
-    if (waveform) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Waveform: ";
-        contextStr += waveform;
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
-
-    error.set_timestamp();
-    return error;
-}
-
-photo_frame_error validate_display_resolution(int width,
-                                              int height,
-                                              int maxWidth,
-                                              int maxHeight,
-                                              const char* context) {
-    if (width <= 0 || height <= 0) {
-        return create_display_error(
-            "resolution_mismatch", width, height, nullptr, "Width or height is zero or negative");
-    }
-
-    if (width > maxWidth || height > maxHeight) {
-        char contextStr[128];
-        snprintf(contextStr,
-                 sizeof(contextStr),
-                 "Exceeds maximum %dx%d%s%s",
-                 maxWidth,
-                 maxHeight,
-                 context ? ", " : "",
-                 context ? context : "");
-        return create_display_error("resolution_mismatch", width, height, nullptr, contextStr);
-    }
-
-    return error_type::None;
-}
-
-photo_frame_error validate_display_refresh_rate(float refreshRate,
-                                                float minRate,
-                                                float maxRate,
-                                                const char* context) {
-    if (refreshRate < minRate) {
-        char contextStr[128];
-        snprintf(contextStr,
-                 sizeof(contextStr),
-                 "Rate %.2fHz below minimum %.2fHz%s%s",
-                 refreshRate,
-                 minRate,
-                 context ? ", " : "",
-                 context ? context : "");
-        return create_display_error("refresh_rate_invalid", -1, -1, nullptr, contextStr);
-    }
-
-    if (refreshRate > maxRate) {
-        char contextStr[128];
-        snprintf(contextStr,
-                 sizeof(contextStr),
-                 "Rate %.2fHz exceeds maximum %.2fHz%s%s",
-                 refreshRate,
-                 maxRate,
-                 context ? ", " : "",
-                 context ? context : "");
-        return create_display_error("refresh_rate_invalid", -1, -1, nullptr, contextStr);
-    }
-
-    return error_type::None;
-}
-
-photo_frame_error create_display_rendering_error(const char* errorType,
-                                                 size_t bufferSize,
-                                                 size_t memoryUsed,
-                                                 const char* operation,
-                                                 const char* context) {
-    photo_frame_error error;
-
-    if (strcmp(errorType, "buffer_overflow") == 0) {
-        error = error_type::DisplayBufferOverflow;
-    } else if (strcmp(errorType, "buffer_underflow") == 0) {
-        error = error_type::DisplayBufferUnderflow;
-    } else if (strcmp(errorType, "memory_allocation_failed") == 0) {
-        error = error_type::DisplayMemoryAllocationFailed;
-    } else if (strcmp(errorType, "framebuffer_corrupted") == 0) {
-        error = error_type::DisplayFramebufferCorrupted;
-    } else if (strcmp(errorType, "pixel_format_error") == 0) {
-        error = error_type::DisplayPixelFormatError;
-    } else if (strcmp(errorType, "color_space_error") == 0) {
-        error = error_type::DisplayColorSpaceError;
-    } else if (strcmp(errorType, "scaling_error") == 0) {
-        error = error_type::DisplayScalingError;
-    } else if (strcmp(errorType, "rotation_error") == 0) {
-        error = error_type::DisplayRotationError;
-    } else if (strcmp(errorType, "clipping_error") == 0) {
-        error = error_type::DisplayClippingError;
-    } else if (strcmp(errorType, "rendering_timeout") == 0) {
-        error = error_type::DisplayRenderingTimeout;
-    } else {
-        error = error_type::DisplayBufferOverflow; // Default fallback
-    }
-
-    // Build context string with rendering information
-    String contextStr = "";
-    if (bufferSize > 0) {
-        contextStr += "Buffer: ";
-        contextStr += String(bufferSize);
-        contextStr += " bytes";
-    }
-    if (memoryUsed > 0) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Memory used: ";
-        contextStr += String(memoryUsed);
-        contextStr += " bytes";
-    }
-    if (operation) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += "Operation: ";
-        contextStr += operation;
-    }
-    if (context) {
-        if (contextStr.length() > 0)
-            contextStr += ", ";
-        contextStr += context;
-    }
-
-    if (contextStr.length() > 0) {
-        static char contextBuffer[256];
-        contextStr.toCharArray(contextBuffer, sizeof(contextBuffer));
-        error.context = contextBuffer;
-    }
+    // Context removed to save DRAM - error message provides sufficient information
 
     error.set_timestamp();
     return error;

@@ -163,10 +163,6 @@ bool update_rtc_after_restart(const DateTime& dateTime) {
 void format_date_time(time_t time, char* buffer, const uint8_t buffer_size, const char* format) {
     struct tm* tm_info = localtime(&time);
     memset(buffer, 0, buffer_size);
-
-    Serial.print(F("[rtc_util] Size of buffer: "));
-    Serial.println(buffer_size);
-
     strftime(buffer, buffer_size, format, tm_info);
 }
 
