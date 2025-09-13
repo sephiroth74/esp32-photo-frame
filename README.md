@@ -51,11 +51,11 @@
    - Open the project in [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/)
    - Configure your hardware settings in `include/config.h` and `src/config.cpp` if needed
 
-3. **Image Processing Pipeline (Required for Both Options)**
+3. **Image Processing Pipeline (Required)**
 
-   **🔧 All images must be processed before use, regardless of storage method**
-   
-   Both Google Drive and local SD card storage require images to be converted to the ESP32-compatible format using either:
+   **🔧 All images must be processed before upload to Google Drive**
+
+   Images must be converted to the ESP32-compatible format and uploaded to Google Drive using:
 
    **📋 [Complete Image Processing Guide](docs/image_processing.md)** - Comprehensive documentation for the `auto.sh` script and all helper tools
 
@@ -84,15 +84,17 @@
 
 4. **Google Drive Configuration (Required)**
 
-   Google Drive is the primary and only image source for the photo frame:
-   
-   - **First**, process your images using the tools above
-   - Upload the processed `.bin` files to your Google Drive folder
-   - Create a Google Service Account in [Google Cloud Console](https://console.cloud.google.com/)
-   - Enable the Google Drive API for your project
-   - Download the service account JSON key file
-   - Share your Google Drive folder with the service account email
-   - Create a `google_drive_config.json` file on your SD card:
+   **📤 Complete Workflow**: Process images → Upload to Google Drive → Share with service account → Configure JSON file
+
+   Google Drive is the **only supported image source** for the photo frame:
+
+   - **Step 1**: Process your images using the tools above to create `.bin` files
+   - **Step 2**: Create a Google Service Account in [Google Cloud Console](https://console.cloud.google.com/)
+   - **Step 3**: Enable the Google Drive API for your project
+   - **Step 4**: Download the service account JSON key file
+   - **Step 5**: **Create a Google Drive folder** and upload your processed `.bin` files to it
+   - **Step 6**: **Critical**: Share your Google Drive folder with the service account email (found in the JSON key file)
+   - **Step 7**: Create a `google_drive_config.json` file on your SD card with the folder ID:
 
    ```json
    {
@@ -124,16 +126,16 @@
 
    **SD Card Usage**
 
-   The SD card serves as initial storage for:
+   The SD card serves as **configuration and caching storage only** (images are stored in Google Drive):
 
    - **Configuration Files**: Google Drive service account credentials (`google_drive_config.json`)
-   - **Image Caching**: Downloaded images are cached locally for improved performance
+   - **Local Image Caching**: Downloaded Google Drive images are cached locally for improved performance and offline display
    - **Weather Configuration**: Weather API settings and cached data
    - **WiFi Credentials**: Network connection information
-   - **Temporary Files**: Processing and download temporary storage
+   - **Temporary Files**: Download and processing temporary storage
    - **TOC System**: Two-file Table of Contents system (`toc_data.txt` and `toc_meta.txt`) for enhanced data integrity
 
-   **Architecture Note**: The SD card is shut down after image operations complete to avoid SPI conflicts with the e-paper display. On shared SPI boards (e.g., FeatherS3), images are copied to LittleFS before display operations begin.
+   **Architecture Note**: Images are sourced exclusively from Google Drive and cached on SD card. The SD card is shut down after download operations complete to avoid SPI conflicts with the e-paper display. On shared SPI boards (e.g., FeatherS3), images are copied to LittleFS before display operations begin.
 
    **Enhanced TOC System (2025)**: The firmware now uses a robust 2-file TOC system with `toc_data.txt` containing file entries and `toc_meta.txt` containing metadata and integrity information, providing better error recovery and data validation.
 
