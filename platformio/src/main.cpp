@@ -502,6 +502,7 @@ void setup() {
 
     if (error != photo_frame::error_type::None) {
         display.firstPage();
+        display.fillScreen(GxEPD_WHITE);
         do {
             photo_frame::renderer::draw_error(error);
             photo_frame::renderer::draw_error_message(gravity_t::TOP_RIGHT, error.code);
