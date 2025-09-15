@@ -85,7 +85,7 @@ pub struct Args {
     #[arg(
         short = 'i',
         long = "input",
-        required_unless_present = "find_hash",
+        required_unless_present = "find_original",
         value_name = "DIR|FILE"
     )]
     pub input_paths: Vec<PathBuf>,
@@ -94,7 +94,7 @@ pub struct Args {
     #[arg(
         short = 'o',
         long = "output",
-        required_unless_present = "find_hash",
+        required_unless_present = "find_original",
         value_name = "DIR",
         default_value = "."
     )]
@@ -176,9 +176,9 @@ pub struct Args {
     #[arg(long = "force")]
     pub force: bool,
 
-    /// Find original filename that matches the given hash (format: 8 hex characters like '7af9ecca')
-    #[arg(long = "find-hash", value_name = "HASH")]
-    pub find_hash: Option<String>,
+    /// Find original filenames from a combined filename (e.g., 'combined_BASE64_BASE64.bin')
+    #[arg(long = "find-original", value_name = "FILENAME")]
+    pub find_original: Option<String>,
 
     /// Enable debug mode: visualize detection boxes and crop area without processing
     #[arg(long = "debug")]
@@ -371,7 +371,7 @@ impl Default for Args {
             detect_people: false,
             python_script_path: None,
             force: false,
-            find_hash: None,
+            find_original: None,
             debug: false,
             annotate: false,
             auto_color_correct: false,

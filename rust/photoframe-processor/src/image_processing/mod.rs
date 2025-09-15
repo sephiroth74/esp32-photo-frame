@@ -1756,6 +1756,13 @@ impl ProcessingEngine {
                     &format!("Dry run: Would save debug image '{}' to {}", filename, output_path.display()),
                 );
             } else {
+                // Ensure the debug output directory exists
+                if let Some(parent_dir) = output_path.parent() {
+                    std::fs::create_dir_all(parent_dir).with_context(|| {
+                        format!("Failed to create debug output directory: {}", parent_dir.display())
+                    })?;
+                }
+
                 // Save annotated image (no processing, just the annotations)
                 annotated_img.save(&output_path).with_context(|| {
                     format!("Failed to save debug image: {}", output_path.display())

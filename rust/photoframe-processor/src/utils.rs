@@ -2,11 +2,8 @@ use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::time::Duration;
-use walkdir::WalkDir;
 
 use crate::cli::Args;
 
@@ -169,16 +166,6 @@ pub fn sanitize_filename(filename: &str) -> String {
         .to_string()
 }
 
-/// Generate a short hash from filename for use in output filenames
-pub fn generate_filename_hash(filename: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    filename.hash(&mut hasher);
-    let hash = hasher.finish();
-
-    // Use first 8 characters of hex representation for a short hash
-    // The hash is 64-bit so we take the lower 32 bits and format as 8 hex chars
-    format!("{:08x}", (hash & 0xffffffff) as u32)
-}
 
 /// Encode filename to base64 and replace '/' with '-' to match auto.sh convention
 /// This matches: echo -n "$basename" | base64 -w0 | tr '/' '-'
@@ -245,39 +232,6 @@ pub fn error_println(message: &str) {
     eprintln!("{} {}", style("[ERROR]").red().bold(), message);
 }
 
-/// Find original filename that matches a given hash
-/// This searches through the provided directory and returns all filenames that produce the given hash
-pub fn find_original_filename_for_hash(
-    search_dirs: &[&Path],
-    target_hash: &str,
-    extensions: &[String],
-) -> Result<Vec<String>> {
-    let mut matches = Vec::new();
-
-    for search_dir in search_dirs {
-        if !search_dir.exists() {
-            continue;
-        }
-
-        let walker = WalkDir::new(search_dir).follow_links(false).max_depth(10);
-
-        for entry in walker {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_file() && has_valid_extension(path, extensions) {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    let hash = generate_filename_hash(stem);
-                    if hash == target_hash {
-                        matches.push(path.to_string_lossy().to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(matches)
-}
 
 /// Calculate processing statistics
 #[allow(dead_code)]
