@@ -75,7 +75,10 @@ Example Usage:
   photoframe-processor -i ~/Photos -o ~/processed --auto
 
   # Process images with filename annotations enabled
-  photoframe-processor -i ~/Photos -o ~/processed --auto --annotate"
+  photoframe-processor -i ~/Photos -o ~/processed --auto --annotate
+
+  # Dry run mode: simulate processing without creating files
+  photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose"
 )]
 pub struct Args {
     /// Input directories or single image files (can be specified multiple times)
@@ -188,6 +191,10 @@ pub struct Args {
     /// Enable automatic color correction before processing (uses ImageMagick if available)
     #[arg(long = "auto-color")]
     pub auto_color_correct: bool,
+
+    /// Perform a dry run: simulate processing and show what would be generated without creating files
+    #[arg(long = "dry-run")]
+    pub dry_run: bool,
 }
 
 impl Args {
@@ -367,6 +374,8 @@ impl Default for Args {
             find_hash: None,
             debug: false,
             annotate: false,
+            auto_color_correct: false,
+            dry_run: false,
         }
     }
 }

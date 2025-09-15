@@ -14,7 +14,7 @@ use image_processing::{
     ProcessingType, SkipReason,
 };
 use utils::{
-    create_progress_bar, find_original_filename_for_hash, format_duration, validate_inputs,
+    create_progress_bar, find_original_filename_for_hash, format_duration, validate_inputs, verbose_println,
 };
 
 impl From<ColorType> for ProcessingType {
@@ -139,7 +139,7 @@ fn main() -> Result<()> {
     println!("{}", style("High-performance Rust implementation").dim());
     println!();
 
-    // Handle hash lookup mode
+    // Handle hash lookup mode (dry-run doesn't apply here)
     if let Some(target_hash) = &args.find_hash {
         handle_hash_lookup(target_hash, &args)?;
         return Ok(());
@@ -176,6 +176,8 @@ fn main() -> Result<()> {
         annotate: args.annotate,
         // Color correction
         auto_color_correct: args.auto_color_correct,
+        // Dry run mode
+        dry_run: args.dry_run,
     };
 
     if config.verbose {
@@ -238,6 +240,11 @@ fn main() -> Result<()> {
             }
         }
 
+        // Dry run mode status
+        if config.dry_run {
+            println!("  Dry run mode: enabled (simulation only - no files will be created)");
+        }
+
         println!();
     }
 
@@ -262,12 +269,18 @@ fn main() -> Result<()> {
         }
     }
 
-    // Create output directory
-    std::fs::create_dir_all(&args.output_dir).context("Failed to create output directory")?;
+    // Create output directory (skip in dry-run mode)
+    if !config.dry_run {
+        std::fs::create_dir_all(&args.output_dir).context("Failed to create output directory")?;
+    } else {
+        verbose_println(config.verbose, "Dry run mode: Skipping output directory creation");
+    }
 
     // Store values before moving config
     let parallel_jobs = config.parallel_jobs;
     let debug_mode = config.debug;
+    let dry_run_mode = config.dry_run;
+    let output_formats = config.output_formats.clone();
 
     // Initialize processing engine
     let engine = ProcessingEngine::new(config)?;
@@ -389,9 +402,21 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("{}", style("Results Summary:").bold().green());
+    let header = if dry_run_mode {
+        style("Dry Run Results Summary:").bold().cyan()
+    } else {
+        style("Results Summary:").bold().green()
+    };
+    println!("{}", header);
+
+    let processed_label = if dry_run_mode {
+        "Would be processed:"
+    } else {
+        "Successfully processed:"
+    };
     println!(
-        "  Successfully processed: {}",
+        "  {}: {}",
+        processed_label,
         style(successful).bold().green()
     );
     if failed > 0 {
@@ -462,7 +487,12 @@ fn main() -> Result<()> {
     // Detailed processing results
     if successful > 0 {
         println!();
-        println!("{}", style("Detailed Processing Results:").bold().blue());
+        let detailed_header = if dry_run_mode {
+            style("Detailed Simulation Results:").bold().blue()
+        } else {
+            style("Detailed Processing Results:").bold().blue()
+        };
+        println!("{}", detailed_header);
         let mut success_count = 0;
         for (i, result) in results.iter().enumerate() {
             if let Ok(processing_result) = result {
@@ -494,12 +524,29 @@ fn main() -> Result<()> {
                     style(format!("○ No people")).dim()
                 };
 
+                // Show destination filenames in dry-run mode
+                let destination_info = if dry_run_mode {
+                    // Get the first output path as an example (they all have the same stem)
+                    if let Some((_, first_path)) = processing_result.output_paths.iter().next() {
+                        if let Some(dest_filename) = first_path.file_stem().and_then(|s| s.to_str()) {
+                            format!(" → {}", style(dest_filename).cyan())
+                        } else {
+                            String::new()
+                        }
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+
                 println!(
-                    "  {}: {} [{}] - {}",
+                    "  {}: {} [{}] - {}{}",
                     style(format!("#{}", success_count)).dim(),
                     style(filename).bold(),
                     image_type,
-                    people_info
+                    people_info,
+                    destination_info
                 );
 
                 // For combined portraits, show individual portrait detection results
@@ -555,8 +602,26 @@ fn main() -> Result<()> {
     );
 
     println!();
-    println!("{}", style("Output files:").bold());
-    println!("  All files: {}", args.output_dir.display());
+    let output_header = if dry_run_mode {
+        style("Output files (would be created):").bold().cyan()
+    } else {
+        style("Output files:").bold().green()
+    };
+    println!("{}", output_header);
+    let location_label = if dry_run_mode {
+        "Would be saved to:"
+    } else {
+        "All files:"
+    };
+    println!("  {}: {}", location_label, args.output_dir.display());
+
+    if dry_run_mode {
+        println!();
+        println!("{}", style("💡 Dry Run Mode:").bold().yellow());
+        println!("  • No files were created during this simulation");
+        println!("  • Remove --dry-run to actually process the images");
+        println!("  • Output formats: {:?}", output_formats);
+    }
 
     if failed > 0 {
         println!();
