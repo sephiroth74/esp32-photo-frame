@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
 
 use crate::utils::{
-    create_combined_portrait_filename, generate_filename_hash, has_valid_extension, verbose_println,
+    create_combined_portrait_filename, encode_filename_base64, has_valid_extension, verbose_println,
 };
 use combine::combine_processed_portraits;
 use orientation::get_effective_target_dimensions;
@@ -56,6 +56,8 @@ pub struct ProcessingConfig {
     pub annotate: bool,
     // Color correction
     pub auto_color_correct: bool,
+    // Dry run mode
+    pub dry_run: bool,
 }
 
 pub struct ProcessingEngine {
@@ -66,6 +68,14 @@ pub struct ProcessingEngine {
 impl ProcessingEngine {
     /// Create output subdirectories for each format and return format-specific paths
     fn create_format_directories(&self, base_output_dir: &Path) -> Result<()> {
+        if self.config.dry_run {
+            verbose_println(
+                self.config.verbose,
+                "Dry run mode: Skipping directory creation",
+            );
+            return Ok(());
+        }
+
         for format in &self.config.output_formats {
             let format_dir = match format {
                 crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
@@ -202,65 +212,224 @@ impl ProcessingEngine {
         let mut existing_portrait_hashes = HashSet::new();
 
         if !output_dir.exists() {
+            verbose_println(
+                self.config.verbose,
+                &format!("Output directory does not exist: {}", output_dir.display()),
+            );
             return Ok((existing_landscape_hashes, existing_portrait_hashes));
         }
 
-        for entry in std::fs::read_dir(output_dir)? {
-            let entry = entry?;
-            let path = entry.path();
+        verbose_println(
+            self.config.verbose,
+            &format!("Scanning for existing files in: {}", output_dir.display()),
+        );
 
-            if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-                // Check for BMP or BIN files
-                if filename.ends_with(".bmp") || filename.ends_with(".bin") {
-                    let stem = filename
-                        .rsplit_once('.')
-                        .map(|(s, _)| s)
-                        .unwrap_or(filename);
+        // Scan both the main output directory and format subdirectories
+        // Always scan format subdirectories since the files are created there
+        let mut dirs_to_scan = vec![output_dir.to_path_buf()];
+        for format in &self.config.output_formats {
+            let subdir = match format {
+                crate::cli::OutputType::Bmp => output_dir.join("bmp"),
+                crate::cli::OutputType::Bin => output_dir.join("bin"),
+                crate::cli::OutputType::Jpg => output_dir.join("jpg"),
+                crate::cli::OutputType::Png => output_dir.join("png"),
+            };
+            if subdir.exists() {
+                dirs_to_scan.push(subdir);
+            }
+        }
 
-                    if stem.starts_with("combined_") {
-                        // Parse combined portrait filenames: "combined_{hash1}_{hash2}"
-                        if let Some(hashes_part) = stem.strip_prefix("combined_") {
-                            // Split by underscore - with hashes, this is much simpler since hashes don't contain underscores
-                            if let Some(underscore_pos) = hashes_part.find('_') {
-                                let (hash1, hash2) = hashes_part.split_at(underscore_pos);
-                                let hash2 = &hash2[1..]; // Remove the leading underscore
+        for scan_dir in dirs_to_scan {
+            verbose_println(
+                self.config.verbose,
+                &format!("  Scanning directory: {}", scan_dir.display()),
+            );
 
-                                // Check that these look like valid hashes (8 hex characters)
-                                if hash1.len() == 8
-                                    && hash2.len() == 8
-                                    && hash1.chars().all(|c| c.is_ascii_hexdigit())
-                                    && hash2.chars().all(|c| c.is_ascii_hexdigit())
-                                {
-                                    existing_portrait_hashes.insert(hash1.to_string());
-                                    existing_portrait_hashes.insert(hash2.to_string());
+            if let Ok(entries) = std::fs::read_dir(&scan_dir) {
+                for entry in entries {
+                    let entry = entry?;
+                    let path = entry.path();
 
-                                    verbose_println(self.config.verbose, &format!(
-                                        "Found existing combined portrait: {} (contains hashes {} and {})", 
-                                        filename, hash1, hash2
-                                    ));
+                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                        // Check for BMP or BIN files
+                        if filename.ends_with(".bmp") || filename.ends_with(".bin") {
+                            let stem = filename
+                                .rsplit_once('.')
+                                .map(|(s, _)| s)
+                                .unwrap_or(filename);
+
+                            if stem.starts_with("combined_") {
+                                // Parse combined portrait filenames: "combined_{part1}_{part2}"
+                                if let Some(combined_part) = stem.strip_prefix("combined_") {
+                                    // For base64 filenames, we need to find the underscore that separates the two parts
+                                    // Base64 can end with = or ==, so we look for patterns like "base64_base64"
+                                    if let Some(underscore_pos) = Self::find_combined_separator(combined_part) {
+                                        let (part1, part2_with_underscore) = combined_part.split_at(underscore_pos);
+                                        let part2 = &part2_with_underscore[1..]; // Remove the leading underscore
+
+                                        // Check if these are 8-character hex hashes (old system) or base64 (new system)
+                                        let is_hex_system = part1.len() == 8 && part2.len() == 8
+                                            && part1.chars().all(|c| c.is_ascii_hexdigit())
+                                            && part2.chars().all(|c| c.is_ascii_hexdigit());
+
+                                        let is_base64_system = Self::looks_like_base64(part1) && Self::looks_like_base64(part2);
+
+                                        if is_hex_system || is_base64_system {
+                                            existing_portrait_hashes.insert(part1.to_string());
+                                            existing_portrait_hashes.insert(part2.to_string());
+
+                                            let system_type = if is_hex_system { "hex hashes" } else { "base64" };
+                                            verbose_println(self.config.verbose, &format!(
+                                                "Found existing combined portrait: {} (contains {} {} and {})",
+                                                filename, system_type, part1, part2
+                                            ));
+                                        } else {
+                                            verbose_println(self.config.verbose, &format!(
+                                                "Skipping combined file with unrecognized format: {} (parts: '{}', '{}')",
+                                                filename, part1, part2
+                                            ));
+                                        }
+                                    } else {
+                                        verbose_println(self.config.verbose, &format!(
+                                            "Skipping malformed combined filename: {}", filename
+                                        ));
+                                    }
+                                }
+                            } else {
+                                // Regular landscape image - check if it looks like a base64-encoded filename or 8-char hex hash
+                                if stem.len() == 8 && stem.chars().all(|c| c.is_ascii_hexdigit()) {
+                                    // Old-style 8-character hex hash
+                                    existing_landscape_hashes.insert(stem.to_string());
+                                    verbose_println(
+                                        self.config.verbose,
+                                        &format!("Found existing landscape: {} (hex hash: {})", filename, stem),
+                                    );
+                                } else if Self::looks_like_base64(stem) {
+                                    // Base64-encoded filename (current system)
+                                    existing_landscape_hashes.insert(stem.to_string());
+                                    verbose_println(
+                                        self.config.verbose,
+                                        &format!("Found existing landscape: {} (base64: {})", filename, stem),
+                                    );
+                                } else {
+                                    verbose_println(
+                                        self.config.verbose,
+                                        &format!("Skipping file with non-recognized filename format: {}", filename),
+                                    );
                                 }
                             }
-                        }
-                    } else {
-                        // Regular landscape image - check if it looks like a hash
-                        if stem.len() == 8 && stem.chars().all(|c| c.is_ascii_hexdigit()) {
-                            existing_landscape_hashes.insert(stem.to_string());
-                            verbose_println(
-                                self.config.verbose,
-                                &format!("Found existing landscape: {} (hash: {})", filename, stem),
-                            );
-                        } else {
-                            verbose_println(
-                                self.config.verbose,
-                                &format!("Skipping file with non-hash filename: {}", filename),
-                            );
                         }
                     }
                 }
             }
         }
 
+        verbose_println(
+            self.config.verbose,
+            &format!(
+                "Scan complete: {} landscape files, {} portrait parts found",
+                existing_landscape_hashes.len(),
+                existing_portrait_hashes.len()
+            ),
+        );
+
         Ok((existing_landscape_hashes, existing_portrait_hashes))
+    }
+
+    /// Find the separator underscore in a combined filename part
+    /// For base64 encoded names, we need to be careful since base64 can contain underscores
+    fn find_combined_separator(combined_part: &str) -> Option<usize> {
+        // Look for underscores and try to determine which one separates the two parts
+        let underscores: Vec<usize> = combined_part.match_indices('_').map(|(i, _)| i).collect();
+
+        if underscores.is_empty() {
+            return None;
+        }
+
+        // For base64 names, try each underscore position and see if both parts look like base64
+        for &pos in &underscores {
+            let part1 = &combined_part[..pos];
+            let part2 = &combined_part[pos + 1..];
+
+            // Check if both parts look like valid base64 or hex hashes
+            let part1_valid = Self::looks_like_base64(part1) || (part1.len() == 8 && part1.chars().all(|c| c.is_ascii_hexdigit()));
+            let part2_valid = Self::looks_like_base64(part2) || (part2.len() == 8 && part2.chars().all(|c| c.is_ascii_hexdigit()));
+
+            if part1_valid && part2_valid {
+                return Some(pos);
+            }
+        }
+
+        // Fallback: use the last underscore (for cases where we can't determine)
+        underscores.last().copied()
+    }
+
+    /// Check if a string looks like a base64 encoded filename
+    fn looks_like_base64(s: &str) -> bool {
+        // Base64 characteristics:
+        // - Length > 8 (longer than hex hashes)
+        // - Contains only base64 characters: A-Z, a-z, 0-9, +, /, =, - (our system uses - instead of /)
+        // - May end with = or == for padding
+        s.len() > 8
+            && s.chars().all(|c| {
+                c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-'
+            })
+            && (s.ends_with("==") || s.ends_with('=') || s.chars().all(|c| c != '='))
+    }
+
+    /// Find a combined file that contains the given portrait base64 filename
+    fn find_combined_file_containing_portrait(&self, output_dir: &Path, portrait_base64: &str) -> Result<Option<PathBuf>> {
+        // Search through all format directories
+        let mut dirs_to_search = vec![output_dir.to_path_buf()];
+        for format in &self.config.output_formats {
+            let subdir = match format {
+                crate::cli::OutputType::Bmp => output_dir.join("bmp"),
+                crate::cli::OutputType::Bin => output_dir.join("bin"),
+                crate::cli::OutputType::Jpg => output_dir.join("jpg"),
+                crate::cli::OutputType::Png => output_dir.join("png"),
+            };
+            if subdir.exists() {
+                dirs_to_search.push(subdir);
+            }
+        }
+
+        for search_dir in dirs_to_search {
+            if let Ok(entries) = std::fs::read_dir(&search_dir) {
+                for entry in entries {
+                    let entry = entry?;
+                    let path = entry.path();
+
+                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                        if (filename.ends_with(".bmp") || filename.ends_with(".bin"))
+                            && filename.starts_with("combined_")
+                        {
+                            // Parse the combined filename to see if it contains our portrait
+                            let stem = filename
+                                .rsplit_once('.')
+                                .map(|(s, _)| s)
+                                .unwrap_or(filename);
+
+                            if let Some(combined_part) = stem.strip_prefix("combined_") {
+                                if let Some(underscore_pos) = Self::find_combined_separator(combined_part) {
+                                    let (part1, part2_with_underscore) = combined_part.split_at(underscore_pos);
+                                    let part2 = &part2_with_underscore[1..];
+
+                                    if part1 == portrait_base64 || part2 == portrait_base64 {
+                                        verbose_println(self.config.verbose, &format!(
+                                            "Found portrait '{}' in combined file: {}",
+                                            portrait_base64, filename
+                                        ));
+                                        return Ok(Some(path));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     /// Discover all image files in the input paths (directories or individual files)
@@ -343,13 +512,14 @@ impl ProcessingEngine {
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown");
 
-            let filename_hash = generate_filename_hash(stem);
+            // Use base64-encoded filename to match actual output filename generation
+            let filename_base64 = encode_filename_base64(stem);
 
             // Check if this image should be skipped
-            let should_skip = if existing_landscape_hashes.contains(&filename_hash) {
+            let should_skip = if existing_landscape_hashes.contains(&filename_base64) {
                 // Landscape image already exists
-                let existing_bmp = output_dir.join(format!("{}.bmp", filename_hash));
-                let existing_bin = output_dir.join(format!("{}.bin", filename_hash));
+                let existing_bmp = output_dir.join(format!("{}.bmp", filename_base64));
+                let existing_bin = output_dir.join(format!("{}.bin", filename_base64));
                 let existing_path = if existing_bmp.exists() {
                     existing_bmp
                 } else {
@@ -362,23 +532,10 @@ impl ProcessingEngine {
                     existing_output_path: existing_path,
                 });
                 true
-            } else if existing_portrait_hashes.contains(&filename_hash) {
+            } else if existing_portrait_hashes.contains(&filename_base64) {
                 // Portrait image is already part of a combined image
-                // Find the combined file that contains this portrait hash
-                let mut combined_path = None;
-                for entry in std::fs::read_dir(output_dir)? {
-                    let entry = entry?;
-                    let filename = entry.file_name();
-                    let filename_str = filename.to_string_lossy();
-
-                    if (filename_str.ends_with(".bmp") || filename_str.ends_with(".bin"))
-                        && filename_str.starts_with("combined_")
-                        && filename_str.contains(&filename_hash)
-                    {
-                        combined_path = Some(entry.path());
-                        break;
-                    }
-                }
+                // Find the combined file that contains this portrait base64 filename
+                let combined_path = self.find_combined_file_containing_portrait(output_dir, &filename_base64)?;
 
                 if let Some(path) = combined_path {
                     skipped_results.push(SkippedResult {
@@ -800,19 +957,26 @@ impl ProcessingEngine {
 
             let output_path = self.get_format_output_path(output_dir, input_path, format, None);
 
-            match format {
-                crate::cli::OutputType::Bmp
-                | crate::cli::OutputType::Jpg
-                | crate::cli::OutputType::Png => {
-                    processed_img.save(&output_path).with_context(|| {
-                        format!("Failed to save {}: {}", format_name, output_path.display())
-                    })?;
-                }
-                crate::cli::OutputType::Bin => {
-                    let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
-                    std::fs::write(&output_path, binary_data).with_context(|| {
-                        format!("Failed to save binary: {}", output_path.display())
-                    })?;
+            if self.config.dry_run {
+                verbose_println(
+                    self.config.verbose,
+                    &format!("Dry run: Would save {} '{}' to {}", format_name, filename, output_path.display()),
+                );
+            } else {
+                match format {
+                    crate::cli::OutputType::Bmp
+                    | crate::cli::OutputType::Jpg
+                    | crate::cli::OutputType::Png => {
+                        processed_img.save(&output_path).with_context(|| {
+                            format!("Failed to save {}: {}", format_name, output_path.display())
+                        })?;
+                    }
+                    crate::cli::OutputType::Bin => {
+                        let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                        std::fs::write(&output_path, binary_data).with_context(|| {
+                            format!("Failed to save binary: {}", output_path.display())
+                        })?;
+                    }
                 }
             }
 
@@ -937,19 +1101,26 @@ impl ProcessingEngine {
             let output_path =
                 self.get_format_output_path(output_dir, input_path, format, Some("portrait"));
 
-            match format {
-                crate::cli::OutputType::Bmp
-                | crate::cli::OutputType::Jpg
-                | crate::cli::OutputType::Png => {
-                    processed_img.save(&output_path).with_context(|| {
-                        format!("Failed to save {}: {}", format_name, output_path.display())
-                    })?;
-                }
-                crate::cli::OutputType::Bin => {
-                    let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
-                    std::fs::write(&output_path, binary_data).with_context(|| {
-                        format!("Failed to save portrait binary: {}", output_path.display())
-                    })?;
+            if self.config.dry_run {
+                verbose_println(
+                    self.config.verbose,
+                    &format!("Dry run: Would save {} '{}' to {}", format_name, filename, output_path.display()),
+                );
+            } else {
+                match format {
+                    crate::cli::OutputType::Bmp
+                    | crate::cli::OutputType::Jpg
+                    | crate::cli::OutputType::Png => {
+                        processed_img.save(&output_path).with_context(|| {
+                            format!("Failed to save {}: {}", format_name, output_path.display())
+                        })?;
+                    }
+                    crate::cli::OutputType::Bin => {
+                        let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                        std::fs::write(&output_path, binary_data).with_context(|| {
+                            format!("Failed to save portrait binary: {}", output_path.display())
+                        })?;
+                    }
                 }
             }
 
@@ -1430,19 +1601,26 @@ impl ProcessingEngine {
             let output_path =
                 self.get_combined_format_output_path(output_dir, left_path, right_path, format);
 
-            match format {
-                crate::cli::OutputType::Bmp
-                | crate::cli::OutputType::Jpg
-                | crate::cli::OutputType::Png => {
-                    combined_img.save(&output_path).with_context(|| {
-                        format!("Failed to save {}: {}", format_name, output_path.display())
-                    })?;
-                }
-                crate::cli::OutputType::Bin => {
-                    let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
-                    std::fs::write(&output_path, &binary_data).with_context(|| {
-                        format!("Failed to save combined binary: {}", output_path.display())
-                    })?;
+            if self.config.dry_run {
+                verbose_println(
+                    self.config.verbose,
+                    &format!("Dry run: Would save {} '{}' + '{}' to {}", format_name, left_filename, right_filename, output_path.display()),
+                );
+            } else {
+                match format {
+                    crate::cli::OutputType::Bmp
+                    | crate::cli::OutputType::Jpg
+                    | crate::cli::OutputType::Png => {
+                        combined_img.save(&output_path).with_context(|| {
+                            format!("Failed to save {}: {}", format_name, output_path.display())
+                        })?;
+                    }
+                    crate::cli::OutputType::Bin => {
+                        let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
+                        std::fs::write(&output_path, &binary_data).with_context(|| {
+                            format!("Failed to save combined binary: {}", output_path.display())
+                        })?;
+                    }
                 }
             }
 
@@ -1572,23 +1750,30 @@ impl ProcessingEngine {
             let output_path =
                 self.get_format_output_path(output_dir, input_path, actual_format, Some("debug"));
 
-            // Save annotated image (no processing, just the annotations)
-            annotated_img.save(&output_path).with_context(|| {
-                format!("Failed to save debug image: {}", output_path.display())
-            })?;
+            if self.config.dry_run {
+                verbose_println(
+                    self.config.verbose,
+                    &format!("Dry run: Would save debug image '{}' to {}", filename, output_path.display()),
+                );
+            } else {
+                // Save annotated image (no processing, just the annotations)
+                annotated_img.save(&output_path).with_context(|| {
+                    format!("Failed to save debug image: {}", output_path.display())
+                })?;
+
+                verbose_println(
+                    self.config.verbose,
+                    &format!(
+                        "✅ Debug image saved: {}",
+                        output_path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                    ),
+                );
+            }
 
             saved_paths.insert(format.clone(), output_path.clone());
-
-            verbose_println(
-                self.config.verbose,
-                &format!(
-                    "✅ Debug image saved: {}",
-                    output_path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                ),
-            );
         }
 
         Ok(ProcessingResult {
