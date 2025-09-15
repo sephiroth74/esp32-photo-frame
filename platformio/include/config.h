@@ -31,9 +31,9 @@
 
 // Version information
 #define FIRMWARE_VERSION_MAJOR 0
-#define FIRMWARE_VERSION_MINOR 2
+#define FIRMWARE_VERSION_MINOR 3
 #define FIRMWARE_VERSION_PATCH 0
-#define FIRMWARE_VERSION_STRING "v0.2.0"
+#define FIRMWARE_VERSION_STRING "v0.3.0"
 
 /// ---- Customizable settings ----
 
@@ -584,5 +584,7 @@ extern const char* LOCAL_FILE_EXTENSION;
 // Test with larger page size now that RTC is disabled
 #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 200
 #endif // GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
+
+// #define USE_HTTP_1_0 // Force HTTP/1.0 to avoid chunked encoding issues
 
 #endif // __PHOTO_FRAME_CONFIG_H__

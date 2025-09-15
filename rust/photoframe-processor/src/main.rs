@@ -14,7 +14,7 @@ use image_processing::{
     ProcessingType, SkipReason,
 };
 use utils::{
-    create_progress_bar, find_original_filename_for_hash, format_duration, validate_inputs, verbose_println,
+    create_progress_bar, format_duration, validate_inputs, verbose_println,
 };
 
 impl From<ColorType> for ProcessingType {
@@ -27,102 +27,123 @@ impl From<ColorType> for ProcessingType {
     }
 }
 
-/// Handle hash lookup functionality
-fn handle_hash_lookup(target_hash: &str, args: &Args) -> Result<()> {
-    // Validate hash format (8 hex characters)
-    if target_hash.len() != 8 || !target_hash.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(anyhow::anyhow!(
-            "Invalid hash format '{}'. Expected 8 hex characters (e.g., '7af9ecca')",
-            target_hash
-        ));
-    }
+/// Handle find original functionality - decode combined filenames
+fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
+    use base64::{engine::general_purpose, Engine as _};
 
     println!(
         "{}",
         style(format!(
-            "Searching for original filename with hash: {}",
-            target_hash
+            "Decoding combined filename: {}",
+            combined_filename
         ))
         .bold()
         .cyan()
     );
     println!();
 
-    // Use current directory if no search directories specified
-    let search_dirs: Vec<std::path::PathBuf> = if args.input_paths.is_empty() {
-        vec![std::env::current_dir()?]
+    // Parse the combined filename format: combined_BASE64_BASE64.bin
+    if !combined_filename.starts_with("combined_") {
+        return Err(anyhow::anyhow!(
+            "Invalid combined filename '{}'. Expected format: 'combined_BASE64_BASE64.bin'",
+            combined_filename
+        ));
+    }
+
+    // Remove the "combined_" prefix and ".bin" suffix
+    let without_prefix = &combined_filename[9..]; // Skip "combined_"
+    let without_suffix = if without_prefix.ends_with(".bin") {
+        &without_prefix[..without_prefix.len() - 4] // Remove ".bin"
     } else {
-        args.input_paths.clone()
+        without_prefix
     };
 
-    // Convert to Path references
-    let search_paths: Vec<&std::path::Path> = search_dirs.iter().map(|p| p.as_path()).collect();
-
-    // Use default extensions if not specified
-    let extensions = args.extensions();
-
-    println!("Search directories:");
-    for path in &search_paths {
-        println!("  {}", path.display());
+    // Split by underscore to get the two base64 parts
+    let parts: Vec<&str> = without_suffix.split('_').collect();
+    if parts.len() != 2 {
+        return Err(anyhow::anyhow!(
+            "Invalid combined filename format '{}'. Expected exactly 2 base64 parts separated by '_'",
+            combined_filename
+        ));
     }
-    println!("Extensions: {:?}", extensions);
+
+    // Decode the base64 parts
+    let first_encoded = parts[0];
+    let second_encoded = parts[1];
+
+    println!("Encoded parts:");
+    println!("  First:  {}", style(first_encoded).yellow());
+    println!("  Second: {}", style(second_encoded).yellow());
     println!();
 
-    // Find matching filenames
-    let matches = find_original_filename_for_hash(&search_paths, target_hash, &extensions)?;
-
-    if matches.is_empty() {
-        println!("{}", style("No matching files found").yellow().bold());
-        println!();
-        println!("Tips:");
-        println!("  • Make sure you're searching in the correct directories");
-        println!("  • Check that the hash is correct (8 hex characters)");
-        println!("  • Verify the file extensions match: {:?}", extensions);
-    } else {
-        println!(
-            "{}",
-            style(format!("Found {} matching file(s):", matches.len()))
-                .green()
-                .bold()
-        );
-        println!();
-
-        for (i, file_path) in matches.iter().enumerate() {
-            let path = std::path::Path::new(file_path);
-            let filename = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("unknown");
-            let stem = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("unknown");
-
-            println!(
-                "  {}: {}",
-                style(format!("#{}", i + 1)).dim(),
-                style(filename).bold().green()
-            );
-            println!("      Path: {}", style(file_path).dim());
-            println!(
-                "      Stem: {} → Hash: {}",
-                style(stem).cyan(),
-                style(target_hash).yellow()
-            );
-            println!();
+    // Decode first filename
+    let first_decoded = match general_purpose::STANDARD.decode(first_encoded) {
+        Ok(bytes) => match String::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => {
+                return Err(anyhow::anyhow!(
+                    "First base64 part '{}' does not decode to valid UTF-8",
+                    first_encoded
+                ));
+            }
+        },
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "First base64 part '{}' is not valid base64",
+                first_encoded
+            ));
         }
+    };
 
-        if matches.len() == 1 {
-            println!("{}", style("✓ Exact match found!").green().bold());
-        } else {
-            println!(
-                "{}",
-                style("⚠ Multiple matches found - this is unusual but possible")
-                    .yellow()
-                    .bold()
-            );
+    // Decode second filename
+    let second_decoded = match general_purpose::STANDARD.decode(second_encoded) {
+        Ok(bytes) => match String::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => {
+                return Err(anyhow::anyhow!(
+                    "Second base64 part '{}' does not decode to valid UTF-8",
+                    second_encoded
+                ));
+            }
+        },
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "Second base64 part '{}' is not valid base64",
+                second_encoded
+            ));
         }
-    }
+    };
+
+    // Display results
+    println!("{}",
+        style("✓ Successfully decoded original filenames:")
+            .green()
+            .bold()
+    );
+    println!();
+    println!("  {}: {}",
+        style("Original 1").bold().cyan(),
+        style(&first_decoded).bold().green()
+    );
+    println!("  {}: {}",
+        style("Original 2").bold().cyan(),
+        style(&second_decoded).bold().green()
+    );
+    println!();
+
+    // Show the decoding process
+    println!("{}",
+        style("Decoding process:")
+            .dim()
+    );
+    println!("  {} → {}",
+        style(first_encoded).dim(),
+        style(&first_decoded).dim()
+    );
+    println!("  {} → {}",
+        style(second_encoded).dim(),
+        style(&second_decoded).dim()
+    );
 
     Ok(())
 }
@@ -139,9 +160,9 @@ fn main() -> Result<()> {
     println!("{}", style("High-performance Rust implementation").dim());
     println!();
 
-    // Handle hash lookup mode (dry-run doesn't apply here)
-    if let Some(target_hash) = &args.find_hash {
-        handle_hash_lookup(target_hash, &args)?;
+    // Handle find original mode (dry-run doesn't apply here)
+    if let Some(combined_filename) = &args.find_original {
+        handle_find_original(combined_filename, &args)?;
         return Ok(());
     }
 
