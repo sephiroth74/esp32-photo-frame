@@ -97,15 +97,34 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
     Serial.print(WAKEUP_PIN);
     Serial.print(F("... "));
 
-    pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
+    // Configure RTC GPIO for EXT0 wakeup (required for deep sleep)
+    // First set regular GPIO mode for initial setup
+    pinMode(WAKEUP_PIN, INPUT);
 
-#ifdef DEBUG_BOARD
-    // Read current pin state for debugging
+    // Configure RTC GPIO pull-down resistor for deep sleep wakeup
+    // This is essential - regular pinMode pull resistors don't work during deep sleep
+    rtc_gpio_init(WAKEUP_PIN);
+    rtc_gpio_set_direction(WAKEUP_PIN, RTC_GPIO_MODE_INPUT_ONLY);
+    rtc_gpio_pullup_dis(WAKEUP_PIN);  // Disable pull-up
+    rtc_gpio_pulldown_en(WAKEUP_PIN); // Enable pull-down for EXT0 wakeup
+    rtc_gpio_hold_dis(WAKEUP_PIN);    // Disable hold to allow normal operation
+
+    // Small delay to allow RTC GPIO to stabilize
+    delay(10);
+
+    // Read current pin state for debugging (always enabled for EXT0 issues)
     int pinState = digitalRead(WAKEUP_PIN);
-
     Serial.print(F("Pin state: "));
     Serial.print(pinState);
-#endif // DEBUG_BOARD
+
+    // Verify pin is in expected idle state (should be LOW with RTC pull-down)
+    if (pinState != 0) {
+        Serial.print(F(" ⚠️ WARNING: Pin should be LOW when idle, but reads "));
+        Serial.print(pinState);
+        Serial.println(F(" - check wiring or RTC GPIO config"));
+    } else {
+        Serial.println(F(" ✅ Pin correctly reads LOW with RTC pull-down"));
+    }
 
     // Test EXT0 wakeup configuration
     esp_err_t wakeup_result = esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_LEVEL);
@@ -142,6 +161,20 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
         delay(DELAY_BEFORE_SLEEP);
     }
 
+#ifdef WAKEUP_EXT0
+    // Final check: Verify wakeup pin is in idle state before sleep
+    int finalPinState = digitalRead(WAKEUP_PIN);
+    Serial.print(F("[board_util] Final wakeup pin state before sleep: "));
+    Serial.println(finalPinState);
+
+    if (finalPinState == WAKEUP_LEVEL) {
+        Serial.println(F("⚠️ WARNING: Wakeup pin is already at trigger level!"));
+        Serial.println(F("[board_util] This would cause immediate wakeup - check button/wiring"));
+    }
+#endif
+
+    Serial.println(F("[board_util] Going to deep sleep now. Good night!"));
+    Serial.flush(); // Ensure all serial output is sent before sleeping
     esp_deep_sleep_start();
 }
 
@@ -249,12 +282,12 @@ void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
     for (int i = 0; i < count; i++) {
 #ifdef DEBUG_BOARD
         Serial.println(F("[board_util] Blinking on.."));
-#endif // DEBUG_BOARD
+#endif                                   // DEBUG_BOARD
         digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
         delay(on_ms);
 #ifdef DEBUG_BOARD
         Serial.println(F("[board_util] Blinking off.."));
-#endif // DEBUG_BOARD
+#endif                                  // DEBUG_BOARD
         digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
         delay(off_ms);
     }

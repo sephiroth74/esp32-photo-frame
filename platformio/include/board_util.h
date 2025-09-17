@@ -26,6 +26,10 @@
 #include "errors.h"
 #include <Arduino.h>
 
+#ifdef WAKEUP_EXT0
+#include "driver/rtc_io.h" // For RTC GPIO functions needed for EXT0 wakeup
+#endif
+
 namespace photo_frame {
 
 namespace board_utils {

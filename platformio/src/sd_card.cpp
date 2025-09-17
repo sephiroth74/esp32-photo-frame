@@ -312,9 +312,9 @@ uint32_t sd_card::count_files(const char* extension) const {
         return count;
     }
 
-    auto start_time = millis();
-    bool is_dir     = false;
-    String path     = root.getNextFileName(&is_dir);
+    auto start_time __attribute__((unused)) = millis();
+    bool is_dir                             = false;
+    String path                             = root.getNextFileName(&is_dir);
     while (path && !path.isEmpty()) {
         String file_name = path.substring(path.lastIndexOf('/') + 1);
         if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") &&
@@ -323,7 +323,7 @@ uint32_t sd_card::count_files(const char* extension) const {
         }
         path = root.getNextFileName(&is_dir);
     }
-    
+
 #ifdef DEBUG_SD_CARD
     auto elapsed_time = millis() - start_time;
     Serial.print("[sdcard] Time taken to count files: ");

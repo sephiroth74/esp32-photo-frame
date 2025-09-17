@@ -5,6 +5,7 @@
 // https://feathers3.io/pinout.html
 
 // #define USE_SHARED_SPI // Use shared SPI for SD card and display
+#define USE_HSPI_FOR_EPD // Use separate HSPI bus for e-Paper display
 
 // Pin definitions for FeatherS3
 // SD Card - using SPI pins
@@ -33,21 +34,6 @@
 #define BATTERY_DELAY_BETWEEN_READINGS 10
 #define BATTERY_RESISTORS_RATIO        0.5 // FeatherS3 built-in divider ratio
 
-// RTC module - ESP32-S3 doesn't have I2C/WiFi issues, so RTC is enabled
-#define USE_RTC
-#define RTC_SDA_PIN 8 // I2C SDA (can share with EPD_DC_PIN with proper sequencing)
-#define RTC_SCL_PIN 9 // I2C SCL
-
-// Alternative I2C pins if conflicts arise
-// #define RTC_SDA_PIN 41  // Alternative I2C SDA
-// #define RTC_SCL_PIN 40  // Alternative I2C SCL
-
-// MAX1704X battery sensor option (alternative to voltage divider)
-// #define USE_SENSOR_MAX1704X
-// #define SENSOR_MAX1704X_TIMEOUT 10000
-// #define MAX1704X_SDA_PIN 8   // Share I2C with RTC
-// #define MAX1704X_SCL_PIN 9   // Share I2C with RTC
-
 // Built-in LED - FeatherS3 uses RGB LED on pin 40
 #ifdef LED_BUILTIN
 #undef LED_BUILTIN
@@ -56,11 +42,11 @@
 #define LED_BUILTIN 13 // FeatherS3 RGB LED (NeoPixel)
 
 // External wakeup configuration
-#define WAKEUP_EXT1
+#define WAKEUP_EXT0
 // Use available RTC GPIO pin for wakeup
-#define WAKEUP_PIN      GPIO_NUM_3
-#define WAKEUP_PIN_MODE INPUT_PULLDOWN
-#define WAKEUP_LEVEL    ESP_EXT1_WAKEUP_ANY_HIGH
+#define WAKEUP_PIN      GPIO_NUM_25
+#define WAKEUP_PIN_MODE INPUT_PULLDOWN // Internal pull-down to prevent floating pin issues
+#define WAKEUP_LEVEL    HIGH
 
 // ESP32-S3 has many RTC IO pins available for deep sleep wakeup
 // We're using GPIO3 which is definitely an RTC IO pin
@@ -69,7 +55,7 @@
 #define BATTERY_POWER_SAVING
 
 // Delay before going to sleep in milliseconds
-#define DELAY_BEFORE_SLEEP 10000 // Reduced since no I2C/WiFi conflicts
+#define DELAY_BEFORE_SLEEP 8000 // Reduced since no I2C/WiFi conflicts
 
 // WiFi configuration
 #define WIFI_FILENAME "/wifi.txt"
@@ -82,24 +68,28 @@
 #define NTP_SERVER2          "time.nist.gov"
 
 // e-Paper display configuration
-#define DISP_BW_V2 // Black and White e-Paper display
+#define DISP_6C // 6-color e-Paper display (GDEP073E01)
+// #define DISP_BW_V2 // Black and White e-Paper display
 #define USE_DESPI_DRIVER
 
 // Accent color for the display
-#define ACCENT_COLOR GxEPD_BLACK
+#define ACCENT_COLOR GxEPD_RED
 
 // Miscellaneous
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
+#define DEBUG_BATTERY_READER
+#define EPD_USE_BINARY_FILE
+
 #define EPD_USE_BINARY_FILE
 
 // Reset handling
 #define RESET_INVALIDATES_DATE_TIME 1
 
 // Refresh intervals - can be more frequent due to better power management
-#define REFRESH_MIN_INTERVAL_SECONDS         (5 * SECONDS_IN_MINUTE) // More frequent
-#define REFRESH_MAX_INTERVAL_SECONDS         (4 * SECONDS_IN_HOUR)
-#define REFRESH_STEP_SECONDS                 (5 * SECONDS_IN_MINUTE) // Finer steps
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)   // Less conservative
+#define REFRESH_MIN_INTERVAL_SECONDS            (10 * SECONDS_IN_MINUTE)
+#define REFRESH_MAX_INTERVAL_SECONDS            (4 * SECONDS_IN_HOUR)
+#define REFRESH_STEP_SECONDS                    (10 * SECONDS_IN_MINUTE)
+#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY    (8 * SECONDS_IN_HOUR)
 
 #define DAY_START_HOUR                       06 // Hour when the day starts (6 AM)
 #define DAY_END_HOUR                         23 // Hour when the day ends (11 PM)
@@ -107,7 +97,7 @@
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 // LOCALE
-#define LOCALE en_US // Default to English for new configuration
+#define LOCALE it_IT // Default to Italian for new configuration
 
 // Google Drive integration - fully enabled since no I2C/WiFi conflicts
 // Google Drive is now enabled globally in config.h
@@ -116,15 +106,12 @@
 // Service account cleanup interval
 #define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60) // 24 hours
 
-// ESP32-S3 specific optimizations
-// Take advantage of PSRAM for better performance with large images
-#ifndef CONFIG_SPIRAM_SUPPORT
-#define CONFIG_SPIRAM_SUPPORT
-#endif // CONFIG_SPIRAM_SUPPORT
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD    2097152 // 2MB - avoid streaming for most responses
+#define GOOGLE_DRIVE_JSON_DOC_SIZE              2097152 // 2MB JSON document buffer
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE          2097152 // 2MB response body reserve
+#define GOOGLE_DRIVE_SAFETY_LIMIT               2097152 // 2MB safety limit
 
-#ifndef CONFIG_SPIRAM_USE_MALLOC
-#define CONFIG_SPIRAM_USE_MALLOC
-#endif // CONFIG_SPIRAM_USE_MALLOC
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 250 // Max 1000, but 250 is a good compromise
 
 // Comments about FeatherS3 advantages:
 // 1. No I2C/WiFi coexistence issues (unlike ESP32-C6)

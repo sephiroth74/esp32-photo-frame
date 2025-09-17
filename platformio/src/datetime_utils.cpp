@@ -75,7 +75,6 @@ int format_datetime(char* buffer, size_t buffer_size, const time_t& timeinfo, co
     Serial.println();
 #endif // DEBUG_DATETIME_UTILS
 
-
     // return format_datetime(buffer, buffer_size, *tm_info, format);
     return strftime(buffer, buffer_size, format, tm_info);
 }

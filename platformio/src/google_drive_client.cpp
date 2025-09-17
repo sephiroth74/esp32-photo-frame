@@ -1112,7 +1112,7 @@ String google_drive_client::build_http_request(const char* method,
     req += path;
 #ifdef USE_HTTP_1_0
     req += " HTTP/1.0\r\nHost: ";
-    #else
+#else
     req += " HTTP/1.1\r\nHost: ";
 #endif // USE_HTTP_1_0
     req += host;

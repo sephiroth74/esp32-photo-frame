@@ -30,9 +30,9 @@
 #define XSTR(x) STR(x)
 
 // Version information
-#define FIRMWARE_VERSION_MAJOR 0
-#define FIRMWARE_VERSION_MINOR 3
-#define FIRMWARE_VERSION_PATCH 0
+#define FIRMWARE_VERSION_MAJOR  0
+#define FIRMWARE_VERSION_MINOR  3
+#define FIRMWARE_VERSION_PATCH  0
 #define FIRMWARE_VERSION_STRING "v0.3.0"
 
 /// ---- Customizable settings ----
@@ -244,6 +244,9 @@
 // #define WEATHER_CONFIG_FILE "/weather_config.json"
 // #define WEATHER_CACHE_FILE "/weather_cache.json"
 
+// Maximum age (in seconds) the weather data can be before it is considered stale
+#define WEATHER_MAX_AGE_SECONDS (3 * SECONDS_IN_HOUR)
+
 // Path to the Google Drive configuration JSON file on the sd-card
 // This file must be uploaded to your SD card and contain all Google Drive settings
 // #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
@@ -410,6 +413,11 @@ extern const char* LOCAL_FILE_EXTENSION;
 #ifndef ACCESS_TOKEN_FILENAME
 #define ACCESS_TOKEN_FILENAME "access_token.json"
 #endif // ACCESS_TOKEN_FILENAME
+
+// LittleFS temporary image file path (used in shared SPI mode)
+#ifndef LITTLEFS_TEMP_IMAGE_FILE
+#define LITTLEFS_TEMP_IMAGE_FILE "/temp_image.tmp"
+#endif // LITTLEFS_TEMP_IMAGE_FILE
 
 #ifndef WIFI_CONNECT_TIMEOUT
 #define WIFI_CONNECT_TIMEOUT 10000

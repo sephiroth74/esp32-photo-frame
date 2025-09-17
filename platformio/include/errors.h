@@ -358,6 +358,18 @@ const photo_frame_error ImageConversionFailed{TXT_IMAGE_CONVERSION_FAILED, 97, E
 const photo_frame_error ImageResolutionTooHigh{TXT_IMAGE_RESOLUTION_TOO_HIGH, 98, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 const photo_frame_error ImageProcessingAborted{TXT_IMAGE_PROCESSING_ABORTED, 99, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 
+// Granular Image Rendering errors (100-109) - Function-specific error codes
+const photo_frame_error BinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 100, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BitmapRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 101, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BufferedBinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 102, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BufferedBitmapRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 103, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BinaryFileInvalidSize{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 104, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BitmapHeaderCorrupted{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 105, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error PixelReadError{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 106, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error SequentialReadError{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 107, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error SeekOperationFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 108, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error PaletteCorrupted{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 109, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+
 // Battery/Power specific errors (160-179) - Enhanced granular errors
 const photo_frame_error BatteryVoltageLow{TXT_BATTERY_VOLTAGE_LOW, 160, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
 const photo_frame_error BatteryVoltageUnstable{TXT_BATTERY_VOLTAGE_UNSTABLE, 161, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};

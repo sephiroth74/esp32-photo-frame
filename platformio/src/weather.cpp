@@ -529,7 +529,6 @@ bool WeatherManager::load_weather_cache() {
     current_weather.sunset_time    = doc["sunset_time"] | 0;
     current_weather.has_daily_data = doc["has_daily_data"] | false;
 
-
 #ifdef DEBUG_WEATHER
     Serial.printf("[WeatherManager] Loaded cached weather - %.1f°C, %s\n",
                   current_weather.temperature,
