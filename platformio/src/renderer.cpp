@@ -415,32 +415,70 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
     }
 #endif // DEBUG_RENDERER
 
+    // Position error text higher on screen (no icon space needed)
+    int16_t baseY = DISP_HEIGHT / 2 - 60; // Higher position without icon
+
     display.setFont(&FONT_26pt8b);
     if (!errMsgLn2.isEmpty()) {
-        draw_string(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21, errMsgLn1.c_str(), CENTER);
-        draw_string(DISP_WIDTH / 2, DISP_HEIGHT / 2 + 196 / 2 + 21 + 55, errMsgLn2.c_str(), CENTER);
+        draw_string(DISP_WIDTH / 2, baseY, errMsgLn1.c_str(), CENTER);
+        draw_string(DISP_WIDTH / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
     } else {
-        draw_multiline_string(DISP_WIDTH / 2,
-                              DISP_HEIGHT / 2 + 196 / 2 + 21,
-                              errMsgLn1,
-                              CENTER,
-                              DISP_WIDTH - 200,
-                              2,
-                              55);
+        draw_multiline_string(DISP_WIDTH / 2, baseY, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
     }
 
-    if (bitmap_196x196) {
-        display.drawInvertedBitmap(DISP_WIDTH / 2 - 196 / 2,
-                                   DISP_HEIGHT / 2 - 196 / 2 - 21,
-                                   bitmap_196x196,
-                                   196,
-                                   196,
-                                   ACCENT_COLOR);
-    } else {
-        Serial.println("[renderer] Error: No bitmap provided for drawError");
-    }
+    // Note: Icon drawing removed as requested
     return;
 } // end drawError
+
+void draw_error_with_details(const String& errMsgLn1,
+                             const String& errMsgLn2,
+                             const char* filename,
+                             uint16_t errorCode) {
+#ifdef DEBUG_RENDERER
+    Serial.println("[renderer] drawErrorWithDetails[1]: " + errMsgLn1);
+    if (!errMsgLn2.isEmpty()) {
+        Serial.println("[renderer] drawErrorWithDetails[2]: " + errMsgLn2);
+    }
+    Serial.printf("[renderer] drawErrorWithDetails filename: %s, code: %d\n",
+                  filename ? filename : "unknown",
+                  errorCode);
+#endif // DEBUG_RENDERER
+
+    // Position error text higher on screen (no icon space needed)
+    int16_t baseY = DISP_HEIGHT / 2 - 80; // Higher position for more content
+
+    // Draw main error messages
+    display.setFont(&FONT_26pt8b);
+    if (!errMsgLn2.isEmpty()) {
+        draw_string(DISP_WIDTH / 2, baseY, errMsgLn1.c_str(), CENTER);
+        draw_string(DISP_WIDTH / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
+        baseY += 110; // Move to next line after 2 large lines
+    } else {
+        draw_multiline_string(DISP_WIDTH / 2, baseY, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
+        baseY += 55; // Move to next line after 1 large line
+    }
+
+    // Add small line with filename and error code
+    display.setFont(&FONT_9pt8b);
+    String detailLine = "File: ";
+    if (filename && strlen(filename) > 0) {
+        // Extract just the filename from the path
+        const char* baseName = strrchr(filename, '/');
+        if (baseName) {
+            baseName++; // Skip the '/'
+        } else {
+            baseName = filename;
+        }
+        detailLine += String(baseName);
+    } else {
+        detailLine += "unknown";
+    }
+    detailLine += " | Error: " + String(errorCode);
+
+    draw_string(DISP_WIDTH / 2, baseY + 30, detailLine.c_str(), CENTER, GxEPD_BLACK);
+
+    return;
+} // end drawErrorWithDetails
 
 void draw_image_info(uint32_t index,
                      uint32_t total_images,
@@ -464,7 +502,7 @@ rect_t get_weather_info_rect() { return {16 - 8, DISP_HEIGHT - 88 - 8, 184, 88};
 
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect) {
     // Only display if weather data is valid and not stale (max 3 hours old)
-    if (!weather_data.is_displayable(10800)) { // 3 hours = 10800 seconds
+    if (!weather_data.is_displayable(WEATHER_MAX_AGE_SECONDS)) {
         Serial.println(
             "[renderer] drawWeatherInfo: Weather data invalid or stale, skipping display");
         return;
@@ -533,7 +571,7 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, re
     if (weather_data.has_daily_data) {
         char sunrise_buffer[16];
 
-#ifdef DEBUG_RENDERER        
+#ifdef DEBUG_RENDERER
         Serial.print(F("[renderer] drawWeatherInfo: sunrise time: "));
         Serial.println(weather_data.sunrise_time);
 #endif // DEBUG_RENDERER
@@ -748,14 +786,13 @@ void draw_battery_status(photo_frame::battery_info_t battery_info) {
 
 #endif // USE_SENSOR_MAX1704X
 
-
     draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
 }
 
 void draw_last_update(const DateTime& lastUpdate, long refresh_seconds) {
 #ifdef DEBUG_RENDERER
     Serial.println("[renderer] drawLastUpdate: " + lastUpdate.timestamp());
-#endif // DEBUG_RENDERER
+#endif                             // DEBUG_RENDERER
     char dateTimeBuffer[32] = {0}; // Buffer to hold formatted date and time
     photo_frame::datetime_utils::format_datetime(
         dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate);
@@ -878,14 +915,11 @@ void draw_side_message_with_icon(gravity_t gravity,
     draw_string(x + icon_size + 2, y, message, GxEPD_BLACK);
 }
 
-bool draw_bitmap_from_file(File& file,
-                           const char* filename,
-                           int16_t x,
-                           int16_t y,
-                           bool with_color) {
+uint16_t
+draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bool with_color) {
     if (!file) {
         Serial.println("[renderer] drawBitmapFromFile: File not open or invalid");
-        return false;
+        return photo_frame::error_type::FileOpenFailed.code;
     }
 
     Serial.println("[renderer] drawBitmapFromFile: " + String(filename));
@@ -894,7 +928,7 @@ bool draw_bitmap_from_file(File& file,
     bool flip          = true;  // bitmap is stored bottom-to-top
     uint32_t startTime = millis();
     if ((x >= display.epd2.WIDTH) || (y >= display.epd2.HEIGHT))
-        return false;
+        return photo_frame::error_type::ImageDimensionsInvalid.code;
 
     // Parse BMP header
     auto signature = read16(file);
@@ -909,14 +943,14 @@ bool draw_bitmap_from_file(File& file,
         uint32_t fileSize = read32(file);
 #ifndef DEBUG_RENDERER
         (void)fileSize; // unused
-#endif // !DEBUG_RENDERER
+#endif                  // !DEBUG_RENDERER
         uint32_t creatorBytes = read32(file);
         (void)creatorBytes;                  // unused
         uint32_t imageOffset = read32(file); // Start of image data
         uint32_t headerSize  = read32(file);
 #ifndef DEBUG_RENDERER
         (void)headerSize; // unused
-#endif // !DEBUG_RENDERER
+#endif                    // !DEBUG_RENDERER
         uint32_t width  = read32(file);
         int32_t height  = (int32_t)read32(file);
         uint16_t planes = read16(file);
@@ -1113,15 +1147,26 @@ bool draw_bitmap_from_file(File& file,
         }
     }
     if (!valid) {
-        Serial.println("[renderer] bitmap format not handled.");
-        return false;
+        if (signature != 0x4D42) {
+            Serial.printf("[renderer] Invalid BMP signature: 0x%04X\n", signature);
+            auto error = photo_frame::error_type::BitmapHeaderCorrupted;
+            error.set_timestamp();
+            error.log_detailed();
+        } else {
+            Serial.println("[renderer] bitmap format not handled.");
+            auto error = photo_frame::error_type::BitmapRenderingFailed;
+            error.set_timestamp();
+            error.log_detailed();
+        }
+        return photo_frame::error_type::BitmapRenderingFailed.code;
     } else {
         Serial.println("[renderer] bitmap loaded successfully.");
-        return true;
+        return 0; // Success
     }
 } // end drawBitmapFromFile
 
-bool draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index) {
+uint16_t
+draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index) {
     Serial.print("[renderer] draw_binary_from_file: ");
     Serial.print(filename);
     Serial.print(", width: ");
@@ -1134,25 +1179,25 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
         width, height, display.width(), display.height(), filename);
     if (dimensionError != photo_frame::error_type::None) {
         dimensionError.log_detailed();
-        return false;
+        return photo_frame::error_type::BinaryRenderingFailed.code;
     }
 
     if (!file) {
         Serial.println("[renderer] File not open or invalid");
-        return false;
+        return photo_frame::error_type::FileOpenFailed.code;
     }
 
-    auto startTime = millis();
+    auto startTime           = millis();
     uint32_t pixelsProcessed = 0;
 
     // Calculate page boundaries for efficient processing
     int startY = 0;
-    int endY = height;
+    int endY   = height;
 
     if (page_index >= 0 && display.pages() > 1) {
         int pageHeight = display.pageHeight();
-        startY = page_index * pageHeight;
-        endY = min(startY + pageHeight, height);
+        startY         = page_index * pageHeight;
+        endY           = min(startY + pageHeight, height);
 
         Serial.print("[renderer] Processing page ");
         Serial.print(page_index);
@@ -1198,11 +1243,14 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
                 display.writePixel(x, y, pixelColor);
                 pixelsProcessed++;
             } else {
-                // Create specific image processing error
-                auto error = photo_frame::error_utils::create_image_error(
-                    "read_failed", filename, nullptr, "Failed to read pixel data during rendering");
+                // Create specific image processing error with granular error code
+                auto error = photo_frame::error_type::PixelReadError;
+                error.set_timestamp();
                 error.log_detailed();
-                return false; // Exit early if read error occurs
+                Serial.printf(
+                    "[renderer] draw_binary_from_file failed: pixel read error at position %d\n",
+                    idx);
+                return error.code; // Exit early if read error occurs
             }
 
             // Yield every 100 pixels to prevent watchdog timeout
@@ -1219,10 +1267,10 @@ bool draw_binary_from_file(File& file, const char* filename, int width, int heig
     Serial.print(pixelsProcessed);
     Serial.println(" pixels)");
     Serial.println("[renderer] Binary file page processed successfully");
-    return true;
+    return 0; // Success
 }
 
-bool draw_binary_from_file_buffered(File& file, const char* filename, int width, int height) {
+uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int width, int height) {
     Serial.print("[renderer] draw_binary_from_file_buffered: ");
     Serial.print(filename);
     Serial.print(", width: ");
@@ -1235,12 +1283,12 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
         width, height, display.width(), display.height(), filename);
     if (dimensionError != photo_frame::error_type::None) {
         dimensionError.log_detailed();
-        return false;
+        return photo_frame::error_type::BinaryRenderingFailed.code;
     }
 
     if (!file) {
         Serial.println("[renderer] File not open or invalid");
-        return false;
+        return photo_frame::error_type::FileOpenFailed.code;
     }
 
     // Validate file size using enhanced error system
@@ -1249,10 +1297,10 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
         file.size(), expectedSize, expectedSize, filename);
     if (fileSizeError != photo_frame::error_type::None) {
         fileSizeError.log_detailed();
-        return false;
+        return photo_frame::error_type::BinaryRenderingFailed.code;
     }
 
-    auto startTime = millis();
+    auto startTime           = millis();
     uint32_t pixelsProcessed = 0;
 
     Serial.print("[renderer] Multi-page buffered display: ");
@@ -1262,7 +1310,7 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
 
     // Try sequential reading first (more reliable than random seeking)
     file.seek(0); // Start from beginning
-    bool useSequentialRead = true;
+    bool useSequentialRead      = true;
     int consecutiveReadFailures = 0;
 
     // GxEPD2 handles page clipping automatically - just draw the entire image
@@ -1286,8 +1334,12 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
                 if (byteRead < 0) {
                     consecutiveReadFailures++;
                     if (consecutiveReadFailures > 10) {
-                        Serial.println("[renderer] Too many sequential read failures, switching to seek mode");
+                        Serial.println(
+                            "[renderer] Too many sequential read failures, switching to seek mode");
                         useSequentialRead = false;
+                        auto error        = photo_frame::error_type::SequentialReadError;
+                        error.set_timestamp();
+                        error.log_detailed();
                     }
                 } else {
                     consecutiveReadFailures = 0;
@@ -1302,12 +1354,15 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
                 }
 
                 if (byteRead < 0) {
-                    auto error = photo_frame::error_utils::create_image_error(
-                        seekSuccess ? "read_failed" : "seek_failed",
-                        filename, nullptr,
-                        seekSuccess ? "Failed to read pixel data" : "Failed to seek to pixel position");
+                    auto error = seekSuccess ? photo_frame::error_type::PixelReadError
+                                             : photo_frame::error_type::SeekOperationFailed;
+                    error.set_timestamp();
                     error.log_detailed();
-                    return false;
+                    Serial.printf(
+                        "[renderer] draw_binary_from_file_buffered failed: %s at position %d\n",
+                        seekSuccess ? "pixel read error" : "seek operation failed",
+                        idx);
+                    return photo_frame::error_type::BinaryRenderingFailed.code;
                 }
             }
 
@@ -1334,19 +1389,19 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
     Serial.print(pixelsProcessed);
     Serial.println(" pixels)");
     Serial.println("[renderer] Binary file page processed successfully (buffered)");
-    return true;
+    return 0; // Success
 }
 
-bool draw_bitmap_from_file_buffered(File& file,
-                                    const char* filename,
-                                    int16_t x,
-                                    int16_t y,
-                                    bool with_color,
-                                    bool partial_update) {
+uint16_t draw_bitmap_from_file_buffered(File& file,
+                                        const char* filename,
+                                        int16_t x,
+                                        int16_t y,
+                                        bool with_color,
+                                        bool partial_update) {
 
     if (!file) {
         Serial.println("[renderer] File not open or invalid");
-        return false;
+        return photo_frame::error_type::FileOpenFailed.code;
     }
     Serial.println("[renderer] drawBitmapFromSD_Buffered: " + String(filename) + ", x: " +
                    String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) +
@@ -1359,7 +1414,7 @@ bool draw_bitmap_from_file_buffered(File& file,
     uint32_t startTime = millis();
     if ((x >= display.width()) || (y >= display.height())) {
         Serial.println("[renderer] drawBitmapFromSD_Buffered: x or y out of bounds");
-        return false;
+        return photo_frame::error_type::BinaryRenderingFailed.code;
     }
     // Parse BMP header
 
@@ -1371,14 +1426,14 @@ bool draw_bitmap_from_file_buffered(File& file,
         uint32_t fileSize = read32(file);
 #ifndef DEBUG_RENDERER
         (void)fileSize; // unused
-#endif // !DEBUG_RENDERER
+#endif                  // !DEBUG_RENDERER
         uint32_t creatorBytes = read32(file);
         (void)creatorBytes;                  // unused
         uint32_t imageOffset = read32(file); // Start of image data
         uint32_t headerSize  = read32(file);
 #ifndef DEBUG_RENDERER
         (void)headerSize; // unused
-#endif // !DEBUG_RENDERER
+#endif                    // !DEBUG_RENDERER
         uint32_t width  = read32(file);
         int32_t height  = (int32_t)read32(file);
         uint16_t planes = read16(file);
@@ -1590,12 +1645,22 @@ bool draw_bitmap_from_file_buffered(File& file,
         }
     }
     if (!valid) {
-        Serial.println("[renderer] bitmap format not handled (signature: " + String(signature) +
-                       ").");
-        return false;
+        if (signature != 0x4D42) {
+            Serial.printf("[renderer] Invalid BMP signature: 0x%04X\n", signature);
+            auto error = photo_frame::error_type::BitmapHeaderCorrupted;
+            error.set_timestamp();
+            error.log_detailed();
+        } else {
+            Serial.println("[renderer] bitmap format not handled (signature: " + String(signature) +
+                           ").");
+            auto error = photo_frame::error_type::BufferedBitmapRenderingFailed;
+            error.set_timestamp();
+            error.log_detailed();
+        }
+        return photo_frame::error_type::BinaryRenderingFailed.code;
     } else {
         Serial.println("[renderer] bitmap loaded successfully.");
-        return true;
+        return 0; // Success
     }
 } // end drawBitmapFromFile_Buffered
 
@@ -1639,7 +1704,7 @@ bool allocate_renderer_buffers() {
         !mono_palette_buffer || !color_palette_buffer || !rgb_palette_buffer) {
         Serial.println("[renderer] ERROR: Failed to allocate rendering buffers!");
         free_renderer_buffers(); // Clean up any partial allocations
-        return false;
+        return false;            // Failure
     }
 
     // Report memory usage
@@ -1651,7 +1716,7 @@ bool allocate_renderer_buffers() {
 
     Serial.printf("[renderer] Free PSRAM after allocation: %u bytes\n", ESP.getFreePsram());
 
-    return true;
+    return true; // Success
 }
 
 /*
@@ -1659,7 +1724,7 @@ bool allocate_renderer_buffers() {
  */
 void free_renderer_buffers() {
     Serial.println("[renderer] Freeing rendering buffers...");
-    
+
     if (input_buffer) {
         free(input_buffer);
         input_buffer = nullptr;

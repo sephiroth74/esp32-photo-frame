@@ -330,6 +330,18 @@ void draw_error(const uint8_t* bitmap_196x196,
                 const String& errMsgLn2 = "");
 
 /**
+ * Draws an error message with filename and error code details.
+ * @param errMsgLn1 The first line of the error message.
+ * @param errMsgLn2 The second line of the error message (optional).
+ * @param filename The filename that caused the error (optional).
+ * @param errorCode The numeric error code.
+ */
+void draw_error_with_details(const String& errMsgLn1,
+                             const String& errMsgLn2,
+                             const char* filename,
+                             uint16_t errorCode);
+
+/**
  * Draws an error message with a specific gravity and code.
  * @param gravity The gravity of the message (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
  * @param code The error code to be displayed.
@@ -443,11 +455,11 @@ void draw_rounded_rect(int16_t x,
  * @param with_color If true, renders color information (default: true)
  * @return True if image was drawn successfully, false otherwise
  */
-bool draw_bitmap_from_file(File& file,
-                           const char* filename,
-                           int16_t x       = 0,
-                           int16_t y       = 0,
-                           bool with_color = true);
+uint16_t draw_bitmap_from_file(File& file,
+                               const char* filename,
+                               int16_t x       = 0,
+                               int16_t y       = 0,
+                               bool with_color = true);
 
 /**
  * @brief Draws a bitmap image from a file using buffered rendering.
@@ -463,12 +475,12 @@ bool draw_bitmap_from_file(File& file,
  * @param partial_update If true, optimizes for partial display updates (default: false)
  * @return True if image was drawn successfully, false otherwise
  */
-bool draw_bitmap_from_file_buffered(File& file,
-                                    const char* filename,
-                                    int16_t x           = 0,
-                                    int16_t y           = 0,
-                                    bool with_color     = true,
-                                    bool partial_update = false);
+uint16_t draw_bitmap_from_file_buffered(File& file,
+                                        const char* filename,
+                                        int16_t x           = 0,
+                                        int16_t y           = 0,
+                                        bool with_color     = true,
+                                        bool partial_update = false);
 
 /**
  * @brief Draws a binary image from a file using buffered rendering.
@@ -478,7 +490,7 @@ bool draw_bitmap_from_file_buffered(File& file,
  * @param height Height of the binary image in pixels
  * @return True if image was drawn successfully, false otherwise
  */
-bool draw_binary_from_file_buffered(File& file, const char* filename, int width, int height);
+uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int width, int height);
 
 /**
  * @brief Draws a binary image from a file on the e-paper display.
@@ -486,9 +498,11 @@ bool draw_binary_from_file_buffered(File& file, const char* filename, int width,
  * @param filename Name of the file (for debugging/logging)
  * @param width Width of the binary image in pixels
  * @param height Height of the binary image in pixels
+ * @param error_code Pointer to store the specific error code if rendering fails (optional)
  * @return True if image was drawn successfully, false otherwise
  */
-bool draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index = -1);
+uint16_t
+draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index = -1);
 
 } // namespace renderer
 

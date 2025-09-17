@@ -1,0 +1,6 @@
+# ESP32 Photo Frame - Optimized 8MB Partition Table (No OTA) with 2MB LittleFS
+# Name,      Type, SubType,  Offset,     Size,      Flags
+nvs,         data, nvs,      0x9000,     0x6000,
+app0,        app,  factory,  0x10000,    0x300000,
+spiffs,      data, spiffs,   0x310000,   0x200000,
+coredump,    data, coredump, 0x510000,   0x10000,

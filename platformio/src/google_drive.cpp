@@ -553,23 +553,20 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
         *error = error_type::None;
     }
 
-    // Create file paths using new directory structure
-    String tempPath  = get_temp_file_path(file.name);
+    // Create final file path (download directly to cache, no temp file needed)
     String finalPath = get_cached_file_path(file.name);
 
     Serial.print(F("[google_drive] Downloading file: "));
     Serial.println(file.name);
-    Serial.print(F("[google_drive] Temp path: "));
-    Serial.println(tempPath);
-    Serial.print(F("[google_drive] Final path: "));
+    Serial.print(F("[google_drive] Downloading directly to: "));
     Serial.println(finalPath);
 
-    // Ensure directories exist before creating temporary file
-    int lastSlash = tempPath.lastIndexOf('/');
+    // Ensure cache directory exists
+    int lastSlash = finalPath.lastIndexOf('/');
     if (lastSlash > 0) {
-        String dirPath = tempPath.substring(0, lastSlash);
+        String dirPath = finalPath.substring(0, lastSlash);
         if (!sdCard.create_directories(dirPath.c_str())) {
-            Serial.print(F("[google_drive] Failed to create directories for temp file: "));
+            Serial.print(F("[google_drive] Failed to create cache directory: "));
             Serial.println(dirPath);
             if (error) {
                 *error = error_type::SdCardFileCreateFailed;
@@ -599,33 +596,38 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
         }
     }
 
-    // Open temporary file for writing
-    fs::File tempFile = sdCard.open(tempPath.c_str(), FILE_WRITE);
-    if (!tempFile) {
-        Serial.print(F("[google_drive] Failed to create temporary file: "));
-        Serial.println(tempPath);
+    // Open final file for writing (download directly, no temp file)
+    fs::File finalFile = sdCard.open(finalPath.c_str(), FILE_WRITE, true);
+    if (!finalFile) {
+        Serial.print(F("[google_drive] Failed to create file: "));
+        Serial.println(finalPath);
         if (error) {
             *error = error_type::SdCardFileCreateFailed;
         }
         return emptyFile;
     }
 
-    // Download file from Google Drive to temporary location
-    photo_frame_error_t downloadError = client.download_file(file.id, &tempFile);
-    tempFile.flush();
-    tempFile.close();
+    // Download file from Google Drive directly to final location
+    photo_frame_error_t downloadError = client.download_file(file.id, &finalFile);
+
+    // Ensure file is fully written to SD card before proceeding
+    finalFile.flush();
+    finalFile.close();
+
+    // Small delay to ensure file system write completion
+    delay(25);
 
     if (downloadError != error_type::None) {
         Serial.print(F("[google_drive] Failed to download file from Google Drive: "));
         Serial.println(downloadError.code);
 
-        // Clean up temporary file on download failure
-        Serial.print(F("[google_drive] Cleaning up temporary file: "));
-        Serial.println(tempPath);
-        if (!sdCard.remove(tempPath.c_str())) {
-            Serial.println(F("[google_drive] Warning: Failed to remove temporary file"));
+        // Clean up failed download file
+        Serial.print(F("[google_drive] Cleaning up failed download: "));
+        Serial.println(finalPath);
+        if (!sdCard.remove(finalPath.c_str())) {
+            Serial.println(F("[google_drive] Warning: Failed to remove failed download"));
         } else {
-            Serial.println(F("[google_drive] Temporary file cleaned up successfully"));
+            Serial.println(F("[google_drive] Failed download cleaned up successfully"));
         }
 
         if (error) {
@@ -635,41 +637,17 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
         return emptyFile;
     }
 
-    Serial.println(F("[google_drive] File downloaded successfully to temporary location"));
+    Serial.println(F("[google_drive] File downloaded successfully"));
 
-#ifdef DEBUG_GOOGLE_DRIVE
-    // print the tempFile size
-    tempFile = sdCard.open(tempPath.c_str(), FILE_READ);
-    if (tempFile) {
-        Serial.print(F("[google_drive] Temporary file size: "));
-        Serial.print(tempFile.size());
-        Serial.println(F(" bytes"));
-        tempFile.close();
-    } else {
-        Serial.print(F("[google_drive] Failed to open temporary file: "));
-        Serial.println(tempPath);
-    }
-#endif // DEBUG_GOOGLE_DRIVE
+    // Verify final file size (no rename needed - downloaded directly to final location)
+    size_t finalFileSize = sdCard.get_file_size(finalPath.c_str());
+    Serial.print(F("[google_drive] Downloaded file size: "));
+    Serial.print(finalFileSize);
+    Serial.println(F(" bytes"));
 
-    // Move temporary file to final destination
-    bool moveSuccess =
-        sdCard.rename(tempPath.c_str(), finalPath.c_str(), true); // true = overwrite existing
-
-    if (!moveSuccess) {
-        Serial.print(F("[google_drive] Failed to move file from temp to final location"));
-
-        if (error) {
-            *error = error_type::SdCardFileCreateFailed;
-        }
-        return emptyFile;
-    }
-
-    Serial.print(F("[google_drive] File moved successfully to: "));
-    Serial.println(finalPath);
-
-    // Open and return the final file
-    fs::File finalFile = sdCard.open(finalPath.c_str(), FILE_READ);
-    if (!finalFile) {
+    // Open and return the final file for reading
+    fs::File readFile = sdCard.open(finalPath.c_str(), FILE_READ);
+    if (!readFile) {
         Serial.print(F("[google_drive] Failed to open final file: "));
         Serial.println(finalPath);
         if (error) {
@@ -678,125 +656,24 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
         return emptyFile;
     }
 
-    // Mark as downloaded from cloud since we actually downloaded it
-    last_image_source = IMAGE_SOURCE_CLOUD;
+    // Double-check file size consistency
+    size_t openedFileSize = readFile.size();
+    Serial.print(F("[google_drive] Opened file size: "));
+    Serial.print(openedFileSize);
+    Serial.println(F(" bytes"));
 
-    return finalFile;
-}
-
-#if 0
-fs::File google_drive::download_file_to_littlefs(google_drive_file file,
-    const String& littlefs_path,
-    photo_frame_error_t* error)
-{
-    fs::File emptyFile;
-    // Initialize error to None
-    if (error) {
-        *error = error_type::None;
-    }
-
-    Serial.print(F("[google_drive] Downloading file directly to LittleFS: "));
-    Serial.println(file.name);
-    Serial.print(F("[google_drive] LittleFS path: "));
-    Serial.println(littlefs_path);
-
-    // Initialize LittleFS
-    if (!photo_frame::spi_manager::SPIManager::init_littlefs()) {
-        Serial.println(F("[google_drive] Failed to initialize LittleFS"));
-        if (error) {
-            *error = error_type::LittleFSInitFailed;
-        }
-        return emptyFile;
-    }
-
-    // Configure SPI for SD card to access WiFi (client needs SD card SPI configuration)
-    photo_frame::spi_manager::SPIManager::configure_spi_for_sd();
-
-    // Check if the current access token is still valid (following existing pattern)
-    bool token_expired = client.is_token_expired(300);
-    if (token_expired) {
-        // Try to load cached access token first
-        photo_frame_error_t access_token_error = load_access_token_from_file();
-        if (access_token_error != error_type::None) {
-            Serial.println(F("[google_drive] Failed to load cached access token"));
-            // If token is missing/expired, try to get a new token
-            if (access_token_error == error_type::TokenMissing) {
-                Serial.println(F("[google_drive] Attempting to get new access token..."));
-                photo_frame_error_t refresh_error = client.get_access_token();
-                if (refresh_error != error_type::None) {
-                    Serial.println(F("[google_drive] Failed to get new access token"));
-                    if (error) {
-                        *error = refresh_error;
-                    }
-                    return emptyFile;
-                } else {
-                    Serial.println(F("[google_drive] New access token obtained successfully"));
-                    // Save the new token to cache
-                    save_access_token_to_file();
-                }
-            } else {
-                // Other token loading errors
-                if (error) {
-                    *error = error_type::OAuthTokenRequestFailed;
-                }
-                return emptyFile;
-            }
-        } else {
-            Serial.println(F("[google_drive] Using cached access token"));
-        }
-    }
-
-    // Open LittleFS file for writing
-    fs::File littlefsFile = LittleFS.open(littlefs_path.c_str(), FILE_WRITE);
-    if (!littlefsFile) {
-        Serial.print(F("[google_drive] Failed to create LittleFS file: "));
-        Serial.println(littlefs_path);
-        if (error) {
-            *error = error_type::LittleFSFileCreateFailed;
-        }
-        return emptyFile;
-    }
-
-    // Download file directly to LittleFS
-    photo_frame_error_t downloadError = client.download_file(file.id, &littlefsFile);
-    littlefsFile.flush();
-    littlefsFile.close();
-
-    if (downloadError != error_type::None) {
-        Serial.print(F("[google_drive] Failed to download file to LittleFS: "));
-        Serial.println(downloadError.code);
-
-        // Clean up LittleFS file on download failure
-        if (LittleFS.exists(littlefs_path.c_str())) {
-            LittleFS.remove(littlefs_path.c_str());
-            Serial.println(F("[google_drive] Cleaned up failed LittleFS file"));
-        }
-
-        if (error) {
-            *error = downloadError;
-        }
-        return emptyFile;
-    }
-
-    Serial.println(F("[google_drive] File downloaded successfully to LittleFS"));
-
-    // Open and return the LittleFS file for reading
-    fs::File finalFile = LittleFS.open(littlefs_path.c_str(), FILE_READ);
-    if (!finalFile) {
-        Serial.print(F("[google_drive] Failed to open LittleFS file for reading: "));
-        Serial.println(littlefs_path);
-        if (error) {
-            *error = error_type::LittleFSFileOpenFailed;
-        }
-        return emptyFile;
+    if (finalFileSize != openedFileSize) {
+        Serial.printf(
+            "[google_drive] ⚠️ File size inconsistency! get_file_size=%zu, file.size()=%zu\n",
+            finalFileSize,
+            openedFileSize);
     }
 
     // Mark as downloaded from cloud since we actually downloaded it
     last_image_source = IMAGE_SOURCE_CLOUD;
 
-    return finalFile;
+    return readFile;
 }
-#endif
 
 image_source_t google_drive::get_last_image_source() const { return last_image_source; }
 

@@ -5,6 +5,34 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.0] - 2025-09-15
+
+### Added
+- Granular error codes for different image rendering functions (codes 100-109)
+- New `draw_error_with_details()` function that displays filename and specific error codes
+- Function-specific error reporting for `draw_binary_from_file`, `draw_bitmap_from_file`, and buffered variants
+- Enhanced error identification system with specific codes for pixel read errors, seek failures, and header corruption
+- Detailed error logging with timestamps and context information
+
+### Changed
+- **Error Display**: Removed error icons and repositioned error text higher on screen for better visibility
+- **Error Messages**: Added small detail line showing filename and error code below main error text
+- **Status Bar**: Status elements (time, battery, image info) now always render regardless of image rendering success
+- **Error Handling Flow**: Rendering errors now break out of main loop and display in separate dedicated loop
+- **Performance**: Status elements moved out of main rendering loop - now drawn only once instead of per-page
+
+### Fixed
+- Error messages no longer cut off on last page due to `display.nextPage()` loop boundaries
+- Status information always visible even when image rendering fails
+- More specific error identification prevents generic "ImageFormatNotSupported" for different failure types
+- Weather information only displays after successful image rendering (partial update mode)
+
+### Technical Details
+- Error codes 100-109 reserved for rendering-specific errors (vs general image processing errors 80-99)
+- Status bar uses partial window updates for efficiency after main image rendering
+- Separate error display loop ensures complete error visibility across all display pages
+- Error code propagation system allows detailed error reporting up the call stack
+
 ## [v0.2.0] - 2025-09-13
 
 ### Added
@@ -52,5 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable refresh intervals with potentiometer control
 - Multi-platform image processing tools (Shell scripts, Rust, Android)
 
+[v0.3.0]: https://github.com/sephiroth74/arduino/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/sephiroth74/arduino/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/sephiroth74/arduino/releases/tag/v0.1.0

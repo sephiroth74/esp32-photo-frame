@@ -85,13 +85,13 @@ struct WeatherData {
     bool has_daily_data   = false; // True if daily forecast data is available
 
     /// Check if weather data is too old to display
-    bool is_stale(uint32_t max_age_seconds = 10800) const { // 3 hours default
+    bool is_stale(uint32_t max_age_seconds = WEATHER_MAX_AGE_SECONDS) const {
         uint32_t now = time(NULL);
         return valid && (now - last_update > max_age_seconds);
     }
 
     /// Check if weather data is displayable (valid and not too stale)
-    bool is_displayable(uint32_t max_age_seconds = 10800) const {
+    bool is_displayable(uint32_t max_age_seconds = WEATHER_MAX_AGE_SECONDS) const {
         return valid && !is_stale(max_age_seconds);
     }
 

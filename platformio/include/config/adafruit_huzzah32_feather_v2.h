@@ -48,9 +48,9 @@
 // External wakeup configuration
 // #define WAKEUP_EXT1
 #define WAKEUP_EXT0
-// External button connected to A0 (GPIO36) with pull-down configuration
+// External button connected to A0 (GPIO25) with pull-down configuration
 #define WAKEUP_PIN      GPIO_NUM_25   // A0 pin with external button
-#define WAKEUP_PIN_MODE INPUT         // External 10K pull-down resistor used
+#define WAKEUP_PIN_MODE INPUT_PULLDOWN // Internal pull-down + external 10K for noise immunity
 #define WAKEUP_LEVEL    HIGH          // Wake when button pressed (pin goes HIGH)
 
 // Power saving configuration

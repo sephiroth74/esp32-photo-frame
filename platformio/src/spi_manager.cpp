@@ -58,21 +58,62 @@ bool SPIManager::init_littlefs() {
         return true;
     }
 
-    if (!LittleFS.begin(true)) { // format if mount fails
-        Serial.println("[spi_manager] LittleFS initialization failed");
-        return false;
+    // First try to mount without formatting
+    if (!LittleFS.begin(false)) {
+        Serial.println("[spi_manager] LittleFS mount failed, attempting format...");
+
+        // Force format and try again
+        if (!LittleFS.begin(true)) {
+            Serial.println("[spi_manager] LittleFS format and initialization failed");
+            return false;
+        }
+        Serial.println("[spi_manager] LittleFS formatted and mounted successfully");
+    } else {
+        Serial.println("[spi_manager] LittleFS mounted successfully");
+
+        // Check for filesystem corruption by testing basic operations
+        size_t totalBytes = LittleFS.totalBytes();
+        if (totalBytes == 0) {
+            Serial.println(
+                "[spi_manager] LittleFS appears corrupted (totalBytes = 0), reformatting...");
+            LittleFS.end();
+            if (!LittleFS.begin(true)) {
+                Serial.println("[spi_manager] LittleFS reformat failed");
+                return false;
+            }
+            Serial.println("[spi_manager] LittleFS successfully reformatted");
+        }
     }
 
     littlefs_initialized = true;
     Serial.println("[spi_manager] LittleFS initialized successfully");
 
-    // Show filesystem info
-    size_t total_bytes = LittleFS.totalBytes();
-    size_t used_bytes  = LittleFS.usedBytes();
-    Serial.printf("[spi_manager] LittleFS: %d KB total, %d KB used, %d KB free\n",
-                  total_bytes / 1024,
-                  used_bytes / 1024,
-                  (total_bytes - used_bytes) / 1024);
+    // Show detailed filesystem info for debugging LittleFS issues
+    size_t totalBytes = LittleFS.totalBytes();
+    size_t usedBytes  = LittleFS.usedBytes();
+    size_t freeBytes  = totalBytes - usedBytes;
+
+    Serial.printf("[spi_manager] LittleFS - Total: %zu bytes (%.2f MB)\n",
+                  totalBytes,
+                  totalBytes / 1024.0 / 1024.0);
+    Serial.printf("[spi_manager] LittleFS - Used: %zu bytes (%.2f MB)\n",
+                  usedBytes,
+                  usedBytes / 1024.0 / 1024.0);
+    Serial.printf("[spi_manager] LittleFS - Free: %zu bytes (%.2f MB)\n",
+                  freeBytes,
+                  freeBytes / 1024.0 / 1024.0);
+
+    // Check if there's enough space for a 384KB image file
+    const size_t IMAGE_SIZE = 384000;
+    if (freeBytes < IMAGE_SIZE) {
+        Serial.printf("[spi_manager] ⚠️ WARNING: Only %zu bytes free, need %zu for image file\n",
+                      freeBytes,
+                      IMAGE_SIZE);
+    } else {
+        Serial.printf("[spi_manager] ✅ Sufficient space: %zu bytes available for %zu byte image\n",
+                      freeBytes,
+                      IMAGE_SIZE);
+    }
 
     return true;
 }
