@@ -97,6 +97,7 @@ const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[] PROGMEM = "Failed to allocate me
 const char TXT_IMAGE_CONVERSION_FAILED[] PROGMEM = "Failed to convert image data to display format";
 const char TXT_IMAGE_RESOLUTION_TOO_HIGH[] PROGMEM = "Image resolution exceeds display capabilities";
 const char TXT_IMAGE_PROCESSING_ABORTED[] PROGMEM = "Image processing was aborted due to error";
+const char TXT_IMAGE_DIMENSIONS_NOT_PROVIDED[] PROGMEM = "Expected image dimensions not provided";
 
 // Battery/Power Errors (160-199)
 const char TXT_BATTERY_VOLTAGE_LOW[] PROGMEM = "Battery voltage is below safe threshold";

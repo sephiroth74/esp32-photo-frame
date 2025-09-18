@@ -357,42 +357,43 @@ const photo_frame_error ImageMemoryAllocationFailed{TXT_IMAGE_MEMORY_ALLOCATION_
 const photo_frame_error ImageConversionFailed{TXT_IMAGE_CONVERSION_FAILED, 97, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
 const photo_frame_error ImageResolutionTooHigh{TXT_IMAGE_RESOLUTION_TOO_HIGH, 98, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 const photo_frame_error ImageProcessingAborted{TXT_IMAGE_PROCESSING_ABORTED, 99, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error ImageDimensionsNotProvided{TXT_IMAGE_DIMENSIONS_NOT_PROVIDED, 100, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_DISPLAY};
 
-// Granular Image Rendering errors (100-109) - Function-specific error codes
-const photo_frame_error BinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 100, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error BitmapRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 101, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error BufferedBinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 102, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error BufferedBitmapRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 103, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error BinaryFileInvalidSize{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 104, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error BitmapHeaderCorrupted{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 105, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error PixelReadError{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 106, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error SequentialReadError{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 107, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error SeekOperationFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 108, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
-const photo_frame_error PaletteCorrupted{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 109, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+// Granular Image Rendering errors (200-209) - Function-specific error codes
+const photo_frame_error BinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 200, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BitmapRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 201, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BufferedBinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 202, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BufferedBitmapRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 203, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BinaryFileInvalidSize{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 204, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BitmapHeaderCorrupted{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 205, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error PixelReadError{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 206, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error SequentialReadError{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 207, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error SeekOperationFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 208, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error PaletteCorrupted{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 209, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
 
-// Battery/Power specific errors (160-179) - Enhanced granular errors
-const photo_frame_error BatteryVoltageLow{TXT_BATTERY_VOLTAGE_LOW, 160, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryVoltageUnstable{TXT_BATTERY_VOLTAGE_UNSTABLE, 161, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryTemperatureHigh{TXT_BATTERY_TEMPERATURE_HIGH, 162, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryTemperatureLow{TXT_BATTERY_TEMPERATURE_LOW, 163, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryAgingDetected{TXT_BATTERY_AGING_DETECTED, 164, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryCalibrationNeeded{TXT_BATTERY_CALIBRATION_NEEDED, 165, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryDischargeRateTooHigh{TXT_BATTERY_DISCHARGE_RATE_TOO_HIGH, 166, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryChargeRateTooSlow{TXT_BATTERY_CHARGE_RATE_TOO_SLOW, 167, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryCapacityReduced{TXT_BATTERY_CAPACITY_REDUCED, 168, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryHealthPoor{TXT_BATTERY_HEALTH_POOR, 169, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+// Battery/Power specific errors (300-319) - Enhanced granular errors
+const photo_frame_error BatteryVoltageLow{TXT_BATTERY_VOLTAGE_LOW, 300, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryVoltageUnstable{TXT_BATTERY_VOLTAGE_UNSTABLE, 301, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryTemperatureHigh{TXT_BATTERY_TEMPERATURE_HIGH, 302, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryTemperatureLow{TXT_BATTERY_TEMPERATURE_LOW, 303, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryAgingDetected{TXT_BATTERY_AGING_DETECTED, 304, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryCalibrationNeeded{TXT_BATTERY_CALIBRATION_NEEDED, 305, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryDischargeRateTooHigh{TXT_BATTERY_DISCHARGE_RATE_TOO_HIGH, 306, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryChargeRateTooSlow{TXT_BATTERY_CHARGE_RATE_TOO_SLOW, 307, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryCapacityReduced{TXT_BATTERY_CAPACITY_REDUCED, 308, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryHealthPoor{TXT_BATTERY_HEALTH_POOR, 309, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
 
-// Charging specific errors (170-179)
-const photo_frame_error ChargingFailed{TXT_CHARGING_FAILED, 170, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargerNotConnected{TXT_CHARGER_NOT_CONNECTED, 171, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargerIncompatible{TXT_CHARGER_INCOMPATIBLE, 172, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargingOverheat{TXT_CHARGING_OVERHEAT, 173, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargingTimeout{TXT_CHARGING_TIMEOUT, 174, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargeCurrentTooHigh{TXT_CHARGE_CURRENT_TOO_HIGH, 175, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargeCurrentTooLow{TXT_CHARGE_CURRENT_TOO_LOW, 176, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
-const photo_frame_error ChargingCircuitFault{TXT_CHARGING_CIRCUIT_FAULT, 177, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryNotDetected{TXT_BATTERY_NOT_DETECTED, 178, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
-const photo_frame_error BatteryAuthenticationFailed{TXT_BATTERY_AUTHENTICATION_FAILED, 179, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+// Charging specific errors (400-419)
+const photo_frame_error ChargingFailed{TXT_CHARGING_FAILED, 400, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargerNotConnected{TXT_CHARGER_NOT_CONNECTED, 401, ERROR_SEVERITY_INFO, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargerIncompatible{TXT_CHARGER_INCOMPATIBLE, 402, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingOverheat{TXT_CHARGING_OVERHEAT, 403, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingTimeout{TXT_CHARGING_TIMEOUT, 404, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargeCurrentTooHigh{TXT_CHARGE_CURRENT_TOO_HIGH, 405, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargeCurrentTooLow{TXT_CHARGE_CURRENT_TOO_LOW, 406, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error ChargingCircuitFault{TXT_CHARGING_CIRCUIT_FAULT, 407, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryNotDetected{TXT_BATTERY_NOT_DETECTED, 408, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BatteryAuthenticationFailed{TXT_BATTERY_AUTHENTICATION_FAILED, 409, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
 
 
 
@@ -406,43 +407,130 @@ const photo_frame_error BatteryAuthenticationFailed{TXT_BATTERY_AUTHENTICATION_F
 
 /**
  * @brief Helper functions for error mapping and creation
+ *
+ * This namespace provides utility functions for creating and mapping various
+ * types of errors throughout the photo frame system. These functions help
+ * standardize error creation and provide consistent error handling.
  */
 namespace error_utils {
 
-// Function declarations - implementations are in errors.cpp
+/**
+ * @brief Map HTTP status code to appropriate photo frame error
+ * @param statusCode HTTP status code received from server
+ * @param context Optional context information for error details
+ * @return Corresponding photo_frame_error with appropriate severity and category
+ */
 photo_frame_error map_http_status_to_error(int statusCode, const char* context = nullptr);
+
+/**
+ * @brief Map Google Drive API error response to photo frame error
+ * @param statusCode HTTP status code from Google Drive API
+ * @param responseBody Optional response body containing error details
+ * @param context Optional context information
+ * @return Corresponding photo_frame_error with Google Drive specific details
+ */
 photo_frame_error map_google_drive_error(int statusCode,
                                          const char* responseBody = nullptr,
                                          const char* context      = nullptr);
+
+/**
+ * @brief Create OAuth-specific error from error type string
+ * @param errorType OAuth error type (e.g., "invalid_grant", "invalid_scope")
+ * @param context Optional context information
+ * @return OAuth-specific photo_frame_error with authentication category
+ */
 photo_frame_error create_oauth_error(const char* errorType, const char* context = nullptr);
+
+/**
+ * @brief Create image processing error with detailed context
+ * @param errorType Type of image error encountered
+ * @param filename Optional filename where error occurred
+ * @param dimensions Optional image dimensions for context
+ * @param context Optional additional context information
+ * @return Image-specific photo_frame_error with display category
+ */
 photo_frame_error create_image_error(const char* errorType,
                                      const char* filename   = nullptr,
                                      const char* dimensions = nullptr,
                                      const char* context    = nullptr);
+
+/**
+ * @brief Validate image dimensions against maximum allowed values
+ * @param width Image width in pixels
+ * @param height Image height in pixels
+ * @param maxWidth Maximum allowed width
+ * @param maxHeight Maximum allowed height
+ * @param filename Optional filename for error context
+ * @return None if valid, appropriate error if dimensions exceed limits
+ */
 photo_frame_error validate_image_dimensions(int width,
                                             int height,
                                             int maxWidth,
                                             int maxHeight,
                                             const char* filename = nullptr);
+
+/**
+ * @brief Validate image file size against expected range
+ * @param fileSize Actual file size in bytes
+ * @param expectedMinSize Minimum expected file size
+ * @param expectedMaxSize Maximum expected file size
+ * @param filename Optional filename for error context
+ * @return None if valid, appropriate error if size is out of range
+ */
 photo_frame_error validate_image_file_size(size_t fileSize,
                                            size_t expectedMinSize,
                                            size_t expectedMaxSize,
                                            const char* filename = nullptr);
 
-// Battery/Power error helper functions
+/**
+ * @brief Create battery-related error with comprehensive details
+ * @param errorType Type of battery error
+ * @param voltage Battery voltage (-1 if not applicable)
+ * @param percentage Battery percentage (-1 if not applicable)
+ * @param temperature Battery temperature (-999 if not applicable)
+ * @param context Optional additional context
+ * @return Battery-specific photo_frame_error with battery category
+ */
 photo_frame_error create_battery_error(const char* errorType,
                                        float voltage       = -1,
                                        float percentage    = -1,
                                        float temperature   = -999,
                                        const char* context = nullptr);
+
+/**
+ * @brief Validate battery voltage against safe operating range
+ * @param voltage Current battery voltage
+ * @param minVoltage Minimum safe voltage
+ * @param maxVoltage Maximum safe voltage
+ * @param context Optional context information
+ * @return None if valid, appropriate error if voltage is out of safe range
+ */
 photo_frame_error validate_battery_voltage(float voltage,
                                            float minVoltage,
                                            float maxVoltage,
                                            const char* context = nullptr);
+
+/**
+ * @brief Validate battery temperature against safe operating range
+ * @param temperature Current battery temperature in Celsius
+ * @param minTemp Minimum safe temperature
+ * @param maxTemp Maximum safe temperature
+ * @param context Optional context information
+ * @return None if valid, appropriate error if temperature is out of safe range
+ */
 photo_frame_error validate_battery_temperature(float temperature,
                                                float minTemp,
                                                float maxTemp,
                                                const char* context = nullptr);
+
+/**
+ * @brief Create charging-related error with electrical parameters
+ * @param errorType Type of charging error
+ * @param current Charging current (-1 if not applicable)
+ * @param voltage Charging voltage (-1 if not applicable)
+ * @param context Optional additional context
+ * @return Charging-specific photo_frame_error with battery category
+ */
 photo_frame_error create_charging_error(const char* errorType,
                                         float current       = -1,
                                         float voltage       = -1,

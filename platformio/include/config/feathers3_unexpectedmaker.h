@@ -78,9 +78,6 @@
 // Miscellaneous
 #define DEBUG_MODE 0
 #define DEBUG_BATTERY_READER
-#define EPD_USE_BINARY_FILE
-
-#define EPD_USE_BINARY_FILE
 
 // Reset handling
 #define RESET_INVALIDATES_DATE_TIME 1

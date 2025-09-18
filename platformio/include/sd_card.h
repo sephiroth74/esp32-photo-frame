@@ -212,13 +212,11 @@ class sd_card {
     bool is_file(const char* path) const;
 
     /**
-     * Lists all files in the root directory of the SD card with the specified extension.
-     * @param extension The file extension to filter files (e.g., ".jpg", ".png").
-     * If the extension is null or empty, it lists all files.
+     * Lists all files in the root directory of the SD card with allowed extensions (.bin, .bmp).
      * @note This function only lists files in the root directory, not in subdirectories.
      * @note If the SD card is not initialized, it will not list any files.
      */
-    void list_files(const char* extension) const;
+    void list_files() const;
 
     /**
      * Prints statistics about the SD card, including total space, used space, and free space.
@@ -231,14 +229,12 @@ class sd_card {
     void print_stats() const;
 
     /**
-     * Counts the number of files with the specified extension in the root directory of the SD card.
-     * @param extension The file extension to filter files (e.g., ".jpg", ".png").
-     * If the extension is null or empty, it counts all files.
-     * @return The number of files with the specified extension.
+     * Counts the number of files with allowed extensions (.bin, .bmp) in the root directory of the SD card.
+     * @return The number of files with allowed extensions.
      * If the SD card is not initialized, it returns 0.
      * @note This function only counts files in the root directory, not in subdirectories.
      */
-    uint32_t count_files(const char* extension) const;
+    uint32_t count_files() const;
 
     /**
      * Opens a file on the SD card.

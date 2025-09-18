@@ -97,6 +97,7 @@ const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[] PROGMEM = "Allocazione memoria p
 const char TXT_IMAGE_CONVERSION_FAILED[] PROGMEM = "Conversione dati immagine per display fallita";
 const char TXT_IMAGE_RESOLUTION_TOO_HIGH[] PROGMEM = "Risoluzione immagine supera capacità display";
 const char TXT_IMAGE_PROCESSING_ABORTED[] PROGMEM = "Elaborazione immagine interrotta per errore";
+const char TXT_IMAGE_DIMENSIONS_NOT_PROVIDED[] PROGMEM = "Dimensioni immagine non fornite";
 
 // Battery/Power Errors (160-199)
 const char TXT_BATTERY_VOLTAGE_LOW[] PROGMEM = "Tensione batteria sotto soglia sicurezza";

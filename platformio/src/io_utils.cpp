@@ -41,21 +41,15 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
 
     // Determine file type based on extension or header
     String fileName   = String(filename);
-    bool isBinaryFile = fileName.endsWith(".bin");
-    bool isBmpFile    = fileName.endsWith(".bmp");
+    bool isBinaryFile = is_binary_format(filename);
+    bool isBmpFile    = is_bmp_format(filename);
 
-    if (isBinaryFile && expectedWidth > 0 && expectedHeight > 0) {
+    if (isBinaryFile) {
         Serial.println(F("[io_utils] Performing comprehensive BINARY file validation"));
 
-        // Common display sizes for validation
-
-        // Validate expected dimensions against display capabilities
-        auto dimensionError = error_utils::validate_image_dimensions(
-            expectedWidth, expectedHeight, 800, 480, filename);
-        if (dimensionError != error_type::None) {
-            Serial.print(F("[io_utils] Dimension validation failed: "));
-            Serial.println(dimensionError.message);
-            return dimensionError;
+        if(expectedWidth <= 0 || expectedHeight <= 0) {
+            Serial.println(F("[io_utils] Expected dimensions not provided for binary validation"));
+            return error_type::ImageDimensionsNotProvided;
         }
 
         // Check if file size matches expected binary size exactly
@@ -79,8 +73,7 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
 
         // Full validation: read entire file like renderer::validate_binary_image_file
         sourceFile.seek(0);
-        uint32_t pixelsValidated = 0;
-
+        // uint32_t pixelsValidated = 0;
         // pixel by pixel validation
         // auto now = millis();
         // for (size_t i = 0; i < expectedBinarySize; i++) {
@@ -101,10 +94,9 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         // Serial.print(F("[io_utils] ✅ Binary pixel data validated in "));
         // Serial.print(validationTime);
         // Serial.println(F(" ms"));
-
-        Serial.print(F("[io_utils] Binary validation: "));
-        Serial.print(pixelsValidated);
-        Serial.println(F(" pixels validated"));
+        // Serial.print(F("[io_utils] Binary validation: "));
+        // Serial.print(pixelsValidated);
+        // Serial.println(F(" pixels validated"));
 
     } else if (isBmpFile) {
         Serial.println(F("[io_utils] Performing BMP file validation"));
@@ -149,29 +141,8 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         }
 
     } else {
-        Serial.println(F("[io_utils] Performing basic file validation"));
-
-        // Basic header check for unknown formats
-        sourceFile.seek(0);
-        uint8_t header[8];
-        if (sourceFile.read(header, sizeof(header)) < 4) {
-            Serial.println(F("[io_utils] Cannot read file header"));
-            return error_type::ImageFileReadFailed;
-        }
-
-        // Check for suspicious patterns
-        bool suspiciousPattern = true;
-        for (size_t i = 0; i < sizeof(header); i++) {
-            if (header[i] != 0x00 && header[i] != 0xFF) {
-                suspiciousPattern = false;
-                break;
-            }
-        }
-
-        if (suspiciousPattern) {
-            Serial.println(F("[io_utils] File contains suspicious pattern"));
-            return error_type::ImagePixelDataCorrupted;
-        }
+        Serial.println(F("[io_utils] Unknown or unsupported file format"));
+        return error_type::ImageFileHeaderInvalid;
     }
 
     // Reset file position for subsequent operations
@@ -239,5 +210,22 @@ photo_frame_error_t copy_sd_to_littlefs(fs::File& sourceFile, const String& litt
     return copy_sd_to_littlefs(sourceFile, littlefsPath, 0, 0);
 }
 
+bool is_binary_format(const char* filename) {
+    if (!filename) return false;
+
+    const char* extension = strrchr(filename, '.');
+    if (!extension) return false;
+
+    return strcmp(extension, ".bin") == 0;
+}
+
+bool is_bmp_format(const char* filename) {
+    if (!filename) return false;
+
+    const char* extension = strrchr(filename, '.');
+    if (!extension) return false;
+
+    return strcmp(extension, ".bmp") == 0;
+}
 } // namespace io_utils
 } // namespace photo_frame

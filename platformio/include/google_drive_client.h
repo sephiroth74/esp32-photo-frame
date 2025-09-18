@@ -270,12 +270,20 @@ class google_drive_client {
                                           const char* pageToken = "");
 
     /**
-     * @brief Streaming parser that writes files directly to TOC file.
+     * @brief Streaming parser that writes files directly to TOC file with extension filtering.
+     *
+     * Parses Google Drive API JSON response and writes file entries to TOC file.
+     * Automatically filters files based on allowed extensions at runtime, supporting
+     * both binary (.bin) and bitmap (.bmp) formats.
+     *
      * @param jsonBody JSON response body to parse
      * @param sdCard Reference to the SD card instance for file operations
      * @param tocFilePath Path to the TOC file to write entries to
      * @param nextPageToken Pointer to store next page token if present
-     * @return Number of files written to TOC, or 0 on error
+     * @return Number of files written to TOC (after filtering), or 0 on error
+     *
+     * @note Only files with extensions in ALLOWED_FILE_EXTENSIONS array are written to TOC
+     * @see ALLOWED_FILE_EXTENSIONS for supported file types
      */
     size_t parse_file_list_to_toc(const String& jsonBody,
                                   sd_card& sdCard,

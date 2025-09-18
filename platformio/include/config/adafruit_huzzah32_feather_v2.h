@@ -81,7 +81,6 @@
 #define DEBUG_MODE 0 // Disable debug mode for production
 #define DEBUG_BATTERY_READER
 
-#define EPD_USE_BINARY_FILE
 
 // Reset handling
 #define RESET_INVALIDATES_DATE_TIME 1

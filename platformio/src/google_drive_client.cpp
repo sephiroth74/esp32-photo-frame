@@ -1360,9 +1360,18 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
             const char* id   = f["id"];
             const char* name = f["name"];
 
-            // Check file extension filter
+            // Check file extension filter - accept both .bin and .bmp
             const char* fileExtension = strrchr(name, '.');
-            if (!fileExtension || strcmp(fileExtension, LOCAL_FILE_EXTENSION) != 0) {
+            bool extensionAllowed = false;
+            if (fileExtension) {
+                for (size_t i = 0; i < ALLOWED_EXTENSIONS_COUNT; i++) {
+                    if (strcmp(fileExtension, ALLOWED_FILE_EXTENSIONS[i]) == 0) {
+                        extensionAllowed = true;
+                        break;
+                    }
+                }
+            }
+            if (!extensionAllowed) {
                 Serial.print(F("[google_drive_client] Skipping file with unsupported extension: "));
                 Serial.println(name);
                 continue;

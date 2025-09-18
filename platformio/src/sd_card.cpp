@@ -229,15 +229,9 @@ time_t sd_card::get_file_age(const char* path) const {
     return time(NULL) - lastModified;
 }
 
-void sd_card::list_files(const char* extension) const {
-    if (!extension || strlen(extension) == 0 || extension[0] != '.') {
-        Serial.println("[sdcard] Invalid extension provided");
-        return;
-    }
-
+void sd_card::list_files() const {
 #ifdef DEBUG_SD_CARD
-    Serial.print("[sdcard] Listing files on SD card with extension: ");
-    Serial.println(extension);
+    Serial.println("[sdcard] Listing files on SD card with allowed extensions");
 #endif // DEBUG_SD_CARD
 
     if (!initialized) {
@@ -255,10 +249,17 @@ void sd_card::list_files(const char* extension) const {
     String entry       = root.getNextFileName();
     while (entry.length() > 0) {
         String file_name = entry.substring(entry.lastIndexOf('/') + 1);
+        bool hasAllowedExtension = false;
 
-        if (file_name.endsWith(extension) && !file_name.startsWith("/") &&
-            !file_name.startsWith(".")) {
+        // Check if file has any of the allowed extensions
+        for (size_t i = 0; i < ALLOWED_EXTENSIONS_COUNT; i++) {
+            if (file_name.endsWith(ALLOWED_FILE_EXTENSIONS[i])) {
+                hasAllowedExtension = true;
+                break;
+            }
+        }
 
+        if (hasAllowedExtension && !file_name.startsWith("/") && !file_name.startsWith(".")) {
 #ifdef DEBUG_SD_CARD
             Serial.print(fileCount);
             Serial.print(") entry: ");
@@ -289,18 +290,9 @@ bool sd_card::file_exists(const char* path) const {
     return SD.exists(path);
 } // end fileExists
 
-uint32_t sd_card::count_files(const char* extension) const {
-    Serial.print("[sdcard] count_files | extension: ");
-    Serial.println(extension);
+uint32_t sd_card::count_files() const {
+    Serial.println("[sdcard] count_files with allowed extensions");
 
-    if (!extension || strlen(extension) == 0) {
-        Serial.println("[sdcard] Invalid extension provided");
-        return 0;
-    }
-    if (extension[0] != '.') {
-        Serial.println("[sdcard] Extension should start with a dot (.)");
-        return 0;
-    }
     if (!initialized) {
         return 0;
     }
@@ -317,8 +309,17 @@ uint32_t sd_card::count_files(const char* extension) const {
     String path                             = root.getNextFileName(&is_dir);
     while (path && !path.isEmpty()) {
         String file_name = path.substring(path.lastIndexOf('/') + 1);
-        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") &&
-            path.endsWith(extension)) {
+        bool hasAllowedExtension = false;
+
+        // Check if file has any of the allowed extensions
+        for (size_t i = 0; i < ALLOWED_EXTENSIONS_COUNT; i++) {
+            if (path.endsWith(ALLOWED_FILE_EXTENSIONS[i])) {
+                hasAllowedExtension = true;
+                break;
+            }
+        }
+
+        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") && hasAllowedExtension) {
             count++;
         }
         path = root.getNextFileName(&is_dir);

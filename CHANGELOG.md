@@ -5,6 +5,31 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.0] - 2025-01-17
+
+### Added
+- **Runtime File Format Detection**: ESP32 firmware now automatically detects file format based on extension (.bin or .bmp)
+- **Mixed File Support**: Both binary and bitmap files can coexist in the same directory/Google Drive folder
+- **Smart Rendering Engine Selection**: Automatically selects appropriate rendering function based on detected file format
+- **New File Extension Constants**: Added `ALLOWED_FILE_EXTENSIONS[]` array supporting both `.bin` and `.bmp` formats
+
+### Changed
+- **Eliminated Compile-Time Configuration**: Removed `EPD_USE_BINARY_FILE` and `LOCAL_FILE_EXTENSION` compile-time dependencies
+- **Updated Google Drive Filtering**: File filtering now accepts both `.bin` and `.bmp` extensions at runtime
+- **Modernized SD Card Operations**: `list_files()` and `count_files()` methods now work with allowed extensions array
+- **Enhanced File Validation**: Updated validation logic to accept multiple file formats dynamically
+
+### Removed
+- **EPD_USE_BINARY_FILE**: Removed compile-time flag from all board configurations
+- **LOCAL_FILE_EXTENSION**: Replaced single extension constant with runtime extension array
+- **Board-Specific Format Constraints**: No longer need to configure file format per board
+
+### Technical Details
+- **New Function**: `photo_frame::io_utils::is_binary_format()` for runtime format detection
+- **Updated APIs**: SD card and Google Drive file operations now use extension arrays
+- **Improved Flexibility**: Same firmware binary can handle both binary and bitmap files without recompilation
+- **Backwards Compatibility**: Existing configurations continue to work without changes
+
 ## [v0.3.0] - 2025-09-15
 
 ### Added
@@ -80,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable refresh intervals with potentiometer control
 - Multi-platform image processing tools (Shell scripts, Rust, Android)
 
+[v0.4.0]: https://github.com/sephiroth74/arduino/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/sephiroth74/arduino/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/sephiroth74/arduino/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/sephiroth74/arduino/releases/tag/v0.1.0
