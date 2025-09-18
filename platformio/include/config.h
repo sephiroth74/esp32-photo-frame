@@ -32,8 +32,8 @@
 // Version information
 #define FIRMWARE_VERSION_MAJOR  0
 #define FIRMWARE_VERSION_MINOR  4
-#define FIRMWARE_VERSION_PATCH  0
-#define FIRMWARE_VERSION_STRING "v0.4.0"
+#define FIRMWARE_VERSION_PATCH  1
+#define FIRMWARE_VERSION_STRING "v0.4.1"
 
 /// ---- Customizable settings ----
 

@@ -5,6 +5,20 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.1] - 2025-01-18
+
+### Fixed
+- **File Extension Detection Bug**: Fixed critical bug where runtime file format detection failed when using LittleFS temporary files
+- **Enhanced Filename Handling**: System now preserves original filename for format detection even when files are copied to LittleFS as "temp_image.tmp"
+- **Improved Error Reporting**: Error messages now display meaningful original filenames instead of generic temporary file names
+- **Robust Format Selection**: Rendering engine selection now works correctly for both .bin and .bmp files regardless of temporary file storage
+
+### Technical Details
+- **Function Signature Updates**: Added `original_filename` parameter to `handle_google_drive_operations()`, `process_image_file()`, and `render_image()` functions
+- **Format Detection Logic**: Modified format detection to use original filename extension instead of temporary file extension
+- **Memory Efficiency**: Maintains existing LittleFS temporary file approach while fixing format detection accuracy
+- **Error Context**: Improved error messages by using original filenames in renderer error reporting
+
 ## [v0.4.0] - 2025-01-17
 
 ### Added
@@ -105,6 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable refresh intervals with potentiometer control
 - Multi-platform image processing tools (Shell scripts, Rust, Android)
 
+[v0.4.1]: https://github.com/sephiroth74/arduino/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/sephiroth74/arduino/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/sephiroth74/arduino/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/sephiroth74/arduino/compare/v0.1.0...v0.2.0
