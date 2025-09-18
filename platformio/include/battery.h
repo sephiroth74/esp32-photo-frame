@@ -211,11 +211,22 @@ typedef struct battery_info {
  *
  * This array defines the relationship between battery voltage (in millivolts)
  * and corresponding percentage levels. Used for accurate battery level calculation
- * based on voltage readings.
+ * based on voltage readings. The array contains 21 predefined steps covering
+ * the full battery discharge curve from 100% to 0%.
+ *
+ * @note The steps are arranged in descending order from highest to lowest voltage
+ * @see calc_battery_percentage() for usage in percentage calculation
  */
 extern const battery_step_t steps[21];
 
-/// Total number of battery mapping steps
+/**
+ * @brief Total number of battery mapping steps in the steps array.
+ *
+ * This constant provides the count of elements in the battery_step_t steps array,
+ * used for safe iteration and bounds checking in battery percentage calculations.
+ *
+ * @see steps array for the actual voltage-to-percentage mapping data
+ */
 extern const uint8_t total_steps;
 
 /**

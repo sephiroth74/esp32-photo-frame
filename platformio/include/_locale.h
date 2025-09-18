@@ -165,6 +165,7 @@ extern const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[];
 extern const char TXT_IMAGE_CONVERSION_FAILED[];
 extern const char TXT_IMAGE_RESOLUTION_TOO_HIGH[];
 extern const char TXT_IMAGE_PROCESSING_ABORTED[];
+extern const char TXT_IMAGE_DIMENSIONS_NOT_PROVIDED[];
 
 // Battery/Power Errors (160-199)
 extern const char TXT_BATTERY_VOLTAGE_LOW[];

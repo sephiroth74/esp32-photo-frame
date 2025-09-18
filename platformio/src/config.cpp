@@ -128,15 +128,32 @@
 #endif // BATTERY_DELAY_BETWEEN_READINGS
 #endif // USE_SENSOR_MAX1704X
 
-//
-// Define the file extension and directory name based on the display type and EPD_USE_BINARY_FILE
-// setting
-//
-#if defined(EPD_USE_BINARY_FILE)
-const char* LOCAL_FILE_EXTENSION = ".bin";
-#else
-const char* LOCAL_FILE_EXTENSION = ".bmp";
-#endif // EPD_USE_BINARY_FILE
+/**
+ * @brief Array of allowed file extensions for image files
+ *
+ * This array contains all file extensions that the ESP32 photo frame can process.
+ * The system supports runtime file format detection, allowing both binary and bitmap
+ * formats to coexist in the same directory or Google Drive folder.
+ *
+ * Supported formats:
+ * - ".bin": Binary format optimized for ESP32 e-paper displays (compressed, fast rendering)
+ * - ".bmp": Standard bitmap format for viewing/debugging (uncompressed, compatible)
+ *
+ * @note The rendering engine automatically selects the appropriate decoder based on
+ *       the detected file extension at runtime.
+ * @see photo_frame::io_utils::is_binary_format() for format detection logic
+ */
+const char* ALLOWED_FILE_EXTENSIONS[] = {".bin", ".bmp"};
+
+/**
+ * @brief Number of elements in the ALLOWED_FILE_EXTENSIONS array
+ *
+ * This constant provides the count of supported file extensions and is used
+ * throughout the codebase for iterating over the extensions array safely.
+ *
+ * @note This value is calculated automatically and should not be modified manually.
+ */
+const size_t ALLOWED_EXTENSIONS_COUNT = sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
 
 #if defined(WAKEUP_EXT1) && defined(WAKEUP_EXT0)
 #error "Please define only one wakeup pin: either WAKEUP_EXT1 or WAKEUP_EXT0"

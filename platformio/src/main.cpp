@@ -79,6 +79,7 @@ typedef struct {
 
 refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now);
 
+
 /**
  * @brief Initialize hardware components (Serial, RGB LED, board utilities)
  * @return true if initialization successful, false otherwise
@@ -114,6 +115,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
  * @brief Handle Google Drive operations (initialization, file selection, download)
  * @param is_reset Whether this is a reset/startup (affects TOC writing)
  * @param file Reference to store opened file handle
+ * @param original_filename Reference to store original filename for format detection
  * @param image_index Reference to store selected image index
  * @param total_files Reference to store total file count
  * @param battery_info Battery information for download decisions
@@ -122,13 +124,15 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
                                fs::File& file,
+                               String& original_filename,
                                uint32_t& image_index,
                                uint32_t& total_files,
                                const photo_frame::battery_info_t& battery_info);
 
 /**
  * @brief Process image file (validation, copying to LittleFS, rendering)
- * @param file File handle for image to process
+ * @param file File handle for image to process (temporary file in LittleFS)
+ * @param original_filename Original filename from SD card (used for format detection and error reporting)
  * @param current_error Current error state
  * @param now Current DateTime for display
  * @param refresh_delay Refresh delay information
@@ -140,6 +144,7 @@ handle_google_drive_operations(bool is_reset,
  */
 photo_frame::photo_frame_error_t
 process_image_file(fs::File& file,
+                   const char* original_filename,
                    photo_frame::photo_frame_error_t current_error,
                    const DateTime& now,
                    const refresh_delay_t& refresh_delay,
@@ -164,7 +169,8 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 
 /**
  * @brief Handle image rendering with full/partial display modes and error handling
- * @param file The validated image file to render (validation must be done separately)
+ * @param file The validated image file to render (temporary file in LittleFS)
+ * @param original_filename Original filename from SD card (used for format detection and error reporting)
  * @param current_error Current error state
  * @param now Current DateTime for info display
  * @param refresh_delay Refresh delay info
@@ -176,6 +182,7 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
  * @return Updated error state after rendering attempt
  */
 photo_frame::photo_frame_error_t render_image(fs::File& file,
+                                              const char* original_filename,
                                               photo_frame::photo_frame_error_t current_error,
                                               const DateTime& now,
                                               const refresh_delay_t& refresh_delay,
@@ -231,7 +238,8 @@ void setup() {
     // Handle Google Drive operations
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
-    error = handle_google_drive_operations(is_reset, file, image_index, total_files, battery_info);
+    String original_filename; // Store original filename for format detection
+    error = handle_google_drive_operations(is_reset, file, original_filename, image_index, total_files, battery_info);
 
     wifiManager.disconnect(); // Disconnect from WiFi to save power
     Serial.println(F("WiFi operations complete - using NTP-only time"));
@@ -273,6 +281,7 @@ void setup() {
     } else {
         // Process image file (validation and rendering)
         error = process_image_file(file,
+                                   original_filename.c_str(),
                                    error,
                                    now,
                                    refresh_delay,
@@ -299,6 +308,7 @@ void loop() {
 }
 
 photo_frame::photo_frame_error_t render_image(fs::File& file,
+                                              const char* original_filename,
                                               photo_frame::photo_frame_error_t current_error,
                                               const DateTime& now,
                                               const refresh_delay_t& refresh_delay,
@@ -312,7 +322,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 #endif
 ) {
     photo_frame::photo_frame_error_t error = current_error;
-    const char* img_filename               = file.name();
+    const char* img_filename               = file.name();  // Used for logging temp filename
+    const char* format_filename            = original_filename; // Used for format detection
 
     // Get display capabilities
     bool has_partial_update      = photo_frame::renderer::has_partial_update();
@@ -333,14 +344,22 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             Serial.print(F("Drawing page: "));
             Serial.println(page_index);
 
-            // Pass the current page index for optimized rendering
-#if defined(EPD_USE_BINARY_FILE)
-            error_code = photo_frame::renderer::draw_binary_from_file(
-                file, img_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
-#else
-            error_code =
-                photo_frame::renderer::draw_bitmap_from_file(file, img_filename, 0, 0, false);
-#endif
+            /**
+             * Runtime File Format Detection and Rendering
+             *
+             * The system automatically detects file format based on extension (.bin or .bmp)
+             * and selects the appropriate rendering engine. This replaces the old compile-time
+             * EPD_USE_BINARY_FILE flag system, allowing mixed file formats in the same folder.
+             *
+             * - Binary files (.bin): Use optimized binary renderer for fast e-paper rendering
+             * - Bitmap files (.bmp): Use standard bitmap renderer for compatibility
+             */
+            if (photo_frame::io_utils::is_binary_format(format_filename)) {
+                error_code = photo_frame::renderer::draw_binary_from_file(
+                    file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
+            } else {
+                error_code = photo_frame::renderer::draw_bitmap_from_file(file, original_filename, 0, 0, false);
+            }
 
             if (error_code != 0) {
                 Serial.println(F("Failed to draw bitmap from file!"));
@@ -397,13 +416,21 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
     } else if (error == photo_frame::error_type::None) {
         Serial.println(F("Using partial update mode"));
-#ifdef EPD_USE_BINARY_FILE
-        uint16_t error_code = photo_frame::renderer::draw_binary_from_file_buffered(
-            file, img_filename, DISP_WIDTH, DISP_HEIGHT);
-#else
-        uint16_t error_code =
-            photo_frame::renderer::draw_bitmap_from_file_buffered(file, img_filename, 0, 0, false);
-#endif
+
+        /**
+         * Runtime File Format Detection for Buffered Rendering
+         *
+         * For partial update displays, the system uses buffered rendering with automatic
+         * format detection. The appropriate buffered renderer is selected based on file
+         * extension, maintaining the same flexibility as the full-page rendering mode.
+         */
+        uint16_t error_code;
+        if (photo_frame::io_utils::is_binary_format(format_filename)) {
+            error_code = photo_frame::renderer::draw_binary_from_file_buffered(
+                file, original_filename, DISP_WIDTH, DISP_HEIGHT);
+        } else {
+            error_code = photo_frame::renderer::draw_bitmap_from_file_buffered(file, original_filename, 0, 0, false);
+        }
         file.close();              // Close the file after drawing
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
@@ -607,6 +634,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
                                fs::File& file,
+                               String& original_filename,
                                uint32_t& image_index,
                                uint32_t& total_files,
                                const photo_frame::battery_info_t& battery_info) {
@@ -768,6 +796,7 @@ handle_google_drive_operations(bool is_reset,
                     if (error == photo_frame::error_type::None && file) {
                         const char* filename = file.name();
                         String filePath      = String(filename);
+                        original_filename    = String(filename); // Store original filename for format detection
 
                         Serial.println(F("🛡️ Validating downloaded image file..."));
                         auto validationError = photo_frame::io_utils::validate_image_file(
@@ -854,6 +883,7 @@ handle_google_drive_operations(bool is_reset,
 
 photo_frame::photo_frame_error_t
 process_image_file(fs::File& file,
+                   const char* original_filename,
                    photo_frame::photo_frame_error_t current_error,
                    const DateTime& now,
                    const refresh_delay_t& refresh_delay,
@@ -871,6 +901,7 @@ process_image_file(fs::File& file,
         // Image was already validated before copying to LittleFS, proceed directly to rendering
         Serial.println(F("Rendering validated image file..."));
         error = render_image(file,
+                             original_filename,
                              error,
                              now,
                              refresh_delay,

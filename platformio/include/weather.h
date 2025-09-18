@@ -166,47 +166,152 @@ class WeatherManager {
     bool parse_config_json(const String& json_content, WeatherConfig& weather_config);
 
   public:
+    /**
+     * @brief Constructor for WeatherManager.
+     *
+     * Initializes the weather manager with default settings. Configuration
+     * must be loaded separately using begin() or load_config_from_sd().
+     */
     WeatherManager();
+
+    /**
+     * @brief Destructor for WeatherManager.
+     *
+     * Ensures proper cleanup of resources and saves current weather data
+     * to cache if available.
+     */
     ~WeatherManager();
 
-    /// Initialize weather manager (loads config from SD card)
+    /**
+     * @brief Initialize weather manager by loading configuration from SD card.
+     *
+     * Loads weather configuration from the default configuration file on SD card
+     * and initializes the weather system. Also attempts to load cached weather
+     * data if available.
+     *
+     * @return true if initialization successful, false on error
+     * @note Configuration file must exist on SD card for successful initialization
+     */
     bool begin();
 
-    /// Get current configuration
+    /**
+     * @brief Get current weather configuration.
+     *
+     * @return WeatherConfig structure containing current configuration settings
+     */
     WeatherConfig get_config() const { return config; }
 
-    /// Check if weather data needs updating
+    /**
+     * @brief Check if weather data needs updating based on interval and battery level.
+     *
+     * Determines if weather data should be fetched based on update interval,
+     * battery level thresholds, and consecutive failure count.
+     *
+     * @param battery_percent Current battery percentage (0-100)
+     * @return true if weather update is needed and advisable, false otherwise
+     */
     bool needs_update(uint8_t battery_percent) const;
 
-    /// Fetch weather data from Open-Meteo API
+    /**
+     * @brief Fetch current weather data from Open-Meteo API.
+     *
+     * Makes HTTP request to Open-Meteo weather API, parses the response,
+     * and updates internal weather data. Handles network errors and
+     * maintains failure count for adaptive behavior.
+     *
+     * @return true if weather data was successfully fetched, false on error
+     * @note Requires active WiFi connection to function
+     */
     bool fetch_weather();
 
-    /// Get current weather data
+    /**
+     * @brief Get current cached weather data.
+     *
+     * @return WeatherData structure containing current weather information
+     * @note Data may be stale; check WeatherData.is_displayable() before use
+     */
     WeatherData get_current_weather() const { return current_weather; }
 
-    /// Check if weather manager is properly configured
+    /**
+     * @brief Check if weather manager has valid configuration.
+     *
+     * @return true if configuration is valid and weather system is ready for use
+     */
     bool is_configured() const { return config.is_valid(); }
 
-    /// Reset consecutive failures counter
+    /**
+     * @brief Reset consecutive failures counter.
+     *
+     * Clears the failure count, useful after successful network recovery
+     * or manual intervention to resume normal update intervals.
+     */
     void reset_failures() { consecutive_failures = 0; }
 
-    /// Get failure count for diagnostics
+    /**
+     * @brief Get current failure count for diagnostics.
+     *
+     * @return Number of consecutive API fetch failures
+     * @note Used for adaptive update intervals and error reporting
+     */
     uint8_t get_failure_count() const { return consecutive_failures; }
 
-    /// Load configuration from SD card JSON file
+    /**
+     * @brief Load weather configuration from SD card JSON file.
+     *
+     * Reads and parses the weather configuration file from SD card,
+     * validating all settings and applying defaults where necessary.
+     *
+     * @return true if configuration loaded successfully, false on error
+     * @note Configuration file path is predefined in the implementation
+     */
     bool load_config_from_sd();
 
-    /// Reload configuration (useful for runtime config changes)
+    /**
+     * @brief Reload configuration from SD card.
+     *
+     * Reloads weather configuration from SD card, useful for applying
+     * configuration changes without restarting the system.
+     *
+     * @return true if configuration reloaded successfully, false on error
+     */
     bool reload_config();
 
-    /// Create example weather configuration file on SD card
+    /**
+     * @brief Create example weather configuration file on SD card.
+     *
+     * Generates a template weather configuration file with default values
+     * and comments to help users configure the weather system.
+     *
+     * @return true if example file created successfully, false on error
+     * @note Will not overwrite existing configuration files
+     */
     bool create_example_config();
 };
 
-/// Map weather icon type to system icon name (for existing icon compatibility)
+/**
+ * @brief Map weather icon type to system icon name for compatibility.
+ *
+ * Converts weather-specific icon types to the general system icon enumeration
+ * used by the renderer. This provides compatibility with the existing icon
+ * rendering system.
+ *
+ * @param weather_icon Weather icon type to convert
+ * @return Corresponding system icon name, or icon_unknown if no mapping exists
+ */
 icon_name_t weather_icon_to_system_icon(weather_icon_t weather_icon);
 
-/// Get weather icon bitmap data for rendering
+/**
+ * @brief Get weather icon bitmap data for direct rendering.
+ *
+ * Retrieves the bitmap data for a specific weather icon and size.
+ * Used for rendering weather icons directly without going through
+ * the system icon infrastructure.
+ *
+ * @param weather_icon Weather icon type to get bitmap for
+ * @param size Requested icon size in pixels (e.g., 16, 32, 64)
+ * @return Pointer to bitmap data, or nullptr if icon/size not available
+ * @note Bitmap format depends on the display type and color depth
+ */
 const unsigned char* get_weather_icon_bitmap(weather_icon_t weather_icon, uint16_t size);
 
 } // namespace weather

@@ -31,9 +31,9 @@
 
 // Version information
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  3
+#define FIRMWARE_VERSION_MINOR  4
 #define FIRMWARE_VERSION_PATCH  0
-#define FIRMWARE_VERSION_STRING "v0.3.0"
+#define FIRMWARE_VERSION_STRING "v0.4.0"
 
 /// ---- Customizable settings ----
 
@@ -177,9 +177,6 @@
 // #define DEBUG_SD_CARD
 // #define DEBUG_BOARD
 
-// Toggle the use of the binary file for the e-Paper display
-// When is defined, the display will use a binary files instead of regular bmp files.
-// #define EPD_USE_BINARY_FILE
 
 // Forces the display to use the debug image instead of random from toc
 // #define DEBUG_IMAGE_INDEX 381
@@ -349,9 +346,23 @@
 
 /// ---- End ----
 
-// File extension for images on the SD card, based on the display type and the value of
-// EPD_USE_BINARY_FILE
-extern const char* LOCAL_FILE_EXTENSION;
+/**
+ * @brief Array of allowed file extensions for image files
+ *
+ * Contains file extensions that the ESP32 photo frame can process at runtime.
+ * The system automatically detects file format and selects appropriate rendering engine.
+ *
+ * @see ALLOWED_EXTENSIONS_COUNT for array size
+ * @see photo_frame::io_utils::is_binary_format() for format detection
+ */
+extern const char* ALLOWED_FILE_EXTENSIONS[];
+
+/**
+ * @brief Number of elements in ALLOWED_FILE_EXTENSIONS array
+ *
+ * Used for safe iteration over the allowed extensions array.
+ */
+extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 #ifndef LOCAL_CONFIG_FILE
 #error LOCAL_CONFIG_FILE not defined

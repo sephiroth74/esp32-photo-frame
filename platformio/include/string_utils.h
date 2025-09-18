@@ -190,10 +190,10 @@ inline void seconds_to_human(char* buffer, size_t buffer_len, unsigned long seco
 }
 
 /**
- * @brief Convert seconds to human-readable format
- * @param buffer Output buffer
+ * @brief Convert file size to human-readable format (B, KB, MB, GB, TB)
+ * @param buffer Output buffer to write the formatted size string
  * @param buffer_len Length of the output buffer
- * @param seconds Time in seconds
+ * @param size File size in bytes
  */
 inline void format_size_to_human_readable(char* buffer, size_t buffer_len, uint64_t size) {
     const char* units[]        = {"B", "KB", "MB", "GB", "TB"};

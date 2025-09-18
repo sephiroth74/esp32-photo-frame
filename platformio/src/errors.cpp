@@ -153,8 +153,8 @@ photo_frame_error create_image_error(const char* errorType,
         error = error_type::ImageMemoryAllocationFailed;
     } else if (strcmp(errorType, "conversion_failed") == 0) {
         error = error_type::ImageConversionFailed;
-    } else if (strcmp(errorType, "resolution_too_high") == 0) {
-        error = error_type::ImageResolutionTooHigh;
+    } else if (strcmp(errorType, "dimensions_not_provided") == 0) {
+        error = error_type::ImageDimensionsNotProvided;
     } else {
         error = error_type::ImageProcessingAborted;
     }
