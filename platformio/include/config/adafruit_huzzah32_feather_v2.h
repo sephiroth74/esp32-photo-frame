@@ -79,7 +79,7 @@
 
 // Miscellaneous
 #define DEBUG_MODE 0 // Disable debug mode for production
-#define DEBUG_BATTERY_READER
+// #define DEBUG_BATTERY_READER
 
 
 // Reset handling

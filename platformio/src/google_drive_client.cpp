@@ -705,6 +705,8 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         bool readAny       = false;
         uint32_t bytesRead = 0;
 
+        unsigned long startTime = millis();
+
         if (isChunked) {
             // Handle chunked transfer encoding
             Serial.println(F("[google_drive_client] Reading chunked response"));
@@ -788,8 +790,13 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
             }
         }
 
+        unsigned long elapsedTime = millis() - startTime;
+
         Serial.print(F("[google_drive_client] Total bytes downloaded: "));
         Serial.println(bytesRead);
+
+        Serial.print(F("[google_drive_client] Download time (ms): "));
+        Serial.println(elapsedTime);
 
         client.stop();
 
@@ -915,16 +922,26 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
                 break;
             }
 
-            // Read the chunk data
-            for (long i = 0; i < chunkSize && (client.connected() || client.available()); i++) {
-                char c = client.read();
-                if (c < 0) {
-                    break;
+            // Read the chunk data in efficient blocks
+            long bytesRemaining = chunkSize;
+            while (bytesRemaining > 0 && (client.connected() || client.available())) {
+                // Read data in blocks up to 1024 bytes or remaining chunk size
+                size_t blockSize = min((long)1024, bytesRemaining);
+                char buffer[1024];
+
+                size_t bytesRead = client.readBytes(buffer, blockSize);
+                if (bytesRead == 0) {
+                    yield();
+                    continue;
                 }
-                response.body += c;
+
+                // Append the block to response body (preserving binary data)
+                response.body.concat(buffer, bytesRead);
+                bytesRemaining -= bytesRead;
+                bodyBytesRead += bytesRead;
 
                 // Yield every 1KB to prevent watchdog timeout
-                if (++bodyBytesRead % 1024 == 0) {
+                if (bodyBytesRead % 1024 == 0) {
                     yield();
                 }
             }
@@ -933,24 +950,36 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
             client.readStringUntil('\n');
         }
     } else {
-        // Handle regular content (with or without Content-Length)
-        int bytesToRead = contentLength;
-        while (client.connected() || client.available()) {
-            char c = client.read();
-            if (c < 0) {
-                yield(); // Yield when no data available
-                break;
-            }
-            response.body += c;
+        // Handle regular content (with or without Content-Length) using efficient block reading
+        int bytesRemaining = contentLength > 0 ? contentLength : INT_MAX;
+        while ((client.connected() || client.available()) && bytesRemaining > 0) {
+            // Read data in blocks up to 1024 bytes or remaining content length
+            size_t blockSize = min(1024, bytesRemaining);
+            char buffer[1024];
 
-            // If we have Content-Length, stop when we've read enough
-            if (contentLength > 0 && --bytesToRead <= 0) {
-                break;
+            size_t bytesRead = client.readBytes(buffer, blockSize);
+            if (bytesRead == 0) {
+                yield(); // Yield when no data available
+                continue;
+            }
+
+            // Append the block to response body (preserving binary data)
+            response.body.concat(buffer, bytesRead);
+            bodyBytesRead += bytesRead;
+
+            // If we have Content-Length, track remaining bytes
+            if (contentLength > 0) {
+                bytesRemaining -= bytesRead;
             }
 
             // Yield every 1KB to prevent watchdog timeout on large responses
-            if (++bodyBytesRead % 1024 == 0) {
+            if (bodyBytesRead % 1024 == 0) {
                 yield();
+            }
+
+            // For responses without Content-Length, break if no more data is immediately available
+            if (contentLength <= 0 && !client.available()) {
+                break;
             }
         }
     }

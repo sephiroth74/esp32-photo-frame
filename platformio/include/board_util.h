@@ -65,13 +65,14 @@ void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
  *
  * This function prepares the ESP32 for deep sleep by disabling various peripherals,
  * turning off LEDs, and configuring wakeup sources based on the board configuration.
- * The function configures EXT0 or EXT1 wakeup sources and timer wakeup as appropriate.
+ * The function configures EXT0 or EXT1 wakeup sources and timer wakeup using the provided delay.
  *
- * @param wakeup_reason The reason for the previous wakeup, used for sleep duration calculation
+ * @param wakeup_reason The reason for the previous wakeup
+ * @param refresh_microseconds The sleep duration in microseconds for timer wakeup (0 to disable timer wakeup)
  * @note This function does not return as the ESP32 enters deep sleep
  * @note Wakeup sources are configured based on compile-time flags (WAKEUP_EXT0/WAKEUP_EXT1)
  */
-void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason);
+void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds = 0);
 
 /**
  * @brief Prints comprehensive board statistics to Serial console.

@@ -791,7 +791,8 @@ void draw_battery_status(photo_frame::battery_info_t battery_info) {
 
 void draw_last_update(const DateTime& lastUpdate, long refresh_seconds) {
 #ifdef DEBUG_RENDERER
-    Serial.println("[renderer] drawLastUpdate: " + lastUpdate.timestamp());
+    Serial.println("[renderer] drawLastUpdate: " + lastUpdate.timestamp() + ", refresh " +
+                   String(refresh_seconds) + " seconds");
 #endif                             // DEBUG_RENDERER
     char dateTimeBuffer[32] = {0}; // Buffer to hold formatted date and time
     photo_frame::datetime_utils::format_datetime(
