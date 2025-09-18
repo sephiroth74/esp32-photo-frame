@@ -34,7 +34,7 @@ namespace photo_frame {
 
 namespace board_utils {
 
-void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
+void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds) {
     Serial.println(F("[board_util] Entering deep sleep..."));
     disable_rgb_led();      // Disable RGB LED before going to sleep
     disable_built_in_led(); // Disable built-in LED before going to sleep
@@ -172,6 +172,16 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason) {
         Serial.println(F("[board_util] This would cause immediate wakeup - check button/wiring"));
     }
 #endif
+
+    // Configure timer wakeup if refresh microseconds is provided
+    if (refresh_microseconds > 0) {
+        Serial.print(F("[board_util] Configuring timer wakeup for "));
+        Serial.print((unsigned long)(refresh_microseconds / 1000000ULL));
+        Serial.println(F(" seconds"));
+        esp_sleep_enable_timer_wakeup(refresh_microseconds);
+    } else {
+        Serial.println(F("[board_util] No timer wakeup configured - will sleep indefinitely"));
+    }
 
     Serial.println(F("[board_util] Going to deep sleep now. Good night!"));
     Serial.flush(); // Ensure all serial output is sent before sleeping

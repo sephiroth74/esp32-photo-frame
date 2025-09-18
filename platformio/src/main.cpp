@@ -162,10 +162,12 @@ process_image_file(fs::File& file,
  * @param battery_info Battery information for sleep calculations
  * @param now Current DateTime for sleep timing
  * @param wakeup_reason Wakeup reason for sleep decisions
+ * @param refresh_delay Pre-calculated refresh delay to avoid re-reading potentiometer
  */
 void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
                               DateTime& now,
-                              esp_sleep_wakeup_cause_t wakeup_reason);
+                              esp_sleep_wakeup_cause_t wakeup_reason,
+                              const refresh_delay_t& refresh_delay);
 
 /**
  * @brief Handle image rendering with full/partial display modes and error handling
@@ -296,7 +298,7 @@ void setup() {
     }
 
     // Finalize and enter sleep
-    finalize_and_enter_sleep(battery_info, now, wakeup_reason);
+    finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
 }
 
 void loop() {
@@ -925,18 +927,18 @@ process_image_file(fs::File& file,
 
 void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
                               DateTime& now,
-                              esp_sleep_wakeup_cause_t wakeup_reason) {
+                              esp_sleep_wakeup_cause_t wakeup_reason,
+                              const refresh_delay_t& refresh_delay) {
     photo_frame::board_utils::disable_rgb_led();
     delay(1000);
     photo_frame::renderer::power_off();
 
-    // now go to sleep
-    refresh_delay_t wakeup_delay = calculate_wakeup_delay(battery_info, now);
-    if (!battery_info.is_critical() && wakeup_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
+    // now go to sleep using the pre-calculated refresh delay
+    if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
         Serial.print(F("Going to sleep for "));
-        Serial.print(wakeup_delay.refresh_seconds, DEC);
+        Serial.print(refresh_delay.refresh_seconds, DEC);
         Serial.print(F(" seconds ("));
-        Serial.print((unsigned long)(wakeup_delay.refresh_microseconds / 1000000ULL));
+        Serial.print((unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
         Serial.println(F(" seconds from microseconds)"));
     } else {
         if (battery_info.is_critical()) {
@@ -948,7 +950,7 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 
     unsigned long elapsed = millis() - startupTime;
     Serial.printf("Elapsed seconds since startup: %lu s\n", elapsed / 1000);
-    photo_frame::board_utils::enter_deep_sleep(wakeup_reason);
+    photo_frame::board_utils::enter_deep_sleep(wakeup_reason, refresh_delay.refresh_microseconds);
 }
 
 /**
@@ -961,7 +963,21 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now) {
     refresh_delay_t refresh_delay = {0, 0};
 
-    if (!battery_info.is_critical() && now.isValid()) {
+    if (battery_info.is_critical()) {
+        Serial.println(F("Battery is critical, using low battery refresh interval"));
+        refresh_delay.refresh_seconds = REFRESH_INTERVAL_SECONDS_LOW_BATTERY;
+        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        return refresh_delay;
+    }
+
+    if (!now.isValid()) {
+        Serial.println(F("Time is invalid, using minimum refresh interval as fallback"));
+        refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
+        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        return refresh_delay;
+    }
+
+    if (true) { // Changed from the original condition to always execute
         refresh_delay.refresh_seconds =
             photo_frame::board_utils::read_refresh_seconds(battery_info.is_low());
 
@@ -998,8 +1014,9 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
         // Practical limit defined in config.h
 
         if (refresh_delay.refresh_seconds <= 0) {
-            refresh_delay.refresh_microseconds = 0;
-            Serial.println(F("Warning: Invalid refresh interval, sleep disabled"));
+            Serial.println(F("Warning: Invalid refresh interval, using minimum interval as fallback"));
+            refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
+            refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
             refresh_delay.refresh_microseconds =
                 (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
@@ -1018,9 +1035,20 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
 
         Serial.print(F("Refresh interval in: "));
         Serial.println(humanReadable);
-    } else {
-        Serial.println(F("skipped"));
     }
+
+    // Final validation - ensure we never return 0 microseconds
+    if (refresh_delay.refresh_microseconds == 0) {
+        Serial.println(F("CRITICAL: refresh_microseconds is 0, forcing minimum interval"));
+        refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
+        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+    }
+
+    Serial.print(F("Final refresh delay: "));
+    Serial.print(refresh_delay.refresh_seconds);
+    Serial.print(F(" seconds ("));
+    Serial.print((unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
+    Serial.println(F(" microseconds)"));
 
     return refresh_delay;
 }
