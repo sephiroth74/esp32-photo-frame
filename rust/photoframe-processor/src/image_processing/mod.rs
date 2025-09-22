@@ -25,11 +25,32 @@ use crate::utils::{
 use combine::combine_processed_portraits;
 use orientation::get_effective_target_dimensions;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, strum_macros::EnumIter)]
 pub enum ProcessingType {
     BlackWhite,
     SixColor,
     SevenColor,
+}
+
+impl ProcessingType {
+    /// Get the filename prefix for this processing type
+    pub fn get_prefix(&self) -> &'static str {
+        match self {
+            ProcessingType::BlackWhite => "bw",
+            ProcessingType::SixColor => "6c",
+            ProcessingType::SevenColor => "7c",
+        }
+    }
+
+    /// Parse prefix back to ProcessingType
+    pub fn from_prefix(prefix: &str) -> Option<Self> {
+        match prefix {
+            "bw" => Some(ProcessingType::BlackWhite),
+            "6c" => Some(ProcessingType::SixColor),
+            "7c" => Some(ProcessingType::SevenColor),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -121,7 +142,7 @@ impl ProcessingEngine {
             crate::cli::OutputType::Png => "png",
         };
 
-        let filename = crate::utils::create_output_filename(input_path, suffix, extension);
+        let filename = crate::utils::create_output_filename(input_path, suffix, extension, self.config.processing_type.get_prefix());
         format_dir.join(filename)
     }
 
@@ -147,7 +168,7 @@ impl ProcessingEngine {
             crate::cli::OutputType::Png => "png",
         };
 
-        let filename = create_combined_portrait_filename(left_path, right_path, extension);
+        let filename = create_combined_portrait_filename(left_path, right_path, extension, self.config.processing_type.get_prefix());
         format_dir.join(filename)
     }
 
@@ -259,13 +280,17 @@ impl ProcessingEngine {
                                 .unwrap_or(filename);
 
                             if stem.starts_with("combined_") {
-                                // Parse combined portrait filenames: "combined_{part1}_{part2}"
+                                // Parse combined portrait filenames: "combined_prefix_base64_base64"
                                 if let Some(combined_part) = stem.strip_prefix("combined_") {
-                                    // For base64 filenames, we need to find the underscore that separates the two parts
-                                    // Base64 can end with = or ==, so we look for patterns like "base64_base64"
-                                    if let Some(underscore_pos) = Self::find_combined_separator(combined_part) {
-                                        let (part1, part2_with_underscore) = combined_part.split_at(underscore_pos);
-                                        let part2 = &part2_with_underscore[1..]; // Remove the leading underscore
+                                    // Split by underscore to get prefix and base64 parts
+                                    let parts: Vec<&str> = combined_part.split('_').collect();
+                                    if parts.len() == 3 {
+                                        let prefix = parts[0];
+                                        let part1 = parts[1];
+                                        let part2 = parts[2];
+
+                                        // Validate processing type prefix
+                                        let is_valid_prefix = ProcessingType::from_prefix(prefix).is_some();
 
                                         // Check if these are 8-character hex hashes (old system) or base64 (new system)
                                         let is_hex_system = part1.len() == 8 && part2.len() == 8
@@ -274,48 +299,85 @@ impl ProcessingEngine {
 
                                         let is_base64_system = Self::looks_like_base64(part1) && Self::looks_like_base64(part2);
 
-                                        if is_hex_system || is_base64_system {
+                                        if is_valid_prefix && (is_hex_system || is_base64_system) {
                                             existing_portrait_hashes.insert(part1.to_string());
                                             existing_portrait_hashes.insert(part2.to_string());
 
                                             let system_type = if is_hex_system { "hex hashes" } else { "base64" };
                                             verbose_println(self.config.verbose, &format!(
-                                                "Found existing combined portrait: {} (contains {} {} and {})",
-                                                filename, system_type, part1, part2
+                                                "Found existing combined portrait: {} (prefix: {}, contains {} {} and {})",
+                                                filename, prefix, system_type, part1, part2
                                             ));
                                         } else {
                                             verbose_println(self.config.verbose, &format!(
-                                                "Skipping combined file with unrecognized format: {} (parts: '{}', '{}')",
-                                                filename, part1, part2
+                                                "Skipping combined file with unrecognized format: {} (prefix: '{}', parts: '{}', '{}')",
+                                                filename, prefix, part1, part2
                                             ));
                                         }
                                     } else {
                                         verbose_println(self.config.verbose, &format!(
-                                            "Skipping malformed combined filename: {}", filename
+                                            "Skipping malformed combined filename: {} (expected format: combined_prefix_base64_base64)", filename
                                         ));
                                     }
                                 }
                             } else {
-                                // Regular landscape image - check if it looks like a base64-encoded filename or 8-char hex hash
-                                if stem.len() == 8 && stem.chars().all(|c| c.is_ascii_hexdigit()) {
-                                    // Old-style 8-character hex hash
-                                    existing_landscape_hashes.insert(stem.to_string());
-                                    verbose_println(
-                                        self.config.verbose,
-                                        &format!("Found existing landscape: {} (hex hash: {})", filename, stem),
-                                    );
-                                } else if Self::looks_like_base64(stem) {
-                                    // Base64-encoded filename (current system)
-                                    existing_landscape_hashes.insert(stem.to_string());
-                                    verbose_println(
-                                        self.config.verbose,
-                                        &format!("Found existing landscape: {} (base64: {})", filename, stem),
-                                    );
+                                // Regular landscape image - check for prefixed filename format: "prefix_base64" or "prefix_hexhash"
+                                if let Some(underscore_pos) = stem.find('_') {
+                                    let (prefix, hash_part) = stem.split_at(underscore_pos);
+                                    let hash_part = &hash_part[1..]; // Remove the underscore
+
+                                    // Validate processing type prefix
+                                    let is_valid_prefix = ProcessingType::from_prefix(prefix).is_some();
+
+                                    if is_valid_prefix {
+                                        if hash_part.len() == 8 && hash_part.chars().all(|c| c.is_ascii_hexdigit()) {
+                                            // Prefixed 8-character hex hash (e.g., "bw_a1b2c3d4")
+                                            existing_landscape_hashes.insert(hash_part.to_string());
+                                            verbose_println(
+                                                self.config.verbose,
+                                                &format!("Found existing landscape: {} (prefix: {}, hex hash: {})", filename, prefix, hash_part),
+                                            );
+                                        } else if Self::looks_like_base64(hash_part) {
+                                            // Prefixed base64-encoded filename (e.g., "bw_aW1hZ2U=")
+                                            existing_landscape_hashes.insert(hash_part.to_string());
+                                            verbose_println(
+                                                self.config.verbose,
+                                                &format!("Found existing landscape: {} (prefix: {}, base64: {})", filename, prefix, hash_part),
+                                            );
+                                        } else {
+                                            verbose_println(
+                                                self.config.verbose,
+                                                &format!("Skipping file with unrecognized hash format: {} (prefix: {}, hash: {})", filename, prefix, hash_part),
+                                            );
+                                        }
+                                    } else {
+                                        verbose_println(
+                                            self.config.verbose,
+                                            &format!("Skipping file with invalid prefix: {} (prefix: {})", filename, prefix),
+                                        );
+                                    }
                                 } else {
-                                    verbose_println(
-                                        self.config.verbose,
-                                        &format!("Skipping file with non-recognized filename format: {}", filename),
-                                    );
+                                    // Legacy format without prefix - check if it looks like a base64-encoded filename or 8-char hex hash
+                                    if stem.len() == 8 && stem.chars().all(|c| c.is_ascii_hexdigit()) {
+                                        // Old-style 8-character hex hash
+                                        existing_landscape_hashes.insert(stem.to_string());
+                                        verbose_println(
+                                            self.config.verbose,
+                                            &format!("Found existing landscape (legacy): {} (hex hash: {})", filename, stem),
+                                        );
+                                    } else if Self::looks_like_base64(stem) {
+                                        // Base64-encoded filename (legacy system)
+                                        existing_landscape_hashes.insert(stem.to_string());
+                                        verbose_println(
+                                            self.config.verbose,
+                                            &format!("Found existing landscape (legacy): {} (base64: {})", filename, stem),
+                                        );
+                                    } else {
+                                        verbose_println(
+                                            self.config.verbose,
+                                            &format!("Skipping file with non-recognized filename format: {}", filename),
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -410,9 +472,12 @@ impl ProcessingEngine {
                                 .unwrap_or(filename);
 
                             if let Some(combined_part) = stem.strip_prefix("combined_") {
-                                if let Some(underscore_pos) = Self::find_combined_separator(combined_part) {
-                                    let (part1, part2_with_underscore) = combined_part.split_at(underscore_pos);
-                                    let part2 = &part2_with_underscore[1..];
+                                // Parse new prefixed format: "prefix_base64_base64"
+                                let parts: Vec<&str> = combined_part.split('_').collect();
+                                if parts.len() == 3 {
+                                    let _prefix = parts[0];
+                                    let part1 = parts[1];
+                                    let part2 = parts[2];
 
                                     if part1 == portrait_base64 || part2 == portrait_base64 {
                                         verbose_println(self.config.verbose, &format!(
@@ -420,6 +485,20 @@ impl ProcessingEngine {
                                             portrait_base64, filename
                                         ));
                                         return Ok(Some(path));
+                                    }
+                                } else {
+                                    // Try legacy format for backwards compatibility
+                                    if let Some(underscore_pos) = Self::find_combined_separator(combined_part) {
+                                        let (part1, part2_with_underscore) = combined_part.split_at(underscore_pos);
+                                        let part2 = &part2_with_underscore[1..];
+
+                                        if part1 == portrait_base64 || part2 == portrait_base64 {
+                                            verbose_println(self.config.verbose, &format!(
+                                                "Found portrait '{}' in combined file (legacy): {}",
+                                                portrait_base64, filename
+                                            ));
+                                            return Ok(Some(path));
+                                        }
                                     }
                                 }
                             }

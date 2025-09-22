@@ -37,11 +37,6 @@
 GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>
     display(GxEPD2_DRIVER_CLASS(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN));
 
-#ifdef USE_HSPI_FOR_EPD
-SPIClass hspi(HSPI); // SPI object for e-Paper display
-SPISettings device_settings(4000000, MSBFIRST, SPI_MODE0);
-#endif // USE_HSPI_FOR_EPD
-
 namespace photo_frame {
 namespace renderer {
 
@@ -111,13 +106,8 @@ void init_display() {
     pinMode(EPD_DC_PIN, OUTPUT);
     pinMode(EPD_CS_PIN, OUTPUT);
 
-#if defined(USE_HSPI_FOR_EPD)
-    hspi.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
-    display.epd2.selectSPI(hspi, device_settings);
-#elif defined(USE_HSPI_FOR_EPD) or defined(USE_SHARED_SPI)
     SPI.end();
     SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
-#endif // USE_HSPI_FOR_EPD
 
 #ifdef USE_DESPI_DRIVER
     display.init(115200);
@@ -174,13 +164,7 @@ void power_off() {
     display.powerOff(); // turns off the display
     delay(100);         // wait for the display to power off
     display.end();      // release SPI and control pins
-
-#ifdef USE_HSPI_FOR_EPD
-    hspi.end(); // release SPI pins
-#else
     SPI.end(); // release SPI pins
-#endif // USE_HSPI_FOR_EPD
-
     return;
 } // end powerOff
 

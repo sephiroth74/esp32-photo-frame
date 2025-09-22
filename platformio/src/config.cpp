@@ -42,20 +42,6 @@
 #error "GOOGLE_DRIVE_CONFIG_FILEPATH must be defined for Google Drive functionality"
 #endif // GOOGLE_DRIVE_CONFIG_FILEPATH
 
-// Check all SD-Card pins are defined
-#if !defined(SD_CS_PIN) || !defined(SD_MISO_PIN) || !defined(SD_MOSI_PIN) || !defined(SD_SCK_PIN)
-#error "Please define all SD-Card pins"
-#endif
-
-#if !defined(USE_HSPI_FOR_EPD) && !defined(USE_HSPI_FOR_SD) && !defined(USE_SHARED_SPI)
-#error "Please define USE_HSPI_FOR_EPD or USE_HSPI_FOR_SD or USE_SHARED_SPI"
-#endif // USE_HSPI_FOR_EPD or USE_HSPI_FOR_SD or USE_SHARED_SPI
-
-// Check only one SPI bus is used
-#if defined(USE_HSPI_FOR_SD) && defined(USE_HSPI_FOR_EPD) && defined(USE_SHARED_SPI)
-#error                                                                                             \
-    "Please define only one SPI bus: either USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD or USE_SHARED_SPI"
-#endif // USE_HSPI_FOR_SD or USE_HSPI_FOR_EPD or USE_SHARED_SPI
 
 // Check all RTC pins are defined
 #ifdef USE_RTC

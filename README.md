@@ -6,10 +6,16 @@
 
 ## Features
 
+- **🎨 RGB Status System** (v0.5.0): Visual feedback using built-in NeoPixel LED with 14 predefined status states
+  - Real-time system status indication (WiFi, SD operations, Google Drive, rendering, etc.)
+  - Battery-aware power management with automatic brightness scaling
+  - FreeRTOS task-based smooth animations (50Hz update rate)
+  - Power-efficient design (3-8mA additional current, auto-disabled during sleep)
 - **Google Drive Integration**: Primary image source with automatic synchronization and caching from Google Drive folders
 - **SD Card Caching**: Local caching system for improved performance and offline capabilities
 - **Smart Image Processing**: Automatic resizing, annotation, and format conversion
 - **Weather Display**: Real-time weather information with configurable location, timezone, and update intervals
+- **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup for Unexpected Maker FeatherS3
 - Battery voltage monitoring and reporting with power-saving modes
 - Real-time clock integration for scheduled refresh and time-based features
 - Potentiometer to regulate the refresh delay
@@ -38,20 +44,59 @@
 
 2. **Hardware Assembly & Wiring**
    - **📋 [Complete Wiring Diagram](docs/wiring-diagram.md)** - Comprehensive pin connections and assembly guide
-   - **Recommended Boards**: 
-     - **Unexpected Maker FeatherS3** (default - USB-C, battery management, **8MB PSRAM with optimized Google Drive performance**, no I2C/WiFi issues)
-     - **Adafruit Huzzah32 Feather v2** (ESP32-S3 dual core, **2MB PSRAM**, excellent battery management, Feather ecosystem)
-   - **Alternative**: DFRobot FireBeetle 2 ESP32-C6 (built-in battery management and solar charging, but has I2C/WiFi coexistence issues)
-   - **Key Connections**: SPI for display and SD card, I2C for RTC, analog for battery monitoring
-   - **Power Management**: Built-in JST connector for battery, screw terminals for solar panel
-   - **Wakeup Button**: GPIO 3 with pull-down configuration for manual device wakeup
+   - **Default Board (v0.5.0)**:
+     - **🥇 Unexpected Maker FeatherS3** - Fully optimized with RGB status system, proper deep sleep wakeup, and enhanced pin configuration
+       - ESP32-S3 dual core, **8MB PSRAM**, 16MB Flash, built-in NeoPixel RGB LED
+       - USB-C, excellent battery management, no I2C/WiFi interference issues
+       - **RGB Status Feedback**: Built-in NeoPixel on GPIO40 for visual system status
+       - **Deep Sleep Wakeup**: Optimized RTC GPIO configuration (GPIO1 with proper pull-up)
+   - **Alternative Boards**:
+     - **Adafruit Huzzah32 Feather v2** (ESP32-S3, 2MB PSRAM, Feather ecosystem - requires external RGB LED)
+     - **DFRobot FireBeetle 2 ESP32-C6** (built-in battery management, but has I2C/WiFi coexistence issues)
+   - **Key Connections**:
+     - **SD Card**: SD_MMC interface (SDIO) for high-speed access
+     - **E-Paper Display**: Dedicated SPI pins to avoid SD card conflicts
+     - **RGB Status LED**: Built-in NeoPixel (FeatherS3) or external WS2812B LED
+     - **I2C**: RTC and optional sensors
+     - **Analog**: Battery monitoring via built-in voltage divider
+   - **Wakeup Button**: Connected between GPIO1 and GND with internal pull-up (FeatherS3 optimized)
 
 3. **Setup**
    - Clone this repository
    - Open the project in [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/)
    - Configure your hardware settings in `include/config.h` and `src/config.cpp` if needed
 
-3. **Image Processing Pipeline (Required)**
+## 🎨 RGB Status System (v0.5.0)
+
+The FeatherS3 version includes a comprehensive RGB status system using the built-in NeoPixel LED for real-time visual feedback:
+
+### Status Indicators
+- **🔷 Starting**: White pulse during system startup (3s)
+- **🔵 WiFi Connecting**: Blue pulse while connecting to WiFi
+- **🔴 WiFi Failed**: Red slow blink when connection fails
+- **🟢 Weather Fetching**: Green pulse while fetching weather data
+- **🟠 SD Operations**: Orange pulse during SD card operations
+- **🟡 SD Writing**: Yellow pulse during SD card writes
+- **🔵 Google Drive**: Cyan pulse during Google Drive operations
+- **🟣 Downloading**: Purple pulse during file downloads
+- **🟡 Rendering**: Pink solid during display rendering
+- **🔴 Battery Low**: Red slow blink for critical battery warning
+- **🔴 Error**: Red fast blink for system errors
+- **⚪ Sleep Prep**: Dim white fade-out before deep sleep
+
+### Power Management
+- **Battery-Aware**: Automatic brightness reduction when battery is low
+- **Power Efficient**: 3-8mA additional consumption (optimized brightness levels)
+- **Sleep Optimization**: Complete shutdown during deep sleep (0mA impact)
+- **Critical Battery Protection**: RGB system auto-disables to preserve power
+
+### Technical Features
+- **FreeRTOS Task**: Smooth 50Hz animations in dedicated thread
+- **14 Predefined States**: Comprehensive system status coverage
+- **Custom Colors**: Support for user-defined colors and effects
+- **Hardware Control**: Power management via GPIO39 (LDO2)
+
+4. **Image Processing Pipeline (Required)**
 
    **🔧 All images must be processed before upload to Google Drive**
 

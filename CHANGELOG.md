@@ -5,6 +5,52 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.5.0] - 2025-01-21
+
+### Added
+- **RGB Status System**: Complete visual feedback system using FeatherS3 built-in NeoPixel LED
+  - 🔷 **Starting**: White pulse during system startup
+  - 🔵 **WiFi Connecting**: Blue pulse while connecting to WiFi
+  - 🔴 **WiFi Failed**: Red slow blink when connection fails
+  - 🟢 **Weather Fetching**: Green pulse while fetching weather data
+  - 🟠 **SD Operations**: Orange pulse during SD card operations
+  - 🟡 **SD Writing**: Yellow pulse during SD card writes
+  - 🔵 **Google Drive**: Cyan pulse during Google Drive operations
+  - 🟣 **Downloading**: Purple pulse during file downloads
+  - 🟡 **Rendering**: Pink solid during display rendering
+  - 🔴 **Battery Low**: Red slow blink for critical battery
+  - 🔴 **Error**: Red fast blink for system errors
+  - ⚪ **Sleep Prep**: Dim white fade-out before deep sleep
+- **FreeRTOS Task Support**: RGB system runs in dedicated thread for smooth, non-blocking animations
+- **Battery-Aware Power Management**: Automatic brightness reduction and RGB disable for power conservation
+- **Power-Efficient Design**: Optimized brightness levels (max 96) and complete shutdown during sleep
+
+### Fixed
+- **Deep Sleep Wakeup**: Fixed critical EXT0 wakeup issues on ESP32-S3 by using proper RTC GPIO pins
+  - Moved WAKEUP_PIN from GPIO8 (non-RTC) to GPIO1 (RTC-capable)
+  - Added proper RTC GPIO initialization with pull-up/pull-down configuration
+  - Fixed pin state validation and error reporting
+- **FeatherS3 Pin Configuration**: Corrected all pin assignments based on actual hardware pinout
+  - **SD_MMC Pins**: CLK=GPIO14, CMD=GPIO17, D0=GPIO7, D1=GPIO3, D2=GPIO12, D3=GPIO11
+  - **E-Paper Display**: Optimized SPI pin assignments to avoid conflicts
+  - **Battery Monitoring**: Confirmed GPIO2 for built-in voltage divider
+  - **RGB NeoPixel**: GPIO40 with power control on GPIO39 (LDO2)
+- **HTTP Download Reliability**: Added explicit buffer flushing to prevent file corruption during Google Drive downloads
+- **Board Definition**: Updated to use proper FeatherS3 board definition (`um_feathers3`) instead of generic ESP32-S3
+
+### Changed
+- **Default Board**: Changed default environment to `feathers3_unexpectedmaker` for better ESP32-S3 support
+- **Partition Table**: Optimized 16MB partition layout for FeatherS3 flash memory
+- **Power Management**: Enhanced battery conservation with RGB system integration
+- **Pin Assignments**: Systematic reorganization of FeatherS3 pins to eliminate conflicts
+
+### Technical Details
+- **RGB System Architecture**: NeoPixel control with 14 predefined states and custom color support
+- **Memory Efficiency**: RGB task uses only 2KB stack with 50Hz update rate
+- **Hardware Integration**: Full FeatherS3 support with built-in peripherals (NeoPixel, battery monitoring)
+- **Deep Sleep Optimization**: Proper GPIO hold disable and RTC configuration for reliable wakeup
+- **Error Handling**: Comprehensive pin validation and RTC capability testing
+
 ## [v0.4.1] - 2025-01-18
 
 ### Fixed

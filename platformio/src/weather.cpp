@@ -471,7 +471,7 @@ void WeatherManager::save_weather_cache() {
     doc["sunset_time"]    = current_weather.sunset_time;
     doc["has_daily_data"] = current_weather.has_daily_data;
 
-    File cache_file       = SD.open(WEATHER_CACHE_FILE, FILE_WRITE);
+    File cache_file       = SD_MMC.open(WEATHER_CACHE_FILE, FILE_WRITE);
     if (!cache_file) {
         Serial.println("[WeatherManager] Failed to open cache file for writing");
         return;
@@ -484,12 +484,12 @@ void WeatherManager::save_weather_cache() {
 }
 
 bool WeatherManager::load_weather_cache() {
-    if (!SD.exists(WEATHER_CACHE_FILE)) {
+    if (!SD_MMC.exists(WEATHER_CACHE_FILE)) {
         Serial.println("[WeatherManager] No cached weather data found");
         return false;
     }
 
-    File cache_file = SD.open(WEATHER_CACHE_FILE, FILE_READ);
+    File cache_file = SD_MMC.open(WEATHER_CACHE_FILE, FILE_READ);
     if (!cache_file) {
         Serial.println("[WeatherManager] Failed to open cache file for reading");
         return false;
@@ -538,12 +538,12 @@ bool WeatherManager::load_weather_cache() {
 }
 
 bool WeatherManager::load_config_from_sd() {
-    if (!SD.exists(WEATHER_CONFIG_FILE)) {
+    if (!SD_MMC.exists(WEATHER_CONFIG_FILE)) {
         Serial.println("[WeatherManager] Weather config file not found, creating example config");
         return create_example_config();
     }
 
-    File config_file = SD.open(WEATHER_CONFIG_FILE, FILE_READ);
+    File config_file = SD_MMC.open(WEATHER_CONFIG_FILE, FILE_READ);
     if (!config_file) {
         Serial.println("[WeatherManager] Failed to open weather config file");
         return false;
@@ -622,7 +622,7 @@ bool WeatherManager::create_example_config() {
     doc["_comment"]      = "Weather configuration for ESP32 Photo Frame";
     doc["_instructions"] = "Set enabled=true and update latitude/longitude for your location";
 
-    File config_file     = SD.open(WEATHER_CONFIG_FILE, FILE_WRITE);
+    File config_file     = SD_MMC.open(WEATHER_CONFIG_FILE, FILE_WRITE);
     if (!config_file) {
         Serial.println("[WeatherManager] Failed to create example config file");
         return false;

@@ -22,36 +22,15 @@
 
 #include "spi_manager.h"
 #include "config.h"
+#include "renderer.h"
 #include <LittleFS.h>
-#include <SD.h>
-#include <SPI.h>
+#include <SD_MMC.h>
 
 namespace photo_frame {
 namespace spi_manager {
 
 bool SPIManager::littlefs_initialized = false;
 
-void SPIManager::configure_spi_for_sd() {
-#ifdef USE_SHARED_SPI
-    SPI.end();
-    SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
-    Serial.printf("[spi_manager] SPI configured for SD: SCK=%d, MOSI=%d, MISO=%d\n",
-                  SD_SCK_PIN,
-                  SD_MOSI_PIN,
-                  SD_MISO_PIN);
-#endif
-}
-
-void SPIManager::configure_spi_for_epd() {
-#ifdef USE_SHARED_SPI
-    SPI.end();
-    SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN);
-    Serial.printf("[spi_manager] SPI configured for EPD: SCK=%d, MOSI=%d, MISO=%d\n",
-                  EPD_SCK_PIN,
-                  EPD_MOSI_PIN,
-                  EPD_MISO_PIN);
-#endif
-}
 
 bool SPIManager::init_littlefs() {
     if (littlefs_initialized) {
@@ -104,7 +83,7 @@ bool SPIManager::init_littlefs() {
                   freeBytes / 1024.0 / 1024.0);
 
     // Check if there's enough space for a 384KB image file
-    const size_t IMAGE_SIZE = 384000;
+    const size_t IMAGE_SIZE = DISP_WIDTH * DISP_HEIGHT * 3; // 384KB for 800x480 RGB
     if (freeBytes < IMAGE_SIZE) {
         Serial.printf("[spi_manager] ⚠️ WARNING: Only %zu bytes free, need %zu for image file\n",
                       freeBytes,

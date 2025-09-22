@@ -26,7 +26,7 @@
 #include "config.h"
 #include "errors.h"
 #include <Arduino.h>
-#include <SD.h>
+#include <SD_MMC.h>
 
 namespace photo_frame {
 
@@ -73,50 +73,26 @@ class sd_card_entry {
 };
 
 /**
- * @brief SD card interface class for file operations.
+ * @brief SD card interface class for file operations using SD_MMC (SDIO).
  *
  * This class provides a comprehensive interface for interacting with SD cards,
  * including initialization, file operations, directory management, and metadata
- * operations. It supports both HSPI and standard SPI configurations.
+ * operations. Uses the SD_MMC library with SDIO interface for better performance
+ * than SPI mode. Uses custom ESP32 pins: CLK(14), CMD(15), D0(7), D1(4), D2(12), D3(13).
+ * Note: D0 moved from GPIO2 to GPIO7 to avoid NeoPixel LED conflict on Feather V2.
  */
 class sd_card {
   private:
-#ifdef USE_HSPI_FOR_SD
-    SPIClass hspi;          ///< SPI object for SD card when using HSPI
-#endif                      // USE_HSPI_FOR_SD
     bool initialized;       ///< Flag indicating if SD card is initialized
-    uint8_t csPin;          ///< Chip select pin for SD card
-    uint8_t misoPin;        ///< MISO (Master In, Slave Out) pin
-    uint8_t mosiPin;        ///< MOSI (Master Out, Slave In) pin
-    uint8_t sckPin;         ///< Serial clock pin
     sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
   public:
     /**
-     * @brief Constructor for sd_card with configurable pins.
-     * @param csPin Chip select pin (default from config)
-     * @param misoPin MISO pin (default from config)
-     * @param mosiPin MOSI pin (default from config)
-     * @param sckPin Serial clock pin (default from config)
+     * @brief Constructor for sd_card using SD_MMC (SDIO interface).
+     * SD_MMC uses fixed pins that cannot be configured:
+     * - CLK: GPIO14, CMD: GPIO15, D0: GPIO2, D1: GPIO4, D2: GPIO12, D3: GPIO13
      */
-    sd_card(uint8_t csPin   = SD_CS_PIN,
-            uint8_t misoPin = SD_MISO_PIN,
-            uint8_t mosiPin = SD_MOSI_PIN,
-            uint8_t sckPin  = SD_SCK_PIN)
-#ifdef USE_HSPI_FOR_SD
-        :
-        hspi(HSPI),
-        initialized(false)
-#else
-        :
-        initialized(false)
-#endif // USE_HSPI_FOR_SD
-        ,
-        csPin(csPin),
-        misoPin(misoPin),
-        mosiPin(mosiPin),
-        sckPin(sckPin),
-        cardType(CARD_UNKNOWN) {
+    sd_card() : initialized(false), cardType(CARD_UNKNOWN) {
     }
 
     // Disable copy constructor and assignment operator

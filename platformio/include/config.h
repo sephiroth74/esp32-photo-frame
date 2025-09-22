@@ -31,15 +31,11 @@
 
 // Version information
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  4
-#define FIRMWARE_VERSION_PATCH  1
-#define FIRMWARE_VERSION_STRING "v0.4.1"
+#define FIRMWARE_VERSION_MINOR  5
+#define FIRMWARE_VERSION_PATCH  0
+#define FIRMWARE_VERSION_STRING "v0.5.0"
 
 /// ---- Customizable settings ----
-
-// #define USE_HSPI_FOR_SD  // Use HSPI for SD card communication
-// #define USE_HSPI_FOR_EPD // Use HSPI for e-Paper display
-// #define USE_SHARED_SPI   // Use shared SPI for all devices
 
 // Pin definitions
 
@@ -505,7 +501,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif // REFRESH_STEP_SECONDS
 
 #ifndef REFRESH_INTERVAL_SECONDS_LOW_BATTERY
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)
+#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOURS)
 #endif // REFRESH_INTERVAL_SECONDS_LOW_BATTERY
 
 #ifndef DAY_START_HOUR
@@ -519,17 +515,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #ifndef FONT_HEADER
 #define FONT_HEADER "assets/fonts/Ubuntu_R.h"
 #endif
-
-// Checks if has rgb leds defined
-#ifndef HAS_RGB_LED
-#if defined(ARDUINO_ARCH_ESP32) && defined(NANO_ESP32)
-#define HAS_RGB_LED 1
-#elif defined(LED_BLUE) && defined(LED_GREEN) && defined(LED_RED)
-#define HAS_RGB_LED 1
-#else
-#define HAS_RGB_LED 0
-#endif // HAS_RGB_LED
-#endif // HAS_RGB_LED
 
 #ifndef SD_CARD_FREE_SPACE_THRESHOLD
 #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)

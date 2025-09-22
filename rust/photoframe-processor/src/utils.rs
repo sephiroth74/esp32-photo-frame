@@ -5,6 +5,11 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::time::Duration;
 
+#[cfg(test)]
+use std::collections::hash_map::DefaultHasher;
+#[cfg(test)]
+use std::hash::{Hash, Hasher};
+
 use crate::cli::Args;
 
 /// Create a styled progress bar
@@ -174,10 +179,14 @@ pub fn encode_filename_base64(filename: &str) -> String {
     encoded.replace('/', "-")
 }
 
-/// Create output filename based on input filename base64 encoding to match auto.sh convention
-/// Landscape: base64(basename).extension
-/// With suffix: base64(basename)_suffix.extension  
-pub fn create_output_filename(input_path: &Path, suffix: Option<&str>, extension: &str) -> String {
+/// Create output filename based on input filename base64 encoding with processing type prefix
+/// Format: prefix_base64(basename).extension or prefix_base64(basename)_suffix.extension
+pub fn create_output_filename(
+    input_path: &Path,
+    suffix: Option<&str>,
+    extension: &str,
+    processing_type_prefix: &str
+) -> String {
     let stem = input_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -186,17 +195,18 @@ pub fn create_output_filename(input_path: &Path, suffix: Option<&str>, extension
     let base64_filename = encode_filename_base64(stem);
 
     match suffix {
-        Some(suffix) => format!("{}_{}.{}", base64_filename, suffix, extension),
-        None => format!("{}.{}", base64_filename, extension),
+        Some(suffix) => format!("{}_{}__{}.{}", processing_type_prefix, base64_filename, suffix, extension),
+        None => format!("{}_{}.{}", processing_type_prefix, base64_filename, extension),
     }
 }
 
-/// Create combined portrait filename using base64 encoding to match auto.sh convention  
-/// Format: combined_base64(basename1)_base64(basename2).extension
+/// Create combined portrait filename using base64 encoding to match auto.sh convention
+/// Format: combined_prefix_base64(basename1)_base64(basename2).extension
 pub fn create_combined_portrait_filename(
     left_path: &Path,
     right_path: &Path,
     extension: &str,
+    processing_type_prefix: &str,
 ) -> String {
     let left_stem = left_path
         .file_stem()
@@ -210,7 +220,7 @@ pub fn create_combined_portrait_filename(
     let base64_file1 = encode_filename_base64(left_stem);
     let base64_file2 = encode_filename_base64(right_stem);
 
-    format!("combined_{}_{}.{}", base64_file1, base64_file2, extension)
+    format!("combined_{}_{}_{}.{}", processing_type_prefix, base64_file1, base64_file2, extension)
 }
 
 /// Print verbose information if verbose mode is enabled
@@ -230,6 +240,18 @@ pub fn warn_println(message: &str) {
 #[allow(dead_code)]
 pub fn error_println(message: &str) {
     eprintln!("{} {}", style("[ERROR]").red().bold(), message);
+}
+
+/// Generate an 8-character hash from a filename for duplicate detection
+/// This creates a deterministic hash that's used to identify potential duplicates
+#[cfg(test)]
+pub fn generate_filename_hash(filename: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    filename.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    // Convert to hex and take first 8 characters
+    format!("{:016x}", hash)[..8].to_string()
 }
 
 
@@ -316,15 +338,15 @@ mod tests {
     #[test]
     fn test_create_output_filename() {
         let path = Path::new("/path/to/image.jpg");
-        let result = create_output_filename(path, None, "bmp");
+        let result = create_output_filename(path, None, "bmp", "bw");
         assert!(result.ends_with(".bmp"));
         // Base64 encoding of "image" should be "aW1hZ2U="
-        assert_eq!(result, "aW1hZ2U=.bmp");
+        assert_eq!(result, "bw_aW1hZ2U=.bmp");
 
-        let result_with_suffix = create_output_filename(path, Some("portrait"), "bin");
+        let result_with_suffix = create_output_filename(path, Some("portrait"), "bin", "6c");
         assert!(result_with_suffix.ends_with(".bin"));
         assert!(result_with_suffix.contains("_portrait"));
-        assert_eq!(result_with_suffix, "aW1hZ2U=_portrait.bin");
+        assert_eq!(result_with_suffix, "6c_aW1hZ2U=__portrait.bin");
     }
 
     #[test]
@@ -342,14 +364,14 @@ mod tests {
     fn test_create_combined_portrait_filename() {
         let left_path = Path::new("/path/to/image1.jpg");
         let right_path = Path::new("/path/to/image2.jpg");
-        let result = create_combined_portrait_filename(left_path, right_path, "bmp");
+        let result = create_combined_portrait_filename(left_path, right_path, "bmp", "bw");
 
         assert!(result.starts_with("combined_"));
         assert!(result.ends_with(".bmp"));
-        assert!(result.matches('_').count() == 2); // Should have exactly 2 underscores
+        assert!(result.matches('_').count() == 3); // Should have exactly 3 underscores now (prefix adds one)
 
         // Base64 encoding of "image1" = "aW1hZ2Ux", "image2" = "aW1hZ2Uy"
-        assert_eq!(result, "combined_aW1hZ2Ux_aW1hZ2Uy.bmp");
+        assert_eq!(result, "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bmp");
     }
 
     #[test]

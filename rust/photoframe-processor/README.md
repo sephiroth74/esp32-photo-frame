@@ -101,6 +101,15 @@ cargo build --release --features ai
 
 # Benchmark against bash script
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --benchmark
+
+# Decode combined portrait filenames to find original images
+./photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
+
+# Find original filename from hash (8-character hex)
+./photoframe-processor --find-hash "a1b2c3d4"
+
+# Dry run mode to simulate processing without creating files
+./photoframe-processor -i ~/Photos -o ~/processed -t 6c --dry-run --verbose
 ```
 
 ### Command Line Options
@@ -124,10 +133,51 @@ cargo build --release --features ai
 | `--debug` | Debug mode: visualize detection boxes | `false` |
 | `--force` | Process all files, bypassing duplicate checks | `false` |
 | `--find-hash <HASH>` | Find original filename for given hash | None |
+| `--find-original <FILENAME>` | Decode combined filename to show original filenames | None |
 | `-j, --jobs <N>` | Number of parallel processing jobs (0 = auto) | `0` |
 | `-v, --verbose` | Enable detailed output | `false` |
 | `--validate-only` | Only validate inputs, don't process | `false` |
 | `--benchmark` | Compare performance against bash script | `false` |
+
+## 🏷️ Filename Organization
+
+The processor uses a **prefixed filename system** to organize output files by processing type:
+
+### Filename Format
+- **Single images**: `{prefix}_{base64_filename}.{ext}`
+- **Combined portraits**: `combined_{prefix}_{base64_file1}_{base64_file2}.{ext}`
+
+### Processing Type Prefixes
+| Prefix | Processing Type | Description |
+|--------|----------------|-------------|
+| `bw` | Black & White | Monochrome dithered images |
+| `6c` | 6-Color | Red, Green, Blue, Yellow, Black, White |
+| `7c` | 7-Color | 6-Color + Orange |
+
+### Examples
+```bash
+# Single image examples
+bw_aW1hZ2U=.bin          # "image.jpg" processed as black & white
+6c_dmFjYXRpb24=.bmp       # "vacation.png" processed as 6-color
+7c_c3Vuc2V0.jpg           # "sunset.heic" processed as 7-color
+
+# Combined portrait examples
+combined_bw_cG9ydHJhaXQx_cG9ydHJhaXQy.bin    # Two portraits combined in black & white
+combined_6c_aW1hZ2Ux_aW1hZ2Uy.bmp            # Two portraits combined in 6-color
+```
+
+### Reverse Lookup
+Use the built-in tools to decode filenames:
+```bash
+# Decode combined filenames
+./photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
+
+# Output:
+# ✓ Successfully decoded combined filename:
+#   Processing Type: Black & White (bw)
+#   Original 1: image1
+#   Original 2: image2
+```
 
 ## 📁 Output Structure
 
@@ -136,20 +186,26 @@ cargo build --release --features ai
 ```
 output_directory/
 ├── bmp/                    # Standard BMP files for preview/debugging
-│   ├── dGVzdF9pbWFnZQ==.bmp
-│   ├── combined_ABC123_DEF456.bmp
+│   ├── bw_dGVzdF9pbWFnZQ==.bmp           # Black & white single image
+│   ├── 6c_dGVzdF9pbWFnZQ==.bmp           # 6-color single image
+│   ├── combined_bw_ABC123_DEF456.bmp     # Black & white combined portrait
+│   ├── combined_6c_ABC123_DEF456.bmp     # 6-color combined portrait
 │   └── ...
 ├── bin/                    # Binary files for ESP32
-│   ├── dGVzdF9pbWFnZQ==.bin
-│   ├── combined_ABC123_DEF456.bin
+│   ├── bw_dGVzdF9pbWFnZQ==.bin           # Black & white single image
+│   ├── 6c_dGVzdF9pbWFnZQ==.bin           # 6-color single image
+│   ├── combined_bw_ABC123_DEF456.bin     # Black & white combined portrait
+│   ├── combined_6c_ABC123_DEF456.bin     # 6-color combined portrait
 │   └── ...
 ├── jpg/                    # Compressed JPEG files for sharing
-│   ├── dGVzdF9pbWFnZQ==.jpg
-│   ├── combined_ABC123_DEF456.jpg
+│   ├── bw_dGVzdF9pbWFnZQ==.jpg           # Black & white single image
+│   ├── 7c_dGVzdF9pbWFnZQ==.jpg           # 7-color single image
+│   ├── combined_7c_ABC123_DEF456.jpg     # 7-color combined portrait
 │   └── ...
 └── png/                    # Lossless PNG files
-    ├── dGVzdF9pbWFnZQ==.png
-    ├── combined_ABC123_DEF456.png
+    ├── bw_dGVzdF9pbWFnZQ==.png           # Black & white single image
+    ├── 6c_dGVzdF9pbWFnZQ==.png           # 6-color single image
+    ├── combined_6c_ABC123_DEF456.png     # 6-color combined portrait
     └── ...
 ```
 
@@ -158,12 +214,17 @@ output_directory/
 ```
 output_directory/
 └── bin/                    # Only binary files
-    ├── dGVzdF9pbWFnZQ==.bin
-    ├── combined_ABC123_DEF456.bin
+    ├── bw_dGVzdF9pbWFnZQ==.bin           # Black & white single image
+    ├── bw_aW1hZ2UyMDI0.bin               # Another black & white image
+    ├── combined_bw_ABC123_DEF456.bin     # Black & white combined portrait
     └── ...
 ```
 
-**Note**: Filenames are base64-encoded versions of original filenames for consistent cross-platform compatibility. Combined portraits use the format `combined_{hash1}_{hash2}` where each hash represents one of the paired portrait images.
+**Note**: Filenames use a prefixed format for organization by processing type:
+- **Single images**: `{prefix}_{base64_filename}.{ext}` (e.g., `bw_dGVzdA==.bin`, `6c_aW1hZ2U=.bmp`)
+- **Combined portraits**: `combined_{prefix}_{base64_file1}_{base64_file2}.{ext}` (e.g., `combined_bw_ABC123_DEF456.bin`)
+- **Prefixes**: `bw` (Black & White), `6c` (6-Color), `7c` (7-Color)
+- **Base64 encoding**: Original filenames are base64-encoded for consistent cross-platform compatibility
 
 ## 🔄 Processing Pipeline
 
@@ -289,6 +350,7 @@ cargo bench
 - [x] **Auto Color Correction**: ✅ Intelligent color/saturation/levels adjustment
 - [x] **Avoid Duplicate Processing**: ✅ Skip already processed images based on image name
 - [x] **Debug Visualization**: ✅ Detection box overlay for AI debugging
+- [x] **Filename Organization**: ✅ Processing type prefixes for organized output files
 - [ ] **GPU Acceleration**: CUDA/OpenCL support for massive performance gains
 - [ ] **Custom Dithering**: Configurable dithering algorithms and patterns
 - [ ] **Batch Resume**: Resume interrupted batch processing

@@ -1,5 +1,5 @@
 #include "google_drive_client.h"
-#include <SD.h>
+#include <SD_MMC.h>
 #include <unistd.h> // For fsync()
 
 // OAuth/Google endpoints
@@ -7,6 +7,7 @@ static const char TOKEN_HOST[] PROGMEM      = "oauth2.googleapis.com";
 static const char TOKEN_PATH[] PROGMEM      = "/token";
 static const char DRIVE_HOST[] PROGMEM      = "www.googleapis.com";
 static const char DRIVE_LIST_PATH[] PROGMEM = "/drive/v3/files";
+static const char DRIVE_FILE_PATH[] PROGMEM = "/drive/v3/files/"; // file ID will be appended
 static const char SCOPE[] PROGMEM           = "https://www.googleapis.com/auth/drive.readonly";
 static const char AUD[] PROGMEM             = "https://oauth2.googleapis.com/token";
 
@@ -566,7 +567,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
     // Build download path with optimized String concatenation
     String path;
     path.reserve(fileId.length() + 30); // "/drive/v3/files/" + "?alt=media"
-    path = "/drive/v3/files/";
+    path = DRIVE_FILE_PATH;
     path += fileId;
     path += "?alt=media";
 
@@ -660,45 +661,20 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
             return error_type::HttpGetFailed;
         }
 
-        // Parse remaining headers to check for chunked encoding
-        bool isChunked     = false;
-        long contentLength = -1;
-        int headerCount    = 0;
-
-        while (true) {
-            String line = client.readStringUntil('\n');
-            line.trim();
-
-            Serial.print(F("[google_drive_client] Header["));
-            Serial.print(headerCount++);
-            Serial.print(F("]: "));
-            Serial.println(line);
-
-            if (line.length() == 0) {
-                Serial.println(F("[google_drive_client] End of headers detected"));
-                break;
-            }
-            if (!client.connected() && !client.available()) {
-                Serial.println(F("[google_drive_client] Connection lost while reading headers"));
-                break;
-            }
-
-            // Check for Transfer-Encoding: chunked
-            if (line.startsWith("Transfer-Encoding:") && line.indexOf("chunked") >= 0) {
-                isChunked = true;
-                Serial.println(F("[google_drive_client] Detected chunked transfer encoding"));
-            }
-            // Check for Content-Length
-            else if (line.startsWith("Content-Length:")) {
-                int colonPos = line.indexOf(':');
-                if (colonPos >= 0) {
-                    String lengthStr = line.substring(colonPos + 1);
-                    lengthStr.trim();
-                    contentLength = lengthStr.toInt();
-                    Serial.print(F("[google_drive_client] Content-Length: "));
-                    Serial.println(contentLength);
+        // Parse HTTP response headers
+        HttpResponseHeaders responseHeaders = parse_http_headers(client, true); // verbose logging for downloads
+        if (!responseHeaders.parseSuccessful) {
+            Serial.println(F("[google_drive_client] Failed to parse HTTP headers"));
+            client.stop();
+            if (attempt < config->maxRetryAttempts - 1) {
+                Serial.println(F("[google_drive_client] Retrying after header parse failure..."));
+                if (!handle_rate_limit_response(attempt)) {
+                    break;
                 }
+                attempt++;
+                continue;
             }
+            return error_type::HttpGetFailed;
         }
 
         // Download file content based on encoding type
@@ -707,7 +683,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
 
         unsigned long startTime = millis();
 
-        if (isChunked) {
+        if (responseHeaders.isChunked) {
             // Handle chunked transfer encoding
             Serial.println(F("[google_drive_client] Reading chunked response"));
             while (client.connected() || client.available()) {
@@ -737,6 +713,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
 
                     if (n > 0) {
                         outFile->write(buf, n);
+                        outFile->flush(); // Ensure data is written to SD card
                         readAny = true;
                         bytesRead += n;
                         remainingInChunk -= n;
@@ -753,15 +730,22 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
                 // Read trailing \r\n after chunk data
                 client.readStringUntil('\n');
             }
+
+            // Flush file buffers after chunked download
+            if (readAny) {
+                Serial.println(F("[google_drive_client] Flushing chunked file buffers to disk..."));
+                outFile->flush();
+                delay(500); // Small delay to ensure flush completes
+            }
         } else {
             // Handle regular (non-chunked) response
             Serial.println(F("[google_drive_client] Reading non-chunked response"));
             uint8_t buf[2048];
-            long remainingBytes = contentLength;
+            long remainingBytes = responseHeaders.contentLength;
 
             while (client.connected() || client.available()) {
                 int toRead = sizeof(buf);
-                if (contentLength > 0 && remainingBytes > 0) {
+                if (responseHeaders.contentLength > 0 && remainingBytes > 0) {
                     toRead = min((long)sizeof(buf), remainingBytes);
                 }
 
@@ -771,7 +755,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
                     readAny = true;
                     bytesRead += n;
 
-                    if (contentLength > 0) {
+                    if (responseHeaders.contentLength > 0) {
                         remainingBytes -= n;
                         if (remainingBytes <= 0) {
                             Serial.println(
@@ -801,6 +785,10 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         client.stop();
 
         if (readAny) {
+            // Ensure all data is flushed to disk before returning success
+            Serial.println(F("[google_drive_client] Flushing file buffers to disk..."));
+            outFile->flush();
+            delay(500); // Small delay to ensure flush completes
             return error_type::None; // Success
         }
 
@@ -849,48 +837,18 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
         return false;
     }
 
-    // Read and parse headers
-    uint16_t headerCount = 0;
-    bool isChunked       = false;
-    int contentLength    = -1;
-
-    while (client.connected()) {
-        String line = client.readStringUntil('\n');
-        if (line == "\r") {
-            break; // End of headers
-        }
-        if (!client.connected() && !client.available()) {
-            break;
-        }
-
-        // Check for Transfer-Encoding: chunked
-        if (line.startsWith("Transfer-Encoding:") || line.startsWith("transfer-encoding:")) {
-            if (line.indexOf("chunked") != -1) {
-                isChunked = true;
-            }
-        }
-
-        // Check for Content-Length
-        if (line.startsWith("Content-Length:") || line.startsWith("content-length:")) {
-            int colonPos = line.indexOf(':');
-            if (colonPos != -1) {
-                String lengthStr = line.substring(colonPos + 1);
-                lengthStr.trim();
-                contentLength = lengthStr.toInt();
-            }
-        }
-
-        // Yield every 10 headers to prevent watchdog timeout
-        if (++headerCount % 10 == 0) {
-            yield();
-        }
+    // Parse HTTP response headers
+    HttpResponseHeaders responseHeaders = parse_http_headers(client, false); // no verbose logging for token requests
+    if (!responseHeaders.parseSuccessful) {
+        Serial.println(F("[google_drive_client] Failed to parse HTTP headers"));
+        return false;
     }
 
     // Read response body based on encoding
     response.body          = "";
     uint32_t bodyBytesRead = 0;
 
-    if (isChunked) {
+    if (responseHeaders.isChunked) {
         Serial.println(F("[google_drive_client] Response uses chunked transfer encoding"));
         // Handle chunked transfer encoding
         while (client.connected() || client.available()) {
@@ -951,7 +909,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
         }
     } else {
         // Handle regular content (with or without Content-Length) using efficient block reading
-        int bytesRemaining = contentLength > 0 ? contentLength : INT_MAX;
+        int bytesRemaining = responseHeaders.contentLength > 0 ? responseHeaders.contentLength : INT_MAX;
         while ((client.connected() || client.available()) && bytesRemaining > 0) {
             // Read data in blocks up to 1024 bytes or remaining content length
             size_t blockSize = min(1024, bytesRemaining);
@@ -968,7 +926,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
             bodyBytesRead += bytesRead;
 
             // If we have Content-Length, track remaining bytes
-            if (contentLength > 0) {
+            if (responseHeaders.contentLength > 0) {
                 bytesRemaining -= bytesRead;
             }
 
@@ -978,7 +936,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
             }
 
             // For responses without Content-Length, break if no more data is immediately available
-            if (contentLength <= 0 && !client.available()) {
+            if (responseHeaders.contentLength <= 0 && !client.available()) {
                 break;
             }
         }
@@ -1469,6 +1427,71 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
     }
 
     return filesWritten;
+}
+
+HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& client, bool verbose) {
+    HttpResponseHeaders headers;
+
+    while (true) {
+        String line = client.readStringUntil('\n');
+        line.trim();
+
+        if (verbose) {
+            Serial.print(F("[google_drive_client] Header["));
+            Serial.print(headers.headerCount);
+            Serial.print(F("]: "));
+            Serial.println(line);
+        }
+
+        // Check for end of headers
+        if (line.length() == 0 || line == "\r") {
+            if (verbose) {
+                Serial.println(F("[google_drive_client] End of headers detected"));
+            }
+            headers.parseSuccessful = true;
+            break;
+        }
+
+        // Check for connection loss
+        if (!client.connected() && !client.available()) {
+            if (verbose) {
+                Serial.println(F("[google_drive_client] Connection lost while reading headers"));
+            }
+            break;
+        }
+
+        // Parse Transfer-Encoding header (case-insensitive)
+        if (line.startsWith("Transfer-Encoding:") || line.startsWith("transfer-encoding:")) {
+            if (line.indexOf("chunked") >= 0) {
+                headers.isChunked = true;
+                if (verbose) {
+                    Serial.println(F("[google_drive_client] Detected chunked transfer encoding"));
+                }
+            }
+        }
+        // Parse Content-Length header (case-insensitive)
+        else if (line.startsWith("Content-Length:") || line.startsWith("content-length:")) {
+            int colonPos = line.indexOf(':');
+            if (colonPos >= 0) {
+                String lengthStr = line.substring(colonPos + 1);
+                lengthStr.trim();
+                headers.contentLength = lengthStr.toInt();
+                if (verbose) {
+                    Serial.print(F("[google_drive_client] Content-Length: "));
+                    Serial.println(headers.contentLength);
+                }
+            }
+        }
+
+        headers.headerCount++;
+
+        // Yield every 10 headers to prevent watchdog timeout
+        if (headers.headerCount % 10 == 0) {
+            yield();
+        }
+    }
+
+    return headers;
 }
 
 } // namespace photo_frame
