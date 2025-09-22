@@ -583,7 +583,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 
         // Reduce RGB brightness if battery is low to save power
         if (battery_info.is_low()) {
-            rgbStatus.setBrightness(48); // Reduce brightness to 50% of normal for low battery
+            rgbStatus.setBrightness(32); // Reduce brightness to 50% of normal for low battery
         }
         if (error == photo_frame::error_type::None) {
             Serial.println(F("Initializing WiFi manager..."));
