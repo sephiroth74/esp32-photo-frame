@@ -10,7 +10,7 @@
   - Real-time system status indication (WiFi, SD operations, Google Drive, rendering, etc.)
   - Battery-aware power management with automatic brightness scaling
   - FreeRTOS task-based smooth animations (50Hz update rate)
-  - Power-efficient design (3-8mA additional current, auto-disabled during sleep)
+  - Ultra power-efficient design (2-5mA additional current, auto-disabled during sleep)
 - **Google Drive Integration**: Primary image source with automatic synchronization and caching from Google Drive folders
 - **SD Card Caching**: Local caching system for improved performance and offline capabilities
 - **Smart Image Processing**: Automatic resizing, annotation, and format conversion
@@ -86,7 +86,7 @@ The FeatherS3 version includes a comprehensive RGB status system using the built
 
 ### Power Management
 - **Battery-Aware**: Automatic brightness reduction when battery is low
-- **Power Efficient**: 3-8mA additional consumption (optimized brightness levels)
+- **Ultra Power Efficient**: 2-5mA additional consumption (ultra-low brightness levels)
 - **Sleep Optimization**: Complete shutdown during deep sleep (0mA impact)
 - **Critical Battery Protection**: RGB system auto-disables to preserve power
 

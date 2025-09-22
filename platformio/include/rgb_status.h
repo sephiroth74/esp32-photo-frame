@@ -18,7 +18,7 @@
  * - 14 predefined status states with optimized colors and effects
  * - Battery-aware power management with automatic brightness scaling
  * - FreeRTOS task-based operation for smooth animations (50Hz update rate)
- * - Power-efficient design (3-8mA additional current consumption)
+ * - Ultra power-efficient design (2-5mA additional current consumption)
  * - Complete shutdown capability for deep sleep power conservation
  * - Hardware power control via GPIO39 (LDO2) for FeatherS3
  *
@@ -38,8 +38,8 @@
  * - CUSTOM: User-defined colors and effects
  *
  * Power Management:
- * - Normal operation: 80-96 brightness levels
- * - Low battery: 48 brightness (automatic reduction)
+ * - Normal operation: 48-64 brightness levels (ultra power-efficient)
+ * - Low battery: 32 brightness (automatic reduction)
  * - Critical battery: Complete RGB disable after warning
  * - Deep sleep: Full shutdown with task termination
  */
@@ -98,7 +98,7 @@ struct StatusConfig {
     uint8_t brightness;      // 0-255
 
     StatusConfig(SystemState s, RGBColor c, RGBEffect e = RGBEffect::SOLID,
-                uint16_t dur = 0, uint8_t bright = 96)
+                uint16_t dur = 0, uint8_t bright = 64)
         : state(s), color(c), effect(e), duration_ms(dur), brightness(bright) {}
 };
 
@@ -180,7 +180,7 @@ public:
      * indications not covered by predefined states.
      */
     void setCustomColor(const RGBColor& color, RGBEffect effect = RGBEffect::SOLID,
-                       uint16_t duration_ms = 0, uint8_t brightness = 96);
+                       uint16_t duration_ms = 0, uint8_t brightness = 64);
 
     /**
      * @brief Set the global brightness level

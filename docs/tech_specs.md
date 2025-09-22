@@ -51,7 +51,7 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **Power Management**: Battery-aware brightness scaling and auto-disable
 - **Architecture**: FreeRTOS task-based with 50Hz update rate
 - **Memory Usage**: 2KB stack allocation for dedicated RGB task
-- **Current Consumption**: 3-8mA additional (power-optimized brightness levels)
+- **Current Consumption**: 2-5mA additional (ultra power-optimized brightness levels)
 
 ### 2. Software Architecture
 
