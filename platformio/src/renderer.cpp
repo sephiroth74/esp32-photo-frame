@@ -770,6 +770,9 @@ void draw_battery_status(photo_frame::battery_info_t battery_info) {
 
 #endif // USE_SENSOR_MAX1704X
 
+    message += " - ";
+    message += String(FIRMWARE_VERSION_STRING);
+
     draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
 }
 

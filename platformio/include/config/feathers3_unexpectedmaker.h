@@ -81,7 +81,7 @@
 
 // Miscellaneous
 #define DEBUG_MODE 0
-#define DEBUG_BATTERY_READER
+// #define DEBUG_BATTERY_READER
 #define DEBUG_BOARD
 
 // Reset handling
