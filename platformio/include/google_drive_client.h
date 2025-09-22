@@ -112,6 +112,18 @@ struct HttpResponse {
 };
 
 /**
+ * @brief Parsed HTTP response headers
+ */
+struct HttpResponseHeaders {
+    bool isChunked;           ///< Whether response uses chunked transfer encoding
+    long contentLength;       ///< Content-Length header value (-1 if not present)
+    int headerCount;          ///< Number of headers parsed
+    bool parseSuccessful;     ///< Whether parsing completed successfully
+
+    HttpResponseHeaders() : isChunked(false), contentLength(-1), headerCount(0), parseSuccessful(false) {}
+};
+
+/**
  * @brief Classification of failure types for retry logic
  */
 enum class failure_type {
@@ -304,6 +316,15 @@ class google_drive_client {
                               const char* host,
                               const char* headers = nullptr,
                               const char* body    = nullptr);
+
+    /**
+     * @brief Parses HTTP response headers from a WiFi client connection.
+     *
+     * @param client WiFiClient to read headers from
+     * @param verbose Whether to log each header for debugging
+     * @return HttpResponseHeaders struct containing parsed header information
+     */
+    HttpResponseHeaders parse_http_headers(WiFiClientSecure& client, bool verbose = false);
 
     // Member variables
 

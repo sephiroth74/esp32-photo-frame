@@ -4,52 +4,56 @@
 // Pin definitions based on FeatherS3 pinout
 // https://feathers3.io/pinout.html
 
-// #define USE_SHARED_SPI // Use shared SPI for SD card and display
-#define USE_HSPI_FOR_EPD // Use separate HSPI bus for e-Paper display
+// Pin definitions for FeatherS3 (ESP32-S3) - Based on actual pinout
+// SD Card - using SD_MMC (SDIO interface) with available pins
+#define SD_MMC_CLK_PIN 14 // SDIO CLK - IO14 (left side)
+#define SD_MMC_D0_PIN 7   // SDIO D0 - IO7 (right side)
+#define SD_MMC_CMD_PIN 17 // SDIO CMD - IO17 (left side)
+#define SD_MMC_D3_PIN 11  // SDIO D3 - IO11 (right side)
+#define SD_MMC_D1_PIN 3   // SDIO D1 - IO3 (right side)
+#define SD_MMC_D2_PIN 12  // SDIO D2 - IO12 (left side)
 
-// Pin definitions for FeatherS3
-// SD Card - using SPI pins
-#define SD_CS_PIN   5  // Available digital pin
-#define SD_MISO_PIN 37 // SPI MISO
-#define SD_MOSI_PIN 35 // SPI MOSI
-#define SD_SCK_PIN  36 // SPI SCK
-
-// e-Paper Display - using SPI pins (shared with SD card)
-#define EPD_BUSY_PIN 6  // Available digital pin
-#define EPD_RST_PIN  7  // Available digital pin
-#define EPD_DC_PIN   8  // Available digital pin
-#define EPD_CS_PIN   4  // Available digital pin
-#define EPD_SCK_PIN  36 // Shared SPI SCK
-#define EPD_MOSI_PIN 35 // Shared SPI MOSI
-#define EPD_MISO_PIN 37 // Shared SPI MISO
+// e-Paper Display - using separate SPI pins to avoid SDIO conflicts
+#define EPD_BUSY_PIN 6   // A4 (IO6) - available digital pin
+#define EPD_RST_PIN  5   // A5 (IO5) - available digital pin
+#define EPD_DC_PIN   10  // IO10 - available digital pin (avoiding SD card pins)
+#define EPD_CS_PIN   38   // IO8 - available digital pin (non-RTC, freeing GPIO1 for wakeup)
+#define EPD_SCK_PIN  36  // SPI SCK pin from pinout
+#define EPD_MOSI_PIN 35  // SPI MO pin from pinout
+#define EPD_MISO_PIN 37  // SPI MI pin from pinout
 
 // Potentiometer pin - using analog pins
-#define POTENTIOMETER_PWR_PIN   10   // Digital pin for power control
-#define POTENTIOMETER_INPUT_PIN A0   // Analog pin A0 (GPIO1)
+#define POTENTIOMETER_PWR_PIN   33   // IO33 - available digital pin for power control
+#define POTENTIOMETER_INPUT_PIN 18   // A0 (IO17) - Analog pin from pinout
 #define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC
 
-// Battery monitoring - FeatherS3 has built-in battery voltage divider
-#define BATTERY_PIN                    A13 // Built-in battery voltage pin (GPIO13)
+// Battery monitoring - FeatherS3 has built-in battery voltage divider on GPIO2
+#define BATTERY_PIN                    2 // Built-in battery voltage pin (GPIO2)
 #define BATTERY_NUM_READINGS           100
 #define BATTERY_DELAY_BETWEEN_READINGS 10
-#define BATTERY_RESISTORS_RATIO        0.5 // FeatherS3 built-in divider ratio
+#define BATTERY_RESISTORS_RATIO 0.2574679943 // FeatherS3 built-in divider ratio
 
-// Built-in LED - FeatherS3 uses RGB LED on pin 40
+// Built-in LED - FeatherS3 uses RGB NeoPixel on GPIO40
 #ifdef LED_BUILTIN
 #undef LED_BUILTIN
 #endif // LED_BUILTIN
 
-#define LED_BUILTIN 13 // FeatherS3 RGB LED (NeoPixel)
+#define LED_BUILTIN 13 // FeatherS3 LED pin
+
+// RGB NeoPixel LED configuration - FeatherS3 built-in
+#define RGB_LED_PIN     40  // GPIO40 - Built-in RGB NeoPixel
+#define RGB_LED_COUNT   1   // Single RGB LED
+#define RGB_LED_PWR_PIN 39  // GPIO39 - NeoPixel power control (LDO2)
 
 // External wakeup configuration
 #define WAKEUP_EXT0
-// Use available RTC GPIO pin for wakeup
-#define WAKEUP_PIN      GPIO_NUM_25
-#define WAKEUP_PIN_MODE INPUT_PULLDOWN // Internal pull-down to prevent floating pin issues
-#define WAKEUP_LEVEL    HIGH
+// Use available RTC GPIO pin for wakeup (ESP32-S3 RTC pins: GPIO0-GPIO21)
+#define WAKEUP_PIN GPIO_NUM_1 // GPIO1 is an RTC IO pin on ESP32-S3 (available)
+#define WAKEUP_PIN_MODE INPUT_PULLUP   // Internal pull-up for button to GND
+#define WAKEUP_LEVEL    LOW            // Button press pulls pin LOW
 
-// ESP32-S3 has many RTC IO pins available for deep sleep wakeup
-// We're using GPIO3 which is definitely an RTC IO pin
+// ESP32-S3 has many RTC IO pins available for deep sleep wakeup (GPIO0-GPIO21)
+// We're using GPIO3 which is confirmed as an RTC IO pin
 
 // Power saving configuration
 #define BATTERY_POWER_SAVING
@@ -78,6 +82,7 @@
 // Miscellaneous
 #define DEBUG_MODE 0
 #define DEBUG_BATTERY_READER
+#define DEBUG_BOARD
 
 // Reset handling
 #define RESET_INVALIDATES_DATE_TIME 1
@@ -110,10 +115,14 @@
 
 #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 250 // Max 1000, but 250 is a good compromise
 
-// Comments about FeatherS3 advantages:
-// 1. No I2C/WiFi coexistence issues (unlike ESP32-C6)
-// 2. Built-in USB-C and battery charging
-// 3. 8MB PSRAM for better image processing
-// 4. More stable network operations
-// 5. Better deep sleep wakeup reliability
-// 6. Native support for concurrent I2C and WiFi operations
+// FeatherS3 (ESP32-S3) advantages:
+// 1. ESP32-S3 with dual core for excellent performance and larger IRAM (solves memory constraints)
+// 2. 8MB PSRAM for improved Google Drive streaming and image processing performance
+// 3. No I2C/WiFi coexistence issues (unlike ESP32-C6)
+// 4. Built-in USB-C and excellent battery charging circuit with JST connector
+// 5. RGB NeoPixel LED (GPIO40) for status indication
+// 6. SDIO interface for faster SD card performance vs SPI mode
+// 7. Built-in voltage divider for clean battery monitoring on A13 (GPIO18)
+// 8. Stable network operations and excellent deep sleep reliability with multiple RTC GPIO pins
+// 9. Native support for concurrent I2C and WiFi operations
+// 10. Premium performance with sufficient memory for all features without IRAM overflow

@@ -1012,7 +1012,7 @@ photo_frame_error_t google_drive::save_access_token_to_file() {
 
     String tokenPath   = string_utils::build_path(config.localPath, ACCESS_TOKEN_FILENAME);
 
-    fs::File tokenFile = SD.open(tokenPath.c_str(), FILE_WRITE);
+    fs::File tokenFile = SD_MMC.open(tokenPath.c_str(), FILE_WRITE);
     if (!tokenFile) {
         Serial.print(F("[google_drive] Failed to create token file: "));
         Serial.println(tokenPath);
@@ -1041,13 +1041,13 @@ photo_frame_error_t google_drive::load_access_token_from_file() {
 
     String tokenPath = string_utils::build_path(config.localPath, ACCESS_TOKEN_FILENAME);
 
-    if (!SD.exists(tokenPath.c_str())) {
+    if (!SD_MMC.exists(tokenPath.c_str())) {
         Serial.print(F("[google_drive] Token file does not exist: "));
         Serial.println(tokenPath);
         return error_type::SdCardFileNotFound;
     }
 
-    fs::File tokenFile = SD.open(tokenPath.c_str(), FILE_READ);
+    fs::File tokenFile = SD_MMC.open(tokenPath.c_str(), FILE_READ);
     if (!tokenFile) {
         Serial.print(F("[google_drive] Failed to open token file: "));
         Serial.println(tokenPath);

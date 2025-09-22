@@ -32,6 +32,7 @@
 #include "errors.h"
 #include "io_utils.h"
 #include "renderer.h"
+#include "rgb_status.h"
 #include "rtc_util.h"
 #include "sd_card.h"
 #include "spi_manager.h"
@@ -63,7 +64,7 @@ photo_frame::battery_reader battery_reader(BATTERY_PIN,
 photo_frame::battery_reader battery_reader;
 #endif // USE_SENSOR_MAX1704X
 
-photo_frame::sd_card sdCard(SD_CS_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_SCK_PIN);
+photo_frame::sd_card sdCard; // SD_MMC uses fixed SDIO pins
 photo_frame::wifi_manager wifiManager;
 #ifdef USE_WEATHER
 photo_frame::weather::WeatherManager weatherManager;
@@ -241,6 +242,7 @@ void setup() {
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
     String original_filename; // Store original filename for format detection
+    RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
     error = handle_google_drive_operations(is_reset, file, original_filename, image_index, total_files, battery_info);
 
     wifiManager.disconnect(); // Disconnect from WiFi to save power
@@ -258,6 +260,7 @@ void setup() {
     Serial.println(F("--------------------------------------"));
 
     delay(100);
+    RGB_SET_STATE(RENDERING); // Show display rendering
     photo_frame::renderer::init_display();
     delay(100);
 
@@ -271,6 +274,7 @@ void setup() {
 
     // Handle errors or process image file
     if (error != photo_frame::error_type::None) {
+        RGB_SET_STATE(ERROR); // Show error status
         display.firstPage();
         do {
             photo_frame::renderer::draw_error(error);
@@ -297,7 +301,9 @@ void setup() {
         );
     }
 
-    // Finalize and enter sleep
+    // Finalize and enter sleep - show sleep preparation with delay
+    RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
+    delay(2500); // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
 }
 
@@ -485,20 +491,18 @@ bool initialize_hardware() {
 
     startupTime = millis();
 
-#if DEBUG_MODE
     delay(1000);
-#endif
-
-#if HAS_RGB_LED
-    Serial.println(F("Initializing RGB LED..."));
-    pinMode(LED_BLUE, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
-    pinMode(LED_RED, OUTPUT);
-#endif // HAS_RGB_LED
 
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
-    photo_frame::board_utils::disable_rgb_led(); // Disable RGB LED to save power
+
+    // Initialize RGB status system (FeatherS3 NeoPixel)
+    Serial.println(F("[RGB] Initializing RGB status system..."));
+    if (!rgbStatus.begin()) {
+        Serial.println(F("[RGB] Warning: Failed to initialize RGB status system"));
+    } else {
+        RGB_SET_STATE(STARTING); // Show startup indication
+    }
 
     Serial.println(F("------------------------------"));
     Serial.print(F("Photo Frame "));
@@ -506,7 +510,10 @@ bool initialize_hardware() {
     Serial.println(F("------------------------------"));
 
     photo_frame::board_utils::print_board_stats();
+
+#if DEBUG_MODE
     photo_frame::board_utils::print_board_pins();
+#endif // DEBUG_MODE
 
     return true;
 }
@@ -545,6 +552,12 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
 #endif                                                             // BATTERY_POWER_SAVING
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
+        RGB_SET_STATE_TIMED(BATTERY_LOW, 3000); // Show battery critical warning briefly
+
+        // Disable RGB after warning to save maximum power
+        delay(3500);
+        rgbStatus.disable();
+        Serial.println(F("[RGB] Disabled RGB LED to conserve battery power"));
     }
 
     return true; // Battery level allows continued operation
@@ -565,9 +578,16 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
     Serial.println(F("--------------------------------------"));
 
     if (!battery_info.is_critical()) {
+        RGB_SET_STATE(SD_READING); // Show SD card operations
         error = sdCard.begin();
+
+        // Reduce RGB brightness if battery is low to save power
+        if (battery_info.is_low()) {
+            rgbStatus.setBrightness(48); // Reduce brightness to 50% of normal for low battery
+        }
         if (error == photo_frame::error_type::None) {
             Serial.println(F("Initializing WiFi manager..."));
+            RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
             error = wifiManager.init(WIFI_FILENAME, sdCard);
 
 #ifdef USE_WEATHER
@@ -592,6 +612,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
                     if (weatherManager.is_configured() && !batteryConservationMode &&
                         weatherManager.needs_update(battery_info.percent)) {
                         Serial.println(F("Fetching weather data during WiFi session..."));
+                        RGB_SET_STATE(WEATHER_FETCHING); // Show weather fetching status
                         if (weatherManager.fetch_weather()) {
                             Serial.println(F("Weather data updated successfully"));
                             weatherManager.reset_failures(); // Reset failure count on success
@@ -614,6 +635,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
                 }
             } else {
                 Serial.println(F("WiFi initialization failed"));
+                RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
             }
         } else {
             Serial.println(F("Skipping datetime fetch due to SD card error!"));
@@ -929,8 +951,11 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
                               DateTime& now,
                               esp_sleep_wakeup_cause_t wakeup_reason,
                               const refresh_delay_t& refresh_delay) {
-    photo_frame::board_utils::disable_rgb_led();
-    delay(1000);
+    // Shutdown RGB status system to save power during sleep
+    Serial.println(F("[RGB] Shutting down RGB status system for sleep"));
+    rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
+
+    delay(500);
     photo_frame::renderer::power_off();
 
     // now go to sleep using the pre-calculated refresh delay

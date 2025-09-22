@@ -37,16 +37,6 @@ namespace spi_manager {
 class SPIManager {
   public:
     /**
-     * @brief Configure SPI pins for SD card operations
-     */
-    static void configure_spi_for_sd();
-
-    /**
-     * @brief Configure SPI pins for e-paper display operations
-     */
-    static void configure_spi_for_epd();
-
-    /**
      * @brief Initialize LittleFS if not already mounted
      * @return true if LittleFS is ready, false on error
      */

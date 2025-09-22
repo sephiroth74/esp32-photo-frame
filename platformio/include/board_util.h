@@ -100,31 +100,6 @@ void print_board_stats();
 void print_board_pins();
 
 /**
- * @brief Disables the RGB LED by setting all color pins to LOW.
- *
- * Turns off all RGB LED components (red, green, blue) by setting their
- * corresponding GPIO pins to LOW state. Only available on boards with
- * RGB LED support.
- *
- * @note This function only operates if RGB LED pins are defined in the board config
- */
-void disable_rgb_led();
-
-/**
- * @brief Toggles the RGB LED to display the specified color combination.
- *
- * Controls the RGB LED by setting the individual color components on or off.
- * Multiple colors can be combined to create different colors (e.g., red+green=yellow).
- *
- * @param red If true, turns on the red LED component
- * @param green If true, turns on the green LED component
- * @param blue If true, turns on the blue LED component
- * @note This function only operates if RGB LED pins are defined in the board config
- * @note All parameters default to false (LED off)
- */
-void toggle_rgb_led(bool red = false, bool green = false, bool blue = false);
-
-/**
  * @brief Disables the built-in LED by setting its pin to LOW.
  *
  * Turns off the ESP32's built-in LED (usually connected to GPIO 2) by
@@ -147,54 +122,6 @@ void disable_built_in_led();
  */
 void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
 
-/**
- * @brief Blinks the built-in LED according to error code for debugging.
- *
- * Uses the error code to determine the number of blinks, providing a visual
- * indication of different error types. The LED blinks a number of times
- * corresponding to the error code.
- *
- * @param error The error containing the code used for blink count
- * @note Blink count is derived from the error code modulo 10
- * @note This function blocks execution during the blinking sequence
- */
-void blink_builtin_led(photo_frame_error_t error);
-
-/**
- * @brief Blinks the RGB LED with specified color and timing pattern.
- *
- * Creates a visual indicator using the RGB LED with configurable color
- * and timing. Useful for status indication and debugging with color coding.
- *
- * @param count The number of times to blink the LED
- * @param red If true, includes red component in the blink color
- * @param green If true, includes green component in the blink color
- * @param blue If true, includes blue component in the blink color
- * @param on_ms The duration in milliseconds to keep the LED on (default: 100ms)
- * @param off_ms The duration in milliseconds to keep the LED off (default: 300ms)
- * @note This function blocks execution during the blinking sequence
- * @note Only available on boards with RGB LED support
- */
-void blink_rgb_led(uint32_t count,
-                   bool red,
-                   bool green,
-                   bool blue,
-                   unsigned long on_ms  = 100,
-                   unsigned long off_ms = 300);
-
-/**
- * @brief Blinks the RGB LED with color coding based on error category.
- *
- * Uses the error category to determine the LED color, providing visual
- * feedback about different types of errors. Different error categories
- * map to different colors for easy identification.
- *
- * @param error The error containing category and code information
- * @note Color mapping: Network=Red, Storage=Blue, Battery=Yellow, etc.
- * @note Blink count is derived from the error code
- * @note This function blocks execution during the blinking sequence
- */
-void blink_rgb_led(photo_frame_error_t error);
 
 /**
  * @brief Reads the refresh interval from potentiometer, adjusting for battery level.

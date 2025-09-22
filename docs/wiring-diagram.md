@@ -1,6 +1,58 @@
 # ESP32 Photo Frame - Wiring Diagram
 
-This document provides comprehensive wiring instructions for the ESP32 Photo Frame project using the **DFRobot FireBeetle 2 ESP32-C6** development board.
+This document provides comprehensive wiring instructions for the ESP32 Photo Frame project. **Version 0.5.0** defaults to the **Unexpected Maker FeatherS3** with full RGB status system support. Alternative wiring for **DFRobot FireBeetle 2 ESP32-C6** is also provided.
+
+## 🥇 FeatherS3 Configuration (Default - v0.5.0)
+
+### FeatherS3 Hardware Components
+1. **Unexpected Maker FeatherS3** - ESP32-S3 with built-in NeoPixel and 8MB PSRAM
+2. **7.5" E-Paper Display** - Waveshare or Good Display DESPI-C02 (800x480)
+3. **MicroSD Card Module** - For image storage and configuration
+4. **10kΩ Potentiometer** - Manual refresh rate control
+5. **Push Button** - External wakeup trigger
+6. **5000mAh LiPo Battery** - Power source (JST connector)
+
+### FeatherS3 Pin Configuration
+
+Based on the configuration in `platformio/include/config/feathers3_unexpectedmaker.h`:
+
+| Component | FeatherS3 Pin | Function | Direction | Notes |
+|-----------|---------------|----------|-----------|-------|
+| **SD Card (SD_MMC/SDIO)** |
+| CLK | GPIO14 | SDIO Clock | Output | High-speed SDIO interface |
+| CMD | GPIO17 | SDIO Command | Bidirectional | Command/response line |
+| D0 | GPIO7 | SDIO Data 0 | Bidirectional | Data line 0 |
+| D1 | GPIO3 | SDIO Data 1 | Bidirectional | Data line 1 |
+| D2 | GPIO12 | SDIO Data 2 | Bidirectional | Data line 2 |
+| D3 | GPIO11 | SDIO Data 3 | Bidirectional | Data line 3 |
+| **E-Paper Display (SPI)** |
+| SCK | GPIO36 | SPI Clock | Output | Dedicated SPI bus |
+| MOSI | GPIO35 | SPI Data Out | Output | Master out, slave in |
+| MISO | GPIO37 | SPI Data In | Input | Master in, slave out |
+| CS | GPIO38 | Chip Select | Output | Device selection |
+| DC | GPIO10 | Data/Command | Output | Data/command selection |
+| RST | GPIO5 | Reset | Output | Display reset |
+| BUSY | GPIO6 | Busy Signal | Input | Display busy status |
+| **System Controls** |
+| WAKEUP | GPIO1 | Wakeup Button | Input | Deep sleep wakeup (RTC GPIO) |
+| BATTERY | GPIO2 | Battery Monitor | Analog | Built-in voltage divider |
+| RGB LED | GPIO40 | NeoPixel Data | Output | Built-in RGB status LED |
+| RGB PWR | GPIO39 | NeoPixel Power | Output | LED power control (LDO2) |
+| LED | GPIO13 | Status LED | Output | Built-in LED |
+| **Potentiometer** |
+| PWR | GPIO33 | Pot Power | Output | Power control |
+| INPUT | GPIO18 | Pot Reading | Analog | Refresh rate control |
+
+### FeatherS3 Wiring Notes
+- **RGB Status System**: Built-in NeoPixel provides visual feedback (no external wiring needed)
+- **Battery Management**: Built-in JST connector and voltage monitoring
+- **Deep Sleep Wakeup**: Button between GPIO1 and GND (internal pull-up enabled)
+- **SD Card**: Uses high-speed SD_MMC (SDIO) interface for better performance
+- **Separate SPI Buses**: SD card uses SDIO, e-paper uses dedicated SPI pins
+
+---
+
+## Alternative: ESP32-C6 Configuration
 
 ## Hardware Components
 

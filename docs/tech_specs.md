@@ -7,9 +7,11 @@ This document describes the complete flow and architecture of the ESP32 Photo Fr
 The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information and weather display. It uses **Google Drive** as the primary image source with comprehensive local SD card caching for improved performance and offline capabilities.
 
 ### Key Features
+- **🎨 RGB Status System** (v0.5.0): Visual feedback using built-in NeoPixel LED with 14 predefined status states
 - **Google Drive cloud storage**: Primary image source with SD card caching
 - **Weather display**: Real-time weather overlay with configurable units and timezone
-- **Smart power management**: Battery-aware refresh intervals and features
+- **Smart power management**: Battery-aware refresh intervals and features with RGB integration
+- **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup
 - **Status information**: Time, image count, battery level, and charging status
 - **Multiple display formats**: Black & white, 6-color, and 7-color e-paper support
 
@@ -18,11 +20,16 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 ### 1. Hardware Components
 
 #### ESP32 Microcontroller Options
-- **Unexpected Maker FeatherS3** (ESP32-S3) - **Default with PSRAM optimization**
-- **Arduino Nano ESP32** (ESP32-S3)
-- **DFRobot FireBeetle 2 ESP32-C6** 
-- **Seeed Studio XIAO ESP32C6**
-- **Waveshare ESP32-S3-Zero**
+- **🥇 Unexpected Maker FeatherS3** (ESP32-S3) - **Default with full optimization (v0.5.0)**
+  - **8MB PSRAM**, 16MB Flash, dual-core ESP32-S3
+  - **Built-in RGB NeoPixel**: Visual status feedback system
+  - **Enhanced Deep Sleep**: Proper RTC GPIO wakeup configuration
+  - **Optimized Pin Layout**: SD_MMC (SDIO) + dedicated e-paper SPI
+  - **Power Management**: Built-in battery management with voltage monitoring
+- **Arduino Nano ESP32** (ESP32-S3) - Alternative ESP32-S3 option
+- **DFRobot FireBeetle 2 ESP32-C6** - ESP32-C6 with I2C/WiFi coexistence issues
+- **Seeed Studio XIAO ESP32C6** - Compact ESP32-C6 form factor
+- **Waveshare ESP32-S3-Zero** - Minimal ESP32-S3 board
 
 #### Display
 - **7.5" E-Paper Display** (Waveshare or Good Display DESPI-C02)
@@ -36,13 +43,23 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **RTC Module**: DS3231 Real-Time Clock (optional)
 - **Potentiometer**: Manual refresh rate control
 
+#### RGB Status System (v0.5.0)
+- **Hardware**: Built-in NeoPixel LED on FeatherS3 (GPIO40)
+- **Power Control**: GPIO39 (LDO2) for hardware power management
+- **Status States**: 14 predefined system operation indicators
+- **Effects**: Solid, pulse, blink (slow/fast), fade in/out, rainbow
+- **Power Management**: Battery-aware brightness scaling and auto-disable
+- **Architecture**: FreeRTOS task-based with 50Hz update rate
+- **Memory Usage**: 2KB stack allocation for dedicated RGB task
+- **Current Consumption**: 3-8mA additional (power-optimized brightness levels)
+
 ### 2. Software Architecture
 
 #### ESP32 Firmware (PlatformIO/Arduino)
 - **Location**: `platformio/`
 - **Main Entry**: `src/main.cpp`
 - **Framework**: Arduino Framework
-- **Key Libraries**: GxEPD2, ArduinoJson, RTClib, Adafruit MAX1704X
+- **Key Libraries**: GxEPD2, ArduinoJson, RTClib, Adafruit MAX1704X, Adafruit NeoPixel
 
 #### Android Companion App
 - **Location**: `android/PhotoFrameProcessor/`

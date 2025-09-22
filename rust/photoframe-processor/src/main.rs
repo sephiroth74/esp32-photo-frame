@@ -27,6 +27,112 @@ impl From<ColorType> for ProcessingType {
     }
 }
 
+/// Handle find hash functionality - find original filename from hash
+fn handle_find_hash(hash: &str, _args: &Args) -> Result<()> {
+    use std::collections::HashMap;
+
+    println!(
+        "{}",
+        style(format!(
+            "Finding original filename for hash: {}",
+            hash
+        ))
+        .bold()
+        .cyan()
+    );
+    println!();
+
+    // Validate hash format (should be 8 hex characters)
+    if hash.len() != 8 {
+        return Err(anyhow::anyhow!(
+            "Invalid hash length '{}'. Expected 8 characters, got {}",
+            hash, hash.len()
+        ));
+    }
+
+    if !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(anyhow::anyhow!(
+            "Invalid hash format '{}'. Hash must contain only hexadecimal characters (0-9, a-f)",
+            hash
+        ));
+    }
+
+    println!("{}",
+        style("Searching for matching filenames...")
+            .dim()
+    );
+    println!();
+
+    // This is a demonstration - in a real implementation, you would:
+    // 1. Search through common directories for image files
+    // 2. Generate hashes for each filename found
+    // 3. Compare with the target hash
+    // 4. Return matching original filename(s)
+
+    // For now, show the concept with some example mappings
+    let mut example_mappings = HashMap::new();
+    example_mappings.insert("a1b2c3d4", "vacation_2023.jpg");
+    example_mappings.insert("e5f6g7h8", "birthday_party.png");
+    example_mappings.insert("12345678", "sunset_beach.heic");
+    example_mappings.insert("abcdef01", "family_photo.jpg");
+
+    if let Some(original_filename) = example_mappings.get(hash) {
+        println!("{}",
+            style("✓ Found matching original filename!")
+                .green()
+                .bold()
+        );
+        println!();
+        println!("  {}: {}",
+            style("Hash").bold().cyan(),
+            style(hash).bold().yellow()
+        );
+        println!("  {}: {}",
+            style("Original").bold().cyan(),
+            style(original_filename).bold().green()
+        );
+        println!();
+        println!("{}",
+            style("Note: This is a demonstration with sample data.")
+                .dim()
+        );
+        println!("{}",
+            style("In a full implementation, this would search your actual image directories.")
+                .dim()
+        );
+    } else {
+        println!("{}",
+            style("No matching filename found for this hash.")
+                .yellow()
+                .bold()
+        );
+        println!();
+        println!("{}",
+            style("The hash lookup feature would:")
+                .dim()
+        );
+        println!("{}",
+            style("1. Scan specified directories for image files")
+                .dim()
+        );
+        println!("{}",
+            style("2. Generate 8-character hashes for each filename")
+                .dim()
+        );
+        println!("{}",
+            style("3. Return the original filename if hash matches")
+                .dim()
+        );
+        println!();
+        println!("{}",
+            style("Usage: photoframe-processor --find-hash <8-char-hex>")
+                .dim()
+        );
+    }
+
+    Ok(())
+}
+
 /// Handle find original functionality - decode combined filenames
 fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
     use base64::{engine::general_purpose, Engine as _};
@@ -42,10 +148,10 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
     );
     println!();
 
-    // Parse the combined filename format: combined_BASE64_BASE64.bin
+    // Parse the combined filename format: combined_PREFIX_BASE64_BASE64.bin
     if !combined_filename.starts_with("combined_") {
         return Err(anyhow::anyhow!(
-            "Invalid combined filename '{}'. Expected format: 'combined_BASE64_BASE64.bin'",
+            "Invalid combined filename '{}'. Expected format: 'combined_PREFIX_BASE64_BASE64.bin'",
             combined_filename
         ));
     }
@@ -54,23 +160,31 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
     let without_prefix = &combined_filename[9..]; // Skip "combined_"
     let without_suffix = if without_prefix.ends_with(".bin") {
         &without_prefix[..without_prefix.len() - 4] // Remove ".bin"
+    } else if without_prefix.ends_with(".bmp") {
+        &without_prefix[..without_prefix.len() - 4] // Remove ".bmp"
+    } else if without_prefix.ends_with(".jpg") {
+        &without_prefix[..without_prefix.len() - 4] // Remove ".jpg"
+    } else if without_prefix.ends_with(".png") {
+        &without_prefix[..without_prefix.len() - 4] // Remove ".png"
     } else {
         without_prefix
     };
 
-    // Split by underscore to get the two base64 parts
+    // Split by underscore to get the prefix and two base64 parts
     let parts: Vec<&str> = without_suffix.split('_').collect();
-    if parts.len() != 2 {
+    if parts.len() != 3 {
         return Err(anyhow::anyhow!(
-            "Invalid combined filename format '{}'. Expected exactly 2 base64 parts separated by '_'",
+            "Invalid combined filename format '{}'. Expected exactly 3 parts: PREFIX_BASE64_BASE64",
             combined_filename
         ));
     }
 
-    // Decode the base64 parts
-    let first_encoded = parts[0];
-    let second_encoded = parts[1];
+    // Extract processing type prefix and base64 parts
+    let processing_prefix = parts[0];
+    let first_encoded = parts[1];
+    let second_encoded = parts[2];
 
+    println!("Processing type: {}", style(processing_prefix).cyan());
     println!("Encoded parts:");
     println!("  First:  {}", style(first_encoded).yellow());
     println!("  Second: {}", style(second_encoded).yellow());
@@ -114,13 +228,27 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
         }
     };
 
+    // Validate and display processing type
+    use image_processing::ProcessingType;
+    let processing_type_desc = match ProcessingType::from_prefix(processing_prefix) {
+        Some(ProcessingType::BlackWhite) => "Black & White",
+        Some(ProcessingType::SixColor) => "6-Color",
+        Some(ProcessingType::SevenColor) => "7-Color",
+        None => "Unknown",
+    };
+
     // Display results
     println!("{}",
-        style("✓ Successfully decoded original filenames:")
+        style("✓ Successfully decoded combined filename:")
             .green()
             .bold()
     );
     println!();
+    println!("  {}: {} ({})",
+        style("Processing Type").bold().cyan(),
+        style(processing_type_desc).bold().magenta(),
+        style(processing_prefix).dim()
+    );
     println!("  {}: {}",
         style("Original 1").bold().cyan(),
         style(&first_decoded).bold().green()
@@ -135,6 +263,10 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
     println!("{}",
         style("Decoding process:")
             .dim()
+    );
+    println!("  {} → {} (processing type)",
+        style(processing_prefix).dim(),
+        style(processing_type_desc).dim()
     );
     println!("  {} → {}",
         style(first_encoded).dim(),
@@ -159,6 +291,12 @@ fn main() -> Result<()> {
     );
     println!("{}", style("High-performance Rust implementation").dim());
     println!();
+
+    // Handle find hash mode (dry-run doesn't apply here)
+    if let Some(hash) = &args.find_hash {
+        handle_find_hash(hash, &args)?;
+        return Ok(());
+    }
 
     // Handle find original mode (dry-run doesn't apply here)
     if let Some(combined_filename) = &args.find_original {

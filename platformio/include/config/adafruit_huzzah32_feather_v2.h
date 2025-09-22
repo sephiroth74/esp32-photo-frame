@@ -4,26 +4,24 @@
 // Pin definitions based on Adafruit Huzzah32 Feather v2 pinout
 // https://learn.adafruit.com/adafruit-huzzah32-esp32-feather/pinouts
 
-// ESP32 has separate SPI buses available
-// #define USE_SHARED_SPI // Not needed - can use separate SPI buses
-#define USE_HSPI_FOR_EPD // Use separate HSPI bus for e-Paper display
-// #define USE_HSPI_FOR_EPD // Use separate HSPI bus for e-Paper display
-
 // Pin definitions for Adafruit Huzzah32 Feather v2
-// SD Card - using dedicated SPI pins
-#define SD_SCK_PIN  5   // SPI SCK
-#define SD_MISO_PIN 21  // SPI MISO
-#define SD_MOSI_PIN 19  // SPI MOSI 
-#define SD_CS_PIN   22  // Available digital pin on Feather
+// SD Card - using SD_MMC (SDIO interface) with custom pins
+// Default SDIO pins modified to avoid conflicts (GPIO2 is NeoPixel LED):
+#define SD_MMC_CLK_PIN  14  // SDIO CLK
+#define SD_MMC_CMD_PIN  15  // SDIO CMD
+#define SD_MMC_D0_PIN   7   // SDIO D0 (moved from GPIO2 due to NeoPixel conflict)
+#define SD_MMC_D1_PIN   4   // SDIO D1
+#define SD_MMC_D2_PIN   12  // SDIO D2
+#define SD_MMC_D3_PIN   13  // SDIO D3
 
-// e-Paper Display - using separate SPI pins (no sharing needed)
-#define EPD_BUSY_PIN 14  // Available digital pin
-#define EPD_RST_PIN  27  // Available digital pin  
+// e-Paper Display - reassigned to avoid SDIO pin conflicts
+#define EPD_BUSY_PIN 26  // A1 pin (reassigned from GPIO14 for SDIO CLK)
+#define EPD_RST_PIN  27  // Available digital pin
 #define EPD_DC_PIN   33  // Available digital pin
 #define EPD_CS_PIN   32  // Available digital pin
-#define EPD_SCK_PIN  15  // Separate SPI SCK for display
-#define EPD_MOSI_PIN 12  // Separate SPI MOSI for display
-#define EPD_MISO_PIN -1  // Separate SPI MISO for display
+#define EPD_SCK_PIN  5  // Reassigned from GPIO15 for SDIO CMD
+#define EPD_MOSI_PIN 19  // SDA pin (reassigned from GPIO12 for SDIO D2)
+#define EPD_MISO_PIN -1  // Not needed for e-Paper display
 
 // Potentiometer pin - using analog pins
 #define POTENTIOMETER_PWR_PIN   20   // Digital pin for power control (moved from GPIO36)
@@ -32,18 +30,18 @@
 
 // Battery monitoring - Huzzah32 Feather v2 has built-in battery voltage divider
 // Connected to A13 (GPIO 13) through a voltage divider (100K + 100K = 2:1 ratio)
-#define BATTERY_PIN                    35 // Built-in battery voltage pin (GPIO13)
+#define BATTERY_PIN                    35 // Built-in battery voltage pin
 #define BATTERY_NUM_READINGS           100
 #define BATTERY_DELAY_BETWEEN_READINGS 10
 #define BATTERY_RESISTORS_RATIO        0.4933491686 // Adafruit Feather 2:1 voltage divider (100K/100K)
 
 
-// Built-in LED - Huzzah32 Feather v2 has built-in LED
+// Built-in LED - reassigned to avoid SDIO pin conflict
 #ifdef LED_BUILTIN
 #undef LED_BUILTIN
 #endif // LED_BUILTIN
 
-#define LED_BUILTIN 13 // Built-in LED pin
+#define LED_BUILTIN 0 // Reassigned from GPIO13 to GPIO0 (boot button, avoids SDIO D3 conflict)
 
 // External wakeup configuration
 // #define WAKEUP_EXT1
@@ -119,7 +117,7 @@
 // 3. No I2C/WiFi coexistence issues (unlike ESP32-C6)
 // 4. Built-in micro-USB and excellent battery charging circuit with JST connector
 // 5. Feather form factor with extensive ecosystem compatibility
-// 6. Separate SPI buses eliminate the need for USE_SHARED_SPI
+// 6. SD_MMC (SDIO) support for faster SD card performance vs SPI
 // 7. Built-in voltage divider for clean battery monitoring
 // 8. Stable network operations and excellent deep sleep reliability
 // 9. Native support for concurrent I2C and WiFi operations

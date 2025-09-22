@@ -77,6 +77,12 @@ Example Usage:
   # Process images with filename annotations enabled
   photoframe-processor -i ~/Photos -o ~/processed --auto --annotate
 
+  # Find original filename from an 8-character hash
+  photoframe-processor --find-hash a1b2c3d4
+
+  # Decode combined portrait filename to show original filenames
+  photoframe-processor --find-original combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin
+
   # Dry run mode: simulate processing without creating files
   photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose"
 )]
@@ -85,7 +91,7 @@ pub struct Args {
     #[arg(
         short = 'i',
         long = "input",
-        required_unless_present = "find_original",
+        required_unless_present_any = ["find_original", "find_hash"],
         value_name = "DIR|FILE"
     )]
     pub input_paths: Vec<PathBuf>,
@@ -94,7 +100,7 @@ pub struct Args {
     #[arg(
         short = 'o',
         long = "output",
-        required_unless_present = "find_original",
+        required_unless_present_any = ["find_original", "find_hash"],
         value_name = "DIR",
         default_value = "."
     )]
@@ -176,9 +182,13 @@ pub struct Args {
     #[arg(long = "force")]
     pub force: bool,
 
-    /// Find original filenames from a combined filename (e.g., 'combined_BASE64_BASE64.bin')
+    /// Find original filenames from a combined filename (e.g., 'combined_bw_BASE64_BASE64.bin')
     #[arg(long = "find-original", value_name = "FILENAME")]
     pub find_original: Option<String>,
+
+    /// Find original filename for given hash (8-character hex hash)
+    #[arg(long = "find-hash", value_name = "HASH")]
+    pub find_hash: Option<String>,
 
     /// Enable debug mode: visualize detection boxes and crop area without processing
     #[arg(long = "debug")]
@@ -372,6 +382,7 @@ impl Default for Args {
             python_script_path: None,
             force: false,
             find_original: None,
+            find_hash: None,
             debug: false,
             annotate: false,
             auto_color_correct: false,

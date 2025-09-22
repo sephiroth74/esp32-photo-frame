@@ -29,7 +29,7 @@
 #include <ArduinoJson.h>
 #include <FS.h>
 #include <HTTPClient.h>
-#include <SD.h>
+#include <SD_MMC.h>
 #include <WiFi.h>
 #include <assets/icons/icons.h>
 
