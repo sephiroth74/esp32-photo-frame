@@ -247,6 +247,28 @@ namespace board_utils {
         Serial.println(ESP.getFreeSketchSpace());
         Serial.print(F("[board_util] Free PSRAM: "));
         Serial.println(ESP.getFreePsram());
+        Serial.print(F("[board_util] PSRAM Size: "));
+        Serial.println(ESP.getPsramSize());
+
+        // Additional PSRAM diagnostics
+        #ifdef BOARD_HAS_PSRAM
+        Serial.println(F("[board_util] BOARD_HAS_PSRAM is defined"));
+        #else
+        Serial.println(F("[board_util] BOARD_HAS_PSRAM is NOT defined"));
+        #endif
+
+        #ifdef CONFIG_SPIRAM_SUPPORT
+        Serial.println(F("[board_util] CONFIG_SPIRAM_SUPPORT is defined"));
+        #else
+        Serial.println(F("[board_util] CONFIG_SPIRAM_SUPPORT is NOT defined"));
+        #endif
+
+        // Check if PSRAM is actually available
+        if (ESP.getPsramSize() > 0) {
+            Serial.println(F("[board_util] PSRAM detected and available"));
+        } else {
+            Serial.println(F("[board_util] WARNING: PSRAM not detected - check hardware/configuration"));
+        }
         Serial.print(F("[board_util] Chip Model: "));
         Serial.println(ESP.getChipModel());
         Serial.print(F("[board_util] Chip Revision: "));

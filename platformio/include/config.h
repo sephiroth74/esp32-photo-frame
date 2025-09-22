@@ -112,6 +112,16 @@
 // a wakeup reason)
 // #define DELAY_BEFORE_SLEEP 20000
 
+// -------------------------------------------
+// RGB NeoPixel LED
+// -------------------------------------------
+// Enable/disable RGB status system
+// #define RGB_STATUS_ENABLED
+
+// RGB NeoPixel LED configuration
+// #define RGB_LED_PIN 40 // GPIO40 - Built-in RGB NeoPixel
+// #define RGB_LED_COUNT 1 // Single RGB LED
+
 // -----------------------------
 // Wake up pin
 // -----------------------------

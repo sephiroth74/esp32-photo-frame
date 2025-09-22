@@ -107,7 +107,6 @@ photo_frame_error_t sd_card::begin() {
     Serial.println("[sdcard] Initializing SD card using SD_MMC (SDIO)...");
     Serial.println("[sdcard] Using SD_MMC (SDIO) interface with custom pins:");
     Serial.println("[sdcard] CLK: GPIO14, CMD: GPIO17, D0: GPIO7, D1: GPIO3, D2: GPIO12, D3: GPIO11");
-    Serial.println("[sdcard] Note: D0 moved from GPIO2 to GPIO7 to avoid NeoPixel LED conflict");
 
     // Configure custom SDIO pins before initialization
     SD_MMC.setPins(SD_MMC_CLK_PIN, SD_MMC_CMD_PIN, SD_MMC_D0_PIN, SD_MMC_D1_PIN, SD_MMC_D2_PIN, SD_MMC_D3_PIN);

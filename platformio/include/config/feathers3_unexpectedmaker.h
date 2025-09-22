@@ -43,7 +43,7 @@
 // RGB NeoPixel LED configuration - FeatherS3 built-in
 #define RGB_LED_PIN     40  // GPIO40 - Built-in RGB NeoPixel
 #define RGB_LED_COUNT   1   // Single RGB LED
-#define RGB_LED_PWR_PIN 39  // GPIO39 - NeoPixel power control (LDO2)
+// #define LED_PWR_PIN 39      // Led power control pin (GPIO39)
 
 // External wakeup configuration
 #define WAKEUP_EXT0
