@@ -1,0 +1,2 @@
+# This file ensures the SPIFFS partition is properly initialized
+# LittleFS will be formatted and mounted automatically by the firmware

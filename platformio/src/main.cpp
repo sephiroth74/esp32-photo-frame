@@ -26,6 +26,10 @@
 #include <LittleFS.h>
 #include <Preferences.h>
 
+#ifdef BOARD_HAS_PSRAM
+#include "esp32/spiram.h"
+#endif // BOARD_HAS_PSRAM
+
 #include "battery.h"
 #include "board_util.h"
 #include "config.h"
@@ -33,14 +37,16 @@
 #include "io_utils.h"
 #include "renderer.h"
 #include "rgb_status.h"
+
 #include "rtc_util.h"
 #include "sd_card.h"
 #include "spi_manager.h"
 #include "string_utils.h"
 #include "wifi_manager.h"
+
 #ifdef USE_WEATHER
 #include "weather.h"
-#endif
+#endif // USE_WEATHER
 
 #include <assets/icons/icons.h>
 
@@ -496,6 +502,36 @@ bool initialize_hardware() {
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
 
+#ifdef LED_PWR_PIN
+    pinMode(LED_PWR_PIN, OUTPUT);
+    digitalWrite(LED_PWR_PIN, LOW);
+#endif // LED_PWR_PIN
+
+#ifdef BOARD_HAS_PSRAM
+    // Explicit PSRAM initialization
+    Serial.println(F("[PSRAM] Initializing PSRAM..."));
+    esp_err_t ret = esp_spiram_init();
+    if (ret != ESP_OK) {
+        Serial.print(F("[PSRAM] Failed to initialize PSRAM: "));
+        Serial.println(esp_err_to_name(ret));
+    } else {
+        Serial.println(F("[PSRAM] PSRAM initialized successfully"));
+
+        // Add PSRAM to heap allocator
+        ret = esp_spiram_add_to_heapalloc();
+        if (ret != ESP_OK) {
+            Serial.print(F("[PSRAM] Failed to add PSRAM to heap: "));
+            Serial.println(esp_err_to_name(ret));
+        } else {
+            Serial.println(F("[PSRAM] PSRAM added to heap successfully"));
+            Serial.print(F("[PSRAM] Available PSRAM: "));
+            Serial.print(ESP.getPsramSize());
+            Serial.println(F(" bytes"));
+        }
+    }
+#endif // BOARD_HAS_PSRAM
+
+#ifdef RGB_STATUS_ENABLED
     // Initialize RGB status system (FeatherS3 NeoPixel)
     Serial.println(F("[RGB] Initializing RGB status system..."));
     if (!rgbStatus.begin()) {
@@ -503,6 +539,9 @@ bool initialize_hardware() {
     } else {
         RGB_SET_STATE(STARTING); // Show startup indication
     }
+#else
+    Serial.println(F("[RGB] RGB status system disabled"));
+#endif // RGB_STATUS_ENABLED
 
     Serial.println(F("------------------------------"));
     Serial.print(F("Photo Frame "));
@@ -556,8 +595,10 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
 
         // Disable RGB after warning to save maximum power
         delay(3500);
+#ifdef RGB_STATUS_ENABLED
         rgbStatus.disable();
         Serial.println(F("[RGB] Disabled RGB LED to conserve battery power"));
+#endif // RGB_STATUS_ENABLED
     }
 
     return true; // Battery level allows continued operation
@@ -583,7 +624,9 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 
         // Reduce RGB brightness if battery is low to save power
         if (battery_info.is_low()) {
+#ifdef RGB_STATUS_ENABLED
             rgbStatus.setBrightness(32); // Reduce brightness to 50% of normal for low battery
+#endif // RGB_STATUS_ENABLED
         }
         if (error == photo_frame::error_type::None) {
             Serial.println(F("Initializing WiFi manager..."));
@@ -951,9 +994,11 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
                               DateTime& now,
                               esp_sleep_wakeup_cause_t wakeup_reason,
                               const refresh_delay_t& refresh_delay) {
+#ifdef RGB_STATUS_ENABLED
     // Shutdown RGB status system to save power during sleep
     Serial.println(F("[RGB] Shutting down RGB status system for sleep"));
     rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
+#endif // RGB_STATUS_ENABLED
 
     delay(500);
     photo_frame::renderer::power_off();

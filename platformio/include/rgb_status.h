@@ -44,10 +44,7 @@
  * - Deep sleep: Full shutdown with task termination
  */
 
-// Forward declarations
-class RGBStatus;
-
-// Color definitions (RGB values)
+// Color definitions (RGB values) - always available
 struct RGBColor {
     uint8_t r, g, b;
 
@@ -59,7 +56,7 @@ struct RGBColor {
     }
 };
 
-// System operation states with associated colors
+// System operation states - always available for macro compatibility
 enum class SystemState {
     IDLE,            // Off/Dark blue - system idle
     STARTING,        // White pulse - system starting up
@@ -77,7 +74,7 @@ enum class SystemState {
     CUSTOM           // User-defined color
 };
 
-// Effect types for color transitions
+// Effect types for color transitions - always available
 enum class RGBEffect {
     SOLID,           // Steady color
     PULSE,           // Breathing effect
@@ -88,6 +85,27 @@ enum class RGBEffect {
     RAINBOW,         // Rainbow cycle
     OFF              // Turn off LED
 };
+
+// Predefined colors - always available
+namespace RGBColors {
+    const RGBColor OFF(0, 0, 0);
+    const RGBColor WHITE(255, 255, 255);
+    const RGBColor RED(255, 0, 0);
+    const RGBColor GREEN(0, 255, 0);
+    const RGBColor BLUE(0, 0, 255);
+    const RGBColor LIGHT_BLUE(128, 192, 255);
+    const RGBColor YELLOW(255, 255, 0);
+    const RGBColor ORANGE(255, 128, 0);
+    const RGBColor CYAN(0, 255, 255);
+    const RGBColor PURPLE(128, 0, 255);
+    const RGBColor PINK(255, 0, 128);
+    const RGBColor DARK_BLUE(0, 0, 64);
+    const RGBColor DIM_WHITE(128, 128, 128);
+}
+
+#ifdef RGB_STATUS_ENABLED
+// Forward declarations
+class RGBStatus;
 
 // Status configuration structure
 struct StatusConfig {
@@ -227,31 +245,16 @@ public:
     static const size_t NUM_STATUS_CONFIGS;
 };
 
-// Predefined colors
-namespace RGBColors {
-    const RGBColor OFF(0, 0, 0);
-    const RGBColor WHITE(255, 255, 255);
-    const RGBColor RED(255, 0, 0);
-    const RGBColor GREEN(0, 255, 0);
-    const RGBColor BLUE(0, 0, 255);
-    const RGBColor LIGHT_BLUE(128, 192, 255);
-    const RGBColor YELLOW(255, 255, 0);
-    const RGBColor ORANGE(255, 128, 0);
-    const RGBColor CYAN(0, 255, 255);
-    const RGBColor PURPLE(128, 0, 255);
-    const RGBColor PINK(255, 0, 128);
-    const RGBColor DARK_BLUE(0, 0, 64);
-    const RGBColor DIM_WHITE(128, 128, 128);
-}
-
 // Global RGB status instance (defined in rgb_status.cpp)
 extern RGBStatus rgbStatus;
+#endif // RGB_STATUS_ENABLED
 
 /**
  * @brief Convenience macros for common RGB status operations
  *
  * These macros provide simplified access to the global rgbStatus instance
- * for easy integration throughout the application code.
+ * for easy integration throughout the application code. When RGB_STATUS_ENABLED
+ * is not defined, all macros become no-ops.
  *
  * Usage Examples:
  * @code
@@ -262,11 +265,21 @@ extern RGBStatus rgbStatus;
  * RGB_DISABLE();                               // Disable for power saving
  * @endcode
  */
+#ifdef RGB_STATUS_ENABLED
 #define RGB_SET_STATE(state) rgbStatus.setState(SystemState::state)
 #define RGB_SET_STATE_TIMED(state, ms) rgbStatus.setState(SystemState::state, ms)
 #define RGB_SET_CUSTOM(color, effect) rgbStatus.setCustomColor(RGBColors::color, RGBEffect::effect)
 #define RGB_OFF() rgbStatus.turnOff()
 #define RGB_ENABLE() rgbStatus.enable()
 #define RGB_DISABLE() rgbStatus.disable()
+#else
+// RGB system disabled - all macros become no-ops
+#define RGB_SET_STATE(state) do {} while(0)
+#define RGB_SET_STATE_TIMED(state, ms) do {} while(0)
+#define RGB_SET_CUSTOM(color, effect) do {} while(0)
+#define RGB_OFF() do {} while(0)
+#define RGB_ENABLE() do {} while(0)
+#define RGB_DISABLE() do {} while(0)
+#endif // RGB_STATUS_ENABLED
 
 #endif // RGB_STATUS_H

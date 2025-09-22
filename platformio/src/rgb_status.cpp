@@ -1,6 +1,7 @@
 #include "rgb_status.h"
 #include "config.h"
 
+#ifdef RGB_STATUS_ENABLED
 // Global RGB status instance
 RGBStatus rgbStatus;
 
@@ -49,9 +50,6 @@ bool RGBStatus::begin() {
         return false;
     }
 
-    // Power on the NeoPixel (FeatherS3 has power control on GPIO39)
-    pinMode(RGB_LED_PWR_PIN, OUTPUT);
-    digitalWrite(RGB_LED_PWR_PIN, HIGH);
     delay(10); // Allow power to stabilize
 
     pixels->begin();
@@ -100,9 +98,6 @@ void RGBStatus::end() {
         delete pixels;
         pixels = nullptr;
     }
-
-    // Power off NeoPixel
-    digitalWrite(RGB_LED_PWR_PIN, LOW);
 
     Serial.println(F("[RGB] RGB status system stopped"));
 }
@@ -315,3 +310,5 @@ RGBColor RGBStatus::rainbow(uint8_t pos) {
         return RGBColor(pos * 3, 255 - pos * 3, 0);
     }
 }
+
+#endif // RGB_STATUS_ENABLED

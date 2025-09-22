@@ -42,6 +42,13 @@
 #error "GOOGLE_DRIVE_CONFIG_FILEPATH must be defined for Google Drive functionality"
 #endif // GOOGLE_DRIVE_CONFIG_FILEPATH
 
+// Check RGB status pins are defined when RGB is enabled
+#ifdef RGB_STATUS_ENABLED
+#if !defined(RGB_LED_PIN) || !defined(RGB_LED_COUNT)
+#error "Please define RGB_LED_PIN and RGB_LED_COUNT when RGB_STATUS_ENABLED is defined"
+#endif
+#endif // RGB_STATUS_ENABLED
+
 
 // Check all RTC pins are defined
 #ifdef USE_RTC
