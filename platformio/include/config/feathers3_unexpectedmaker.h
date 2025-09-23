@@ -4,6 +4,19 @@
 // Pin definitions based on FeatherS3 pinout
 // https://feathers3.io/pinout.html
 
+// -------------------------------------------
+// OTA Update Configuration
+// -------------------------------------------
+
+// #define OTA_SERVER_URL "http://192.168.188.100:8000/"
+// #define OTA_VERSION_ENDPOINT "version.json"
+
+#define OTA_SERVER_URL "https://api.github.com/repos/sephiroth74/esp32-photo-frame"
+#define OTA_VERSION_ENDPOINT "/releases/latest"
+#define OTA_FIRMWARE_ENDPOINT "/releases/download/{version}/firmware-{board}.bin"
+#define OTA_MANIFEST_URL "https://github.com/sephiroth74/esp32-photo-frame/releases/latest/download/ota_manifest.json"
+#define OTA_USE_SSL true // Use HTTPS for secure updates
+
 // Pin definitions for FeatherS3 (ESP32-S3) - Based on actual pinout
 // SD Card - using SD_MMC (SDIO interface) with available pins
 #define SD_MMC_CLK_PIN 14 // SDIO CLK - IO14 (left side)
@@ -55,9 +68,6 @@
 // ESP32-S3 has many RTC IO pins available for deep sleep wakeup (GPIO0-GPIO21)
 // We're using GPIO3 which is confirmed as an RTC IO pin
 
-// Power saving configuration
-#define BATTERY_POWER_SAVING
-
 // Delay before going to sleep in milliseconds
 #define DELAY_BEFORE_SLEEP 8000 // Reduced since no I2C/WiFi conflicts
 
@@ -79,11 +89,6 @@
 // Accent color for the display
 #define ACCENT_COLOR GxEPD_RED
 
-// Miscellaneous
-#define DEBUG_MODE 0
-// #define DEBUG_BATTERY_READER
-#define DEBUG_BOARD
-
 // Reset handling
 #define RESET_INVALIDATES_DATE_TIME 1
 
@@ -93,13 +98,13 @@
 #define REFRESH_STEP_SECONDS                    (10 * SECONDS_IN_MINUTE)
 #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY    (8 * SECONDS_IN_HOUR)
 
-#define DAY_START_HOUR                       06 // Hour when the day starts (6 AM)
-#define DAY_END_HOUR                         23 // Hour when the day ends (11 PM)
+#define DAY_START_HOUR                       06
+#define DAY_END_HOUR                         23
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 // LOCALE
-#define LOCALE it_IT // Default to Italian for new configuration
+#define LOCALE it_IT
 
 // Google Drive integration - fully enabled since no I2C/WiFi conflicts
 // Google Drive is now enabled globally in config.h
@@ -108,21 +113,9 @@
 // Service account cleanup interval
 #define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60) // 24 hours
 
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD    2097152 // 2MB - avoid streaming for most responses
-#define GOOGLE_DRIVE_JSON_DOC_SIZE              2097152 // 2MB JSON document buffer
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE          2097152 // 2MB response body reserve
-#define GOOGLE_DRIVE_SAFETY_LIMIT               2097152 // 2MB safety limit
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD    524288  // 512KB - stream larger responses (with PSRAM)
+#define GOOGLE_DRIVE_JSON_DOC_SIZE              524288  // 512KB JSON document buffer (with PSRAM)
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE          262144  // 256KB response body reserve (with PSRAM)
+#define GOOGLE_DRIVE_SAFETY_LIMIT               1048576 // 1MB safety limit (with PSRAM)
 
 #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 250 // Max 1000, but 250 is a good compromise
-
-// FeatherS3 (ESP32-S3) advantages:
-// 1. ESP32-S3 with dual core for excellent performance and larger IRAM (solves memory constraints)
-// 2. 8MB PSRAM for improved Google Drive streaming and image processing performance
-// 3. No I2C/WiFi coexistence issues (unlike ESP32-C6)
-// 4. Built-in USB-C and excellent battery charging circuit with JST connector
-// 5. RGB NeoPixel LED (GPIO40) for status indication
-// 6. SDIO interface for faster SD card performance vs SPI mode
-// 7. Built-in voltage divider for clean battery monitoring on A13 (GPIO18)
-// 8. Stable network operations and excellent deep sleep reliability with multiple RTC GPIO pins
-// 9. Native support for concurrent I2C and WiFi operations
-// 10. Premium performance with sufficient memory for all features without IRAM overflow

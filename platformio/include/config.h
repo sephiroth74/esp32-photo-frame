@@ -26,511 +26,460 @@
 #include "_locale.h"
 #include <Arduino.h>
 
+// ============================================================================
+// MACRO UTILITIES
+// ============================================================================
+
+/// String conversion macros for preprocessor constants
 #define STR(x)  #x
 #define XSTR(x) STR(x)
 
-// Version information
+// ============================================================================
+// FIRMWARE VERSION INFORMATION
+// ============================================================================
+
+/// Current firmware version components (used for version comparison and OTA updates)
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  5
-#define FIRMWARE_VERSION_PATCH  0
-#define FIRMWARE_VERSION_STRING "v0.5.0"
+#define FIRMWARE_VERSION_MINOR  6
+#define FIRMWARE_VERSION_PATCH  1
+#define FIRMWARE_VERSION_STRING "v0.6.1"
 
-/// ---- Customizable settings ----
+/// Minimum supported version for OTA compatibility
+/// Devices with firmware older than this version must be manually updated
+#define OTA_MIN_SUPPORTED_VERSION_MAJOR  0
+#define OTA_MIN_SUPPORTED_VERSION_MINOR  4
+#define OTA_MIN_SUPPORTED_VERSION_PATCH  0
 
-// Pin definitions
+// ============================================================================
+// HARDWARE CONFIGURATION
+// ============================================================================
 
-// -------------------------------------------
-// SD Card
-// -------------------------------------------
-// #define SD_CS_PIN D3
-// #define SD_MISO_PIN D5
-// #define SD_MOSI_PIN D4
-// #define SD_SCK_PIN D6
+// ----------------------------------------------------------------------------
+// E-Paper Display Configuration
+// ----------------------------------------------------------------------------
 
-// -------------------------------------------
-// e-Paper Display
-// -------------------------------------------
+/// E-Paper display pin definitions (to be set in board-specific config files)
+/// These pins connect the ESP32 to the e-paper display via SPI interface
+// #define EPD_BUSY_PIN  [GPIO_NUM]  // Display busy status pin
+// #define EPD_RST_PIN   [GPIO_NUM]  // Display reset pin
+// #define EPD_DC_PIN    [GPIO_NUM]  // Display data/command pin
+// #define EPD_CS_PIN    [GPIO_NUM]  // Display chip select pin (SPI CS)
+// #define EPD_SCK_PIN   [GPIO_NUM]  // Display serial clock pin (SPI CLK)
+// #define EPD_MOSI_PIN  [GPIO_NUM]  // Display master out slave in pin (SPI MOSI)
 
-// #define EPD_BUSY_PIN D7
-// #define EPD_RST_PIN D8
-// #define EPD_DC_PIN D9
-// #define EPD_CS_PIN D10
-// #define EPD_SCK_PIN D11
-// #define EPD_MOSI_PIN D12
+/// Display type selection (define exactly ONE of these in board config)
+// #define DISP_BW_V2    // Black and White e-Paper display (GDEH0154D67)
+// #define DISP_7C_F     // 7-color e-Paper display (GDEY073D46)
+// #define DISP_6C       // 6-color e-Paper display (GDEP073E01)
 
-// -------------------------------------------
-// RTC
-// -------------------------------------------
+/// Display driver selection (optional - system will auto-detect if not specified)
+// #define USE_DESPI_DRIVER      // Use Despi driver for e-Paper display
+// #define USE_WAVESHARE_DRIVER  // Use Waveshare driver for e-Paper display
 
-// Use RTC module for timekeeping
-// Uncomment the following line to use RTC module
-// If this is set, then RTC_SDA_PIN and RTC_SCL_PIN must be defined
-// #define USE_RTC
-// #define RTC_SDA_PIN A4
-// #define RTC_SCL_PIN A5
+// ----------------------------------------------------------------------------
+// SD Card Configuration (SDIO Interface)
+// ----------------------------------------------------------------------------
 
-// -------------------------------------------
-// Potentiometer
-// -------------------------------------------
-// #define POTENTIOMETER_PWR_PIN A6
-// #define POTENTIOMETER_INPUT_PIN A7
-// Maximum value for potentiometer input (12-bit ADC)
-// #define POTENTIOMETER_INPUT_MIN 0
-// #define POTENTIOMETER_INPUT_MAX 4095
-// #define POTENTIOMETER_INPUT_MAX 1023 // Default for other platforms (10-bit ADC)
+/// SD Card pin definitions using SD_MMC (SDIO interface) with available pins
+/// Note: These pins are typically fixed for SDIO interface on most ESP32 boards
+// #define SD_MMC_CLK_PIN  14  // SD card clock pin
+// #define SD_MMC_D0_PIN   7   // SD card data 0 pin
+// #define SD_MMC_CMD_PIN  17  // SD card command pin
+// #define SD_MMC_D3_PIN   11  // SD card data 3 pin (chip select)
+// #define SD_MMC_D1_PIN   3   // SD card data 1 pin
+// #define SD_MMC_D2_PIN   12  // SD card data 2 pin
 
-// -------------------------------------------
-// Battery
-// -------------------------------------------
+// ----------------------------------------------------------------------------
+// Battery Monitoring Configuration
+// ----------------------------------------------------------------------------
 
-// Use MAX1704X battery sensor
-// Uncomment the following line to use MAX1704X battery sensor
-// Use MAX1704 battery sensor
-// #define USE_SENSOR_MAX1704X
-// Timeout for MAX1704X sensor initialization in milliseconds
-// #define SENSOR_MAX1704X_TIMEOUT 5000
-// #define MAX1704X_SDA_PIN A1
-// #define MAX1704X_SCL_PIN A2
+/// MAX1704X I2C battery sensor configuration (preferred method)
+/// Enable this for accurate battery monitoring with dedicated sensor
+// #define USE_SENSOR_MAX1704X     // Enable MAX1704X battery fuel gauge sensor
+// #define MAX1704X_SDA_PIN   A1   // I2C data pin for MAX1704X sensor
+// #define MAX1704X_SCL_PIN   A2   // I2C clock pin for MAX1704X sensor
 
-// If USE_SENSOR_MAX1704X is defined, then ignore the followings settings for battery readings
+/// Analog battery monitoring (fallback method when MAX1704X not available)
+/// Used when USE_SENSOR_MAX1704X is not defined
+// #define BATTERY_PIN                    A0           // Analog pin for battery voltage reading
+// #define BATTERY_NUM_READINGS           100          // Number of readings to average for stability
+// #define BATTERY_DELAY_BETWEEN_READINGS 30           // Delay between readings in milliseconds
+// #define BATTERY_RESISTORS_RATIO        0.460453401  // Voltage divider ratio (R1/(R1+R2))
 
-// Analog pin for battery reading
-// #define BATTERY_PIN A0
-// Number of readings to average for battery voltage
-// #define BATTERY_NUM_READINGS 100
-// Delay between battery readings in milliseconds
-// #define BATTERY_DELAY_BETWEEN_READINGS 30
-// R1 = 680K Ohm
-// R1 = 470K Ohm
-// Ratio of the voltage divider resistors (R1 / (R1 + R2))
-// #define BATTERY_RESISTORS_RATIO 0.460453401
+/// Battery power management settings
+// #define BATTERY_POWER_SAVING  // Enable power-saving mode when battery is low
 
-// If set, the device will enter power-saving mode when battery is below a certain percentage
-// #define BATTERY_POWER_SAVING
+// ----------------------------------------------------------------------------
+// RTC (Real Time Clock) Configuration
+// ----------------------------------------------------------------------------
 
-// Delay before going to sleep in milliseconds (when in debug mode or coming back from sleep without
-// a wakeup reason)
-// #define DELAY_BEFORE_SLEEP 20000
+/// External RTC module configuration (optional - NTP used as fallback)
+/// Note: RTC is not supported on ESP32-C6 due to I2C/WiFi interference
+// #define USE_RTC           // Enable external RTC module for timekeeping
+// #define RTC_SDA_PIN   A4  // I2C data pin for RTC module
+// #define RTC_SCL_PIN   A5  // I2C clock pin for RTC module
 
-// -------------------------------------------
-// RGB NeoPixel LED
-// -------------------------------------------
-// Enable/disable RGB status system
-// #define RGB_STATUS_ENABLED
+// ----------------------------------------------------------------------------
+// User Interface Hardware
+// ----------------------------------------------------------------------------
 
-// RGB NeoPixel LED configuration
-// #define RGB_LED_PIN 40 // GPIO40 - Built-in RGB NeoPixel
-// #define RGB_LED_COUNT 1 // Single RGB LED
+/// Potentiometer configuration for refresh rate adjustment
+// #define POTENTIOMETER_PWR_PIN    A6    // Power pin for potentiometer (optional)
+// #define POTENTIOMETER_INPUT_PIN  A7    // Analog input pin for potentiometer
+// #define POTENTIOMETER_INPUT_MIN  0     // Minimum ADC value (typically 0)
+// #define POTENTIOMETER_INPUT_MAX  4095  // Maximum ADC value (12-bit: 4095, 10-bit: 1023)
 
-// -----------------------------
-// Wake up pin
-// -----------------------------
+/// RGB NeoPixel LED configuration for status indication
+// #define RGB_STATUS_ENABLED        // Enable RGB status LED functionality
+// #define RGB_LED_PIN       40      // GPIO pin connected to RGB NeoPixel LED
+// #define RGB_LED_COUNT     1       // Number of RGB LEDs in the chain
 
-// Wakeup pin for the device
-// Uncomment the following line to use a pin to wake up the device from deep sleep
+/// Wake-up pin configuration for manual device activation
+// #define WAKEUP_EXT0               // Enable EXT0 wakeup (single pin)
+// #define WAKEUP_EXT1               // Enable EXT1 wakeup (multiple pins, OR logic)
+// #define WAKEUP_PIN        GPIO_NUM_7        // GPIO pin for wakeup functionality
+// #define WAKEUP_PIN_MODE   INPUT_PULLDOWN    // Pin mode (INPUT_PULLUP/INPUT_PULLDOWN)
+// #define WAKEUP_LEVEL      ESP_EXT1_WAKEUP_ANY_HIGH  // Wakeup trigger level
 
-// Uncomment the following lines to enable wakeup functionality either on EXT0 or EXT1
-// #define WAKEUP_EXT1
-// #define WAKEUP_EXT0
+// ============================================================================
+// TIMING AND POWER MANAGEMENT
+// ============================================================================
 
-// Wakeup pin for the device
-// #define WAKEUP_PIN      GPIO_NUM_7
-
-// Pin mode for wakeup pin
-// #define WAKEUP_PIN_MODE INPUT_PULLDOWN
-
-// Wakeup level for the device
-// #define WAKEUP_LEVEL    ESP_EXT1_WAKEUP_ANY_HIGH
-
-// -------------------------------------------
-// Misc
-// -------------------------------------------
-// In case the RTC module lost power, the WiFi credentials will be read from the SD card
-// and used to connect to the WiFi network to fetch the current time from NTP servers.
-// Filename for WiFi credentials inside the SD Card
-// #define WIFI_FILENAME "/wifi.txt"
-
-// Wifi and NTP settings
-// #define WIFI_CONNECT_TIMEOUT 10000
-// #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
-// #define NTP_TIMEOUT 20000
-// #define NTP_SERVER1 "pool.ntp.org"
-// #define NTP_SERVER2 "time.nist.gov"
-// #define NTP_TIMEOUT 15000
-
-// e-Paper display
-// #define DISP_BW_V2       // Black and White e-Paper display (GDEH0154D67)
-// #define DISP_7C_F        // 7-color e-Paper display (GDEY073D46)
-// #define DISP_6C          // 6-color e-Paper display (GDEP073E01)
-
-// #define USE_DESPI_DRIVER // Use Despi driver for e-Paper display
-// #define USE_WAVESHARE_DRIVER // Use Waveshare driver for e-Paper display
-
-// Accent color for the display
-// #define ACCENT_COLOR GxEPD_BLACK
-
-// Toggle debug mode (0 = off, 1 = on)
-// When is on, for instance, the display will also print the battery raw value and there will be a
-// delay before entering deep sleep
-// #define DEBUG_MODE 1
-// #define DEBUG_RENDERER
-// #define DEBUG_DATETIME_UTILS
-// #define DEBUG_GOOGLE_DRIVE
-// #define DEBUG_MEMORY_USAGE
-// #define DEBUG_BATTERY_READER
-// #define DEBUG_WEATHER
-// #define DEBUG_WIFI
-// #define DEBUG_SD_CARD
-// #define DEBUG_BOARD
-
-
-// Forces the display to use the debug image instead of random from toc
-// #define DEBUG_IMAGE_INDEX 381
-
-// Reset the RTC so that it will be initialized with the current time from NTP servers
-// It has not effect if USE_RTC is not defined
-// #define RESET_INVALIDATES_DATE_TIME 1
-
-// Minimum time between refreshes in seconds (minimum 5 minute, maximum 2 hours)
-// #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)
-
-// Maximum time between refreshes in seconds (minimum 10 minutes, maximum 4 hours)
-// #define REFRESH_MAX_INTERVAL_SECONDS (2 * SECONDS_IN_HOUR)
-
-// Step in seconds for the refresh rate
-// #define REFRESH_STEP_SECONDS (5 * SECONDS_IN_MINUTE)
-
-// time between refreshes in seconds when battery is low
-// #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)
-
-// #define DAY_START_HOUR 06 // Hour when the day starts (6 AM)
-// #define DAY_END_HOUR 23 // Hour when the day ends (10 PM) (midnight is 0)
-
-// #define FONT_HEADER "assets/fonts/Ubuntu_R.h"
-// #define FONT_HEADER                          "assets/fonts/UbuntuMono_R.h"
-// #define FONT_HEADER                          "assets/fonts/FreeMono.h"
-// #define FONT_HEADER                          "assets/fonts/FreeSans.h"
-// #define FONT_HEADER                          "assets/fonts/Lato_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/Montserrat_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/OpenSans_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/Poppins_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/Quicksand_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/Raleway_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/Roboto_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/RobotoMono_Regular.h"
-// #define FONT_HEADER                          "assets/fonts/RobotoSlab_Regular.h"
-
-// -------------------------------------------
-// LOCALE
-// -------------------------------------------
-//   Language (Territory)            code
-//   English (United States)         en_US
-//   Italiano (Italia)               it_IT
-// #define LOCALE it_IT
-
-// -------------------------------------------
-// Google Drive
-// -------------------------------------------
-
-// Google Drive is used as the primary image source
-// The sd-card is used for caching and temporary storage
-#define USE_GOOGLE_DRIVE
-
-// -------------------------------------------
-// Weather Display
-// -------------------------------------------
-
-// Uncomment to enable weather display functionality
-// This will enable the weather overlay panel with real-time weather information
-// including temperature, min/max, sunrise/sunset times, and current date
-#define USE_WEATHER
-// #define WEATHER_CONFIG_FILE "/weather_config.json"
-// #define WEATHER_CACHE_FILE "/weather_cache.json"
-
-// Maximum age (in seconds) the weather data can be before it is considered stale
-#define WEATHER_MAX_AGE_SECONDS (3 * SECONDS_IN_HOUR)
-
-// Path to the Google Drive configuration JSON file on the sd-card
-// This file must be uploaded to your SD card and contain all Google Drive settings
-// #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
-
-// Maximum age (in seconds) the google drive local toc file can be before it is refreshed
-#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_PER_DAY)
-
-// Maximum number of API requests per time window
-#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 200 // Conservative limit (Google allows 1000/100s)
-
-// Maximum backoff delay for retries in milliseconds
-#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS 120000UL
-
-// Time window for rate limiting in seconds
-#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600
-
-// Minimum delay between requests in milliseconds
-#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 10000
-
-// Maximum number of retry attempts for failed requests
-#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 10
-
-// Maximum backoff delay for retries in milliseconds
-#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 60000
-
-// Maximum wait time for rate limiting in milliseconds
-#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000
-
-// -------------------------------------------
-// Google Drive Configuration File
-// -------------------------------------------
-//
-// Create a JSON file at the path specified by GOOGLE_DRIVE_CONFIG_FILEPATH with the following
-// structure:
-//
-// clang-format off
-// {
-//   "authentication": {
-//     "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
-//     "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT\n-----END PRIVATE KEY-----\n",
-//     "client_id": "116262609282266881196"
-//   },
-//   "drive": {
-//     "folder_id": "1XWK-Op3uMFXADykfi0VR46r6HnrZfaDr",
-//     "root_ca_path": "/certs/google_root_ca.pem",
-//     "list_page_size": 150,
-//     "use_insecure_tls": false
-//   },
-//   "caching": {
-//     "local_path": "/gdrive",
-//     "toc_max_age_seconds": 604800
-//   },
-//   "rate_limiting": {
-//     "max_requests_per_window": 100,
-//     "rate_limit_window_seconds": 100,
-//     "min_request_delay_ms": 500,
-//     "max_retry_attempts": 3,
-//     "backoff_base_delay_ms": 5000,
-//     "max_wait_time_ms": 30000
-//   }
-// }
-// clang-format on
-//
-// Configuration Guide:
-//
-// Authentication section:
-// - service_account_email: Email from your Google Service Account JSON key
-// - private_key_pem: Private key from your Google Service Account JSON key (keep newlines as \n)
-// - client_id: Client ID from your Google Service Account
-//
-// Drive section:
-// - folder_id: Google Drive folder ID to use as image source (share with service account)
-// - root_ca_path: Path to Google Root CA certificate file (required if use_insecure_tls is false)
-// - list_page_size: Number of files to request per API call (1-1000)
-// - use_insecure_tls: Set to true to skip SSL certificate validation (not recommended)
-//
-// Caching section:
-// - local_path: Directory on SD card for cached files
-// - toc_max_age_seconds: Maximum age of cached TOC before refresh (1-2592000 seconds)
-//
-// Rate limiting section:
-// - max_requests_per_window: Maximum API requests per time window (1-100, limited by
-// GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW)
-// - rate_limit_window_seconds: Time window for rate limiting (1-3600 seconds)
-// - min_request_delay_ms: Minimum delay between requests (0-10000 ms)
-// - max_retry_attempts: Maximum retry attempts for failed requests (0-10)
-// - backoff_base_delay_ms: Base delay for exponential backoff (1-60000 ms)
-// - max_wait_time_ms: Maximum wait time for rate limiting (1-300000 ms)
-
-// Free space threshold on SD card before cleanup
-// #define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
-
-// Force the use of a specific test file
-// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.bin"
-
-// Cleanup temporary files interval (in seconds) - default is once per day
-#ifndef CLEANUP_TEMP_FILES_INTERVAL_SECONDS
-#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60) // 24 hours
-#endif
-
-/// ---- End ----
-
-/**
- * @brief Array of allowed file extensions for image files
- *
- * Contains file extensions that the ESP32 photo frame can process at runtime.
- * The system automatically detects file format and selects appropriate rendering engine.
- *
- * @see ALLOWED_EXTENSIONS_COUNT for array size
- * @see photo_frame::io_utils::is_binary_format() for format detection
- */
-extern const char* ALLOWED_FILE_EXTENSIONS[];
-
-/**
- * @brief Number of elements in ALLOWED_FILE_EXTENSIONS array
- *
- * Used for safe iteration over the allowed extensions array.
- */
-extern const size_t ALLOWED_EXTENSIONS_COUNT;
-
-#ifndef LOCAL_CONFIG_FILE
-#error LOCAL_CONFIG_FILE not defined
-#endif
-
-#include XSTR(LOCAL_CONFIG_FILE)
-
-#define PREFS_NAMESPACE        "photo_frame"
-
+/// System timing constants
 #define MICROSECONDS_IN_SECOND 1000000
 #define SECONDS_IN_MINUTE      60
 #define SECONDS_IN_HOUR        3600
 #define SECONDS_IN_DAY         86400
 
-// Maximum deep sleep duration to prevent overflow (24 hours)
-#define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY
+/// Deep sleep configuration
+#define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY  // Maximum sleep duration (24 hours)
 
-// Default values, if not defined
+/// Display refresh timing configuration
+// #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)   // Minimum refresh interval (5 minutes)
+// #define REFRESH_MAX_INTERVAL_SECONDS (2 * SECONDS_IN_HOUR)     // Maximum refresh interval (2 hours)
+// #define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE)   // Step size for refresh adjustment
+// #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)  // Low battery refresh interval
 
-// Voltage of battery reading in millivolts above which the battery is considered charging
-// Millivolts above which the battery is considered charging
+/// Daily operation schedule
+// #define DAY_START_HOUR 6   // Hour when device becomes active (6 AM)
+// #define DAY_END_HOUR   23  // Hour when device enters night mode (11 PM)
+
+/// Sleep and startup delays
+// #define DELAY_BEFORE_SLEEP 20000  // Delay before sleep in milliseconds (debug/fallback)
+
+/// Battery level thresholds (percentages)
+#define BATTERY_CHARGING_MILLIVOLTS  4300  // Voltage above which battery is considered charging
+#define BATTERY_PERCENT_EMPTY        5     // Battery percentage considered empty
+#define BATTERY_PERCENT_CRITICAL     10    // Battery percentage considered critical
+#define BATTERY_PERCENT_LOW          25    // Battery percentage considered low
+
+// ============================================================================
+// NETWORK AND CONNECTIVITY
+// ============================================================================
+
+/// WiFi configuration
+// #define WIFI_FILENAME "/wifi.txt"  // File containing WiFi credentials on SD card
+
+/// Network timeouts (configured in board-specific config or system defaults section)
+// #define WIFI_CONNECT_TIMEOUT 10000  // WiFi connection timeout in milliseconds
+// #define HTTP_CONNECT_TIMEOUT 15000  // HTTP connection timeout (15 seconds)
+// #define HTTP_REQUEST_TIMEOUT 30000  // HTTP request timeout (30 seconds)
+
+/// NTP (Network Time Protocol) configuration (configured in board-specific config or system defaults section)
+// #define NTP_TIMEOUT 20000           // NTP request timeout in milliseconds
+// #define NTP_SERVER1 "pool.ntp.org"  // Primary NTP server
+// #define NTP_SERVER2 "time.nist.gov" // Secondary NTP server
+
+/// Time zone configuration (set in board-specific config)
+// #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Example: Central European Time
+
+/// Protocol-specific settings
+#if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
+#define USE_HTTP_1_0 // Force HTTP/1.0 to avoid chunked encoding issues on ESP32-C6/H2
+#endif
+
+// ============================================================================
+// STORAGE AND FILE MANAGEMENT
+// ============================================================================
+
+/// File system paths and names
+#define PREFS_NAMESPACE           "photo_frame"        // Preferences namespace for settings
+#define TOC_DATA_FILENAME         "toc_data.txt"       // Table of contents data file
+#define TOC_META_FILENAME         "toc_meta.txt"       // Table of contents metadata file
+#define ACCESS_TOKEN_FILENAME     "access_token.json"  // OAuth access token cache file
+#define LITTLEFS_TEMP_IMAGE_FILE  "/temp_image.tmp"    // Temporary image file in LittleFS
+
+/// Storage cleanup settings
+#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16)  // 16 MB threshold for cleanup
+#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60)  // Cleanup interval (24 hours)
+
+/// Supported file formats for runtime detection
+extern const char* ALLOWED_FILE_EXTENSIONS[];
+extern const size_t ALLOWED_EXTENSIONS_COUNT;
+
+// ============================================================================
+// GOOGLE DRIVE CONFIGURATION
+// ============================================================================
+
+/// Google Drive integration settings (configured in board-specific config or system defaults section)
+// #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"  // Configuration file path
+// #define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)          // TOC cache expiry (30 days)
+// #define GOOGLE_DRIVE_TEMP_DIR            "temp"                          // Temporary files directory
+// #define GOOGLE_DRIVE_CACHE_DIR           "cache"                         // Cache directory
+
+/// API rate limiting and request management (configured in board-specific config or system defaults section)
+// #define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW     200      // Conservative API request limit
+// #define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS   3600     // Rate limiting time window (1 hour)
+// #define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS        10000    // Minimum delay between requests
+// #define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS          10       // Maximum retry attempts for failed requests
+// #define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS       60000    // Base delay for exponential backoff
+// #define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS        120000UL // Maximum backoff delay
+// #define GOOGLE_DRIVE_MAX_WAIT_TIME_MS            1200000  // Maximum wait time for rate limiting
+// #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE          200      // Files per API request
+
+/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults section)
+// Memory limits are automatically set based on BOARD_HAS_PSRAM in the system defaults section
+// ESP32-S3 with PSRAM: 4MB JSON buffer, 6MB body reserve, 10MB safety limit
+// Standard ESP32: 40KB JSON buffer, 64KB body reserve, 100KB safety limit
+
+/// Development and testing
+// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.bin"  // Force specific test file
+
+// ============================================================================
+// WEATHER DISPLAY CONFIGURATION
+// ============================================================================
+
+/// Weather functionality (optional feature)
+// #define USE_WEATHER                       // Enable weather display functionality
+// #define WEATHER_CONFIG_FILE "/weather_config.json"  // Weather API configuration file
+// #define WEATHER_CACHE_FILE  "/weather_cache.json"   // Weather data cache file
+
+/// Weather data management
+#define WEATHER_MAX_AGE_SECONDS (3 * SECONDS_IN_HOUR)  // Weather data expiry time
+
+// ============================================================================
+// DISPLAY AND USER INTERFACE
+// ============================================================================
+
+/// Font configuration
+// #define FONT_HEADER "assets/fonts/Ubuntu_R.h"          // Default font
+// Available font options:
+// - "assets/fonts/UbuntuMono_R.h"      // Monospace font
+// - "assets/fonts/FreeMono.h"          // Free monospace font
+// - "assets/fonts/FreeSans.h"          // Free sans-serif font
+// - "assets/fonts/Lato_Regular.h"      // Lato regular font
+// - "assets/fonts/Montserrat_Regular.h" // Montserrat regular font
+// - "assets/fonts/OpenSans_Regular.h"  // Open Sans regular font
+// - "assets/fonts/Poppins_Regular.h"   // Poppins regular font
+// - "assets/fonts/Quicksand_Regular.h" // Quicksand regular font
+// - "assets/fonts/Raleway_Regular.h"   // Raleway regular font
+// - "assets/fonts/Roboto_Regular.h"    // Roboto regular font
+// - "assets/fonts/RobotoMono_Regular.h" // Roboto monospace font
+// - "assets/fonts/RobotoSlab_Regular.h" // Roboto slab serif font
+
+/// Display color configuration (automatically determined from display type)
+// #define ACCENT_COLOR GxEPD_BLACK  // Accent color for UI elements
+
+/// Potentiometer input range (platform-specific)
+#define POTENTIOMETER_INPUT_MAX 4095  // 12-bit ADC max value (ESP32 default)
+
+// ============================================================================
+// LOCALIZATION
+// ============================================================================
+
+/// Language and locale settings
+// #define LOCALE it_IT  // Italian (Italy)
+// #define LOCALE en_US  // English (United States) - default
+
+/// Supported locales:
+/// - en_US: English (United States)
+/// - it_IT: Italiano (Italia)
+
+// ============================================================================
+// DEBUG AND DEVELOPMENT SETTINGS
+// ============================================================================
+
+/// Debug mode configuration (disable in production)
+// #define DEBUG_MODE 1              // General debug mode (0 = off, 1 = on)
+
+/// Component-specific debug flags
+// #define DEBUG_RENDERER            // Enable renderer debug output
+// #define DEBUG_DATETIME_UTILS      // Enable date/time utilities debug output
+// #define DEBUG_GOOGLE_DRIVE        // Enable Google Drive API debug output
+// #define DEBUG_MEMORY_USAGE        // Enable memory usage monitoring
+// #define DEBUG_BATTERY_READER      // Enable battery monitoring debug output
+// #define DEBUG_WEATHER             // Enable weather API debug output
+// #define DEBUG_WIFI                // Enable WiFi connection debug output
+// #define DEBUG_SD_CARD             // Enable SD card operations debug output
+// #define DEBUG_BOARD               // Enable board-specific debug output
+// #define DEBUG_OTA                 // Enable OTA update debug output
+
+/// Debug-specific settings
+// #define DEBUG_IMAGE_INDEX 381     // Force specific image for testing
+// #define RESET_INVALIDATES_DATE_TIME 1  // Reset RTC time on device reset
+
+// ============================================================================
+// SYSTEM DEFAULTS AND VALIDATION
+// ============================================================================
+
+/// Include board-specific configuration (set via platformio.ini build flags)
+#ifndef LOCAL_CONFIG_FILE
+#error LOCAL_CONFIG_FILE not defined
+#endif
+#include XSTR(LOCAL_CONFIG_FILE)
+
+// ============================================================================
+// OTA (Over-The-Air) UPDATE CONFIGURATION
+// ============================================================================
+
+/// OTA update system (conditional compilation)
+/// Enable OTA functionality by defining OTA_UPDATE_ENABLED in board config
+#ifdef OTA_UPDATE_ENABLED
+
+/// OTA server endpoints
+#define OTA_SERVER_URL "https://api.github.com/repos/sephiroth74/esp32-photo-frame"
+#define OTA_VERSION_ENDPOINT "/releases/latest"
+#define OTA_FIRMWARE_ENDPOINT "/releases/download/{version}/firmware-{board}.bin"
+#define OTA_MANIFEST_URL "https://github.com/sephiroth74/esp32-photo-frame/releases/latest/download/ota_manifest.json"
+
+/// OTA timing and safety settings
+#define OTA_CHECK_INTERVAL_HOURS 168 // Check interval (7 days)
+#define OTA_MIN_BATTERY_PERCENT 30 // Minimum battery level for OTA updates
+#define OTA_TIMEOUT_MS 30000 // 30 seconds timeout
+#define OTA_BUFFER_SIZE 1024 // 1KB buffer for download chunks
+
+/// OTA security settings
+// #define OTA_USE_SSL false  // SSL usage for OTA downloads (set to true for production)
+
+/// Board identification (automatically set from platformio.ini build flags)
+#ifdef OTA_BOARD_NAME
+#define OTA_CURRENT_BOARD_NAME OTA_BOARD_NAME
+#else
+#define OTA_CURRENT_BOARD_NAME "unknown"
+#endif // OTA_BOARD_NAME
+#endif // OTA_UPDATE_ENABLED
+
+#ifdef OTA_UPDATE_ENABLED
+#ifndef OTA_USE_SSL
+#define OTA_USE_SSL false // Default to true for security
+#endif // OTA_USE_SSL
+#endif // OTA_UPDATE_ENABLED
+
+/// Default value definitions with validation guards
 #ifndef BATTERY_CHARGING_MILLIVOLTS
 #define BATTERY_CHARGING_MILLIVOLTS 4300
-#endif // BATTERY_CHARGING_MILLIVOLTS
+#endif
 
-// Minimum battery percentage to consider the battery empty
 #ifndef BATTERY_PERCENT_EMPTY
 #define BATTERY_PERCENT_EMPTY 5
-#endif // BATTERY_PERCENT_EMPTY
+#endif
 
-// Minimum battery percentage to consider the battery critical
 #ifndef BATTERY_PERCENT_CRITICAL
 #define BATTERY_PERCENT_CRITICAL 10
-#endif // BATTERY_PERCENT_CRITICAL
+#endif
 
-// Minimum battery percentage to consider the battery low
 #ifndef BATTERY_PERCENT_LOW
 #define BATTERY_PERCENT_LOW 25
-#endif // BATTERY_PERCENT_LOW
+#endif
 
 #ifndef DELAY_BEFORE_SLEEP
 #define DELAY_BEFORE_SLEEP 20000
-#endif // DELAY_BEFORE_SLEEP
+#endif
 
 #ifndef WIFI_FILENAME
 #define WIFI_FILENAME "/wifi.txt"
-#endif // WIFI_FILENAME
+#endif
 
-// TOC (Table of Contents) file system - 2-file approach
 #ifndef TOC_DATA_FILENAME
 #define TOC_DATA_FILENAME "toc_data.txt"
-#endif // TOC_DATA_FILENAME
+#endif
 
 #ifndef TOC_META_FILENAME
 #define TOC_META_FILENAME "toc_meta.txt"
-#endif // TOC_META_FILENAME
+#endif
 
-// Google Drive OAuth access token cache
 #ifndef ACCESS_TOKEN_FILENAME
 #define ACCESS_TOKEN_FILENAME "access_token.json"
-#endif // ACCESS_TOKEN_FILENAME
+#endif
 
-// LittleFS temporary image file path (used in shared SPI mode)
 #ifndef LITTLEFS_TEMP_IMAGE_FILE
 #define LITTLEFS_TEMP_IMAGE_FILE "/temp_image.tmp"
-#endif // LITTLEFS_TEMP_IMAGE_FILE
+#endif
 
 #ifndef WIFI_CONNECT_TIMEOUT
 #define WIFI_CONNECT_TIMEOUT 10000
-#endif // WIFI_CONNECT_TIMEOUT
+#endif
 
 #ifndef NTP_TIMEOUT
 #define NTP_TIMEOUT 20000
-#endif // NTP_TIMEOUT
+#endif
 
-// HTTP operation timeouts
 #ifndef HTTP_CONNECT_TIMEOUT
-#define HTTP_CONNECT_TIMEOUT 15000 // 15 seconds for connection
-#endif                             // HTTP_CONNECT_TIMEOUT
+#define HTTP_CONNECT_TIMEOUT 15000
+#endif
 
 #ifndef HTTP_REQUEST_TIMEOUT
-#define HTTP_REQUEST_TIMEOUT 30000 // 30 seconds for full request
-#endif                             // HTTP_REQUEST_TIMEOUT
+#define HTTP_REQUEST_TIMEOUT 30000
+#endif
 
 #ifndef NTP_SERVER1
 #define NTP_SERVER1 "pool.ntp.org"
-#endif // NTP_SERVER1
+#endif
 
 #ifndef NTP_SERVER2
 #define NTP_SERVER2 "time.nist.gov"
-#endif // NTP_SERVER2
+#endif
 
-#ifndef NTP_TIMEOUT
-#define NTP_TIMEOUT 20000
-#endif // NTP_TIMEOUT
-
-// Verify ACCENT_COLOR
-#ifndef ACCENT_COLOR
-#if defined(DISP_BW_V2)
-#define ACCENT_COLOR GxEPD_BLACK // black
-#elif defined(DISP_7C_F)
-#define ACCENT_COLOR GxEPD_RED // red
-#elif defined(DISP_6C)
-#define ACCENT_COLOR GxEPD_RED // red for 6
-#else
-#define ACCENT_COLOR GxEPD_BLACK // default to black if no display type is defined
-#endif                           // DISP_BW_V2 or DISP_7C_F or DISP_6C
-#endif                           // ACCENT_COLOR
-
-// Path to the Google Drive configuration JSON file on the sd-card
-// This file must be uploaded to your SD card and contain all Google Drive settings
 #ifndef GOOGLE_DRIVE_CONFIG_FILEPATH
 #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
-#endif // GOOGLE_DRIVE_CONFIG_FILEPATH
+#endif
 
 #ifndef LOCALE
 #define LOCALE en_US
-#endif // LOCALE
+#endif
 
-#if defined(USE_SENSOR_MAX1704X)
+#ifdef USE_SENSOR_MAX1704X
 #ifndef SENSOR_MAX1704X_TIMEOUT
 #define SENSOR_MAX1704X_TIMEOUT 5000
-#endif // SENSOR_MAX1704X_TIMEOUT
-#endif // USE_SENSOR_MAX1704X
+#endif
+#endif
 
 #ifndef RESET_INVALIDATES_DATE_TIME
 #define RESET_INVALIDATES_DATE_TIME 1
-#endif // RESET_INVALIDATES_DATE_TIME
+#endif
 
 #ifndef REFRESH_MIN_INTERVAL_SECONDS
 #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)
-#endif // REFRESH_MIN_INTERVAL_SECONDS
+#endif
 
 #ifndef REFRESH_MAX_INTERVAL_SECONDS
 #define REFRESH_MAX_INTERVAL_SECONDS (2 * SECONDS_IN_HOUR)
-#endif // REFRESH_MAX_INTERVAL_SECONDS
+#endif
 
 #ifndef REFRESH_STEP_SECONDS
 #define REFRESH_STEP_SECONDS (5 * SECONDS_IN_MINUTE)
-#endif // REFRESH_STEP_SECONDS
+#endif
 
 #ifndef REFRESH_INTERVAL_SECONDS_LOW_BATTERY
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOURS)
-#endif // REFRESH_INTERVAL_SECONDS_LOW_BATTERY
+#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)
+#endif
 
 #ifndef DAY_START_HOUR
 #define DAY_START_HOUR 6
-#endif // DAY_START_HOUR
+#endif
 
 #ifndef DAY_END_HOUR
 #define DAY_END_HOUR 23
-#endif // DAY_END_HOUR
+#endif
 
 #ifndef FONT_HEADER
 #define FONT_HEADER "assets/fonts/Ubuntu_R.h"
 #endif
 
 #ifndef SD_CARD_FREE_SPACE_THRESHOLD
-#define SD_CARD_FREE_SPACE_THRESHOLD 1024 * 1024 * 16 // 16 MB (in bytes)
-#endif                                                // SD_CARD_FREE_SPACE_THRESHOLD
+#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16)  // 16 MB
+#endif
 
-// Google Drive folder structure defines
 #ifndef GOOGLE_DRIVE_TEMP_DIR
 #define GOOGLE_DRIVE_TEMP_DIR "temp"
 #endif
@@ -542,63 +491,136 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #ifdef USE_WEATHER
 #ifndef WEATHER_CONFIG_FILE
 #define WEATHER_CONFIG_FILE "/weather_config.json"
-#endif // WEATHER_CONFIG_FILE
+#endif
 #ifndef WEATHER_CACHE_FILE
 #define WEATHER_CACHE_FILE "/weather_cache.json"
-#endif // WEATHER_CACHE_FILE
-#endif // USE_WEATHER
+#endif
+#endif
 
 #ifndef POTENTIOMETER_INPUT_MAX
 #define POTENTIOMETER_INPUT_MAX 4095
-#endif // POTENTIOMETER_INPUT_MAX
+#endif
 
-// Stream parser threshold in bytes - platform specific
+#ifndef CLEANUP_TEMP_FILES_INTERVAL_SECONDS
+#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60)
+#endif
+
+/// Google Drive memory management defaults (platform specific)
 #ifdef BOARD_HAS_PSRAM
-// Feather S3 with PSRAM - use aggressive limits to maximize performance
-
+// ESP32-S3 with PSRAM - higher limits for better performance
 #ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304 // 4MB - avoid streaming for most responses
-#endif                                               // GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // 4MB - avoid streaming for most responses
+#endif
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer
-#endif                                     // GOOGLE_DRIVE_JSON_DOC_SIZE
-
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304  // 4MB JSON document buffer
+#endif
 #ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456 // 6MB response body reserve
-#endif                                         // GOOGLE_DRIVE_BODY_RESERVE_SIZE
-
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456  // 6MB response body reserve
+#endif
 #ifndef GOOGLE_DRIVE_SAFETY_LIMIT
 #define GOOGLE_DRIVE_SAFETY_LIMIT 10485760 // 10MB safety limit
-#endif                                     // GOOGLE_DRIVE_SAFETY_LIMIT
-
+#endif
 #else
 // Standard ESP32 - conservative limits for limited RAM
-
 #ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768 // 32KB
-#endif                                             // GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768  // 32KB threshold
+#endif
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960 // 40KB JSON document buffer
-#endif                                   // GOOGLE_DRIVE_JSON_DOC_SIZE
-
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960  // 40KB JSON document buffer
+#endif
 #ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536 // 64KB response body reserve
-#endif                                       // GOOGLE_DRIVE_BODY_RESERVE_SIZE
-
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536  // 64KB response body reserve
+#endif
 #ifndef GOOGLE_DRIVE_SAFETY_LIMIT
-#define GOOGLE_DRIVE_SAFETY_LIMIT 100000 // 100KB safety limit
-#endif                                   // GOOGLE_DRIVE_SAFETY_LIMIT
-
+#define GOOGLE_DRIVE_SAFETY_LIMIT 100000  // 100KB safety limit
+#endif
 #endif // BOARD_HAS_PSRAM
 
-#ifndef GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
-// Maximum number of files to retrieve per API request
-// Test with larger page size now that RTC is disabled
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 200
-#endif // GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
+/// Google Drive API configuration defaults
+#ifndef GOOGLE_DRIVE_CONFIG_FILEPATH
+#define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"
+#endif
 
-// #define USE_HTTP_1_0 // Force HTTP/1.0 to avoid chunked encoding issues
+#ifndef GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS
+#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)
+#endif
+
+#ifndef GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW
+#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 200
+#endif
+
+#ifndef GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS
+#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600
+#endif
+
+#ifndef GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS
+#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 10000
+#endif
+
+#ifndef GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS
+#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 10
+#endif
+
+#ifndef GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS
+#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 60000
+#endif
+
+#ifndef GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS
+#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS 120000UL
+#endif
+
+#ifndef GOOGLE_DRIVE_MAX_WAIT_TIME_MS
+#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000
+#endif
+
+#ifndef GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 200
+#endif
+
+#ifndef GOOGLE_DRIVE_TEMP_DIR
+#define GOOGLE_DRIVE_TEMP_DIR "temp"
+#endif
+
+#ifndef GOOGLE_DRIVE_CACHE_DIR
+#define GOOGLE_DRIVE_CACHE_DIR "cache"
+#endif
+
+/// Network timeout defaults
+#ifndef WIFI_CONNECT_TIMEOUT
+#define WIFI_CONNECT_TIMEOUT 10000
+#endif
+
+#ifndef HTTP_CONNECT_TIMEOUT
+#define HTTP_CONNECT_TIMEOUT 15000
+#endif
+
+#ifndef HTTP_REQUEST_TIMEOUT
+#define HTTP_REQUEST_TIMEOUT 30000
+#endif
+
+#ifndef NTP_TIMEOUT
+#define NTP_TIMEOUT 20000
+#endif
+
+#ifndef NTP_SERVER1
+#define NTP_SERVER1 "pool.ntp.org"
+#endif
+
+#ifndef NTP_SERVER2
+#define NTP_SERVER2 "time.nist.gov"
+#endif
+
+/// Display accent color determination (based on display type)
+#ifndef ACCENT_COLOR
+#if defined(DISP_BW_V2)
+#define ACCENT_COLOR GxEPD_BLACK  // Black for B&W displays
+#elif defined(DISP_7C_F)
+#define ACCENT_COLOR GxEPD_RED    // Red for 7-color displays
+#elif defined(DISP_6C)
+#define ACCENT_COLOR GxEPD_RED    // Red for 6-color displays
+#else
+#define ACCENT_COLOR GxEPD_BLACK  // Default to black
+#endif
+#endif
 
 #endif // __PHOTO_FRAME_CONFIG_H__

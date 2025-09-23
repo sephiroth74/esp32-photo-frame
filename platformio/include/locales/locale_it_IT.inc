@@ -123,8 +123,44 @@ const char TXT_CHARGING_CIRCUIT_FAULT[] PROGMEM = "Guasto circuito carica";
 const char TXT_BATTERY_NOT_DETECTED[] PROGMEM = "Batteria non rilevata dal sistema";
 const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Autenticazione batteria fallita";
 
+#ifdef OTA_UPDATE_ENABLED
+// Errori Aggiornamento OTA (500-520)
+const char TXT_OTA_INIT_FAILED[] PROGMEM = "Inizializzazione sistema OTA fallita";
+const char TXT_OTA_VERSION_CHECK_FAILED[] PROGMEM = "Impossibile verificare aggiornamenti firmware";
+const char TXT_OTA_INVALID_RESPONSE[] PROGMEM = "Risposta non valida dal server aggiornamenti";
+const char TXT_OTA_UPDATE_IN_PROGRESS[] PROGMEM = "Aggiornamento OTA già in corso";
+const char TXT_INSUFFICIENT_SPACE[] PROGMEM = "Spazio insufficiente per aggiornamento firmware";
+const char TXT_OTA_PARTITION_NOT_FOUND[] PROGMEM = "Partizione OTA non trovata o corrotta";
+const char TXT_OTA_BEGIN_FAILED[] PROGMEM = "Impossibile iniziare processo aggiornamento OTA";
+const char TXT_OTA_DOWNLOAD_FAILED[] PROGMEM = "Download firmware fallito";
+const char TXT_OTA_WRITE_FAILED[] PROGMEM = "Impossibile scrivere firmware in flash";
+const char TXT_OTA_END_FAILED[] PROGMEM = "Impossibile finalizzare aggiornamento OTA";
+const char TXT_OTA_SET_BOOT_PARTITION_FAILED[] PROGMEM = "Impossibile impostare partizione boot";
+const char TXT_OTA_VERSION_INCOMPATIBLE[] PROGMEM = "Versione firmware troppo vecchia per questo aggiornamento";
+const char TXT_NO_UPDATE_NEEDED[] PROGMEM = "Firmware già aggiornato";
 
-
-
-
+// OTA Integration Messages
+const char TEXT_OTA_SYSTEM_INITIALIZED[] PROGMEM = "[OTA] Sistema aggiornamento inizializzato";
+const char TEXT_OTA_FIRST_BOOT_AFTER_UPDATE[] PROGMEM = "[OTA] Primo avvio dopo aggiornamento - confermo firmware valido";
+const char TEXT_OTA_RUNNING_FROM_PARTITION[] PROGMEM = "[OTA] In esecuzione dalla partizione: ";
+const char TEXT_OTA_UPDATE_IN_PROGRESS[] PROGMEM = "[OTA] Aggiornamento già in corso";
+const char TEXT_OTA_BATTERY_TOO_LOW[] PROGMEM = "[OTA] Livello batteria troppo basso per aggiornamenti";
+const char TEXT_OTA_UPDATE_AVAILABLE[] PROGMEM = "[OTA] Aggiornamento disponibile - avvio download";
+const char TEXT_OTA_UPDATE_FAILED[] PROGMEM = "[OTA] Aggiornamento fallito: ";
+const char TEXT_OTA_FIRMWARE_UP_TO_DATE[] PROGMEM = "[OTA] Firmware già aggiornato";
+const char TEXT_OTA_UPDATE_CHECK_FAILED[] PROGMEM = "[OTA] Controllo aggiornamento fallito: ";
+const char TEXT_OTA_PROGRESS[] PROGMEM = "[OTA] Progresso: ";
+const char TEXT_OTA_BYTES[] PROGMEM = " bytes) - ";
+const char TEXT_OTA_UPDATE_COMPLETED[] PROGMEM = "[OTA] Aggiornamento completato con successo!";
+const char TEXT_OTA_UPDATE_CANCELLED[] PROGMEM = "[OTA] Aggiornamento annullato";
+const char TEXT_OTA_SYSTEM_IDLE[] PROGMEM = "Sistema OTA inattivo";
+const char TEXT_OTA_STATUS[] PROGMEM = "Stato OTA";
+const char TEXT_OTA_STATUS_NOT_STARTED[] PROGMEM = "Non avviato";
+const char TEXT_OTA_STATUS_CHECKING[] PROGMEM = "Controllo aggiornamenti";
+const char TEXT_OTA_STATUS_DOWNLOADING[] PROGMEM = "Download in corso";
+const char TEXT_OTA_STATUS_INSTALLING[] PROGMEM = "Installazione";
+const char TEXT_OTA_STATUS_COMPLETED[] PROGMEM = "Completato";
+const char TEXT_OTA_STATUS_FAILED[] PROGMEM = "Fallito";
+const char TEXT_OTA_STATUS_UP_TO_DATE[] PROGMEM = "Aggiornato";
+#endif // OTA_UPDATE_ENABLED
 
