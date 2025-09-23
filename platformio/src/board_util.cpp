@@ -142,14 +142,8 @@ namespace board_utils {
 
         bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
-#ifdef DEBUG_BOARD
-        delay_before_sleep = true;
-#endif // DEBUG_BOARD
-
         if (delay_before_sleep) {
-            Serial.println(
-                F("[board_util] Wakeup reason is undefined or debug mode is on, delaying before "
-                  "sleep..."));
+            Serial.println(F("[board_util] Wakeup reason is undefined, delaying before sleep..."));
             delay(DELAY_BEFORE_SLEEP);
         }
 

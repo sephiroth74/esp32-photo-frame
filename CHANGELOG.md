@@ -5,6 +5,39 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.6.1] - 2025-09-23
+
+### Fixed
+- **Google Drive HTTP Parsing**: Fixed critical chunked HTTP response parsing corruption that caused JSON data corruption
+  - Replaced manual chunked transfer encoding parsing with HTTPClient automatic handling
+  - Eliminated filename truncation and data merging issues in Google Drive API responses
+  - Improved reliability of OAuth token requests and file list operations
+- **DateTime Formatting**: Fixed Italian locale datetime display in last update status
+  - Changed from printf-style formatting to proper strftime format specifiers
+  - Format now correctly displays "Lun, 1 Gen 2023 12:00" using `%a, %e %b %Y %H:%M`
+  - Fixed format string inconsistencies between DateTime and tm struct formatting
+- **FeatherS3 PSRAM Configuration**: Fixed PSRAM initialization failures on FeatherS3 boards
+  - Changed memory type from `qio_opi` (Octal SPI) to `qio_qspi` (Quad SPI) for proper PSRAM support
+  - Corrected PSRAM type configuration to match FeatherS3's 8MB Quad SPI PSRAM hardware
+  - Eliminated "opi psram: PSRAM ID read error" initialization failures
+
+### Changed
+- **Google Drive Buffer Optimization**: Optimized memory buffer sizes for better performance
+  - JSON document buffer: 512KB (was 2MB) - sufficient for large file lists
+  - Body reserve buffer: 256KB (was 2MB) - adequate for API responses
+  - Safety limit: 1MB (was 2MB) - reasonable protection without memory pressure
+  - Stream parser threshold: 512KB (was 2MB) - balanced performance and memory usage
+
+### Technical Details
+- **HTTP Client Migration**: Transitioned from manual HTTP parsing to HTTPClient class for automatic chunked encoding support
+- **PSRAM Streaming**: Replaced HTTPClient.getString() with getStreamPtr() and chunked reading into PSRAM-allocated buffers
+  - Uses `heap_caps_malloc(MALLOC_CAP_SPIRAM)` to allocate response buffers directly in PSRAM
+  - Reads HTTP responses in 1KB-4KB chunks to prevent memory pressure
+  - Automatic fallback to regular heap if PSRAM allocation fails
+- **Memory Management**: Optimized PSRAM utilization while preventing memory fragmentation from excessive buffer allocation
+- **Locale Support**: Enhanced strftime formatting ensures proper Italian weekday and month name display
+- **Hardware Compatibility**: Corrected ESP32-S3 PSRAM interface configuration for reliable memory expansion
+
 ## [v0.5.0] - 2025-01-21
 
 ### Added

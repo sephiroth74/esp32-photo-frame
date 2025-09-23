@@ -54,6 +54,10 @@ enum error_category {
     ERROR_CATEGORY_AUTHENTICATION = 5, ///< Authentication/JWT errors
     ERROR_CATEGORY_BATTERY        = 6, ///< Battery related errors
     ERROR_CATEGORY_DISPLAY        = 7  ///< Display/rendering errors
+#ifdef OTA_UPDATE_ENABLED
+    ,
+    ERROR_CATEGORY_OTA            = 8  ///< OTA update errors
+#endif // OTA_UPDATE_ENABLED
 };
 
 /**
@@ -230,6 +234,9 @@ typedef class photo_frame_error {
         case ERROR_CATEGORY_AUTHENTICATION: return "Auth";
         case ERROR_CATEGORY_BATTERY:        return "Battery";
         case ERROR_CATEGORY_DISPLAY:        return "Display";
+#ifdef OTA_UPDATE_ENABLED
+        case ERROR_CATEGORY_OTA:            return "OTA";
+#endif // OTA_UPDATE_ENABLED
         default:                            return "Unknown";
         }
     }
@@ -395,11 +402,22 @@ const photo_frame_error ChargingCircuitFault{TXT_CHARGING_CIRCUIT_FAULT, 407, ER
 const photo_frame_error BatteryNotDetected{TXT_BATTERY_NOT_DETECTED, 408, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
 const photo_frame_error BatteryAuthenticationFailed{TXT_BATTERY_AUTHENTICATION_FAILED, 409, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
 
-
-
-
-
-
+#ifdef OTA_UPDATE_ENABLED
+// OTA Update errors - extern declarations (defined in errors.cpp)
+extern const photo_frame_error OtaInitFailed;
+extern const photo_frame_error OtaVersionCheckFailed;
+extern const photo_frame_error OtaInvalidResponse;
+extern const photo_frame_error OtaUpdateInProgress;
+extern const photo_frame_error InsufficientSpace;
+extern const photo_frame_error OtaPartitionNotFound;
+extern const photo_frame_error OtaBeginFailed;
+extern const photo_frame_error OtaDownloadFailed;
+extern const photo_frame_error OtaWriteFailed;
+extern const photo_frame_error OtaEndFailed;
+extern const photo_frame_error OtaSetBootPartitionFailed;
+extern const photo_frame_error OtaVersionIncompatible;
+extern const photo_frame_error NoUpdateNeeded;
+#endif // OTA_UPDATE_ENABLED
 
 // Add more errors here
 // clang-format on

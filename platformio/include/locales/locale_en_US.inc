@@ -123,7 +123,46 @@ const char TXT_CHARGING_CIRCUIT_FAULT[] PROGMEM = "Charging circuit has a fault"
 const char TXT_BATTERY_NOT_DETECTED[] PROGMEM = "Battery is not detected by the system";
 const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Battery authentication failed";
 
+#ifdef OTA_UPDATE_ENABLED
+// OTA Update Errors (500-520)
+const char TXT_OTA_INIT_FAILED[] PROGMEM = "OTA update system initialization failed";
+const char TXT_OTA_VERSION_CHECK_FAILED[] PROGMEM = "Unable to check for firmware updates";
+const char TXT_OTA_INVALID_RESPONSE[] PROGMEM = "Invalid response from update server";
+const char TXT_OTA_UPDATE_IN_PROGRESS[] PROGMEM = "OTA update is already in progress";
+const char TXT_INSUFFICIENT_SPACE[] PROGMEM = "Insufficient space for firmware update";
+const char TXT_OTA_PARTITION_NOT_FOUND[] PROGMEM = "OTA partition not found or corrupted";
+const char TXT_OTA_BEGIN_FAILED[] PROGMEM = "Failed to begin OTA update process";
+const char TXT_OTA_DOWNLOAD_FAILED[] PROGMEM = "Firmware download failed";
+const char TXT_OTA_WRITE_FAILED[] PROGMEM = "Failed to write firmware to flash";
+const char TXT_OTA_END_FAILED[] PROGMEM = "Failed to finalize OTA update";
+const char TXT_OTA_SET_BOOT_PARTITION_FAILED[] PROGMEM = "Failed to set boot partition";
+const char TXT_OTA_VERSION_INCOMPATIBLE[] PROGMEM = "Firmware version too old for this update";
+const char TXT_NO_UPDATE_NEEDED[] PROGMEM = "Firmware is up to date";
 
+// OTA Integration Messages
+const char TEXT_OTA_SYSTEM_INITIALIZED[] PROGMEM = "[OTA] Update system initialized";
+const char TEXT_OTA_FIRST_BOOT_AFTER_UPDATE[] PROGMEM = "[OTA] First boot after update - marking firmware as valid";
+const char TEXT_OTA_RUNNING_FROM_PARTITION[] PROGMEM = "[OTA] Running from partition: ";
+const char TEXT_OTA_UPDATE_IN_PROGRESS[] PROGMEM = "[OTA] Update already in progress";
+const char TEXT_OTA_BATTERY_TOO_LOW[] PROGMEM = "[OTA] Battery level too low for updates";
+const char TEXT_OTA_UPDATE_AVAILABLE[] PROGMEM = "[OTA] Update available - starting download";
+const char TEXT_OTA_UPDATE_FAILED[] PROGMEM = "[OTA] Update failed: ";
+const char TEXT_OTA_FIRMWARE_UP_TO_DATE[] PROGMEM = "[OTA] Firmware is up to date";
+const char TEXT_OTA_UPDATE_CHECK_FAILED[] PROGMEM = "[OTA] Update check failed: ";
+const char TEXT_OTA_PROGRESS[] PROGMEM = "[OTA] Progress: ";
+const char TEXT_OTA_BYTES[] PROGMEM = " bytes) - ";
+const char TEXT_OTA_UPDATE_COMPLETED[] PROGMEM = "[OTA] Update completed successfully!";
+const char TEXT_OTA_UPDATE_CANCELLED[] PROGMEM = "[OTA] Update cancelled";
+const char TEXT_OTA_SYSTEM_IDLE[] PROGMEM = "OTA system idle";
+const char TEXT_OTA_STATUS[] PROGMEM = "OTA Status";
+const char TEXT_OTA_STATUS_NOT_STARTED[] PROGMEM = "Not started";
+const char TEXT_OTA_STATUS_CHECKING[] PROGMEM = "Checking for updates";
+const char TEXT_OTA_STATUS_DOWNLOADING[] PROGMEM = "Downloading";
+const char TEXT_OTA_STATUS_INSTALLING[] PROGMEM = "Installing";
+const char TEXT_OTA_STATUS_COMPLETED[] PROGMEM = "Completed";
+const char TEXT_OTA_STATUS_FAILED[] PROGMEM = "Failed";
+const char TEXT_OTA_STATUS_UP_TO_DATE[] PROGMEM = "Up to date";
+#endif // OTA_UPDATE_ENABLED
 
 
 

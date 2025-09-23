@@ -1,6 +1,32 @@
+// MIT License
+//
+// Copyright (c) 2025 Alessandro Crugnola
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include "google_drive_client.h"
 #include <SD_MMC.h>
 #include <unistd.h> // For fsync()
+#include <HTTPClient.h>
+#ifdef BOARD_HAS_PSRAM
+#include <esp_heap_caps.h> // For ps_malloc/ps_free
+#endif
 
 // OAuth/Google endpoints
 static const char TOKEN_HOST[] PROGMEM      = "oauth2.googleapis.com";
@@ -422,9 +448,12 @@ photo_frame_error_t google_drive_client::get_access_token() {
     while (attempt < config->maxRetryAttempts) {
         record_request();
 
-        WiFiClientSecure client;
-        HttpResponse response;
+        // Use HTTPClient for OAuth token request
+        HTTPClient http;
+        WiFiClientSecure client;  // Stack allocation to avoid memory management issues
         bool networkError = false;
+        int statusCode = 0;
+        String responseBody = "";
 
         // Set up SSL/TLS
         if (config->useInsecureTls) {
@@ -443,67 +472,103 @@ photo_frame_error_t google_drive_client::get_access_token() {
         Serial.print(F("[google_drive_client] Connecting to token endpoint: "));
         Serial.println(TOKEN_HOST);
 
-        // Attempt connection with timeout
-        client.setTimeout(HTTP_REQUEST_TIMEOUT / 1000);          // Set socket timeout in seconds
-        client.setHandshakeTimeout(HTTP_REQUEST_TIMEOUT / 1000); // Set handshake timeout in seconds
-        unsigned long connectStart = millis();
+        String tokenUrl = "https://";
+        tokenUrl += TOKEN_HOST;
+        tokenUrl += TOKEN_PATH;
 
-        if (!client.connect(TOKEN_HOST, 443)) {
-            Serial.print(F("[google_drive_client] Failed to connect to token endpoint: "));
-            Serial.println(TOKEN_HOST);
-            networkError = true;
-        } else if (millis() - connectStart > HTTP_CONNECT_TIMEOUT) {
-            Serial.println(F("[google_drive_client] Google Drive API connection timeout"));
-            client.stop();
-            networkError = true;
-        } else {
-            // Build and send request using helper method
-            String headers = "Content-Type: application/x-www-form-urlencoded";
-            String req =
-                build_http_request("POST", TOKEN_PATH, TOKEN_HOST, headers.c_str(), body.c_str());
+        http.begin(client, tokenUrl);
+        http.setTimeout(HTTP_REQUEST_TIMEOUT);
+        http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+        http.addHeader("User-Agent", "ESP32-PhotoFrame");
 
-            client.print(req);
+        int httpCode = http.POST(body);
 
-            // Parse response
-            if (!parse_http_response(client, response)) {
-                Serial.println(F("[google_drive_client] Failed to parse HTTP response"));
-                networkError = true;
+        if (httpCode > 0) {
+            statusCode = httpCode;
+
+            // Get content length to allocate proper buffer size
+            int contentLength = http.getSize();
+            WiFiClient* stream = http.getStreamPtr();
+
+            if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
+                // Allocate buffer in PSRAM if available, otherwise regular heap
+                char* buffer = nullptr;
+#ifdef BOARD_HAS_PSRAM
+                buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
+                if (!buffer) {
+                    // Fallback to regular heap if PSRAM allocation fails
+                    buffer = (char*)malloc(contentLength + 1);
+                }
+#else
+                buffer = (char*)malloc(contentLength + 1);
+#endif
+
+                if (buffer) {
+                    // Read response in chunks
+                    int totalRead = 0;
+                    while (stream->available() && totalRead < contentLength) {
+                        int bytesToRead = min(1024, contentLength - totalRead);
+                        int bytesRead = stream->readBytes(buffer + totalRead, bytesToRead);
+                        if (bytesRead == 0) break;
+                        totalRead += bytesRead;
+                        yield(); // Prevent watchdog timeout
+                    }
+                    buffer[totalRead] = '\0';
+                    responseBody = String(buffer); // Convert to String for compatibility
+                    free(buffer);
+
+                    Serial.print(F("[google_drive_client] Read "));
+                    Serial.print(totalRead);
+                    Serial.println(F(" bytes from token response"));
+                } else {
+                    Serial.println(F("[google_drive_client] Failed to allocate response buffer"));
+                    networkError = true;
+                }
+            } else {
+                // Fallback to getString for unknown/large content
+                Serial.print(F("[google_drive_client] Using fallback getString, content length: "));
+                Serial.println(contentLength);
+                responseBody = http.getString();
             }
+        } else {
+            Serial.print(F("[google_drive_client] HTTP POST failed: "));
+            Serial.println(httpCode);
+            networkError = true;
         }
 
-        client.stop();
+        http.end();
 
         // Classify failure and decide whether to retry
-        failure_type failureType = classify_failure(response.statusCode, networkError);
+        failure_type failureType = classify_failure(statusCode, networkError);
 
         if (failureType == failure_type::Permanent) {
             Serial.print(F("[google_drive_client] Permanent failure (HTTP "));
-            Serial.print(response.statusCode);
+            Serial.print(statusCode);
             Serial.println(F("), not retrying"));
             // Return specific error based on failure type and status code
             return photo_frame::error_utils::map_google_drive_error(
-                response.statusCode, response.body.c_str(), "OAuth token request");
+                statusCode, responseBody.c_str(), "OAuth token request");
         }
 
         // Success case
-        if (response.statusCode == 200 && response.hasContent) {
+        if (statusCode == 200 && responseBody.length() > 0) {
             // Parse token from response body
             size_t freeHeap = ESP.getFreeHeap();
             Serial.print(F("[google_drive_client] Free heap before token parse: "));
             Serial.println(freeHeap);
 
             StaticJsonDocument<768> doc;
-            DeserializationError err = deserializeJson(doc, response.body);
+            DeserializationError err = deserializeJson(doc, responseBody);
             if (err) {
                 Serial.print(F("[google_drive_client] Token parse error: "));
                 Serial.println(err.c_str());
 #ifdef DEBUG_GOOGLE_DRIVE
                 Serial.print(F("[google_drive_client] Response body: "));
-                Serial.println(response.body);
+                Serial.println(responseBody);
 #endif // DEBUG_GOOGLE_DRIVE
        // Check if this is an OAuth error response
-                if (response.body.indexOf("invalid_grant") >= 0 ||
-                    response.body.indexOf("invalid_client") >= 0) {
+                if (responseBody.indexOf("invalid_grant") >= 0 ||
+                    responseBody.indexOf("invalid_client") >= 0) {
                     return photo_frame::error_utils::create_oauth_error(
                         "invalid_grant", "OAuth token response parsing failed");
                 }
@@ -846,16 +911,28 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
 
     // Read response body based on encoding
     response.body          = "";
+    response.body.reserve(GOOGLE_DRIVE_BODY_RESERVE_SIZE); // Pre-allocate to prevent reallocations
     uint32_t bodyBytesRead = 0;
 
     if (responseHeaders.isChunked) {
         Serial.println(F("[google_drive_client] Response uses chunked transfer encoding"));
-        // Handle chunked transfer encoding
+        // Handle chunked transfer encoding with more robust parsing
         while (client.connected() || client.available()) {
-            // Read chunk size line
-            String chunkSizeLine = client.readStringUntil('\n');
+            // Read chunk size line character by character to avoid issues
+            String chunkSizeLine = "";
+            char c;
+            while (client.available()) {
+                c = client.read();
+                if (c == '\n') {
+                    break;
+                } else if (c != '\r') {
+                    chunkSizeLine += c;
+                }
+            }
+
             if (chunkSizeLine.length() == 0) {
-                break;
+                yield();
+                continue;
             }
 
             // Parse hex chunk size (ignore any chunk extensions after ';')
@@ -868,44 +945,61 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
             // Convert hex string to integer
             long chunkSize = strtol(chunkSizeLine.c_str(), NULL, 16);
 
+#ifdef DEBUG_GOOGLE_DRIVE
+            Serial.print(F("[google_drive_client] Chunk size: "));
+            Serial.print(chunkSize);
+            Serial.print(F(" (hex: "));
+            Serial.print(chunkSizeLine);
+            Serial.println(F(")"));
+#endif // DEBUG_GOOGLE_DRIVE
+
             // If chunk size is 0, we've reached the end
             if (chunkSize == 0) {
-                // Skip any trailing headers and final CRLF
+                // Read any trailing headers until we get an empty line
                 while (client.connected() || client.available()) {
-                    String trailerLine = client.readStringUntil('\n');
-                    if (trailerLine == "\r" || trailerLine.length() == 0) {
+                    String trailerLine = "";
+                    char c;
+                    while (client.available()) {
+                        c = client.read();
+                        if (c == '\n') {
+                            break;
+                        } else if (c != '\r') {
+                            trailerLine += c;
+                        }
+                    }
+                    if (trailerLine.length() == 0) {
                         break;
                     }
                 }
                 break;
             }
 
-            // Read the chunk data in efficient blocks
+            // Read exactly chunkSize bytes of chunk data
             long bytesRemaining = chunkSize;
             while (bytesRemaining > 0 && (client.connected() || client.available())) {
-                // Read data in blocks up to 1024 bytes or remaining chunk size
-                size_t blockSize = min((long)1024, bytesRemaining);
-                char buffer[1024];
+                // Read data byte by byte to ensure we don't read past chunk boundary
+                if (client.available()) {
+                    char byte = client.read();
+                    response.body += byte;
+                    bytesRemaining--;
+                    bodyBytesRead++;
 
-                size_t bytesRead = client.readBytes(buffer, blockSize);
-                if (bytesRead == 0) {
-                    yield();
-                    continue;
-                }
-
-                // Append the block to response body (preserving binary data)
-                response.body.concat(buffer, bytesRead);
-                bytesRemaining -= bytesRead;
-                bodyBytesRead += bytesRead;
-
-                // Yield every 1KB to prevent watchdog timeout
-                if (bodyBytesRead % 1024 == 0) {
+                    // Yield every 1KB to prevent watchdog timeout
+                    if (bodyBytesRead % 1024 == 0) {
+                        yield();
+                    }
+                } else {
                     yield();
                 }
             }
 
-            // Skip the trailing CRLF after chunk data
-            client.readStringUntil('\n');
+            // Read and skip the trailing CRLF after chunk data
+            while (client.available()) {
+                char c = client.read();
+                if (c == '\n') {
+                    break;
+                }
+            }
         }
     } else {
         // Handle regular content (with or without Content-Length) using efficient block reading
@@ -913,7 +1007,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
         while ((client.connected() || client.available()) && bytesRemaining > 0) {
             // Read data in blocks up to 1024 bytes or remaining content length
             size_t blockSize = min(1024, bytesRemaining);
-            char buffer[1024];
+            char buffer[1025]; // Extra byte for null terminator safety
 
             size_t bytesRead = client.readBytes(buffer, blockSize);
             if (bytesRead == 0) {
@@ -921,8 +1015,13 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
                 continue;
             }
 
-            // Append the block to response body (preserving binary data)
-            response.body.concat(buffer, bytesRead);
+            // Null-terminate the buffer to ensure safe string operations
+            buffer[bytesRead] = '\0';
+
+            // Create a temporary String from the buffer and concatenate
+            String chunk = String(buffer).substring(0, bytesRead);
+            response.body += chunk;
+
             bodyBytesRead += bytesRead;
 
             // If we have Content-Length, track remaining bytes
@@ -950,6 +1049,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
     Serial.print(response.statusMessage);
     Serial.print(F(", Body length: "));
     Serial.println(response.body.length());
+
     return true;
 }
 
@@ -1230,57 +1330,113 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
     q += "' in parents";
     String encodedQ = urlEncode(q);
 
-    String path;
-    path.reserve(strlen(DRIVE_LIST_PATH) + encodedQ.length() + 100);
-    path = DRIVE_LIST_PATH;
-    path += "?q=";
-    path += encodedQ;
-    path += "&fields=nextPageToken,files(id,name)&pageSize=";
-    path += String(pageSize);
+    String url = "https://www.googleapis.com";
+    url += DRIVE_LIST_PATH;
+    url += "?q=";
+    url += encodedQ;
+    url += "&fields=nextPageToken,files(id,name)&pageSize=";
+    url += String(pageSize);
     if (strlen(pageToken) > 0) {
         String encodedToken = urlEncode(String(pageToken));
-        path += "&pageToken=";
-        path += encodedToken;
+        url += "&pageToken=";
+        url += encodedToken;
     }
 
-    // Build and send the HTTP request
-    String headers = "Authorization: Bearer ";
-    headers += g_access_token.accessToken;
-    headers += "\r\n";
+    // Use HTTPClient for automatic chunked transfer encoding handling
+    HTTPClient http;
+    WiFiClientSecure client;  // Stack allocation to avoid memory management issues
 
-    String httpRequest =
-        build_http_request("GET", path.c_str(), "www.googleapis.com", headers.c_str());
-
-    WiFiClientSecure client;
     if (config->useInsecureTls) {
         client.setInsecure();
         Serial.println(F("[google_drive_client] WARNING: Using insecure TLS connection"));
+    } else if (g_google_root_ca.length() > 0) {
+        client.setCACert(g_google_root_ca.c_str());
+    } else {
+        client.setInsecure();
     }
 
-    if (!client.connect("www.googleapis.com", 443)) {
-        Serial.println(F("[google_drive_client] Connection to Google Drive failed"));
-        return 0;
-    }
+    http.begin(client, url);
+    http.setTimeout(HTTP_REQUEST_TIMEOUT);
+
+    // Set authorization header
+    String authHeader = "Bearer ";
+    authHeader += g_access_token.accessToken;
+    http.addHeader("Authorization", authHeader);
+    http.addHeader("User-Agent", "ESP32-PhotoFrame");
 
     record_request();
-    client.print(httpRequest);
 
-    HttpResponse response;
-    if (!parse_http_response(client, response)) {
-        client.stop();
-        return 0;
-    }
+    Serial.print(F("[google_drive_client] Requesting URL: "));
+    Serial.println(url);
 
-    client.stop();
+    int httpCode = http.GET();
 
-    if (response.statusCode != 200) {
+    if (httpCode != 200) {
         Serial.print(F("[google_drive_client] HTTP Error: "));
-        Serial.println(response.statusCode);
+        Serial.println(httpCode);
+        http.end();
         return 0;
     }
+
+    String response;
+
+    // Get content length to allocate proper buffer size
+    int contentLength = http.getSize();
+    WiFiClient* stream = http.getStreamPtr();
+
+    if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
+        // Allocate buffer in PSRAM if available, otherwise regular heap
+        char* buffer = nullptr;
+#ifdef BOARD_HAS_PSRAM
+        buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
+        if (!buffer) {
+            // Fallback to regular heap if PSRAM allocation fails
+            buffer = (char*)malloc(contentLength + 1);
+        }
+#else
+        buffer = (char*)malloc(contentLength + 1);
+#endif
+
+        if (buffer) {
+            // Read response in chunks
+            int totalRead = 0;
+            while (stream->available() && totalRead < contentLength) {
+                int bytesToRead = min(4096, contentLength - totalRead); // Larger chunks for file lists
+                int bytesRead = stream->readBytes(buffer + totalRead, bytesToRead);
+                if (bytesRead == 0) break;
+                totalRead += bytesRead;
+                yield(); // Prevent watchdog timeout
+            }
+            buffer[totalRead] = '\0';
+            response = String(buffer);
+            free(buffer);
+
+            Serial.print(F("[google_drive_client] Read "));
+            Serial.print(totalRead);
+            Serial.print(F(" bytes from file list response (allocated in "));
+#ifdef BOARD_HAS_PSRAM
+            Serial.println(F("PSRAM)"));
+#else
+            Serial.println(F("heap)"));
+#endif
+        } else {
+            Serial.println(F("[google_drive_client] Failed to allocate file list buffer, using getString"));
+            response = http.getString();
+        }
+    } else {
+        // Fallback to getString for unknown/large content
+        Serial.print(F("[google_drive_client] Using fallback getString for file list, content length: "));
+        Serial.println(contentLength);
+        response = http.getString();
+    }
+
+    http.end();
+
+    Serial.print(F("[google_drive_client] Response body length: "));
+    Serial.println(response.length());
 
     // Parse the JSON response and write directly to TOC file
-    return parse_file_list_to_toc(response.body, sdCard, tocFilePath, nextPageToken);
+    return parse_file_list_to_toc(response, sdCard, tocFilePath, nextPageToken);
 }
 
 size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,

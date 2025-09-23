@@ -29,16 +29,30 @@ namespace datetime_utils {
 // This will format the date and time as "YYYY/MM/DD HH:MM"
 const char dateTimeFormatLong[] = "%04d/%02d/%02d %02d:%02d";
 
+// This will format the date and time as "Lun, 1 Gen 2023 12:00"
+const char dateTimeFormatShort[] = "%a, %e %b %Y %H:%M";
+
 // This will format the date and time as "Monday, January 01 2023 12:00:00"
 const char dateTimeFormatFull[] = "%A, %B %d %Y %H:%M:%S";
 
 int format_datetime(char* buffer, size_t buffer_size, const DateTime& now, const char* format) {
     if (format == nullptr) {
-        format = dateTimeFormatLong;
+        format = dateTimeFormatShort;
     }
 
-    return snprintf(
-        buffer, buffer_size, format, now.year(), now.month(), now.day(), now.hour(), now.minute());
+    // Convert DateTime to tm structure for strftime
+    struct tm timeinfo;
+    timeinfo.tm_year = now.year() - 1900;  // tm_year is years since 1900
+    timeinfo.tm_mon = now.month() - 1;     // tm_mon is 0-11
+    timeinfo.tm_mday = now.day();
+    timeinfo.tm_hour = now.hour();
+    timeinfo.tm_min = now.minute();
+    timeinfo.tm_sec = now.second();
+    timeinfo.tm_wday = now.dayOfTheWeek(); // 0 = Sunday
+    timeinfo.tm_yday = 0;                  // Day of year (not used)
+    timeinfo.tm_isdst = -1;                // Daylight saving time info not available
+
+    return strftime(buffer, buffer_size, format, &timeinfo);
 }
 
 int format_datetime(char* buffer, size_t buffer_size, const tm& timeinfo, const char* format) {

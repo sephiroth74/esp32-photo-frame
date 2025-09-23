@@ -24,6 +24,12 @@
 - **Rate Limiting**: Built-in API rate limiting for Google Drive requests
 - Modular code structure for easy customization and extension
 
+### Recent Improvements (v0.6.1)
+- **🔧 Fixed Google Drive API Issues**: Resolved critical HTTP parsing corruption that caused incomplete file lists and token failures
+- **📅 Enhanced DateTime Display**: Fixed Italian locale formatting for proper weekday/month display ("Lun, 1 Gen 2023 12:00")
+- **💾 FeatherS3 PSRAM Support**: Fixed PSRAM initialization failures - now properly utilizes all 8MB of PSRAM for better performance
+- **⚡ Memory Optimization**: Balanced Google Drive buffer sizes for optimal performance without memory pressure
+
 ## Project Structure
 
 - `src/` - Main source code for device logic, battery, SD card, rendering, RTC, and localization

@@ -358,6 +358,8 @@ void draw_error(photo_frame_error error) {
 
 void draw_error_message(const gravity_t gravity, const uint8_t code) {
     String errMsgLn1 = String(TXT_ERROR_CODE) + code;
+    errMsgLn1 += " - ";
+    errMsgLn1 += String(FIRMWARE_VERSION_STRING);
 
     display.setFont(&FONT_6pt8b);
     display.setTextColor(GxEPD_BLACK);
@@ -400,7 +402,8 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
 #endif // DEBUG_RENDERER
 
     // Position error text higher on screen (no icon space needed)
-    int16_t baseY = DISP_HEIGHT / 2 - 60; // Higher position without icon
+    // int16_t baseY = DISP_HEIGHT / 2 - 60; // Higher position without icon
+    int16_t baseY = DISP_HEIGHT / 2 + 196 / 2 - 21;
 
     display.setFont(&FONT_26pt8b);
     if (!errMsgLn2.isEmpty()) {
@@ -410,7 +413,13 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
         draw_multiline_string(DISP_WIDTH / 2, baseY, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
     }
 
-    // Note: Icon drawing removed as requested
+    display.drawInvertedBitmap(DISP_WIDTH / 2 - 196 / 2,
+        DISP_HEIGHT / 2 - 196 / 2 - 42,
+        bitmap_196x196,
+        196,
+        196,
+        ACCENT_COLOR);
+
     return;
 } // end drawError
 
@@ -783,7 +792,7 @@ void draw_last_update(const DateTime& lastUpdate, long refresh_seconds) {
 #endif                             // DEBUG_RENDERER
     char dateTimeBuffer[32] = {0}; // Buffer to hold formatted date and time
     photo_frame::datetime_utils::format_datetime(
-        dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate);
+        dateTimeBuffer, sizeof(dateTimeBuffer), lastUpdate, photo_frame::datetime_utils::dateTimeFormatShort);
 
     // Format the refresh time using datetime_utils
     char refreshBuffer[16] = {0}; // Buffer for refresh time string (e.g., "2h 30m")

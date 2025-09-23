@@ -24,19 +24,19 @@
 
 #include <Arduino.h>
 #include <LittleFS.h>
-#include <Preferences.h>
 
 #ifdef BOARD_HAS_PSRAM
 #include "esp32/spiram.h"
 #endif // BOARD_HAS_PSRAM
 
-#include "battery.h"
-#include "board_util.h"
 #include "config.h"
 #include "errors.h"
+#include "battery.h"
+#include "board_util.h"
 #include "io_utils.h"
 #include "renderer.h"
 #include "rgb_status.h"
+#include "preferences_helper.h"
 
 #include "rtc_util.h"
 #include "sd_card.h"
@@ -52,6 +52,10 @@
 
 #include "google_drive.h"
 #include "google_drive_client.h"
+
+#ifdef OTA_UPDATE_ENABLED
+#include "ota_integration.h"
+#endif // OTA_UPDATE_ENABLED
 
 // Google Drive instance (initialized from JSON config)
 photo_frame::google_drive drive;
@@ -75,7 +79,6 @@ photo_frame::wifi_manager wifiManager;
 #ifdef USE_WEATHER
 photo_frame::weather::WeatherManager weatherManager;
 #endif
-Preferences prefs;
 
 unsigned long startupTime = 0;
 
@@ -103,20 +106,26 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
                              esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
- * @brief Setup time synchronization via WiFi and NTP, update weather if needed
+ * @brief Setup time synchronization via WiFi and NTP
  * @param battery_info Battery information for power conservation decisions
  * @param now Reference to store current DateTime
- * @param weatherManager Weather manager instance for updates
  * @return Error state after time/WiFi operations
  */
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-                            DateTime& now
+                            DateTime& now);
+
 #ifdef USE_WEATHER
-                            ,
-                            photo_frame::weather::WeatherManager& weatherManager
+/**
+ * @brief Handle weather data fetching with WiFi connection management
+ * @param battery_info Battery information for power conservation decisions
+ * @param weatherManager Weather manager instance for updates
+ * @return Error state after weather operations
+ */
+photo_frame::photo_frame_error_t
+handle_weather_operations(const photo_frame::battery_info_t& battery_info,
+                          photo_frame::weather::WeatherManager& weatherManager);
 #endif
-);
 
 /**
  * @brief Handle Google Drive operations (initialization, file selection, download)
@@ -236,13 +245,56 @@ void setup() {
 
     // Setup time synchronization and connectivity
     DateTime now = DateTime((uint32_t)0);
-    auto error   = setup_time_and_connectivity(battery_info,
-                                             now
+    auto error = setup_time_and_connectivity(battery_info, now);
+
+#ifdef OTA_UPDATE_ENABLED
+    // Handle OTA updates only if battery level is sufficient
+    if (error == photo_frame::error_type::None && !battery_info.is_empty() && battery_info.percent >= OTA_MIN_BATTERY_PERCENT) {
+        Serial.println(F("--------------------------------------"));
+        Serial.println(F("- Checking for OTA updates..."));
+        Serial.println(F("--------------------------------------"));
+
+        auto ota_error = photo_frame::initialize_ota_updates();
+        if (ota_error == photo_frame::error_type::None) {
+            Serial.println(F("OTA system initialized successfully"));
+
+            ota_error = photo_frame::handle_ota_updates_setup(wakeup_reason);
+
+            if (ota_error == photo_frame::error_type::None) {
+                Serial.println(F("OTA check completed - no update needed"));
+            } else if (ota_error == photo_frame::error_type::OtaVersionIncompatible) {
+                Serial.println(F("Current firmware is too old - manual update required"));
+            } else if (ota_error == photo_frame::error_type::NoUpdateNeeded) {
+                Serial.println(F("Firmware is up to date"));
+            } else {
+                Serial.print(F("OTA check failed: "));
+                Serial.println(ota_error.code);
+            }
+            // If update was successful, device would have restarted - this line won't execute
+        } else {
+            Serial.print(F("Failed to initialize OTA system: "));
+            Serial.println(ota_error.code);
+        }
+    } else {
+        Serial.print(F("Battery level too low for OTA updates ("));
+        Serial.print(battery_info.percent);
+        Serial.print(F("% < "));
+        Serial.print(OTA_MIN_BATTERY_PERCENT);
+        Serial.println(F("%)"));
+    }
+#endif // OTA_UPDATE_ENABLED
+
 #ifdef USE_WEATHER
-                                             ,
-                                             weatherManager
-#endif
-    );
+    // Handle weather operations after OTA updates
+    if (error == photo_frame::error_type::None) {
+        auto weather_error = handle_weather_operations(battery_info, weatherManager);
+        // Weather errors are not critical - don't update main error state
+        if (weather_error != photo_frame::error_type::None) {
+            Serial.print(F("Weather operations failed: "));
+            Serial.println(weather_error.code);
+        }
+    }
+#endif // USE_WEATHER
 
     // Handle Google Drive operations
     fs::File file;
@@ -606,12 +658,7 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
 
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-                            DateTime& now
-#ifdef USE_WEATHER
-                            ,
-                            photo_frame::weather::WeatherManager& weatherManager
-#endif
-) {
+                            DateTime& now) {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
     Serial.println(F("--------------------------------------"));
@@ -633,48 +680,12 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
             RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
             error = wifiManager.init(WIFI_FILENAME, sdCard);
 
-#ifdef USE_WEATHER
-            // Initialize weather manager (loads config from SD card)
-            Serial.println(F("Initializing weather manager..."));
-            if (!weatherManager.begin()) {
-                Serial.println(F("Weather manager initialization failed or disabled"));
-                // Weather failure is not critical - continue without weather
-            }
-#endif
-
             if (error == photo_frame::error_type::None) {
                 // No RTC module - simple NTP-only time fetching
                 Serial.println(F("Fetching time from NTP servers..."));
                 error = wifiManager.connect();
                 if (error == photo_frame::error_type::None) {
                     now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
-
-#ifdef USE_WEATHER
-                    // Piggyback weather fetch on existing WiFi session (with power management)
-                    bool batteryConservationMode = battery_info.is_critical();
-                    if (weatherManager.is_configured() && !batteryConservationMode &&
-                        weatherManager.needs_update(battery_info.percent)) {
-                        Serial.println(F("Fetching weather data during WiFi session..."));
-                        RGB_SET_STATE(WEATHER_FETCHING); // Show weather fetching status
-                        if (weatherManager.fetch_weather()) {
-                            Serial.println(F("Weather data updated successfully"));
-                            weatherManager.reset_failures(); // Reset failure count on success
-                        } else {
-                            Serial.print(F("Weather fetch failed ("));
-                            Serial.print(weatherManager.get_failure_count());
-                            Serial.println(F(" consecutive failures)"));
-                        }
-                    } else if (weatherManager.is_configured()) {
-                        if (batteryConservationMode) {
-                            Serial.print(
-                                F("Skipping weather update due to critical battery level ("));
-                            Serial.print(battery_info.percent);
-                            Serial.println(F("%) - preserving power"));
-                        } else {
-                            Serial.println(F("Weather update not needed at this time"));
-                        }
-                    }
-#endif
                 }
             } else {
                 Serial.println(F("WiFi initialization failed"));
@@ -697,6 +708,71 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 
     return error;
 }
+
+#ifdef USE_WEATHER
+photo_frame::photo_frame_error_t
+handle_weather_operations(const photo_frame::battery_info_t& battery_info,
+                          photo_frame::weather::WeatherManager& weatherManager) {
+    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
+
+    Serial.println(F("--------------------------------------"));
+    Serial.println(F("- Handling weather operations..."));
+    Serial.println(F("--------------------------------------"));
+
+    // Check if weather operations should be skipped due to battery conservation
+    bool batteryConservationMode = battery_info.is_critical();
+    if (batteryConservationMode) {
+        Serial.print(F("Skipping weather operations due to critical battery level ("));
+        Serial.print(battery_info.percent);
+        Serial.println(F("%) - preserving power"));
+        return photo_frame::error_type::None; // Not an error, just skipped for power conservation
+    }
+
+    // Initialize weather manager (loads config from SD card)
+    Serial.println(F("Initializing weather manager..."));
+    if (!weatherManager.begin()) {
+        Serial.println(F("Weather manager initialization failed or disabled"));
+        return photo_frame::error_type::None; // Weather failure is not critical - continue without weather
+    }
+
+    // Check if weather update is needed
+    if (!weatherManager.is_configured()) {
+        Serial.println(F("Weather manager not configured - skipping weather fetch"));
+        return photo_frame::error_type::None;
+    }
+
+    if (!weatherManager.needs_update(battery_info.percent)) {
+        Serial.println(F("Weather update not needed at this time"));
+        return photo_frame::error_type::None;
+    }
+
+    // Connect to WiFi for weather data fetching
+    Serial.println(F("Connecting to WiFi for weather data..."));
+    RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
+
+    error = wifiManager.connect();
+    if (error != photo_frame::error_type::None) {
+        Serial.println(F("WiFi connection failed for weather fetch"));
+        RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
+        return error; // Return error but don't make it critical
+    }
+
+    // Fetch weather data
+    Serial.println(F("Fetching weather data..."));
+    RGB_SET_STATE(WEATHER_FETCHING); // Show weather fetching status
+
+    if (weatherManager.fetch_weather()) {
+        Serial.println(F("Weather data updated successfully"));
+        weatherManager.reset_failures(); // Reset failure count on success
+    } else {
+        Serial.print(F("Weather fetch failed ("));
+        Serial.print(weatherManager.get_failure_count());
+        Serial.println(F(" consecutive failures)"));
+        // Don't treat weather fetch failure as critical error
+    }
+    return photo_frame::error_type::None; // Always return success for weather operations
+}
+#endif // USE_WEATHER
 
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
@@ -741,26 +817,21 @@ handle_google_drive_operations(bool is_reset,
 
             if (!shouldCleanup) {
                 // Check if we need to run cleanup based on time interval
-                if (!prefs.begin(PREFS_NAMESPACE, false)) {
-                    Serial.println(F("Failed to open preferences for cleanup check!"));
-                    shouldCleanup = true; // Default to cleanup if can't check
-                } else {
-                    time_t now         = time(NULL);
-                    time_t lastCleanup = prefs.getULong("last_cleanup", 0);
+                auto& prefs = photo_frame::PreferencesHelper::getInstance();
+                time_t now         = time(NULL);
+                time_t lastCleanup = prefs.getLastCleanup();
 
-                    if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
-                        shouldCleanup = true;
-                        Serial.print(F("Time since last cleanup: "));
-                        Serial.print(now - lastCleanup);
-                        Serial.println(F(" seconds"));
-                    } else {
-                        Serial.print(F("Skipping cleanup, only "));
-                        Serial.print(now - lastCleanup);
-                        Serial.print(F(" seconds since last cleanup (need "));
-                        Serial.print(CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
-                        Serial.println(F(" seconds)"));
-                    }
-                    prefs.end();
+                if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
+                    shouldCleanup = true;
+                    Serial.print(F("Time since last cleanup: "));
+                    Serial.print(now - lastCleanup);
+                    Serial.println(F(" seconds"));
+                } else {
+                    Serial.print(F("Skipping cleanup, only "));
+                    Serial.print(now - lastCleanup);
+                    Serial.print(F(" seconds since last cleanup (need "));
+                    Serial.print(CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
+                    Serial.println(F(" seconds)"));
                 }
             }
 
@@ -773,12 +844,11 @@ handle_google_drive_operations(bool is_reset,
                 }
 
                 // Update last cleanup time
-                if (!prefs.begin(PREFS_NAMESPACE, false)) {
-                    Serial.println(F("Failed to open preferences to save cleanup time!"));
-                } else {
-                    prefs.putULong("last_cleanup", time(NULL));
-                    prefs.end();
+                auto& prefs = photo_frame::PreferencesHelper::getInstance();
+                if (prefs.setLastCleanup(time(NULL))) {
                     Serial.println(F("Updated last cleanup time"));
+                } else {
+                    Serial.println(F("Failed to save cleanup time to preferences"));
                 }
             }
 
