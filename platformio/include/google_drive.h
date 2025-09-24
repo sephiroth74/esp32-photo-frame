@@ -283,6 +283,14 @@ class google_drive {
     photo_frame_error_t load_access_token_from_file();
 
   private:
+    /**
+     * @brief Helper function to remove all cached images from cache directory
+     * @param sdCard Reference to the SD card interface
+     * @param config Configuration containing paths
+     * @return Number of files removed
+     */
+    uint32_t cleanup_all_cached_images(sd_card& sdCard, const google_drive_json_config& config);
+
     google_drive_client client;       ///< Google Drive client for API operations
     google_drive_json_config config;  ///< Configuration settings for this Google Drive instance
     image_source_t last_image_source; ///< Source of the last accessed/downloaded image
