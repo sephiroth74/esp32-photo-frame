@@ -5,12 +5,12 @@
     {
       "version": {
         "major": 0,
-        "minor": 6,
-        "patch": 1,
-        "string": "v0.6.1"
+        "minor": 7,
+        "patch": 0,
+        "string": "v0.7.0"
       },
-      "release_date": "2025-09-23",
-      "release_notes": "Fixed critical Google Drive HTTP parsing corruption, datetime formatting, and FeatherS3 PSRAM configuration issues. Optimized memory buffer sizes for better performance.",
+      "release_date": "2025-09-24",
+      "release_notes": "Automated OTA release build",
       "compatibility": [
         {
             "board": "feathers3_unexpectedmaker",

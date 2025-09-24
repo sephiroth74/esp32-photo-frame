@@ -1,10 +1,9 @@
-# ESP32 Photo Frame - 16MB Partition Table with Factory + Dual OTA Support
-# Factory (4MB) + 2 OTA partitions (4MB each) + 3.8MB spiffs
+# ESP32 Photo Frame - 16MB Partition Table with Dual OTA Support (No Factory)
+# 2 OTA partitions (5MB each) + 5.84MB spiffs - Optimized layout without factory partition
 # Name,      Type, SubType,  Offset,     Size,      Flags
 nvs,         data, nvs,      0x9000,     0x6000,
 otadata,     data, ota,      0xF000,     0x2000,
-factory,     app,  factory,  0x20000,    0x400000,
-ota_0,       app,  ota_0,    0x420000,   0x400000,
-ota_1,       app,  ota_1,    0x820000,   0x400000,
-spiffs,      data, spiffs,   0xC20000,   0x3D8000,
+ota_0,       app,  ota_0,    0x20000,    0x500000,
+ota_1,       app,  ota_1,    0x520000,   0x500000,
+spiffs,      data, spiffs,   0xA20000,   0x5D8000,
 coredump,    data, coredump, 0xFF8000,   0x8000,

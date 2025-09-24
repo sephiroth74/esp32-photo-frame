@@ -5,6 +5,49 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.7.0] - 2025-09-24
+
+### Added
+- **Optimized Partition Layout**: Eliminated factory partition and redistributed space for better utilization
+  - Increased OTA partitions from 4MB to 5MB each (+25% capacity for firmware growth)
+  - Expanded SPIFFS from 3.8MB to 5.84MB (+54% capacity for assets and cache)
+  - Improved upload address from 0x420000 to 0x20000 for direct ota_0 boot
+- **PSRAM Streaming Optimization**: Enhanced HTTP client to leverage 8MB PSRAM efficiently
+  - Replaced `getString()` with `getStreamPtr()` for chunked reading into PSRAM buffers
+  - Uses `heap_caps_malloc(MALLOC_CAP_SPIRAM)` for direct PSRAM allocation
+  - Automatic fallback to regular heap if PSRAM unavailable
+
+### Fixed
+- **Weather Sunrise/Sunset Times**: Fixed incorrect timezone handling causing 1-hour offset
+  - Added `&timeformat=unixtime` parameter to Open-Meteo API requests
+  - Eliminated complex ISO8601 parsing in favor of direct Unix timestamp reading
+  - Sunrise/sunset times now display correct local times (e.g., 07:17 instead of 08:17)
+- **Memory Management**: Fixed critical memory corruption crashes in HTTPClient usage
+  - Replaced heap allocation with stack allocation for WiFiClientSecure objects
+  - Eliminated use-after-free bugs that caused "Guru Meditation Error: InstrFetchProhibited"
+- **FeatherS3 PSRAM Support**: Fixed PSRAM initialization failures on ESP32-S3 boards
+  - Corrected memory type from `qio_opi` (Octal SPI) to `qio_qspi` (Quad SPI)
+  - Properly configured for FeatherS3's 8MB Quad SPI PSRAM hardware
+  - Eliminated "opi psram: PSRAM ID read error" initialization failures
+
+### Changed
+- **Simplified Cleanup Logic**: Completely refactored `cleanup_temporary_files` function
+  - Eliminated complex O(n×m) orphaned file detection algorithm
+  - Implemented clear decision tree: force cleanup, low space cleanup, or TOC maintenance
+  - Reduced function complexity from 280+ lines to ~170 lines (39% reduction)
+  - Improved performance and predictability with straightforward cleanup strategies
+- **Memory Buffer Optimization**: Balanced performance and memory usage
+  - Reduced JSON buffers from 2MB to 512KB - sufficient for large file lists
+  - Optimized body reserve from 2MB to 256KB - adequate for API responses
+  - Adjusted safety limits to 1MB - prevents memory fragmentation while maintaining functionality
+
+### Technical Details
+- **HTTP Client Migration**: Enhanced from manual HTTP parsing to HTTPClient with PSRAM streaming
+- **Memory Management**: Optimized PSRAM utilization while preventing memory fragmentation
+- **Storage Optimization**: New partition layout provides 4MB additional usable space
+- **Error Recovery**: Improved robustness with better memory management and cleanup logic
+- **Weather API**: Streamlined timezone handling eliminates parsing complexity and accuracy issues
+
 ## [v0.6.1] - 2025-09-23
 
 ### Fixed
