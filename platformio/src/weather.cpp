@@ -29,7 +29,6 @@
 namespace photo_frame {
 namespace weather {
 
-
 // Static constants
 const char* WeatherManager::OPENMETEO_API_BASE = "https://api.open-meteo.com/v1/forecast";
 
@@ -296,7 +295,7 @@ bool WeatherManager::parse_weather_response(const String& json_response,
             if (sunrise_array.size() > 0 && sunset_array.size() > 0) {
                 // With timeformat=unixtime, Open-Meteo returns Unix timestamps directly
                 weather_data.sunrise_time = sunrise_array[0].as<uint32_t>();
-                weather_data.sunset_time = sunset_array[0].as<uint32_t>();
+                weather_data.sunset_time  = sunset_array[0].as<uint32_t>();
 
 #ifdef DEBUG_WEATHER
                 Serial.print(F("[WeatherManager] Sunrise timestamp: "));

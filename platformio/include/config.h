@@ -46,9 +46,9 @@
 
 /// Minimum supported version for OTA compatibility
 /// Devices with firmware older than this version must be manually updated
-#define OTA_MIN_SUPPORTED_VERSION_MAJOR  0
-#define OTA_MIN_SUPPORTED_VERSION_MINOR  4
-#define OTA_MIN_SUPPORTED_VERSION_PATCH  0
+#define OTA_MIN_SUPPORTED_VERSION_MAJOR 0
+#define OTA_MIN_SUPPORTED_VERSION_MINOR 4
+#define OTA_MIN_SUPPORTED_VERSION_PATCH 0
 
 // ============================================================================
 // HARDWARE CONFIGURATION
@@ -102,9 +102,10 @@
 /// Analog battery monitoring (fallback method when MAX1704X not available)
 /// Used when USE_SENSOR_MAX1704X is not defined
 // #define BATTERY_PIN                    A0           // Analog pin for battery voltage reading
-// #define BATTERY_NUM_READINGS           100          // Number of readings to average for stability
-// #define BATTERY_DELAY_BETWEEN_READINGS 30           // Delay between readings in milliseconds
-// #define BATTERY_RESISTORS_RATIO        0.460453401  // Voltage divider ratio (R1/(R1+R2))
+// #define BATTERY_NUM_READINGS           100          // Number of readings to average for
+// stability #define BATTERY_DELAY_BETWEEN_READINGS 30           // Delay between readings in
+// milliseconds #define BATTERY_RESISTORS_RATIO        0.460453401  // Voltage divider ratio
+// (R1/(R1+R2))
 
 /// Battery power management settings
 // #define BATTERY_POWER_SAVING  // Enable power-saving mode when battery is low
@@ -152,13 +153,14 @@
 #define SECONDS_IN_DAY         86400
 
 /// Deep sleep configuration
-#define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY  // Maximum sleep duration (24 hours)
+#define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY // Maximum sleep duration (24 hours)
 
 /// Display refresh timing configuration
-// #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)   // Minimum refresh interval (5 minutes)
-// #define REFRESH_MAX_INTERVAL_SECONDS (2 * SECONDS_IN_HOUR)     // Maximum refresh interval (2 hours)
-// #define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE)   // Step size for refresh adjustment
-// #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)  // Low battery refresh interval
+// #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)   // Minimum refresh interval (5
+// minutes) #define REFRESH_MAX_INTERVAL_SECONDS (2 * SECONDS_IN_HOUR)     // Maximum refresh
+// interval (2 hours) #define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE)   // Step size
+// for refresh adjustment #define REFRESH_INTERVAL_SECONDS_LOW_BATTERY (6 * SECONDS_IN_HOUR)  // Low
+// battery refresh interval
 
 /// Daily operation schedule
 // #define DAY_START_HOUR 6   // Hour when device becomes active (6 AM)
@@ -168,10 +170,10 @@
 // #define DELAY_BEFORE_SLEEP 20000  // Delay before sleep in milliseconds (debug/fallback)
 
 /// Battery level thresholds (percentages)
-#define BATTERY_CHARGING_MILLIVOLTS  4300  // Voltage above which battery is considered charging
-#define BATTERY_PERCENT_EMPTY        5     // Battery percentage considered empty
-#define BATTERY_PERCENT_CRITICAL     10    // Battery percentage considered critical
-#define BATTERY_PERCENT_LOW          25    // Battery percentage considered low
+#define BATTERY_CHARGING_MILLIVOLTS 4300 // Voltage above which battery is considered charging
+#define BATTERY_PERCENT_EMPTY       5    // Battery percentage considered empty
+#define BATTERY_PERCENT_CRITICAL    10   // Battery percentage considered critical
+#define BATTERY_PERCENT_LOW         25   // Battery percentage considered low
 
 // ============================================================================
 // NETWORK AND CONNECTIVITY
@@ -185,7 +187,8 @@
 // #define HTTP_CONNECT_TIMEOUT 15000  // HTTP connection timeout (15 seconds)
 // #define HTTP_REQUEST_TIMEOUT 30000  // HTTP request timeout (30 seconds)
 
-/// NTP (Network Time Protocol) configuration (configured in board-specific config or system defaults section)
+/// NTP (Network Time Protocol) configuration (configured in board-specific config or system
+/// defaults section)
 // #define NTP_TIMEOUT 20000           // NTP request timeout in milliseconds
 // #define NTP_SERVER1 "pool.ntp.org"  // Primary NTP server
 // #define NTP_SERVER2 "time.nist.gov" // Secondary NTP server
@@ -203,15 +206,15 @@
 // ============================================================================
 
 /// File system paths and names
-#define PREFS_NAMESPACE           "photo_frame"        // Preferences namespace for settings
-#define TOC_DATA_FILENAME         "toc_data.txt"       // Table of contents data file
-#define TOC_META_FILENAME         "toc_meta.txt"       // Table of contents metadata file
-#define ACCESS_TOKEN_FILENAME     "access_token.json"  // OAuth access token cache file
-#define LITTLEFS_TEMP_IMAGE_FILE  "/temp_image.tmp"    // Temporary image file in LittleFS
+#define PREFS_NAMESPACE          "photo_frame"       // Preferences namespace for settings
+#define TOC_DATA_FILENAME        "toc_data.txt"      // Table of contents data file
+#define TOC_META_FILENAME        "toc_meta.txt"      // Table of contents metadata file
+#define ACCESS_TOKEN_FILENAME    "access_token.json" // OAuth access token cache file
+#define LITTLEFS_TEMP_IMAGE_FILE "/temp_image.tmp"   // Temporary image file in LittleFS
 
 /// Storage cleanup settings
-#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16)  // 16 MB threshold for cleanup
-#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60)  // Cleanup interval (24 hours)
+#define SD_CARD_FREE_SPACE_THRESHOLD        (1024 * 1024 * 16) // 16 MB threshold for cleanup
+#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60)     // Cleanup interval (24 hours)
 
 /// Supported file formats for runtime detection
 extern const char* ALLOWED_FILE_EXTENSIONS[];
@@ -221,23 +224,27 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // GOOGLE DRIVE CONFIGURATION
 // ============================================================================
 
-/// Google Drive integration settings (configured in board-specific config or system defaults section)
-// #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"  // Configuration file path
-// #define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)          // TOC cache expiry (30 days)
-// #define GOOGLE_DRIVE_TEMP_DIR            "temp"                          // Temporary files directory
-// #define GOOGLE_DRIVE_CACHE_DIR           "cache"                         // Cache directory
+/// Google Drive integration settings (configured in board-specific config or system defaults
+/// section)
+// #define GOOGLE_DRIVE_CONFIG_FILEPATH "/config/google_drive_config.json"  // Configuration file
+// path #define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)          // TOC cache expiry
+// (30 days) #define GOOGLE_DRIVE_TEMP_DIR            "temp"                          // Temporary
+// files directory #define GOOGLE_DRIVE_CACHE_DIR           "cache"                         // Cache
+// directory
 
-/// API rate limiting and request management (configured in board-specific config or system defaults section)
+/// API rate limiting and request management (configured in board-specific config or system defaults
+/// section)
 // #define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW     200      // Conservative API request limit
 // #define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS   3600     // Rate limiting time window (1 hour)
 // #define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS        10000    // Minimum delay between requests
-// #define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS          10       // Maximum retry attempts for failed requests
-// #define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS       60000    // Base delay for exponential backoff
-// #define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS        120000UL // Maximum backoff delay
+// #define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS          10       // Maximum retry attempts for failed
+// requests #define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS       60000    // Base delay for exponential
+// backoff #define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS        120000UL // Maximum backoff delay
 // #define GOOGLE_DRIVE_MAX_WAIT_TIME_MS            1200000  // Maximum wait time for rate limiting
 // #define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE          200      // Files per API request
 
-/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults section)
+/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults
+/// section)
 // Memory limits are automatically set based on BOARD_HAS_PSRAM in the system defaults section
 // ESP32-S3 with PSRAM: 4MB JSON buffer, 6MB body reserve, 10MB safety limit
 // Standard ESP32: 40KB JSON buffer, 64KB body reserve, 100KB safety limit
@@ -255,7 +262,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // #define WEATHER_CACHE_FILE  "/weather_cache.json"   // Weather data cache file
 
 /// Weather data management
-#define WEATHER_MAX_AGE_SECONDS (3 * SECONDS_IN_HOUR)  // Weather data expiry time
+#define WEATHER_MAX_AGE_SECONDS (3 * SECONDS_IN_HOUR) // Weather data expiry time
 
 // ============================================================================
 // DISPLAY AND USER INTERFACE
@@ -281,7 +288,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // #define ACCENT_COLOR GxEPD_BLACK  // Accent color for UI elements
 
 /// Potentiometer input range (platform-specific)
-#define POTENTIOMETER_INPUT_MAX 4095  // 12-bit ADC max value (ESP32 default)
+#define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC max value (ESP32 default)
 
 // ============================================================================
 // LOCALIZATION
@@ -337,16 +344,17 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #ifdef OTA_UPDATE_ENABLED
 
 /// OTA server endpoints
-#define OTA_SERVER_URL "https://api.github.com/repos/sephiroth74/esp32-photo-frame"
-#define OTA_VERSION_ENDPOINT "/releases/latest"
+#define OTA_SERVER_URL        "https://api.github.com/repos/sephiroth74/esp32-photo-frame"
+#define OTA_VERSION_ENDPOINT  "/releases/latest"
 #define OTA_FIRMWARE_ENDPOINT "/releases/download/{version}/firmware-{board}.bin"
-#define OTA_MANIFEST_URL "https://github.com/sephiroth74/esp32-photo-frame/releases/latest/download/ota_manifest.json"
+#define OTA_MANIFEST_URL                                                                           \
+    "https://github.com/sephiroth74/esp32-photo-frame/releases/latest/download/ota_manifest.json"
 
 /// OTA timing and safety settings
-#define OTA_CHECK_INTERVAL_HOURS 168 // Check interval (7 days)
-#define OTA_MIN_BATTERY_PERCENT 30 // Minimum battery level for OTA updates
-#define OTA_TIMEOUT_MS 30000 // 30 seconds timeout
-#define OTA_BUFFER_SIZE 1024 // 1KB buffer for download chunks
+#define OTA_CHECK_INTERVAL_HOURS 168   // Check interval (7 days)
+#define OTA_MIN_BATTERY_PERCENT  30    // Minimum battery level for OTA updates
+#define OTA_TIMEOUT_MS           30000 // 30 seconds timeout
+#define OTA_BUFFER_SIZE          1024  // 1KB buffer for download chunks
 
 /// OTA security settings
 // #define OTA_USE_SSL false  // SSL usage for OTA downloads (set to true for production)
@@ -362,8 +370,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #ifdef OTA_UPDATE_ENABLED
 #ifndef OTA_USE_SSL
 #define OTA_USE_SSL false // Default to true for security
-#endif // OTA_USE_SSL
-#endif // OTA_UPDATE_ENABLED
+#endif                    // OTA_USE_SSL
+#endif                    // OTA_UPDATE_ENABLED
 
 /// Default value definitions with validation guards
 #ifndef BATTERY_CHARGING_MILLIVOLTS
@@ -477,7 +485,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 
 #ifndef SD_CARD_FREE_SPACE_THRESHOLD
-#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16)  // 16 MB
+#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16) // 16 MB
 #endif
 
 #ifndef GOOGLE_DRIVE_TEMP_DIR
@@ -509,13 +517,13 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #ifdef BOARD_HAS_PSRAM
 // ESP32-S3 with PSRAM - higher limits for better performance
 #ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // 4MB - avoid streaming for most responses
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304 // 4MB - avoid streaming for most responses
 #endif
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304  // 4MB JSON document buffer
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer
 #endif
 #ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456  // 6MB response body reserve
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 6291456 // 6MB response body reserve
 #endif
 #ifndef GOOGLE_DRIVE_SAFETY_LIMIT
 #define GOOGLE_DRIVE_SAFETY_LIMIT 10485760 // 10MB safety limit
@@ -523,16 +531,16 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #else
 // Standard ESP32 - conservative limits for limited RAM
 #ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768  // 32KB threshold
+#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768 // 32KB threshold
 #endif
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960  // 40KB JSON document buffer
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960 // 40KB JSON document buffer
 #endif
 #ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536  // 64KB response body reserve
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536 // 64KB response body reserve
 #endif
 #ifndef GOOGLE_DRIVE_SAFETY_LIMIT
-#define GOOGLE_DRIVE_SAFETY_LIMIT 100000  // 100KB safety limit
+#define GOOGLE_DRIVE_SAFETY_LIMIT 100000 // 100KB safety limit
 #endif
 #endif // BOARD_HAS_PSRAM
 
@@ -613,13 +621,13 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 /// Display accent color determination (based on display type)
 #ifndef ACCENT_COLOR
 #if defined(DISP_BW_V2)
-#define ACCENT_COLOR GxEPD_BLACK  // Black for B&W displays
+#define ACCENT_COLOR GxEPD_BLACK // Black for B&W displays
 #elif defined(DISP_7C_F)
-#define ACCENT_COLOR GxEPD_RED    // Red for 7-color displays
+#define ACCENT_COLOR GxEPD_RED // Red for 7-color displays
 #elif defined(DISP_6C)
-#define ACCENT_COLOR GxEPD_RED    // Red for 6-color displays
+#define ACCENT_COLOR GxEPD_RED // Red for 6-color displays
 #else
-#define ACCENT_COLOR GxEPD_BLACK  // Default to black
+#define ACCENT_COLOR GxEPD_BLACK // Default to black
 #endif
 #endif
 

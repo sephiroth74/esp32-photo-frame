@@ -35,7 +35,7 @@ bool PreferencesHelper::beginRead() {
     }
 
     if (preferences.begin(PREFS_NAMESPACE, true)) { // true = read-only
-        isOpen = true;
+        isOpen     = true;
         isReadOnly = true;
         return true;
     }
@@ -48,7 +48,7 @@ bool PreferencesHelper::beginWrite() {
     }
 
     if (preferences.begin(PREFS_NAMESPACE, false)) { // false = read-write
-        isOpen = true;
+        isOpen     = true;
         isReadOnly = false;
         return true;
     }
@@ -58,7 +58,7 @@ bool PreferencesHelper::beginWrite() {
 void PreferencesHelper::end() {
     if (isOpen) {
         preferences.end();
-        isOpen = false;
+        isOpen     = false;
         isReadOnly = false;
     }
 }
@@ -85,22 +85,17 @@ uint32_t PreferencesHelper::getULong(const char* key, uint32_t defaultValue) {
     return value;
 }
 
-
 // ========================================
 // APPLICATION-SPECIFIC METHODS
 // ========================================
 
-time_t PreferencesHelper::getLastCleanup() {
-    return getULong("last_cleanup", 0);
-}
+time_t PreferencesHelper::getLastCleanup() { return getULong("last_cleanup", 0); }
 
 bool PreferencesHelper::setLastCleanup(time_t timestamp) {
     return putULong("last_cleanup", timestamp);
 }
 
-time_t PreferencesHelper::getOtaLastCheck() {
-    return getULong("ota_last_check", 0);
-}
+time_t PreferencesHelper::getOtaLastCheck() { return getULong("ota_last_check", 0); }
 
 bool PreferencesHelper::setOtaLastCheck(time_t timestamp) {
     return putULong("ota_last_check", timestamp);

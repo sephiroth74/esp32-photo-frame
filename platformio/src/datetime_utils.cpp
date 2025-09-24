@@ -42,15 +42,15 @@ int format_datetime(char* buffer, size_t buffer_size, const DateTime& now, const
 
     // Convert DateTime to tm structure for strftime
     struct tm timeinfo;
-    timeinfo.tm_year = now.year() - 1900;  // tm_year is years since 1900
-    timeinfo.tm_mon = now.month() - 1;     // tm_mon is 0-11
-    timeinfo.tm_mday = now.day();
-    timeinfo.tm_hour = now.hour();
-    timeinfo.tm_min = now.minute();
-    timeinfo.tm_sec = now.second();
-    timeinfo.tm_wday = now.dayOfTheWeek(); // 0 = Sunday
-    timeinfo.tm_yday = 0;                  // Day of year (not used)
-    timeinfo.tm_isdst = -1;                // Daylight saving time info not available
+    timeinfo.tm_year  = now.year() - 1900; // tm_year is years since 1900
+    timeinfo.tm_mon   = now.month() - 1;   // tm_mon is 0-11
+    timeinfo.tm_mday  = now.day();
+    timeinfo.tm_hour  = now.hour();
+    timeinfo.tm_min   = now.minute();
+    timeinfo.tm_sec   = now.second();
+    timeinfo.tm_wday  = now.dayOfTheWeek(); // 0 = Sunday
+    timeinfo.tm_yday  = 0;                  // Day of year (not used)
+    timeinfo.tm_isdst = -1;                 // Daylight saving time info not available
 
     return strftime(buffer, buffer_size, format, &timeinfo);
 }

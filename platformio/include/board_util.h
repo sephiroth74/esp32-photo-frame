@@ -68,7 +68,8 @@ void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
  * The function configures EXT0 or EXT1 wakeup sources and timer wakeup using the provided delay.
  *
  * @param wakeup_reason The reason for the previous wakeup
- * @param refresh_microseconds The sleep duration in microseconds for timer wakeup (0 to disable timer wakeup)
+ * @param refresh_microseconds The sleep duration in microseconds for timer wakeup (0 to disable
+ * timer wakeup)
  * @note This function does not return as the ESP32 enters deep sleep
  * @note Wakeup sources are configured based on compile-time flags (WAKEUP_EXT0/WAKEUP_EXT1)
  */
@@ -121,7 +122,6 @@ void disable_built_in_led();
  * @note This function blocks execution during the blinking sequence
  */
 void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
-
 
 /**
  * @brief Reads the refresh interval from potentiometer, adjusting for battery level.

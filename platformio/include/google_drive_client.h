@@ -115,12 +115,16 @@ struct HttpResponse {
  * @brief Parsed HTTP response headers
  */
 struct HttpResponseHeaders {
-    bool isChunked;           ///< Whether response uses chunked transfer encoding
-    long contentLength;       ///< Content-Length header value (-1 if not present)
-    int headerCount;          ///< Number of headers parsed
-    bool parseSuccessful;     ///< Whether parsing completed successfully
+    bool isChunked;       ///< Whether response uses chunked transfer encoding
+    long contentLength;   ///< Content-Length header value (-1 if not present)
+    int headerCount;      ///< Number of headers parsed
+    bool parseSuccessful; ///< Whether parsing completed successfully
 
-    HttpResponseHeaders() : isChunked(false), contentLength(-1), headerCount(0), parseSuccessful(false) {}
+    HttpResponseHeaders() :
+        isChunked(false),
+        contentLength(-1),
+        headerCount(0),
+        parseSuccessful(false) {}
 };
 
 /**

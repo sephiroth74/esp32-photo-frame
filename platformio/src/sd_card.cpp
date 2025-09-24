@@ -106,10 +106,12 @@ photo_frame_error_t sd_card::begin() {
 
     Serial.println("[sdcard] Initializing SD card using SD_MMC (SDIO)...");
     Serial.println("[sdcard] Using SD_MMC (SDIO) interface with custom pins:");
-    Serial.println("[sdcard] CLK: GPIO14, CMD: GPIO17, D0: GPIO7, D1: GPIO3, D2: GPIO12, D3: GPIO11");
+    Serial.println(
+        "[sdcard] CLK: GPIO14, CMD: GPIO17, D0: GPIO7, D1: GPIO3, D2: GPIO12, D3: GPIO11");
 
     // Configure custom SDIO pins before initialization
-    SD_MMC.setPins(SD_MMC_CLK_PIN, SD_MMC_CMD_PIN, SD_MMC_D0_PIN, SD_MMC_D1_PIN, SD_MMC_D2_PIN, SD_MMC_D3_PIN);
+    SD_MMC.setPins(
+        SD_MMC_CLK_PIN, SD_MMC_CMD_PIN, SD_MMC_D0_PIN, SD_MMC_D1_PIN, SD_MMC_D2_PIN, SD_MMC_D3_PIN);
 
     if (!SD_MMC.begin()) {
         return error_type::CardMountFailed;
@@ -206,7 +208,7 @@ void sd_card::list_files() const {
     uint32_t fileCount = 1;
     String entry       = root.getNextFileName();
     while (entry.length() > 0) {
-        String file_name = entry.substring(entry.lastIndexOf('/') + 1);
+        String file_name         = entry.substring(entry.lastIndexOf('/') + 1);
         bool hasAllowedExtension = false;
 
         // Check if file has any of the allowed extensions
@@ -266,7 +268,7 @@ uint32_t sd_card::count_files() const {
     bool is_dir                             = false;
     String path                             = root.getNextFileName(&is_dir);
     while (path && !path.isEmpty()) {
-        String file_name = path.substring(path.lastIndexOf('/') + 1);
+        String file_name         = path.substring(path.lastIndexOf('/') + 1);
         bool hasAllowedExtension = false;
 
         // Check if file has any of the allowed extensions
@@ -277,7 +279,8 @@ uint32_t sd_card::count_files() const {
             }
         }
 
-        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") && hasAllowedExtension) {
+        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") &&
+            hasAllowedExtension) {
             count++;
         }
         path = root.getNextFileName(&is_dir);

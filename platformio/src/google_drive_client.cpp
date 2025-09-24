@@ -21,9 +21,9 @@
 // SOFTWARE.
 
 #include "google_drive_client.h"
+#include <HTTPClient.h>
 #include <SD_MMC.h>
 #include <unistd.h> // For fsync()
-#include <HTTPClient.h>
 #ifdef BOARD_HAS_PSRAM
 #include <esp_heap_caps.h> // For ps_malloc/ps_free
 #endif
@@ -450,9 +450,9 @@ photo_frame_error_t google_drive_client::get_access_token() {
 
         // Use HTTPClient for OAuth token request
         HTTPClient http;
-        WiFiClientSecure client;  // Stack allocation to avoid memory management issues
-        bool networkError = false;
-        int statusCode = 0;
+        WiFiClientSecure client; // Stack allocation to avoid memory management issues
+        bool networkError   = false;
+        int statusCode      = 0;
         String responseBody = "";
 
         // Set up SSL/TLS
@@ -487,7 +487,7 @@ photo_frame_error_t google_drive_client::get_access_token() {
             statusCode = httpCode;
 
             // Get content length to allocate proper buffer size
-            int contentLength = http.getSize();
+            int contentLength  = http.getSize();
             WiFiClient* stream = http.getStreamPtr();
 
             if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
@@ -508,13 +508,14 @@ photo_frame_error_t google_drive_client::get_access_token() {
                     int totalRead = 0;
                     while (stream->available() && totalRead < contentLength) {
                         int bytesToRead = min(1024, contentLength - totalRead);
-                        int bytesRead = stream->readBytes(buffer + totalRead, bytesToRead);
-                        if (bytesRead == 0) break;
+                        int bytesRead   = stream->readBytes(buffer + totalRead, bytesToRead);
+                        if (bytesRead == 0)
+                            break;
                         totalRead += bytesRead;
                         yield(); // Prevent watchdog timeout
                     }
                     buffer[totalRead] = '\0';
-                    responseBody = String(buffer); // Convert to String for compatibility
+                    responseBody      = String(buffer); // Convert to String for compatibility
                     free(buffer);
 
                     Serial.print(F("[google_drive_client] Read "));
@@ -727,7 +728,8 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         }
 
         // Parse HTTP response headers
-        HttpResponseHeaders responseHeaders = parse_http_headers(client, true); // verbose logging for downloads
+        HttpResponseHeaders responseHeaders =
+            parse_http_headers(client, true); // verbose logging for downloads
         if (!responseHeaders.parseSuccessful) {
             Serial.println(F("[google_drive_client] Failed to parse HTTP headers"));
             client.stop();
@@ -743,8 +745,8 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         }
 
         // Download file content based on encoding type
-        bool readAny       = false;
-        uint32_t bytesRead = 0;
+        bool readAny            = false;
+        uint32_t bytesRead      = 0;
 
         unsigned long startTime = millis();
 
@@ -853,7 +855,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
             // Ensure all data is flushed to disk before returning success
             Serial.println(F("[google_drive_client] Flushing file buffers to disk..."));
             outFile->flush();
-            delay(500); // Small delay to ensure flush completes
+            delay(500);              // Small delay to ensure flush completes
             return error_type::None; // Success
         }
 
@@ -903,14 +905,15 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
     }
 
     // Parse HTTP response headers
-    HttpResponseHeaders responseHeaders = parse_http_headers(client, false); // no verbose logging for token requests
+    HttpResponseHeaders responseHeaders =
+        parse_http_headers(client, false); // no verbose logging for token requests
     if (!responseHeaders.parseSuccessful) {
         Serial.println(F("[google_drive_client] Failed to parse HTTP headers"));
         return false;
     }
 
     // Read response body based on encoding
-    response.body          = "";
+    response.body = "";
     response.body.reserve(GOOGLE_DRIVE_BODY_RESERVE_SIZE); // Pre-allocate to prevent reallocations
     uint32_t bodyBytesRead = 0;
 
@@ -1003,7 +1006,8 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
         }
     } else {
         // Handle regular content (with or without Content-Length) using efficient block reading
-        int bytesRemaining = responseHeaders.contentLength > 0 ? responseHeaders.contentLength : INT_MAX;
+        int bytesRemaining =
+            responseHeaders.contentLength > 0 ? responseHeaders.contentLength : INT_MAX;
         while ((client.connected() || client.available()) && bytesRemaining > 0) {
             // Read data in blocks up to 1024 bytes or remaining content length
             size_t blockSize = min(1024, bytesRemaining);
@@ -1330,7 +1334,7 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
     q += "' in parents";
     String encodedQ = urlEncode(q);
 
-    String url = "https://www.googleapis.com";
+    String url      = "https://www.googleapis.com";
     url += DRIVE_LIST_PATH;
     url += "?q=";
     url += encodedQ;
@@ -1344,7 +1348,7 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
 
     // Use HTTPClient for automatic chunked transfer encoding handling
     HTTPClient http;
-    WiFiClientSecure client;  // Stack allocation to avoid memory management issues
+    WiFiClientSecure client; // Stack allocation to avoid memory management issues
 
     if (config->useInsecureTls) {
         client.setInsecure();
@@ -1381,7 +1385,7 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
     String response;
 
     // Get content length to allocate proper buffer size
-    int contentLength = http.getSize();
+    int contentLength  = http.getSize();
     WiFiClient* stream = http.getStreamPtr();
 
     if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
@@ -1401,14 +1405,16 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
             // Read response in chunks
             int totalRead = 0;
             while (stream->available() && totalRead < contentLength) {
-                int bytesToRead = min(4096, contentLength - totalRead); // Larger chunks for file lists
+                int bytesToRead =
+                    min(4096, contentLength - totalRead); // Larger chunks for file lists
                 int bytesRead = stream->readBytes(buffer + totalRead, bytesToRead);
-                if (bytesRead == 0) break;
+                if (bytesRead == 0)
+                    break;
                 totalRead += bytesRead;
                 yield(); // Prevent watchdog timeout
             }
             buffer[totalRead] = '\0';
-            response = String(buffer);
+            response          = String(buffer);
             free(buffer);
 
             Serial.print(F("[google_drive_client] Read "));
@@ -1420,12 +1426,14 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
             Serial.println(F("heap)"));
 #endif
         } else {
-            Serial.println(F("[google_drive_client] Failed to allocate file list buffer, using getString"));
+            Serial.println(
+                F("[google_drive_client] Failed to allocate file list buffer, using getString"));
             response = http.getString();
         }
     } else {
         // Fallback to getString for unknown/large content
-        Serial.print(F("[google_drive_client] Using fallback getString for file list, content length: "));
+        Serial.print(
+            F("[google_drive_client] Using fallback getString for file list, content length: "));
         Serial.println(contentLength);
         response = http.getString();
     }
@@ -1505,7 +1513,7 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
 
             // Check file extension filter - accept both .bin and .bmp
             const char* fileExtension = strrchr(name, '.');
-            bool extensionAllowed = false;
+            bool extensionAllowed     = false;
             if (fileExtension) {
                 for (size_t i = 0; i < ALLOWED_EXTENSIONS_COUNT; i++) {
                     if (strcmp(fileExtension, ALLOWED_FILE_EXTENSIONS[i]) == 0) {
@@ -1585,7 +1593,8 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
     return filesWritten;
 }
 
-HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& client, bool verbose) {
+HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& client,
+                                                            bool verbose) {
     HttpResponseHeaders headers;
 
     while (true) {

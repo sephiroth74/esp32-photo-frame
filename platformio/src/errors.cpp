@@ -336,19 +336,58 @@ namespace error_type {
 
 #ifdef OTA_UPDATE_ENABLED
 // OTA Update errors
-const photo_frame_error OtaInitFailed{TXT_OTA_INIT_FAILED, 500, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaVersionCheckFailed{TXT_OTA_VERSION_CHECK_FAILED, 501, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaInvalidResponse{TXT_OTA_INVALID_RESPONSE, 502, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaUpdateInProgress{TXT_OTA_UPDATE_IN_PROGRESS, 503, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_OTA};
-const photo_frame_error InsufficientSpace{TXT_INSUFFICIENT_SPACE, 504, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaPartitionNotFound{TXT_OTA_PARTITION_NOT_FOUND, 505, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaBeginFailed{TXT_OTA_BEGIN_FAILED, 506, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaDownloadFailed{TXT_OTA_DOWNLOAD_FAILED, 507, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaWriteFailed{TXT_OTA_WRITE_FAILED, 508, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaEndFailed{TXT_OTA_END_FAILED, 509, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaSetBootPartitionFailed{TXT_OTA_SET_BOOT_PARTITION_FAILED, 510, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_OTA};
-const photo_frame_error OtaVersionIncompatible{TXT_OTA_VERSION_INCOMPATIBLE, 511, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_OTA};
-const photo_frame_error NoUpdateNeeded{TXT_NO_UPDATE_NEEDED, 512, ERROR_SEVERITY_INFO, ERROR_CATEGORY_OTA};
+const photo_frame_error OtaInitFailed{TXT_OTA_INIT_FAILED,
+                                      500,
+                                      ERROR_SEVERITY_ERROR,
+                                      ERROR_CATEGORY_OTA};
+const photo_frame_error OtaVersionCheckFailed{TXT_OTA_VERSION_CHECK_FAILED,
+                                              501,
+                                              ERROR_SEVERITY_WARNING,
+                                              ERROR_CATEGORY_OTA};
+const photo_frame_error OtaInvalidResponse{TXT_OTA_INVALID_RESPONSE,
+                                           502,
+                                           ERROR_SEVERITY_ERROR,
+                                           ERROR_CATEGORY_OTA};
+const photo_frame_error OtaUpdateInProgress{TXT_OTA_UPDATE_IN_PROGRESS,
+                                            503,
+                                            ERROR_SEVERITY_WARNING,
+                                            ERROR_CATEGORY_OTA};
+const photo_frame_error InsufficientSpace{TXT_INSUFFICIENT_SPACE,
+                                          504,
+                                          ERROR_SEVERITY_ERROR,
+                                          ERROR_CATEGORY_OTA};
+const photo_frame_error OtaPartitionNotFound{TXT_OTA_PARTITION_NOT_FOUND,
+                                             505,
+                                             ERROR_SEVERITY_CRITICAL,
+                                             ERROR_CATEGORY_OTA};
+const photo_frame_error OtaBeginFailed{TXT_OTA_BEGIN_FAILED,
+                                       506,
+                                       ERROR_SEVERITY_ERROR,
+                                       ERROR_CATEGORY_OTA};
+const photo_frame_error OtaDownloadFailed{TXT_OTA_DOWNLOAD_FAILED,
+                                          507,
+                                          ERROR_SEVERITY_ERROR,
+                                          ERROR_CATEGORY_OTA};
+const photo_frame_error OtaWriteFailed{TXT_OTA_WRITE_FAILED,
+                                       508,
+                                       ERROR_SEVERITY_ERROR,
+                                       ERROR_CATEGORY_OTA};
+const photo_frame_error OtaEndFailed{TXT_OTA_END_FAILED,
+                                     509,
+                                     ERROR_SEVERITY_ERROR,
+                                     ERROR_CATEGORY_OTA};
+const photo_frame_error OtaSetBootPartitionFailed{TXT_OTA_SET_BOOT_PARTITION_FAILED,
+                                                  510,
+                                                  ERROR_SEVERITY_CRITICAL,
+                                                  ERROR_CATEGORY_OTA};
+const photo_frame_error OtaVersionIncompatible{TXT_OTA_VERSION_INCOMPATIBLE,
+                                               511,
+                                               ERROR_SEVERITY_ERROR,
+                                               ERROR_CATEGORY_OTA};
+const photo_frame_error NoUpdateNeeded{TXT_NO_UPDATE_NEEDED,
+                                       512,
+                                       ERROR_SEVERITY_INFO,
+                                       ERROR_CATEGORY_OTA};
 #endif // OTA_UPDATE_ENABLED
 
 } // namespace error_type

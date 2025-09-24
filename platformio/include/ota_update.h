@@ -27,12 +27,12 @@
 
 #ifdef OTA_UPDATE_ENABLED
 
+#include "errors.h"
 #include <Arduino.h>
-#include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFi.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
-#include "errors.h"
 
 namespace photo_frame {
 
@@ -52,28 +52,27 @@ namespace photo_frame {
 
 // OTA configuration constants are defined in config.h
 
-
 // OTA Server Configuration
 struct ota_config_t {
-    String server_url;          // OTA server base URL (e.g., "https://updates.example.com")
-    String version_endpoint;    // Version check endpoint (e.g., "/version")
-    String firmware_endpoint;   // Firmware download endpoint (e.g., "/firmware")
-    String board_name;          // Board identifier for updates
-    String current_version;     // Current firmware version
-    bool use_ssl;              // Use HTTPS for secure updates
-    String ca_cert;            // CA certificate for SSL verification (optional)
+    String server_url;        // OTA server base URL (e.g., "https://updates.example.com")
+    String version_endpoint;  // Version check endpoint (e.g., "/version")
+    String firmware_endpoint; // Firmware download endpoint (e.g., "/firmware")
+    String board_name;        // Board identifier for updates
+    String current_version;   // Current firmware version
+    bool use_ssl;             // Use HTTPS for secure updates
+    String ca_cert;           // CA certificate for SSL verification (optional)
 };
 
 // OTA Update Status
 enum class ota_status_t {
-    NOT_STARTED,        // OTA not started
-    CHECKING_VERSION,   // Checking for new version
-    DOWNLOADING,        // Downloading firmware
-    INSTALLING,         // Installing firmware
-    COMPLETED,          // Update completed successfully
-    FAILED,             // Update failed
-    ROLLBACK,           // Rolling back due to failure
-    NO_UPDATE_NEEDED    // No update available
+    NOT_STARTED,      // OTA not started
+    CHECKING_VERSION, // Checking for new version
+    DOWNLOADING,      // Downloading firmware
+    INSTALLING,       // Installing firmware
+    COMPLETED,        // Update completed successfully
+    FAILED,           // Update failed
+    ROLLBACK,         // Rolling back due to failure
+    NO_UPDATE_NEEDED  // No update available
 };
 
 // OTA Progress Information
@@ -90,28 +89,33 @@ struct ota_progress_t {
  * @brief OTA Update Manager Class
  */
 class OTAUpdate {
-private:
+  private:
     ota_config_t config;
     ota_progress_t progress;
 
-    esp_ota_handle_t ota_handle = 0;
-    const esp_partition_t* ota_partition = nullptr;
+    esp_ota_handle_t ota_handle              = 0;
+    const esp_partition_t* ota_partition     = nullptr;
     const esp_partition_t* running_partition = nullptr;
 
     HTTPClient http_client;
     WiFiClientSecure* secure_client = nullptr;
 
-    bool is_update_in_progress = false;
-    unsigned long last_check_time = 0;
-    String cached_github_response;  // Store GitHub response for firmware URL extraction
+    bool is_update_in_progress      = false;
+    unsigned long last_check_time   = 0;
+    String cached_github_response; // Store GitHub response for firmware URL extraction
 
     // Internal methods
     bool validate_battery_level();
     bool check_free_space();
-    photo_frame_error_t parse_version_response(const String& response, int& major, int& minor, int& patch);
+    photo_frame_error_t
+    parse_version_response(const String& response, int& major, int& minor, int& patch);
     photo_frame_error_t download_ota_manifest(String& manifest_content);
-    photo_frame_error_t parse_compatibility_info(const String& manifest_content, int& min_major, int& min_minor, int& min_patch);
-    photo_frame_error_t get_firmware_download_url(const String& github_response, String& firmware_url);
+    photo_frame_error_t parse_compatibility_info(const String& manifest_content,
+                                                 int& min_major,
+                                                 int& min_minor,
+                                                 int& min_patch);
+    photo_frame_error_t get_firmware_download_url(const String& github_response,
+                                                  String& firmware_url);
     bool check_version_compatibility(int min_major, int min_minor, int min_patch);
     photo_frame_error_t begin_ota_update();
     photo_frame_error_t download_and_install_firmware(const String& firmware_url);
@@ -119,7 +123,7 @@ private:
     void cleanup_ota_resources();
     bool is_newer_version(int latest_major, int latest_minor, int latest_patch);
 
-public:
+  public:
     OTAUpdate();
     ~OTAUpdate();
 
@@ -189,8 +193,8 @@ extern OTAUpdate ota_updater;
 #define OTA_CHECK_UPDATE() ota_updater.check_for_update()
 #define OTA_START_UPDATE() ota_updater.start_update()
 #define OTA_GET_PROGRESS() ota_updater.get_progress()
-#define OTA_IS_ACTIVE() ota_updater.is_update_active()
-#define OTA_CANCEL() ota_updater.cancel_update()
+#define OTA_IS_ACTIVE()    ota_updater.is_update_active()
+#define OTA_CANCEL()       ota_updater.cancel_update()
 
 } // namespace photo_frame
 
@@ -198,15 +202,21 @@ extern OTAUpdate ota_updater;
 
 // OTA system disabled - provide stub definitions
 namespace photo_frame {
-    // Empty namespace when OTA is disabled
+// Empty namespace when OTA is disabled
 }
 
 // No-op macros when OTA is disabled
-#define OTA_CHECK_UPDATE() do {} while(0)
-#define OTA_START_UPDATE() do {} while(0)
+#define OTA_CHECK_UPDATE()                                                                         \
+    do {                                                                                           \
+    } while (0)
+#define OTA_START_UPDATE()                                                                         \
+    do {                                                                                           \
+    } while (0)
 #define OTA_GET_PROGRESS() nullptr
-#define OTA_IS_ACTIVE() false
-#define OTA_CANCEL() do {} while(0)
+#define OTA_IS_ACTIVE()    false
+#define OTA_CANCEL()                                                                               \
+    do {                                                                                           \
+    } while (0)
 
 #endif // OTA_UPDATE_ENABLED
 
