@@ -24,11 +24,15 @@
 - **Rate Limiting**: Built-in API rate limiting for Google Drive requests
 - Modular code structure for easy customization and extension
 
-### Recent Improvements (v0.6.1)
-- **🔧 Fixed Google Drive API Issues**: Resolved critical HTTP parsing corruption that caused incomplete file lists and token failures
-- **📅 Enhanced DateTime Display**: Fixed Italian locale formatting for proper weekday/month display ("Lun, 1 Gen 2023 12:00")
-- **💾 FeatherS3 PSRAM Support**: Fixed PSRAM initialization failures - now properly utilizes all 8MB of PSRAM for better performance
-- **⚡ Memory Optimization**: Balanced Google Drive buffer sizes for optimal performance without memory pressure
+### Recent Improvements (v0.7.0)
+- **🗂️ Optimized Storage Layout**: Eliminated factory partition and redistributed 4MB additional space
+  - **+25% Larger OTA Partitions**: Increased from 4MB to 5MB each for firmware growth
+  - **+54% Larger SPIFFS**: Expanded from 3.8MB to 5.84MB for more assets and cache
+  - **Direct Boot**: Simplified boot process with ota_0 as primary partition
+- **⚡ PSRAM Streaming**: Enhanced HTTP client to leverage full 8MB PSRAM with chunked reading
+- **🌅 Fixed Weather Times**: Corrected sunrise/sunset display using Unix timestamps (no more 1-hour offset)
+- **🧹 Simplified Cleanup**: Streamlined cleanup logic with 39% code reduction and better performance
+- **🛡️ Memory Safety**: Fixed critical memory corruption crashes with improved HTTPClient usage
 
 ## Project Structure
 

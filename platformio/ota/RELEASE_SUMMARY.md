@@ -1,12 +1,12 @@
-# ESP32 Photo Frame - OTA Release v0.6.0
+# ESP32 Photo Frame - OTA Release v0.7.0
 
-**Release Date:** 2025-09-23 11:32:09 UTC
+**Release Date:** 2025-09-24 06:49:13 UTC
 
 ## Firmware Builds
 
 ### firmware-feathers3_unexpectedmaker.bin
-- **Size:** 1MB (2018400 bytes)
-- **SHA256:** `a835ff1bca24d441fd1de41462091aeea7c4f3899c1c0146e428a81d1f113180`
+- **Size:** 1MB (2020864 bytes)
+- **SHA256:** `71fb2f6c05d82c12b393cf9c8061907070e12db557d9a53ad244c4844709b4f1`
 
 ## Installation
 
@@ -18,5 +18,5 @@
 
 ```bash
 # Verify firmware checksums
-echo 'a835ff1bca24d441fd1de41462091aeea7c4f3899c1c0146e428a81d1f113180  firmware-feathers3_unexpectedmaker.bin' | sha256sum -c
+echo '71fb2f6c05d82c12b393cf9c8061907070e12db557d9a53ad244c4844709b4f1  firmware-feathers3_unexpectedmaker.bin' | sha256sum -c
 ```
