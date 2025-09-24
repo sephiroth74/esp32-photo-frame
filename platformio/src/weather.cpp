@@ -29,6 +29,7 @@
 namespace photo_frame {
 namespace weather {
 
+
 // Static constants
 const char* WeatherManager::OPENMETEO_API_BASE = "https://api.open-meteo.com/v1/forecast";
 
@@ -139,6 +140,7 @@ String WeatherManager::build_api_url() const {
     url += "&temperature_unit=" + config.temperature_unit;
     url += "&wind_speed_unit=" + config.wind_speed_unit;
     url += "&precipitation_unit=" + config.precipitation_unit;
+    url += "&timeformat=unixtime";
 
     return url;
 }
@@ -287,26 +289,21 @@ bool WeatherManager::parse_weather_response(const String& json_response,
             }
         }
 
-        // Extract sunrise/sunset times (ISO 8601 format, need to convert to Unix timestamp)
+        // Extract sunrise/sunset times (Unix timestamps with timeformat=unixtime)
         if (daily.containsKey("sunrise") && daily.containsKey("sunset")) {
             JsonArray sunrise_array = daily["sunrise"];
             JsonArray sunset_array  = daily["sunset"];
             if (sunrise_array.size() > 0 && sunset_array.size() > 0) {
-                String sunrise_str = sunrise_array[0].as<String>();
-                String sunset_str  = sunset_array[0].as<String>();
+                // With timeformat=unixtime, Open-Meteo returns Unix timestamps directly
+                weather_data.sunrise_time = sunrise_array[0].as<uint32_t>();
+                weather_data.sunset_time = sunset_array[0].as<uint32_t>();
 
-                // Convert ISO 8601 datetime to Unix timestamp
-                // Format expected: "2024-12-20T06:54"
-                // We want to save the sunrise and sunset times just as
-                struct tm tm_sunrise = {};
-                struct tm tm_sunset  = {};
-
-                if (strptime(sunrise_str.c_str(), "%Y-%m-%dT%H:%M", &tm_sunrise)) {
-                    weather_data.sunrise_time = mktime(&tm_sunrise);
-                }
-                if (strptime(sunset_str.c_str(), "%Y-%m-%dT%H:%M", &tm_sunset)) {
-                    weather_data.sunset_time = mktime(&tm_sunset);
-                }
+#ifdef DEBUG_WEATHER
+                Serial.print(F("[WeatherManager] Sunrise timestamp: "));
+                Serial.println(weather_data.sunrise_time);
+                Serial.print(F("[WeatherManager] Sunset timestamp: "));
+                Serial.println(weather_data.sunset_time);
+#endif
             }
         }
 
