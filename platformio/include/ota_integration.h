@@ -103,7 +103,8 @@ bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason);
  * @endcode
  *
  * @param wakeup_reason The wakeup reason already determined by main.cpp
- * @return photo_frame_error_t Error code (error_type::None if no update needed or update successful)
+ * @return photo_frame_error_t Error code (error_type::None if no update needed or update
+ * successful)
  */
 photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_reason);
 
@@ -151,23 +152,31 @@ String get_ota_status_info();
 } // namespace photo_frame
 
 // Convenience macros for easy integration
-#define INITIALIZE_OTA() photo_frame::initialize_ota_updates()
-#define SHOULD_CHECK_OTA(wakeup_reason) photo_frame::should_check_ota_updates(wakeup_reason)
+#define INITIALIZE_OTA()                        photo_frame::initialize_ota_updates()
+#define SHOULD_CHECK_OTA(wakeup_reason)         photo_frame::should_check_ota_updates(wakeup_reason)
 #define HANDLE_OTA_UPDATES_SETUP(wakeup_reason) photo_frame::handle_ota_updates_setup(wakeup_reason)
-#define MONITOR_OTA_PROGRESS() photo_frame::monitor_ota_progress()
-#define CANCEL_OTA_UPDATE() photo_frame::cancel_ota_update()
-#define GET_OTA_STATUS() photo_frame::get_ota_status_info()
-#define VALIDATE_OTA_BATTERY() photo_frame::validate_ota_battery_level()
+#define MONITOR_OTA_PROGRESS()                  photo_frame::monitor_ota_progress()
+#define CANCEL_OTA_UPDATE()                     photo_frame::cancel_ota_update()
+#define GET_OTA_STATUS()                        photo_frame::get_ota_status_info()
+#define VALIDATE_OTA_BATTERY()                  photo_frame::validate_ota_battery_level()
 
 #else
 
 // No-op macros when OTA is disabled
-#define INITIALIZE_OTA() do {} while(0)
+#define INITIALIZE_OTA()                                                                           \
+    do {                                                                                           \
+    } while (0)
 #define SHOULD_CHECK_OTA(wakeup_reason) false
-#define HANDLE_OTA_UPDATES_SETUP(wakeup_reason) do {} while(0)
-#define MONITOR_OTA_PROGRESS() do {} while(0)
-#define CANCEL_OTA_UPDATE() do {} while(0)
-#define GET_OTA_STATUS() String("")
+#define HANDLE_OTA_UPDATES_SETUP(wakeup_reason)                                                    \
+    do {                                                                                           \
+    } while (0)
+#define MONITOR_OTA_PROGRESS()                                                                     \
+    do {                                                                                           \
+    } while (0)
+#define CANCEL_OTA_UPDATE()                                                                        \
+    do {                                                                                           \
+    } while (0)
+#define GET_OTA_STATUS()       String("")
 #define VALIDATE_OTA_BATTERY() true
 
 #endif // OTA_UPDATE_ENABLED

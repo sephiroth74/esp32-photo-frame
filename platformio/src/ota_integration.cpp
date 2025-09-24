@@ -24,9 +24,9 @@
 
 #ifdef OTA_UPDATE_ENABLED
 
-#include "ota_update.h"
-#include "battery.h"
 #include "_locale.h"
+#include "battery.h"
+#include "ota_update.h"
 #include "preferences_helper.h"
 #include "rgb_status.h"
 
@@ -41,8 +41,7 @@ namespace photo_frame {
  *
  * @return photo_frame_error_t Error code (error_type::None on success)
  */
-photo_frame_error_t initialize_ota_updates()
-{
+photo_frame_error_t initialize_ota_updates() {
     using namespace photo_frame;
 
     RGB_SET_STATE(OTA_UPDATING); // Show OTA initialization status
@@ -51,12 +50,12 @@ photo_frame_error_t initialize_ota_updates()
     ota_config_t ota_config;
 
     // Server configuration from preprocessor constants
-    ota_config.server_url = OTA_SERVER_URL;
-    ota_config.version_endpoint = OTA_VERSION_ENDPOINT;
+    ota_config.server_url        = OTA_SERVER_URL;
+    ota_config.version_endpoint  = OTA_VERSION_ENDPOINT;
     ota_config.firmware_endpoint = OTA_FIRMWARE_ENDPOINT;
 
     // Board and version info (automatically set from build constants)
-    ota_config.board_name = XSTR(OTA_CURRENT_BOARD_NAME);
+    ota_config.board_name      = XSTR(OTA_CURRENT_BOARD_NAME);
     ota_config.current_version = FIRMWARE_VERSION_STRING;
 
     // Security settings
@@ -99,8 +98,7 @@ photo_frame_error_t initialize_ota_updates()
  * @param wakeup_reason The wakeup reason already determined by main.cpp
  * @return true if OTA check should be performed
  */
-bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason)
-{
+bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason) {
     // If wakeup reason is undefined, user pressed reset button - always check for updates
     if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
         Serial.println(F("[OTA] Reset button pressed - checking for updates"));
@@ -109,30 +107,18 @@ bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason)
 
     Serial.print(F("[OTA] Wakeup reason: "));
     switch (wakeup_reason) {
-    case ESP_SLEEP_WAKEUP_EXT0:
-        Serial.println(F("EXT0 (GPIO)"));
-        break;
-    case ESP_SLEEP_WAKEUP_EXT1:
-        Serial.println(F("EXT1 (GPIO)"));
-        break;
-    case ESP_SLEEP_WAKEUP_TIMER:
-        Serial.println(F("Timer"));
-        break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD:
-        Serial.println(F("Touchpad"));
-        break;
-    case ESP_SLEEP_WAKEUP_ULP:
-        Serial.println(F("ULP program"));
-        break;
-    default:
-        Serial.println(F("Unknown"));
-        break;
+    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println(F("EXT0 (GPIO)")); break;
+    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println(F("EXT1 (GPIO)")); break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println(F("Timer")); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println(F("Touchpad")); break;
+    case ESP_SLEEP_WAKEUP_ULP:      Serial.println(F("ULP program")); break;
+    default:                        Serial.println(F("Unknown")); break;
     }
 
     // Check if enough time has elapsed since last OTA check
-    auto& prefs = PreferencesHelper::getInstance();
+    auto& prefs            = PreferencesHelper::getInstance();
 
-    time_t current_time = time(NULL);
+    time_t current_time    = time(NULL);
     time_t last_check_time = prefs.getOtaLastCheck();
 
     if (last_check_time == 0) {
@@ -140,7 +126,7 @@ bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason)
         return true;
     }
 
-    time_t time_since_last_check = current_time - last_check_time;
+    time_t time_since_last_check  = current_time - last_check_time;
     time_t check_interval_seconds = OTA_CHECK_INTERVAL_HOURS * 3600;
 
     Serial.print(F("[OTA] Time since last check: "));
@@ -169,15 +155,15 @@ bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason)
  * 2. User pressed reset button (wakeup reason is undefined)
  *
  * @param wakeup_reason The wakeup reason already determined by main.cpp
- * @return photo_frame_error_t Error code (error_type::None if no update needed or update successful)
+ * @return photo_frame_error_t Error code (error_type::None if no update needed or update
+ * successful)
  */
-photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_reason)
-{
+photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_reason) {
     using namespace photo_frame;
 
     // Determine if we should check for updates
     bool should_check = should_check_ota_updates(wakeup_reason);
-    bool force_check = should_check; // Force check if wakeup reason was undefined (reset button)
+    bool force_check  = should_check; // Force check if wakeup reason was undefined (reset button)
 
     Serial.print(F("[OTA] Should check for updates: "));
     Serial.println(should_check ? F("YES") : F("NO"));
@@ -196,7 +182,7 @@ photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_rea
 
     // Save the current time as the last check time regardless of the result
     // This prevents excessive checking even if there were errors
-    auto& prefs = PreferencesHelper::getInstance();
+    auto& prefs         = PreferencesHelper::getInstance();
     time_t current_time = time(NULL);
     if (!prefs.setOtaLastCheck(current_time)) {
         Serial.println(F("[OTA] Warning: Failed to save last check time"));
@@ -243,8 +229,7 @@ photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_rea
  *
  * This function automatically handles completion and error states.
  */
-void monitor_ota_progress()
-{
+void monitor_ota_progress() {
     using namespace photo_frame;
 
     if (!OTA_IS_ACTIVE()) {
@@ -253,7 +238,7 @@ void monitor_ota_progress()
 
     RGB_SET_STATE(OTA_UPDATING); // Maintain OTA status during progress monitoring
 
-    const auto& progress = OTA_GET_PROGRESS();
+    const auto& progress        = OTA_GET_PROGRESS();
 
     static uint8_t last_percent = 0;
     if (progress.progress_percent > last_percent + 5) { // Update every 5%
@@ -284,8 +269,7 @@ void monitor_ota_progress()
  *
  * @return true if battery level is sufficient for OTA update
  */
-bool validate_ota_battery_level()
-{
+bool validate_ota_battery_level() {
 #ifdef USE_SENSOR_MAX1704X
     // Use MAX1704X sensor if available
     auto battery_level = battery_reader.get_battery_percentage();
@@ -303,8 +287,7 @@ bool validate_ota_battery_level()
  * This function cancels the current OTA update process and cleans up resources.
  * Use this if you need to abort an update for any reason.
  */
-void cancel_ota_update()
-{
+void cancel_ota_update() {
     RGB_SET_STATE(OTA_UPDATING); // Show OTA cancellation in progress
     ota_updater.cancel_update();
     Serial.println(TEXT_OTA_UPDATE_CANCELLED);
@@ -315,8 +298,7 @@ void cancel_ota_update()
  *
  * @return String containing current OTA status and progress information
  */
-String get_ota_status_info()
-{
+String get_ota_status_info() {
     using namespace photo_frame;
 
     if (!OTA_IS_ACTIVE()) {
@@ -324,33 +306,22 @@ String get_ota_status_info()
     }
 
     const auto& progress = OTA_GET_PROGRESS();
-    String status = String(TEXT_OTA_STATUS) + ": ";
+    String status        = String(TEXT_OTA_STATUS) + ": ";
 
     switch (progress.status) {
-    case ota_status_t::NOT_STARTED:
-        status += TEXT_OTA_STATUS_NOT_STARTED;
-        break;
-    case ota_status_t::CHECKING_VERSION:
-        status += TEXT_OTA_STATUS_CHECKING;
-        break;
+    case ota_status_t::NOT_STARTED:      status += TEXT_OTA_STATUS_NOT_STARTED; break;
+    case ota_status_t::CHECKING_VERSION: status += TEXT_OTA_STATUS_CHECKING; break;
     case ota_status_t::DOWNLOADING:
-        status += String(TEXT_OTA_STATUS_DOWNLOADING) + " (" + String(progress.progress_percent) + "%)";
+        status +=
+            String(TEXT_OTA_STATUS_DOWNLOADING) + " (" + String(progress.progress_percent) + "%)";
         break;
-    case ota_status_t::INSTALLING:
-        status += TEXT_OTA_STATUS_INSTALLING;
-        break;
-    case ota_status_t::COMPLETED:
-        status += TEXT_OTA_STATUS_COMPLETED;
-        break;
+    case ota_status_t::INSTALLING: status += TEXT_OTA_STATUS_INSTALLING; break;
+    case ota_status_t::COMPLETED:  status += TEXT_OTA_STATUS_COMPLETED; break;
     case ota_status_t::FAILED:
         status += String(TEXT_OTA_STATUS_FAILED) + ": " + progress.error.message;
         break;
-    case ota_status_t::ROLLBACK:
-        status += "Rolling back";
-        break;
-    case ota_status_t::NO_UPDATE_NEEDED:
-        status += TEXT_OTA_STATUS_UP_TO_DATE;
-        break;
+    case ota_status_t::ROLLBACK:         status += "Rolling back"; break;
+    case ota_status_t::NO_UPDATE_NEEDED: status += TEXT_OTA_STATUS_UP_TO_DATE; break;
     }
 
     return status;

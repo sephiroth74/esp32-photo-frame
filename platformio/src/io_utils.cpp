@@ -69,7 +69,7 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
     if (isBinaryFile) {
         Serial.println(F("[io_utils] Performing comprehensive BINARY file validation"));
 
-        if(expectedWidth <= 0 || expectedHeight <= 0) {
+        if (expectedWidth <= 0 || expectedHeight <= 0) {
             Serial.println(F("[io_utils] Expected dimensions not provided for binary validation"));
             return error_type::ImageDimensionsNotProvided;
         }
@@ -233,19 +233,23 @@ photo_frame_error_t copy_sd_to_littlefs(fs::File& sourceFile, const String& litt
 }
 
 bool is_binary_format(const char* filename) {
-    if (!filename) return false;
+    if (!filename)
+        return false;
 
     const char* extension = strrchr(filename, '.');
-    if (!extension) return false;
+    if (!extension)
+        return false;
 
     return strcmp(extension, ".bin") == 0;
 }
 
 bool is_bmp_format(const char* filename) {
-    if (!filename) return false;
+    if (!filename)
+        return false;
 
     const char* extension = strrchr(filename, '.');
-    if (!extension) return false;
+    if (!extension)
+        return false;
 
     return strcmp(extension, ".bmp") == 0;
 }

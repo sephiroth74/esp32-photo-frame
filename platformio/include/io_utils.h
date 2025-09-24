@@ -104,7 +104,7 @@ bool is_binary_format(const char* filename);
 
 /**
  * @brief Detect if the file is in BMP format based on filename extension
- * 
+ *
  * @param filename The filename to examine (must include extension)
  * @return true if BMP format (.bmp) - uses standard bitmap renderer
  * @return false if filename is null or has no extension

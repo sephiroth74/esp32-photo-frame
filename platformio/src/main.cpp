@@ -29,14 +29,14 @@
 #include "esp32/spiram.h"
 #endif // BOARD_HAS_PSRAM
 
-#include "config.h"
-#include "errors.h"
 #include "battery.h"
 #include "board_util.h"
+#include "config.h"
+#include "errors.h"
 #include "io_utils.h"
+#include "preferences_helper.h"
 #include "renderer.h"
 #include "rgb_status.h"
-#include "preferences_helper.h"
 
 #include "rtc_util.h"
 #include "sd_card.h"
@@ -89,7 +89,6 @@ typedef struct {
 
 refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now);
 
-
 /**
  * @brief Initialize hardware components (Serial, RGB LED, board utilities)
  * @return true if initialization successful, false otherwise
@@ -100,10 +99,10 @@ bool initialize_hardware();
  * @brief Read and validate battery level, handle critical battery states
  * @param battery_info Reference to store battery information
  * @param wakeup_reason Current wakeup reason for power management decisions
- * @return true if battery level allows continued operation, false if critical
+ * @return Error state after battery check
  */
-bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
-                             esp_sleep_wakeup_cause_t wakeup_reason);
+photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
+                                                         esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
  * @brief Setup time synchronization via WiFi and NTP
@@ -112,8 +111,7 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
  * @return Error state after time/WiFi operations
  */
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-                            DateTime& now);
+setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, DateTime& now);
 
 #ifdef USE_WEATHER
 /**
@@ -148,7 +146,8 @@ handle_google_drive_operations(bool is_reset,
 /**
  * @brief Process image file (validation, copying to LittleFS, rendering)
  * @param file File handle for image to process (temporary file in LittleFS)
- * @param original_filename Original filename from SD card (used for format detection and error reporting)
+ * @param original_filename Original filename from SD card (used for format detection and error
+ * reporting)
  * @param current_error Current error state
  * @param now Current DateTime for display
  * @param refresh_delay Refresh delay information
@@ -188,7 +187,8 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 /**
  * @brief Handle image rendering with full/partial display modes and error handling
  * @param file The validated image file to render (temporary file in LittleFS)
- * @param original_filename Original filename from SD card (used for format detection and error reporting)
+ * @param original_filename Original filename from SD card (used for format detection and error
+ * reporting)
  * @param current_error Current error state
  * @param now Current DateTime for info display
  * @param refresh_delay Refresh delay info
@@ -239,17 +239,26 @@ void setup() {
 
     // Setup battery and power management
     photo_frame::battery_info_t battery_info;
-    if (!setup_battery_and_power(battery_info, wakeup_reason)) {
+    photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
+
+#if BATTERY_POWER_SAVING
+    if (error == photo_frame::error_type::BatteryEmpty) {
+        // stop here as battery is empty and we entered deep sleep
         return;
     }
+#endif // BATTERY_POWER_SAVING
 
     // Setup time synchronization and connectivity
     DateTime now = DateTime((uint32_t)0);
-    auto error = setup_time_and_connectivity(battery_info, now);
+
+    if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
+        error = setup_time_and_connectivity(battery_info, now);
+    }
 
 #ifdef OTA_UPDATE_ENABLED
     // Handle OTA updates only if battery level is sufficient
-    if (error == photo_frame::error_type::None && !battery_info.is_empty() && battery_info.percent >= OTA_MIN_BATTERY_PERCENT) {
+    if (error == photo_frame::error_type::None && !battery_info.is_critical() &&
+        battery_info.percent >= OTA_MIN_BATTERY_PERCENT) {
         Serial.println(F("--------------------------------------"));
         Serial.println(F("- Checking for OTA updates..."));
         Serial.println(F("--------------------------------------"));
@@ -286,7 +295,7 @@ void setup() {
 
 #ifdef USE_WEATHER
     // Handle weather operations after OTA updates
-    if (error == photo_frame::error_type::None) {
+    if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         auto weather_error = handle_weather_operations(battery_info, weatherManager);
         // Weather errors are not critical - don't update main error state
         if (weather_error != photo_frame::error_type::None) {
@@ -300,10 +309,15 @@ void setup() {
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
     String original_filename; // Store original filename for format detection
-    RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
-    error = handle_google_drive_operations(is_reset, file, original_filename, image_index, total_files, battery_info);
+
+    if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
+        RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
+        error = handle_google_drive_operations(
+            is_reset, file, original_filename, image_index, total_files, battery_info);
+    }
 
     wifiManager.disconnect(); // Disconnect from WiFi to save power
+
     Serial.println(F("WiFi operations complete - using NTP-only time"));
 
     // Calculate refresh delay
@@ -361,7 +375,7 @@ void setup() {
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
-    delay(2500); // Allow sleep preparation animation to complete
+    delay(2500);               // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
 }
 
@@ -388,7 +402,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 #endif
 ) {
     photo_frame::photo_frame_error_t error = current_error;
-    const char* img_filename               = file.name();  // Used for logging temp filename
+    const char* img_filename               = file.name();       // Used for logging temp filename
     const char* format_filename            = original_filename; // Used for format detection
 
     // Get display capabilities
@@ -424,7 +438,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
                 error_code = photo_frame::renderer::draw_binary_from_file(
                     file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
             } else {
-                error_code = photo_frame::renderer::draw_bitmap_from_file(file, original_filename, 0, 0, false);
+                error_code = photo_frame::renderer::draw_bitmap_from_file(
+                    file, original_filename, 0, 0, false);
             }
 
             if (error_code != 0) {
@@ -495,7 +510,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             error_code = photo_frame::renderer::draw_binary_from_file_buffered(
                 file, original_filename, DISP_WIDTH, DISP_HEIGHT);
         } else {
-            error_code = photo_frame::renderer::draw_bitmap_from_file_buffered(file, original_filename, 0, 0, false);
+            error_code = photo_frame::renderer::draw_bitmap_from_file_buffered(
+                file, original_filename, 0, 0, false);
         }
         file.close();              // Close the file after drawing
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
@@ -609,8 +625,8 @@ bool initialize_hardware() {
     return true;
 }
 
-bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
-                             esp_sleep_wakeup_cause_t wakeup_reason) {
+photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
+                                                         esp_sleep_wakeup_cause_t wakeup_reason) {
     Serial.println(F("--------------------------------------"));
     Serial.println(F("- Reading battery level..."));
     Serial.println(F("--------------------------------------"));
@@ -639,8 +655,13 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
 
         Serial.println(F("Entering deep sleep to preserve battery..."));
         photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
-        return false;                                              // Battery too low to continue
+                                                                   // Battery too low to continue
 #endif                                                             // BATTERY_POWER_SAVING
+#ifdef RGB_STATUS_ENABLED
+        rgbStatus.disable();
+        Serial.println(F("[RGB] Disabled RGB LED to conserve battery power"));
+#endif // RGB_STATUS_ENABLED
+        return photo_frame::error_type::BatteryEmpty;
     } else if (battery_info.is_critical()) {
         Serial.println(F("Battery level is critical!"));
         RGB_SET_STATE_TIMED(BATTERY_LOW, 3000); // Show battery critical warning briefly
@@ -651,59 +672,57 @@ bool setup_battery_and_power(photo_frame::battery_info_t& battery_info,
         rgbStatus.disable();
         Serial.println(F("[RGB] Disabled RGB LED to conserve battery power"));
 #endif // RGB_STATUS_ENABLED
+       // Indicate critical battery error
+        return photo_frame::error_type::BatteryLevelCritical;
     }
 
-    return true; // Battery level allows continued operation
+    // Battery level allows continued operation
+    return photo_frame::error_type::None;
 }
 
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-                            DateTime& now) {
+setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, DateTime& now) {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
     Serial.println(F("--------------------------------------"));
     Serial.println(F("- Initialize SD card and fetch time..."));
     Serial.println(F("--------------------------------------"));
 
-    if (!battery_info.is_critical()) {
-        RGB_SET_STATE(SD_READING); // Show SD card operations
-        error = sdCard.begin();
+    RGB_SET_STATE(SD_READING); // Show SD card operations
+    error = sdCard.begin();
 
-        // Reduce RGB brightness if battery is low to save power
-        if (battery_info.is_low()) {
+    // Reduce RGB brightness if battery is low to save power
+    if (battery_info.is_low()) {
 #ifdef RGB_STATUS_ENABLED
-            rgbStatus.setBrightness(32); // Reduce brightness to 50% of normal for low battery
-#endif // RGB_STATUS_ENABLED
-        }
-        if (error == photo_frame::error_type::None) {
-            Serial.println(F("Initializing WiFi manager..."));
-            RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
-            error = wifiManager.init(WIFI_FILENAME, sdCard);
+        rgbStatus.setBrightness(32); // Reduce brightness to 50% of normal for low battery
+#endif                               // RGB_STATUS_ENABLED
+    }
+    if (error == photo_frame::error_type::None) {
+        Serial.println(F("Initializing WiFi manager..."));
+        RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
+        error = wifiManager.init(WIFI_FILENAME, sdCard);
 
+        if (error == photo_frame::error_type::None) {
+            // No RTC module - simple NTP-only time fetching
+            Serial.println(F("Fetching time from NTP servers..."));
+            error = wifiManager.connect();
             if (error == photo_frame::error_type::None) {
-                // No RTC module - simple NTP-only time fetching
-                Serial.println(F("Fetching time from NTP servers..."));
-                error = wifiManager.connect();
-                if (error == photo_frame::error_type::None) {
-                    now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
-                }
-            } else {
-                Serial.println(F("WiFi initialization failed"));
-                RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
+                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
             }
         } else {
-            Serial.println(F("Skipping datetime fetch due to SD card error!"));
-        }
-
-        if (error == photo_frame::error_type::None) {
-            Serial.print(F("Current time is valid: "));
-            Serial.println(now.isValid() ? "Yes" : "No");
-        } else {
-            Serial.print(F("Failed to fetch current time! Error code: "));
-            Serial.println(String(error.code));
+            Serial.println(F("WiFi initialization failed"));
+            RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
         }
     } else {
-        Serial.println(F("skipped"));
+        Serial.println(F("Skipping datetime fetch due to SD card error!"));
+    }
+
+    if (error == photo_frame::error_type::None) {
+        Serial.print(F("Current time is valid: "));
+        Serial.println(now.isValid() ? "Yes" : "No");
+    } else {
+        Serial.print(F("Failed to fetch current time! Error code: "));
+        Serial.println(String(error.code));
     }
 
     return error;
@@ -732,7 +751,8 @@ handle_weather_operations(const photo_frame::battery_info_t& battery_info,
     Serial.println(F("Initializing weather manager..."));
     if (!weatherManager.begin()) {
         Serial.println(F("Weather manager initialization failed or disabled"));
-        return photo_frame::error_type::None; // Weather failure is not critical - continue without weather
+        return photo_frame::error_type::None; // Weather failure is not critical - continue without
+                                              // weather
     }
 
     // Check if weather update is needed
@@ -754,7 +774,7 @@ handle_weather_operations(const photo_frame::battery_info_t& battery_info,
     if (error != photo_frame::error_type::None) {
         Serial.println(F("WiFi connection failed for weather fetch"));
         RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
-        return error; // Return error but don't make it critical
+        return error;                           // Return error but don't make it critical
     }
 
     // Fetch weather data
@@ -817,7 +837,7 @@ handle_google_drive_operations(bool is_reset,
 
             if (!shouldCleanup) {
                 // Check if we need to run cleanup based on time interval
-                auto& prefs = photo_frame::PreferencesHelper::getInstance();
+                auto& prefs        = photo_frame::PreferencesHelper::getInstance();
                 time_t now         = time(NULL);
                 time_t lastCleanup = prefs.getLastCleanup();
 
@@ -933,7 +953,8 @@ handle_google_drive_operations(bool is_reset,
                     if (error == photo_frame::error_type::None && file) {
                         const char* filename = file.name();
                         String filePath      = String(filename);
-                        original_filename    = String(filename); // Store original filename for format detection
+                        original_filename =
+                            String(filename); // Store original filename for format detection
 
                         Serial.println(F("🛡️ Validating downloaded image file..."));
                         auto validationError = photo_frame::io_utils::validate_image_file(
@@ -1068,13 +1089,14 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     // Shutdown RGB status system to save power during sleep
     Serial.println(F("[RGB] Shutting down RGB status system for sleep"));
     rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
-#endif // RGB_STATUS_ENABLED
+#endif               // RGB_STATUS_ENABLED
 
     delay(500);
     photo_frame::renderer::power_off();
 
     // now go to sleep using the pre-calculated refresh delay
-    if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
+    if (!battery_info.is_critical() &&
+        refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
         Serial.print(F("Going to sleep for "));
         Serial.print(refresh_delay.refresh_seconds, DEC);
         Serial.print(F(" seconds ("));
@@ -1106,14 +1128,16 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     if (battery_info.is_critical()) {
         Serial.println(F("Battery is critical, using low battery refresh interval"));
         refresh_delay.refresh_seconds = REFRESH_INTERVAL_SECONDS_LOW_BATTERY;
-        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        refresh_delay.refresh_microseconds =
+            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         return refresh_delay;
     }
 
     if (!now.isValid()) {
         Serial.println(F("Time is invalid, using minimum refresh interval as fallback"));
         refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        refresh_delay.refresh_microseconds =
+            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         return refresh_delay;
     }
 
@@ -1154,9 +1178,11 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
         // Practical limit defined in config.h
 
         if (refresh_delay.refresh_seconds <= 0) {
-            Serial.println(F("Warning: Invalid refresh interval, using minimum interval as fallback"));
+            Serial.println(
+                F("Warning: Invalid refresh interval, using minimum interval as fallback"));
             refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-            refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+            refresh_delay.refresh_microseconds =
+                (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
             refresh_delay.refresh_microseconds =
                 (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
@@ -1181,7 +1207,8 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     if (refresh_delay.refresh_microseconds == 0) {
         Serial.println(F("CRITICAL: refresh_microseconds is 0, forcing minimum interval"));
         refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        refresh_delay.refresh_microseconds =
+            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
     }
 
     Serial.print(F("Final refresh delay: "));

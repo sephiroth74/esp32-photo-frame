@@ -31,7 +31,6 @@ namespace spi_manager {
 
 bool SPIManager::littlefs_initialized = false;
 
-
 bool SPIManager::init_littlefs() {
     if (littlefs_initialized) {
         return true;

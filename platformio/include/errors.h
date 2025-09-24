@@ -56,8 +56,8 @@ enum error_category {
     ERROR_CATEGORY_DISPLAY        = 7  ///< Display/rendering errors
 #ifdef OTA_UPDATE_ENABLED
     ,
-    ERROR_CATEGORY_OTA            = 8  ///< OTA update errors
-#endif // OTA_UPDATE_ENABLED
+    ERROR_CATEGORY_OTA = 8 ///< OTA update errors
+#endif                     // OTA_UPDATE_ENABLED
 };
 
 /**
@@ -235,9 +235,9 @@ typedef class photo_frame_error {
         case ERROR_CATEGORY_BATTERY:        return "Battery";
         case ERROR_CATEGORY_DISPLAY:        return "Display";
 #ifdef OTA_UPDATE_ENABLED
-        case ERROR_CATEGORY_OTA:            return "OTA";
+        case ERROR_CATEGORY_OTA: return "OTA";
 #endif // OTA_UPDATE_ENABLED
-        default:                            return "Unknown";
+        default: return "Unknown";
         }
     }
 } photo_frame_error_t;

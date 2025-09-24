@@ -92,8 +92,7 @@ class sd_card {
      * SD_MMC uses fixed pins that cannot be configured:
      * - CLK: GPIO14, CMD: GPIO15, D0: GPIO2, D1: GPIO4, D2: GPIO12, D3: GPIO13
      */
-    sd_card() : initialized(false), cardType(CARD_UNKNOWN) {
-    }
+    sd_card() : initialized(false), cardType(CARD_UNKNOWN) {}
 
     // Disable copy constructor and assignment operator
     sd_card(const sd_card&)            = delete;
@@ -205,7 +204,8 @@ class sd_card {
     void print_stats() const;
 
     /**
-     * Counts the number of files with allowed extensions (.bin, .bmp) in the root directory of the SD card.
+     * Counts the number of files with allowed extensions (.bin, .bmp) in the root directory of the
+     * SD card.
      * @return The number of files with allowed extensions.
      * If the SD card is not initialized, it returns 0.
      * @note This function only counts files in the root directory, not in subdirectories.
