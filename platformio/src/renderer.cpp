@@ -545,17 +545,17 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, re
     String main_temp = String((int)weather_data.temperature) + " " + temperature_unit;
 
     display.setFont(&FONT_18pt8b);
-    draw_string(text_x, text_y + 18, main_temp.c_str(), text_color);
-    text_y += 46;
+    draw_string(text_x, text_y + 22, main_temp.c_str(), text_color);
+    text_y += 44;
 
     // Draw high/low temperatures with units if available
     if (weather_data.has_daily_data && weather_data.temp_min != 0.0f &&
         weather_data.temp_max != 0.0f) {
-        String temp_range = "min " + String((int)weather_data.temp_min) + "\260" + " - max " +
+        String temp_range = String((int)weather_data.temp_min) + "\260" + " - " +
                             String((int)weather_data.temp_max) + "\260";
         display.setFont(&FONT_9pt8b);
         draw_string(text_x, text_y, temp_range.c_str(), text_color);
-        text_y += 26;
+        text_y += 24;
     }
 
     // Draw sunrise time if available
