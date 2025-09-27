@@ -29,9 +29,7 @@
 #include "config.h"
 #include "errors.h"
 #include "google_drive.h"
-#ifdef USE_WEATHER
 #include "weather.h"
-#endif
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
@@ -411,7 +409,6 @@ void draw_image_info(uint32_t index,
                      uint32_t total_images,
                      photo_frame::image_source_t image_source);
 
-#ifdef USE_WEATHER
 
 rect_t get_weather_info_rect();
 
@@ -423,7 +420,6 @@ rect_t get_weather_info_rect();
  * Only displays if weather data is valid and not stale.
  */
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect);
-#endif
 
 /**
  * Draws a rounded rectangle with dithering transparency on the e-paper display.

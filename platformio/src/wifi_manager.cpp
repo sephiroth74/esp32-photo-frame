@@ -72,6 +72,29 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     return error_type::None;
 }
 
+photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const String& password) {
+    // skip if already initialized
+    if (_initialized) {
+        return error_type::None;
+    }
+
+    if (ssid.isEmpty()) {
+        Serial.println(F("[wifi_manager] SSID is empty"));
+        return error_type::WifiCredentialsNotFound;
+    }
+
+    _ssid = ssid;
+    _password = password;
+
+#ifdef DEBUG_WIFI
+    Serial.print(F("[wifi_manager] Loaded WiFi credentials for SSID: "));
+    Serial.println(_ssid);
+#endif // DEBUG_WIFI
+
+    _initialized = true;
+    return error_type::None;
+}
+
 void wifi_manager::set_timezone(const char* timezone) {
     Serial.print(F("[wifi_manager] Setting timezone to: "));
     Serial.println(timezone);

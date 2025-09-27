@@ -1,6 +1,6 @@
 # Weather Display Feature
 
-The ESP32 Photo Frame includes an optional weather display feature that shows comprehensive weather information in a dedicated overlay panel. The weather information is fetched from [Open-Meteo.com](https://open-meteo.com/) during existing WiFi sessions, ensuring minimal impact on battery life.
+The ESP32 Photo Frame includes a **runtime-configurable weather display feature** (v0.7.1) that shows comprehensive weather information in a dedicated overlay panel. Weather functionality is controlled entirely through the unified `/config.json` configuration file - no recompilation needed to enable or disable weather features.
 
 ## 🌤️ Features
 
@@ -11,57 +11,83 @@ The ESP32 Photo Frame includes an optional weather display feature that shows co
 - **Smart battery management**: Adaptive update intervals based on battery level
 - **Configurable timezone**: Supports any timezone for accurate sunrise/sunset times
 - **Offline resilience**: Caches weather data for offline periods
-- **Easy configuration**: JSON-based configuration file on SD card
+- **Runtime configuration**: Enable/disable without firmware recompilation via unified `/config.json`
+- **Easy configuration**: Part of unified configuration system
 - **Graceful degradation**: Works seamlessly even when disabled or misconfigured
+- **Single firmware**: Same firmware supports weather on/off through configuration
 
-## 📍 Quick Setup
+## 📍 Quick Setup (v0.7.1)
 
-### 1. Copy Configuration File
-```bash
-# Copy the example configuration from platformio folder to your SD card
-cp platformio/weather_example.json /path/to/sdcard/weather.json
-```
+### 1. Unified Configuration System
 
-### 2. Configure Your Location
-Edit `weather.json` on your SD card:
+Weather is now configured as part of the **unified `/config.json`** file on your SD card (no separate weather file needed).
+
+### 2. Configure Weather in Unified Config
+
+Add the weather section to your `/config.json` on the SD card:
+
 ```json
 {
-  "enabled": true,
-  "latitude": 40.7128,
-  "longitude": -74.0060,
-  "timezone": "America/New_York",
-  "update_interval_minutes": 60,
-  "celsius": true,
-  "temperature_unit": "celsius",
-  "wind_speed_unit": "kmh",
-  "precipitation_unit": "mm"
+  "wifi": {
+    "ssid": "YourWiFiNetwork",
+    "password": "YourWiFiPassword"
+  },
+  "google_drive": {
+    // ... your Google Drive config
+  },
+  "weather": {
+    "enabled": true,
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "timezone": "America/New_York",
+    "update_interval_minutes": 60,
+    "celsius": true,
+    "battery_threshold": 15,
+    "max_age_hours": 3,
+    "temperature_unit": "celsius",
+    "wind_speed_unit": "kmh",
+    "precipitation_unit": "mm"
+  },
+  "board": {
+    // ... your board config
+  }
 }
 ```
 
 ### 3. Find Your Coordinates
 - Visit [latlong.net](https://www.latlong.net/) or use your phone's GPS
 - Enter your city name to get latitude and longitude
-- Update the values in `weather.json`
+- Update the values in the `weather` section of `/config.json`
 
-### 4. Restart Your Photo Frame
-The weather feature will automatically initialize and start displaying weather information.
+### 4. Runtime Control
+- **Enable**: Set `"weather.enabled": true` in `/config.json`
+- **Disable**: Set `"weather.enabled": false` in `/config.json`
+- **No recompilation needed**: Same firmware works with weather on or off
 
-## ⚙️ Configuration Options
+### 5. Restart Your Photo Frame
+The weather feature will automatically initialize based on your configuration.
 
-### Complete Configuration Schema
+## ⚙️ Configuration Options (v0.7.1)
+
+### Unified Configuration Schema
+
+Weather configuration is now part of the unified `/config.json` system:
+
 ```json
 {
-  "enabled": false,
-  "latitude": 40.7128,
-  "longitude": -74.0060,
-  "timezone": "Europe/Berlin",
-  "update_interval_minutes": 60,
-  "celsius": true,
-  "battery_threshold": 15,
-  "max_age_hours": 3,
-  "temperature_unit": "celsius",
-  "wind_speed_unit": "kmh", 
-  "precipitation_unit": "mm"
+  "weather": {
+    "enabled": false,
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "timezone": "Europe/Berlin",
+    "update_interval_minutes": 60,
+    "celsius": true,
+    "battery_threshold": 15,
+    "max_age_hours": 3,
+    "temperature_unit": "celsius",
+    "wind_speed_unit": "kmh",
+    "precipitation_unit": "mm"
+  }
 }
 ```
 
@@ -210,10 +236,11 @@ https://api.open-meteo.com/v1/forecast?latitude=47.3667&longitude=8.55&daily=sun
 ```
 
 ### Data Storage
-- **Configuration**: `/weather.json` on SD card
-- **Cache**: `/weather_cache.json` on SD card
+- **Configuration**: `weather` section in unified `/config.json` on SD card
+- **Cache**: `/weather_cache.json` on SD card (unchanged)
 - **Cache Duration**: Based on `max_age_hours` setting
 - **Offline Fallback**: Uses cached data when network unavailable
+- **Fallback Values**: If config fails to load, uses values from `config.h` preprocessor constants
 
 ### Memory Usage
 - **RAM Impact**: Minimal (~2KB additional)
@@ -224,22 +251,36 @@ https://api.open-meteo.com/v1/forecast?latitude=47.3667&longitude=8.55&daily=sun
 
 ### Weather Not Displaying
 
-1. **Check Configuration**
+1. **Check Unified Configuration**
    ```bash
-   # Verify config file exists and is valid JSON
-   cat /path/to/sdcard/weather.json
+   # Verify unified config file exists and is valid JSON
+   cat /path/to/sdcard/config.json
+
+   # Check specifically for weather section
+   jq '.weather' /path/to/sdcard/config.json
    ```
 
-2. **Verify Coordinates**
+2. **Verify Weather is Enabled**
+   ```bash
+   # Check if weather is enabled in config
+   jq '.weather.enabled' /path/to/sdcard/config.json
+   ```
+
+3. **Verify Coordinates**
+   ```bash
+   # Check coordinate values in unified config
+   jq '.weather.latitude, .weather.longitude' /path/to/sdcard/config.json
+   ```
    - Ensure latitude is between -90 and 90
    - Ensure longitude is between -180 and 180
    - Test coordinates at [open-meteo.com](https://open-meteo.com/)
 
-3. **Check Battery Level**
-   - Weather is disabled when battery < `battery_threshold`
+4. **Check Battery Level**
+   - Weather is disabled when battery < `weather.battery_threshold`
    - Default threshold is 15%
+   - Check current setting: `jq '.weather.battery_threshold' /path/to/sdcard/config.json`
 
-4. **Verify Network Connection**
+5. **Verify Network Connection**
    - Weather requires WiFi connection
    - Check if image updates are working (uses same WiFi session)
 
@@ -248,8 +289,8 @@ https://api.open-meteo.com/v1/forecast?latitude=47.3667&longitude=8.55&daily=sun
 Enable serial monitoring to see weather debug messages:
 
 ```
-WeatherManager: Initializing...
-WeatherManager: Configuration loaded successfully
+WeatherManager: Initializing from unified configuration...
+WeatherManager: Initialized from unified config for location (40.713, -74.006)
 WeatherManager: Fetching weather data during WiFi session...
 WeatherManager: API URL: https://api.open-meteo.com/v1/forecast?latitude=40.7128&longitude=-74.0060&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto&forecast_days=1
 WeatherManager: Received response (1234 bytes)
@@ -266,31 +307,48 @@ WeatherManager: Adaptive interval - Battery: 85%, Failures: 0, Base: 3600s, Fina
 | **Stale data** | Network issues | Check WiFi connection |
 | **High failure count** | API issues | Wait for automatic recovery |
 
-### Factory Reset
+### Reset Weather Settings
 
-To completely reset weather settings:
+To reset weather settings in the unified configuration:
+
 ```bash
-# Remove configuration and cache files
-rm /path/to/sdcard/weather.json
+# Option 1: Disable weather in config
+jq '.weather.enabled = false' /path/to/sdcard/config.json > temp.json && mv temp.json /path/to/sdcard/config.json
+
+# Option 2: Remove entire weather section
+jq 'del(.weather)' /path/to/sdcard/config.json > temp.json && mv temp.json /path/to/sdcard/config.json
+
+# Option 3: Clear weather cache (keep config)
 rm /path/to/sdcard/weather_cache.json
+
+# Option 4: Complete reset (remove entire unified config)
+rm /path/to/sdcard/config.json
+# System will use fallback values from config.h
 ```
 
 ## 📊 Monitoring
 
 ### Debug Information
 
-The weather system provides detailed logging:
+The weather system provides detailed logging for unified configuration:
 
 ```cpp
-// Weather configuration status
-WeatherManager: Initialized for location (40.713, -74.006)
+// Unified configuration initialization
+WeatherManager: Initializing from unified configuration...
+WeatherManager: Initialized from unified config for location (40.713, -74.006)
+WeatherManager: Weather manager initialization failed or disabled
+
+// Runtime control
+WeatherManager: Weather is disabled in unified configuration
+WeatherManager: Weather manager not configured - skipping weather fetch
 
 // Update decisions
 WeatherManager: Weather update not needed at this time
 WeatherManager: Skipping weather update due to critical battery level (12%) - preserving power
 
 // API communication
-WeatherManager: Fetching weather data during WiFi session...
+WeatherManager: Connecting to WiFi for weather data...
+WeatherManager: Fetching weather data...
 WeatherManager: Weather data updated successfully
 WeatherManager: Weather fetch failed (2 consecutive failures)
 

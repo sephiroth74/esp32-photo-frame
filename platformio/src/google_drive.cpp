@@ -1367,6 +1367,64 @@ photo_frame_error_t google_drive::initialize_from_json(sd_card& sd_card,
     return error_type::None;
 }
 
+photo_frame_error_t google_drive::initialize_from_unified_config(const unified_config::google_drive_config& gd_config) {
+    // Validate essential configuration
+    if (!gd_config.is_valid()) {
+        Serial.println(F("[google_drive] Invalid Google Drive configuration in unified config"));
+        return error_type::ConfigMissingField;
+    }
+
+    // Create client configuration from unified config
+    static google_drive_client_config client_config;
+
+    // Convert String to const char* for compatibility
+    static String email_str = gd_config.auth.service_account_email;
+    static String key_str = gd_config.auth.private_key_pem;
+    static String client_id_str = gd_config.auth.client_id;
+
+    client_config.serviceAccountEmail = email_str.c_str();
+    client_config.privateKeyPem = key_str.c_str();
+    client_config.clientId = client_id_str.c_str();
+    client_config.useInsecureTls = gd_config.drive.use_insecure_tls;
+
+    // Pass rate limiting settings to client
+    client_config.rateLimitWindowSeconds = gd_config.rate_limiting.rate_limit_window_seconds;
+    client_config.minRequestDelayMs = gd_config.rate_limiting.min_request_delay_ms;
+    client_config.maxRetryAttempts = gd_config.rate_limiting.max_retry_attempts;
+    client_config.backoffBaseDelayMs = gd_config.rate_limiting.backoff_base_delay_ms;
+    client_config.maxWaitTimeMs = gd_config.rate_limiting.max_wait_time_ms;
+
+    // Initialize this instance's client
+    client = google_drive_client(client_config);
+
+    // Create legacy config structure for backward compatibility
+    config.serviceAccountEmail = gd_config.auth.service_account_email;
+    config.privateKeyPem = gd_config.auth.private_key_pem;
+    config.clientId = gd_config.auth.client_id;
+    config.folderId = gd_config.drive.folder_id;
+    config.rootCaPath = gd_config.drive.root_ca_path;
+    config.listPageSize = gd_config.drive.list_page_size;
+    config.useInsecureTls = gd_config.drive.use_insecure_tls;
+    config.localPath = gd_config.caching.local_path;
+    config.tocMaxAgeSeconds = gd_config.caching.toc_max_age_seconds;
+    config.maxRequestsPerWindow = gd_config.rate_limiting.max_requests_per_window;
+    config.rateLimitWindowSeconds = gd_config.rate_limiting.rate_limit_window_seconds;
+    config.minRequestDelayMs = gd_config.rate_limiting.min_request_delay_ms;
+    config.maxRetryAttempts = gd_config.rate_limiting.max_retry_attempts;
+    config.backoffBaseDelayMs = gd_config.rate_limiting.backoff_base_delay_ms;
+    config.maxWaitTimeMs = gd_config.rate_limiting.max_wait_time_ms;
+
+    // SSL certificate handling: Note that this method doesn't have sd_card access
+    // The certificate loading would need to be handled separately if needed
+    if (!gd_config.drive.use_insecure_tls && !gd_config.drive.root_ca_path.isEmpty()) {
+        Serial.println(F("[google_drive] Warning: SSL certificate path specified but cannot load without SD card access"));
+        Serial.println(F("[google_drive] Consider using the JSON-based initialization for SSL certificate support"));
+    }
+
+    Serial.println(F("[google_drive] Google Drive initialized from unified configuration"));
+    return error_type::None;
+}
+
 // Overloaded methods that use internal TOC path
 size_t google_drive::get_toc_file_count(sd_card& sdCard, photo_frame_error_t* error) {
     String tocPath = get_toc_file_path();

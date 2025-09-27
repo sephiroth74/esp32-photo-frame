@@ -1,18 +1,18 @@
 # ESP32 Photo Frame - Wiring Diagram
 
-This document provides comprehensive wiring instructions for the ESP32 Photo Frame project. **Version 0.5.0** defaults to the **Unexpected Maker FeatherS3** with full RGB status system support. Alternative wiring for **DFRobot FireBeetle 2 ESP32-C6** is also provided.
+This document provides comprehensive wiring instructions for the ESP32 Photo Frame project. **Version 0.7.1** uses the **Unexpected Maker FeatherS3** as the recommended and optimized hardware platform with full RGB status system support and unified configuration system.
 
-## 🥇 FeatherS3 Configuration (Default - v0.5.0)
+## 🥇 FeatherS3 Configuration (Default - v0.7.1)
 
-### FeatherS3 Hardware Components
+### Hardware Components
 1. **Unexpected Maker FeatherS3** - ESP32-S3 with built-in NeoPixel and 8MB PSRAM
 2. **7.5" E-Paper Display** - Waveshare or Good Display DESPI-C02 (800x480)
-3. **MicroSD Card Module** - For image storage and configuration
-4. **10kΩ Potentiometer** - Manual refresh rate control
+3. **MicroSD Card Module** - For unified configuration and image caching
+4. **50kΩ Potentiometer** - Manual refresh rate control
 5. **Push Button** - External wakeup trigger
 6. **5000mAh LiPo Battery** - Power source (JST connector)
 
-### FeatherS3 Pin Configuration
+### Pin Configuration
 
 Based on the configuration in `platformio/include/config/feathers3_unexpectedmaker.h`:
 
@@ -43,95 +43,30 @@ Based on the configuration in `platformio/include/config/feathers3_unexpectedmak
 | PWR | GPIO33 | Pot Power | Output | Power control |
 | INPUT | GPIO18 | Pot Reading | Analog | Refresh rate control |
 
-### FeatherS3 Wiring Notes
+### Wiring Notes
 - **RGB Status System**: Built-in NeoPixel provides visual feedback (no external wiring needed)
 - **Battery Management**: Built-in JST connector and voltage monitoring
 - **Deep Sleep Wakeup**: Button between GPIO1 and GND (internal pull-up enabled)
 - **SD Card**: Uses high-speed SD_MMC (SDIO) interface for better performance
 - **Separate SPI Buses**: SD card uses SDIO, e-paper uses dedicated SPI pins
-
----
-
-## Alternative: ESP32-C6 Configuration
-
-## Hardware Components
-
-### Required Components
-1. **DFRobot FireBeetle 2 ESP32-C6** - Main microcontroller board
-2. **7.5" E-Paper Display** - Waveshare or Good Display DESPI-C02 (800x480)
-3. **MicroSD Card Module** - For image storage and configuration
-4. **~~DS3231 RTC Module~~** - ~~Real-time clock~~ **REMOVED** (NTP-only for ESP32-C6 compatibility)
-5. **10kΩ Potentiometer** - Manual refresh rate control
-6. **Push Button** - External wakeup trigger
-7. **5000mAh LiPo Battery** - Power source
-8. **Solar Panel** (optional) - For battery charging
-
-### Optional Components
-- **Jumper Wires** - Male-to-female and male-to-male
-- **Breadboard or PCB** - For prototyping
-- **Enclosure** - Weather protection for outdoor deployment
-
-## Pin Configuration
-
-Based on the configuration in `platformio/include/config/dfrobot_firebeetle2_esp32c6.h`:
-
-### Complete Pin Mapping Table
-
-| Component | ESP32-C6 Pin | Function | Direction | Notes |
-|-----------|--------------|----------|-----------|-------|
-| **E-Paper Display (SPI)** |
-| BUSY | GPIO 5 | Display busy signal | Input | Pull-up recommended |
-| RST | GPIO 4 | Display reset | Output | Active low |
-| DC | GPIO 14 | Data/Command select | Output | High=Data, Low=Command |
-| CS | GPIO 1 | SPI Chip Select | Output | Active low |
-| SCK | GPIO 23 | SPI Clock | Output | Shared with SD card |
-| MOSI | GPIO 22 | SPI Data Out | Output | Shared with SD card |
-| MISO | GPIO 21 | SPI Data In | Input | Shared with SD card |
-| VCC | 3.3V | Power | - | **Not 5V!** |
-| GND | GND | Ground | - | |
-| **SD Card Module (SPI)** |
-| CS | GPIO 9 | SPI Chip Select | Output | Active low |
-| SCK | GPIO 23 | SPI Clock | Output | Shared with display |
-| MOSI | GPIO 22 | SPI Data Out | Output | Shared with display |
-| MISO | GPIO 21 | SPI Data In | Input | Shared with display |
-| VCC | 3.3V | Power | - | **Not 5V!** |
-| GND | GND | Ground | - | |
-| **~~RTC Module DS3231 (I2C)~~** | **REMOVED - Using NTP-only** |
-| ~~SDA~~ | ~~GPIO 6~~ | ~~I2C Data~~ | ~~Bidirectional~~ | **Not used - GPIO 6 available** |
-| ~~SCL~~ | ~~GPIO 7~~ | ~~I2C Clock~~ | ~~Output~~ | **Not used - GPIO 7 available** |
-| **Potentiometer (Analog)** |
-| PWR | GPIO 18 | Power Control | Output | Enables pot when high |
-| WIPER | GPIO 2 | Analog Input | Input | 12-bit ADC (0-3300mV) |
-| VCC | 3.3V | Power | - | Connect to PWR pin |
-| GND | GND | Ground | - | |
-| **Wakeup Button** |
-| BUTTON | GPIO 3 | External Wakeup | Input | INPUT_PULLDOWN mode (GPIO 3 is RTC IO pin) |
-| GND | GND | Ground | - | Button pulls to ground |
-| **Power Management** |
-| BATTERY | GPIO 0 | Battery Voltage | Input | Voltage divider (0.494 ratio) |
-| BAT+ | JST-PH 2.0 | Battery Positive | - | Built-in charging circuit |
-| BAT- | JST-PH 2.0 | Battery Negative | - | Built-in protection |
-| SOLAR+ | Screw Terminal | Solar Panel Positive | - | Built-in MPPT charger |
-| SOLAR- | Screw Terminal | Solar Panel Negative | - | |
-| **Status LED** |
-| LED | GPIO 15 | Built-in LED | Output | Active high |
+- **Unified Configuration**: All settings (WiFi, Google Drive, Weather, Board) in single `/config.json` file
 
 ## Detailed Wiring Instructions
 
 ### 1. E-Paper Display Connection
 
-**Display Type**: 7.5" Black & White or 6-Color E-Paper (800x480)
+**Display Type**: 7.5" Black & White, 6-Color, or 7-Color E-Paper (800x480)
 
 ```
-ESP32-C6          E-Paper Display
--------           ---------------
-GPIO 5    ────────── BUSY
-GPIO 4    ────────── RST
-GPIO 14   ────────── DC
-GPIO 1    ────────── CS
-GPIO 23   ────────── CLK/SCK
-GPIO 22   ────────── DIN/MOSI
-GPIO 21   ────────── DOUT/MISO (if available)
+FeatherS3         E-Paper Display
+---------         ---------------
+GPIO6     ────────── BUSY
+GPIO5     ────────── RST
+GPIO10    ────────── DC
+GPIO38    ────────── CS
+GPIO36    ────────── CLK/SCK
+GPIO35    ────────── DIN/MOSI
+GPIO37    ────────── DOUT/MISO (if available)
 3.3V      ────────── VCC
 GND       ────────── GND
 ```
@@ -139,254 +74,212 @@ GND       ────────── GND
 **Important Notes:**
 - **Voltage**: Use 3.3V only, not 5V
 - **MISO**: Some displays don't have MISO pin - that's okay
-- **Shared SPI**: SCK, MOSI, MISO are shared with SD card
+- **Dedicated SPI**: Uses separate SPI bus from SD card (no conflicts)
 
-### 2. SD Card Module Connection
+### 2. SD Card Module Connection (SDIO Interface)
 
-**Module Type**: Standard SPI MicroSD adapter
+**Module Type**: SDIO-compatible MicroSD adapter
 
 ```
-ESP32-C6          SD Card Module
--------           --------------
-GPIO 9    ────────── CS
-GPIO 23   ────────── SCK/CLK
-GPIO 22   ────────── MOSI/DI
-GPIO 21   ────────── MISO/DO
+FeatherS3         SD Card Module (SDIO)
+---------         ---------------------
+GPIO14    ────────── CLK
+GPIO17    ────────── CMD
+GPIO7     ────────── D0
+GPIO3     ────────── D1
+GPIO12    ────────── D2
+GPIO11    ────────── D3
 3.3V      ────────── VCC
 GND       ────────── GND
 ```
 
 **Important Notes:**
-- **Voltage**: Ensure module supports 3.3V logic
+- **Interface**: Uses high-speed SDIO instead of SPI for better performance
 - **Card Format**: Use FAT32 formatted MicroSD card
-- **Shared SPI**: Same SPI bus as display, different CS pin
+- **Configuration File**: Unified `/config.json` replaces separate config files
+- **No Conflicts**: SDIO interface is separate from e-paper SPI
 
-### 3. RTC Module Connection
+### 3. Potentiometer Connection
 
-**Module Type**: DS3231 with integrated pull-up resistors
-
-```
-ESP32-C6          DS3231 RTC
--------           ----------
-GPIO 6    ────────── SDA
-GPIO 7    ────────── SCL
-3.3V      ────────── VCC
-GND       ────────── GND
-```
-
-**Pull-up Resistors** (if not built into module):
-```
-3.3V ────┬── 4.7kΩ ──── GPIO 6 (SDA)
-         └── 4.7kΩ ──── GPIO 7 (SCL)
-```
-
-**Important Notes:**
-- **I2C Address**: 0x68 (standard DS3231)
-- **Backup Battery**: Install CR2032 in RTC module for time keeping
-- **ESP32-C6 Issue**: I2C/WiFi interference handled by firmware
-
-### 4. Potentiometer Connection
-
-**Type**: 10kΩ linear potentiometer for refresh rate control
+**Type**: 50kΩ linear potentiometer for refresh rate control
 
 ```
-ESP32-C6          Potentiometer
--------           -------------
-GPIO 18   ────────── VCC (Power control)
-GPIO 2    ────────── WIPER (middle pin)
+FeatherS3         Potentiometer
+---------         -------------
+GPIO33    ────────── VCC (Power control)
+GPIO18    ────────── WIPER (middle pin)
 GND       ────────── GND (one outer pin)
 ```
 
 **Circuit Details:**
 ```
-GPIO 18 ──── VCC pin of potentiometer
-GPIO 2  ──── Wiper (center) pin
-GND     ──── One outer pin
-            (Other outer pin not connected)
+GPIO33 ──── VCC pin of potentiometer
+GPIO18 ──── Wiper (center) pin
+GND    ──── One outer pin
+           (Other outer pin not connected)
 ```
 
 **Important Notes:**
-- **Power Control**: GPIO 18 powers the pot to save battery
+- **Power Control**: GPIO33 powers the pot to save battery
 - **Range**: 0-3300mV input range (12-bit ADC)
-- **Function**: Controls refresh interval (10 min to 4 hours)
+- **Function**: Controls refresh interval (5 min to 4 hours)
 
-### 5. Wakeup Button Connection
+### 4. Wakeup Button Connection
 
 **Type**: Momentary push button for manual wakeup
 
 ```
-ESP32-C6          Push Button
--------           -----------
-GPIO 3    ────────── One terminal
+FeatherS3         Push Button
+---------         -----------
+GPIO1     ────────── One terminal
 GND       ────────── Other terminal
 ```
 
-**Improved Circuit with External Pull-down** (prevents random wakeups):
-```
-                    ┌─── 3.3V
-                    │
-              Push Button
-                    │
-GPIO 3 ──────┬──────┘
-             │
-           10kΩ (Pull-down)
-             │
-           GND
-```
-
 **Configuration:**
-- **Pull Mode**: INPUT_PULLDOWN (internal + external pull-down)
-- **External Resistor**: 10kΩ to GND (stronger than internal 45kΩ)
-- **Trigger**: ESP_EXT1_WAKEUP_ANY_HIGH
+- **Pull Mode**: INPUT_PULLUP (internal pull-up enabled)
+- **Trigger**: Button press pulls pin LOW
 - **Function**: Wakes device from deep sleep
-- **Anti-noise**: External pull-down prevents floating pin issues
+- **RTC GPIO**: GPIO1 is RTC-capable for deep sleep wakeup
 
-### 6. Power System Connection
+### 5. Power System Connection
 
-**Battery**: 5000mAh LiPo with JST-PH 2.0 connector
+**Battery**: 5000mAh LiPo with JST connector
 
 ```
-DFRobot Board     Battery/Solar
--------------     -------------
-BAT+ (JST)   ────── Battery Red (+)
-BAT- (JST)   ────── Battery Black (-)
-SOLAR+       ────── Solar Panel Red (+)
-SOLAR-       ────── Solar Panel Black (-)
-GPIO 0       ────── Battery voltage monitor
+FeatherS3         Battery
+---------         -------
+JST Connector ──── Battery (Red=+, Black=-)
+GPIO2         ──── Battery voltage monitor
 ```
 
-**Battery Monitoring Circuit** (built into DFRobot board):
+**Battery Monitoring Circuit** (built into FeatherS3):
 ```
-Battery+ ──── 680kΩ ──┬── GPIO 0 (ADC)
-                      │
-                    470kΩ
-                      │
-                    GND
+Battery+ ──── Voltage Divider ──── GPIO2 (ADC)
+                    │
+                   GND
 ```
 
-**Voltage Divider Ratio**: 0.4939242316 (configured in firmware)
+**Voltage Divider Ratio**: 0.2574679943 (configured in firmware)
 
-## Assembly Diagrams
+## Assembly Diagram
 
-### Breadboard Layout (Top View)
+### FeatherS3 Layout (Top View)
 ```
-                    DFRobot FireBeetle 2 ESP32-C6
-                           ┌─────────────────┐
-    E-Paper BUSY    ──────┤ 5               │
-    E-Paper RST     ──────┤ 4               │
-    E-Paper DC      ──────┤ 14              │
-    E-Paper CS      ──────┤ 1               │
-    SD Card CS      ──────┤ 9               │
-    RTC SDA         ──────┤ 6               │
-    RTC SCL         ──────┤ 7               │
-    Potentiometer   ──────┤ 2         18 ├───── Pot Power
-    Wakeup Button   ──────┤ 3               │
-    Battery Monitor ──────┤ 0               │
-    Shared SPI SCK  ──────┤ 23              │
-    Shared SPI MOSI ──────┤ 22              │
-    Shared SPI MISO ──────┤ 21              │
-    Built-in LED    ──────┤ 15              │
-                          └─────────────────┘
+                    Unexpected Maker FeatherS3
+                         ┌─────────────────┐
+  E-Paper BUSY    ──────┤ 6               │
+  E-Paper RST     ──────┤ 5               │
+  E-Paper DC      ──────┤ 10              │
+  E-Paper CS      ──────┤ 38              │
+  E-Paper SCK     ──────┤ 36              │
+  E-Paper MOSI    ──────┤ 35              │
+  E-Paper MISO    ──────┤ 37              │
+  SD D0           ──────┤ 7               │
+  SD D1           ──────┤ 3               │
+  SD D2           ──────┤ 12              │
+  SD D3           ──────┤ 11              │
+  SD CLK          ──────┤ 14              │
+  SD CMD          ──────┤ 17              │
+  Potentiometer   ──────┤ 18        33 ├───── Pot Power
+  Battery Monitor ──────┤ 2               │
+  Wakeup Button   ──────┤ 1               │
+  Built-in LED    ──────┤ 13              │
+  RGB NeoPixel    ──────┤ 40              │
+  RGB Power       ──────┤ 39              │
+                         └─────────────────┘
 ```
 
 ### Power Distribution Diagram
 ```
     ┌─── 3.3V Rail ───┬─── E-Paper VCC
     │                 ├─── SD Card VCC
-    │                 ├─── RTC VCC
-    │                 └─── (Potentiometer via GPIO 18)
+    │                 └─── (Potentiometer via GPIO33)
     │
-ESP32-C6
+FeatherS3
     │
     └─── GND Rail ────┬─── E-Paper GND
                       ├─── SD Card GND
-                      ├─── RTC GND
                       ├─── Potentiometer GND
                       └─── Button GND
 
 Battery System (Built-in):
 JST Connector ──── 5000mAh LiPo Battery
-Solar Input   ──── Solar Panel (6V, 2W recommended)
+USB-C        ──── Charging and Programming
 ```
+
+## Unified Configuration System (v0.7.1)
+
+### SD Card Structure
+```
+SD Card Root:
+├── config.json              # Unified configuration (NEW)
+├── weather_cache.json       # Weather data cache (auto-created)
+├── certs/
+│   └── google_root_ca.pem   # SSL certificate
+└── gdrive/
+    ├── cache/               # Google Drive cached images
+    ├── temp/                # Temporary download files
+    ├── toc_data.txt        # Table of contents data
+    └── toc_meta.txt        # Table of contents metadata
+```
+
+### Configuration Benefits
+- **Single File**: All settings (WiFi, Google Drive, Weather, Board) in one place
+- **Runtime Control**: Weather functionality controlled without recompilation
+- **Enhanced Validation**: Automatic value capping and fallback handling
+- **Better Error Handling**: Extended sleep on SD card failure with graceful recovery
+- **Faster Startup**: Single SD card read instead of 3 separate reads
 
 ## Testing and Verification
 
 ### Pre-Power Checks
 1. **Voltage Levels**: Verify all connections use 3.3V, not 5V
-2. **SPI Connections**: Check shared SCK/MOSI/MISO between display and SD
-3. **I2C Pull-ups**: Ensure SDA/SCL have pull-up resistors
-4. **Power Polarity**: Verify battery and solar panel polarity
-5. **Button Wiring**: Confirm button pulls GPIO 3 to GND
+2. **SDIO Connections**: Check 6-wire SDIO interface to SD card
+3. **SPI Connections**: Verify e-paper display SPI connections
+4. **Power Polarity**: Verify battery polarity on JST connector
+5. **Button Wiring**: Confirm button pulls GPIO1 to GND
 
 ### Power-On Tests
-1. **LED Test**: Built-in LED should blink during startup
-2. **SD Card**: Check if card is detected and readable
-3. **RTC Test**: Verify I2C communication with DS3231
-4. **Display Test**: Look for e-paper initialization
+1. **RGB LED Test**: Built-in NeoPixel should show status colors during startup
+2. **Status LED**: Built-in LED should blink during startup
+3. **SD Card**: Check if unified config.json is loaded
+4. **Display Test**: Look for e-paper initialization and test pattern
 5. **Battery Reading**: Check if voltage monitoring works
+6. **Configuration**: Verify unified config loads all sections
 
 ### Common Issues and Solutions
 
 | Issue | Symptom | Solution |
 |-------|---------|----------|
 | **Display not updating** | Blank or corrupted display | Check SPI connections, verify 3.3V power |
-| **SD card not detected** | File system errors | Verify CS pin, check FAT32 format |
-| **RTC communication failed** | Time sync errors | Check I2C pull-ups, verify address 0x68 |
+| **SD card not detected** | Config load errors | Verify SDIO connections, check FAT32 format |
+| **Config not loading** | Fallback to defaults | Check config.json syntax, verify SD card read |
 | **Battery reading incorrect** | Wrong voltage values | Check voltage divider ratio in config |
-| **Button not waking device** | No response to button | Verify GND connection, check pull-down mode |
-| **JSON parsing errors** | Google Drive failures | ESP32-C6 I2C/WiFi interference (handled by firmware) |
+| **Button not waking device** | No response to button | Verify GND connection, check RTC GPIO1 |
+| **RGB LED not working** | No status colors | Check GPIO40 connection, verify power control |
 
-## Fritzing File Creation Guide
+## RGB Status System
 
-To create a Fritzing file from this diagram:
+### Built-in Status Indicators
+The FeatherS3's built-in NeoPixel provides comprehensive system status:
 
-### 1. Component Selection
-- **ESP32-C6**: Use generic ESP32 part and modify labels
-- **E-Paper Display**: Create custom part or use generic SPI display
-- **SD Card Module**: Standard breadboard-friendly module
-- **DS3231 RTC**: Available in Fritzing parts library
-- **Potentiometer**: 10kΩ rotary potentiometer
-- **Push Button**: Standard momentary switch
-- **Battery**: 3.7V LiPo battery symbol
+- **🔷 Starting**: White pulse during system startup
+- **🔵 WiFi Connecting**: Blue pulse while connecting to WiFi
+- **🔴 WiFi Failed**: Red slow blink when connection fails
+- **🟢 Weather Fetching**: Green pulse while fetching weather data
+- **🟠 SD Operations**: Orange pulse during SD card operations
+- **🟡 SD Writing**: Yellow pulse during SD card writes
+- **🔵 Google Drive**: Cyan pulse during Google Drive operations
+- **🟣 Downloading**: Purple pulse during file downloads
+- **🟡 Rendering**: Pink solid during display rendering
+- **🔴 Battery Low**: Red slow blink for critical battery warning
+- **🔴 Error**: Red fast blink for system errors
+- **⚪ Sleep Prep**: Dim white fade-out before deep sleep
 
-### 2. Wiring Colors (Suggested)
-- **Power (3.3V)**: Red
-- **Ground**: Black
-- **SPI Clock**: Yellow
-- **SPI Data**: Blue/Green
-- **I2C**: Purple/Orange
-- **Analog**: Brown
-- **Digital Control**: Various colors
+### Power Management
+- **Battery-Aware**: Automatic brightness reduction when battery is low
+- **Ultra Power Efficient**: 2-5mA additional consumption
+- **Sleep Optimization**: Complete shutdown during deep sleep (0mA impact)
+- **Critical Battery Protection**: RGB system auto-disables to preserve power
 
-### 3. Layout Tips
-- Group components by function (SPI, I2C, Power)
-- Use bus connections for shared signals (SPI bus)
-- Label all connections with pin numbers
-- Add component values and specifications
-- Include power distribution clearly
-
-## PCB Design Considerations
-
-For permanent installation:
-
-### 1. Component Placement
-- Keep switching regulators away from analog circuits
-- Place decoupling capacitors close to power pins
-- Minimize trace lengths for high-speed SPI signals
-
-### 2. Power Management
-- Use thick traces for power distribution (3.3V, GND)
-- Add test points for voltage monitoring
-- Include LED indicators for power status
-
-### 3. Signal Integrity
-- Keep SPI traces short and equal length
-- Use ground plane for EMI reduction
-- Separate analog and digital sections
-
-### 4. Mechanical Considerations
-- Provide mounting holes for enclosure
-- Position connectors for easy access
-- Plan for display cable routing
-
-This wiring diagram provides the complete electrical interface for the ESP32 Photo Frame project. Follow safety precautions when working with batteries and ensure all connections are secure before powering on the system.
+This wiring diagram provides the complete electrical interface for the ESP32 Photo Frame project using the optimized FeatherS3 platform. The unified configuration system simplifies setup while the dedicated RGB status system provides comprehensive visual feedback for all system operations.

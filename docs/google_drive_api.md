@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ESP32 Photo Frame project includes a comprehensive Google Drive integration system that provides reliable cloud storage access with advanced caching, streaming architecture, and robust error handling. This document details the complete API for interacting with Google Drive services.
+The ESP32 Photo Frame project includes a comprehensive Google Drive integration system that provides reliable cloud storage access with advanced caching, streaming architecture, and robust error handling. **Version 0.7.1** introduces unified configuration system integration, allowing Google Drive settings to be managed through a single `/config.json` file alongside WiFi, Weather, and Board configurations.
 
 ## Architecture
 
@@ -44,45 +44,66 @@ Creates a new Google Drive instance with default configuration.
 
 #### Configuration Methods
 
-##### `initialize_from_json()`
+##### `initialize_from_json()` (Legacy Method)
 
 ```cpp
 photo_frame_error_t initialize_from_json(sd_card& sd_card, const char* config_filepath)
 ```
 
-Initialize Google Drive client from JSON configuration file.
+Initialize Google Drive client from separate JSON configuration file (legacy method).
+
+**Note**: This method is deprecated in favor of `initialize_from_unified_config()` for v0.7.1+.
+
+##### `initialize_from_unified_config()` (v0.7.1+)
+
+```cpp
+photo_frame_error_t initialize_from_unified_config(const unified_config::google_drive_config& config)
+```
+
+Initialize Google Drive client from unified configuration structure.
 
 **Parameters:**
-- `sd_card` - Reference to SD card object
-- `config_filepath` - Path to JSON configuration file
+- `config` - Google Drive configuration from unified config system
 
 **Returns:** Error code indicating success or failure
 
-**Configuration Format:**
+**Unified Configuration Format:**
 ```json
 {
-  "authentication": {
-    "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
-    "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-    "client_id": "your-client-id"
+  "wifi": {
+    "ssid": "YourWiFiNetwork",
+    "password": "YourWiFiPassword"
   },
-  "drive": {
-    "folder_id": "your-google-drive-folder-id",
-    "root_ca_path": "/certs/google_root_ca.pem",
-    "list_page_size": 100,
-    "use_insecure_tls": false
+  "google_drive": {
+    "authentication": {
+      "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
+      "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+      "client_id": "your-client-id"
+    },
+    "drive": {
+      "folder_id": "your-google-drive-folder-id",
+      "root_ca_path": "/certs/google_root_ca.pem",
+      "list_page_size": 100,
+      "use_insecure_tls": false
+    },
+    "caching": {
+      "local_path": "/gdrive",
+      "toc_max_age_seconds": 604800
+    },
+    "rate_limiting": {
+      "max_requests_per_window": 100,
+      "rate_limit_window_seconds": 100,
+      "min_request_delay_ms": 500,
+      "max_retry_attempts": 3,
+      "backoff_base_delay_ms": 5000,
+      "max_wait_time_ms": 30000
+    }
   },
-  "caching": {
-    "local_path": "/gdrive",
-    "toc_max_age_seconds": 604800
+  "weather": {
+    // ... weather config
   },
-  "rate_limiting": {
-    "max_requests_per_window": 100,
-    "rate_limit_window_seconds": 100,
-    "min_request_delay_ms": 500,
-    "max_retry_attempts": 3,
-    "backoff_base_delay_ms": 5000,
-    "max_wait_time_ms": 30000
+  "board": {
+    // ... board config
   }
 }
 ```
@@ -459,19 +480,28 @@ typedef enum image_source {
 
 ## Usage Examples
 
-### Basic Setup
+### Basic Setup (v0.7.1 Unified Configuration)
 
 ```cpp
 #include "google_drive.h"
 #include "sd_card.h"
+#include "unified_config.h"
 
 // Initialize SD card
 photo_frame::sd_card sdCard;
 sdCard.init();
 
-// Initialize Google Drive
+// Load unified configuration
+photo_frame::unified_config systemConfig;
+auto configError = photo_frame::load_unified_config_with_fallback(sdCard, "/config.json", systemConfig);
+if (configError != photo_frame::error_type::None) {
+    Serial.println("Failed to load unified configuration");
+    return;
+}
+
+// Initialize Google Drive from unified config
 photo_frame::google_drive drive;
-auto error = drive.initialize_from_json(sdCard, "/google_drive_config.json");
+auto error = drive.initialize_from_unified_config(systemConfig.google_drive);
 if (error != photo_frame::error_type::None) {
     Serial.println("Failed to initialize Google Drive");
     return;
@@ -479,6 +509,18 @@ if (error != photo_frame::error_type::None) {
 
 // Create cache directories
 drive.create_directories(sdCard);
+```
+
+### Legacy Setup (Pre-v0.7.1)
+
+```cpp
+// Legacy method using separate config file
+photo_frame::google_drive drive;
+auto error = drive.initialize_from_json(sdCard, "/google_drive_config.json");
+if (error != photo_frame::error_type::None) {
+    Serial.println("Failed to initialize Google Drive");
+    return;
+}
 ```
 
 ### Retrieve File List
@@ -609,29 +651,47 @@ The API includes built-in rate limiting to comply with Google Drive quotas:
 
 ## Migration Guide
 
-### From Legacy API
+### From Legacy Configuration (v0.7.0 → v0.7.1)
 
-**Update Configuration:**
+**Unified Configuration Migration:**
 ```json
+// OLD SYSTEM (separate files):
+// - /wifi.txt                    ❌ No longer supported
+// - /google_drive_config.json    ❌ No longer supported
+// - /weather.json                ❌ No longer supported
+
+// NEW UNIFIED SYSTEM:
+// - /config.json                 ✅ Single configuration file
+
 // Remove deprecated field:
 "toc_filename": "toc.txt"  // ❌ No longer needed
 ```
 
 **Update Method Calls:**
 ```cpp
-// OLD API:
+// OLD API (v0.7.0):
+drive.initialize_from_json(sdCard, "/google_drive_config.json");
 drive.retrieve_toc(batteryMode);
 drive.get_toc_file_count(&error);
 
-// NEW API:
+// NEW API (v0.7.1):
+drive.initialize_from_unified_config(systemConfig.google_drive);
 drive.retrieve_toc(sdCard, batteryMode);
 drive.get_toc_file_count(sdCard, &error);
 ```
+
+**Migration Benefits:**
+- **Single File**: All configuration in one place (`/config.json`)
+- **Faster Startup**: Single SD card read instead of 3 separate reads
+- **Enhanced Validation**: Automatic value capping and fallback handling
+- **Runtime Control**: Weather and other features controlled without recompilation
+- **Better Error Handling**: Extended sleep on SD card failure
 
 **Automatic Migration:**
 - Old TOC files automatically removed
 - Existing cache files remain valid
 - Configuration validation handles deprecated fields gracefully
+- Legacy methods still supported for backward compatibility
 
 ## Troubleshooting
 
@@ -644,6 +704,13 @@ drive.get_toc_file_count(sdCard, &error);
 - Check WiFi connection stability
 - Verify Google Drive API quota
 - Ensure proper TLS certificate configuration
+- Verify unified `/config.json` syntax is valid
+
+**"Configuration load failed"**
+- Check `/config.json` file exists on SD card
+- Verify JSON syntax using online validator
+- Ensure all required google_drive configuration fields are present
+- Check SD card file system integrity
 
 **"Access token expired"**
 - Tokens automatically refresh, check service account configuration

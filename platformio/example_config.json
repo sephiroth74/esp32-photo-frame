@@ -1,0 +1,62 @@
+{
+    "_comment": "ESP32 Photo Frame Unified Configuration (v0.7.1)",
+    "_instructions": "Replace placeholder values with your actual configuration",
+
+    "wifi": {
+        "ssid": "YourWiFiNetwork",
+        "password": "YourWiFiPassword"
+    },
+
+    "google_drive": {
+        "authentication": {
+            "service_account_email": "your-service-account@your-project.iam.gserviceaccount.com",
+            "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT_HERE\n-----END PRIVATE KEY-----\n",
+            "client_id": "your-client-id"
+        },
+        "drive": {
+            "folder_id": "your-google-drive-folder-id",
+            "root_ca_path": "/certs/google_root_ca.pem",
+            "list_page_size": 100,
+            "use_insecure_tls": false
+        },
+        "caching": {
+            "local_path": "/gdrive",
+            "toc_max_age_seconds": 604800
+        },
+        "rate_limiting": {
+            "max_requests_per_window": 100,
+            "rate_limit_window_seconds": 100,
+            "min_request_delay_ms": 500,
+            "max_retry_attempts": 3,
+            "backoff_base_delay_ms": 5000,
+            "max_wait_time_ms": 30000
+        }
+    },
+
+    "weather": {
+        "_location_name": "New York City, USA",
+        "enabled": true,
+        "latitude": 40.7128,
+        "longitude": -74.0060,
+        "update_interval_minutes": 120,
+        "celsius": true,
+        "battery_threshold": 15,
+        "max_age_hours": 3,
+        "timezone": "auto",
+        "temperature_unit": "celsius",
+        "wind_speed_unit": "kmh",
+        "precipitation_unit": "mm"
+    },
+
+    "board": {
+        "day_start_hour": 6,
+        "day_end_hour": 23,
+        "refresh": {
+            "_comment": "Refresh interval settings (in seconds) controlled by potentiometer",
+            "min_seconds": 600,
+            "max_seconds": 14400,
+            "step": 300,
+            "low_battery_multiplier": 3
+        }
+    }
+}

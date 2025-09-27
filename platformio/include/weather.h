@@ -22,9 +22,8 @@
 
 #pragma once
 
-#ifdef USE_WEATHER
-
 #include "datetime_utils.h"
+#include "unified_config.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <FS.h>
@@ -195,6 +194,18 @@ class WeatherManager {
     bool begin();
 
     /**
+     * @brief Initialize weather manager from unified configuration.
+     *
+     * Initializes the weather system using the provided unified configuration
+     * structure instead of reading from a separate config file. Also attempts
+     * to load cached weather data if available.
+     *
+     * @param weather_config Weather configuration from unified config system
+     * @return true if initialization successful, false on error
+     */
+    bool begin_with_unified_config(const unified_config::weather_config& weather_config);
+
+    /**
      * @brief Get current weather configuration.
      *
      * @return WeatherConfig structure containing current configuration settings
@@ -317,4 +328,3 @@ const unsigned char* get_weather_icon_bitmap(weather_icon_t weather_icon, uint16
 } // namespace weather
 } // namespace photo_frame
 
-#endif // USE_WEATHER

@@ -14,7 +14,7 @@
 - **Google Drive Integration**: Primary image source with automatic synchronization and caching from Google Drive folders
 - **SD Card Caching**: Local caching system for improved performance and offline capabilities
 - **Smart Image Processing**: Automatic resizing, annotation, and format conversion
-- **Weather Display**: Real-time weather information with configurable location, timezone, and update intervals
+- **Weather Display**: Runtime-configurable weather information with location, timezone, and update intervals (controlled via JSON config)
 - **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup for Unexpected Maker FeatherS3
 - Battery voltage monitoring and reporting with power-saving modes
 - Real-time clock integration for scheduled refresh and time-based features
@@ -24,14 +24,18 @@
 - **Rate Limiting**: Built-in API rate limiting for Google Drive requests
 - Modular code structure for easy customization and extension
 
-### Recent Improvements (v0.7.0)
+### Recent Improvements (v0.7.1)
+- **⚙️ Unified Configuration System**: Single `/config.json` file replaces 3 separate configuration files
+  - **Runtime Weather Control**: Weather functionality now controlled by JSON config instead of compile-time flags
+  - **Simplified Setup**: All configuration (WiFi, Google Drive, Weather, Board) in one place
+  - **Enhanced Validation**: Automatic value capping and fallback to preprocessor constants
+  - **Better Error Handling**: Extended sleep on SD card failure with graceful recovery
+  - **Code Simplification**: Eliminated conditional compilation blocks across entire codebase
+
+### Previous Improvements (v0.7.0)
 - **🗂️ Optimized Storage Layout**: Eliminated factory partition and redistributed 4MB additional space
-  - **+25% Larger OTA Partitions**: Increased from 4MB to 5MB each for firmware growth
-  - **+54% Larger SPIFFS**: Expanded from 3.8MB to 5.84MB for more assets and cache
-  - **Direct Boot**: Simplified boot process with ota_0 as primary partition
 - **⚡ PSRAM Streaming**: Enhanced HTTP client to leverage full 8MB PSRAM with chunked reading
-- **🌅 Fixed Weather Times**: Corrected sunrise/sunset display using Unix timestamps (no more 1-hour offset)
-- **🧹 Simplified Cleanup**: Streamlined cleanup logic with 39% code reduction and better performance
+- **🌅 Fixed Weather Times**: Corrected sunrise/sunset display using Unix timestamps
 - **🛡️ Memory Safety**: Fixed critical memory corruption crashes with improved HTTPClient usage
 
 ## Project Structure
@@ -137,7 +141,70 @@ The FeatherS3 version includes a comprehensive RGB status system using the built
    
    **📋 [Complete Rust Processor Documentation](docs/rust-photoframe-processor.md)** - Comprehensive guide with AI features, font support, and performance optimization
 
-4. **Google Drive Configuration (Required)**
+4. **Unified Configuration System (v0.7.1)**
+
+   **🔧 Single Configuration File**: All settings (WiFi, Google Drive, Weather, Board) in one unified `/config.json` file on the SD card
+
+   Create a single `/config.json` file on your SD card root with all system configuration:
+
+   ```json
+   {
+     "wifi": {
+       "ssid": "YourWiFiNetwork",
+       "password": "YourWiFiPassword"
+     },
+     "google_drive": {
+       "authentication": {
+         "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
+         "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT\n-----END PRIVATE KEY-----\n",
+         "client_id": "your-client-id"
+       },
+       "drive": {
+         "folder_id": "your-google-drive-folder-id",
+         "root_ca_path": "/certs/google_root_ca.pem",
+         "list_page_size": 100,
+         "use_insecure_tls": false
+       },
+       "caching": {
+         "local_path": "/gdrive",
+         "toc_max_age_seconds": 604800
+       },
+       "rate_limiting": {
+         "max_requests_per_window": 100,
+         "rate_limit_window_seconds": 100,
+         "min_request_delay_ms": 500,
+         "max_retry_attempts": 3,
+         "backoff_base_delay_ms": 5000,
+         "max_wait_time_ms": 30000
+       }
+     },
+     "weather": {
+       "enabled": true,
+       "latitude": 40.7128,
+       "longitude": -74.0060,
+       "update_interval_minutes": 120,
+       "celsius": true,
+       "battery_threshold": 15,
+       "max_age_hours": 3,
+       "timezone": "auto",
+       "temperature_unit": "celsius",
+       "wind_speed_unit": "kmh",
+       "precipitation_unit": "mm"
+     },
+     "board": {
+       "day_start_hour": 6,
+       "day_end_hour": 23,
+       "refresh": {
+         "min_seconds": 600,
+         "max_seconds": 14400,
+         "step": 300,
+         "low_battery_multiplier": 3
+       }
+     }
+   }
+   ```
+
+5. **Google Drive Setup (Required)**
 
    **📤 Complete Workflow**: Process images → Upload to Google Drive → Share with service account → Configure JSON file
 
@@ -149,44 +216,15 @@ The FeatherS3 version includes a comprehensive RGB status system using the built
    - **Step 4**: Download the service account JSON key file
    - **Step 5**: **Create a Google Drive folder** and upload your processed `.bin` files to it
    - **Step 6**: **Critical**: Share your Google Drive folder with the service account email (found in the JSON key file)
-   - **Step 7**: Create a `google_drive_config.json` file on your SD card with the folder ID:
-
-   ```json
-   {
-     "authentication": {
-       "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
-       "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT\n-----END PRIVATE KEY-----\n",
-       "client_id": "your-client-id"
-     },
-     "drive": {
-       "folder_id": "your-google-drive-folder-id",
-       "root_ca_path": "/certs/google_root_ca.pem",
-       "list_page_size": 100,
-       "use_insecure_tls": false
-     },
-     "caching": {
-       "local_path": "/gdrive",
-       "toc_max_age_seconds": 604800
-     },
-     "rate_limiting": {
-       "max_requests_per_window": 100,
-       "rate_limit_window_seconds": 100,
-       "min_request_delay_ms": 500,
-       "max_retry_attempts": 3,
-       "backoff_base_delay_ms": 5000,
-       "max_wait_time_ms": 30000
-     }
-   }
-   ```
+   - **Step 7**: Add your Google Drive configuration to the unified `/config.json` file (see configuration section above)
 
    **SD Card Usage**
 
    The SD card serves as **configuration and caching storage only** (images are stored in Google Drive):
 
-   - **Configuration Files**: Google Drive service account credentials (`google_drive_config.json`)
+   - **Unified Configuration**: Single `/config.json` file with all system settings (WiFi, Google Drive, Weather, Board)
    - **Local Image Caching**: Downloaded Google Drive images are cached locally for improved performance and offline display
-   - **Weather Configuration**: Weather API settings and cached data
-   - **WiFi Credentials**: Network connection information
+   - **Weather Data**: Cached weather information for offline display
    - **Temporary Files**: Download and processing temporary storage
    - **TOC System**: Two-file Table of Contents system (`toc_data.txt` and `toc_meta.txt`) for enhanced data integrity
 
@@ -341,14 +379,70 @@ For detailed technical documentation including comprehensive error handling syst
 - **📋 [Binary Format Converter](docs/bin_2_image.md)** - ESP32 binary to image conversion tool
 - **📋 [Wiring Diagram](docs/wiring-diagram.md)** - Hardware assembly and connections
 
+## ⚙️ Unified Configuration System (v0.7.1)
+
+### **Single Configuration File**
+
+The photo frame now uses a **unified configuration system** with a single `/config.json` file on the SD card, replacing the previous 3 separate configuration files:
+
+**Previous System (v0.7.0 and earlier)**:
+- ❌ `wifi.txt` - WiFi credentials
+- ❌ `google_drive_config.json` - Google Drive settings
+- ❌ `weather_config.json` - Weather configuration
+
+**New Unified System (v0.7.1+)**:
+- ✅ `/config.json` - **All configuration in one place**
+
+### **Key Benefits**
+
+- **🔧 Simplified Setup**: All settings in one JSON file
+- **⚡ Faster Startup**: Single SD card read instead of 3 separate reads
+- **🛡️ Enhanced Validation**: Automatic value capping and fallback handling
+- **🔄 Runtime Control**: Weather functionality controlled at runtime (no recompilation needed)
+- **💾 Better Error Handling**: Extended sleep on SD card failure with graceful recovery
+- **🧹 Code Simplification**: Eliminated conditional compilation blocks
+
+### **Fallback System**
+
+If the SD card fails or `/config.json` is missing, the system:
+1. **Loads fallback values** from `config.h` preprocessor constants
+2. **Enters extended sleep** (midpoint between min/max refresh intervals)
+3. **Retries on next wakeup** for automatic recovery
+
+### **Configuration Validation**
+
+The system automatically validates and caps configuration values:
+- **Refresh intervals**: Capped to valid ranges (5 min - 4 hours)
+- **Weather settings**: Battery threshold (5-50%), max age (1-24 hours)
+- **Board timing**: Day start/end hours validated
+- **Google Drive**: Rate limiting and timeout values enforced
+
+### **Runtime Weather Control**
+
+Weather functionality is now **runtime-configurable**:
+- **Enable/Disable**: Set `"weather.enabled": true/false` in config.json
+- **No Recompilation**: Same firmware works with or without weather
+- **Battery Aware**: Automatically disabled when battery is below threshold
+- **Configuration Driven**: All weather settings in unified config
+
 ## Configuration & Customization
 
 ### Security Settings
 
-The `use_insecure_tls` setting in your Google Drive configuration controls SSL/TLS security:
+The `use_insecure_tls` setting in your unified `/config.json` file controls SSL/TLS security:
 
-- **Secure (Recommended)**: Set `"use_insecure_tls": false` and provide a valid `root_ca_path`
-- **Insecure**: Set `"use_insecure_tls": true` to skip certificate validation (not recommended for production)
+- **Secure (Recommended)**: Set `"google_drive.drive.use_insecure_tls": false` and provide a valid `root_ca_path`
+- **Insecure**: Set `"google_drive.drive.use_insecure_tls": true` to skip certificate validation (not recommended for production)
+
+### Weather Configuration
+
+Weather is now fully runtime-configurable via the unified `/config.json`:
+
+- **Enable/Disable**: Control weather display without firmware changes
+- **Location Settings**: Latitude/longitude for accurate weather data
+- **Update Control**: Configurable intervals and battery thresholds
+- **Units**: Temperature (Celsius/Fahrenheit), wind speed, precipitation
+- **Timezone**: Auto-detection or manual specification
 
 ### Hardware Configuration
 

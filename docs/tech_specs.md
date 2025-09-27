@@ -7,9 +7,10 @@ This document describes the complete flow and architecture of the ESP32 Photo Fr
 The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information and weather display. It uses **Google Drive** as the primary image source with comprehensive local SD card caching for improved performance and offline capabilities.
 
 ### Key Features
+- **⚙️ Unified Configuration System** (v0.7.1): Single `/config.json` file for all settings (WiFi, Google Drive, Weather, Board)
 - **🎨 RGB Status System** (v0.5.0): Visual feedback using built-in NeoPixel LED with 14 predefined status states
 - **Google Drive cloud storage**: Primary image source with SD card caching
-- **Weather display**: Real-time weather overlay with configurable units and timezone
+- **Runtime weather control**: Weather display configurable without firmware recompilation
 - **Smart power management**: Battery-aware refresh intervals and features with RGB integration
 - **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup
 - **Status information**: Time, image count, battery level, and charging status
@@ -391,11 +392,19 @@ bool checkMemoryAvailable(size_t requiredBytes);
 - **Field Validation**: Type checking and dependency validation for all config fields
 - **Range Validation**: Automatic constraint checking for numerical values
 
-#### **Breaking Changes & Migration**
+#### **Breaking Changes & Migration (v0.7.1)**
 
-**Configuration File Updates Required:**
+**Unified Configuration Migration:**
 ```json
-// REMOVE this deprecated field from google_drive_config.json:
+// OLD SYSTEM (v0.7.0 and earlier):
+// - /wifi.txt                    ❌ No longer supported
+// - /google_drive_config.json    ❌ No longer supported
+// - /weather.json                ❌ No longer supported
+
+// NEW UNIFIED SYSTEM (v0.7.1+):
+// - /config.json                 ✅ Single configuration file
+
+// REMOVE this deprecated field from old config:
 "toc_filename": "toc.txt"  // ❌ No longer supported
 
 // The system automatically uses:
@@ -456,16 +465,17 @@ This enhanced Google Drive API provides **significantly improved reliability** w
 #### 1.2 Firmware Configuration
 1. **Select Target Board** in `platformio.ini`:
    ```ini
-   default_envs = dfrobot_firebeetle2_esp32c6
+   default_envs = feathers3_unexpectedmaker  # Default (v0.7.1)
    ```
 
 2. **Configure Hardware Settings** in `platformio/include/config/{board}.h`:
    - Pin assignments
    - Display type (DISP_BW_V2, DISP_6C, DISP_7C_F)
    - Driver selection (USE_DESPI_DRIVER or USE_WAVESHARE_DRIVER)
-   - Image format (EPD_USE_BINARY_FILE)
    - Battery monitoring settings
-   - WiFi and time settings
+   - Timezone and locale settings
+
+**Note**: Weather functionality and other runtime settings are now configured via the unified `/config.json` file instead of compile-time flags.
 
 ### Phase 2: Google Drive Configuration (Required)
 
@@ -482,32 +492,61 @@ This enhanced Google Drive API provides **significantly improved reliability** w
    - Share with service account email
    - Note the folder ID from URL
 
-#### 2.2 Device Configuration
-1. **Create Configuration File** on SD card (`/google_drive_config.json`):
+#### 2.2 Unified Device Configuration (v0.7.1)
+1. **Create Unified Configuration File** on SD card (`/config.json`):
    ```json
    {
-     "authentication": {
-       "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
-       "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",
-       "client_id": "your-client-id"
+     "wifi": {
+       "ssid": "YourWiFiNetwork",
+       "password": "YourWiFiPassword"
      },
-     "drive": {
-       "folder_id": "your-google-drive-folder-id",
-       "root_ca_path": "/certs/google_root_ca.pem",
-       "list_page_size": 150,
-       "use_insecure_tls": false
+     "google_drive": {
+       "authentication": {
+         "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
+         "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",
+         "client_id": "your-client-id"
+       },
+       "drive": {
+         "folder_id": "your-google-drive-folder-id",
+         "root_ca_path": "/certs/google_root_ca.pem",
+         "list_page_size": 150,
+         "use_insecure_tls": false
+       },
+       "caching": {
+         "local_path": "/gdrive",
+         "toc_max_age_seconds": 604800
+       },
+       "rate_limiting": {
+         "max_requests_per_window": 100,
+         "rate_limit_window_seconds": 100,
+         "min_request_delay_ms": 500,
+         "max_retry_attempts": 3,
+         "backoff_base_delay_ms": 5000,
+         "max_wait_time_ms": 30000
+       }
      },
-     "caching": {
-       "local_path": "/gdrive",
-       "toc_max_age_seconds": 604800
+     "weather": {
+       "enabled": true,
+       "latitude": 40.7128,
+       "longitude": -74.0060,
+       "update_interval_minutes": 120,
+       "celsius": true,
+       "battery_threshold": 15,
+       "max_age_hours": 3,
+       "timezone": "auto",
+       "temperature_unit": "celsius",
+       "wind_speed_unit": "kmh",
+       "precipitation_unit": "mm"
      },
-     "rate_limiting": {
-       "max_requests_per_window": 100,
-       "rate_limit_window_seconds": 100,
-       "min_request_delay_ms": 500,
-       "max_retry_attempts": 3,
-       "backoff_base_delay_ms": 5000,
-       "max_wait_time_ms": 30000
+     "board": {
+       "day_start_hour": 6,
+       "day_end_hour": 23,
+       "refresh": {
+         "min_seconds": 600,
+         "max_seconds": 14400,
+         "step": 300,
+         "low_battery_multiplier": 3
+       }
      }
    }
    ```
@@ -516,23 +555,24 @@ This enhanced Google Drive API provides **significantly improved reliability** w
 
 ### Phase 3: Device Configuration
 
-#### 3.1 SD Card Setup
-The SD card is used for configuration files, certificates, and Google Drive caching.
+#### 3.1 SD Card Setup (v0.7.1)
+The SD card is used for the unified configuration file, certificates, and Google Drive caching.
 
 1. **Required Files**:
    ```
-   /wifi.txt              # WiFi credentials (SSID:PASSWORD)
-   /google_drive_config.json  # Google Drive configuration (required)
-   /weather.json             # Weather display configuration (optional)
-   /certs/google_root_ca.pem  # SSL certificate (if using secure TLS)
-   /gdrive/cache/         # Google Drive cache directory (auto-created)
-   /gdrive/temp/          # Google Drive temporary files (auto-created)
+   /config.json              # Unified configuration file (WiFi, Google Drive, Weather, Board)
+   /certs/google_root_ca.pem # SSL certificate (if using secure TLS)
+   /gdrive/cache/            # Google Drive cache directory (auto-created)
+   /gdrive/temp/             # Google Drive temporary files (auto-created)
+   /weather_cache.json       # Weather data cache (auto-created)
    ```
 
-2. **WiFi Configuration** (`/wifi.txt`):
-   ```
-   YourWiFiSSID:YourWiFiPassword
-   ```
+2. **Unified Configuration Benefits**:
+   - **Single file**: All settings in one place
+   - **Faster startup**: Single SD card read instead of 3 separate reads
+   - **Enhanced validation**: Automatic value capping and fallback handling
+   - **Runtime control**: Weather functionality controlled without recompilation
+   - **Better error handling**: Extended sleep on SD card failure
 
 #### 3.2 Firmware Upload
 1. **Build and Upload**:
@@ -583,9 +623,9 @@ The SD card is used for configuration files, certificates, and Google Drive cach
 #### 4.2 Image Selection Process
 
 ##### Google Drive Workflow (Lines 234-381):
-1. **Initialize Google Drive Client**:
+1. **Initialize Google Drive Client from Unified Config**:
    ```cpp
-   error = drive.initialize_from_json(sdCard, GOOGLE_DRIVE_CONFIG_FILEPATH);
+   error = drive.initialize_from_unified_config(systemConfig.google_drive);
    ```
 
 2. **Cleanup Management**:
@@ -949,22 +989,36 @@ Rich context information enables rapid debugging:
 
 This comprehensive error system enables proactive maintenance, rapid troubleshooting, and continuous system improvement through detailed error analytics.
 
-## File Structure Summary
+## File Structure Summary (v0.7.1)
 
 ```
 esp32-photo-frame/
 ├── platformio/                    # ESP32/Arduino firmware
 │   ├── src/main.cpp               # Main application logic
+│   ├── src/unified_config.cpp     # Unified configuration system
 │   ├── src/                       # Core modules (battery, wifi, display, weather, etc.)
 │   ├── include/config/            # Board-specific configurations
-│   ├── weather_example.json       # Weather configuration template
+│   ├── include/unified_config.h   # Unified configuration structures
+│   ├── example_config.json        # Unified configuration template
 │   └── platformio.ini             # Build configuration
 ├── android/PhotoFrameProcessor/   # Android companion app
 │   └── app/src/main/             # Kotlin source code
 ├── scripts/                       # Image processing scripts
 │   └── auto.sh                   # Main batch processing script
 ├── README.md                     # Project documentation
-└── specs.md                      # This technical specification
+└── docs/tech_specs.md            # This technical specification
+
+# SD Card Structure (v0.7.1)
+SD Card Root:
+├── config.json                   # Unified configuration (NEW)
+├── weather_cache.json            # Weather data cache (auto-created)
+├── certs/
+│   └── google_root_ca.pem        # SSL certificate
+└── gdrive/
+    ├── cache/                    # Google Drive cached images
+    ├── temp/                     # Temporary download files
+    ├── toc_data.txt             # Table of contents data
+    └── toc_meta.txt             # Table of contents metadata
 ```
 
 ## Power Consumption Estimates
