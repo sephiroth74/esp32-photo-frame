@@ -71,6 +71,19 @@ class wifi_manager {
     photo_frame_error_t init(const char* config_file, sd_card& sdCard);
 
     /**
+     * @brief Initialize WiFi manager with direct credentials.
+     *
+     * Sets WiFi credentials directly without reading from a configuration file.
+     * This method is used with the unified configuration system where credentials
+     * are already loaded from the main configuration file.
+     *
+     * @param ssid WiFi network SSID
+     * @param password WiFi network password
+     * @return photo_frame_error_t Error status (None on success)
+     */
+    photo_frame_error_t init_with_config(const String& ssid, const String& password);
+
+    /**
      * @brief Connect to WiFi network using stored credentials.
      *
      * Attempts to establish a connection to the WiFi network using the

@@ -11,10 +11,9 @@
 // #define OTA_SERVER_URL "http://192.168.188.100:8000/"
 // #define OTA_VERSION_ENDPOINT "version.json"
 
-#define OTA_SERVER_URL "https://api.github.com/repos/sephiroth74/esp32-photo-frame"
-#define OTA_VERSION_ENDPOINT "/releases/latest"
-#define OTA_FIRMWARE_ENDPOINT "/releases/download/{version}/firmware-{board}.bin"
-#define OTA_MANIFEST_URL "https://github.com/sephiroth74/esp32-photo-frame/releases/latest/download/ota_manifest.json"
+
+
+
 #define OTA_USE_SSL true // Use HTTPS for secure updates
 
 // Pin definitions for FeatherS3 (ESP32-S3) - Based on actual pinout
@@ -60,62 +59,19 @@
 
 // External wakeup configuration
 #define WAKEUP_EXT0
-// Use available RTC GPIO pin for wakeup (ESP32-S3 RTC pins: GPIO0-GPIO21)
 #define WAKEUP_PIN GPIO_NUM_1 // GPIO1 is an RTC IO pin on ESP32-S3 (available)
 #define WAKEUP_PIN_MODE INPUT_PULLUP   // Internal pull-up for button to GND
 #define WAKEUP_LEVEL    LOW            // Button press pulls pin LOW
 
-// ESP32-S3 has many RTC IO pins available for deep sleep wakeup (GPIO0-GPIO21)
-// We're using GPIO3 which is confirmed as an RTC IO pin
-
-// Delay before going to sleep in milliseconds
 #define DELAY_BEFORE_SLEEP 8000 // Reduced since no I2C/WiFi conflicts
 
-// WiFi configuration
-#define WIFI_FILENAME "/wifi.txt"
-
-// Network timeouts - can be more aggressive since ESP32-S3 is more stable
-#define WIFI_CONNECT_TIMEOUT 8000 // Reduced timeout
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
-#define NTP_TIMEOUT          10000 // Reduced timeout
-#define NTP_SERVER1          "pool.ntp.org"
-#define NTP_SERVER2          "time.nist.gov"
 
-// e-Paper display configuration
-#define DISP_6C // 6-color e-Paper display (GDEP073E01)
-// #define DISP_BW_V2 // Black and White e-Paper display
+#define DISP_6C              // 6-color e-Paper display (GDEP073E01)
 #define USE_DESPI_DRIVER
 
-// Accent color for the display
 #define ACCENT_COLOR GxEPD_RED
-
-// Reset handling
-#define RESET_INVALIDATES_DATE_TIME 1
-
-// Refresh intervals - can be more frequent due to better power management
-#define REFRESH_MIN_INTERVAL_SECONDS            (10 * SECONDS_IN_MINUTE)
-#define REFRESH_MAX_INTERVAL_SECONDS            (4 * SECONDS_IN_HOUR)
-#define REFRESH_STEP_SECONDS                    (10 * SECONDS_IN_MINUTE)
-#define REFRESH_INTERVAL_SECONDS_LOW_BATTERY    (8 * SECONDS_IN_HOUR)
-
-#define DAY_START_HOUR                       06
-#define DAY_END_HOUR                         23
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
-// LOCALE
 #define LOCALE it_IT
-
-// Google Drive integration - fully enabled since no I2C/WiFi conflicts
-// Google Drive is now enabled globally in config.h
-#define GOOGLE_DRIVE_CONFIG_FILEPATH "/google_drive_config.json"
-
-// Service account cleanup interval
-#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * 60 * 60) // 24 hours
-
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD    524288  // 512KB - stream larger responses (with PSRAM)
-#define GOOGLE_DRIVE_JSON_DOC_SIZE              524288  // 512KB JSON document buffer (with PSRAM)
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE          262144  // 256KB response body reserve (with PSRAM)
-#define GOOGLE_DRIVE_SAFETY_LIMIT               1048576 // 1MB safety limit (with PSRAM)
-
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 250 // Max 1000, but 250 is a good compromise

@@ -384,8 +384,8 @@ export MAGICK_DISK_LIMIT=4GB
    ```
 
 3. **Critical Requirements**:
-   - **Share the Google Drive folder** with your service account email (from `google_drive_config.json`)
-   - Ensure the folder ID in your `google_drive_config.json` matches the uploaded folder
+   - **Share the Google Drive folder** with your service account email (from unified `config.json`)
+   - Ensure the folder ID in your `config.json` (google_drive.drive.folder_id) matches the uploaded folder
    - Only `.bin` files are supported - do not upload BMP or other formats
 
 ### Binary Format Compatibility

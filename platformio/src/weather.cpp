@@ -21,8 +21,6 @@
 // SOFTWARE.
 
 #include "config.h"
-
-#ifdef USE_WEATHER
 #include "weather.h"
 #include <assets/icons/icons.h>
 
@@ -62,6 +60,43 @@ bool WeatherManager::begin() {
     load_weather_cache();
 
     Serial.printf("[WeatherManager] Initialized for location (%.3f, %.3f)\n",
+                  config.latitude,
+                  config.longitude);
+    return true;
+}
+
+bool WeatherManager::begin_with_unified_config(const unified_config::weather_config& weather_config) {
+    Serial.println("[WeatherManager] Initializing from unified configuration...");
+
+    // Convert unified config to internal config structure
+    config.enabled = weather_config.enabled;
+    config.latitude = weather_config.latitude;
+    config.longitude = weather_config.longitude;
+    config.update_interval_minutes = weather_config.update_interval_minutes;
+    config.celsius = weather_config.celsius;
+    config.battery_threshold = weather_config.battery_threshold;
+    config.max_age_hours = weather_config.max_age_hours;
+    config.timezone = weather_config.timezone;
+    config.temperature_unit = weather_config.temperature_unit;
+    config.wind_speed_unit = weather_config.wind_speed_unit;
+    config.precipitation_unit = weather_config.precipitation_unit;
+
+    // Check if weather is enabled
+    if (!config.enabled) {
+        Serial.println("[WeatherManager] Weather is disabled in unified configuration");
+        return false;
+    }
+
+    // Validate configuration
+    if (!config.is_valid()) {
+        Serial.println("[WeatherManager] Invalid weather configuration from unified config");
+        return false;
+    }
+
+    // Try to load cached weather data
+    load_weather_cache();
+
+    Serial.printf("[WeatherManager] Initialized from unified config for location (%.3f, %.3f)\n",
                   config.latitude,
                   config.longitude);
     return true;
@@ -534,12 +569,13 @@ bool WeatherManager::load_weather_cache() {
 }
 
 bool WeatherManager::load_config_from_sd() {
-    if (!SD_MMC.exists(WEATHER_CONFIG_FILE)) {
+    const char* weather_config_path = "/weather_config.json"; // Legacy path for backward compatibility
+    if (!SD_MMC.exists(weather_config_path)) {
         Serial.println("[WeatherManager] Weather config file not found, creating example config");
         return create_example_config();
     }
 
-    File config_file = SD_MMC.open(WEATHER_CONFIG_FILE, FILE_READ);
+    File config_file = SD_MMC.open(weather_config_path, FILE_READ);
     if (!config_file) {
         Serial.println("[WeatherManager] Failed to open weather config file");
         return false;
@@ -618,7 +654,8 @@ bool WeatherManager::create_example_config() {
     doc["_comment"]      = "Weather configuration for ESP32 Photo Frame";
     doc["_instructions"] = "Set enabled=true and update latitude/longitude for your location";
 
-    File config_file     = SD_MMC.open(WEATHER_CONFIG_FILE, FILE_WRITE);
+    const char* weather_config_path = "/weather_config.json"; // Legacy path for backward compatibility
+    File config_file     = SD_MMC.open(weather_config_path, FILE_WRITE);
     if (!config_file) {
         Serial.println("[WeatherManager] Failed to create example config file");
         return false;
@@ -627,7 +664,7 @@ bool WeatherManager::create_example_config() {
     serializeJsonPretty(doc, config_file);
     config_file.close();
 
-    Serial.printf("[WeatherManager] Created example config at %s\n", WEATHER_CONFIG_FILE);
+    Serial.printf("[WeatherManager] Created example config at %s\n", weather_config_path);
     Serial.println("[WeatherManager] Please edit the config file and set enabled=true");
     return false; // Return false since weather is disabled by default
 }
@@ -678,5 +715,3 @@ const unsigned char* get_weather_icon_bitmap(weather_icon_t weather_icon, uint16
 
 } // namespace weather
 } // namespace photo_frame
-
-#endif // USE_WEATHER

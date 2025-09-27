@@ -5,6 +5,21 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.7.1] - 2025-01-27
+
+### Changed
+- **Runtime Weather Configuration**: Removed `USE_WEATHER` compile-time conditional in favor of unified runtime configuration
+  - Weather functionality now controlled by `systemConfig.weather.enabled` in `/config.json`
+  - Eliminated complex conditional compilation blocks throughout codebase (`main.cpp`, `renderer.cpp`, `config.cpp`)
+  - Single firmware binary now supports weather on/off without recompilation
+  - Simplified build system by removing `-D USE_WEATHER` build flag
+
+### Technical Details
+- **Architectural Improvement**: Transitioned from compile-time to runtime weather control
+- **Code Simplification**: Removed all `#ifdef USE_WEATHER` conditionals across the entire codebase
+- **Build System**: Unified build process eliminates need for separate weather/no-weather builds
+- **Configuration System**: Weather system now fully integrated with unified JSON configuration architecture
+
 ## [v0.7.0] - 2025-09-24
 
 ### Added

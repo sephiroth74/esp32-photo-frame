@@ -489,7 +489,6 @@ void draw_image_info(uint32_t index,
                                 -2);
 }
 
-#ifdef USE_WEATHER
 
 rect_t get_weather_info_rect() { return {16 - 8, DISP_HEIGHT - 88 - 8, 184, 88}; }
 
@@ -598,7 +597,6 @@ void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, re
         }
     }
 }
-#endif
 
 void draw_rounded_rect(int16_t x,
                        int16_t y,

@@ -25,6 +25,7 @@
 #include "config.h"
 #include "google_drive_client.h"
 #include "sd_card.h"
+#include "unified_config.h"
 
 namespace photo_frame {
 
@@ -95,6 +96,13 @@ class google_drive {
      * @return photo_frame_error_t indicating success or failure
      */
     photo_frame_error_t initialize_from_json(sd_card& sd_card, const char* config_filepath);
+
+    /**
+     * @brief Initialize Google Drive from unified configuration structure.
+     * @param gd_config Google Drive configuration from unified config system
+     * @return photo_frame_error_t indicating success or failure
+     */
+    photo_frame_error_t initialize_from_unified_config(const unified_config::google_drive_config& gd_config);
 
     /**
      * @brief Create necessary directories on the sdcard for google drive local cache.

@@ -40,9 +40,8 @@
 // ----------------------------------------------------------------------------
 
 /// Ensure all required e-paper display pins are defined
-#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) ||                     \
-    !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
-#error                                                                                             \
+#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) || !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
+#error \
     "All e-paper display pins must be defined: EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN, EPD_SCK_PIN, EPD_MOSI_PIN"
 #endif
 
@@ -52,8 +51,7 @@
 #endif
 
 /// Prevent multiple display type definitions
-#if (defined(DISP_BW_V2) && defined(DISP_7C_F)) || (defined(DISP_BW_V2) && defined(DISP_6C)) ||    \
-    (defined(DISP_7C_F) && defined(DISP_6C))
+#if (defined(DISP_BW_V2) && defined(DISP_7C_F)) || (defined(DISP_BW_V2) && defined(DISP_6C)) || (defined(DISP_7C_F) && defined(DISP_6C))
 #error "Only one display type can be defined: DISP_BW_V2, DISP_7C_F, or DISP_6C"
 #endif
 
@@ -86,7 +84,7 @@
 /// ESP32-C6 has I2C/WiFi coexistence issues that cause JSON parsing corruption
 /// RTC module is not supported on ESP32-C6 - use NTP-only time instead
 #if defined(CONFIG_IDF_TARGET_ESP32C6)
-#error                                                                                             \
+#error \
     "RTC module (USE_RTC) is not supported on ESP32-C6 due to I2C/WiFi interference. Remove USE_RTC definition and use NTP-only time synchronization."
 #endif // CONFIG_IDF_TARGET_ESP32C6
 #endif // USE_RTC
@@ -102,7 +100,7 @@
 
 /// Ensure potentiometer maximum value is defined
 #if !defined(POTENTIOMETER_INPUT_MAX)
-#error                                                                                             \
+#error \
     "POTENTIOMETER_INPUT_MAX must be defined (typically 4095 for 12-bit ADC or 1023 for 10-bit ADC)"
 #endif
 
@@ -129,9 +127,8 @@
 
 #ifndef USE_SENSOR_MAX1704X
 /// Validate analog battery monitoring settings when MAX1704X is not used
-#if !defined(BATTERY_PIN) || !defined(BATTERY_NUM_READINGS) ||                                     \
-    !defined(BATTERY_DELAY_BETWEEN_READINGS) || !defined(BATTERY_RESISTORS_RATIO)
-#error                                                                                             \
+#if !defined(BATTERY_PIN) || !defined(BATTERY_NUM_READINGS) || !defined(BATTERY_DELAY_BETWEEN_READINGS) || !defined(BATTERY_RESISTORS_RATIO)
+#error \
     "When USE_SENSOR_MAX1704X is not defined, you must define: BATTERY_PIN, BATTERY_NUM_READINGS, BATTERY_DELAY_BETWEEN_READINGS, BATTERY_RESISTORS_RATIO"
 #endif
 
@@ -190,14 +187,12 @@
 // ----------------------------------------------------------------------------
 
 /// Validate minimum refresh interval (5 minutes to 2 hours)
-#if REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) ||                                      \
-    REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR)
+#if REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) || REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR)
 #error "REFRESH_MIN_INTERVAL_SECONDS must be between 5 minutes and 2 hours"
 #endif
 
 /// Validate maximum refresh interval (10 minutes to 4 hours)
-#if REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) ||                                     \
-    REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR)
+#if REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) || REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR)
 #error "REFRESH_MAX_INTERVAL_SECONDS must be between 10 minutes and 4 hours"
 #endif
 
@@ -211,10 +206,9 @@
 #error "REFRESH_STEP_SECONDS must be between 1 minute and 1 hour"
 #endif
 
-/// Ensure low battery refresh interval is reasonable (1-24 hours)
-#if REFRESH_INTERVAL_SECONDS_LOW_BATTERY < SECONDS_IN_HOUR ||                                      \
-    REFRESH_INTERVAL_SECONDS_LOW_BATTERY > SECONDS_IN_DAY
-#error "REFRESH_INTERVAL_SECONDS_LOW_BATTERY must be between 1 hour and 24 hours"
+/// Ensure critical battery refresh interval is reasonable (1-24 hours)
+#if REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY < SECONDS_IN_HOUR || REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY > SECONDS_IN_DAY
+#error "REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY must be between 1 hour and 24 hours"
 #endif
 
 // ----------------------------------------------------------------------------
@@ -266,6 +260,11 @@
 #error "NTP_TIMEOUT must be between 5000 and 60000 milliseconds (5-60 seconds)"
 #endif
 
+// Validate Timezone
+#ifndef TIMEZONE
+#error "TIMEZONE must be defined (e.g., \"CET-1CEST,M3.5.0,M10.5.0/3\")"
+#endif
+
 // ============================================================================
 // STORAGE AND FILE SYSTEM VALIDATION
 // ============================================================================
@@ -274,21 +273,17 @@
 // Required File Paths Validation
 // ----------------------------------------------------------------------------
 
-/// Ensure Google Drive configuration file path is defined
-#if !defined(GOOGLE_DRIVE_CONFIG_FILEPATH)
-#error "GOOGLE_DRIVE_CONFIG_FILEPATH must be defined for Google Drive functionality"
-#endif
+/// Google Drive configuration validation
+/// Removed: GOOGLE_DRIVE_CONFIG_FILEPATH check (replaced by CONFIG_FILEPATH unified configuration)
 
 /// Validate SD card free space threshold is reasonable (1MB to 1GB)
-#if SD_CARD_FREE_SPACE_THRESHOLD < (1024 * 1024) ||                                                \
-    SD_CARD_FREE_SPACE_THRESHOLD > (1024 * 1024 * 1024)
+#if SD_CARD_FREE_SPACE_THRESHOLD < (1024 * 1024) || SD_CARD_FREE_SPACE_THRESHOLD > (1024 * 1024 * 1024)
 #error "SD_CARD_FREE_SPACE_THRESHOLD must be between 1MB and 1GB"
 #endif
 
-/// Validate cleanup interval is reasonable (1 hour to 7 days)
-#if CLEANUP_TEMP_FILES_INTERVAL_SECONDS < SECONDS_IN_HOUR ||                                       \
-    CLEANUP_TEMP_FILES_INTERVAL_SECONDS > (7 * SECONDS_IN_DAY)
-#error "CLEANUP_TEMP_FILES_INTERVAL_SECONDS must be between 1 hour and 7 days"
+/// Validate cleanup interval is reasonable (1 hour to 30 days)
+#if CLEANUP_TEMP_FILES_INTERVAL_SECONDS < SECONDS_IN_HOUR || CLEANUP_TEMP_FILES_INTERVAL_SECONDS > (30 * SECONDS_IN_DAY)
+#error "CLEANUP_TEMP_FILES_INTERVAL_SECONDS must be between 1 hour and 30 days"
 #endif
 
 // ============================================================================
@@ -339,21 +334,13 @@
 // WEATHER SYSTEM VALIDATION
 // ============================================================================
 
-#ifdef USE_WEATHER
-/// Ensure weather configuration files are defined when weather is enabled
-#ifndef WEATHER_CONFIG_FILE
-#error "WEATHER_CONFIG_FILE must be defined when USE_WEATHER is enabled"
-#endif
-
-#ifndef WEATHER_CACHE_FILE
-#error "WEATHER_CACHE_FILE must be defined when USE_WEATHER is enabled"
-#endif
+/// Weather configuration validation
+/// Removed: WEATHER_CONFIG_FILE check (replaced by CONFIG_FILEPATH unified configuration)
 
 /// Validate weather data expiry time is reasonable (30 minutes to 24 hours)
 #if WEATHER_MAX_AGE_SECONDS < (30 * SECONDS_IN_MINUTE) || WEATHER_MAX_AGE_SECONDS > SECONDS_IN_DAY
 #error "WEATHER_MAX_AGE_SECONDS must be between 30 minutes and 24 hours"
 #endif
-#endif // USE_WEATHER
 
 // ============================================================================
 // OTA UPDATE SYSTEM VALIDATION
@@ -403,7 +390,7 @@
  */
 const char* ALLOWED_FILE_EXTENSIONS[] = {
     ".bin", ///< Binary format for optimized e-paper rendering
-    ".bmp"  ///< Bitmap format for compatibility and debugging
+    ".bmp" ///< Bitmap format for compatibility and debugging
 };
 
 /**
@@ -416,8 +403,7 @@ const char* ALLOWED_FILE_EXTENSIONS[] = {
  * @note This value is calculated automatically and should not be modified manually.
  * @see ALLOWED_FILE_EXTENSIONS for the actual array of supported extensions
  */
-const size_t ALLOWED_EXTENSIONS_COUNT =
-    sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
+const size_t ALLOWED_EXTENSIONS_COUNT = sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
 
 // ============================================================================
 // CONFIGURATION VALIDATION SUMMARY
