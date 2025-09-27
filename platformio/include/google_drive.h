@@ -37,39 +37,7 @@ typedef enum image_source {
     IMAGE_SOURCE_LOCAL_CACHE ///< Image was loaded from local SD card cache
 } image_source_t;
 
-/**
- * @brief JSON-based configuration structure for Google Drive settings.
- *
- * Contains all configuration parameters that can be loaded from a JSON file.
- */
-typedef struct {
-    String serviceAccountEmail;
-    String privateKeyPem;
-    String clientId;
-    String folderId;
-    String rootCaPath;
-    int listPageSize;
-    bool useInsecureTls;
-    String localPath;
-    unsigned long tocMaxAgeSeconds;
-    int maxRequestsPerWindow;
-    int rateLimitWindowSeconds;
-    int minRequestDelayMs;
-    int maxRetryAttempts;
-    int backoffBaseDelayMs;
-    int maxWaitTimeMs;
-} google_drive_json_config;
 
-/**
- * @brief Load Google Drive configuration from JSON file on SD card
- * @param sd_card Reference to the SD card instance
- * @param config_filepath Path to the JSON configuration file
- * @param config Output parameter for the loaded configuration
- * @return photo_frame_error_t indicating success or failure
- */
-photo_frame_error_t load_google_drive_config_from_json(sd_card& sd_card,
-                                                       const char* config_filepath,
-                                                       google_drive_json_config& config);
 
 /**
  * @brief High-level Google Drive interface for file management and caching.
@@ -89,13 +57,6 @@ class google_drive {
         config{},
         last_image_source(IMAGE_SOURCE_LOCAL_CACHE) {}
 
-    /**
-     * @brief Initialize Google Drive from JSON configuration file.
-     * @param sd_card Reference to the SD card instance
-     * @param config_filepath Path to the JSON configuration file
-     * @return photo_frame_error_t indicating success or failure
-     */
-    photo_frame_error_t initialize_from_json(sd_card& sd_card, const char* config_filepath);
 
     /**
      * @brief Initialize Google Drive from unified configuration structure.
@@ -169,15 +130,8 @@ class google_drive {
      * @param force If true, forces the cleanup of temporary files
      * @return Number of temporary files cleaned up
      */
-    uint32_t
-    cleanup_temporary_files(sd_card& sdCard, const google_drive_json_config& config, boolean force);
-
-    /**
-     * @brief Clean up temporary files left from previous incomplete downloads
-     * @param force If true, forces the cleanup of temporary files
-     * @return Number of temporary files cleaned up
-     */
     uint32_t cleanup_temporary_files(sd_card& sdCard, boolean force);
+
 
     /**
      * @brief Load Google Drive root CA certificate from SD card
@@ -297,10 +251,10 @@ class google_drive {
      * @param config Configuration containing paths
      * @return Number of files removed
      */
-    uint32_t cleanup_all_cached_images(sd_card& sdCard, const google_drive_json_config& config);
+    uint32_t cleanup_all_cached_images(sd_card& sdCard);
 
     google_drive_client client;       ///< Google Drive client for API operations
-    google_drive_json_config config;  ///< Configuration settings for this Google Drive instance
+    unified_config::google_drive_config config;  ///< Configuration settings for this Google Drive instance
     image_source_t last_image_source; ///< Source of the last accessed/downloaded image
 };
 
