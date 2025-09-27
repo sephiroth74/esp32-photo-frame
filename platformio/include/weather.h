@@ -161,8 +161,6 @@ class WeatherManager {
     /// Load cached weather data from SD card
     bool load_weather_cache();
 
-    /// Parse weather configuration from JSON
-    bool parse_config_json(const String& json_content, WeatherConfig& weather_config);
 
   public:
     /**
@@ -181,17 +179,6 @@ class WeatherManager {
      */
     ~WeatherManager();
 
-    /**
-     * @brief Initialize weather manager by loading configuration from SD card.
-     *
-     * Loads weather configuration from the default configuration file on SD card
-     * and initializes the weather system. Also attempts to load cached weather
-     * data if available.
-     *
-     * @return true if initialization successful, false on error
-     * @note Configuration file must exist on SD card for successful initialization
-     */
-    bool begin();
 
     /**
      * @brief Initialize weather manager from unified configuration.
@@ -266,37 +253,8 @@ class WeatherManager {
      */
     uint8_t get_failure_count() const { return consecutive_failures; }
 
-    /**
-     * @brief Load weather configuration from SD card JSON file.
-     *
-     * Reads and parses the weather configuration file from SD card,
-     * validating all settings and applying defaults where necessary.
-     *
-     * @return true if configuration loaded successfully, false on error
-     * @note Configuration file path is predefined in the implementation
-     */
-    bool load_config_from_sd();
 
-    /**
-     * @brief Reload configuration from SD card.
-     *
-     * Reloads weather configuration from SD card, useful for applying
-     * configuration changes without restarting the system.
-     *
-     * @return true if configuration reloaded successfully, false on error
-     */
-    bool reload_config();
 
-    /**
-     * @brief Create example weather configuration file on SD card.
-     *
-     * Generates a template weather configuration file with default values
-     * and comments to help users configure the weather system.
-     *
-     * @return true if example file created successfully, false on error
-     * @note Will not overwrite existing configuration files
-     */
-    bool create_example_config();
 };
 
 /**

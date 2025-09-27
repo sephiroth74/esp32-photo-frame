@@ -44,17 +44,7 @@ Creates a new Google Drive instance with default configuration.
 
 #### Configuration Methods
 
-##### `initialize_from_json()` (Legacy Method)
-
-```cpp
-photo_frame_error_t initialize_from_json(sd_card& sd_card, const char* config_filepath)
-```
-
-Initialize Google Drive client from separate JSON configuration file (legacy method).
-
-**Note**: This method is deprecated in favor of `initialize_from_unified_config()` for v0.7.1+.
-
-##### `initialize_from_unified_config()` (v0.7.1+)
+##### `initialize_from_unified_config()`
 
 ```cpp
 photo_frame_error_t initialize_from_unified_config(const unified_config::google_drive_config& config)
@@ -511,17 +501,6 @@ if (error != photo_frame::error_type::None) {
 drive.create_directories(sdCard);
 ```
 
-### Legacy Setup (Pre-v0.7.1)
-
-```cpp
-// Legacy method using separate config file
-photo_frame::google_drive drive;
-auto error = drive.initialize_from_json(sdCard, "/google_drive_config.json");
-if (error != photo_frame::error_type::None) {
-    Serial.println("Failed to initialize Google Drive");
-    return;
-}
-```
 
 ### Retrieve File List
 
@@ -669,15 +648,15 @@ The API includes built-in rate limiting to comply with Google Drive quotas:
 
 **Update Method Calls:**
 ```cpp
-// OLD API (v0.7.0):
-drive.initialize_from_json(sdCard, "/google_drive_config.json");
-drive.retrieve_toc(batteryMode);
-drive.get_toc_file_count(&error);
+// OLD API (v0.7.0) - REMOVED in v0.7.1:
+// drive.initialize_from_json(sdCard, "/google_drive_config.json");  // ❌ Method removed
+// drive.retrieve_toc(batteryMode);                                  // ❌ Old signature removed
+// drive.get_toc_file_count(&error);                                 // ❌ Old signature removed
 
 // NEW API (v0.7.1):
-drive.initialize_from_unified_config(systemConfig.google_drive);
-drive.retrieve_toc(sdCard, batteryMode);
-drive.get_toc_file_count(sdCard, &error);
+drive.initialize_from_unified_config(systemConfig.google_drive);     // ✅ Only method available
+drive.retrieve_toc(sdCard, batteryMode);                             // ✅ Updated signature
+drive.get_toc_file_count(sdCard, &error);                            // ✅ Updated signature
 ```
 
 **Migration Benefits:**
@@ -691,7 +670,7 @@ drive.get_toc_file_count(sdCard, &error);
 - Old TOC files automatically removed
 - Existing cache files remain valid
 - Configuration validation handles deprecated fields gracefully
-- Legacy methods still supported for backward compatibility
+- **⚠️ Legacy methods have been removed**: Code must be updated to use unified configuration system
 
 ## Troubleshooting
 

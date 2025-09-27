@@ -41,29 +41,6 @@ WeatherManager::~WeatherManager() {
     // Nothing to clean up for SD card implementation
 }
 
-bool WeatherManager::begin() {
-    Serial.println("[WeatherManager] Initializing...");
-
-    // Load configuration from SD card
-    if (!load_config_from_sd()) {
-        Serial.println("[WeatherManager] Failed to load configuration from SD card");
-        return false;
-    }
-
-    // Validate configuration
-    if (!config.is_valid()) {
-        Serial.println("[WeatherManager] Invalid configuration loaded");
-        return false;
-    }
-
-    // Try to load cached weather data
-    load_weather_cache();
-
-    Serial.printf("[WeatherManager] Initialized for location (%.3f, %.3f)\n",
-                  config.latitude,
-                  config.longitude);
-    return true;
-}
 
 bool WeatherManager::begin_with_unified_config(const unified_config::weather_config& weather_config) {
     Serial.println("[WeatherManager] Initializing from unified configuration...");
@@ -568,106 +545,9 @@ bool WeatherManager::load_weather_cache() {
     return true;
 }
 
-bool WeatherManager::load_config_from_sd() {
-    const char* weather_config_path = "/weather_config.json"; // Legacy path for backward compatibility
-    if (!SD_MMC.exists(weather_config_path)) {
-        Serial.println("[WeatherManager] Weather config file not found, creating example config");
-        return create_example_config();
-    }
 
-    File config_file = SD_MMC.open(weather_config_path, FILE_READ);
-    if (!config_file) {
-        Serial.println("[WeatherManager] Failed to open weather config file");
-        return false;
-    }
 
-    String json_content = config_file.readString();
-    config_file.close();
 
-    WeatherConfig new_config;
-    if (parse_config_json(json_content, new_config)) {
-        config = new_config;
-        Serial.println("[WeatherManager] Configuration loaded successfully");
-        return true;
-    } else {
-        Serial.println("[WeatherManager] Failed to parse weather configuration");
-        return false;
-    }
-}
-
-bool WeatherManager::reload_config() { return load_config_from_sd(); }
-
-bool WeatherManager::parse_config_json(const String& json_content, WeatherConfig& weather_config) {
-    DynamicJsonDocument doc(1024);
-    DeserializationError error = deserializeJson(doc, json_content);
-
-    if (error) {
-        Serial.printf("[WeatherManager] JSON parsing error: %s\n", error.c_str());
-        return false;
-    }
-
-    // Parse configuration fields with defaults
-    weather_config.enabled   = doc["enabled"].as<bool>();
-    weather_config.latitude  = doc["latitude"].as<float>();
-    weather_config.longitude = doc["longitude"].as<float>();
-    // Parse and clamp values to valid ranges
-    uint16_t update_interval = doc["update_interval_minutes"] | 60;
-    weather_config.update_interval_minutes =
-        max(update_interval, (uint16_t)(WEATHER_UPDATE_INTERVAL_MIN_VALUE_SECONDS / 60));
-
-    weather_config.celsius           = doc["celsius"] | true;
-
-    uint8_t battery_threshold        = doc["battery_threshold"] | 15;
-    weather_config.battery_threshold = constrain(battery_threshold,
-                                                 WEATHER_BATTERY_THRESHOLD_MIN_VALUE,
-                                                 WEATHER_BATTERY_THRESHOLD_MAX_VALUE);
-
-    uint32_t max_age                 = doc["max_age_hours"] | 3;
-    weather_config.max_age_hours =
-        constrain(max_age, WEATHER_MAX_AGE_HOURS_MIN_VALUE, WEATHER_MAX_AGE_HOURS_MAX_VALUE);
-
-    weather_config.timezone           = doc["timezone"] | "auto";
-    weather_config.temperature_unit   = doc["temperature_unit"] | "celsius";
-    weather_config.wind_speed_unit    = doc["wind_speed_unit"] | "kmh";
-    weather_config.precipitation_unit = doc["precipitation_unit"] | "mm";
-
-    return weather_config.is_valid();
-}
-
-bool WeatherManager::create_example_config() {
-    DynamicJsonDocument doc(1024);
-
-    // Create example configuration for New York City
-    doc["enabled"]                 = false; // Disabled by default
-    doc["latitude"]                = 40.7128;
-    doc["longitude"]               = -74.0060;
-    doc["update_interval_minutes"] = 120;
-    doc["celsius"]                 = true;
-    doc["battery_threshold"]       = 15;
-    doc["max_age_hours"]           = 3;
-    doc["timezone"]                = "auto";
-    doc["temperature_unit"]        = "celsius";
-    doc["wind_speed_unit"]         = "kmh";
-    doc["precipitation_unit"]      = "mm";
-
-    // Add documentation comments
-    doc["_comment"]      = "Weather configuration for ESP32 Photo Frame";
-    doc["_instructions"] = "Set enabled=true and update latitude/longitude for your location";
-
-    const char* weather_config_path = "/weather_config.json"; // Legacy path for backward compatibility
-    File config_file     = SD_MMC.open(weather_config_path, FILE_WRITE);
-    if (!config_file) {
-        Serial.println("[WeatherManager] Failed to create example config file");
-        return false;
-    }
-
-    serializeJsonPretty(doc, config_file);
-    config_file.close();
-
-    Serial.printf("[WeatherManager] Created example config at %s\n", weather_config_path);
-    Serial.println("[WeatherManager] Please edit the config file and set enabled=true");
-    return false; // Return false since weather is disabled by default
-}
 
 /// Map weather icon type to dedicated weather icon names
 icon_name_t weather_icon_to_system_icon(weather_icon_t weather_icon) {
