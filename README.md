@@ -17,20 +17,33 @@
 - **Weather Display**: Runtime-configurable weather information with location, timezone, and update intervals (controlled via JSON config)
 - **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup for Unexpected Maker FeatherS3
 - Battery voltage monitoring and reporting with power-saving modes
-- Real-time clock integration for scheduled refresh and time-based features
+- **PCF8523 RTC Integration**: Real-time clock support with automatic NTP fallback for accurate timekeeping
 - Potentiometer to regulate the refresh delay
 - **Security**: Configurable TLS/SSL security for cloud connections
 - Multi-language support (English, Italian)
 - **Rate Limiting**: Built-in API rate limiting for Google Drive requests
 - Modular code structure for easy customization and extension
 
-### Recent Improvements (v0.7.1)
+### Recent Improvements (v0.8.0)
+- **🆕 ProS3(d) Board Support**: Full integration for Unexpected Maker ProS3(d) ESP32-S3 development board
+  - **Enhanced GPIO Layout**: Extensive pin availability with optimized pin assignments
+  - **I2C Battery Fuel Gauge**: MAX1704X precision battery monitoring on shared I2C bus
+  - **Advanced Power Management**: 5V detection, LDO2 control, enhanced deep sleep capabilities
+  - **High-Performance Configuration**: 16MB Flash, 8MB PSRAM, USB-C connectivity
+- **🕒 PCF8523 RTC Integration**: Real-time clock support eliminates NTP dependency
+  - **Adafruit PCF8523 Support**: Accurate timekeeping with backup battery capability
+  - **Shared I2C Bus**: Efficient resource utilization with battery fuel gauge
+  - **Smart Time Management**: Automatic fallback to NTP with intelligent validation
+  - **Deep Sleep Persistence**: Continuous time tracking during power-saving modes
+- **🎯 PSRAM Mandatory**: Simplified architecture with guaranteed PSRAM availability
+  - **Code Simplification**: Removed conditional PSRAM compilation blocks
+  - **Enhanced Performance**: Optimized memory allocation strategies
+  - **Dynamic Buffer Sizing**: Intelligent scaling based on available flash memory (1MB-4MB buffers)
+
+### Previous Improvements (v0.7.1)
 - **⚙️ Unified Configuration System**: Single `/config.json` file replaces 3 separate configuration files
-  - **Runtime Weather Control**: Weather functionality now controlled by JSON config instead of compile-time flags
-  - **Simplified Setup**: All configuration (WiFi, Google Drive, Weather, Board) in one place
+  - **Runtime Weather Control**: Weather functionality now controlled by JSON config
   - **Enhanced Validation**: Automatic value capping and fallback to preprocessor constants
-  - **Better Error Handling**: Extended sleep on SD card failure with graceful recovery
-  - **Code Simplification**: Eliminated conditional compilation blocks across entire codebase
 
 ### Previous Improvements (v0.7.0)
 - **🗂️ Optimized Storage Layout**: Eliminated factory partition and redistributed 4MB additional space
@@ -49,30 +62,35 @@
 ## Getting Started
 
 1. **Hardware Requirements**
-   - [Arduino Nano ESP32](https://docs.arduino.cc/hardware/nano-esp32/) or another ESP32-S3 or ESP32-C6 board
+   - ESP32-S3 board with **PSRAM** (mandatory) - see supported boards below
    - [Waveshare 7.5 e-paper display](https://www.waveshare.com/7.5inch-e-paper-hat.htm)
    - [Good Display DESPI-C02](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) Connector board
    - [Adafruit microSD](https://www.adafruit.com/product/4682?srsltid=AfmBOopfN-tYU3fKgpQquFOTLEY50Pl4PY8iTpBpGoXCpbJ8EQGVqBHn)
-   - [AZDelivery Real Time Clock](https://www.amazon.it/dp/B077XN4LL4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1) (optional)
-   - 3.7 5000mAh LiPo Battery
+   - [Adafruit PCF8523 RTC Breakout](https://www.adafruit.com/product/3295) (optional, eliminates NTP dependency)
+   - 3.7V 5000mAh LiPo Battery
 
 2. **Hardware Assembly & Wiring**
    - **📋 [Complete Wiring Diagram](docs/wiring-diagram.md)** - Comprehensive pin connections and assembly guide
-   - **Default Board (v0.5.0)**:
-     - **🥇 Unexpected Maker FeatherS3** - Fully optimized with RGB status system, proper deep sleep wakeup, and enhanced pin configuration
+   - **Supported Boards (v0.8.0)**:
+     - **🆕 Unexpected Maker ProS3(d)** - Professional development board with advanced features
+       - ESP32-S3 dual core, **8MB PSRAM**, 16MB Flash, extensive GPIO layout
+       - **I2C Battery Fuel Gauge**: MAX1704X precision battery monitoring (IO8/IO9)
+       - **Advanced Features**: 5V detection (IO33), LDO2 power control (IO17), USB-C
+       - **PCF8523 RTC Support**: Shares I2C bus with battery fuel gauge for optimal pin usage
+       - **Enhanced Pin Layout**: More available GPIOs for custom expansions
+     - **🥇 Unexpected Maker FeatherS3** - Fully optimized with RGB status system
        - ESP32-S3 dual core, **8MB PSRAM**, 16MB Flash, built-in NeoPixel RGB LED
        - USB-C, excellent battery management, no I2C/WiFi interference issues
        - **RGB Status Feedback**: Built-in NeoPixel on GPIO40 for visual system status
        - **Deep Sleep Wakeup**: Optimized RTC GPIO configuration (GPIO1 with proper pull-up)
    - **Alternative Boards**:
      - **Adafruit Huzzah32 Feather v2** (ESP32-S3, 2MB PSRAM, Feather ecosystem - requires external RGB LED)
-     - **DFRobot FireBeetle 2 ESP32-C6** (built-in battery management, but has I2C/WiFi coexistence issues)
    - **Key Connections**:
      - **SD Card**: SD_MMC interface (SDIO) for high-speed access
      - **E-Paper Display**: Dedicated SPI pins to avoid SD card conflicts
      - **RGB Status LED**: Built-in NeoPixel (FeatherS3) or external WS2812B LED
-     - **I2C**: RTC and optional sensors
-     - **Analog**: Battery monitoring via built-in voltage divider
+     - **I2C**: PCF8523 RTC, MAX1704X battery fuel gauge (ProS3(d)), optional sensors
+     - **Analog**: Battery monitoring via built-in voltage divider or I2C fuel gauge
    - **Wakeup Button**: Connected between GPIO1 and GND with internal pull-up (FeatherS3 optimized)
 
 3. **Setup**
@@ -348,20 +366,6 @@ The firmware includes improved page-aware rendering that reduces image display t
 **Result**: Image display time reduced from over a minute to under 30 seconds.
 
 ### **Automatic Optimization**
-
-The firmware **automatically detects PSRAM** and enables performance bonuses:
-
-```cpp
-#ifdef BOARD_HAS_PSRAM
-    // Premium performance mode
-    #define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304           // 4MB instant processing
-    #define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 4194304  // Eliminate streaming
-#else
-    // Streaming architecture (still excellent performance)
-    #define GOOGLE_DRIVE_JSON_DOC_SIZE 40960            // 40KB + streaming
-    #define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768   // Stream for large responses
-#endif
-```
 
 **Bottom Line**: Choose your platform based on **features and price** - all platforms handle large Google Drive collections excellently!
 

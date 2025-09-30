@@ -5,6 +5,49 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.0] - 2025-09-29
+
+### Added
+- **ProS3(d) Board Support**: Added configuration for Unexpected Maker ProS3(d) ESP32-S3 development board
+  - New `pros3d_unexpectedmaker` environment in platformio.ini
+  - Dedicated board configuration with optimal pin assignments based on ProS3(d) pinout
+  - I2C battery fuel gauge support (MAX1704X on IO8/IO9)
+  - Enhanced GPIO availability with ProS3(d)'s extensive pin layout
+  - 5V detection and LDO2 power control support
+
+- **PCF8523 RTC Integration**: Real-time clock support to eliminate NTP dependency
+  - Adafruit PCF8523 RTC board support for accurate timekeeping
+  - Shared I2C bus configuration with battery fuel gauge (IO8/IO9)
+  - Automatic fallback to NTP when RTC is unavailable or invalid
+  - Time validation with automatic RTC synchronization from NTP
+  - Persistent time tracking during deep sleep cycles
+
+### Changed
+- **PSRAM Mandatory Requirement**: PSRAM is now required for all supported board configurations
+  - Removed all `#ifdef BOARD_HAS_PSRAM` conditionals throughout codebase
+  - Added compile-time validation requiring BOARD_HAS_PSRAM definition
+  - Simplified memory allocation strategies assuming PSRAM availability
+  - Enhanced stability and performance with guaranteed PSRAM access
+
+- **Dynamic Buffer Sizing**: Intelligent memory management based on available flash memory
+  - Automatic flash size detection (4MB/8MB/16MB+) for optimal buffer allocation
+  - Scaled Google Drive buffers: 1MB/2MB/4MB JSON docs, 3MB/6MB/12MB safety limits
+  - Enhanced performance for boards with larger flash memory
+  - Improved memory utilization efficiency across different hardware configurations
+
+### Fixed
+- **RTC Flow Simplification**: Eliminated complex deferred update mechanism
+  - Removed unused `update_rtc_after_restart()` dead code and related global variables
+  - Simplified RTC time synchronization to immediate updates after NTP fetch
+  - Enhanced RTC time validation with reasonable date range checks (2020-2100)
+  - Improved error handling and logging for RTC initialization and time sync
+
+### Technical Details
+- **Code Architecture**: Major cleanup removing conditional compilation complexity
+- **Memory Management**: Unified PSRAM utilization across all supported platforms
+- **Build System**: Streamlined configuration with mandatory PSRAM requirement
+- **Hardware Abstraction**: Enhanced board-specific configuration system for ProS3(d)
+
 ## [v0.7.1] - 2025-01-27
 
 ### Changed

@@ -36,6 +36,15 @@
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// PSRAM Requirement Validation
+// ----------------------------------------------------------------------------
+
+/// PSRAM is now mandatory for all supported boards
+#ifndef BOARD_HAS_PSRAM
+#error "BOARD_HAS_PSRAM must be defined. This project now requires PSRAM for all supported boards. Please ensure your board configuration includes -D BOARD_HAS_PSRAM."
+#endif
+
+// ----------------------------------------------------------------------------
 // E-Paper Display Validation
 // ----------------------------------------------------------------------------
 
@@ -80,6 +89,10 @@
 #if !defined(RTC_SDA_PIN) || !defined(RTC_SCL_PIN)
 #error "RTC_SDA_PIN and RTC_SCL_PIN must be defined when USE_RTC is enabled"
 #endif
+
+#ifndef RTC_CLASS
+#error "RTC_CLASS must be defined to specify the RTC module class (e.g., RTC_DS3231, RTC_PCF8523)"
+#endif // RTC_CLASS
 
 /// ESP32-C6 has I2C/WiFi coexistence issues that cause JSON parsing corruption
 /// RTC module is not supported on ESP32-C6 - use NTP-only time instead
@@ -319,15 +332,21 @@
 // Memory Management Validation
 // ----------------------------------------------------------------------------
 
-/// Validate memory limits are reasonable for the platform
-#ifdef BOARD_HAS_PSRAM
-#if GOOGLE_DRIVE_JSON_DOC_SIZE < 32768 || GOOGLE_DRIVE_JSON_DOC_SIZE > 16777216
-#error "GOOGLE_DRIVE_JSON_DOC_SIZE must be between 32KB and 16MB for PSRAM boards"
+/// Validate memory limits are reasonable for PSRAM boards with dynamic sizing
+#if GOOGLE_DRIVE_JSON_DOC_SIZE < 32768
+#error "GOOGLE_DRIVE_JSON_DOC_SIZE must be at least 32KB"
 #endif
-#else
-#if GOOGLE_DRIVE_JSON_DOC_SIZE < 8192 || GOOGLE_DRIVE_JSON_DOC_SIZE > 131072
-#error "GOOGLE_DRIVE_JSON_DOC_SIZE must be between 8KB and 128KB for standard ESP32"
+
+#if GOOGLE_DRIVE_JSON_DOC_SIZE > 16777216
+#error "GOOGLE_DRIVE_JSON_DOC_SIZE must not exceed 16MB"
 #endif
+
+#if GOOGLE_DRIVE_BODY_RESERVE_SIZE < 32768
+#error "GOOGLE_DRIVE_BODY_RESERVE_SIZE must be at least 32KB"
+#endif
+
+#if GOOGLE_DRIVE_BODY_RESERVE_SIZE > 16777216
+#error "GOOGLE_DRIVE_BODY_RESERVE_SIZE must not exceed 16MB"
 #endif
 
 // ============================================================================

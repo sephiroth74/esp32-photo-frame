@@ -32,7 +32,6 @@
 #define EPD_CS_PIN   38   // IO8 - available digital pin (non-RTC, freeing GPIO1 for wakeup)
 #define EPD_SCK_PIN  36  // SPI SCK pin from pinout
 #define EPD_MOSI_PIN 35  // SPI MO pin from pinout
-#define EPD_MISO_PIN 37  // SPI MI pin from pinout
 
 // Potentiometer pin - using analog pins
 #define POTENTIOMETER_PWR_PIN   33   // IO33 - available digital pin for power control

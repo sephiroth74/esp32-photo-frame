@@ -46,14 +46,6 @@ namespace rtc_utils {
 DateTime
 fetch_datetime(wifi_manager& wifiManager, bool reset = true, photo_frame_error_t* error = nullptr);
 
-/**
- * Updates the RTC with the provided DateTime after I2C has been restarted.
- * This function should be called after I2C is restarted to update the RTC
- * with time that was fetched during WiFi operations when I2C was shut down.
- * @param dateTime The DateTime to set on the RTC.
- * @return true if RTC was updated successfully, false otherwise.
- */
-bool update_rtc_after_restart(const DateTime& dateTime);
 
 /**
  * Formats a time_t value into a human-readable string.

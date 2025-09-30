@@ -25,9 +25,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 
-#ifdef BOARD_HAS_PSRAM
 #include "esp32/spiram.h"
-#endif // BOARD_HAS_PSRAM
 
 #include "battery.h"
 #include "board_util.h"
@@ -551,13 +549,14 @@ bool initialize_hardware()
     digitalWrite(LED_PWR_PIN, LOW);
 #endif // LED_PWR_PIN
 
-#ifdef BOARD_HAS_PSRAM
-    // Explicit PSRAM initialization
+    // PSRAM initialization (mandatory)
     Serial.println(F("[PSRAM] Initializing PSRAM..."));
     esp_err_t ret = esp_spiram_init();
     if (ret != ESP_OK) {
-        Serial.print(F("[PSRAM] Failed to initialize PSRAM: "));
+        Serial.print(F("[PSRAM] CRITICAL: Failed to initialize PSRAM: "));
         Serial.println(esp_err_to_name(ret));
+        Serial.println(F("[PSRAM] PSRAM is required for this board configuration!"));
+        // Continue but report the error
     } else {
         Serial.println(F("[PSRAM] PSRAM initialized successfully"));
 
@@ -573,7 +572,6 @@ bool initialize_hardware()
             Serial.println(F(" bytes"));
         }
     }
-#endif // BOARD_HAS_PSRAM
 
 #ifdef RGB_STATUS_ENABLED
     // Initialize RGB status system (FeatherS3 NeoPixel)

@@ -40,9 +40,9 @@
 
 /// Current firmware version components (used for version comparison and OTA updates)
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  7
-#define FIRMWARE_VERSION_PATCH  1
-#define FIRMWARE_VERSION_STRING "v0.7.1"
+#define FIRMWARE_VERSION_MINOR  8
+#define FIRMWARE_VERSION_PATCH  0
+#define FIRMWARE_VERSION_STRING "v0.8.0"
 
 /// Minimum supported version for OTA compatibility
 /// Devices with firmware older than this version must be manually updated
@@ -119,6 +119,7 @@
 // #define USE_RTC           // Enable external RTC module for timekeeping
 // #define RTC_SDA_PIN   A4  // I2C data pin for RTC module
 // #define RTC_SCL_PIN   A5  // I2C clock pin for RTC module
+// #define RTC_CLASS     RTC_DS3231  // RTC class to use (e.g., RTC_DS3231, RTC_PCF8523)
 
 // ----------------------------------------------------------------------------
 // User Interface Hardware
@@ -415,36 +416,51 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #define POTENTIOMETER_INPUT_MAX 4095
 #endif
 
-/// Google Drive memory management defaults (platform specific)
-#ifdef BOARD_HAS_PSRAM
-// ESP32-S3 with PSRAM - higher limits for better performance
-#ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 2097152 // 2MB - avoid streaming for most responses
+/// Flash memory size detection for optimal buffer sizing
+#ifndef FLASH_SIZE_MB
+    // Detect flash size based on build configuration or board type
+    #if defined(ARDUINO_ESP32S3_DEV) || defined(ESP32S3)
+        // ESP32-S3 boards typically have 8MB+ flash
+        #define FLASH_SIZE_MB 16
+    #elif defined(ARDUINO_ESP32_DEV) || defined(ESP32)
+        // ESP32 boards typically have 4MB flash
+        #define FLASH_SIZE_MB 4
+    #else
+        // Default assumption
+        #define FLASH_SIZE_MB 8
+    #endif
 #endif
+
+/// Google Drive memory management - scaled based on flash memory and PSRAM availability
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 2097152 // 2MB JSON document buffer
+    #if FLASH_SIZE_MB >= 16
+        #define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer for 16MB+ flash
+    #elif FLASH_SIZE_MB >= 8
+        #define GOOGLE_DRIVE_JSON_DOC_SIZE 2097152 // 2MB JSON document buffer for 8MB+ flash
+    #else
+        #define GOOGLE_DRIVE_JSON_DOC_SIZE 1048576 // 1MB JSON document buffer for smaller flash
+    #endif
 #endif
+
 #ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 2097152 // 2MB response body reserve
+    #if FLASH_SIZE_MB >= 16
+        #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 4194304 // 4MB response body reserve for 16MB+ flash
+    #elif FLASH_SIZE_MB >= 8
+        #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 2097152 // 2MB response body reserve for 8MB+ flash
+    #else
+        #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 1048576 // 1MB response body reserve for smaller flash
+    #endif
 #endif
+
 #ifndef GOOGLE_DRIVE_SAFETY_LIMIT
-#define GOOGLE_DRIVE_SAFETY_LIMIT 6291456 // 6MB safety limit
+    #if FLASH_SIZE_MB >= 16
+        #define GOOGLE_DRIVE_SAFETY_LIMIT 12582912 // 12MB safety limit for 16MB+ flash
+    #elif FLASH_SIZE_MB >= 8
+        #define GOOGLE_DRIVE_SAFETY_LIMIT 6291456  // 6MB safety limit for 8MB+ flash
+    #else
+        #define GOOGLE_DRIVE_SAFETY_LIMIT 3145728  // 3MB safety limit for smaller flash
+    #endif
 #endif
-#else
-// Standard ESP32 - conservative limits for limited RAM
-#ifndef GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD
-#define GOOGLE_DRIVE_STREAM_PARSER_THRESHOLD 32768 // 32KB threshold
-#endif
-#ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-#define GOOGLE_DRIVE_JSON_DOC_SIZE 40960 // 40KB JSON document buffer
-#endif
-#ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 65536 // 64KB response body reserve
-#endif
-#ifndef GOOGLE_DRIVE_SAFETY_LIMIT
-#define GOOGLE_DRIVE_SAFETY_LIMIT 100000 // 100KB safety limit
-#endif
-#endif // BOARD_HAS_PSRAM
 
 /// Display accent color determination (based on display type)
 #ifndef ACCENT_COLOR

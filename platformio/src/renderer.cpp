@@ -48,15 +48,7 @@ static const uint16_t input_buffer_pixels = 200; // Reduced to save DRAM (was 80
 static const uint16_t max_row_width       = 800; // Optimized for 800x480 display (was 1448)
 static const uint16_t max_palette_pixels  = 256; // for depth <= 8
 
-#ifdef BOARD_HAS_PSRAM
-// Dynamic PSRAM buffers - moved from static DRAM to save ~1376 bytes
-uint8_t* input_buffer            = nullptr;
-uint8_t* output_row_mono_buffer  = nullptr;
-uint8_t* output_row_color_buffer = nullptr;
-uint8_t* mono_palette_buffer     = nullptr;
-uint8_t* color_palette_buffer    = nullptr;
-uint16_t* rgb_palette_buffer     = nullptr;
-#else  // BOARD_HAS_PSRAM
+// Static buffers - using plenty of available memory
 uint8_t input_buffer[3 * input_buffer_pixels];        // up to depth 24
 uint8_t output_row_mono_buffer[max_row_width / 8];    // buffer for at least one row of b/w bits
 uint8_t output_row_color_buffer[max_row_width / 8];   // buffer for at least one row of color bits
@@ -64,7 +56,6 @@ uint8_t mono_palette_buffer[max_palette_pixels / 8];  // palette buffer for dept
 uint8_t color_palette_buffer[max_palette_pixels / 8]; // palette buffer for depth <= 8 c/w
 uint16_t rgb_palette_buffer[max_palette_pixels];      // palette buffer for depth <= 8 for buffered
                                                       // graphics, needed for 7-color display
-#endif // BOARD_HAS_PSRAM
 
 uint16_t read8(File& f) {
     uint8_t result;
@@ -107,7 +98,7 @@ void init_display() {
     pinMode(EPD_CS_PIN, OUTPUT);
 
     SPI.end();
-    SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+    SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
 
 #ifdef USE_DESPI_DRIVER
     display.init(115200);
@@ -135,13 +126,7 @@ void init_display() {
     Serial.printf("[renderer] Display has fast partial update: %s\n",
                   display.epd2.hasFastPartialUpdate ? "true" : "false");
 
-    // Allocate rendering buffers in PSRAM (if available) or regular heap
-#ifdef BOARD_HAS_PSRAM
-    if (!allocate_renderer_buffers()) {
-        Serial.println("[renderer] CRITICAL: Failed to allocate rendering buffers!");
-        // Continue anyway - some functions might work without these buffers
-    }
-#endif // BOARD_HAS_PSRAM
+    // Static buffers are ready to use - no allocation needed
 
     // display.setFullWindow();
     // display.fillScreen(GxEPD_WHITE);
@@ -155,10 +140,7 @@ void init_display() {
 void power_off() {
     Serial.println("[renderer] Powering off e-paper display...");
 
-#ifdef BOARD_HAS_PSRAM
-    // Free rendering buffers to save memory during sleep
-    free_renderer_buffers();
-#endif // BOARD_HAS_PSRAM
+    // Static buffers - no need to free
 
     // display.hibernate();
     display.powerOff(); // turns off the display
@@ -1673,77 +1655,6 @@ bool is_orange(uint8_t r, uint8_t g, uint8_t b) { return (r > 4 && g > 2 && g < 
 
 #endif // DISP_6C || DISP_7C_F
 
-/*
- * Allocate rendering buffers - uses PSRAM when available, falls back to regular heap
- */
-
-#ifdef BOARD_HAS_PSRAM
-bool allocate_renderer_buffers() {
-    Serial.println("[renderer] Allocating rendering buffers...");
-
-    // Free any existing buffers first
-    free_renderer_buffers();
-
-    // Try to allocate buffers - malloc will use PSRAM automatically if CONFIG_SPIRAM_USE_MALLOC=1
-    input_buffer            = (uint8_t*)malloc(3 * input_buffer_pixels);
-    output_row_mono_buffer  = (uint8_t*)malloc(max_row_width / 8);
-    output_row_color_buffer = (uint8_t*)malloc(max_row_width / 8);
-    mono_palette_buffer     = (uint8_t*)malloc(max_palette_pixels / 8);
-    color_palette_buffer    = (uint8_t*)malloc(max_palette_pixels / 8);
-    rgb_palette_buffer      = (uint16_t*)malloc(max_palette_pixels * sizeof(uint16_t));
-
-    // Check if all allocations succeeded
-    if (!input_buffer || !output_row_mono_buffer || !output_row_color_buffer ||
-        !mono_palette_buffer || !color_palette_buffer || !rgb_palette_buffer) {
-        Serial.println("[renderer] ERROR: Failed to allocate rendering buffers!");
-        free_renderer_buffers(); // Clean up any partial allocations
-        return false;            // Failure
-    }
-
-    // Report memory usage
-    size_t total_allocated = (3 * input_buffer_pixels) + (max_row_width / 8) * 2 +
-                             (max_palette_pixels / 8) * 2 + (max_palette_pixels * sizeof(uint16_t));
-
-    Serial.printf("[renderer] Successfully allocated %zu bytes for rendering buffers\n",
-                  total_allocated);
-
-    Serial.printf("[renderer] Free PSRAM after allocation: %u bytes\n", ESP.getFreePsram());
-
-    return true; // Success
-}
-
-/*
- * Free rendering buffers
- */
-void free_renderer_buffers() {
-    Serial.println("[renderer] Freeing rendering buffers...");
-
-    if (input_buffer) {
-        free(input_buffer);
-        input_buffer = nullptr;
-    }
-    if (output_row_mono_buffer) {
-        free(output_row_mono_buffer);
-        output_row_mono_buffer = nullptr;
-    }
-    if (output_row_color_buffer) {
-        free(output_row_color_buffer);
-        output_row_color_buffer = nullptr;
-    }
-    if (mono_palette_buffer) {
-        free(mono_palette_buffer);
-        mono_palette_buffer = nullptr;
-    }
-    if (color_palette_buffer) {
-        free(color_palette_buffer);
-        color_palette_buffer = nullptr;
-    }
-    if (rgb_palette_buffer) {
-        free(rgb_palette_buffer);
-        rgb_palette_buffer = nullptr;
-    }
-}
-#endif // BOARD_HAS_PSRAM
 
 void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
 #ifdef DISP_6C

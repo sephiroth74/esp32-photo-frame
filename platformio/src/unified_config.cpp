@@ -104,18 +104,12 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     Serial.print(file_size);
     Serial.println(F(" bytes"));
 
-    // Allocate buffer for JSON parsing (use PSRAM if available)
+    // Allocate buffer for JSON parsing using PSRAM
     size_t buffer_size = file_size + 512; // Extra space for JSON parsing
-    char* buffer = nullptr;
-
-#ifdef BOARD_HAS_PSRAM
-    buffer = (char*)heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
+    char* buffer = (char*)heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
     if (!buffer) {
         buffer = (char*)malloc(buffer_size);
     }
-#else
-    buffer = (char*)malloc(buffer_size);
-#endif
 
     if (!buffer) {
         Serial.println(F("[unified_config] Failed to allocate buffer for config"));
