@@ -24,9 +24,7 @@
 #include <HTTPClient.h>
 #include <SD_MMC.h>
 #include <unistd.h> // For fsync()
-#ifdef BOARD_HAS_PSRAM
 #include <esp_heap_caps.h> // For ps_malloc/ps_free
-#endif
 
 // OAuth/Google endpoints
 static const char TOKEN_HOST[] PROGMEM      = "oauth2.googleapis.com";
@@ -491,17 +489,12 @@ photo_frame_error_t google_drive_client::get_access_token() {
             WiFiClient* stream = http.getStreamPtr();
 
             if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
-                // Allocate buffer in PSRAM if available, otherwise regular heap
-                char* buffer = nullptr;
-#ifdef BOARD_HAS_PSRAM
-                buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
+                // Allocate buffer in PSRAM
+                char* buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
                 if (!buffer) {
                     // Fallback to regular heap if PSRAM allocation fails
                     buffer = (char*)malloc(contentLength + 1);
                 }
-#else
-                buffer = (char*)malloc(contentLength + 1);
-#endif
 
                 if (buffer) {
                     // Read response in chunks
@@ -1389,17 +1382,12 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
     WiFiClient* stream = http.getStreamPtr();
 
     if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
-        // Allocate buffer in PSRAM if available, otherwise regular heap
-        char* buffer = nullptr;
-#ifdef BOARD_HAS_PSRAM
-        buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
+        // Allocate buffer in PSRAM
+        char* buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
         if (!buffer) {
             // Fallback to regular heap if PSRAM allocation fails
             buffer = (char*)malloc(contentLength + 1);
         }
-#else
-        buffer = (char*)malloc(contentLength + 1);
-#endif
 
         if (buffer) {
             // Read response in chunks

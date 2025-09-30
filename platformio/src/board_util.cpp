@@ -244,12 +244,8 @@ namespace board_utils {
         Serial.print(F("[board_util] PSRAM Size: "));
         Serial.println(ESP.getPsramSize());
 
-// Additional PSRAM diagnostics
-#ifdef BOARD_HAS_PSRAM
-        Serial.println(F("[board_util] BOARD_HAS_PSRAM is defined"));
-#else
-        Serial.println(F("[board_util] BOARD_HAS_PSRAM is NOT defined"));
-#endif
+        // PSRAM is mandatory for this configuration
+        Serial.println(F("[board_util] PSRAM is required and should be available"));
 
 #ifdef CONFIG_SPIRAM_SUPPORT
         Serial.println(F("[board_util] CONFIG_SPIRAM_SUPPORT is defined"));

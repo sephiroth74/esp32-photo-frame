@@ -119,15 +119,6 @@ photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_rea
  */
 void monitor_ota_progress();
 
-/**
- * @brief Validate battery level for OTA updates
- *
- * Checks if the current battery level is sufficient for performing
- * an OTA update. Uses the OTA_MIN_BATTERY_PERCENT threshold.
- *
- * @return true if battery level is sufficient for OTA update
- */
-bool validate_ota_battery_level();
 
 /**
  * @brief Cancel any ongoing OTA update
@@ -158,7 +149,6 @@ String get_ota_status_info();
 #define MONITOR_OTA_PROGRESS()                  photo_frame::monitor_ota_progress()
 #define CANCEL_OTA_UPDATE()                     photo_frame::cancel_ota_update()
 #define GET_OTA_STATUS()                        photo_frame::get_ota_status_info()
-#define VALIDATE_OTA_BATTERY()                  photo_frame::validate_ota_battery_level()
 
 #else
 
@@ -177,7 +167,6 @@ String get_ota_status_info();
     do {                                                                                           \
     } while (0)
 #define GET_OTA_STATUS()       String("")
-#define VALIDATE_OTA_BATTERY() true
 
 #endif // OTA_UPDATE_ENABLED
 

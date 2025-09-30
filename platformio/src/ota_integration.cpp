@@ -264,22 +264,6 @@ void monitor_ota_progress() {
     }
 }
 
-/**
- * @brief Validate battery level for OTA updates
- *
- * @return true if battery level is sufficient for OTA update
- */
-bool validate_ota_battery_level() {
-#ifdef USE_SENSOR_MAX1704X
-    // Use MAX1704X sensor if available
-    auto battery_level = battery_reader.get_battery_percentage();
-    return battery_level >= OTA_MIN_BATTERY_PERCENT;
-#else
-    // For now, assume battery is always sufficient during development
-    // In production, integrate with your battery monitoring system
-    return true;
-#endif
-}
 
 /**
  * @brief Cancel any ongoing OTA update

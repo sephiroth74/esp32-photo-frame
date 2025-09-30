@@ -226,19 +226,6 @@ void init_display();
  */
 void power_off();
 
-#ifdef BOARD_HAS_PSRAM
-/**
- * @brief Allocate rendering buffers in PSRAM (when available) or regular heap
- * @return true if all buffers were successfully allocated, false otherwise
- */
-bool allocate_renderer_buffers();
-
-/**
- * @brief Free rendering buffers to save memory
- */
-void free_renderer_buffers();
-
-#endif // BOARD_HAS_PSRAM
 
 /**
  * @brief Refreshes the e-paper display to show rendered content.
