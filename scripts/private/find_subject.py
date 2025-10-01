@@ -1,15 +1,15 @@
 #!/usr/local/bin/python3
 # -*- coding: utf-8 -*-
 
-# wget https://data.pjreddie.com/files/yolov3.weights
+# wget https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt
+# installation: https://docs.ultralytics.com/it/integrations/onnx/#installation
 
 """find_subject.py
 This script detects people in an input image using a pre-trained YOLO model (YOLOv3) via OpenCV's DNN module.
 
 Main Function:
 ---------------
-detect_people_yolo(image_path, config_path, weights_path, coco_names_path, confidence_threshold=0.5, nms_threshold=0.4)
-
+detect_people_yolo(args={image_path, model_path, coco_names_path, confidence_threshold=0.5})
 
     Description:
         - Loads COCO class names and identifies the 'person' class index.
@@ -23,82 +23,202 @@ Usage:
 ------
 Run from command line with required arguments:
     --image         Path to input image (required)
-    --config        Path to YOLOv3 config file (.cfg)
-    --weights       Path to YOLOv3 weights file (.weights)
+    --model         Path to YOLOv3 model file (.onnx)
     --names         Path to COCO names file (.names)
     --confidence    Minimum confidence threshold (default: 0.7)
-    --nms_threshold Non-maximum suppression threshold (default: 0.4)
+    --filter        Comma-separated list of class names to filter (e.g., 'person,car')
+    --output-format Output format: 'text' or 'json' (default: 'text')
+    --debug         Enable debug mode to display images with detections
 
 Example:
 --------
-python find_subject.py --image input.jpg --config yolov3.cfg --weights yolov3.weights --names coco.names
+    python find_subject.py --image input.jpg --model yolov3.onnx --names coco.names --confidence 0.7
 
 Dependencies:
 -------------
 - OpenCV (cv2)
 - NumPy (numpy)
+
+
+Sources:
+--------
+Microsoft COCO: Common Objects in Context
+Tsung-Yi Lin and Michael Maire and Serge Belongie and Lubomir Bourdev and Ross Girshick and James Hays and Pietro Perona and Deva Ramanan and C. Lawrence Zitnick and Piotr Dollár
+2015
 """
 
+import onnxruntime as ort
 import cv2
 import numpy as np
 import argparse
 import sys, os
 import json
 
-def detect_people_yolo(args):
+def _filter_detections(results, thresh = 0.5):
+    # if model is trained on 1 class only
+    if len(results[0]) == 5:
+        # filter out the detections with confidence > thresh
+        considerable_detections = [detection for detection in results if detection[4] > thresh]
+        considerable_detections = np.array(considerable_detections)
+        return considerable_detections
+
+    # if model is trained on multiple classes
+    else:
+        A = []
+        for detection in results:
+
+            class_id = detection[4:].argmax()
+            confidence_score = detection[4:].max()
+
+            new_detection = np.append(detection[:4],[class_id,confidence_score])
+
+            A.append(new_detection)
+
+        A = np.array(A)
+
+        # filter out the detections with confidence > thresh
+        considerable_detections = [detection for detection in A if detection[-1] > thresh]
+        considerable_detections = np.array(considerable_detections)
+
+        return considerable_detections
+
+def _NMS(boxes, conf_scores, iou_thresh = 0.55):
+    #  boxes [[x1,y1, x2,y2], [x1,y1, x2,y2], ...]
+
+    x1 = boxes[:,0]
+    y1 = boxes[:,1]
+    x2 = boxes[:,2]
+    y2 = boxes[:,3]
+
+    areas = (x2-x1)*(y2-y1)
+
+    order = conf_scores.argsort()
+
+    keep = []
+    keep_confidences = []
+
+    while len(order) > 0:
+        idx = order[-1]
+        A = boxes[idx]
+        conf = conf_scores[idx]
+
+        order = order[:-1]
+
+        xx1 = np.take(x1, indices= order)
+        yy1 = np.take(y1, indices= order)
+        xx2 = np.take(x2, indices= order)
+        yy2 = np.take(y2, indices= order)
+
+        keep.append(A)
+        keep_confidences.append(conf)
+
+        # iou = inter/union
+
+        xx1 = np.maximum(x1[idx], xx1)
+        yy1 = np.maximum(y1[idx], yy1)
+        xx2 = np.minimum(x2[idx], xx2)
+        yy2 = np.minimum(y2[idx], yy2)
+
+        w = np.maximum(xx2-xx1, 0)
+        h = np.maximum(yy2-yy1, 0)
+
+        intersection = w*h
+
+        # union = areaA + other_areas - intesection
+        other_areas = np.take(areas, indices= order)
+        union = areas[idx] + other_areas - intersection
+
+        iou = intersection/union
+
+        boleans = iou < iou_thresh
+
+        order = order[boleans]
+
+        # order = [2,0,1]  boleans = [True, False, True]
+        # order = [2,1]
+
+    return keep, keep_confidences
+
+# function to rescale bounding boxes 
+def _rescale_back(results, img_w, img_h):
+    if results.shape[0] == 0:  # Check if the array is empty (no detections)
+        return [], []
+    cx, cy, w, h, class_id, confidence = results[:,0], results[:,1], results[:,2], results[:,3], results[:,4], results[:,-1]
+    cx = cx /640.0 * img_w
+    cy = cy/640.0 * img_h
+    w = w/640.0 * img_w
+    h = h/640.0 * img_h
+    x1 = cx - w/2
+    y1 = cy - h/2
+    x2 = cx + w/2
+    y2 = cy + h/2
+
+    boxes = np.column_stack((x1, y1, x2, y2, class_id))
+    keep, keep_confidences = _NMS(boxes,confidence)
+    return keep, keep_confidences
+
+def _detect_people_yolo(args):
     """
     Detects people in an image using a pre-trained YOLO model.
 
     Args:
         image_path (str): Path to the input image.
-        config_path (str): Path to the YOLO model configuration file (.cfg).
-        weights_path (str): Path to the YOLO model weights file (.weights).
+        model_path (str): Path to the YOLO model weights file (.weights).
         coco_names_path (str): Path to the COCO class names file (.names).
+        filter_names (list): List of class names to filter (e.g., ['person', 'car']).
         confidence_threshold (float): Minimum confidence to consider a detection.
-        nms_threshold (float): Non-maximum suppression threshold.
+        output_format (str): Output format, either 'text' or 'json'.
+
     """
 
     names = args.names
     image_path = args.image
-    config_path = args.config
-    weights_path = args.weights
+    model_path = args.model
     confidence_threshold = args.confidence
-    nms_threshold = args.nms_threshold
     output_format = args.output_format
+
+    # check if input files exist
+    if not os.path.isfile(image_path):
+        if output_format == 'json':
+            print(json.dumps({"error": f"Image file {image_path} does not exist."}))
+        else:
+            print(f"Error: Image file {image_path} does not exist.")
+        sys.exit(1)
+        return
+
+    # check if model file exists
+    if not os.path.isfile(model_path):
+        if output_format == 'json':
+            print(json.dumps({"error": f"Model file {model_path} does not exist."}))
+        else:
+            print(f"Error: Model file {model_path} does not exist.")
+        sys.exit(1)
+        return
+    
+    # check if coco names file exists
+    if not os.path.isfile(names):
+        if output_format == 'json':
+            print(json.dumps({"error": f"COCO names file {names} does not exist."}))
+        else:
+            print(f"Error: COCO names file {names} does not exist.")
+        sys.exit(1)
+        return
 
     # Load COCO class names
     with open(names, 'r') as f:
         classes = [line.strip() for line in f.readlines()]
 
-    # Filter for 'person' class index
-    try:
-        person_class_id = classes.index('person')
-    except ValueError:
-        if output_format == 'json':
-            print(json.dumps({"error": "'person' class not found in coco.names. Please ensure the file is correct."}))
-        else:   
-            print("Error: 'person' class not found in coco.names. Please ensure the file is correct.")
+    filter_names = args.filter.split(",") if args.filter else classes
 
-        sys.exit(1)
-        return
+    if args.debug:
+        for i, cls in enumerate(classes):
+            print(i, cls)
 
     # Load YOLO model
-    net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
-
-    # Enable CUDA if available (for faster inference)
-    # Uncomment the following lines if you have a compatible NVIDIA GPU and CUDA installed
-    # net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-    # net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
-
-    # Get output layer names
-    layer_names = net.getLayerNames()
-    # Ensure output_layers is a flat list of integers
-    output_layer_indices = net.getUnconnectedOutLayers()
-    output_layer_indices = [i[0] if isinstance(i, (list, np.ndarray)) else i for i in output_layer_indices]
-    output_layers = [layer_names[i - 1] for i in output_layer_indices]
+    onnx_model = ort.InferenceSession(model_path)
 
     # Load the input image
-    image = cv2.imread(image_path)
+    image = cv2.imread(image_path, flags = cv2.IMREAD_COLOR)
     if image is None:
         if output_format == 'json':
             print(json.dumps({"error": f"Could not load image from {image_path}"}))
@@ -108,7 +228,7 @@ def detect_people_yolo(args):
         return
 
     height, width, _ = image.shape
-
+    
     # Create the root json object
     if output_format == 'json':
         root = {
@@ -123,84 +243,83 @@ def detect_people_yolo(args):
 
     # Create a blob from the image
     # The image is scaled to 416x416, and the pixel values are scaled to [0, 1]
-    blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
+    # blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
 
-    # Set the input to the network and run forward pass
-    net.setInput(blob)
-    outs = net.forward(output_layers)
+    img = cv2.resize(image, (640, 640))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = img.transpose(2, 0, 1)
+    img = img.reshape(1, 3, 640, 640)
+
+    img = img / 255.0
+    img = img.astype(np.float32)
+
+    outputs = onnx_model.run(None, {"images": img})
+
+    results = outputs[0]
+    results = results.transpose()
+
+    results = _filter_detections(results, confidence_threshold)
+    rescaled_results, confidences = _rescale_back(results, width, height)
 
     # Initialize lists for detected bounding boxes, confidences, and class IDs
-    boxes = []
-    confidences = []
-    class_ids = []
-    total_detections = 0
+    _boxes = []
+    _confidences = []
+    _class_ids = []
+    _total_detections = 0
 
-    # Iterate over each output layer and detection
-    for out in outs:
-        for detection in out:
-            scores = detection[5:]
-            class_id = np.argmax(scores)
-            confidence = scores[class_id]
+    _x_min, _y_min = float('inf'), float('inf')
+    _w_max, _h_max = 0, 0
 
-            # Filter for 'person' class and confidence
-            if class_id == person_class_id and confidence > confidence_threshold:
-                # YOLO returns center_x, center_y, width, height
-                center_x = int(detection[0] * width)
-                center_y = int(detection[1] * height)
-                w = int(detection[2] * width)
-                h = int(detection[3] * height)
-
-                # Calculate top-left corner coordinates
-                x = int(center_x - w / 2)
-                y = int(center_y - h / 2)
-
-                boxes.append([x, y, w, h])
-                confidences.append(float(confidence))
-                class_ids.append(class_id)
-
-                # root["detections"].append({"box": [x, y, w, h], "confidence": round(float(confidence), 2), "class": classes[class_id], "class_id": int(class_id)})
-                # total_detections += 1
-
-    # Apply Non-Maximum Suppression to suppress weak, overlapping bounding boxes
-    indexes = cv2.dnn.NMSBoxes(boxes, confidences, confidence_threshold, nms_threshold)
-
-    x_min, y_min = float('inf'), float('inf')
-    w_max, h_max = 0, 0
-
-    # print image size
     if output_format == 'text':
-        print(f"imagesize: {width},{height}")
+        print(f"imagesize: {width},{height}")    
 
-    if len(indexes) > 0:
-        for i in indexes.flatten():
-            x, y, w, h = boxes[i]
-            class_id = class_ids[i]
+    for res, conf in zip(rescaled_results, confidences):
+        x1, y1, x2, y2, cls_id = res
+        cls_id = int(cls_id)
 
+        # filter only cls_id present in the coco names file
+        if cls_id < 0 or cls_id >= len(classes):
+            continue
 
-            right = x + w
-            bottom = y + h
+        class_name = classes[cls_id]
 
-            x_min = min(x_min, x)
-            y_min = min(y_min, y)
-            w_max = max(w_max, right)
-            h_max = max(h_max, bottom)
+        if class_name not in filter_names:
+            continue
 
-            confidence = str(round(confidences[i], 2))
+        confidence = float(conf)
 
-            total_detections += 1            
+        if args.debug:
+            print('confidence:', confidence, 'confidence_threshold:', confidence_threshold, 'class_name:', class_name)
 
-            if output_format == 'json':
-                root["detections"].append({"box": [x, y, w, h], "confidence": round(float(confidence), 2), "class": classes[class_id], "class_id": int(class_id)})
+        if confidence < confidence_threshold:
+            continue
 
-            if args.debug:
-                label = str(classes[class_ids[i]])
-                color = (0, 255, 0)  # Green color for bounding box
-                # Draw bounding box
-                cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
-                # Draw label and confidence
-                text = f"{label}: {confidence} (rect: {x}, {y}, {w}, {h})"
-                cv2.putText(image, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-    else:
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+        conf = "{:.2f}".format(conf)
+
+        center_x = ((x1 + x2) // 2)
+        center_y = ((y1 + y2) // 2)
+
+        _x_min = min(_x_min, x1)
+        _y_min = min(_y_min, y1)
+        _w_max = max(_w_max, x2)
+        _h_max = max(_h_max, y2)
+
+        # Calculate top-left corner coordinates
+        _boxes.append([x1, y1, x2, y2])
+        _confidences.append(float(confidence))
+        _class_ids.append(cls_id)
+        _total_detections += 1
+
+        if output_format == 'json':
+            root["detections"].append({"box": [x1, y1, x2, y2], "confidence": round(float(confidence), 2), "class": classes[cls_id], "class_id": int(cls_id)})
+
+        # draw the bounding boxes
+        if args.debug:
+            cv2.rectangle(image,(int(x1),int(y1)),(int(x2),int(y2)),(255,0, 0),1)
+            cv2.putText(image, classes[cls_id]+' '+conf,(x1,y1-17), cv2.FONT_HERSHEY_SIMPLEX,0.7,(255,0,0),1)
+
+    if len(_boxes) == 0:
         if output_format == 'json':
             root["error"] = "No people detected in the image."
             root["box"] = [0, 0, width, height]
@@ -213,43 +332,41 @@ def detect_people_yolo(args):
             print(r"center: ${width//2},${height//2}")
             print(r"offset: 0,0")
         sys.exit(0)
-        return
-
-    # print(f"Bounding box coordinates: x_min={x_min}, y_min={y_min}, w_max={w_max}, h_max={h_max}")
-
-    if output_format == 'json':
-        root["box"] = [x_min, y_min, w_max, h_max]
-    else:
-        print(f"box: {x_min},{y_min},{w_max},{h_max}")
-
+        return                
+    
     # print the x,y coordinates of the center of the bounding box
-    center_x = (x_min + w_max) // 2
-    center_y = (y_min + h_max) // 2
+    _center_x = (_x_min + _w_max) // 2
+    _center_y = (_y_min + _h_max) // 2
 
     if output_format == 'json':
-        root["center"] = [center_x, center_y]
+        root["box"] = [_x_min, _y_min, _w_max, _h_max]
+        root["center"] = [_center_x, _center_y]
     else:
-        print(f"center: {center_x},{center_y}")
+        print(f"box: {_x_min},{_y_min},{_w_max},{_h_max}")
+        print(f"center: {_center_x},{_center_y}")
+
 
     # print the offset of center_x, center_y related to the image center
-    image_center_x = width // 2
-    image_center_y = height // 2
-    offset_x = center_x - image_center_x
-    offset_y = center_y - image_center_y
-    # print(f"Offset from image center: (offset_x={offset_x}, offset_y={offset_y})")
-
+    _image_center_x = width // 2
+    _image_center_y = height // 2
+    _offset_x = _center_x - _image_center_x
+    _offset_y = _center_y - _image_center_y
 
     if output_format == 'json':
-        root["total_detections"] = total_detections
-        root["offset"] = [offset_x, offset_y]
+        root["total_detections"] = _total_detections
+        root["offset"] = [_offset_x, _offset_y]
         print(json.dumps(root, indent=2))
     else:
-        print(f"offset: {offset_x},{offset_y}")
+        print(f"offset: {_offset_x},{_offset_y}")
 
     if args.debug:
+        # Draw center crosshair
+        cv2.drawMarker(image, (_center_x, _center_y), (255, 0, 255), markerType=cv2.MARKER_CROSS, markerSize=50, thickness=4)
+
         # Draw the bounding box on the image
-        cv2.rectangle(image, (x_min, y_min), (w_max, h_max), (255, 0, 0), 4)
+        cv2.rectangle(image, (_x_min, _y_min), (_w_max, _h_max), (255, 0, 255), 4)
         cv2.imshow("People Detection", image)
+
 
         # Wait for a key press and close the image window
         cv2.waitKey(0)
@@ -259,20 +376,19 @@ def detect_people_yolo(args):
     cv2.destroyAllWindows()
     sys.exit(0)
 
+
 if __name__ == "__main__":
     # Current script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    parser = argparse.ArgumentParser(description="Detect people in an image using YOLOv3.")
+    parser = argparse.ArgumentParser(description="Detect people in an image using YOLOv11.")
     parser.add_argument("--image", type=str, required=True, help="Path to the input image.")
-    parser.add_argument("--config", type=str, default=script_dir + "/assets/yolov3.cfg", help="Path to YOLOv3 config file.")
-    parser.add_argument("--weights", type=str, default=script_dir + "/assets/yolov3.weights", help="Path to YOLOv3 weights file.")
+    parser.add_argument("--model", type=str, default=script_dir + "/assets/yolo11n.onnx", help="Path to YOLOv11 model file.")
     parser.add_argument("--names", type=str, default=script_dir + "/assets/coco.names", help="Path to COCO names file.")
-    parser.add_argument("--confidence", type=float, default=0.70, help="Minimum confidence threshold.")
-    parser.add_argument("--nms_threshold", type=float, default=0.4, help="Non-maximum suppression threshold.")
+    parser.add_argument("--confidence", type=float, default=0.60, help="Minimum confidence threshold.")
     parser.add_argument("--output-format", type=str, choices=['text', 'json'], default='text', help="Output format: 'text' or 'json'.")
+    parser.add_argument("--filter", type=str, default="person", help="Comma-separated list of class names to filter (e.g., 'person,car').")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode. Will display images with detections.")
 
     args = parser.parse_args()
-
-    detect_people_yolo(args)
+    _detect_people_yolo(args)

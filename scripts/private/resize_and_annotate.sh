@@ -191,7 +191,7 @@ if ! command -v "$find_subject_script" &>/dev/null; then
     exit 1
 fi
 
-result=$("$find_subject_script" --image "$input_file")
+result=$("python $find_subject_script" --image "$input_file")
 if [ $? -ne 0 ]; then
     echo "no subject(s) could not be found in the image!"
 

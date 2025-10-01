@@ -215,7 +215,7 @@ LeftBottom (8)   - Rotated 90° CCW (portrait)
 
 **Dependencies**:
 - **OpenCV**: Computer vision library for image processing
-- **YOLOv3**: Pre-trained object detection model
+- **YOLO11**: Latest YOLO object detection model (upgraded from YOLOv3 for better accuracy)
 - **NumPy**: Numerical computing for image arrays
 
 **Features**:
@@ -225,9 +225,8 @@ LeftBottom (8)   - Rotated 90° CCW (portrait)
 - **Multiple Subject Support**: Handles images with multiple people
 
 **Model Files**:
-- `assets/yolov3.weights`: Pre-trained YOLO weights (150MB)
-- `assets/yolov3.cfg`: Model configuration
-- `assets/coco.names`: Class labels for object detection
+- `scripts/private/assets/yolo11n.onnx`: YOLO11 nano model (optimized for performance)
+- `scripts/private/assets/coco.names`: Class labels for object detection
 
 ## Technical Requirements
 
@@ -236,6 +235,7 @@ LeftBottom (8)   - Rotated 90° CCW (portrait)
 - **Python** 3.7+: Required for AI subject detection
 - **OpenCV Python**: `pip install opencv-python`
 - **NumPy**: `pip install numpy`
+- **ONNX Runtime**: `pip install onnxruntime` (for YOLO11 model inference)
 - **zsh**: Shell interpreter (or bash with minor modifications)
 
 ### System Requirements
@@ -329,20 +329,23 @@ sudo apt-get install libheif-dev
 sudo apt-get install --reinstall imagemagick
 ```
 
-#### "YOLOv3 weights not found"
+#### "YOLO11 model not found"
 ```bash
-# Download YOLOv3 weights (150MB)
-cd scripts/private/assets
-wget https://pjreddie.com/media/files/yolov3.weights
+# Verify YOLO11 model exists
+ls -la scripts/private/assets/yolo11n.onnx
+
+# The YOLO11 model should be included in the project
+# If missing, the model file should be placed in scripts/private/assets/
 ```
 
 #### "Python/OpenCV errors"
 ```bash
 # Install Python dependencies
-pip3 install opencv-python numpy
+pip3 install opencv-python numpy onnxruntime
 
 # Verify installation
 python3 -c "import cv2; print(cv2.__version__)"
+python3 -c "import onnxruntime; print(onnxruntime.__version__)"
 ```
 
 ### Performance Optimization

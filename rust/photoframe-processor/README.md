@@ -18,7 +18,7 @@ High-performance Rust implementation of the ESP32 Photo Frame image processing p
 - **High-Quality Resizing**: Uses Lanczos3 filtering for optimal image quality
 - **Floyd-Steinberg Dithering**: Professional-grade dithering for e-paper displays
 - **Text Annotations**: Filename overlays with customizable fonts and backgrounds
-- **AI People Detection**: Optional smart cropping based on person detection (with YOLOv3)
+- **AI People Detection**: Optional smart cropping based on person detection (with YOLO11)
 - **Auto Color Correction**: Intelligent color/saturation/levels adjustment using ImageMagick
 - **ESP32 Binary Format**: Generates optimized .bin files for direct ESP32 loading
 - **Progress Tracking**: Real-time progress bars with ETA estimates
@@ -45,12 +45,12 @@ The compiled binary will be available at `target/release/photoframe-processor`.
 ### Optional Features
 
 ```bash
-# Build with AI-powered people detection using YOLOv3
+# Build with AI-powered people detection using YOLO11
 cargo build --release --features ai
 
-# The AI feature requires YOLOv3 model files:
-# - yolov3.cfg (configuration)
-# - yolov3.weights (pre-trained weights - ~250MB)
+# The AI feature requires YOLO11 model files:
+# - yolo11n.onnx (YOLO11 nano model for optimal performance)
+# - coco.names (class labels)
 # These should be placed in: scripts/private/assets/
 ```
 
@@ -231,7 +231,10 @@ output_directory/
 1. **Image Discovery**: Recursively scans input directories for supported formats
 2. **Orientation Analysis**: Reads EXIF data and classifies portrait vs landscape
 3. **Portrait Shuffling**: Randomizes portrait order for varied combinations
-4. **Smart Resizing**: Crop-to-fill with intelligent aspect ratio handling
+4. **Smart Resizing**: Three-stage intelligent cropping with face preservation
+   - **Stage 1**: Scaling check (only scale if image is smaller than target)
+   - **Stage 2**: Regular crop attempt (center-based expansion from detection)
+   - **Stage 3**: Bidirectional expansion with face preservation priority
 5. **Text Annotation**: Adds filename overlays with semi-transparent backgrounds
 6. **Color Processing**: Applies grayscale conversion or 6-color/7-color palette reduction
 7. **Dithering**: Floyd-Steinberg error diffusion for optimal e-paper display
@@ -241,6 +244,50 @@ output_directory/
    - **JPG**: Compressed files for web sharing and storage efficiency
    - **PNG**: Lossless files with transparency support
 9. **Portrait Combination**: Merges portrait pairs into landscape layouts
+
+## 🧠 Smart Cropping Algorithm (with AI People Detection)
+
+When `--detect-people` is enabled, the processor uses a sophisticated three-stage cropping algorithm:
+
+### Stage 1: Scaling Check
+- Only scales down if the **image** is smaller than target crop dimensions
+- Does NOT scale if detection box is larger than crop (instead centers crop on detection)
+- Avoids unnecessary image quality loss from scaling
+
+### Stage 2: Regular Crop Attempt
+- Expands from detection box center to target dimensions
+- If detection fits entirely within crop area → uses regular crop (fast path)
+
+### Stage 3: Smart Bidirectional Expansion
+When regular crop would cut the detection:
+
+**Horizontal Expansion**:
+- Detection width ≥ target: centers crop on detection center
+- Detection width < target: expands equally left/right with boundary redistribution
+
+**Vertical Expansion with Face Preservation**:
+- Detection height ≥ target: centers crop on detection center
+- Detection height < target: expands equally top/bottom with redistribution
+- **Face Priority**: If crop_y > det_y_min (would cut face), aligns crop with detection top
+- Rationale: Faces are at top of person boxes; cutting bottom is better than cutting faces
+
+### Examples
+
+**Portrait with Person**:
+```
+Image: 960×1280, Detection: (83, 64, 958, 1205), Target: 768×1280
+Result: crop_x=136, crop_y=0
+→ X centered on detection (520 - 384 = 136)
+→ Y starts at 0 (includes detection top at 64)
+→ Face preserved ✓
+```
+
+**Detection Near Bottom**:
+```
+Image: 800×1000, Detection: (300, 750, 500, 950), Target: 400×600
+→ Algorithm prioritizes keeping detection top (faces) in frame
+→ Cuts bottom instead of top when space is limited
+```
 
 ## 🎨 Color Processing
 
@@ -345,7 +392,9 @@ cargo bench
 
 ## 🔮 Future Enhancements
 
-- [x] **AI Subject Detection**: ✅ Optional person detection for intelligent cropping
+- [x] **AI Subject Detection**: ✅ YOLO11-based person detection for intelligent cropping
+- [x] **Smart Cropping Algorithm**: ✅ Three-stage algorithm with face preservation
+- [x] **Bidirectional Expansion**: ✅ Intelligent boundary redistribution
 - [x] **Multi-Format Output**: ✅ Support for multiple output formats with organized directories
 - [x] **Auto Color Correction**: ✅ Intelligent color/saturation/levels adjustment
 - [x] **Avoid Duplicate Processing**: ✅ Skip already processed images based on image name

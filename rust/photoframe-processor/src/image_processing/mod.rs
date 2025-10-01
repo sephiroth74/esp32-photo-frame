@@ -9,8 +9,8 @@ pub mod resize;
 pub mod subject_detection;
 
 use anyhow::{Context, Result};
-use image::{Rgb, RgbImage};
-use imageproc::drawing::draw_hollow_rect_mut;
+use image::{Rgb, RgbImage, Rgba};
+use imageproc::drawing::{draw_filled_rect_mut, draw_hollow_rect_mut};
 use imageproc::rect::Rect;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -69,6 +69,7 @@ pub struct ProcessingConfig {
     // Python people detection configuration
     pub detect_people: bool,
     pub python_script_path: Option<PathBuf>,
+    pub python_path: Option<PathBuf>,
     // Duplicate handling
     pub force: bool,
     // Debug mode
@@ -79,6 +80,8 @@ pub struct ProcessingConfig {
     pub auto_color_correct: bool,
     // Dry run mode
     pub dry_run: bool,
+    // Confidence threshold for people detection
+    pub confidence_threshold: f32,
 }
 
 pub struct ProcessingEngine {
@@ -181,12 +184,13 @@ impl ProcessingEngine {
 
         let subject_detector = if config.detect_people {
             if let Some(ref script_path) = config.python_script_path {
+                let python_path = config.python_path.clone().unwrap_or_else(|| PathBuf::from("python"));
                 verbose_println(config.verbose, "Initializing Python people detection...");
                 verbose_println(
                     config.verbose,
                     &format!("Using script: {}", script_path.display()),
                 );
-                match subject_detection::create_default_detector(script_path) {
+                match subject_detection::create_default_detector(script_path, python_path.as_path()) {
                     Ok(detector) => {
                         verbose_println(
                             config.verbose,
@@ -1242,7 +1246,7 @@ impl ProcessingEngine {
                 ),
             );
 
-            match detector.detect_people(img) {
+            match detector.detect_people(img, self.config.confidence_threshold) {
                 Ok(result) => {
                     verbose_println(self.config.verbose, "  ✅ Python detection completed");
 
@@ -1802,12 +1806,34 @@ impl ProcessingEngine {
         );
 
         // Load original image
-        let img = image::open(input_path)
+        let rgb_img = image::open(input_path)
             .with_context(|| format!("Failed to load image: {}", input_path.display()))?
             .to_rgb8();
 
-        // Run people detection
-        let detection_result = subject_detector.detect_people(&img)?;
+        // Apply orientation correction (same as main processing pipeline)
+        // This ensures debug images are saved with correct orientation and
+        // detection boxes align properly with the displayed image
+        let orientation_info = orientation::detect_orientation(input_path, &rgb_img)?;
+        let img = orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation)?;
+
+        verbose_println(
+            self.config.verbose,
+            &format!(
+                "📱 Debug orientation: {:?} ({})",
+                orientation_info.exif_orientation,
+                if orientation_info.exif_orientation == orientation::ExifOrientation::TopLeft {
+                    "no rotation needed"
+                } else {
+                    "rotation applied for correct display"
+                }
+            ),
+        );
+
+        verbose_println(self.config.verbose,
+                        &format!("   • Original dimensions: {}x{}", rgb_img.width(), rgb_img.height()));
+
+        // Run people detection on correctly oriented image
+        let detection_result = subject_detector.detect_people(&img, self.config.confidence_threshold)?;
 
         // For debug mode, we also need the raw JSON data from find_subject.py to draw all boxes
         let raw_detection_data = self.get_raw_detection_data(&img, subject_detector)?;
@@ -1862,10 +1888,17 @@ impl ProcessingEngine {
             saved_paths.insert(format.clone(), output_path.clone());
         }
 
+        // Determine correct image type based on oriented dimensions
+        let image_type = if img.height() > img.width() {
+            ImageType::Portrait
+        } else {
+            ImageType::Landscape
+        };
+
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
             output_paths: saved_paths,
-            image_type: ImageType::Landscape, // Debug doesn't distinguish
+            image_type,
             processing_time: std::time::Duration::from_millis(0),
             people_detected: detection_result.person_count > 0,
             people_count: detection_result.person_count,
@@ -1888,14 +1921,20 @@ impl ProcessingEngine {
         img.save(&temp_path)?;
 
         // Run Python script directly to get raw JSON
-        let output = std::process::Command::new("python3")
+
+        let output = std::process::Command::new(self.config.python_path.as_ref().unwrap())
             .arg(self.config.python_script_path.as_ref().unwrap())
             .arg("--image")
             .arg(&temp_path)
             .arg("--output-format")
             .arg("json")
+            .arg("--filter")
+            .arg("person")
+            .arg("--confidence")
+            .arg(self.config.confidence_threshold.to_string())
             .output()
             .map_err(|e| anyhow::anyhow!("Failed to execute find_subject.py: {}", e))?;
+
 
         // Clean up temporary file
         let _ = std::fs::remove_file(&temp_path);
@@ -1934,35 +1973,36 @@ impl ProcessingEngine {
             for (i, detection) in raw_data.detections.iter().enumerate() {
                 let bbox = &detection.bounding_box;
                 // Individual detections use [x, y, width, height] format
-                let x = bbox[0].max(0) as u32;
-                let y = bbox[1].max(0) as u32;
-                let width = bbox[2].max(0) as u32;
-                let height = bbox[3].max(0) as u32;
+                let x1 = bbox[0].max(0) as u32;
+                let y1 = bbox[1].max(0) as u32;
+                let x2 = bbox[2].max(0).min(img_width as i32) as u32;
+                let y2 = bbox[3].max(0).min(img_height as i32) as u32;
+
+                let width = x2 - x1;
+                let height = y2 - y1;
 
                 // Clamp to image boundaries
-                let x = x.min(img_width.saturating_sub(1));
-                let y = y.min(img_height.saturating_sub(1));
-                let width = width.min(img_width.saturating_sub(x));
-                let height = height.min(img_height.saturating_sub(y));
+                let x1 = x1.min(img_width.saturating_sub(1));
+                let y1 = y1.min(img_height.saturating_sub(1));
 
                 if width > 0 && height > 0 {
-                    let rect = Rect::at(x as i32, y as i32).of_size(width, height);
+                    let rect = Rect::at(x1 as i32, y1 as i32).of_size(width, height);
                     draw_hollow_rect_mut(img, rect, green);
 
                     // Draw label with class and confidence
                     let label = format!("{} {:.0}%", detection.class, detection.confidence * 100.0);
-                    self.draw_label(img, x, y, &label, green)?;
+                    self.draw_label(img, x1, y1, &label, green)?;
 
                     verbose_println(
                         self.config.verbose,
                         &format!(
-                            "  🟢 Detection {}: {} at ({}, {}) {}x{} conf:{:.2}",
+                            "  🟢 Detection {}: {} at ({}, {}, {}, {}) conf:{:.2}",
                             i + 1,
                             detection.class,
-                            x,
-                            y,
-                            width,
-                            height,
+                            x1,
+                            y1,
+                            x2,
+                            y2,
                             detection.confidence
                         ),
                     );
@@ -1981,7 +2021,7 @@ impl ProcessingEngine {
                 let gheight = gy_max - gy_min;
 
                 // Draw thick blue box (3 pixel thick stroke)
-                for offset in 0..3 {
+                for offset in 1..4 {
                     let thick_rect = Rect::at((gx_min as i32) - offset, (gy_min as i32) - offset)
                         .of_size(gwidth + (offset * 2) as u32, gheight + (offset * 2) as u32);
                     draw_hollow_rect_mut(img, thick_rect, blue);
@@ -1990,8 +2030,8 @@ impl ProcessingEngine {
                 verbose_println(
                     self.config.verbose,
                     &format!(
-                        "  🔵 Global box: ({}, {}) {}x{}",
-                        gx_min, gy_min, gwidth, gheight
+                        "  🔵 Global box: ({}, {}, {}, {})",
+                        gx_min, gy_min, gx_max, gy_max
                     ),
                 );
             }
@@ -2022,14 +2062,20 @@ impl ProcessingEngine {
         let (crop_x, crop_y, crop_width, crop_height) =
             self.calculate_actual_crop_area(img_width, img_height, detection_result)?;
 
-        let crop_rect = Rect::at(crop_x as i32, crop_y as i32).of_size(crop_width, crop_height);
-        draw_hollow_rect_mut(img, crop_rect, red);
+        //let crop_rect = Rect::at(crop_x as i32, crop_y as i32).of_size(crop_width, crop_height);
+
+        for offset in 0..6 {
+            let _offset = offset -3; // Center the thickness
+            let thick_crop_rect = Rect::at((crop_x as i32) - _offset, (crop_y as i32) - _offset)
+                .of_size((crop_width as i32 + (_offset * 2)) as u32, (crop_height as i32 + (_offset * 2)) as u32);
+            draw_hollow_rect_mut(img, thick_crop_rect, red);
+        }
 
         verbose_println(
             self.config.verbose,
             &format!(
-                "  🔴 Crop area: ({}, {}) {}x{}",
-                crop_x, crop_y, crop_width, crop_height
+                "  🔴 Crop area: ({}, {}, {}, {})",
+                crop_x, crop_y, crop_x + crop_width, crop_y + crop_height
             ),
         );
 
