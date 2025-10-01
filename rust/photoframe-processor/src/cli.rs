@@ -170,10 +170,18 @@ pub struct Args {
     #[arg(long = "detect-people")]
     pub detect_people: bool,
 
+    #[arg(
+        long = "python-path",
+        value_name = "FILE",
+        help = "Path to Python interpreter (if not in system PATH)"
+    )]
+    pub python_path: Option<PathBuf>,
+
     /// Path to find_subject.py script for people detection
     #[arg(
         long = "python-script",
         value_name = "FILE",
+        requires = "python_path",
         help = "Path to find_subject.py script for people detection"
     )]
     pub python_script_path: Option<PathBuf>,
@@ -190,7 +198,7 @@ pub struct Args {
     #[arg(long = "find-hash", value_name = "HASH")]
     pub find_hash: Option<String>,
 
-    /// Enable debug mode: visualize detection boxes and crop area without processing
+    /// Enable debug mode: visualize detection boxes and crop area with correct orientation
     #[arg(long = "debug")]
     pub debug: bool,
 
@@ -205,6 +213,10 @@ pub struct Args {
     /// Perform a dry run: simulate processing and show what would be generated without creating files
     #[arg(long = "dry-run")]
     pub dry_run: bool,
+
+    /// Confidence threshold for people detection (0.0-1.0, requires --detect-people)
+    #[arg(long = "confidence", default_value = "0.6", value_name = "THRESHOLD")]
+    pub confidence_threshold: f32,
 }
 
 impl Args {
@@ -380,6 +392,7 @@ impl Default for Args {
             benchmark: false,
             detect_people: false,
             python_script_path: None,
+            python_path: None,
             force: false,
             find_original: None,
             find_hash: None,
@@ -387,6 +400,7 @@ impl Default for Args {
             annotate: false,
             auto_color_correct: false,
             dry_run: false,
+            confidence_threshold: 0.6,
         }
     }
 }

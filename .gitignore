@@ -35,3 +35,6 @@ rust/bin2bmp/target/
 platformio/compile_commands.json
 rust/photoframe-processor/target/
 platformio/weather_config.json
+rust/photoframe-processor/.claude/
+rust/photoframe-processor/CLAUDE.md
+CLAUDE.md

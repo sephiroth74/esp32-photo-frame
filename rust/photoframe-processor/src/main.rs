@@ -327,6 +327,7 @@ fn main() -> Result<()> {
         // Python people detection configuration
         detect_people: args.detect_people,
         python_script_path: args.python_script_path.clone(),
+        python_path: args.python_path.clone(),
         // Duplicate handling
         force: args.force,
         // Debug mode
@@ -337,6 +338,8 @@ fn main() -> Result<()> {
         auto_color_correct: args.auto_color_correct,
         // Dry run mode
         dry_run: args.dry_run,
+        // Confidence threshold for people detection
+        confidence_threshold: args.confidence_threshold,
     };
 
     if config.verbose {
@@ -365,6 +368,7 @@ fn main() -> Result<()> {
             } else {
                 println!("    Python script: not specified");
             }
+            println!("    Confidence threshold: {:.2}", config.confidence_threshold);
         }
 
         // Debug mode status
@@ -444,20 +448,30 @@ fn main() -> Result<()> {
     // Initialize processing engine
     let engine = ProcessingEngine::new(config)?;
 
-    // Initialize multi-progress system
+    // Initialize multi-progress system (disabled in debug mode)
     let multi_progress = MultiProgress::new();
 
-    // Create discovery progress bar
-    let discovery_pb = multi_progress.add(ProgressBar::new(args.input_paths.len() as u64));
-    discovery_pb.set_style(
-        ProgressStyle::with_template("{bar:20.green/blue} {pos:>2}/{len:2} {msg}")?
-            .progress_chars("██▌ "),
-    );
-    discovery_pb.set_message("Scanning directories...");
+    // Create discovery progress bar (only if not in debug mode)
+    let discovery_pb = if debug_mode {
+        ProgressBar::hidden()
+    } else {
+        let pb = multi_progress.add(ProgressBar::new(args.input_paths.len() as u64));
+        pb.set_style(
+            ProgressStyle::with_template("{bar:20.green/blue} {pos:>2}/{len:2} {msg}")?
+                .progress_chars("██▌ "),
+        );
+        pb.set_message("Scanning directories...");
+        pb
+    };
 
     // Discover all images
     let image_files = engine.discover_images(&args.input_paths)?;
-    discovery_pb.finish_with_message(format!("✓ Found {} images", image_files.len()));
+
+    if debug_mode {
+        verbose_println(true, &format!("Found {} image files", image_files.len()));
+    } else {
+        discovery_pb.finish_with_message(format!("✓ Found {} images", image_files.len()));
+    }
 
     if image_files.is_empty() {
         println!(
@@ -467,38 +481,55 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Create main processing progress bar
-    let main_progress = multi_progress.add(create_progress_bar(image_files.len() as u64));
-    main_progress.set_message("Processing images");
+    // Create main processing progress bar (only if not in debug mode)
+    let main_progress = if debug_mode {
+        ProgressBar::hidden()
+    } else {
+        let pb = multi_progress.add(create_progress_bar(image_files.len() as u64));
+        pb.set_message("Processing images");
+        pb
+    };
 
-    // Create individual thread progress bars
+    // Create individual thread progress bars (only if not in debug mode)
     let thread_count = parallel_jobs.min(image_files.len());
     let mut thread_progress_bars = Vec::new();
 
-    for i in 0..thread_count {
-        let thread_pb = multi_progress.add(ProgressBar::new(100));
-        thread_pb.set_style(
-            ProgressStyle::with_template(&format!(
-                "Job {:02}: [{{bar:15.blue/cyan}}] {{msg}}",
-                i + 1
-            ))?
-            .progress_chars("██▌ "),
-        );
-        thread_pb.set_message("Waiting...");
-        thread_progress_bars.push(thread_pb);
+    if debug_mode {
+        // In debug mode, create hidden progress bars
+        for _ in 0..thread_count {
+            thread_progress_bars.push(ProgressBar::hidden());
+        }
+    } else {
+        for i in 0..thread_count {
+            let thread_pb = multi_progress.add(ProgressBar::new(100));
+            thread_pb.set_style(
+                ProgressStyle::with_template(&format!(
+                    "Job {:02}: [{{bar:15.blue/cyan}}] {{msg}}",
+                    i + 1
+                ))?
+                .progress_chars("██▌ "),
+            );
+            thread_pb.set_message("Waiting...");
+            thread_progress_bars.push(thread_pb);
+        }
     }
 
-    // Create completion progress bar
-    let completion_pb = multi_progress.add(ProgressBar::new(100));
-    completion_pb.set_style(
-        ProgressStyle::with_template("{bar:30.cyan/blue} {percent:>3}% {msg}")?
-            .progress_chars("██▌ "),
-    );
-    completion_pb.set_message("Preparing to process...");
+    // Create completion progress bar (only if not in debug mode)
+    let completion_pb = if debug_mode {
+        ProgressBar::hidden()
+    } else {
+        let pb = multi_progress.add(ProgressBar::new(100));
+        pb.set_style(
+            ProgressStyle::with_template("{bar:30.cyan/blue} {percent:>3}% {msg}")?
+                .progress_chars("██▌ "),
+        );
+        pb.set_message("Preparing to process...");
+        pb
+    };
 
     // Process images based on mode
     let (results, skipped_results) = if debug_mode {
-        completion_pb.set_message("Debug mode: visualizing detection boxes...");
+        verbose_println(true, "Debug mode: visualizing detection boxes...");
 
         // In debug mode, process all images as a flat list (no pairing)
         let debug_results = engine.process_debug_batch(image_files.clone(), &args.output_dir)?;
@@ -519,13 +550,17 @@ fn main() -> Result<()> {
         )?
     };
 
-    // Finish all progress bars
-    main_progress.finish_with_message("✓ Processing complete!");
-    completion_pb.finish_with_message("✓ All tasks completed");
+    // Finish all progress bars (only if not in debug mode)
+    if debug_mode {
+        verbose_println(true, "✓ Processing complete!");
+    } else {
+        main_progress.finish_with_message("✓ Processing complete!");
+        completion_pb.finish_with_message("✓ All tasks completed");
 
-    // Clean up thread progress bars
-    for (i, pb) in thread_progress_bars.iter().enumerate() {
-        pb.finish_with_message(format!("✓ Thread {} finished", i + 1));
+        // Clean up thread progress bars
+        for (i, pb) in thread_progress_bars.iter().enumerate() {
+            pb.finish_with_message(format!("✓ Thread {} finished", i + 1));
+        }
     }
 
     println!();

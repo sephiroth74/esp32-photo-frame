@@ -1,6 +1,6 @@
 # ESP32 Photo Frame - Rust Image Processor
 
-A high-performance Rust implementation of the image processing pipeline for ESP32-based e-paper photo frames. This tool provides significant performance improvements over the original bash/ImageMagick pipeline while adding advanced features like YOLO-based people detection for smart cropping.
+A high-performance Rust implementation of the image processing pipeline for ESP32-based e-paper photo frames. This tool provides significant performance improvements over the original bash/ImageMagick pipeline while adding advanced features like YOLO11-based people detection for smart cropping.
 
 ## 🚀 Key Features
 
@@ -24,7 +24,7 @@ A high-performance Rust implementation of the image processing pipeline for ESP3
 - **Customizable font size and background colors**
 
 ### AI-Powered Features (Optional)
-- **YOLO-based people detection** for smart cropping
+- **YOLO11-based people detection** for smart cropping (upgraded from YOLOv3 for better accuracy)
 - **Intelligent crop positioning** to keep people in frame
 - **Detection statistics** with verbose logging
 - **Configurable confidence thresholds**
@@ -48,8 +48,8 @@ The project uses several high-performance Rust crates:
 ### AI Features (Optional)
 To enable YOLO people detection:
 - **Feature flag**: `ai` (enabled by default)
-- **YOLO models**: YOLOv3 configuration and weights
-- **Additional dependencies**: `yolo-rs`, `ndarray`
+- **YOLO models**: YOLO11 model file (`yolo11n.onnx` - nano model for optimal performance)
+- **Additional dependencies**: `onnxruntime`, `ndarray`
 
 ## 🛠 Installation
 
@@ -75,14 +75,13 @@ To enable YOLO people detection:
    cargo install --path .
    ```
 
-### YOLO Model Setup (for AI features)
+### YOLO11 Model Setup (for AI features)
 
-1. **Download YOLOv3 weights**:
+1. **Download YOLO11 model**:
+   The YOLO11 nano model (`yolo11n.onnx`) is included in the project assets. If you need to update or use a different model:
    ```bash
-   mkdir assets
-   cd assets
-   wget https://pjreddie.com/media/files/yolov3.weights
-   wget https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3.cfg
+   # The model file should be placed in scripts/private/assets/
+   # Default location: scripts/private/assets/yolo11n.onnx
    ```
 
 2. **Verify installation**:
@@ -124,22 +123,41 @@ photoframe-processor \
   --jobs 8
 ```
 
-### AI-Powered People Detection
+### AI-Powered People Detection (YOLO11)
 
 ```bash
-# Enable YOLO people detection with custom thresholds
+# Enable YOLO11 people detection with custom thresholds
 photoframe-processor -i ~/Photos -o ~/processed \
   --detect-people \
-  --yolo-assets ./assets \
-  --yolo-confidence 0.6 \
-  --yolo-nms 0.4 \
+  --python-script ./scripts/private/find_subject.py \
   --auto --verbose
 
-# People detection with detailed statistics
+# People detection with detailed statistics and multiple formats
 photoframe-processor -i ~/family-photos -o ~/processed \
   --detect-people \
-  --yolo-assets ./assets \
+  --python-script ./scripts/private/find_subject.py \
+  --output-format bmp,bin,png \
   --verbose  # Shows detection statistics
+```
+
+### Utility Commands
+
+```bash
+# Find original filename from hash (for debugging processed images)
+photoframe-processor --find-hash a1b2c3d4
+
+# Decode combined portrait filename to show original filenames
+photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
+
+# Dry run: simulate processing without creating files
+photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose
+
+# Validate images without processing
+photoframe-processor -i ~/Photos --validate-only --verbose
+
+# Debug mode: visualize detection boxes and crop areas
+photoframe-processor -i ~/Photos -o ~/processed --detect-people \
+  --python-script ./scripts/private/find_subject.py --debug --verbose
 ```
 
 ## ⚙️ Configuration Options
@@ -147,11 +165,14 @@ photoframe-processor -i ~/family-photos -o ~/processed \
 ### Processing Types
 - `bw` - Black & white processing (default)
 - `6c` - 6-color processing for color e-paper displays
+- `7c` - 7-color processing for advanced color e-paper displays
 
-### Output Formats  
+### Output Formats
 - `bmp` - Generate only BMP files
 - `bin` - Generate only ESP32 binary files
-- `both` - Generate both formats (default)
+- `jpg` - Generate only JPEG files
+- `png` - Generate only PNG files
+- Multiple formats can be specified with comma separation (e.g., `bmp,bin,jpg`)
 
 ### Font Options
 - `--font` - Font family name (e.g., "Arial", "Helvetica-Bold")
@@ -159,10 +180,18 @@ photoframe-processor -i ~/family-photos -o ~/processed \
 - `--annotate_background` - Hex color with alpha (e.g., "#00000040")
 
 ### AI Detection Options
-- `--detect-people` - Enable YOLO people detection
-- `--yolo-assets` - Path to YOLO model files directory
-- `--yolo-confidence` - Detection confidence threshold (0.0-1.0, default: 0.5)
-- `--yolo-nms` - Non-Maximum Suppression threshold (0.0-1.0, default: 0.4)
+- `--detect-people` - Enable YOLO11 people detection
+- `--python-script` - Path to find_subject.py script for people detection
+- `--python-path` - Path to Python interpreter (if not in system PATH)
+
+### Utility Options
+- `--find-hash` - Find original filename from an 8-character hash
+- `--find-original` - Decode combined portrait filename to show original filenames
+- `--dry-run` - Simulate processing without creating files
+- `--validate-only` - Skip processing and only validate input files
+- `--debug` - Enable debug mode with visualization of detection boxes
+- `--annotate` - Enable filename annotations on processed images
+- `--auto-color` - Enable automatic color correction before processing
 
 ### Performance Options
 - `--jobs` - Number of parallel jobs (0 = auto-detect cores)
@@ -205,15 +234,85 @@ When `--verbose` is enabled, the processor outputs detailed statistics:
    • ✓ People well-centered, standard cropping suitable
 ```
 
-### Smart Cropping Logic
+### Smart Cropping Algorithm
 
-The AI system makes intelligent cropping decisions:
+The processor implements a sophisticated three-stage smart cropping algorithm with face preservation:
 
-- **Center Detection**: Finds the center point of all detected people
-- **Bounding Box Analysis**: Ensures people aren't cropped out
-- **Overlap Calculation**: Maintains >80% of people within the frame
-- **Boundary Constraints**: Respects image boundaries while optimizing for people
-- **Fallback Behavior**: Uses standard center cropping when no people detected
+#### Stage 1: Scaling Check
+- **Image-based scaling**: Only scales down when the image is too small for the target crop dimensions
+- **No unnecessary scaling**: Does not scale if detection box is larger than crop (instead centers crop on detection)
+- **Padding calculation**: Uses 20% padding factor when scaling is necessary
+
+#### Stage 2: Regular Crop Attempt
+- **Center-based expansion**: Expands from detection box center to target dimensions
+- **Containment check**: Verifies if detection fits entirely within crop area
+- **Fast path**: Uses regular crop if detection is fully contained (optimal performance)
+
+#### Stage 3: Smart Bidirectional Expansion
+When regular crop would cut the detection, applies intelligent expansion:
+
+**Horizontal (X-axis) Expansion**:
+- If detection width ≥ target width: centers crop on detection
+- If detection width < target width: expands equally left/right
+- **Boundary redistribution**: When hitting image edge, redistributes expansion to opposite side
+
+**Vertical (Y-axis) Expansion with Face Preservation**:
+- If detection height ≥ target height: centers crop on detection
+- If detection height < target height: expands equally top/bottom with redistribution
+- **Face preservation priority**: If final crop_y > det_y_min (would cut face), aligns crop with detection top
+- **Rationale**: Faces are typically at the top of person bounding boxes; cutting the bottom is preferable to cutting faces
+
+#### Example Scenarios
+
+**Scenario 1: Portrait with Person**
+```
+Image: 960×1280 (portrait)
+Detection: (83, 64, 958, 1205) - person box
+Target crop: 768×1280 (portrait orientation, auto mode)
+
+Result: crop_x=136, crop_y=0
+- X: Centered on detection center (520) → 520 - 384 = 136 ✓
+- Y: Starts at 0 (detection top at 64 is included) ✓
+- Face preserved: Top of detection included in crop ✓
+```
+
+**Scenario 2: Detection Near Bottom**
+```
+Image: 800×1000
+Detection: (300, 750, 500, 950) - person near bottom
+Target crop: 400×600
+
+Without face preservation: crop_y=400 (would start below detection top)
+With face preservation: crop_y=400 (maximum to fit, preserves as much as possible)
+- Algorithm prioritizes keeping detection top (faces) in frame
+```
+
+**Scenario 3: Wide Detection Box**
+```
+Image: 1000×800
+Detection: (100, 100, 900, 700) - 800×600 box
+Target crop: 600×400
+
+Result: Centers crop on detection, lets edges be cut
+- No scaling needed (image is large enough for crop)
+- X: Centered on detection (500 - 300 = 200)
+- Y: Aligned with detection top for face preservation (100)
+```
+
+### Detection Statistics (Verbose Mode)
+
+When `--verbose` is enabled, the processor outputs detailed statistics:
+
+```
+🔍 Running people detection on: family-photo.jpg
+📊 People Detection Results:
+   • People found: 3
+   • Highest confidence: 87.23%
+   • Combined bounding box: 450×380 at (125, 90)
+   • Detection center: (350, 280)
+   • Smart crop applied: bidirectional expansion with face preservation
+   • Crop area: (75, 90, 475, 490)
+```
 
 ## 🔧 Integration with ESP32 Pipeline
 
@@ -247,14 +346,17 @@ ls /System/Library/Fonts/  # macOS
 photoframe-processor --font "Arial" ...  # Try common fonts
 ```
 
-**YOLO model errors**:
+**YOLO11 model errors**:
 ```bash
-# Verify model files exist
-ls -la assets/
-# Should show: yolov3.cfg and yolov3.weights
+# Verify model file exists
+ls -la scripts/private/assets/
+# Should show: yolo11n.onnx and coco.names
 
 # Check file permissions
-chmod 644 assets/*
+chmod 644 scripts/private/assets/*
+
+# Test with Python script directly
+python scripts/private/find_subject.py --image test.jpg --model scripts/private/assets/yolo11n.onnx
 ```
 
 **Memory issues with large batches**:
@@ -337,11 +439,19 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 
 ## 📈 Roadmap
 
+### Recent Achievements
+- [x] YOLO11 model integration for people detection (upgraded from YOLOv3)
+- [x] Smart cropping with face preservation (three-stage algorithm)
+- [x] Bidirectional expansion with boundary redistribution
+- [x] Portrait image pairing and combination
+- [x] Multi-format output support (BMP, binary, JPG, PNG)
+- [x] Utility commands for filename management and debugging
+
 ### Near-term Goals
-- [ ] Real YOLO model integration (currently using placeholders)
-- [ ] Portrait image pairing and combination
 - [ ] Custom color palette support
 - [ ] Batch processing resume functionality
+- [ ] Enhanced error recovery and reporting
+- [ ] Performance optimization for large image batches
 
 ### Future Enhancements
 - [ ] GPU acceleration support
