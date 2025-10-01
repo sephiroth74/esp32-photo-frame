@@ -13,9 +13,7 @@ use image_processing::{
     color_correction, ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult,
     ProcessingType, SkipReason,
 };
-use utils::{
-    create_progress_bar, format_duration, validate_inputs, verbose_println,
-};
+use utils::{create_progress_bar, format_duration, validate_inputs, verbose_println};
 
 impl From<ColorType> for ProcessingType {
     fn from(color_type: ColorType) -> Self {
@@ -33,12 +31,9 @@ fn handle_find_hash(hash: &str, _args: &Args) -> Result<()> {
 
     println!(
         "{}",
-        style(format!(
-            "Finding original filename for hash: {}",
-            hash
-        ))
-        .bold()
-        .cyan()
+        style(format!("Finding original filename for hash: {}", hash))
+            .bold()
+            .cyan()
     );
     println!();
 
@@ -46,7 +41,8 @@ fn handle_find_hash(hash: &str, _args: &Args) -> Result<()> {
     if hash.len() != 8 {
         return Err(anyhow::anyhow!(
             "Invalid hash length '{}'. Expected 8 characters, got {}",
-            hash, hash.len()
+            hash,
+            hash.len()
         ));
     }
 
@@ -57,10 +53,7 @@ fn handle_find_hash(hash: &str, _args: &Args) -> Result<()> {
         ));
     }
 
-    println!("{}",
-        style("Searching for matching filenames...")
-            .dim()
-    );
+    println!("{}", style("Searching for matching filenames...").dim());
     println!();
 
     // This is a demonstration - in a real implementation, you would:
@@ -77,56 +70,56 @@ fn handle_find_hash(hash: &str, _args: &Args) -> Result<()> {
     example_mappings.insert("abcdef01", "family_photo.jpg");
 
     if let Some(original_filename) = example_mappings.get(hash) {
-        println!("{}",
-            style("✓ Found matching original filename!")
-                .green()
-                .bold()
+        println!(
+            "{}",
+            style("✓ Found matching original filename!").green().bold()
         );
         println!();
-        println!("  {}: {}",
+        println!(
+            "  {}: {}",
             style("Hash").bold().cyan(),
             style(hash).bold().yellow()
         );
-        println!("  {}: {}",
+        println!(
+            "  {}: {}",
             style("Original").bold().cyan(),
             style(original_filename).bold().green()
         );
         println!();
-        println!("{}",
-            style("Note: This is a demonstration with sample data.")
-                .dim()
+        println!(
+            "{}",
+            style("Note: This is a demonstration with sample data.").dim()
         );
-        println!("{}",
+        println!(
+            "{}",
             style("In a full implementation, this would search your actual image directories.")
                 .dim()
         );
     } else {
-        println!("{}",
+        println!(
+            "{}",
             style("No matching filename found for this hash.")
                 .yellow()
                 .bold()
         );
         println!();
-        println!("{}",
-            style("The hash lookup feature would:")
-                .dim()
+        println!("{}", style("The hash lookup feature would:").dim());
+        println!(
+            "{}",
+            style("1. Scan specified directories for image files").dim()
         );
-        println!("{}",
-            style("1. Scan specified directories for image files")
-                .dim()
+        println!(
+            "{}",
+            style("2. Generate 8-character hashes for each filename").dim()
         );
-        println!("{}",
-            style("2. Generate 8-character hashes for each filename")
-                .dim()
-        );
-        println!("{}",
-            style("3. Return the original filename if hash matches")
-                .dim()
+        println!(
+            "{}",
+            style("3. Return the original filename if hash matches").dim()
         );
         println!();
-        println!("{}",
-            style("Usage: photoframe-processor --find-hash <8-char-hex>")
-                .dim()
+        println!(
+            "{}",
+            style("Usage: photoframe-processor --find-hash <8-char-hex>").dim()
         );
     }
 
@@ -139,12 +132,9 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
 
     println!(
         "{}",
-        style(format!(
-            "Decoding combined filename: {}",
-            combined_filename
-        ))
-        .bold()
-        .cyan()
+        style(format!("Decoding combined filename: {}", combined_filename))
+            .bold()
+            .cyan()
     );
     println!();
 
@@ -238,41 +228,45 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
     };
 
     // Display results
-    println!("{}",
+    println!(
+        "{}",
         style("✓ Successfully decoded combined filename:")
             .green()
             .bold()
     );
     println!();
-    println!("  {}: {} ({})",
+    println!(
+        "  {}: {} ({})",
         style("Processing Type").bold().cyan(),
         style(processing_type_desc).bold().magenta(),
         style(processing_prefix).dim()
     );
-    println!("  {}: {}",
+    println!(
+        "  {}: {}",
         style("Original 1").bold().cyan(),
         style(&first_decoded).bold().green()
     );
-    println!("  {}: {}",
+    println!(
+        "  {}: {}",
         style("Original 2").bold().cyan(),
         style(&second_decoded).bold().green()
     );
     println!();
 
     // Show the decoding process
-    println!("{}",
-        style("Decoding process:")
-            .dim()
-    );
-    println!("  {} → {} (processing type)",
+    println!("{}", style("Decoding process:").dim());
+    println!(
+        "  {} → {} (processing type)",
         style(processing_prefix).dim(),
         style(processing_type_desc).dim()
     );
-    println!("  {} → {}",
+    println!(
+        "  {} → {}",
         style(first_encoded).dim(),
         style(&first_decoded).dim()
     );
-    println!("  {} → {}",
+    println!(
+        "  {} → {}",
         style(second_encoded).dim(),
         style(&second_decoded).dim()
     );
@@ -368,7 +362,10 @@ fn main() -> Result<()> {
             } else {
                 println!("    Python script: not specified");
             }
-            println!("    Confidence threshold: {:.2}", config.confidence_threshold);
+            println!(
+                "    Confidence threshold: {:.2}",
+                config.confidence_threshold
+            );
         }
 
         // Debug mode status
@@ -436,7 +433,10 @@ fn main() -> Result<()> {
     if !config.dry_run {
         std::fs::create_dir_all(&args.output_dir).context("Failed to create output directory")?;
     } else {
-        verbose_println(config.verbose, "Dry run mode: Skipping output directory creation");
+        verbose_println(
+            config.verbose,
+            "Dry run mode: Skipping output directory creation",
+        );
     }
 
     // Store values before moving config
@@ -722,7 +722,8 @@ fn main() -> Result<()> {
                 let destination_info = if dry_run_mode {
                     // Get the first output path as an example (they all have the same stem)
                     if let Some((_, first_path)) = processing_result.output_paths.iter().next() {
-                        if let Some(dest_filename) = first_path.file_stem().and_then(|s| s.to_str()) {
+                        if let Some(dest_filename) = first_path.file_stem().and_then(|s| s.to_str())
+                        {
                             format!(" → {}", style(dest_filename).cyan())
                         } else {
                             String::new()

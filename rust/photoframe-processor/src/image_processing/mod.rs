@@ -9,8 +9,8 @@ pub mod resize;
 pub mod subject_detection;
 
 use anyhow::{Context, Result};
-use image::{Rgb, RgbImage, Rgba};
-use imageproc::drawing::{draw_filled_rect_mut, draw_hollow_rect_mut};
+use image::{Rgb, RgbImage};
+use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -145,7 +145,12 @@ impl ProcessingEngine {
             crate::cli::OutputType::Png => "png",
         };
 
-        let filename = crate::utils::create_output_filename(input_path, suffix, extension, self.config.processing_type.get_prefix());
+        let filename = crate::utils::create_output_filename(
+            input_path,
+            suffix,
+            extension,
+            self.config.processing_type.get_prefix(),
+        );
         format_dir.join(filename)
     }
 
@@ -171,7 +176,12 @@ impl ProcessingEngine {
             crate::cli::OutputType::Png => "png",
         };
 
-        let filename = create_combined_portrait_filename(left_path, right_path, extension, self.config.processing_type.get_prefix());
+        let filename = create_combined_portrait_filename(
+            left_path,
+            right_path,
+            extension,
+            self.config.processing_type.get_prefix(),
+        );
         format_dir.join(filename)
     }
 
@@ -184,13 +194,17 @@ impl ProcessingEngine {
 
         let subject_detector = if config.detect_people {
             if let Some(ref script_path) = config.python_script_path {
-                let python_path = config.python_path.clone().unwrap_or_else(|| PathBuf::from("python"));
+                let python_path = config
+                    .python_path
+                    .clone()
+                    .unwrap_or_else(|| PathBuf::from("python"));
                 verbose_println(config.verbose, "Initializing Python people detection...");
                 verbose_println(
                     config.verbose,
                     &format!("Using script: {}", script_path.display()),
                 );
-                match subject_detection::create_default_detector(script_path, python_path.as_path()) {
+                match subject_detection::create_default_detector(script_path, python_path.as_path())
+                {
                     Ok(detector) => {
                         verbose_println(
                             config.verbose,
@@ -294,20 +308,27 @@ impl ProcessingEngine {
                                         let part2 = parts[2];
 
                                         // Validate processing type prefix
-                                        let is_valid_prefix = ProcessingType::from_prefix(prefix).is_some();
+                                        let is_valid_prefix =
+                                            ProcessingType::from_prefix(prefix).is_some();
 
                                         // Check if these are 8-character hex hashes (old system) or base64 (new system)
-                                        let is_hex_system = part1.len() == 8 && part2.len() == 8
+                                        let is_hex_system = part1.len() == 8
+                                            && part2.len() == 8
                                             && part1.chars().all(|c| c.is_ascii_hexdigit())
                                             && part2.chars().all(|c| c.is_ascii_hexdigit());
 
-                                        let is_base64_system = Self::looks_like_base64(part1) && Self::looks_like_base64(part2);
+                                        let is_base64_system = Self::looks_like_base64(part1)
+                                            && Self::looks_like_base64(part2);
 
                                         if is_valid_prefix && (is_hex_system || is_base64_system) {
                                             existing_portrait_hashes.insert(part1.to_string());
                                             existing_portrait_hashes.insert(part2.to_string());
 
-                                            let system_type = if is_hex_system { "hex hashes" } else { "base64" };
+                                            let system_type = if is_hex_system {
+                                                "hex hashes"
+                                            } else {
+                                                "base64"
+                                            };
                                             verbose_println(self.config.verbose, &format!(
                                                 "Found existing combined portrait: {} (prefix: {}, contains {} {} and {})",
                                                 filename, prefix, system_type, part1, part2
@@ -331,10 +352,13 @@ impl ProcessingEngine {
                                     let hash_part = &hash_part[1..]; // Remove the underscore
 
                                     // Validate processing type prefix
-                                    let is_valid_prefix = ProcessingType::from_prefix(prefix).is_some();
+                                    let is_valid_prefix =
+                                        ProcessingType::from_prefix(prefix).is_some();
 
                                     if is_valid_prefix {
-                                        if hash_part.len() == 8 && hash_part.chars().all(|c| c.is_ascii_hexdigit()) {
+                                        if hash_part.len() == 8
+                                            && hash_part.chars().all(|c| c.is_ascii_hexdigit())
+                                        {
                                             // Prefixed 8-character hex hash (e.g., "bw_a1b2c3d4")
                                             existing_landscape_hashes.insert(hash_part.to_string());
                                             verbose_println(
@@ -362,7 +386,9 @@ impl ProcessingEngine {
                                     }
                                 } else {
                                     // Legacy format without prefix - check if it looks like a base64-encoded filename or 8-char hex hash
-                                    if stem.len() == 8 && stem.chars().all(|c| c.is_ascii_hexdigit()) {
+                                    if stem.len() == 8
+                                        && stem.chars().all(|c| c.is_ascii_hexdigit())
+                                    {
                                         // Old-style 8-character hex hash
                                         existing_landscape_hashes.insert(stem.to_string());
                                         verbose_println(
@@ -418,8 +444,10 @@ impl ProcessingEngine {
             let part2 = &combined_part[pos + 1..];
 
             // Check if both parts look like valid base64 or hex hashes
-            let part1_valid = Self::looks_like_base64(part1) || (part1.len() == 8 && part1.chars().all(|c| c.is_ascii_hexdigit()));
-            let part2_valid = Self::looks_like_base64(part2) || (part2.len() == 8 && part2.chars().all(|c| c.is_ascii_hexdigit()));
+            let part1_valid = Self::looks_like_base64(part1)
+                || (part1.len() == 8 && part1.chars().all(|c| c.is_ascii_hexdigit()));
+            let part2_valid = Self::looks_like_base64(part2)
+                || (part2.len() == 8 && part2.chars().all(|c| c.is_ascii_hexdigit()));
 
             if part1_valid && part2_valid {
                 return Some(pos);
@@ -437,14 +465,17 @@ impl ProcessingEngine {
         // - Contains only base64 characters: A-Z, a-z, 0-9, +, /, =, - (our system uses - instead of /)
         // - May end with = or == for padding
         s.len() > 8
-            && s.chars().all(|c| {
-                c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-'
-            })
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-')
             && (s.ends_with("==") || s.ends_with('=') || s.chars().all(|c| c != '='))
     }
 
     /// Find a combined file that contains the given portrait base64 filename
-    fn find_combined_file_containing_portrait(&self, output_dir: &Path, portrait_base64: &str) -> Result<Option<PathBuf>> {
+    fn find_combined_file_containing_portrait(
+        &self,
+        output_dir: &Path,
+        portrait_base64: &str,
+    ) -> Result<Option<PathBuf>> {
         // Search through all format directories
         let mut dirs_to_search = vec![output_dir.to_path_buf()];
         for format in &self.config.output_formats {
@@ -484,23 +515,32 @@ impl ProcessingEngine {
                                     let part2 = parts[2];
 
                                     if part1 == portrait_base64 || part2 == portrait_base64 {
-                                        verbose_println(self.config.verbose, &format!(
-                                            "Found portrait '{}' in combined file: {}",
-                                            portrait_base64, filename
-                                        ));
+                                        verbose_println(
+                                            self.config.verbose,
+                                            &format!(
+                                                "Found portrait '{}' in combined file: {}",
+                                                portrait_base64, filename
+                                            ),
+                                        );
                                         return Ok(Some(path));
                                     }
                                 } else {
                                     // Try legacy format for backwards compatibility
-                                    if let Some(underscore_pos) = Self::find_combined_separator(combined_part) {
-                                        let (part1, part2_with_underscore) = combined_part.split_at(underscore_pos);
+                                    if let Some(underscore_pos) =
+                                        Self::find_combined_separator(combined_part)
+                                    {
+                                        let (part1, part2_with_underscore) =
+                                            combined_part.split_at(underscore_pos);
                                         let part2 = &part2_with_underscore[1..];
 
                                         if part1 == portrait_base64 || part2 == portrait_base64 {
-                                            verbose_println(self.config.verbose, &format!(
+                                            verbose_println(
+                                                self.config.verbose,
+                                                &format!(
                                                 "Found portrait '{}' in combined file (legacy): {}",
                                                 portrait_base64, filename
-                                            ));
+                                            ),
+                                            );
                                             return Ok(Some(path));
                                         }
                                     }
@@ -618,7 +658,8 @@ impl ProcessingEngine {
             } else if existing_portrait_hashes.contains(&filename_base64) {
                 // Portrait image is already part of a combined image
                 // Find the combined file that contains this portrait base64 filename
-                let combined_path = self.find_combined_file_containing_portrait(output_dir, &filename_base64)?;
+                let combined_path =
+                    self.find_combined_file_containing_portrait(output_dir, &filename_base64)?;
 
                 if let Some(path) = combined_path {
                     skipped_results.push(SkippedResult {
@@ -1043,7 +1084,12 @@ impl ProcessingEngine {
             if self.config.dry_run {
                 verbose_println(
                     self.config.verbose,
-                    &format!("Dry run: Would save {} '{}' to {}", format_name, filename, output_path.display()),
+                    &format!(
+                        "Dry run: Would save {} '{}' to {}",
+                        format_name,
+                        filename,
+                        output_path.display()
+                    ),
                 );
             } else {
                 match format {
@@ -1187,7 +1233,12 @@ impl ProcessingEngine {
             if self.config.dry_run {
                 verbose_println(
                     self.config.verbose,
-                    &format!("Dry run: Would save {} '{}' to {}", format_name, filename, output_path.display()),
+                    &format!(
+                        "Dry run: Would save {} '{}' to {}",
+                        format_name,
+                        filename,
+                        output_path.display()
+                    ),
                 );
             } else {
                 match format {
@@ -1215,8 +1266,7 @@ impl ProcessingEngine {
 
         progress_bar.set_position(95);
 
-        verbose_println(self.config.verbose, 
-            &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
+        verbose_println(self.config.verbose, &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
 
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
@@ -1658,7 +1708,7 @@ impl ProcessingEngine {
 
         // Stage 8: Save final result (75-95%)
         progress_bar.set_position(75);
-        progress_bar.set_message(format!("Saving combined image"));
+        progress_bar.set_message("Saving combined image".to_string());
         std::thread::yield_now();
 
         // Save combined files to multiple formats (75-95%)
@@ -1687,7 +1737,13 @@ impl ProcessingEngine {
             if self.config.dry_run {
                 verbose_println(
                     self.config.verbose,
-                    &format!("Dry run: Would save {} '{}' + '{}' to {}", format_name, left_filename, right_filename, output_path.display()),
+                    &format!(
+                        "Dry run: Would save {} '{}' + '{}' to {}",
+                        format_name,
+                        left_filename,
+                        right_filename,
+                        output_path.display()
+                    ),
                 );
             } else {
                 match format {
@@ -1829,11 +1885,18 @@ impl ProcessingEngine {
             ),
         );
 
-        verbose_println(self.config.verbose,
-                        &format!("   • Original dimensions: {}x{}", rgb_img.width(), rgb_img.height()));
+        verbose_println(
+            self.config.verbose,
+            &format!(
+                "   • Original dimensions: {}x{}",
+                rgb_img.width(),
+                rgb_img.height()
+            ),
+        );
 
         // Run people detection on correctly oriented image
-        let detection_result = subject_detector.detect_people(&img, self.config.confidence_threshold)?;
+        let detection_result =
+            subject_detector.detect_people(&img, self.config.confidence_threshold)?;
 
         // For debug mode, we also need the raw JSON data from find_subject.py to draw all boxes
         let raw_detection_data = self.get_raw_detection_data(&img, subject_detector)?;
@@ -1858,13 +1921,20 @@ impl ProcessingEngine {
             if self.config.dry_run {
                 verbose_println(
                     self.config.verbose,
-                    &format!("Dry run: Would save debug image '{}' to {}", filename, output_path.display()),
+                    &format!(
+                        "Dry run: Would save debug image '{}' to {}",
+                        filename,
+                        output_path.display()
+                    ),
                 );
             } else {
                 // Ensure the debug output directory exists
                 if let Some(parent_dir) = output_path.parent() {
                     std::fs::create_dir_all(parent_dir).with_context(|| {
-                        format!("Failed to create debug output directory: {}", parent_dir.display())
+                        format!(
+                            "Failed to create debug output directory: {}",
+                            parent_dir.display()
+                        )
                     })?;
                 }
 
@@ -1934,7 +2004,6 @@ impl ProcessingEngine {
             .arg(self.config.confidence_threshold.to_string())
             .output()
             .map_err(|e| anyhow::anyhow!("Failed to execute find_subject.py: {}", e))?;
-
 
         // Clean up temporary file
         let _ = std::fs::remove_file(&temp_path);
@@ -2065,9 +2134,12 @@ impl ProcessingEngine {
         //let crop_rect = Rect::at(crop_x as i32, crop_y as i32).of_size(crop_width, crop_height);
 
         for offset in 0..6 {
-            let _offset = offset -3; // Center the thickness
+            let _offset = offset - 3; // Center the thickness
             let thick_crop_rect = Rect::at((crop_x as i32) - _offset, (crop_y as i32) - _offset)
-                .of_size((crop_width as i32 + (_offset * 2)) as u32, (crop_height as i32 + (_offset * 2)) as u32);
+                .of_size(
+                    (crop_width as i32 + (_offset * 2)) as u32,
+                    (crop_height as i32 + (_offset * 2)) as u32,
+                );
             draw_hollow_rect_mut(img, thick_crop_rect, red);
         }
 
@@ -2075,7 +2147,10 @@ impl ProcessingEngine {
             self.config.verbose,
             &format!(
                 "  🔴 Crop area: ({}, {}, {}, {})",
-                crop_x, crop_y, crop_x + crop_width, crop_y + crop_height
+                crop_x,
+                crop_y,
+                crop_x + crop_width,
+                crop_y + crop_height
             ),
         );
 
