@@ -44,7 +44,10 @@ pub mod python_yolo_integration {
     }
 
     impl PythonYolo {
-        pub fn new(script_path: &str, python_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        pub fn new(
+            script_path: &str,
+            python_path: &str,
+        ) -> Result<Self, Box<dyn std::error::Error>> {
             let script_path = Path::new(script_path);
             let python_path = python_path.to_string();
 
@@ -55,14 +58,14 @@ pub mod python_yolo_integration {
                 )
                 .into());
             }
-            
+
             if !Path::new(&python_path).exists() {
                 return Err(format!("Python interpreter not found: {}", python_path).into());
             }
 
             Ok(PythonYolo {
                 script_path: script_path.to_string_lossy().to_string(),
-                python_path, 
+                python_path,
             })
         }
 
@@ -142,7 +145,8 @@ impl SubjectDetector {
                 .to_str()
                 .ok_or_else(|| anyhow::anyhow!("Invalid script path"))?,
             python_path
-                .to_str().ok_or_else(|| anyhow::anyhow!("Invalid Python path"))?,
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid Python path"))?,
         )
         .map_err(|e| anyhow::anyhow!("Failed to initialize Python YOLO: {}", e))?;
 
@@ -156,7 +160,11 @@ impl SubjectDetector {
     /// 2. Non-maximum suppression
     /// 3. Combined bounding box calculation
     /// 4. Center point and offset computation
-    pub fn detect_people(&self, img: &RgbImage, confidence_threshold: f32) -> Result<SubjectDetectionResult> {
+    pub fn detect_people(
+        &self,
+        img: &RgbImage,
+        confidence_threshold: f32,
+    ) -> Result<SubjectDetectionResult> {
         // Save image to temporary file for Python script
         let temp_path = self.save_temp_image(img)?;
 
@@ -205,7 +213,8 @@ impl SubjectDetector {
             let global_bbox = if python_result.bounding_box[0] >= 0
                 && python_result.bounding_box[1] >= 0
                 && python_result.bounding_box[2] > python_result.bounding_box[0]
-                && python_result.bounding_box[3] > python_result.bounding_box[1] {
+                && python_result.bounding_box[3] > python_result.bounding_box[1]
+            {
                 Some((
                     python_result.bounding_box[0].max(0) as u32,
                     python_result.bounding_box[1].max(0) as u32,
@@ -216,7 +225,12 @@ impl SubjectDetector {
                 None
             };
 
-            (highest_confidence, python_result.detections.len(), individual_boxes, global_bbox)
+            (
+                highest_confidence,
+                python_result.detections.len(),
+                individual_boxes,
+                global_bbox,
+            )
         } else {
             (0.0, 0, Vec::new(), None)
         };
@@ -254,7 +268,7 @@ pub fn create_default_detector(script_path: &Path, python_path: &Path) -> Result
             script_path.display()
         ));
     }
-    
+
     if !python_path.exists() {
         return Err(anyhow::anyhow!(
             "Python interpreter not found: {}",

@@ -171,7 +171,6 @@ pub fn sanitize_filename(filename: &str) -> String {
         .to_string()
 }
 
-
 /// Encode filename to base64 and replace '/' with '-' to match auto.sh convention
 /// This matches: echo -n "$basename" | base64 -w0 | tr '/' '-'
 pub fn encode_filename_base64(filename: &str) -> String {
@@ -185,7 +184,7 @@ pub fn create_output_filename(
     input_path: &Path,
     suffix: Option<&str>,
     extension: &str,
-    processing_type_prefix: &str
+    processing_type_prefix: &str,
 ) -> String {
     let stem = input_path
         .file_stem()
@@ -195,8 +194,14 @@ pub fn create_output_filename(
     let base64_filename = encode_filename_base64(stem);
 
     match suffix {
-        Some(suffix) => format!("{}_{}__{}.{}", processing_type_prefix, base64_filename, suffix, extension),
-        None => format!("{}_{}.{}", processing_type_prefix, base64_filename, extension),
+        Some(suffix) => format!(
+            "{}_{}__{}.{}",
+            processing_type_prefix, base64_filename, suffix, extension
+        ),
+        None => format!(
+            "{}_{}.{}",
+            processing_type_prefix, base64_filename, extension
+        ),
     }
 }
 
@@ -220,7 +225,10 @@ pub fn create_combined_portrait_filename(
     let base64_file1 = encode_filename_base64(left_stem);
     let base64_file2 = encode_filename_base64(right_stem);
 
-    format!("combined_{}_{}_{}.{}", processing_type_prefix, base64_file1, base64_file2, extension)
+    format!(
+        "combined_{}_{}_{}.{}",
+        processing_type_prefix, base64_file1, base64_file2, extension
+    )
 }
 
 /// Print verbose information if verbose mode is enabled
@@ -253,7 +261,6 @@ pub fn generate_filename_hash(filename: &str) -> String {
     // Convert to hex and take first 8 characters
     format!("{:016x}", hash)[..8].to_string()
 }
-
 
 /// Calculate processing statistics
 #[allow(dead_code)]

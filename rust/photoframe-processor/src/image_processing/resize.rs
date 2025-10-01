@@ -51,7 +51,11 @@ pub fn smart_resize_with_people_detection(
         if detection.person_count > 0 && detection.bounding_box.is_some() {
             // Use enhanced algorithm with potential scaling
             let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
-                src_width, src_height, crop_width, crop_height, detection
+                src_width,
+                src_height,
+                crop_width,
+                crop_height,
+                detection,
             );
 
             if scale_factor < 1.0 {
@@ -63,12 +67,23 @@ pub fn smart_resize_with_people_detection(
                     verbose,
                     &format!(
                         "🔍 Scaling image down by {:.1}% to fit detection area ({}x{} → {}x{})",
-                        scale_factor * 100.0, src_width, src_height, new_width, new_height
+                        scale_factor * 100.0,
+                        src_width,
+                        src_height,
+                        new_width,
+                        new_height
                     ),
                 );
 
                 let scaled_img = resize_image(img, new_width, new_height)?;
-                let cropped = crop_image(&scaled_img, crop_x, crop_y, crop_width, crop_height, verbose)?;
+                let cropped = crop_image(
+                    &scaled_img,
+                    crop_x,
+                    crop_y,
+                    crop_width,
+                    crop_height,
+                    verbose,
+                )?;
                 (scaled_img, cropped)
             } else {
                 // No scaling needed, just crop with enhanced algorithm
@@ -86,7 +101,11 @@ pub fn smart_resize_with_people_detection(
                 "🎯 Using legacy center-based people-aware cropping",
             );
             let (crop_x, crop_y) = calculate_people_aware_crop_offset(
-                src_width, src_height, crop_width, crop_height, detection
+                src_width,
+                src_height,
+                crop_width,
+                crop_height,
+                detection,
             );
 
             let cropped = match crop_image(img, crop_x, crop_y, crop_width, crop_height, verbose) {
@@ -104,7 +123,8 @@ pub fn smart_resize_with_people_detection(
             (img.clone(), cropped)
         } else {
             // No people detected, use standard center cropping
-            let (crop_x, crop_y) = standard_crop_offset(src_width, src_height, crop_width, crop_height);
+            let (crop_x, crop_y) =
+                standard_crop_offset(src_width, src_height, crop_width, crop_height);
             let cropped = crop_image(img, crop_x, crop_y, crop_width, crop_height, verbose)?;
             (img.clone(), cropped)
         }
@@ -153,7 +173,8 @@ pub fn calculate_enhanced_smart_crop(
 ) -> (u32, u32, f32) {
     if detection.person_count == 0 || detection.bounding_box.is_none() {
         // No people detected, use standard center crop
-        let (crop_x, crop_y) = standard_crop_offset(src_width, src_height, target_width, target_height);
+        let (crop_x, crop_y) =
+            standard_crop_offset(src_width, src_height, target_width, target_height);
         return (crop_x, crop_y, 1.0);
     }
 
@@ -205,8 +226,14 @@ pub fn calculate_enhanced_smart_crop(
 
         // Use regular cropping approach on scaled image
         let (crop_x, crop_y) = calculate_regular_crop_from_detection_center(
-            new_width, new_height, target_width, target_height,
-            scaled_det_x_min, scaled_det_y_min, scaled_det_x_max, scaled_det_y_max
+            new_width,
+            new_height,
+            target_width,
+            target_height,
+            scaled_det_x_min,
+            scaled_det_y_min,
+            scaled_det_x_max,
+            scaled_det_y_max,
         );
 
         return (crop_x, crop_y, scale_factor);
@@ -214,8 +241,14 @@ pub fn calculate_enhanced_smart_crop(
 
     // STEP 1: Try regular center-based expansion from detection box
     let (regular_crop_x, regular_crop_y) = calculate_regular_crop_from_detection_center(
-        src_width, src_height, target_width, target_height,
-        det_x_min, det_y_min, det_x_max, det_y_max
+        src_width,
+        src_height,
+        target_width,
+        target_height,
+        det_x_min,
+        det_y_min,
+        det_x_max,
+        det_y_max,
     );
 
     // STEP 2: Check if regular crop would intersect/cut the detection box
@@ -234,8 +267,14 @@ pub fn calculate_enhanced_smart_crop(
 
     // STEP 3: Regular crop would cut the person - use smart cropping with bidirectional expansion
     let (smart_crop_x, smart_crop_y) = calculate_smart_crop_bidirectional(
-        src_width, src_height, target_width, target_height,
-        det_x_min, det_y_min, det_x_max, det_y_max
+        src_width,
+        src_height,
+        target_width,
+        target_height,
+        det_x_min,
+        det_y_min,
+        det_x_max,
+        det_y_max,
     );
 
     (smart_crop_x, smart_crop_y, 1.0)
@@ -315,7 +354,8 @@ fn calculate_smart_crop_bidirectional(
         let remaining_expansion = needed_width_expansion.saturating_sub(used_expansion);
 
         // Redistribute remaining expansion
-        let final_left_expansion = if remaining_expansion > 0 && left_expansion < max_left_expansion {
+        let final_left_expansion = if remaining_expansion > 0 && left_expansion < max_left_expansion
+        {
             (left_expansion + remaining_expansion).min(max_left_expansion)
         } else {
             left_expansion
@@ -425,7 +465,11 @@ pub fn calculate_people_aware_crop_offset(
     // Use enhanced algorithm if bounding box is available
     if detection.bounding_box.is_some() {
         let (crop_x, crop_y, _scale) = calculate_enhanced_smart_crop(
-            src_width, src_height, crop_width, crop_height, detection
+            src_width,
+            src_height,
+            crop_width,
+            crop_height,
+            detection,
         );
         return (crop_x, crop_y);
     }
@@ -884,7 +928,10 @@ mod tests {
             &detection,
         );
 
-        eprintln!("Scale test result: crop_x={}, crop_y={}, scale={}", crop_x, crop_y, scale_factor);
+        eprintln!(
+            "Scale test result: crop_x={}, crop_y={}, scale={}",
+            crop_x, crop_y, scale_factor
+        );
 
         // With new logic, we should NOT scale (we can fit 600x400 crop in 1000x800 image)
         // We just center the crop on detection and let it cut the edges
@@ -914,10 +961,10 @@ mod tests {
         };
 
         let (_crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
-            800,  // src_width
-            800,  // src_height
-            400,  // target_width
-            300,  // target_height
+            800, // src_width
+            800, // src_height
+            400, // target_width
+            300, // target_height
             &detection,
         );
 
@@ -944,10 +991,10 @@ mod tests {
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
-            800,  // src_width
-            600,  // src_height
-            400,  // target_width
-            300,  // target_height
+            800, // src_width
+            600, // src_height
+            400, // target_width
+            300, // target_height
             &detection,
         );
 
@@ -980,7 +1027,10 @@ mod tests {
             &detection,
         );
 
-        eprintln!("Face preservation test: crop_x={}, crop_y={}, scale={}", crop_x, crop_y, scale_factor);
+        eprintln!(
+            "Face preservation test: crop_x={}, crop_y={}, scale={}",
+            crop_x, crop_y, scale_factor
+        );
 
         // No scaling needed
         assert_eq!(scale_factor, 1.0);
@@ -995,7 +1045,10 @@ mod tests {
         // With face preservation: crop_y should be 750 (det_y_min) since 750 + 600 = 1350 > 1000
         // Actually we can only go to 400 max to fit in image (1000 - 600 = 400)
         // So the final position should be 400, which is the max it can be without exceeding bounds
-        assert_eq!(crop_y, 400, "crop_y should be positioned to fit in image bounds");
+        assert_eq!(
+            crop_y, 400,
+            "crop_y should be positioned to fit in image bounds"
+        );
     }
 
     #[test]
@@ -1018,7 +1071,10 @@ mod tests {
             &detection,
         );
 
-        eprintln!("Result: crop_x={}, crop_y={}, scale={}", crop_x, crop_y, scale_factor);
+        eprintln!(
+            "Result: crop_x={}, crop_y={}, scale={}",
+            crop_x, crop_y, scale_factor
+        );
 
         // Should not need scaling
         assert_eq!(scale_factor, 1.0);
