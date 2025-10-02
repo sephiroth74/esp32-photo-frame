@@ -700,15 +700,14 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, Dat
         load_fallback_config(systemConfig);
 
         // Calculate extended sleep duration (midpoint between min and max refresh intervals)
-        uint32_t fallback_sleep_seconds = systemConfig.get_fallback_sleep_seconds();
-        uint64_t fallback_sleep_microseconds = (uint64_t)fallback_sleep_seconds * MICROSECONDS_IN_SECOND;
-
-        Serial.print(F("SD card failed, entering extended sleep for "));
-        Serial.print(fallback_sleep_seconds);
-        Serial.println(F(" seconds"));
+        // uint32_t fallback_sleep_seconds = systemConfig.get_fallback_sleep_seconds();
+        // uint64_t fallback_sleep_microseconds = (uint64_t)fallback_sleep_seconds * MICROSECONDS_IN_SECOND;
+        // Serial.print(F("SD card failed, entering extended sleep for "));
+        // Serial.print(fallback_sleep_seconds);
+        // Serial.println(F(" seconds"));
 
         // Enter deep sleep immediately with extended duration
-        photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED, fallback_sleep_microseconds);
+        // photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED, fallback_sleep_microseconds);
         return error; // This line won't be reached, but included for completeness
     }
 

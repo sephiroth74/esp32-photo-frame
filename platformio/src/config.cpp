@@ -90,8 +90,8 @@
 #error "RTC_SDA_PIN and RTC_SCL_PIN must be defined when USE_RTC is enabled"
 #endif
 
-#ifndef RTC_CLASS
-#error "RTC_CLASS must be defined to specify the RTC module class (e.g., RTC_DS3231, RTC_PCF8523)"
+#if !defined(RTC_CLASS_PCF8523) && !defined(RTC_CLASS_DS3231)
+#error "RTC class must be defined: choose one of RTC_CLASS_PCF8523 or RTC_CLASS_DS3231"
 #endif // RTC_CLASS
 
 /// ESP32-C6 has I2C/WiFi coexistence issues that cause JSON parsing corruption
