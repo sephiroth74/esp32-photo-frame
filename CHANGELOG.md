@@ -5,6 +5,32 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.1] - 2025-09-29
+
+### Changed
+- **RGB Status System Simplified**: Replaced state-based color changes with continuous rainbow pulsing effect
+  - Unified visual experience with smooth rainbow color transitions
+  - Gentle pulsing/breathing animation throughout all operations
+  - More aesthetically pleasing and less distracting than color state changes
+  - Power-efficient with brightness range from 10% to 25%
+
+### Fixed
+- **Critical Include Order Issue**: Fixed board-specific configuration not being loaded before validation
+  - Moved board config include to top of config.h before any validation checks
+  - Resolved GPIO errors and crashes on boards with RGB LED support
+  - Eliminated "GPIO number error" and RMT configuration failures
+
+### Added
+- **RTC Module Class Selection**: Added configuration options for different RTC chip types
+  - Support for PCF8523 and DS3231 RTC modules
+  - Configurable via RTC_CLASS_PCF8523 or RTC_CLASS_DS3231 defines
+  - Maintains automatic NTP fallback for time synchronization
+
+### Technical Details
+- **Power Optimization**: RTC module provides ~55% daily power savings compared to NTP-only operation
+- **RGB Animation**: Smooth 120-step pulse cycle with 1024-step rainbow transition
+- **Build System**: Improved configuration validation order for robust compilation
+
 ## [v0.8.0] - 2025-09-29
 
 ### Added
