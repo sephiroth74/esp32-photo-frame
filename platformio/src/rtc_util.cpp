@@ -25,7 +25,13 @@
 #include <WiFi.h>
 
 #ifdef USE_RTC
-RTC_CLASS rtc;
+
+#if defined(RTC_CLASS_PCF8523)
+RTC_PCF8523 rtc;
+#elif defined(RTC_CLASS_DS3231)
+RTC_DS3231 rtc;
+#endif // RTC_CLASS == RTC_PCF8523
+
 #endif // USE_RTC
 
 namespace photo_frame {
@@ -74,8 +80,15 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
         }
 
     } else {
+#ifdef RTC_CLASS_PCF8523
         Serial.println(F("[rtc_util] PCF8523 RTC initialized successfully!"));
         rtc.start();
+#else
+        Serial.println(F("[rtc_util] DS3231 RTC initialized successfully!"));
+        rtc.begin();
+        #endif // RTC_CLASS == RTC_PCF8523
+        
+        rtc.disable32K(); // Disable 32kHz output to save power
         if (rtc.lostPower() || reset) {
             // Set the time to a default value if the RTC lost power
             Serial.println(F("[rtc_util] RTC lost power (or force is true), setting the time!"));
@@ -119,7 +132,9 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
             }
         }
         // Stop the RTC to save power - it will keep running internally
+#ifdef RTC_CLASS_PCF8523
         rtc.stop();
+#endif // RTC_CLASS == RTC_PCF8523
     }
 
 #else

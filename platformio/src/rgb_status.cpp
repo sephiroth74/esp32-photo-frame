@@ -153,15 +153,7 @@ void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
     effectStep = 0;
 
     Serial.print(F("[RGB] State changed to: "));
-    Serial.print((int)state);
-    Serial.print(F(" ("));
-    Serial.print(currentConfig.color.r);
-    Serial.print(F(","));
-    Serial.print(currentConfig.color.g);
-    Serial.print(F(","));
-    Serial.print(currentConfig.color.b);
-    Serial.print(F(") Effect: "));
-    Serial.println((int)currentConfig.effect);
+    Serial.println((int)state);
 }
 
 void RGBStatus::setCustomColor(const RGBColor& color,
@@ -235,67 +227,31 @@ void RGBStatus::updateEffect() {
         return;
     }
 
-    uint8_t brightness = currentConfig.brightness;
-    RGBColor color     = currentConfig.color;
+    // Always use pulsing rainbow effect regardless of state
+    // This creates a continuous, smooth rainbow that pulses gently
 
-    switch (currentConfig.effect) {
-    case RGBEffect::SOLID: setPixelColor(color, brightness); break;
+    // Get rainbow color based on current position
+    static uint16_t rainbowStep = 0;
+    RGBColor rainbowColor = rainbow(rainbowStep / 4); // Slow down rainbow transition
 
-    case RGBEffect::PULSE: {
-        uint8_t pulseBrightness = calculatePulse(effectStep, 100);
-        brightness              = (brightness * pulseBrightness) / 255;
-        setPixelColor(color, brightness);
-        effectStep = (effectStep + 1) % 100;
-        break;
-    }
+    // Calculate pulse effect (breathing animation)
+    uint8_t pulseBrightness = calculatePulse(effectStep, 120); // Slower pulse period
 
-    case RGBEffect::BLINK_SLOW:
-        if ((effectStep / 25) % 2 == 0) {
-            setPixelColor(color, brightness);
-        } else {
-            setPixelColor(RGBColors::OFF, 0);
-        }
-        effectStep = (effectStep + 1) % 100;
-        break;
+    // More pronounced pulsing: brightness varies from very dim to bright
+    // Minimum brightness: ~10% (25/255)
+    // Maximum brightness: ~25% (64/255) for power efficiency
+    uint8_t minBrightness = 25;
+    uint8_t maxBrightness = 64;
 
-    case RGBEffect::BLINK_FAST:
-        if ((effectStep / 10) % 2 == 0) {
-            setPixelColor(color, brightness);
-        } else {
-            setPixelColor(RGBColors::OFF, 0);
-        }
-        effectStep = (effectStep + 1) % 40;
-        break;
+    // Map pulse (0-255) to brightness range (minBrightness to maxBrightness)
+    uint8_t finalBrightness = minBrightness + ((maxBrightness - minBrightness) * pulseBrightness) / 255;
 
-    case RGBEffect::FADE_IN:
-        brightness = (brightness * effectStep) / 100;
-        setPixelColor(color, brightness);
-        if (effectStep < 100) {
-            effectStep++;
-        }
-        break;
+    // Set the pixel color with pulsing rainbow
+    setPixelColor(rainbowColor, finalBrightness);
 
-    case RGBEffect::FADE_OUT:
-        brightness = (brightness * (100 - effectStep)) / 100;
-        setPixelColor(color, brightness);
-        if (effectStep < 100) {
-            effectStep++;
-        } else {
-            turnOff();
-        }
-        break;
-
-    case RGBEffect::RAINBOW: {
-        RGBColor rainbowColor = rainbow(effectStep);
-        brightness            = currentConfig.brightness;
-        setPixelColor(rainbowColor, brightness);
-        effectStep = (effectStep + 1) % 256;
-        break;
-    }
-
-    case RGBEffect::OFF:
-    default:             setPixelColor(RGBColors::OFF, 0); break;
-    }
+    // Update animation steps
+    effectStep = (effectStep + 1) % 120;  // Pulse cycle
+    rainbowStep = (rainbowStep + 1) % 1024;  // Rainbow cycle (slower with /4)
 }
 
 void RGBStatus::setPixelColor(const RGBColor& color, uint8_t brightness) {

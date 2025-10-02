@@ -2,16 +2,11 @@
 
 // Configuration for Unexpected Maker FeatherS3 (ESP32-S3)
 // Pin definitions based on FeatherS3 pinout
-// https://feathers3.io/pinout.html
+// https://esp32s3.com/feathers3.html
 
 // -------------------------------------------
 // OTA Update Configuration
 // -------------------------------------------
-
-// #define OTA_SERVER_URL "http://192.168.188.100:8000/"
-// #define OTA_VERSION_ENDPOINT "version.json"
-
-
 
 
 #define OTA_USE_SSL true // Use HTTPS for secure updates
@@ -55,6 +50,12 @@
 #define RGB_LED_PIN     40  // GPIO40 - Built-in RGB NeoPixel
 #define RGB_LED_COUNT   1   // Single RGB LED
 // #define LED_PWR_PIN 39      // Led power control pin (GPIO39)
+
+// PCF8523 RTC - shares I2C bus with battery fuel gauge
+#define RTC_SDA_PIN 8 // IO8 - I2C SDA for RTC (shared with battery fuel gauge)
+#define RTC_SCL_PIN 9 // IO9 - I2C SCL for RTC (shared with battery fuel gauge)
+// RTC Class definition for DS3231
+#define RTC_CLASS_DS3231
 
 // External wakeup configuration
 #define WAKEUP_EXT0

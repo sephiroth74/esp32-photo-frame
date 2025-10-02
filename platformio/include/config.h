@@ -119,7 +119,8 @@
 // #define USE_RTC           // Enable external RTC module for timekeeping
 // #define RTC_SDA_PIN   A4  // I2C data pin for RTC module
 // #define RTC_SCL_PIN   A5  // I2C clock pin for RTC module
-// #define RTC_CLASS     RTC_DS3231  // RTC class to use (e.g., RTC_DS3231, RTC_PCF8523)
+// #define RTC_CLASS_PCF8523  // Uncomment if using PCF8523 RTC
+// #define RTC_CLASS_DS3231   // Uncomment if using DS3231 RTC
 
 // ----------------------------------------------------------------------------
 // User Interface Hardware

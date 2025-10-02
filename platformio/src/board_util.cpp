@@ -43,15 +43,6 @@ namespace board_utils {
         btStop(); // Stop Bluetooth to save power
         esp_bt_controller_disable(); // Disable Bluetooth controller
 
-// These are not valid on ESP32-C6 and ESP32-H2
-#if !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2)
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TOUCHPAD); // Disable touchpad wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO); // Disable GPIO wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_UART); // Disable UART wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_WIFI); // Disable WiFi wakeup source
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_BT); // Disable Bluetooth wakeup source
-#endif // !ESP32C6 && !ESP32H2
-
 #if defined(WAKEUP_EXT1)
         Serial.println(F("[board_util] Configuring EXT1 wakeup on RTC IO pin..."));
 
