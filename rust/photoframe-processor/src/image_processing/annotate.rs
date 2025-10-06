@@ -446,7 +446,7 @@ fn extract_date_from_filename(filename: &str) -> Option<String> {
 /// Parse hex color string to RGB values
 ///
 /// Supports formats: #RGB, #RRGGBB, #RRGGBBAA
-fn parse_hex_color(color_str: &str) -> Result<(u8, u8, u8, u8)> {
+pub fn parse_hex_color(color_str: &str) -> Result<(u8, u8, u8, u8)> {
     if !color_str.starts_with('#') {
         return Err(anyhow::anyhow!("Color must start with #"));
     }

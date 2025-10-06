@@ -5,6 +5,53 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.0] - 2025-01-09
+
+### Added
+- **PSRAM Framework Detection**: Improved PSRAM initialization with automatic framework detection
+  - Uses `psramFound()` to check if PSRAM is already initialized by the framework
+  - Automatic restart on PSRAM failure for mandatory boards
+  - Reports both total and free PSRAM for better memory monitoring
+
+- **Enhanced Google Drive Debugging**: Comprehensive error reporting for OAuth authentication
+  - Detailed HTTP 400 error analysis with specific OAuth error detection
+  - JWT timestamp validation to detect system clock issues
+  - System time validation (2020-2100 range) with warning messages
+  - DEBUG_GOOGLE_DRIVE flag enabled for detailed troubleshooting
+
+### Fixed
+- **WiFi Disconnect Crash**: Fixed race condition causing "Guru Meditation Error" during WiFi disconnect
+  - Added proper connection state check before disconnect
+  - Added delays to ensure pending WiFi operations complete
+  - Prevents LoadProhibited exception in WiFi event handler
+
+- **PSRAM Heap Integration**: Fixed "Failed to add PSRAM to heap: ESP_FAIL" error
+  - Removed deprecated `esp_spiram_add_to_heapalloc()` call
+  - PSRAM now automatically added to heap via CONFIG_SPIRAM_USE_MALLOC
+  - Added CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY for better utilization
+
+- **Error Reporting Preservation**: Fixed access token errors being masked by local TOC fallback
+  - Added `last_error` tracking in google_drive class
+  - Original OAuth errors now properly preserved and reported
+  - Prevents misleading "JSON Parse Failed" error when actual issue is authentication
+
+### Changed
+- **ProS3(d) Configuration**: Enhanced board configuration with proper PSRAM flags
+  - Added missing PSRAM configuration flags for reliable memory management
+  - Configured for 16MB flash and 8MB PSRAM
+  - Enabled proper memory type settings for ESP32-S3
+
+### Technical Details
+- **Memory Management**: Improved PSRAM handling for ESP32-S3 boards
+  - Automatic PSRAM detection and configuration
+  - Proper memory allocation with MALLOC_CAP_SPIRAM
+  - Stack allocation for WiFiClientSecure to prevent memory corruption
+
+- **Error Diagnostics**: Enhanced troubleshooting capabilities
+  - OAuth error differentiation (invalid_grant, invalid_client, invalid_request)
+  - System clock validation for JWT generation
+  - Comprehensive debug output for Google Drive API operations
+
 ## [v0.8.1] - 2025-09-29
 
 ### Changed

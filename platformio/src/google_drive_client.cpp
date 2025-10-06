@@ -396,8 +396,26 @@ String google_drive_client::create_jwt() {
     serializeJson(hdr, hdrStr);
     String hdrB64      = base64url(hdrStr);
     time_t now         = time(NULL);
+
+    // Validate system time is reasonable (between 2020 and 2100)
+    if (now < 1577836800 || now > 4102444800) {  // Unix timestamps for 2020 and 2100
+        Serial.print(F("[google_drive_client] ERROR: System time is invalid: "));
+        Serial.println(now);
+        Serial.println(F("[google_drive_client] JWT will likely fail due to invalid timestamps"));
+        Serial.println(F("[google_drive_client] Check RTC module or NTP sync"));
+    }
+
     const uint32_t iat = (uint32_t)now;
     const uint32_t exp = iat + 3600;
+
+#ifdef DEBUG_GOOGLE_DRIVE
+    Serial.print(F("[google_drive_client] JWT timestamps - iat: "));
+    Serial.print(iat);
+    Serial.print(F(" ("));
+    Serial.print(now);
+    Serial.print(F("), exp: "));
+    Serial.println(exp);
+#endif
     StaticJsonDocument<384> claims;
     claims["iss"]   = config->serviceAccountEmail;
     claims["scope"] = SCOPE;
@@ -479,6 +497,15 @@ photo_frame_error_t google_drive_client::get_access_token() {
         http.addHeader("Content-Type", "application/x-www-form-urlencoded");
         http.addHeader("User-Agent", "ESP32-PhotoFrame");
 
+#ifdef DEBUG_GOOGLE_DRIVE
+        Serial.print(F("[google_drive_client] POST "));
+        Serial.println(tokenUrl);
+        Serial.print(F("[google_drive_client] Request body length: "));
+        Serial.println(body.length());
+        Serial.print(F("[google_drive_client] Request body: "));
+        Serial.println(body);
+#endif // DEBUG_GOOGLE_DRIVE
+
         int httpCode = http.POST(body);
 
         if (httpCode > 0) {
@@ -539,6 +566,32 @@ photo_frame_error_t google_drive_client::get_access_token() {
             Serial.print(F("[google_drive_client] Permanent failure (HTTP "));
             Serial.print(statusCode);
             Serial.println(F("), not retrying"));
+
+            // Special handling for HTTP 400 - Bad Request
+            if (statusCode == 400) {
+                Serial.println(F("[google_drive_client] HTTP 400 Bad Request - Debugging info:"));
+                Serial.print(F("[google_drive_client] Response body: "));
+                Serial.println(responseBody);
+
+                // Check for specific OAuth errors
+                if (responseBody.indexOf("invalid_grant") >= 0) {
+                    Serial.println(F("[google_drive_client] Error: invalid_grant - Service account may not have access or credentials are incorrect"));
+                } else if (responseBody.indexOf("invalid_client") >= 0) {
+                    Serial.println(F("[google_drive_client] Error: invalid_client - Client ID or private key may be incorrect"));
+                } else if (responseBody.indexOf("invalid_request") >= 0) {
+                    Serial.println(F("[google_drive_client] Error: invalid_request - JWT format or claims may be incorrect"));
+                }
+
+                // Log JWT creation time to check for clock skew
+                Serial.print(F("[google_drive_client] System time: "));
+                Serial.println(time(NULL));
+                Serial.println(F("[google_drive_client] Note: HTTP 400 can be caused by:"));
+                Serial.println(F("  1. Invalid service account credentials"));
+                Serial.println(F("  2. System clock too far off (check RTC time)"));
+                Serial.println(F("  3. Malformed JWT or missing required claims"));
+                Serial.println(F("  4. Service account doesn't have access to Google Drive API"));
+            }
+
             // Return specific error based on failure type and status code
             return photo_frame::error_utils::map_google_drive_error(
                 statusCode, responseBody.c_str(), "OAuth token request");

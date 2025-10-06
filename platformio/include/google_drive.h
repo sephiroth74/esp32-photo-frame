@@ -55,7 +55,8 @@ class google_drive {
     google_drive() :
         client(google_drive_client_config{}),
         config{},
-        last_image_source(IMAGE_SOURCE_LOCAL_CACHE) {}
+        last_image_source(IMAGE_SOURCE_LOCAL_CACHE),
+        last_error(error_type::None) {}
 
 
     /**
@@ -233,6 +234,12 @@ class google_drive {
                                            photo_frame_error_t* error = nullptr);
 
     /**
+     * @brief Get the last error that occurred during operations
+     * @return Last error code
+     */
+    photo_frame_error_t get_last_error() const { return last_error; }
+
+    /**
      * @brief Save the current access token to SD card
      * @return Error code indicating success or failure
      */
@@ -256,6 +263,7 @@ class google_drive {
     google_drive_client client;       ///< Google Drive client for API operations
     unified_config::google_drive_config config;  ///< Configuration settings for this Google Drive instance
     image_source_t last_image_source; ///< Source of the last accessed/downloaded image
+    photo_frame_error_t last_error;   ///< Last error that occurred during operations
 };
 
 } // namespace photo_frame

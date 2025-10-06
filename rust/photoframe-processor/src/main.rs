@@ -301,6 +301,11 @@ fn main() -> Result<()> {
     // Validate inputs (skip for hash lookup mode)
     validate_inputs(&args)?;
 
+    // Parse divider color
+    let divider_color_rgba = image_processing::annotate::parse_hex_color(&args.divider_color)
+        .with_context(|| format!("Invalid divider color: {}", args.divider_color))?;
+    let divider_color = image::Rgb([divider_color_rgba.0, divider_color_rgba.1, divider_color_rgba.2]);
+
     // Create processing configuration
     let config = ProcessingConfig {
         processing_type: args.processing_type.clone().into(),
@@ -334,6 +339,9 @@ fn main() -> Result<()> {
         dry_run: args.dry_run,
         // Confidence threshold for people detection
         confidence_threshold: args.confidence_threshold,
+        // Portrait combination divider settings
+        divider_width: args.divider_width,
+        divider_color,
     };
 
     if config.verbose {
@@ -381,6 +389,14 @@ fn main() -> Result<()> {
             } else {
                 "disabled"
             }
+        );
+
+        // Portrait combination divider settings
+        println!("  Portrait divider:");
+        println!("    Width: {} pixels", config.divider_width);
+        println!(
+            "    Color: RGB({}, {}, {})",
+            config.divider_color[0], config.divider_color[1], config.divider_color[2]
         );
 
         // Color correction status

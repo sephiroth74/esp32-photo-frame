@@ -75,3 +75,5 @@
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 #define LOCALE it_IT
+
+#define ENABLE_GxEPD2_GFX_DEBUG 1

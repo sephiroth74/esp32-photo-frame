@@ -104,11 +104,12 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 /**
  * @brief Setup time synchronization via WiFi and NTP
  * @param battery_info Battery information for power conservation decisions
+ * @param is_reset Whether this is a reset/startup (affects NTP sync behavior)
  * @param now Reference to store current DateTime
  * @return Error state after time/WiFi operations
  */
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, DateTime& now);
+setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, bool is_reset, DateTime& now);
 
 /**
  * @brief Handle weather data fetching with WiFi connection management
@@ -161,8 +162,7 @@ process_image_file(fs::File& file,
     uint32_t image_index,
     uint32_t total_files,
     const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager
-);
+    photo_frame::weather::WeatherManager& weatherManager);
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep
@@ -200,8 +200,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     uint32_t total_files,
     photo_frame::google_drive& drive,
     const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager
-);
+    photo_frame::weather::WeatherManager& weatherManager);
 
 void setup()
 {
@@ -242,7 +241,7 @@ void setup()
     DateTime now = DateTime((uint32_t)0);
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
-        error = setup_time_and_connectivity(battery_info, now);
+        error = setup_time_and_connectivity(battery_info, is_reset, now);
     }
 
 #ifdef OTA_UPDATE_ENABLED
@@ -303,7 +302,15 @@ void setup()
             is_reset, file, original_filename, image_index, total_files, battery_info);
     }
 
-    wifiManager.disconnect(); // Disconnect from WiFi to save power
+    // Safely disconnect WiFi with proper cleanup
+    if (wifiManager.is_connected()) {
+        Serial.println(F("Disconnecting WiFi to save power..."));
+        // Add small delay to ensure pending WiFi operations complete
+        delay(100);
+        wifiManager.disconnect();
+        // Wait for disconnect to complete
+        delay(200);
+    }
 
     Serial.println(F("WiFi operations complete - using NTP-only time"));
 
@@ -353,8 +360,7 @@ void setup()
             image_index,
             total_files,
             battery_info,
-            weatherManager
-        );
+            weatherManager);
     }
 
     // Finalize and enter sleep - show sleep preparation with delay
@@ -381,8 +387,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     uint32_t total_files,
     photo_frame::google_drive& drive,
     const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager
-)
+    photo_frame::weather::WeatherManager& weatherManager)
 {
     photo_frame::photo_frame_error_t error = current_error;
     const char* img_filename = file.name(); // Used for logging temp filename
@@ -539,7 +544,24 @@ bool initialize_hardware()
 
     startupTime = millis();
 
-    delay(1000);
+    if (Serial.isConnected()) {
+        Serial.println();
+        Serial.println(F("Serial connected"));
+        delay(1000);
+    } else {
+        // Wait for serial connection for up to 5 seconds
+        Serial.println();
+        Serial.println(F("Waiting for serial connection..."));
+        unsigned long startWait = millis();
+        while (!Serial.isConnected() && (millis() - startWait < 1000)) {
+            delay(100);
+        }
+        if (Serial.isConnected()) {
+            Serial.println(F("Serial connected"));
+        } else {
+            Serial.println(F("Serial not connected - proceeding without serial output"));
+        }
+    }
 
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
@@ -551,24 +573,40 @@ bool initialize_hardware()
 
     // PSRAM initialization (mandatory)
     Serial.println(F("[PSRAM] Initializing PSRAM..."));
-    esp_err_t ret = esp_spiram_init();
-    if (ret != ESP_OK) {
-        Serial.print(F("[PSRAM] CRITICAL: Failed to initialize PSRAM: "));
-        Serial.println(esp_err_to_name(ret));
-        Serial.println(F("[PSRAM] PSRAM is required for this board configuration!"));
-        // Continue but report the error
-    } else {
-        Serial.println(F("[PSRAM] PSRAM initialized successfully"));
 
-        // Add PSRAM to heap allocator
-        ret = esp_spiram_add_to_heapalloc();
+    // Check if PSRAM is already initialized by the framework
+    if (psramFound()) {
+        Serial.println(F("[PSRAM] PSRAM already initialized by framework"));
+        Serial.print(F("[PSRAM] Available PSRAM: "));
+        Serial.print(ESP.getPsramSize());
+        Serial.println(F(" bytes"));
+        Serial.print(F("[PSRAM] Free PSRAM: "));
+        Serial.print(ESP.getFreePsram());
+        Serial.println(F(" bytes"));
+    } else {
+        // Try manual initialization if not already done
+        esp_err_t ret = esp_spiram_init();
         if (ret != ESP_OK) {
-            Serial.print(F("[PSRAM] Failed to add PSRAM to heap: "));
+            Serial.print(F("[PSRAM] CRITICAL: Failed to initialize PSRAM: "));
             Serial.println(esp_err_to_name(ret));
+            Serial.println(F("[PSRAM] PSRAM is required for this board configuration!"));
+            Serial.println(F("[PSRAM] System will likely crash due to memory constraints"));
+            // For ProS3(d) and other PSRAM-mandatory boards, we should halt
+            #ifdef BOARD_HAS_PSRAM
+                ESP.restart(); // Restart to try again
+            #endif
         } else {
-            Serial.println(F("[PSRAM] PSRAM added to heap successfully"));
+            Serial.println(F("[PSRAM] PSRAM initialized successfully"));
+
+            // Note: esp_spiram_add_to_heapalloc() is deprecated in newer ESP-IDF
+            // PSRAM should be automatically added to heap with CONFIG_SPIRAM_USE_MALLOC
+            // which is set in platformio.ini via board_build.arduino.memory_type
+
             Serial.print(F("[PSRAM] Available PSRAM: "));
             Serial.print(ESP.getPsramSize());
+            Serial.println(F(" bytes"));
+            Serial.print(F("[PSRAM] Free PSRAM: "));
+            Serial.print(ESP.getFreePsram());
             Serial.println(F(" bytes"));
         }
     }
@@ -656,7 +694,7 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 }
 
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, DateTime& now)
+setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, bool is_reset, DateTime& now)
 {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
@@ -723,7 +761,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, Dat
             Serial.println(F("Fetching time from NTP servers..."));
             error = wifiManager.connect();
             if (error == photo_frame::error_type::None) {
-                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, false, &error);
+                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, is_reset, &error);
             }
         } else {
             Serial.println(F("WiFi initialization failed"));
@@ -1033,7 +1071,13 @@ handle_google_drive_operations(bool is_reset,
                     Serial.println(error.code);
                 }
             } else {
-                if (tocError != photo_frame::error_type::None) {
+                // Check if there was an error during TOC retrieval (e.g., access token failure)
+                photo_frame::photo_frame_error_t lastDriveError = drive.get_last_error();
+                if (lastDriveError != photo_frame::error_type::None) {
+                    Serial.print(F("Failed to retrieve TOC. Error code: "));
+                    Serial.println(lastDriveError.code);
+                    error = lastDriveError;
+                } else if (tocError != photo_frame::error_type::None) {
                     Serial.print(F("Failed to read TOC file count. Error code: "));
                     Serial.println(tocError.code);
                     error = tocError;
@@ -1060,8 +1104,7 @@ process_image_file(fs::File& file,
     uint32_t image_index,
     uint32_t total_files,
     const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager
-)
+    photo_frame::weather::WeatherManager& weatherManager)
 {
     photo_frame::photo_frame_error_t error = current_error;
 
@@ -1077,8 +1120,7 @@ process_image_file(fs::File& file,
             total_files,
             drive,
             battery_info,
-            weatherManager
-        );
+            weatherManager);
     }
 
     if (file) {

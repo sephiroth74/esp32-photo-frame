@@ -77,6 +77,9 @@ namespace photo_frame {
 size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode) {
     logMemoryUsage("TOC Retrieve Start");
 
+    // Clear any previous error
+    last_error = error_type::None;
+
     // Build TOC path using optimized utility function
     String tocFullPath        = get_toc_file_path();
     String tocDataPath        = get_toc_file_path();
@@ -157,12 +160,26 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
         }
 
         if (error != error_type::None) {
+            // Store the original access token error
+            photo_frame_error_t original_error = error;
 
             // Fallback to local TOC if available and not forced
             if (localTocExists) {
                 Serial.println(F("[google_drive] Falling back to cached TOC file"));
-                return get_toc_file_count(sdCard, tocFullPath);
+                photo_frame_error_t toc_error = error_type::None;
+                size_t count = get_toc_file_count(sdCard, tocFullPath, &toc_error);
+
+                if (count == 0 && toc_error != error_type::None) {
+                    // Local TOC also failed - report the original access token error instead
+                    Serial.print(F("[google_drive] Both access token and local TOC failed. Original error: "));
+                    Serial.println(original_error.code);
+                    // Store the original error so it can be retrieved later
+                    last_error = original_error;
+                }
+                return count;
             }
+            // Store the error so it can be retrieved later
+            last_error = error;
             return 0; // Return 0 on error
         }
 
