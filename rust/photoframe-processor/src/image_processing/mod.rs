@@ -82,6 +82,9 @@ pub struct ProcessingConfig {
     pub dry_run: bool,
     // Confidence threshold for people detection
     pub confidence_threshold: f32,
+    // Portrait combination divider settings
+    pub divider_width: u32,
+    pub divider_color: Rgb<u8>,
 }
 
 pub struct ProcessingEngine {
@@ -1703,6 +1706,8 @@ impl ProcessingEngine {
             &right_annotated,
             self.config.target_width,
             self.config.target_height,
+            self.config.divider_width,
+            self.config.divider_color,
         )?;
         progress_bar.set_position(75); // Combining complete
 

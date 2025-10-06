@@ -1,11 +1,11 @@
 # ESP32 Photo Frame - Rust Image Processor
 
-A high-performance Rust implementation of the image processing pipeline for ESP32-based e-paper photo frames. This tool provides significant performance improvements over the original bash/ImageMagick pipeline while adding advanced features like YOLO11-based people detection for smart cropping.
+A high-performance Rust implementation of the image processing pipeline for ESP32-based e-paper photo frames. This tool provides optimized processing with advanced features like YOLO11-based people detection for smart cropping.
 
 ## 🚀 Key Features
 
 ### Performance & Efficiency
-- **5-10x faster processing** than bash scripts
+- **5-10x faster processing** with optimized algorithms
 - **Parallel batch processing** with progress tracking
 - **Memory-efficient** operations with streaming support
 - **Cross-platform** support (macOS, Linux, Windows)
@@ -78,11 +78,7 @@ To enable YOLO people detection:
 ### YOLO11 Model Setup (for AI features)
 
 1. **Download YOLO11 model**:
-   The YOLO11 nano model (`yolo11n.onnx`) is included in the project assets. If you need to update or use a different model:
-   ```bash
-   # The model file should be placed in scripts/private/assets/
-   # Default location: scripts/private/assets/yolo11n.onnx
-   ```
+   The YOLO11 nano model (`yolo11n.onnx`) needs to be obtained separately and placed in your preferred location. You can then specify the path using the `--python-script` parameter.
 
 2. **Verify installation**:
    ```bash
@@ -126,16 +122,17 @@ photoframe-processor \
 ### AI-Powered People Detection (YOLO11)
 
 ```bash
-# Enable YOLO11 people detection with custom thresholds
+# Enable YOLO11 people detection (requires custom detection script)
+# Note: You need to provide your own find_subject.py script that outputs JSON
 photoframe-processor -i ~/Photos -o ~/processed \
   --detect-people \
-  --python-script ./scripts/private/find_subject.py \
+  --python-script ~/path/to/your/find_subject.py \
   --auto --verbose
 
 # People detection with detailed statistics and multiple formats
 photoframe-processor -i ~/family-photos -o ~/processed \
   --detect-people \
-  --python-script ./scripts/private/find_subject.py \
+  --python-script ~/path/to/your/find_subject.py \
   --output-format bmp,bin,png \
   --verbose  # Shows detection statistics
 ```
@@ -157,7 +154,7 @@ photoframe-processor -i ~/Photos --validate-only --verbose
 
 # Debug mode: visualize detection boxes and crop areas
 photoframe-processor -i ~/Photos -o ~/processed --detect-people \
-  --python-script ./scripts/private/find_subject.py --debug --verbose
+  --python-script ~/path/to/your/find_subject.py --debug --verbose
 ```
 
 ## ⚙️ Configuration Options
@@ -198,15 +195,15 @@ photoframe-processor -i ~/Photos -o ~/processed --detect-people \
 - `--auto` - Enable automatic orientation handling
 - `--verbose` - Show detailed processing information
 
-## 📊 Performance Comparison
+## 📊 Performance Characteristics
 
-| Feature | Bash/ImageMagick | Rust Processor | Improvement |
-|---------|------------------|----------------|-------------|
-| **Processing Speed** | ~2.5s per image | ~0.3s per image | **8.3x faster** |
-| **Memory Usage** | ~150MB peak | ~45MB peak | **3.3x less** |
-| **Parallel Processing** | Limited | Full CPU utilization | **N-core scaling** |
-| **Font Rendering** | Basic | True font support | **Quality improvement** |
-| **People Detection** | None | YOLO-based | **New feature** |
+| Feature | Specification |
+|---------|---------------|
+| **Processing Speed** | ~0.3s per image |
+| **Memory Usage** | ~45MB peak |
+| **Parallel Processing** | Full CPU utilization with N-core scaling |
+| **Font Rendering** | True font support with system fonts |
+| **People Detection** | YOLO11-based smart cropping |
 
 ## 🧠 AI Features Deep Dive
 
@@ -327,10 +324,10 @@ The processor generates ESP32-optimized binary files:
 
 ### Compatibility
 
-- **Drop-in replacement** for bash processing scripts
-- **Same output format** as original pipeline
-- **Compatible file naming** conventions
+- **ESP32 compatible output** formats
+- **Standard file naming** conventions
 - **Preserves EXIF orientation** handling
+- **Cross-platform** support
 
 ## 🚨 Troubleshooting
 
@@ -348,15 +345,14 @@ photoframe-processor --font "Arial" ...  # Try common fonts
 
 **YOLO11 model errors**:
 ```bash
-# Verify model file exists
-ls -la scripts/private/assets/
-# Should show: yolo11n.onnx and coco.names
+# Verify your custom detection script exists and is executable
+ls -la ~/path/to/your/find_subject.py
 
 # Check file permissions
-chmod 644 scripts/private/assets/*
+chmod +x ~/path/to/your/find_subject.py
 
 # Test with Python script directly
-python scripts/private/find_subject.py --image test.jpg --model scripts/private/assets/yolo11n.onnx
+python ~/path/to/your/find_subject.py --image test.jpg --model ~/path/to/your/yolo11n.onnx
 ```
 
 **Memory issues with large batches**:

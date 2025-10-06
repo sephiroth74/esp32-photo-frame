@@ -150,6 +150,22 @@ pub struct Args {
     )]
     pub annotate_background: String,
 
+    /// Width of the divider line between combined portrait images in pixels
+    #[arg(
+        long = "divider-width",
+        default_value = "3",
+        value_name = "WIDTH"
+    )]
+    pub divider_width: u32,
+
+    /// Color of the divider line between combined portrait images (hex RGB, e.g., #FFFFFF for white)
+    #[arg(
+        long = "divider-color",
+        default_value = "#FFFFFF",
+        value_name = "COLOR"
+    )]
+    pub divider_color: String,
+
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
     #[arg(short = 'j', long = "jobs", default_value = "0", value_name = "N")]
     pub jobs: usize,
@@ -161,10 +177,6 @@ pub struct Args {
     /// Skip processing and only validate input files
     #[arg(long = "validate-only")]
     pub validate_only: bool,
-
-    /// Benchmark mode: compare processing time against bash auto.sh
-    #[arg(long = "benchmark")]
-    pub benchmark: bool,
 
     /// Enable people detection for smart cropping using find_subject.py script
     #[arg(long = "detect-people")]
@@ -389,7 +401,6 @@ impl Default for Args {
             jobs: 0,
             verbose: false,
             validate_only: false,
-            benchmark: false,
             detect_people: false,
             python_script_path: None,
             python_path: None,
@@ -401,6 +412,8 @@ impl Default for Args {
             auto_color_correct: false,
             dry_run: false,
             confidence_threshold: 0.6,
+            divider_width: 3,
+            divider_color: "#FFFFFF".to_string(),
         }
     }
 }

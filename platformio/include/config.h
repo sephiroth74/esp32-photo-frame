@@ -40,9 +40,9 @@
 
 /// Current firmware version components (used for version comparison and OTA updates)
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  8
-#define FIRMWARE_VERSION_PATCH  1
-#define FIRMWARE_VERSION_STRING "v0.8.1"
+#define FIRMWARE_VERSION_MINOR  9
+#define FIRMWARE_VERSION_PATCH  0
+#define FIRMWARE_VERSION_STRING "v0.9.0"
 
 /// Minimum supported version for OTA compatibility
 /// Devices with firmware older than this version must be manually updated
@@ -314,7 +314,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 /// Component-specific debug flags
 // #define DEBUG_RENDERER            // Enable renderer debug output
 // #define DEBUG_DATETIME_UTILS      // Enable date/time utilities debug output
-// #define DEBUG_GOOGLE_DRIVE        // Enable Google Drive API debug output
+#define DEBUG_GOOGLE_DRIVE        // Enable Google Drive API debug output
 // #define DEBUG_MEMORY_USAGE        // Enable memory usage monitoring
 // #define DEBUG_BATTERY_READER      // Enable battery monitoring debug output
 // #define DEBUG_WEATHER             // Enable weather API debug output

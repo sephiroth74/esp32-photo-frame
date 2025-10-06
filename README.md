@@ -134,18 +134,20 @@ The FeatherS3 version includes a comprehensive RGB status system using the built
 
    Images must be converted to the ESP32-compatible format and uploaded to Google Drive using:
 
-   **📋 [Complete Image Processing Guide](docs/image_processing.md)** - Comprehensive documentation for the `auto.sh` script and all helper tools
+   **📋 [Rust Image Processor](rust/photoframe-processor/)** - High-performance image processing tool
 
    ```bash
    # Black & white processing (800x480 display)
-   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
+   ./rust/photoframe-processor/target/release/photoframe-processor \
+     -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
 
    # 6-color processing with custom fonts
-   ./scripts/auto.sh -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png,heic --auto \
-     --font "Arial-Bold" --pointsize 32
+   ./rust/photoframe-processor/target/release/photoframe-processor \
+     -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png,heic \
+     --auto --font "Arial-Bold" --pointsize 32
    ```
 
-   **Alternative: Android App (NEW)**
+   **Alternative: Android App**
    
    Use the Android PhotoFrameProcessor app located in `android/PhotoFrameProcessor/` for a user-friendly GUI to process images with:
    - AI-powered person detection and smart cropping

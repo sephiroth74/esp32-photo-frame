@@ -1,464 +1,126 @@
-# ESP32 Photo Frame - Image Processing Scripts Documentation
-
-This document provides comprehensive technical documentation for the image processing scripts used to convert photos into e-paper display-compatible formats for the ESP32 Photo Frame project.
+# ESP32 Photo Frame - Image Processing Documentation
 
 ## Overview
 
-The image processing system converts regular photos (JPEG, PNG, HEIC, etc.) into optimized BMP and binary files suitable for e-paper displays. The system handles both portrait and landscape orientations intelligently, combining portrait images side-by-side and applying smart annotations.
+The image processing system converts regular photos (JPEG, PNG, HEIC, etc.) into optimized BMP and binary files suitable for e-paper displays.
 
-## Main Entry Point: `auto.sh`
+## Image Processing Tools
 
-### Location
-`scripts/auto.sh`
+### Rust Image Processor (Recommended)
 
-### Purpose
-The main orchestration script that processes entire directories of images, handling orientation detection, portrait pairing, format conversion, and binary generation in a single automated workflow.
+The high-performance Rust implementation provides fast, efficient image processing with advanced features:
 
-### Usage
+📋 **[Rust Photoframe Processor Documentation](../rust/photoframe-processor/README.md)**
 
+Features:
+- 5-10x faster processing with optimized algorithms
+- Parallel batch processing
+- Smart portrait pairing
+- AI-powered person detection for intelligent cropping
+- Multi-format output (BMP, Binary, JPG, PNG)
+- Customizable divider for combined portraits
+- EXIF orientation handling
+- Floyd-Steinberg dithering
+
+Quick example:
 ```bash
-# Basic usage - Black & white processing
-./scripts/auto.sh -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
+# Black & white processing
+./rust/photoframe-processor/target/release/photoframe-processor \
+  -i ~/Photos -o ~/processed -t bw -s 800x480 --auto
 
-# 6-color processing with verbose output
-./scripts/auto.sh -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png,heic --auto -v
-
-# Multiple input directories
-./scripts/auto.sh -i ~/Photos/2023 -i ~/Photos/2024 -o ~/processed_images -t bw -s 800x480 --auto
-
-# Custom font and annotation settings
-./scripts/auto.sh -i ~/Photos -o ~/processed_images -t bw -s 800x480 \
-  --font "Arial-Bold" --pointsize 32 --annotate_background "#FF000080" --auto
+# 6-color with custom divider
+./rust/photoframe-processor/target/release/photoframe-processor \
+  -i ~/Photos -o ~/processed -t 6c -s 800x480 \
+  --divider-width 5 --divider-color "#FF0000" --auto
 ```
 
-### Command Line Options
+### Android App
 
-| Option | Required | Description | Default |
-|--------|----------|-------------|---------|
-| `-i, --input <directory>` | ✅ | Input directory containing images (can be specified multiple times) | - |
-| `-o, --output <directory>` | ✅ | Output directory for processed images | - |
-| `-s, --size <WIDTHxHEIGHT>` | ✅ | Target display resolution (e.g., 800x480) | - |
-| `-t, --type <bw\|6c>` | ❌ | Processing type: `bw` (black & white) or `6c` (6-color) | `bw` |
-| `-p, --palette <file>` | ❌ | Custom palette file for color processing | - |
-| `--extensions <ext1,ext2,...>` | ❌ | Comma-separated list of image extensions to process | `jpg,jpeg,png,heic` |
-| `--pointsize <size>` | ❌ | Font size for filename annotations | `24` |
-| `--font <font>` | ❌ | Font family for annotations | `UbuntuMono-Nerd-Font-Bold` |
-| `--annotate_background <color>` | ❌ | Background color for text annotations (hex with alpha) | `#00000040` |
-| `--auto` | ❌ | Enable automatic orientation handling and size swapping | `false` |
-| `-v, --verbose` | ❌ | Enable detailed progress output | `false` |
-| `-h, --help` | ❌ | Show help message | - |
+A user-friendly GUI application for processing images:
 
-### Processing Workflow
+📱 **[Android PhotoFrameProcessor](../android/PhotoFrameProcessor/)**
 
-The `auto.sh` script follows a sophisticated 6-stage processing pipeline:
+Features:
+- Graphical user interface
+- AI-powered person detection and smart cropping
+- Automatic EXIF date extraction and labeling
+- Portrait image pairing for landscape display
+- Real-time preview of processed results
 
-#### Stage 1: Image Discovery and Classification
-1. **Multi-directory scanning**: Recursively scans all specified input directories
-2. **Format detection**: Identifies images by extension and validates file integrity
-3. **Orientation analysis**: Determines portrait vs landscape orientation using EXIF data
-4. **Format conversion**: Converts non-standard formats (HEIC, WebP, etc.) to JPEG for processing
+## Image Format Requirements
 
-#### Stage 2: Smart Portrait Pairing
-1. **Portrait shuffling**: Randomizes portrait image order to create varied combinations
-2. **Automatic pairing**: Groups portrait images in pairs for side-by-side combination
-3. **Orphan handling**: Handles odd numbers of portrait images by duplicating the last image
-
-#### Stage 3: Individual Image Processing
-1. **Landscape processing**: Resizes landscape images to full target dimensions
-2. **Portrait processing**: Resizes portrait images to half-width for later combination
-3. **Smart cropping**: Applies intelligent cropping based on content analysis
-4. **Annotation overlay**: Adds filename annotations with customizable styling
-
-#### Stage 4: Portrait Combination
-1. **Side-by-side combination**: Merges paired portrait images into landscape format
-2. **Divider line**: Adds visual separator between combined images
-3. **Size normalization**: Ensures combined images match target dimensions
-
-#### Stage 5: Color Conversion
-1. **Format standardization**: Converts all processed images to target color format
-2. **Dithering application**: Applies Floyd-Steinberg dithering for e-paper optimization
-3. **Palette application**: Uses custom palettes or automatic color reduction
-
-#### Stage 6: Binary Generation
-1. **BMP output**: Creates standard BMP files for preview and debugging
-2. **Binary conversion**: Generates optimized .bin files for ESP32 consumption
-3. **Format validation**: Verifies output file integrity and dimensions
-
-### Output Structure
-
-```
-output_directory/
-├── image1.bmp              # Standard BMP files
-├── image2.bmp
-├── combined_portrait_1.bmp # Combined portrait images
-├── combined_portrait_2.bmp
-└── bin/                    # Binary files for ESP32
-    ├── image1.bin
-    ├── image2.bin
-    ├── combined_portrait_1.bin
-    └── combined_portrait_2.bin
-```
-
-## Helper Scripts Architecture
-
-### `private/utils.sh`
-**Purpose**: Core utility functions for image metadata extraction
-
-**Key Functions**:
-- `extract_image_info()`: Extracts orientation, dimensions, and portrait detection from images
-- Handles EXIF orientation tags (1-8) including rotated images
-- Provides normalized width/height values accounting for rotation
-
-**EXIF Orientation Handling**:
-```bash
-# Orientation codes and their meanings
-TopLeft (1)      - Normal
-TopRight (2)     - Flipped horizontally  
-BottomRight (3)  - Rotated 180°
-BottomLeft (4)   - Flipped vertically
-LeftTop (5)      - Rotated 90° CCW + flipped
-RightTop (6)     - Rotated 90° CW (portrait)
-RightBottom (7)  - Rotated 90° CW + flipped
-LeftBottom (8)   - Rotated 90° CCW (portrait)
-```
-
-### `private/auto_resize_and_annotate.sh`
-**Purpose**: Intelligent image resizing with automatic orientation handling
-
-**Features**:
-- **Smart Size Swapping**: Automatically swaps target dimensions when `--auto` mode detects orientation mismatch
-- **Content-Aware Resizing**: Uses ImageMagick's geometry operators for optimal scaling
-- **Annotation Integration**: Adds filename overlays with configurable fonts and backgrounds
-- **Quality Preservation**: Maintains optimal image quality during resize operations
-
-**Usage**:
-```bash
-./auto_resize_and_annotate.sh -i input.jpg -o output.jpg --size 800x480 --auto --pointsize 28
-```
-
-### `private/resize_and_annotate.sh`
-**Purpose**: Core image processing engine with advanced annotation features
-
-**Capabilities**:
-- **Multi-stage resizing**: Crop-to-fill followed by exact dimension scaling
-- **Text annotation**: Filename overlay with background, shadows, and positioning
-- **Font management**: Support for system fonts and custom font files
-- **Background effects**: Semi-transparent backgrounds with configurable opacity
-
-### `private/combine_images.sh`
-**Purpose**: Side-by-side combination of portrait images
-
-**Technical Details**:
-- **Horizontal composition**: Places two images side-by-side with precise alignment
-- **Divider line**: Adds configurable separator line between images
-- **Size normalization**: Ensures output matches exact target dimensions
-- **Aspect ratio preservation**: Maintains correct proportions during combination
-
-**Usage**:
-```bash
-./combine_images.sh --size 800x480 --stroke_color "#ffffff" --stroke_width 3 image1.jpg image2.jpg output.jpg
-```
-
-### `private/convert.sh`
-**Purpose**: Color space conversion and e-paper optimization
-
-**Processing Modes**:
-
-#### Black & White Mode (`--type grey`)
-- Converts to grayscale using perceptual color weighting
-- Applies Floyd-Steinberg dithering for smooth gradients
-- Optimizes for monochrome e-paper displays
-
-#### 6-Color Mode (`--type color`)
-- Reduces color palette to 6 colors (black, white, red, yellow, blue, green)
-- Uses advanced color quantization algorithms
-- Supports custom palette files for specific color schemes
-
-**Usage**:
-```bash
-# Black and white conversion
-./convert.sh --type grey input.jpg output.bmp
-
-# 6-color conversion
-./convert.sh --type color --colors 6 input.jpg output.bmp
-
-# Custom palette
-./convert.sh --type color --palette custom_palette.gif input.jpg output.bmp
-```
-
-### `private/bmp_to_lcd.sh`
-**Purpose**: Binary format conversion for ESP32 consumption
-
-**Features**:
-- **Batch processing**: Converts entire directories of BMP files
-- **Format options**: Supports C-array header files and raw binary output
-- **ESP32 optimization**: Generates files compatible with ESP32 memory layout
-- **Validation**: Verifies output file integrity and format compliance
-
-**Binary Format Details**:
-- **Color Encoding**: 8-bit RRRGGGBB format (3-3-2 bits)
-- **Byte Order**: Little-endian for ESP32 compatibility
-- **No Headers**: Raw pixel data for direct memory loading
-- **Size Validation**: Ensures file size matches expected dimensions
-
-### `private/bmp2cpp`
-**Purpose**: Core binary conversion engine (compiled executable)
-
-**Functionality**:
-- Reads standard BMP files
-- Converts to 8-bit color format matching ESP32 expectations
-- Outputs raw binary data or C header arrays
-- Handles various BMP bit depths and color spaces
-
-### `private/find_subject.py`
-**Purpose**: AI-powered subject detection for intelligent cropping
-
-**Dependencies**:
-- **OpenCV**: Computer vision library for image processing
-- **YOLO11**: Latest YOLO object detection model (upgraded from YOLOv3 for better accuracy)
-- **NumPy**: Numerical computing for image arrays
-
-**Features**:
-- **Person Detection**: Identifies people in photos for portrait optimization
-- **Bounding Box Generation**: Provides coordinates for intelligent cropping
-- **Confidence Scoring**: Ranks detections by confidence level
-- **Multiple Subject Support**: Handles images with multiple people
-
-**Model Files**:
-- `scripts/private/assets/yolo11n.onnx`: YOLO11 nano model (optimized for performance)
-- `scripts/private/assets/coco.names`: Class labels for object detection
-
-## Technical Requirements
-
-### Software Dependencies
-- **ImageMagick** 7.0+: Core image processing engine
-- **Python** 3.7+: Required for AI subject detection
-- **OpenCV Python**: `pip install opencv-python`
-- **NumPy**: `pip install numpy`
-- **ONNX Runtime**: `pip install onnxruntime` (for YOLO11 model inference)
-- **zsh**: Shell interpreter (or bash with minor modifications)
-
-### System Requirements
-- **Memory**: 2GB+ RAM recommended for large image processing
-- **Storage**: 500MB+ for temporary files during processing
-- **CPU**: Multi-core processor recommended for batch operations
-
-### Supported Input Formats
-- **JPEG** (.jpg, .jpeg): Standard photo format
-- **PNG** (.png): Lossless format with transparency
-- **HEIC** (.heic): Apple's modern photo format
-- **WebP** (.webp): Google's efficient format
-- **TIFF** (.tiff, .tif): High-quality format
-- **BMP** (.bmp): Windows bitmap format
+### Input Formats
+- JPEG (.jpg, .jpeg)
+- PNG (.png)
+- HEIC (.heic)
+- WebP (.webp)
+- TIFF (.tiff)
 
 ### Output Formats
-- **BMP**: Standard bitmap for preview and debugging
-- **Binary** (.bin): Optimized raw format for ESP32
-- **C Header** (.h): Embedded array format for compilation
 
-## Performance Characteristics
+#### Binary Format (.bin)
+- 8-bit color format: RRRGGGBB
+- Optimized for ESP32 memory constraints
+- Direct loading to e-paper display buffer
 
-### Processing Speed (typical 4MP JPEG)
-- **Individual resize**: 0.5-2 seconds
-- **Portrait combination**: 1-3 seconds  
-- **Color conversion**: 1-4 seconds
-- **Binary generation**: 0.1-0.5 seconds
-- **AI subject detection**: 2-8 seconds (when enabled)
+#### Bitmap Format (.bmp)
+- Standard BMP for preview and debugging
+- Compatible with all image viewers
+- Preserves processed colors and dithering
 
-### Memory Usage
-- **Peak RAM**: 200-500MB per image during processing
-- **Temporary storage**: 2-5x input file size
-- **Output size**: ~375KB per 800x480 binary file
+## Processing Types
 
-### Batch Processing Performance
-For 100 mixed portrait/landscape images:
-- **Total time**: 5-15 minutes (depending on CPU and disk speed)
-- **Portrait pairs**: ~25 combined images generated
-- **Landscape**: ~75 individual images processed
-- **Output files**: ~200 files (BMP + binary pairs)
+### Black & White (`bw`)
+- Converts to grayscale using luminance weights
+- Floyd-Steinberg dithering for smooth gradients
+- Optimized for monochrome e-paper displays
 
-## Advanced Configuration
+### 6-Color (`6c`)
+- Palette: Black, White, Red, Green, Blue, Yellow
+- Euclidean distance color matching
+- Error diffusion for optimal color distribution
 
-### Custom Fonts
-```bash
-# List available fonts
-magick -list font
+### 7-Color (`7c`)
+- Palette: 6-color + Orange
+- Enhanced color accuracy
+- Advanced dithering algorithms
 
-# Use custom font file
-./auto.sh -i ~/Photos -o ~/processed --font "/path/to/font.ttf" --pointsize 32
-```
+## Portrait Combination
 
-### Color Palette Creation
-```bash
-# Create custom 6-color palette
-magick xc:black xc:white xc:red xc:yellow xc:blue xc:green +append palette.gif
-./auto.sh -i ~/Photos -o ~/processed -t 6c --palette palette.gif
-```
+Portrait images are automatically paired and combined side-by-side:
 
-### Portrait Combination Customization
-```bash
-# Custom divider line
-./combine_images.sh --stroke_color "#ff0000" --stroke_width 5 img1.jpg img2.jpg out.jpg
-```
+- **Detection**: Images with height > width
+- **Pairing**: Sequential or AI-based pairing
+- **Divider**: Customizable width and color
+- **Output**: Combined landscape format
+
+## Best Practices
+
+1. **Resolution**: Match your e-paper display resolution exactly
+2. **Orientation**: Use `--auto` flag for automatic handling
+3. **Batch Processing**: Process entire directories at once
+4. **Format**: Use binary (.bin) files for ESP32, BMP for preview
+5. **Color Mode**: Choose based on your e-paper display capabilities
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### "ImageMagick not found"
-```bash
-# Install ImageMagick
-# macOS
-brew install imagemagick
+**"No images found"**
+- Check file extensions match `--extensions` parameter
+- Verify input directory path is correct
 
-# Ubuntu/Debian
-sudo apt-get install imagemagick
+**"Binary size mismatch"**
+- Ensure target resolution matches display exactly
+- Check for corrupted output files
 
-# Verify installation
-magick --version
-```
+**"Font not found"**
+- Use system-installed fonts or provide full path
+- Try generic fonts like "Arial" or "DejaVu Sans"
 
-#### "HEIC format not supported"
-```bash
-# Install HEIC support for ImageMagick
-# macOS
-brew install libheif imagemagick
+## Performance Tips
 
-# Ubuntu/Debian
-sudo apt-get install libheif-dev
-sudo apt-get install --reinstall imagemagick
-```
-
-#### "YOLO11 model not found"
-```bash
-# Verify YOLO11 model exists
-ls -la scripts/private/assets/yolo11n.onnx
-
-# The YOLO11 model should be included in the project
-# If missing, the model file should be placed in scripts/private/assets/
-```
-
-#### "Python/OpenCV errors"
-```bash
-# Install Python dependencies
-pip3 install opencv-python numpy onnxruntime
-
-# Verify installation
-python3 -c "import cv2; print(cv2.__version__)"
-python3 -c "import onnxruntime; print(onnxruntime.__version__)"
-```
-
-### Performance Optimization
-
-#### Speed Improvements
-```bash
-# Disable AI subject detection for faster processing
-# (Remove or rename find_subject.py)
-
-# Use faster resize algorithm
-export MAGICK_RESIZE_FILTER=Point
-
-# Reduce image quality for faster processing
-export MAGICK_QUALITY=85
-```
-
-#### Memory Optimization
-```bash
-# Limit ImageMagick memory usage
-export MAGICK_MEMORY_LIMIT=1GB
-export MAGICK_DISK_LIMIT=4GB
-
-# Process images in smaller batches
-# Split large directories into smaller chunks
-```
-
-## Integration with ESP32 Project
-
-### File Upload to Google Drive
-1. **Upload binary files** from `output_directory/bin/` to your Google Drive folder
-2. **Google Drive organization** (optional but recommended):
-   ```
-   Your Google Drive Folder/
-   ├── image1.bin
-   ├── image2.bin
-   ├── combined_portrait_1.bin
-   ├── image3.bin
-   └── combined_portrait_2.bin
-   ```
-
-3. **Critical Requirements**:
-   - **Share the Google Drive folder** with your service account email (from unified `config.json`)
-   - Ensure the folder ID in your `config.json` (google_drive.drive.folder_id) matches the uploaded folder
-   - Only `.bin` files are supported - do not upload BMP or other formats
-
-### Binary Format Compatibility
-- **Dimensions**: Must match display resolution exactly
-- **Color Format**: 8-bit RRRGGGBB encoding
-- **File Size**: Width × Height bytes (e.g., 800×480 = 384,000 bytes)
-- **Endianness**: Little-endian for ESP32 compatibility
-
-### Validation
-```bash
-# Verify binary file size
-ls -la output/bin/*.bin
-
-# Expected size for 800x480: 384,000 bytes
-# Expected size for 400x240: 96,000 bytes
-```
-
-## Example Workflows
-
-### Complete Processing Pipeline
-```bash
-#!/bin/bash
-# Complete photo processing workflow
-
-INPUT_DIR="$HOME/Photos/Vacation2024"
-OUTPUT_DIR="$HOME/processed_photos"
-DISPLAY_SIZE="800x480"
-
-# Step 1: Process all images
-./scripts/auto.sh \
-  -i "$INPUT_DIR" \
-  -o "$OUTPUT_DIR" \
-  -t bw \
-  -s "$DISPLAY_SIZE" \
-  --extensions jpg,png,heic \
-  --font "Arial-Bold" \
-  --pointsize 28 \
-  --auto \
-  --verbose
-
-# Step 2: Upload to Google Drive
-echo "Upload the binary files from $OUTPUT_DIR/bin/ to your Google Drive folder"
-echo "Remember to share the Google Drive folder with your service account email!"
-
-# Step 3: Verify file count
-echo "Processed $(ls "$OUTPUT_DIR"/bin/*.bin | wc -l) images ready for upload"
-echo "Upload these .bin files to your shared Google Drive folder"
-```
-
-### Batch Processing Multiple Directories
-```bash
-#!/bin/bash
-# Process photos from multiple years
-
-YEARS=("2022" "2023" "2024")
-BASE_INPUT="$HOME/Photos"
-OUTPUT_DIR="$HOME/all_processed"
-
-for year in "${YEARS[@]}"; do
-    echo "Processing photos from $year..."
-    ./scripts/auto.sh \
-      -i "$BASE_INPUT/$year" \
-      -o "$OUTPUT_DIR" \
-      -t bw \
-      -s 800x480 \
-      --auto \
-      --verbose
-done
-
-echo "All years processed. Total files: $(ls "$OUTPUT_DIR"/bin/*.bin | wc -l)"
-```
-
-This comprehensive image processing system provides a robust, automated solution for converting regular photos into e-paper display-ready formats while maintaining high quality and intelligent handling of different image orientations and compositions.
+- Use `--jobs` parameter to optimize CPU usage
+- Process images in batch rather than individually
+- Use `--force` to reprocess all files
+- Enable `--verbose` for debugging

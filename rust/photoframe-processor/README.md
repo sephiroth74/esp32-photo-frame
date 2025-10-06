@@ -1,10 +1,10 @@
 # ESP32 Photo Frame Processor (Rust)
 
-High-performance Rust implementation of the ESP32 Photo Frame image processing pipeline. This tool replaces the bash `auto.sh` script with significant performance improvements and enhanced functionality.
+High-performance Rust implementation of the ESP32 Photo Frame image processing pipeline with optimized performance and enhanced functionality.
 
 ## 🚀 Performance Benefits
 
-- **5-10x faster processing** than bash/ImageMagick pipeline
+- **5-10x faster processing** with optimized algorithms
 - **Parallel batch processing** with automatic CPU core detection
 - **Memory efficient** with optimized algorithms
 - **Cross-platform** support (Windows, macOS, Linux)
@@ -59,7 +59,7 @@ cargo build --release --features ai
 ### Basic Usage
 
 ```bash
-# Black & white processing (matches auto.sh -t bw)
+# Black & white processing
 ./photoframe-processor -i ~/Photos -o ~/processed -t bw -s 800x480 --auto
 
 # 6-color processing with multiple output formats
@@ -99,9 +99,6 @@ cargo build --release --features ai
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --debug \
   --detect-people --python-script ./scripts/private/find_subject.py --output-format png
 
-# Benchmark against bash script
-./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --benchmark
-
 # Decode combined portrait filenames to find original images
 ./photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
 
@@ -127,6 +124,8 @@ cargo build --release --features ai
 | `--font <FONT>` | Font family for annotations | `Arial` |
 | `--annotate_background <COLOR>` | Text background color (hex with alpha) | `#00000040` |
 | `--annotate` | Enable filename annotations on images | `false` |
+| `--divider-width <WIDTH>` | Width of divider line between combined portraits (pixels) | `3` |
+| `--divider-color <COLOR>` | Color of divider line (hex RGB, e.g., #FFFFFF) | `#FFFFFF` |
 | `--auto-color` | Enable automatic color correction | `false` |
 | `--detect-people` | Enable AI people detection for smart cropping | `false` |
 | `--python-script <PATH>` | Path to find_subject.py script for people detection | None |
@@ -137,7 +136,6 @@ cargo build --release --features ai
 | `-j, --jobs <N>` | Number of parallel processing jobs (0 = auto) | `0` |
 | `-v, --verbose` | Enable detailed output | `false` |
 | `--validate-only` | Only validate inputs, don't process | `false` |
-| `--benchmark` | Compare performance against bash script | `false` |
 
 ## 🏷️ Filename Organization
 
@@ -243,7 +241,7 @@ output_directory/
    - **Binary**: ESP32-compatible .bin files with 8-bit RRRGGGBB format
    - **JPG**: Compressed files for web sharing and storage efficiency
    - **PNG**: Lossless files with transparency support
-9. **Portrait Combination**: Merges portrait pairs into landscape layouts
+9. **Portrait Combination**: Merges portrait pairs into landscape layouts with customizable divider (3px white by default)
 
 ## 🧠 Smart Cropping Algorithm (with AI People Detection)
 
@@ -308,17 +306,17 @@ Image: 800×1000, Detection: (300, 750, 500, 950), Target: 400×600
 - Supports displays with orange color capability
 - Advanced dithering for improved color accuracy
 
-## 📊 Performance Comparison
-
-| Metric | Bash auto.sh | Rust Processor | Improvement |
-|--------|--------------|----------------|-------------|
-| **Processing Speed** | 1x | **5-8x faster** | 500-800% |
-| **Memory Usage** | ~200-500MB | **50-150MB** | 60-75% reduction |
-| **Startup Time** | 2-3 seconds | **<100ms** | 20-30x faster |
-| **CPU Utilization** | Single-core | **Multi-core** | Full CPU usage |
-| **Dependencies** | ImageMagick, Python, OpenCV | **None** | Self-contained |
-
 ## 🔧 Technical Details
+
+### Portrait Combination
+
+The processor combines two portrait images side-by-side into a landscape layout:
+
+- **Divider Width**: Customizable via `--divider-width` (default: 3 pixels)
+- **Divider Color**: Customizable via `--divider-color` (default: white #FFFFFF)
+- **Alignment**: Images are placed exactly at half-width boundaries
+- **Format**: Combined images maintain the same processing type (BW, 6C, or 7C)
+- **No Divider**: Set `--divider-width 0` to disable the divider line completely
 
 ### ESP32 Binary Format
 
