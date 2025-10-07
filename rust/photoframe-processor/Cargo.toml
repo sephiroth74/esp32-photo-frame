@@ -21,20 +21,20 @@ imageproc = "0.25"
 fast_image_resize = "5.3.0"
 
 # CLI interface
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "4.5.48", features = ["derive"] }
 indicatif = "0.18.0"
 console = "0.16.1"
 
 # File and path handling
 walkdir = "2.5.0"
 rayon = "1.11.0"
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 
 # EXIF data handling  
 kamadak-exif = "0.6.1"
 
 # Text rendering
-ab_glyph = "0.2.31"
+ab_glyph = "0.2.32"
 rusttype = "0.9.3"
 
 strum = "0.27.2"
@@ -44,14 +44,14 @@ strum_macros = "0.27.2"
 num_cpus = "1.17.0"
 
 # Serialization for configuration
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.143"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
 
 # Base64 encoding for filename generation
 base64 = "0.22.1"
 
 # Text processing
-regex = "1.11.2"
+regex = "1.11.3"
 
 # Random number generation for portrait pairing
 rand = "0.9.2"
