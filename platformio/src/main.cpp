@@ -54,6 +54,10 @@
 #include "ota_integration.h"
 #endif // OTA_UPDATE_ENABLED
 
+#ifdef ENABLE_DISPLAY_DIAGNOSTIC
+#include "display_diagnostic.h"
+#endif // ENABLE_DISPLAY_DIAGNOSTIC
+
 // Google Drive instance (initialized from JSON config)
 photo_frame::google_drive drive;
 
@@ -225,6 +229,47 @@ void setup()
 
     Serial.print(F("Is reset: "));
     Serial.println(is_reset ? "Yes" : "No");
+
+#ifdef ENABLE_DISPLAY_DIAGNOSTIC
+    // Check for diagnostic mode trigger
+    Serial.println(F("\n================================="));
+    Serial.println(F("Press 'd' within 5 seconds to run display diagnostics..."));
+    Serial.println(F("=================================\n"));
+
+    unsigned long diagnostic_wait = millis();
+    bool run_diagnostic = false;
+
+    // Flush any existing serial data
+    while(Serial.available()) {
+        Serial.read();
+    }
+
+    // Wait for 'd' key press
+    while(millis() - diagnostic_wait < 5000) {
+        if(Serial.available()) {
+            char c = Serial.read();
+            if(c == 'd') {
+                run_diagnostic = true;
+                break;
+            }
+        }
+        delay(10); // Small delay to prevent tight loop
+    }
+
+    if(run_diagnostic) {
+        Serial.println(F("\n>>> Starting display diagnostics..."));
+
+        // Initialize display using proper renderer method
+        photo_frame::renderer::init_display();
+
+        // Run the full diagnostic suite
+        display_diagnostic::runFullDiagnostic();
+
+        Serial.println(F("\n>>> Diagnostic complete. System will restart in 10 seconds..."));
+        delay(10000);
+        ESP.restart();
+    }
+#endif // ENABLE_DISPLAY_DIAGNOSTIC
 
     // Setup battery and power management
     photo_frame::battery_info_t battery_info;
