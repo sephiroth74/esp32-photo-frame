@@ -38,3 +38,5 @@ platformio/weather_config.json
 rust/photoframe-processor/.claude/
 rust/photoframe-processor/CLAUDE.md
 CLAUDE.md
+platformio/ota/RELEASE_SUMMARY.md
+platformio/ota/firmware/firmware-feathers3_unexpectedmaker.bin

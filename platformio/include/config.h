@@ -90,6 +90,14 @@
 // #define SD_MMC_D2_PIN   12  // SD card data 2 pin
 
 // ----------------------------------------------------------------------------
+// Diagnostic Mode Configuration
+// ----------------------------------------------------------------------------
+
+/// Enable display diagnostic mode (press 'd' during startup to run tests)
+/// Uncomment to enable diagnostic mode for troubleshooting display issues
+// #define ENABLE_DISPLAY_DIAGNOSTIC 1
+
+// ----------------------------------------------------------------------------
 // Battery Monitoring Configuration
 // ----------------------------------------------------------------------------
 
