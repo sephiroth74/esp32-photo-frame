@@ -93,9 +93,9 @@ void init_display() {
         return;
     }
 
-    pinMode(EPD_RST_PIN, OUTPUT);
-    pinMode(EPD_DC_PIN, OUTPUT);
-    pinMode(EPD_CS_PIN, OUTPUT);
+    // pinMode(EPD_RST_PIN, OUTPUT);
+    // pinMode(EPD_DC_PIN, OUTPUT);
+    // pinMode(EPD_CS_PIN, OUTPUT);
 
     SPI.end();
     SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
@@ -111,6 +111,21 @@ void init_display() {
     // display.clearScreen(); // black
     display.setTextColor(GxEPD_BLACK);
     display.setTextWrap(false);
+
+#ifdef DISP_6C
+    // For GDEP073E01 6-color display: enable paged workaround
+    Serial.println("[renderer] GDEP073E01 6-color display detected - applying optimizations...");
+
+    // Enable paged workaround for GDEP073E01
+    // This helps with incomplete refresh issues and washout problems
+    // The setPaged() method initializes the display in a special mode that can help
+    // with timing issues and incomplete refreshes
+    display.epd2.setPaged();
+    Serial.println("[renderer] Enabled setPaged() workaround for GDEP073E01");
+
+    // Note: The default timeout is 20 seconds which should be sufficient with setPaged()
+    // If you still see timeouts, you may need to modify the GxEPD2 library directly
+#endif
 
     auto pages = display.pages();
     Serial.printf("[renderer] Display pages: %d\n", pages);
