@@ -477,7 +477,13 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             }
 
             page_index++;
-        } while (display.nextPage()); // Clear the display
+        } while (display.nextPage());
+
+        #ifdef DISP_6C
+        // Power recovery delay after page refresh for 6-color displays
+        // Helps prevent washout by allowing capacitors to recharge
+        delay(200);
+        #endif
 
         // Handle rendering errors in a separate loop to prevent cutoff
         if (rendering_failed) {
