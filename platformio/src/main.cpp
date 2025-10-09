@@ -420,6 +420,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         display.setFullWindow();
         display.fillScreen(GxEPD_WHITE);
+        delay(500);
+        
         display.firstPage();
         do {
             Serial.print(F("Drawing page: "));
