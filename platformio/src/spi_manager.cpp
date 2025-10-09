@@ -24,7 +24,6 @@
 #include "config.h"
 #include "renderer.h"
 #include <LittleFS.h>
-#include <SD_MMC.h>
 
 namespace photo_frame {
 namespace spi_manager {

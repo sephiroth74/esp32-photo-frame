@@ -93,15 +93,11 @@ void init_display() {
         return;
     }
 
-    // pinMode(EPD_RST_PIN, OUTPUT);
-    // pinMode(EPD_DC_PIN, OUTPUT);
-    // pinMode(EPD_CS_PIN, OUTPUT);
-
     SPI.end();
     SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
 
 #ifdef USE_DESPI_DRIVER
-    display.init(115200);
+    display.init(115200, false, 30, false);
 #else  // USE_WAVESHARE_DRIVER
     display.init(115200, true, 2, false);
 #endif // USE_DESPI_DRIVER
