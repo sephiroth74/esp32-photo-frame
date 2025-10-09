@@ -48,13 +48,14 @@ Display Debug Menu
 ========================================
 1. Run Full Diagnostic Suite  ← Start here!
 2. Color Pattern Test
-3. Power Supply Test
-4. Data Line Voltage Test
-5. BUSY Pin Test
-6. SPI Communication Test
-7. Refresh Timing Test
-8. Show Test Results Summary
-9. Clear Display
+3. High Stress Color Test (Timeout Test) ← NEW!
+4. Power Supply Test
+5. Data Line Voltage Test
+6. BUSY Pin Test
+7. SPI Communication Test
+8. Refresh Timing Test
+9. Show Test Results Summary
+C. Clear Display
 0. Restart ESP32
 ```
 
@@ -179,6 +180,37 @@ GxEPD2_EPD(cs, dc, rst, busy, LOW, 30000000, WIDTH, HEIGHT, ...
 
 ## Test Procedures
 
+### High Stress Color Test (Option 3 - Critical!)
+
+**This test is specifically designed to trigger timeout issues.**
+
+The test creates:
+- **Narrow vertical stripes** using all 6 colors (4-pixel width)
+- **Horizontal overlay lines** in different colors
+- **Diagonal patterns** for extra complexity
+- **Random scattered pixels** (most stressful)
+
+**Expected Results:**
+| Refresh Time | Status | Meaning |
+|--------------|--------|---------|
+| < 15 seconds | EXCELLENT | No timeout risk |
+| 15-18 seconds | GOOD | Normal, safe margin |
+| 18-20 seconds | WARNING | Close to timeout |
+| 20-22 seconds | CRITICAL | Will timeout on complex images |
+| > 22 seconds | FAIL | Timeout occurred |
+
+**What This Test Reveals:**
+- Whether your display can handle worst-case scenarios
+- If portrait/complex images will cause washout
+- Exact margin before timeout occurs
+- Whether you need to increase the library timeout
+
+**If Test Shows > 18 seconds:**
+1. Increase library timeout to 30 seconds (see Software Solutions)
+2. Ensure 10kΩ pull-up resistor on BUSY pin
+3. Add capacitors for stable power
+4. Check all connections
+
 ### Manual Voltage Test
 
 With multimeter, check during display operation:
@@ -266,12 +298,15 @@ Monitor actual refresh times in debug mode:
 |---------|----------|-------------------|
 | 1 | Full Diagnostic | Complete system analysis |
 | 2 | Color Pattern | Check for washout visually |
-| 3 | Power Supply | Voltage drop measurements |
-| 4 | Data Lines | Requires multimeter check |
-| 5 | BUSY Pin | Connection and response |
-| 6 | SPI Test | Communication integrity |
-| 7 | Timing Test | Refresh duration |
-| 8 | Results | Summary and diagnosis |
+| 3 | **High Stress Test** | **Push display to timeout limit** |
+| 4 | Power Supply | Voltage drop measurements |
+| 5 | Data Lines | Requires multimeter check |
+| 6 | BUSY Pin | Connection and response |
+| 7 | SPI Test | Communication integrity |
+| 8 | Timing Test | Refresh duration |
+| 9 | Results | Summary and diagnosis |
+| C | Clear Display | Reset display to white |
+| 0 | Restart | Reboot ESP32 |
 
 ---
 

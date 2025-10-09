@@ -103,6 +103,142 @@ void testColorPattern() {
 }
 
 // =============================================================================
+// HIGH STRESS COLOR TEST
+// =============================================================================
+
+void testHighStressColor() {
+    Serial.println(F("\n[TEST] High Stress Color Test"));
+    Serial.println(F("-------------------------------"));
+    Serial.println(F("This test pushes the display to its limits"));
+    Serial.println(F("Expect refresh time of 17-20 seconds for 6-color displays"));
+
+    unsigned long start = millis();
+    bool timeout_detected = false;
+
+    display.setFullWindow();
+    display.firstPage();
+
+    do {
+        // Create maximum color transitions to stress the display
+        // This pattern requires the display to switch colors frequently
+        // which takes more time and power
+
+        #ifdef DISP_6C
+        // For 6-color displays - create a complex pattern using all colors
+
+        // Create vertical stripes with all colors (maximum transitions)
+        int stripeWidth = 4;  // Narrow stripes = more transitions = more stress
+        for(int x = 0; x < DISP_WIDTH; x += stripeWidth * 6) {
+            // Use all 6 colors in sequence
+            display.fillRect(x, 0, stripeWidth, DISP_HEIGHT, GxEPD_BLACK);
+            display.fillRect(x + stripeWidth, 0, stripeWidth, DISP_HEIGHT, GxEPD_WHITE);
+            display.fillRect(x + stripeWidth*2, 0, stripeWidth, DISP_HEIGHT, GxEPD_RED);
+            display.fillRect(x + stripeWidth*3, 0, stripeWidth, DISP_HEIGHT, GxEPD_GREEN);
+            display.fillRect(x + stripeWidth*4, 0, stripeWidth, DISP_HEIGHT, GxEPD_BLUE);
+            display.fillRect(x + stripeWidth*5, 0, stripeWidth, DISP_HEIGHT, GxEPD_YELLOW);
+        }
+
+        // Add horizontal stripes overlaying for maximum complexity
+        for(int y = 0; y < DISP_HEIGHT; y += 40) {
+            // Alternating horizontal lines with different colors
+            display.drawLine(0, y, DISP_WIDTH-1, y, GxEPD_RED);
+            display.drawLine(0, y+10, DISP_WIDTH-1, y+10, GxEPD_BLACK);
+            display.drawLine(0, y+20, DISP_WIDTH-1, y+20, GxEPD_GREEN);
+            display.drawLine(0, y+30, DISP_WIDTH-1, y+30, GxEPD_BLUE);
+        }
+
+        // Add diagonal patterns for extra complexity
+        for(int i = 0; i < DISP_WIDTH; i += 20) {
+            display.drawLine(i, 0, 0, i * DISP_HEIGHT / DISP_WIDTH, GxEPD_YELLOW);
+            display.drawLine(DISP_WIDTH-i, 0, DISP_WIDTH, i * DISP_HEIGHT / DISP_WIDTH, GxEPD_RED);
+        }
+
+        // Add scattered pixels of different colors (most stressful)
+        for(int i = 0; i < 100; i++) {
+            int x = random(DISP_WIDTH);
+            int y = random(DISP_HEIGHT);
+            uint16_t color = random(6);
+            switch(color) {
+                case 0: display.drawPixel(x, y, GxEPD_BLACK); break;
+                case 1: display.drawPixel(x, y, GxEPD_WHITE); break;
+                case 2: display.drawPixel(x, y, GxEPD_RED); break;
+                case 3: display.drawPixel(x, y, GxEPD_GREEN); break;
+                case 4: display.drawPixel(x, y, GxEPD_BLUE); break;
+                case 5: display.drawPixel(x, y, GxEPD_YELLOW); break;
+            }
+        }
+
+        #elif defined(DISP_7C_F)
+        // For 7-color displays - use all 7 colors
+        int stripeWidth = 4;
+        for(int x = 0; x < DISP_WIDTH; x += stripeWidth * 7) {
+            display.fillRect(x, 0, stripeWidth, DISP_HEIGHT, GxEPD_BLACK);
+            display.fillRect(x + stripeWidth, 0, stripeWidth, DISP_HEIGHT, GxEPD_WHITE);
+            display.fillRect(x + stripeWidth*2, 0, stripeWidth, DISP_HEIGHT, GxEPD_RED);
+            display.fillRect(x + stripeWidth*3, 0, stripeWidth, DISP_HEIGHT, GxEPD_GREEN);
+            display.fillRect(x + stripeWidth*4, 0, stripeWidth, DISP_HEIGHT, GxEPD_BLUE);
+            display.fillRect(x + stripeWidth*5, 0, stripeWidth, DISP_HEIGHT, GxEPD_YELLOW);
+            display.fillRect(x + stripeWidth*6, 0, stripeWidth, DISP_HEIGHT, GxEPD_ORANGE);
+        }
+        #else
+        // For B&W displays - create complex dither pattern
+        for(int y = 0; y < DISP_HEIGHT; y++) {
+            for(int x = 0; x < DISP_WIDTH; x++) {
+                if((x + y) % 2 == 0) {
+                    display.drawPixel(x, y, GxEPD_BLACK);
+                }
+            }
+        }
+        #endif
+
+        // Check for timeout
+        if(millis() - start > 25000) {
+            timeout_detected = true;
+            Serial.println(F("[TEST] WARNING: Approaching timeout threshold!"));
+        }
+
+    } while (display.nextPage());
+
+    unsigned long elapsed = millis() - start;
+
+    Serial.printf("[TEST] High stress refresh time: %lu ms\n", elapsed);
+
+    // Detailed analysis
+    if(elapsed < 15000) {
+        Serial.println(F("[TEST] EXCELLENT: Fast refresh even under stress"));
+    } else if(elapsed < 18000) {
+        Serial.println(F("[TEST] GOOD: Normal refresh time under stress"));
+    } else if(elapsed < 20000) {
+        Serial.println(F("[TEST] WARNING: Close to timeout limit"));
+        Serial.println(F("[TEST] Consider increasing library timeout"));
+    } else if(elapsed < 22000) {
+        Serial.println(F("[TEST] CRITICAL: Very close to timeout!"));
+        Serial.println(F("[TEST] Timeout increase recommended"));
+    } else {
+        Serial.println(F("[TEST] FAIL: Likely hit timeout!"));
+        Serial.println(F("[TEST] Check BUSY pin and increase timeout"));
+        test_results.busy_timeouts++;
+    }
+
+    // Check for timeout symptoms
+    if(timeout_detected || elapsed > 20000) {
+        Serial.println(F("\n[TEST] Timeout Risk Assessment:"));
+        Serial.println(F("  - Simple images may work fine"));
+        Serial.println(F("  - Complex/portrait images may timeout"));
+        Serial.println(F("  - Washout likely on complex patterns"));
+        Serial.println(F("\n[TEST] Recommended Actions:"));
+        Serial.println(F("  1. Increase timeout to 30 seconds"));
+        Serial.println(F("  2. Ensure BUSY pin has 10kΩ pull-up"));
+        Serial.println(F("  3. Check all connections"));
+    }
+
+    // Update test results
+    if(elapsed > 20000) {
+        test_results.refresh_timing_ok = false;
+    }
+}
+
+// =============================================================================
 // POWER SUPPLY TESTS
 // =============================================================================
 
@@ -425,13 +561,14 @@ void showMenu() {
     Serial.println(F("========================================"));
     Serial.println(F("1. Run Full Diagnostic Suite"));
     Serial.println(F("2. Color Pattern Test"));
-    Serial.println(F("3. Power Supply Test"));
-    Serial.println(F("4. Data Line Voltage Test"));
-    Serial.println(F("5. BUSY Pin Test"));
-    Serial.println(F("6. SPI Communication Test"));
-    Serial.println(F("7. Refresh Timing Test"));
-    Serial.println(F("8. Show Test Results Summary"));
-    Serial.println(F("9. Clear Display"));
+    Serial.println(F("3. High Stress Color Test (Timeout Test)"));
+    Serial.println(F("4. Power Supply Test"));
+    Serial.println(F("5. Data Line Voltage Test"));
+    Serial.println(F("6. BUSY Pin Test"));
+    Serial.println(F("7. SPI Communication Test"));
+    Serial.println(F("8. Refresh Timing Test"));
+    Serial.println(F("9. Show Test Results Summary"));
+    Serial.println(F("C. Clear Display"));
     Serial.println(F("0. Restart ESP32"));
     Serial.println(F("----------------------------------------"));
     Serial.println(F("Enter choice:"));
@@ -492,6 +629,9 @@ void runFullDiagnostic() {
     Serial.println(F("========================================"));
 
     testColorPattern();
+    delay(2000);
+
+    testHighStressColor();  // Add the stress test
     delay(2000);
 
     testPowerSupply();
@@ -563,30 +703,35 @@ void display_debug_loop() {
                 break;
 
             case '3':
-                display_debug::testPowerSupply();
+                display_debug::testHighStressColor();
                 break;
 
             case '4':
-                display_debug::testDataLineVoltages();
+                display_debug::testPowerSupply();
                 break;
 
             case '5':
-                display_debug::testBusyPin();
+                display_debug::testDataLineVoltages();
                 break;
 
             case '6':
-                display_debug::testSPICommunication();
+                display_debug::testBusyPin();
                 break;
 
             case '7':
-                display_debug::testRefreshTiming();
+                display_debug::testSPICommunication();
                 break;
 
             case '8':
-                display_debug::showResults();
+                display_debug::testRefreshTiming();
                 break;
 
             case '9':
+                display_debug::showResults();
+                break;
+
+            case 'C':
+            case 'c':
                 Serial.println(F("Clearing display..."));
                 display.clearScreen();
                 Serial.println(F("Display cleared"));
