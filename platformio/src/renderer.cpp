@@ -97,7 +97,7 @@ void init_display() {
     SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
 
 #ifdef USE_DESPI_DRIVER
-    display.init(115200, false, 30, false);
+    display.init(115200);
 #else  // USE_WAVESHARE_DRIVER
     display.init(115200, true, 2, false);
 #endif // USE_DESPI_DRIVER
@@ -112,12 +112,21 @@ void init_display() {
     // For GDEP073E01 6-color display: enable paged workaround
     Serial.println("[renderer] GDEP073E01 6-color display detected - applying optimizations...");
 
+    // Power stabilization delay for 6-color displays
+    // The GDEP073E01 draws high current during color refresh (200-300mA peaks)
+    // This delay allows power supply capacitors to fully charge
+    delay(500);
+    Serial.println("[renderer] Power stabilization delay applied");
+
     // Enable paged workaround for GDEP073E01
     // This helps with incomplete refresh issues and washout problems
     // The setPaged() method initializes the display in a special mode that can help
     // with timing issues and incomplete refreshes
     display.epd2.setPaged();
     Serial.println("[renderer] Enabled setPaged() workaround for GDEP073E01");
+
+    // Additional stabilization after setPaged configuration
+    delay(200);
 
     // Note: The default timeout is 20 seconds which should be sufficient with setPaged()
     // If you still see timeouts, you may need to modify the GxEPD2 library directly

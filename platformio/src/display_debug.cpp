@@ -452,20 +452,59 @@ void testLittleFSImage() {
     }
 
     Serial.println(F("[TEST] Starting image render..."));
-    unsigned long start = millis();
+    Serial.println(F("[TEST] Initializing display for paged rendering..."));
 
-    uint16_t error_code;
-    if(isBinary) {
-        // Use binary renderer
-        error_code = photo_frame::renderer::draw_binary_from_file(
-            file, LITTLEFS_TEMP_IMAGE_FILE, DISP_WIDTH, DISP_HEIGHT);
-    } else {
-        // Use bitmap renderer
-        error_code = photo_frame::renderer::draw_bitmap_from_file(
-            file, LITTLEFS_TEMP_IMAGE_FILE, 0, 0, false);
+    // Initialize display if not already done
+    if (!display.epd2.WIDTH) {
+        photo_frame::renderer::init_display();
     }
 
-    file.close();
+    unsigned long start = millis();
+    uint16_t error_code = 0;
+
+    // Use paged rendering like in main.cpp
+    display.setFullWindow();
+    display.fillScreen(GxEPD_WHITE);
+
+    int page_index = 0;
+    display.firstPage();
+
+    do {
+        Serial.printf("[TEST] Drawing page: %d\n", page_index);
+
+        // Reopen file for each page (since we need to read from beginning)
+        file = LittleFS.open(LITTLEFS_TEMP_IMAGE_FILE, "r");
+        if(!file) {
+            Serial.println(F("[TEST] Failed to reopen file for page"));
+            error_code = 1;
+            break;
+        }
+
+        if(isBinary) {
+            // Use binary renderer with page index
+            error_code = photo_frame::renderer::draw_binary_from_file(
+                file, LITTLEFS_TEMP_IMAGE_FILE, DISP_WIDTH, DISP_HEIGHT, page_index);
+        } else {
+            // Use bitmap renderer
+            error_code = photo_frame::renderer::draw_bitmap_from_file(
+                file, LITTLEFS_TEMP_IMAGE_FILE, 0, 0, false);
+        }
+
+        file.close();
+
+        if (error_code != 0) {
+            Serial.printf("[TEST] Error rendering page %d: %d\n", page_index, error_code);
+            break;
+        }
+
+        page_index++;
+
+        #ifdef DISP_6C
+        // Power recovery delay for 6-color displays between pages
+        delay(200);
+        #endif
+
+    } while (display.nextPage());
 
     unsigned long elapsed = millis() - start;
 
@@ -852,6 +891,210 @@ void testRefreshTiming() {
 }
 
 // =============================================================================
+// HARDWARE FAILURE TEST
+// =============================================================================
+
+void testHardwareFailure() {
+    Serial.println(F("\n[TEST] Hardware Failure Diagnostic"));
+    Serial.println(F("-------------------------------"));
+    Serial.println(F("This test checks for display/DESPI hardware issues\n"));
+
+    // Test 1: Black and White Only
+    Serial.println(F("[TEST 1/4] Black & White Pattern Test"));
+    Serial.println(F("If this works but colors fail = Color circuit issue"));
+
+    display.setFullWindow();
+    display.firstPage();
+    unsigned long bwStart = millis();
+
+    do {
+        // Simple B&W checkerboard
+        for(int y = 0; y < DISP_HEIGHT; y += 20) {
+            for(int x = 0; x < DISP_WIDTH; x += 20) {
+                if(((x/20) + (y/20)) % 2 == 0) {
+                    display.fillRect(x, y, 20, 20, GxEPD_BLACK);
+                } else {
+                    display.fillRect(x, y, 20, 20, GxEPD_WHITE);
+                }
+            }
+        }
+    } while(display.nextPage());
+
+    unsigned long bwTime = millis() - bwStart;
+    Serial.printf("[TEST 1] B&W refresh time: %lu ms\n", bwTime);
+    Serial.println(F("[TEST 1] Check display - is B&W pattern clear? (y/n)"));
+
+    while(!Serial.available()) delay(10);
+    char bwResult = Serial.read();
+    while(Serial.available()) Serial.read();
+
+    bool bwPass = (bwResult == 'y' || bwResult == 'Y');
+
+    delay(2000);
+
+    // Test 2: Single Color Test
+    int failedColors = 0;  // Define outside ifdef so it's always available
+    #ifdef DISP_6C
+    Serial.println(F("\n[TEST 2/4] Individual Color Test"));
+    Serial.println(F("Testing each color separately..."));
+
+    uint16_t colors[] = {GxEPD_BLACK, GxEPD_WHITE, GxEPD_RED,
+                         GxEPD_GREEN, GxEPD_BLUE, GxEPD_YELLOW};
+    const char* colorNames[] = {"BLACK", "WHITE", "RED",
+                                "GREEN", "BLUE", "YELLOW"};
+    bool colorResults[6];
+
+    for(int i = 0; i < 6; i++) {
+        Serial.printf("[TEST 2] Testing %s...\n", colorNames[i]);
+
+        display.setFullWindow();
+        display.firstPage();
+        unsigned long colorStart = millis();
+
+        do {
+            display.fillScreen(colors[i]);
+            // Add text label
+            display.setTextColor(i == 0 ? GxEPD_WHITE : GxEPD_BLACK);
+            display.setCursor(DISP_WIDTH/2 - 50, DISP_HEIGHT/2);
+            display.setTextSize(3);
+            display.print(colorNames[i]);
+        } while(display.nextPage());
+
+        unsigned long colorTime = millis() - colorStart;
+        Serial.printf("[TEST 2] %s refresh time: %lu ms\n", colorNames[i], colorTime);
+        Serial.printf("[TEST 2] Is %s displayed correctly? (y/n): ", colorNames[i]);
+
+        while(!Serial.available()) delay(10);
+        char result = Serial.read();
+        while(Serial.available()) Serial.read();
+
+        colorResults[i] = (result == 'y' || result == 'Y');
+        delay(1500);
+    }
+
+    // Analyze color results
+    Serial.println(F("\n[TEST 2] Color Test Results:"));
+    for(int i = 0; i < 6; i++) {
+        Serial.printf("  %s: %s\n", colorNames[i],
+                     colorResults[i] ? "PASS" : "FAIL");
+        if(!colorResults[i]) failedColors++;
+    }
+    #else
+    Serial.println(F("\n[TEST 2/4] Skipped - B&W display"));
+    #endif
+
+    // Test 3: Gradient Test
+    Serial.println(F("\n[TEST 3/4] Gradient/Transition Test"));
+    Serial.println(F("Looking for dead zones or line defects..."));
+
+    display.setFullWindow();
+    display.firstPage();
+    unsigned long gradStart = millis();
+
+    do {
+        // Vertical gradient bars
+        for(int x = 0; x < DISP_WIDTH; x++) {
+            uint16_t color;
+            #ifdef DISP_6C
+            if(x < DISP_WIDTH/6) color = GxEPD_BLACK;
+            else if(x < DISP_WIDTH*2/6) color = GxEPD_RED;
+            else if(x < DISP_WIDTH*3/6) color = GxEPD_GREEN;
+            else if(x < DISP_WIDTH*4/6) color = GxEPD_BLUE;
+            else if(x < DISP_WIDTH*5/6) color = GxEPD_YELLOW;
+            else color = GxEPD_WHITE;
+            #else
+            color = (x < DISP_WIDTH/2) ? GxEPD_BLACK : GxEPD_WHITE;
+            #endif
+
+            display.drawLine(x, 0, x, DISP_HEIGHT-1, color);
+        }
+    } while(display.nextPage());
+
+    unsigned long gradTime = millis() - gradStart;
+    Serial.printf("[TEST 3] Gradient refresh time: %lu ms\n", gradTime);
+    Serial.println(F("[TEST 3] Check for:"));
+    Serial.println(F("  - Dead zones (areas that don't change)"));
+    Serial.println(F("  - Line defects (permanent lines)"));
+    Serial.println(F("  - Color bleeding between sections"));
+    Serial.println(F("[TEST 3] Any defects visible? (y=defects, n=clear): "));
+
+    while(!Serial.available()) delay(10);
+    char gradResult = Serial.read();
+    while(Serial.available()) Serial.read();
+
+    bool hasDefects = (gradResult == 'y' || gradResult == 'Y');
+
+    // Test 4: Connection Test
+    Serial.println(F("\n[TEST 4/4] Connection Stability Test"));
+    Serial.println(F("Gently flex ribbon cable and press DESPI board"));
+    Serial.println(F("Watch for display changes/glitches"));
+    Serial.println(F("Press any key when done testing..."));
+
+    // Show test pattern during flex test
+    display.setFullWindow();
+    display.firstPage();
+    do {
+        for(int i = 0; i < 10; i++) {
+            display.drawLine(0, i*48, DISP_WIDTH-1, i*48, GxEPD_BLACK);
+            display.drawLine(i*80, 0, i*80, DISP_HEIGHT-1, GxEPD_BLACK);
+        }
+    } while(display.nextPage());
+
+    while(!Serial.available()) delay(10);
+    while(Serial.available()) Serial.read();
+
+    Serial.println(F("[TEST 4] Did display change during flexing? (y/n): "));
+    while(!Serial.available()) delay(10);
+    char flexResult = Serial.read();
+    while(Serial.available()) Serial.read();
+
+    bool connectionIssue = (flexResult == 'y' || flexResult == 'Y');
+
+    // Final Analysis
+    Serial.println(F("\n========================================"));
+    Serial.println(F("Hardware Diagnostic Results"));
+    Serial.println(F("========================================"));
+
+    if(bwPass && !hasDefects && !connectionIssue) {
+        #ifdef DISP_6C
+        if(failedColors == 0) {
+            Serial.println(F("✅ Hardware appears GOOD"));
+            Serial.println(F("Issue is likely power delivery"));
+        } else if(failedColors <= 2) {
+            Serial.println(F("⚠️ Partial hardware issue"));
+            Serial.println(F("Some colors failing - check DESPI board"));
+        } else {
+            Serial.println(F("❌ Hardware FAILURE likely"));
+            Serial.println(F("Multiple colors failing - DESPI or display issue"));
+        }
+        #else
+        Serial.println(F("✅ Hardware appears GOOD"));
+        #endif
+    } else {
+        Serial.println(F("❌ Hardware issues detected:"));
+        if(!bwPass) Serial.println(F("  - Basic display function failed"));
+        if(hasDefects) Serial.println(F("  - Dead zones or line defects found"));
+        if(connectionIssue) Serial.println(F("  - Connection stability problem"));
+    }
+
+    Serial.println(F("\nRecommendations:"));
+    if(connectionIssue) {
+        Serial.println(F("1. Check ribbon cable and connectors"));
+        Serial.println(F("2. Reseat all connections"));
+    }
+    if(!bwPass || hasDefects) {
+        Serial.println(F("1. Inspect for physical damage"));
+        Serial.println(F("2. Try different display or DESPI board"));
+    }
+    #ifdef DISP_6C
+    if(failedColors > 0 && failedColors < 6) {
+        Serial.println(F("1. DESPI voltage regulator may be weak"));
+        Serial.println(F("2. Add capacitors for power stability"));
+    }
+    #endif
+}
+
+// =============================================================================
 // INTERACTIVE MENU
 // =============================================================================
 
@@ -868,6 +1111,7 @@ void showMenu() {
     Serial.println(F("7. BUSY Pin Test"));
     Serial.println(F("8. SPI Communication Test"));
     Serial.println(F("9. Refresh Timing Test"));
+    Serial.println(F("H. Hardware Failure Test"));
     Serial.println(F("S. Copy Image from SD to LittleFS"));
     Serial.println(F("P. Test Pins (Release SPI First)"));
     Serial.println(F("R. Show Test Results Summary"));
@@ -1058,6 +1302,11 @@ void display_debug_loop() {
 
             case '9':
                 display_debug::testRefreshTiming();
+                break;
+
+            case 'H':
+            case 'h':
+                display_debug::testHardwareFailure();
                 break;
 
             case 'S':
