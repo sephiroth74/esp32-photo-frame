@@ -206,16 +206,28 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
 void setup()
 {
-#ifdef ENABLE_DISPLAY_DIAGNOSTIC
-    // In diagnostic mode, run display debug setup instead
-    display_debug_setup();
-    return;
-#endif // ENABLE_DISPLAY_DIAGNOSTIC
+    Serial.begin(115200);
+    while (!Serial && millis() < 3000) delay(10);  // Wait for serial or timeout
 
-    // Initialize hardware components
-    if (!initialize_hardware()) {
+    // Immediate diagnostic check
+    #ifdef ENABLE_DISPLAY_DIAGNOSTIC
+        Serial.println(F("\n=================================="));
+        Serial.println(F("*** DIAGNOSTIC MODE ENABLED ***"));
+        Serial.println(F("=================================="));
+        Serial.println(F("Entering display debug mode..."));
+        delay(500);
+        // In diagnostic mode, run display debug setup instead
+        display_debug_setup();
         return;
-    }
+    #else
+        Serial.println(F("\n=================================="));
+        Serial.println(F("*** NORMAL MODE ***"));
+        Serial.println(F("=================================="));
+
+        // Initialize hardware components
+        if (!initialize_hardware()) {
+            return;
+        }
 
     // Determine wakeup reason and setup basic state
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
@@ -375,6 +387,7 @@ void setup()
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
     delay(2500); // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
+#endif // ENABLE_DISPLAY_DIAGNOSTIC
 }
 
 void loop()
@@ -383,13 +396,13 @@ void loop()
     // In diagnostic mode, run display debug loop instead
     display_debug_loop();
     return;
-#endif // ENABLE_DISPLAY_DIAGNOSTIC
-
+#else 
     // Nothing to do here, the ESP32 will go to sleep after setup
     // The loop is intentionally left empty
     // All processing is done in the setup function
     // The ESP32 will wake up from deep sleep and run the setup function again
     delay(1000); // Just to avoid watchdog reset
+#endif // ENABLE_DISPLAY_DIAGNOSTIC
 }
 
 photo_frame::photo_frame_error_t render_image(fs::File& file,
@@ -421,7 +434,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         display.setFullWindow();
         display.fillScreen(GxEPD_WHITE);
         delay(500);
-        
+
         display.firstPage();
         do {
             Serial.print(F("Drawing page: "));
@@ -555,30 +568,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
 bool initialize_hardware()
 {
-    Serial.begin(115200);
     analogReadResolution(12);
-
     startupTime = millis();
-
-    if (Serial.isConnected()) {
-        Serial.println();
-        Serial.println(F("Serial connected"));
-        delay(1000);
-    } else {
-        // Wait for serial connection for up to 5 seconds
-        Serial.println();
-        Serial.println(F("Waiting for serial connection..."));
-        unsigned long startWait = millis();
-        while (!Serial.isConnected() && (millis() - startWait < 1000)) {
-            delay(100);
-        }
-        if (Serial.isConnected()) {
-            Serial.println(F("Serial connected"));
-        } else {
-            Serial.println(F("Serial not connected - proceeding without serial output"));
-        }
-    }
-
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
     photo_frame::board_utils::disable_built_in_led();
 

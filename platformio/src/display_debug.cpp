@@ -9,7 +9,14 @@
 #include "battery.h"
 #include "board_util.h"
 #include "rgb_status.h"
+#include "io_utils.h"
+#include "spi_manager.h"
+#include "sd_card.h"
+#include "errors.h"
 #include <Preferences.h>
+#include <LittleFS.h>
+#include <SPI.h>
+#include <SD_MMC.h>
 
 // Display instance is defined in renderer.cpp, we just reference it here
 extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
@@ -94,8 +101,8 @@ void testColorPattern() {
 
     Serial.printf("[TEST] Refresh time: %lu ms\n", elapsed);
 
-    if (elapsed > 20000) {
-        Serial.println(F("[TEST] WARNING: Refresh time exceeds 20 seconds!"));
+    if (elapsed > 30000) {
+        Serial.println(F("[TEST] WARNING: Refresh time exceeds 30 seconds!"));
         test_results.refresh_timing_ok = false;
     } else {
         test_results.refresh_timing_ok = true;
@@ -110,7 +117,7 @@ void testHighStressColor() {
     Serial.println(F("\n[TEST] High Stress Color Test"));
     Serial.println(F("-------------------------------"));
     Serial.println(F("This test pushes the display to its limits"));
-    Serial.println(F("Expect refresh time of 17-20 seconds for 6-color displays"));
+    Serial.println(F("Expect refresh time of 17-30 seconds for 6-color displays"));
 
     unsigned long start = millis();
     bool timeout_detected = false;
@@ -208,10 +215,10 @@ void testHighStressColor() {
         Serial.println(F("[TEST] EXCELLENT: Fast refresh even under stress"));
     } else if(elapsed < 18000) {
         Serial.println(F("[TEST] GOOD: Normal refresh time under stress"));
-    } else if(elapsed < 20000) {
+    } else if(elapsed < 30000) {
         Serial.println(F("[TEST] WARNING: Close to timeout limit"));
         Serial.println(F("[TEST] Consider increasing library timeout"));
-    } else if(elapsed < 22000) {
+    } else if(elapsed < 32000) {
         Serial.println(F("[TEST] CRITICAL: Very close to timeout!"));
         Serial.println(F("[TEST] Timeout increase recommended"));
     } else {
@@ -221,7 +228,7 @@ void testHighStressColor() {
     }
 
     // Check for timeout symptoms
-    if(timeout_detected || elapsed > 20000) {
+    if(timeout_detected || elapsed > 30000) {
         Serial.println(F("\n[TEST] Timeout Risk Assessment:"));
         Serial.println(F("  - Simple images may work fine"));
         Serial.println(F("  - Complex/portrait images may timeout"));
@@ -233,8 +240,255 @@ void testHighStressColor() {
     }
 
     // Update test results
-    if(elapsed > 20000) {
+    if(elapsed > 30000) {
         test_results.refresh_timing_ok = false;
+    }
+}
+
+// =============================================================================
+// SD TO LITTLEFS COPY FUNCTION
+// =============================================================================
+
+void copyImageFromSDToLittleFS() {
+    Serial.println(F("\n[TEST] Copy Image from SD to LittleFS"));
+    Serial.println(F("-------------------------------"));
+
+    // Initialize SD card
+    photo_frame::sd_card sdCard;
+    if(sdCard.begin() != photo_frame::error_type::None) {
+        Serial.println(F("[TEST] FAIL: Could not initialize SD card"));
+        return;
+    }
+
+    // Initialize LittleFS
+    if(!photo_frame::spi_manager::SPIManager::init_littlefs()) {
+        Serial.println(F("[TEST] FAIL: Could not initialize LittleFS"));
+        return;
+    }
+
+    // List available images on SD card
+    Serial.println(F("[TEST] Looking for images on SD card..."));
+    File root = SD_MMC.open("/");
+    if(!root || !root.isDirectory()) {
+        Serial.println(F("[TEST] Failed to open SD root"));
+        return;
+    }
+
+    File file = root.openNextFile();
+    String firstImage = "";
+    int imageCount = 0;
+
+    while(file) {
+        String filename = String(file.name());
+        if(!file.isDirectory() &&
+           (filename.endsWith(".bin") || filename.endsWith(".bmp"))) {
+            imageCount++;
+            if(firstImage == "") {
+                firstImage = filename;
+            }
+            Serial.printf("[TEST]   Found: %s (%d bytes)\n",
+                file.name(), file.size());
+        }
+        file.close();
+        file = root.openNextFile();
+    }
+    root.close();
+
+    if(imageCount == 0) {
+        Serial.println(F("[TEST] No images found on SD card"));
+        return;
+    }
+
+    // Copy the first image found
+    Serial.printf("[TEST] Copying %s to LittleFS...\n", firstImage.c_str());
+
+    File srcFile = SD_MMC.open("/" + firstImage, "r");
+    if(!srcFile) {
+        Serial.println(F("[TEST] Failed to open source file"));
+        return;
+    }
+
+    // Open destination in LittleFS
+    File dstFile = LittleFS.open(LITTLEFS_TEMP_IMAGE_FILE, "w");
+    if(!dstFile) {
+        Serial.println(F("[TEST] Failed to create destination file"));
+        srcFile.close();
+        return;
+    }
+
+    // Copy file
+    size_t totalBytes = srcFile.size();
+    size_t copiedBytes = 0;
+    uint8_t buffer[512];
+
+    while(srcFile.available()) {
+        size_t bytesRead = srcFile.read(buffer, sizeof(buffer));
+        size_t bytesWritten = dstFile.write(buffer, bytesRead);
+
+        if(bytesWritten != bytesRead) {
+            Serial.println(F("[TEST] Write error during copy"));
+            break;
+        }
+
+        copiedBytes += bytesWritten;
+
+        // Show progress
+        if(copiedBytes % 10240 == 0) {
+            Serial.printf("[TEST] Progress: %d/%d bytes (%.1f%%)\n",
+                copiedBytes, totalBytes,
+                (copiedBytes * 100.0) / totalBytes);
+        }
+    }
+
+    srcFile.close();
+    dstFile.close();
+
+    if(copiedBytes == totalBytes) {
+        Serial.printf("[TEST] SUCCESS: Copied %d bytes to %s\n",
+            copiedBytes, LITTLEFS_TEMP_IMAGE_FILE);
+        Serial.println(F("[TEST] You can now run the LittleFS Image Test (option 4)"));
+    } else {
+        Serial.printf("[TEST] FAIL: Only copied %d of %d bytes\n",
+            copiedBytes, totalBytes);
+    }
+}
+
+// =============================================================================
+// LITTLEFS IMAGE RENDERING TEST
+// =============================================================================
+
+void testLittleFSImage() {
+    Serial.println(F("\n[TEST] LittleFS Image Rendering Test"));
+    Serial.println(F("-------------------------------"));
+
+    // Use the SPIManager to properly initialize LittleFS
+    // This handles the SPIFFS partition and proper mounting
+    if(!photo_frame::spi_manager::SPIManager::init_littlefs()) {
+        Serial.println(F("[TEST] FAIL: Could not initialize LittleFS via SPIManager"));
+        return;
+    }
+
+    Serial.println(F("[TEST] LittleFS initialized successfully"));
+
+    // Check if the temp image file exists
+    if(!LittleFS.exists(LITTLEFS_TEMP_IMAGE_FILE)) {
+        Serial.println(F("[TEST] No image found in LittleFS"));
+        Serial.printf("[TEST] Expected file: %s\n", LITTLEFS_TEMP_IMAGE_FILE);
+        Serial.println(F("[TEST] To test this feature:"));
+        Serial.println(F("  1. Enable shared SPI mode or"));
+        Serial.println(F("  2. Run normal operation to cache an image"));
+        Serial.println(F("  3. Then run this test"));
+
+        // list all files inside the root folder
+        Serial.println(F("\n[TEST] Files in LittleFS root directory:"));
+        File root = LittleFS.open("/");
+        if(!root || !root.isDirectory()) {
+            Serial.println(F("[TEST] Failed to open root directory"));
+        } else {
+            File file = root.openNextFile();
+            int fileCount = 0;
+            size_t totalSize = 0;
+
+            while(file) {
+                fileCount++;
+                size_t fileSize = file.size();
+                totalSize += fileSize;
+
+                Serial.printf("[TEST]   %s%s (%d bytes)\n",
+                    file.name(),
+                    file.isDirectory() ? "/" : "",
+                    fileSize);
+
+                file.close();
+                file = root.openNextFile();
+            }
+            root.close();
+
+            if(fileCount == 0) {
+                Serial.println(F("[TEST]   <empty>"));
+            } else {
+                Serial.printf("[TEST] Total: %d file(s), %d bytes\n", fileCount, totalSize);
+            }
+        }
+
+        // Also show filesystem info
+        Serial.printf("\n[TEST] LittleFS Info:\n");
+        Serial.printf("[TEST]   Total space: %d bytes\n", LittleFS.totalBytes());
+        Serial.printf("[TEST]   Used space:  %d bytes\n", LittleFS.usedBytes());
+        Serial.printf("[TEST]   Free space:  %d bytes\n",
+            LittleFS.totalBytes() - LittleFS.usedBytes());
+
+        return;
+    }
+
+    // Get file info
+    File file = LittleFS.open(LITTLEFS_TEMP_IMAGE_FILE, "r");
+    if(!file) {
+        Serial.println(F("[TEST] FAIL: Could not open image file"));
+        return;
+    }
+
+    size_t fileSize = file.size();
+    Serial.printf("[TEST] Found image file: %s\n", LITTLEFS_TEMP_IMAGE_FILE);
+    Serial.printf("[TEST] File size: %d bytes\n", fileSize);
+
+    // Determine format from extension (though temp file might not have proper extension)
+    // Try to detect format from file content or size
+    bool isBinary = false;
+
+    // Binary files are typically smaller for the same image
+    // BMP header starts with 'BM'
+    char header[2];
+    file.read((uint8_t*)header, 2);
+    file.seek(0); // Reset to beginning
+
+    if(header[0] == 'B' && header[1] == 'M') {
+        Serial.println(F("[TEST] Detected BMP format"));
+        isBinary = false;
+    } else {
+        // Assume binary if not BMP
+        Serial.println(F("[TEST] Assuming binary format"));
+        isBinary = true;
+    }
+
+    Serial.println(F("[TEST] Starting image render..."));
+    unsigned long start = millis();
+
+    uint16_t error_code;
+    if(isBinary) {
+        // Use binary renderer
+        error_code = photo_frame::renderer::draw_binary_from_file(
+            file, LITTLEFS_TEMP_IMAGE_FILE, DISP_WIDTH, DISP_HEIGHT);
+    } else {
+        // Use bitmap renderer
+        error_code = photo_frame::renderer::draw_bitmap_from_file(
+            file, LITTLEFS_TEMP_IMAGE_FILE, 0, 0, false);
+    }
+
+    file.close();
+
+    unsigned long elapsed = millis() - start;
+
+    Serial.printf("[TEST] Render time: %lu ms\n", elapsed);
+
+    if(error_code == 0) {
+        Serial.println(F("[TEST] PASS: Image rendered successfully"));
+
+        // Analysis based on render time
+        if(elapsed < 30000) {
+            Serial.println(F("[TEST] Good render performance"));
+        } else if(elapsed < 45000) {
+            Serial.println(F("[TEST] Acceptable render time"));
+        } else {
+            Serial.println(F("[TEST] WARNING: Slow render time"));
+            Serial.println(F("[TEST] Consider optimizing image or using binary format"));
+        }
+    } else {
+        Serial.printf("[TEST] FAIL: Render error code %d\n", error_code);
+        Serial.println(F("[TEST] Possible causes:"));
+        Serial.println(F("  - Corrupted image file"));
+        Serial.println(F("  - Incompatible format"));
+        Serial.println(F("  - Display communication issue"));
     }
 }
 
@@ -306,46 +560,92 @@ void testPowerSupply() {
 void testDataLineVoltages() {
     Serial.println(F("\n[TEST] Data Line Voltage Test"));
     Serial.println(F("-------------------------------"));
-    Serial.println(F("Check with multimeter - all should read ~3.3V when HIGH"));
 
-    // Configure all pins as outputs
+    Serial.println(F("Testing each pin individually - measure with multimeter"));
+    Serial.println(F("Press any key to test next pin, or 'q' to quit\n"));
+
+    // Configure all pins as outputs first
     pinMode(EPD_MOSI_PIN, OUTPUT);
     pinMode(EPD_SCK_PIN, OUTPUT);
     pinMode(EPD_CS_PIN, OUTPUT);
     pinMode(EPD_DC_PIN, OUTPUT);
     pinMode(EPD_RST_PIN, OUTPUT);
 
-    // Set all HIGH
-    digitalWrite(EPD_CS_PIN, HIGH);
-    digitalWrite(EPD_DC_PIN, HIGH);
-    digitalWrite(EPD_RST_PIN, HIGH);
-    digitalWrite(EPD_SCK_PIN, HIGH);
-    digitalWrite(EPD_MOSI_PIN, HIGH);
+    // Set all LOW initially
+    digitalWrite(EPD_CS_PIN, LOW);
+    digitalWrite(EPD_DC_PIN, LOW);
+    digitalWrite(EPD_RST_PIN, LOW);
+    digitalWrite(EPD_SCK_PIN, LOW);
+    digitalWrite(EPD_MOSI_PIN, LOW);
 
-    Serial.println(F("[TEST] All data pins set HIGH - measure now:"));
-    Serial.printf("  CS  (GPIO %d) - Expected: 3.3V\n", EPD_CS_PIN);
-    Serial.printf("  DC  (GPIO %d) - Expected: 3.3V\n", EPD_DC_PIN);
-    Serial.printf("  RST (GPIO %d) - Expected: 3.3V\n", EPD_RST_PIN);
-    Serial.printf("  SCK (GPIO %d) - Expected: 3.3V\n", EPD_SCK_PIN);
-    Serial.printf("  MOSI(GPIO %d) - Expected: 3.3V\n", EPD_MOSI_PIN);
+    // Test each pin individually
+    struct PinTest {
+        uint8_t pin;
+        const char* name;
+        bool passed;
+    };
 
-    delay(3000); // Give time to measure
+    PinTest pins[] = {
+        {EPD_CS_PIN, "CS  ", false},
+        {EPD_DC_PIN, "DC  ", false},
+        {EPD_RST_PIN, "RST ", false},
+        {EPD_SCK_PIN, "SCK ", false},
+        {EPD_MOSI_PIN, "MOSI", false}
+    };
 
-    // Toggle test for oscilloscope
-    Serial.println(F("\n[TEST] Toggling SCK for oscilloscope check..."));
-    for(int i = 0; i < 1000; i++) {
-        digitalWrite(EPD_SCK_PIN, HIGH);
-        delayMicroseconds(10);
-        digitalWrite(EPD_SCK_PIN, LOW);
-        delayMicroseconds(10);
+    bool all_passed = true;
+
+    for(int i = 0; i < 5; i++) {
+        Serial.printf("\n[TEST %d/5] Testing %s (GPIO %d)\n", i+1, pins[i].name, pins[i].pin);
+
+        // Set this pin HIGH
+        digitalWrite(pins[i].pin, HIGH);
+        Serial.println(F("[TEST] Pin set HIGH - measure now (should read ~3.3V)"));
+
+        // Wait for user to press a key
+        Serial.println(F("[TEST] Press 'p' if passed, 'f' if failed, 'q' to quit:"));
+        while(!Serial.available()) delay(10);
+        char response = Serial.read();
+        while(Serial.available()) Serial.read(); // Clear buffer
+
+        if(response == 'q' || response == 'Q') {
+            Serial.println(F("[TEST] Test aborted by user"));
+            digitalWrite(pins[i].pin, LOW);
+            test_results.data_lines_ok = false;
+            return;
+        }
+
+        pins[i].passed = (response == 'p' || response == 'P');
+        if(!pins[i].passed) {
+            all_passed = false;
+            Serial.printf("[TEST] FAIL: %s pin not working correctly\n", pins[i].name);
+        } else {
+            Serial.printf("[TEST] PASS: %s pin OK\n", pins[i].name);
+        }
+
+        // Test toggling for this pin
+        Serial.printf("[TEST] Toggling %s pin rapidly...\n", pins[i].name);
+        for(int j = 0; j < 500; j++) {
+            digitalWrite(pins[i].pin, HIGH);
+            delayMicroseconds(10);
+            digitalWrite(pins[i].pin, LOW);
+            delayMicroseconds(10);
+        }
+
+        // Set back to LOW before testing next pin
+        digitalWrite(pins[i].pin, LOW);
     }
 
-    Serial.println(F("[TEST] Enter 'y' if voltages are correct, 'n' if not:"));
-    while(!Serial.available()) delay(10);
-    char response = Serial.read();
-    while(Serial.available()) Serial.read(); // Clear buffer
+    Serial.println(F("\n[TEST] Pin Test Summary:"));
+    Serial.println(F("-----------------------------"));
+    for(int i = 0; i < 5; i++) {
+        Serial.printf("[TEST] %s (GPIO %d): %s\n",
+            pins[i].name,
+            pins[i].pin,
+            pins[i].passed ? "PASSED" : "FAILED");
+    }
 
-    test_results.data_lines_ok = (response == 'y' || response == 'Y');
+    test_results.data_lines_ok = all_passed;
 
     if(!test_results.data_lines_ok) {
         Serial.println(F("[TEST] FAIL: Data line voltage issues"));
@@ -426,7 +726,7 @@ void testBusyPin() {
                   busy_low_count, busy_checks,
                   (busy_low_count * 100.0) / busy_checks);
 
-    if(elapsed > 20000) {
+    if(elapsed > 30000) {
         Serial.println(F("[TEST] FAIL: Likely BUSY timeout!"));
         test_results.busy_timeouts++;
         test_results.busy_pin_ok = false;
@@ -562,12 +862,15 @@ void showMenu() {
     Serial.println(F("1. Run Full Diagnostic Suite"));
     Serial.println(F("2. Color Pattern Test"));
     Serial.println(F("3. High Stress Color Test (Timeout Test)"));
-    Serial.println(F("4. Power Supply Test"));
-    Serial.println(F("5. Data Line Voltage Test"));
-    Serial.println(F("6. BUSY Pin Test"));
-    Serial.println(F("7. SPI Communication Test"));
-    Serial.println(F("8. Refresh Timing Test"));
-    Serial.println(F("9. Show Test Results Summary"));
+    Serial.println(F("4. LittleFS Image Render Test"));
+    Serial.println(F("5. Power Supply Test"));
+    Serial.println(F("6. Data Line Voltage Test"));
+    Serial.println(F("7. BUSY Pin Test"));
+    Serial.println(F("8. SPI Communication Test"));
+    Serial.println(F("9. Refresh Timing Test"));
+    Serial.println(F("S. Copy Image from SD to LittleFS"));
+    Serial.println(F("P. Test Pins (Release SPI First)"));
+    Serial.println(F("R. Show Test Results Summary"));
     Serial.println(F("C. Clear Display"));
     Serial.println(F("0. Restart ESP32"));
     Serial.println(F("----------------------------------------"));
@@ -634,11 +937,14 @@ void runFullDiagnostic() {
     testHighStressColor();  // Add the stress test
     delay(2000);
 
+    testLittleFSImage();  // Test cached image if available
+    delay(2000);
+
     testPowerSupply();
     delay(2000);
 
-    testDataLineVoltages();
-    delay(2000);
+    // testDataLineVoltages();
+    // delay(2000);
 
     testBusyPin();
     delay(2000);
@@ -660,7 +966,7 @@ void runFullDiagnostic() {
 
 void display_debug_setup() {
     Serial.begin(115200);
-    while (!Serial) delay(10);
+    while (!Serial.isConnected()) delay(10);
 
     Serial.println(F("\n\n========================================"));
     Serial.println(F("ESP32 Photo Frame - Display Debug Mode"));
@@ -677,6 +983,30 @@ void display_debug_setup() {
     Serial.printf("  Chip Cores: %d\n", ESP.getChipCores());
     Serial.printf("  CPU Freq: %d MHz\n", ESP.getCpuFreqMHz());
     Serial.printf("  Free Heap: %d bytes\n", ESP.getFreeHeap());
+
+    // Ask if user wants to test pins first
+    Serial.println(F("\n========================================"));
+    Serial.println(F("IMPORTANT: Pin Test Options"));
+    Serial.println(F("========================================"));
+    Serial.println(F("Do you want to test pins BEFORE display initialization?"));
+    Serial.println(F("(Once display is initialized, SPI takes control of pins)"));
+    Serial.println(F("\nPress 'P' to test pins first (recommended)"));
+    Serial.println(F("Press 'D' to initialize display and continue"));
+    Serial.println(F("========================================"));
+
+    while(!Serial.available()) delay(10);
+    char choice = Serial.read();
+    while(Serial.available()) Serial.read(); // Clear buffer
+
+    if(choice == 'P' || choice == 'p') {
+        Serial.println(F("\n[TEST] Testing pins WITHOUT display initialization"));
+        Serial.println(F("[TEST] This allows manual control of all pins"));
+        display_debug::testDataLineVoltages();
+        Serial.println(F("\n[TEST] Pin test complete."));
+        Serial.println(F("[TEST] Press any key to continue with display init..."));
+        while(!Serial.available()) delay(10);
+        while(Serial.available()) Serial.read(); // Clear buffer
+    }
 
     // Initialize display
     Serial.println(F("\nInitializing display..."));
@@ -707,26 +1037,49 @@ void display_debug_loop() {
                 break;
 
             case '4':
-                display_debug::testPowerSupply();
+                display_debug::testLittleFSImage();
                 break;
 
             case '5':
-                display_debug::testDataLineVoltages();
+                display_debug::testPowerSupply();
                 break;
 
             case '6':
-                display_debug::testBusyPin();
+                display_debug::testDataLineVoltages();
                 break;
 
             case '7':
-                display_debug::testSPICommunication();
+                display_debug::testBusyPin();
                 break;
 
             case '8':
-                display_debug::testRefreshTiming();
+                display_debug::testSPICommunication();
                 break;
 
             case '9':
+                display_debug::testRefreshTiming();
+                break;
+
+            case 'S':
+            case 's':
+                display_debug::copyImageFromSDToLittleFS();
+                break;
+
+            case 'P':
+            case 'p':
+                Serial.println(F("\n[TEST] Releasing SPI control..."));
+                // End SPI to release pin control
+                SPI.end();
+                // Set CS high to deselect display
+                digitalWrite(EPD_CS_PIN, HIGH);
+                pinMode(EPD_CS_PIN, OUTPUT);
+                Serial.println(F("[TEST] SPI released. Testing pins manually..."));
+                display_debug::testDataLineVoltages();
+                Serial.println(F("\n[TEST] Note: Display will need restart after this test"));
+                break;
+
+            case 'R':
+            case 'r':
                 display_debug::showResults();
                 break;
 

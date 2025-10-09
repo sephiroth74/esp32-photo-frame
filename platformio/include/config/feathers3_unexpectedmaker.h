@@ -21,12 +21,13 @@
 #define SD_MMC_D2_PIN 12  // SDIO D2 - IO12 (left side)
 
 // e-Paper Display - using separate SPI pins to avoid SDIO conflicts
+// Using available output-capable pins that don't conflict with SD card or other peripherals
 #define EPD_BUSY_PIN 6   // A4 (IO6) - available digital pin
 #define EPD_RST_PIN  5   // A5 (IO5) - available digital pin
 #define EPD_DC_PIN   10  // IO10 - available digital pin (avoiding SD card pins)
-#define EPD_CS_PIN   38   // IO8 - available digital pin (non-RTC, freeing GPIO1 for wakeup)
-#define EPD_SCK_PIN  36  // SPI SCK pin from pinout
-#define EPD_MOSI_PIN 35  // SPI MO pin from pinout
+#define EPD_CS_PIN   38  
+#define EPD_SCK_PIN  36  
+#define EPD_MOSI_PIN 35  
 
 // Potentiometer pin - using analog pins
 #define POTENTIOMETER_PWR_PIN   33   // IO33 - available digital pin for power control

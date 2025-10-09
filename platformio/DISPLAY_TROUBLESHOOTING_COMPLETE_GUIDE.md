@@ -49,12 +49,13 @@ Display Debug Menu
 1. Run Full Diagnostic Suite  ← Start here!
 2. Color Pattern Test
 3. High Stress Color Test (Timeout Test) ← NEW!
-4. Power Supply Test
-5. Data Line Voltage Test
-6. BUSY Pin Test
-7. SPI Communication Test
-8. Refresh Timing Test
-9. Show Test Results Summary
+4. LittleFS Image Render Test ← NEW!
+5. Power Supply Test
+6. Data Line Voltage Test
+7. BUSY Pin Test
+8. SPI Communication Test
+9. Refresh Timing Test
+R. Show Test Results Summary
 C. Clear Display
 0. Restart ESP32
 ```
@@ -180,6 +181,34 @@ GxEPD2_EPD(cs, dc, rst, busy, LOW, 30000000, WIDTH, HEIGHT, ...
 
 ## Test Procedures
 
+### LittleFS Image Render Test (Option 4 - NEW!)
+
+**Tests actual image rendering from cached files in LittleFS.**
+
+This test:
+- Checks for cached images in LittleFS (`/temp_image.tmp`)
+- Automatically detects binary vs BMP format
+- Renders the cached image to display
+- Measures render performance
+
+**When to use this test:**
+- After normal operation has cached an image
+- When using shared SPI configuration
+- To verify image rendering works correctly
+- To test actual image performance
+
+**Expected Results:**
+| Render Time | Status | Meaning |
+|-------------|--------|---------|
+| < 30 seconds | GOOD | Normal performance |
+| 30-45 seconds | ACCEPTABLE | Slower but functional |
+| > 45 seconds | SLOW | Consider using binary format |
+
+**If no image is found:**
+1. Run normal operation first to cache an image
+2. Or enable shared SPI mode which caches to LittleFS
+3. Then run this test again
+
 ### High Stress Color Test (Option 3 - Critical!)
 
 **This test is specifically designed to trigger timeout issues.**
@@ -299,12 +328,13 @@ Monitor actual refresh times in debug mode:
 | 1 | Full Diagnostic | Complete system analysis |
 | 2 | Color Pattern | Check for washout visually |
 | 3 | **High Stress Test** | **Push display to timeout limit** |
-| 4 | Power Supply | Voltage drop measurements |
-| 5 | Data Lines | Requires multimeter check |
-| 6 | BUSY Pin | Connection and response |
-| 7 | SPI Test | Communication integrity |
-| 8 | Timing Test | Refresh duration |
-| 9 | Results | Summary and diagnosis |
+| 4 | **LittleFS Image** | **Render cached image from LittleFS** |
+| 5 | Power Supply | Voltage drop measurements |
+| 6 | Data Lines | Requires multimeter check |
+| 7 | BUSY Pin | Connection and response |
+| 8 | SPI Test | Communication integrity |
+| 9 | Timing Test | Refresh duration |
+| R | Results | Summary and diagnosis |
 | C | Clear Display | Reset display to white |
 | 0 | Restart | Reboot ESP32 |
 
