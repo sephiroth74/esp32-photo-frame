@@ -69,7 +69,7 @@
 
 /// Display type selection (define exactly ONE of these in board config)
 // #define DISP_BW_V2    // Black and White e-Paper display (GDEH0154D67)
-// #define DISP_7C_F     // 7-color e-Paper display (GDEY073D46)
+// #define DISP_7C       // 7-color e-Paper display (GDEY073D46)
 // #define DISP_6C       // 6-color e-Paper display (GDEP073E01)
 
 /// Display driver selection (optional - system will auto-detect if not specified)
@@ -475,7 +475,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #ifndef ACCENT_COLOR
 #if defined(DISP_BW_V2)
 #define ACCENT_COLOR GxEPD_BLACK // Black for B&W displays
-#elif defined(DISP_7C_F)
+#elif defined(DISP_7C)
 #define ACCENT_COLOR GxEPD_RED // Red for 7-color displays
 #elif defined(DISP_6C)
 #define ACCENT_COLOR GxEPD_RED // Red for 6-color displays

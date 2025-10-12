@@ -424,7 +424,10 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     bool has_partial_update = photo_frame::renderer::has_partial_update();
     bool has_fast_partial_update = photo_frame::renderer::has_fast_partial_update();
 
-    if (error == photo_frame::error_type::None && !has_partial_update && !has_fast_partial_update) { // if the display does not support partial update
+    if (error == photo_frame::error_type::None && !has_partial_update && !has_fast_partial_update) { 
+        // ----------------------------------------------
+        // the display does not support partial update
+        // ----------------------------------------------
         Serial.println(F("Warning: Display does not support partial update!"));
 
         int page_index = 0;
@@ -439,19 +442,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         do {
             Serial.print(F("Drawing page: "));
             Serial.println(page_index);
-
-            /**
-             * Runtime File Format Detection and Rendering
-             *
-             * The system automatically detects file format based on extension (.bin or .bmp)
-             * and selects the appropriate rendering engine. This replaces the old compile-time
-             * EPD_USE_BINARY_FILE flag system, allowing mixed file formats in the same folder.
-             *
-             * - Binary files (.bin): Use optimized binary renderer for fast e-paper rendering
-             * - Bitmap files (.bmp): Use standard bitmap renderer for compatibility
-             */
             if (photo_frame::io_utils::is_binary_format(format_filename)) {
-                error_code = photo_frame::renderer::draw_binary_from_file(
+                error_code = photo_frame::renderer::draw_binary_from_file_paged(
                     file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
             } else {
                 error_code = photo_frame::renderer::draw_bitmap_from_file(
@@ -479,11 +471,11 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             page_index++;
         } while (display.nextPage());
 
-        #ifdef DISP_6C
+    #if defined(DISP_6C) || defined(DISP_7C)
         // Power recovery delay after page refresh for 6-color displays
         // Helps prevent washout by allowing capacitors to recharge
         delay(200);
-        #endif
+    #endif
 
         // Handle rendering errors in a separate loop to prevent cutoff
         if (rendering_failed) {
@@ -512,6 +504,9 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
     } else if (error == photo_frame::error_type::None) {
+        // -------------------------------
+        // Display has partial update
+        // -------------------------------
         Serial.println(F("Using partial update mode"));
 
         /**

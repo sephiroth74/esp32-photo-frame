@@ -94,7 +94,7 @@ void init_display() {
     }
 
     SPI.end();
-    SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD
+    SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD, -1 for MISO (not used)
 
 #ifdef USE_DESPI_DRIVER
     display.init(115200);
@@ -108,28 +108,12 @@ void init_display() {
     display.setTextColor(GxEPD_BLACK);
     display.setTextWrap(false);
 
-#ifdef DISP_6C
-    // For GDEP073E01 6-color display: enable paged workaround
-    Serial.println("[renderer] GDEP073E01 6-color display detected - applying optimizations...");
-
-    // Power stabilization delay for 6-color displays
-    // The GDEP073E01 draws high current during color refresh (200-300mA peaks)
-    // This delay allows power supply capacitors to fully charge
+#if defined(DISP_6C) || defined(DISP_7C)
+    // For GDEP073E01 6-color display: power stabilization only
+    Serial.println("[renderer] GDEP073E01 6-color display detected - applying power stabilization...");
     delay(500);
     Serial.println("[renderer] Power stabilization delay applied");
 
-    // Enable paged workaround for GDEP073E01
-    // This helps with incomplete refresh issues and washout problems
-    // The setPaged() method initializes the display in a special mode that can help
-    // with timing issues and incomplete refreshes
-    display.epd2.setPaged();
-    Serial.println("[renderer] Enabled setPaged() workaround for GDEP073E01");
-
-    // Additional stabilization after setPaged configuration
-    delay(200);
-
-    // Note: The default timeout is 20 seconds which should be sufficient with setPaged()
-    // If you still see timeouts, you may need to modify the GxEPD2 library directly
 #endif
 
     auto pages = display.pages();
@@ -178,6 +162,10 @@ bool has_partial_update() {
     // check if the display supports partial update
     return display.epd2.hasPartialUpdate;
 } // end hasPartialUpdate
+
+bool has_color() {
+    return display.epd2.hasColor;
+} // end has_color
 
 bool has_fast_partial_update() {
     // check if the display supports fast partial update
@@ -913,11 +901,11 @@ void draw_side_message_with_icon(gravity_t gravity,
 uint16_t
 draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bool with_color) {
     if (!file) {
-        Serial.println("[renderer] drawBitmapFromFile: File not open or invalid");
+        Serial.println("[renderer] draw_bitmap_from_file: File not open or invalid");
         return photo_frame::error_type::FileOpenFailed.code;
     }
 
-    Serial.println("[renderer] drawBitmapFromFile: " + String(filename));
+    Serial.println("[renderer] draw_bitmap_from_file: " + String(filename));
 
     bool valid         = false; // valid format to be handled
     bool flip          = true;  // bitmap is stored bottom-to-top
@@ -926,6 +914,7 @@ draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bo
         return photo_frame::error_type::ImageDimensionsInvalid.code;
 
     // Parse BMP header
+    file.seek(0);
     auto signature = read16(file);
 
 #ifdef DEBUG_RENDERER
@@ -951,8 +940,8 @@ draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bo
         uint16_t planes = read16(file);
         uint16_t depth  = read16(file); // bits per pixel
         uint32_t format = read32(file);
-        Serial.println("planes: " + String(planes));
-        Serial.println("format: " + String(format));
+        Serial.println("[renderer] planes: " + String(planes));
+        Serial.println("[renderer] format: " + String(format));
         if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
         {
 #ifdef DEBUG_RENDERER
@@ -1018,18 +1007,32 @@ draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bo
                         color_palette_buffer[pn / 8] |= colored << pn % 8;
 
                         // Yield every 16 palette entries to prevent watchdog timeout
-                        if (pn % 16 == 0) {
-                            yield();
-                        }
+                        // if (pn % 16 == 0) {
+                        //     yield();
+                        // }
                     }
                 }
                 // display.clearScreen();
+                Serial.println("[renderer] Starting non-paged BMP rendering");
+                Serial.printf("[renderer] Processing %d rows in single pass (no paging)\n", h);
+                Serial.printf("[renderer] Image dimensions: %dx%d\n", w, h);
+                Serial.printf("[renderer] This will read entire file and process all rows at once\n");
+
                 uint32_t rowPosition = flip ? imageOffset + (height - h) * rowSize : imageOffset;
+                unsigned long renderStart = millis();
+
                 for (uint16_t row = 0; row < h; row++, rowPosition += rowSize) // for each line
                 {
                     // Yield every 10 rows to prevent watchdog timeout
                     if (row % 10 == 0) {
                         yield();
+                    }
+
+                    // Log progress every 50 rows
+                    if (row % 50 == 0) {
+                        unsigned long elapsed = millis() - renderStart;
+                        Serial.printf("[renderer] Processing row %d/%d (%.1f%%) - Elapsed: %lu ms\n",
+                                      row, h, (float)row * 100.0 / h, elapsed);
                     }
 
                     uint32_t in_remain     = rowSize;
@@ -1125,17 +1128,26 @@ draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bo
                         }
 
                         // Yield every 100 pixels to prevent watchdog timeout
-                        if (col % 100 == 0) {
-                            yield();
-                        }
+                        // if (col % 100 == 0) {
+                        //     yield();
+                        // }
                     } // end pixel
                     uint16_t yrow = y + (flip ? h - row - 1 : row);
                     display.writeImage(
                         output_row_mono_buffer, output_row_color_buffer, x, yrow, w, 1);
                 } // end line
-                Serial.print("loaded in ");
-                Serial.print(millis() - startTime);
-                Serial.println(" ms");
+
+                unsigned long totalTime = millis() - startTime;
+                Serial.println("[renderer] ========================================");
+                Serial.printf("[renderer] Non-paged BMP rendering completed:\n");
+                Serial.printf("  - Total time: %lu ms\n", totalTime);
+                Serial.printf("  - Rows processed: %d\n", h);
+                Serial.printf("  - Average time per row: %.2f ms\n", (float)totalTime / h);
+                Serial.printf("  - Image size: %dx%d pixels\n", w, h);
+                Serial.println("[renderer] Note: This method does NOT use paging!");
+                Serial.println("[renderer] All rows were sent to display buffer at once");
+                Serial.println("[renderer] display.refresh() must be called separately");
+                Serial.println("[renderer] ========================================");
                 // display.refresh();
                 // display.refresh(true); // use partial update
             }
@@ -1161,7 +1173,7 @@ draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bo
 } // end drawBitmapFromFile
 
 uint16_t
-draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index) {
+draw_binary_from_file_paged(File& file, const char* filename, int width, int height, int page_index) {
     Serial.print("[renderer] draw_binary_from_file: ");
     Serial.print(filename);
     Serial.print(", width: ");
@@ -1295,95 +1307,124 @@ uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int wi
         return photo_frame::error_type::BinaryRenderingFailed.code;
     }
 
-    auto startTime           = millis();
-    uint32_t pixelsProcessed = 0;
+    auto startTime = millis();
 
     Serial.print("[renderer] Multi-page buffered display: ");
     Serial.print(display.pages());
     Serial.print(" pages, page height: ");
     Serial.println(display.pageHeight());
 
-    // Try sequential reading first (more reliable than random seeking)
-    file.seek(0); // Start from beginning
-    bool useSequentialRead      = true;
-    int consecutiveReadFailures = 0;
+    // Allocate buffer for reading a row of pixels
+    uint8_t* rowBuffer = new uint8_t[width];
+    if (!rowBuffer) {
+        Serial.println("[renderer] Failed to allocate row buffer");
+        return photo_frame::error_type::BinaryRenderingFailed.code;
+    }
 
-    // GxEPD2 handles page clipping automatically - just draw the entire image
-    // The library will only render pixels that belong to the current page
-    for (int y = 0; y < height; y++) {
-        // Yield every 10 rows to prevent watchdog timeout
-        if (y % 10 == 0) {
+    // Set up display paging (like draw_bitmap_from_file_buffered does)
+    display.setFullWindow();
+    display.firstPage();
+
+    int pageIndex = 0;
+    uint32_t totalPixelsProcessed = 0;
+
+    // Process each display page
+    do {
+        // Clear screen for this page (inside the loop like bitmap renderer)
+        display.fillScreen(GxEPD_WHITE);
+        Serial.printf("[renderer] Processing page %d of %d\n", pageIndex + 1, display.pages());
+        uint32_t pageStartTime = millis();
+        uint32_t pixelsProcessed = 0;
+        uint32_t blackPixels = 0;
+        uint32_t whitePixels = 0;
+        uint32_t coloredPixels = 0;
+
+        // Calculate page boundaries
+        int pageHeight = display.pageHeight();
+        int startY = pageIndex * pageHeight;
+        int endY = min(startY + pageHeight, height);
+
+
+        // Process only the rows for this page
+        for (int y = startY; y < endY; y++) {
+            // Seek to the start of the current row
+            size_t rowPosition = y * width;
+            if (!file.seek(rowPosition)) {
+                delete[] rowBuffer;
+                Serial.printf("[renderer] Failed to seek to row %d\n", y);
+                return photo_frame::error_type::SeekOperationFailed.code;
+            }
+
+            // Read the entire row
+            size_t bytesRead = file.read(rowBuffer, width);
+            if (bytesRead != width) {
+                delete[] rowBuffer;
+                Serial.printf("[renderer] Failed to read row %d (got %d bytes, expected %d)\n",
+                             y, bytesRead, width);
+                return photo_frame::error_type::PixelReadError.code;
+            }
+
+            // Process each pixel in the row and draw directly (like bitmap renderer does)
+            for (int x = 0; x < width; x++) {
+                uint8_t color = rowBuffer[x];
+                uint16_t pixelColor = GxEPD_WHITE;
+
+                // Convert color value to EPD color
+                photo_frame::renderer::color2Epd(color, pixelColor, x, y);
+
+                // Draw the pixel directly (same as draw_bitmap_from_file_buffered does)
+                display.drawPixel(x, y, pixelColor);
+
+                // Track pixel statistics
+                if (pixelColor == GxEPD_WHITE) {
+                    whitePixels++;
+                } else if (pixelColor == GxEPD_BLACK) {
+                    blackPixels++;
+                } else {
+                    coloredPixels++;
+                }
+
+                pixelsProcessed++;
+
+                // Yield every 100 pixels to prevent watchdog timeout
+                if (pixelsProcessed % 100 == 0) {
+                    yield();
+                }
+            }
+
+            // Yield every row to prevent watchdog timeout
             yield();
         }
 
-        for (int x = 0; x < width; x++) {
-            uint8_t color;
-            uint16_t pixelColor;
-            uint32_t idx = (y * width + x);
+        totalPixelsProcessed += pixelsProcessed;
+        Serial.printf("[renderer] Page %d rendered in %lu ms (%u pixels)\n",
+                     pageIndex + 1, millis() - pageStartTime, pixelsProcessed);
+        Serial.printf("[renderer] Pixel distribution - Black: %u, White: %u, Colored: %u\n",
+                     blackPixels, whitePixels, coloredPixels);
 
-            int byteRead = -1;
-
-            if (useSequentialRead) {
-                // Sequential read - more reliable
-                byteRead = file.read();
-                if (byteRead < 0) {
-                    consecutiveReadFailures++;
-                    if (consecutiveReadFailures > 10) {
-                        Serial.println(
-                            "[renderer] Too many sequential read failures, switching to seek mode");
-                        useSequentialRead = false;
-                        auto error        = photo_frame::error_type::SequentialReadError;
-                        error.set_timestamp();
-                        error.log_detailed();
-                    }
-                } else {
-                    consecutiveReadFailures = 0;
-                }
+        // Debug: Sample first few pixels of first row to see raw values
+        if (pageIndex == 0) {
+            file.seek(0);
+            uint8_t samplePixels[10];
+            file.read(samplePixels, 10);
+            Serial.print("[renderer] First 10 pixel values: ");
+            for (int i = 0; i < 10; i++) {
+                Serial.printf("%02X ", samplePixels[i]);
             }
-
-            if (!useSequentialRead || byteRead < 0) {
-                // Fallback to seek method if sequential fails
-                bool seekSuccess = file.seek(idx);
-                if (seekSuccess) {
-                    byteRead = file.read();
-                }
-
-                if (byteRead < 0) {
-                    auto error = seekSuccess ? photo_frame::error_type::PixelReadError
-                                             : photo_frame::error_type::SeekOperationFailed;
-                    error.set_timestamp();
-                    error.log_detailed();
-                    Serial.printf(
-                        "[renderer] draw_binary_from_file_buffered failed: %s at position %d\n",
-                        seekSuccess ? "pixel read error" : "seek operation failed",
-                        idx);
-                    return photo_frame::error_type::BinaryRenderingFailed.code;
-                }
-            }
-
-            if (byteRead >= 0) {
-                color = static_cast<uint8_t>(byteRead);
-                photo_frame::renderer::color2Epd(color, pixelColor, x, y);
-
-                // Always use absolute coordinates - GxEPD2 handles page clipping automatically
-                display.writePixel(x, y, pixelColor);
-                pixelsProcessed++;
-            }
-
-            // Yield every 100 pixels to prevent watchdog timeout
-            if (pixelsProcessed % 100 == 0) {
-                yield();
-            }
+            Serial.println();
         }
-    }
+
+        pageIndex++;
+
+    } while (display.nextPage());
+
+    // Clean up allocated buffer
+    delete[] rowBuffer;
 
     auto elapsedTime = millis() - startTime;
-    Serial.print("[renderer] Buffered page rendered in: ");
-    Serial.print(elapsedTime);
-    Serial.print(" ms (");
-    Serial.print(pixelsProcessed);
-    Serial.println(" pixels)");
-    Serial.println("[renderer] Binary file page processed successfully (buffered)");
+    Serial.printf("[renderer] Binary file buffered rendering complete in %lu ms\n", elapsedTime);
+    Serial.printf("[renderer] Total pixels processed: %u\n", totalPixelsProcessed);
+    Serial.println("[renderer] Binary file processed successfully (buffered with internal paging)");
     return 0; // Success
 }
 
@@ -1398,9 +1439,9 @@ uint16_t draw_bitmap_from_file_buffered(File& file,
         Serial.println("[renderer] File not open or invalid");
         return photo_frame::error_type::FileOpenFailed.code;
     }
-    Serial.println("[renderer] drawBitmapFromSD_Buffered: " + String(filename) + ", x: " +
-                   String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) +
-                   ", partial_update: " + String(partial_update));
+    Serial.println("[renderer] draw_bitmap_from_file_buffered: " + String(filename) + ", x: " + String(x) + ", y: " + String(y) + ", with_color: " + String(with_color) + ", partial_update: " + String(partial_update));
+    Serial.printf("[renderer] File size available: %d bytes\n", file.size());
+    Serial.printf("[renderer] Current file position: %d\n", file.position());
 
     bool valid = false; // valid format to be handled
     bool flip  = true;  // bitmap is stored bottom-to-top
@@ -1408,7 +1449,7 @@ uint16_t draw_bitmap_from_file_buffered(File& file,
         (display.epd2.panel == GxEPD2::ACeP565) || (display.epd2.panel == GxEPD2::GDEY073D46);
     uint32_t startTime = millis();
     if ((x >= display.width()) || (y >= display.height())) {
-        Serial.println("[renderer] drawBitmapFromSD_Buffered: x or y out of bounds");
+        Serial.println("[renderer] draw_bitmap_from_file_buffered: x or y out of bounds");
         return photo_frame::error_type::BinaryRenderingFailed.code;
     }
     // Parse BMP header
@@ -1659,7 +1700,7 @@ uint16_t draw_bitmap_from_file_buffered(File& file,
     }
 } // end drawBitmapFromFile_Buffered
 
-#if defined(DISP_6C) || defined(DISP_7C_F)
+#if defined(DISP_6C) || defined(DISP_7C)
 
 bool is_dominant(uint8_t r, uint8_t g, uint8_t b) {
     return (r >= g && r >= b) || (g >= r && g >= b) || (b >= r && b >= g);
@@ -1673,7 +1714,7 @@ bool is_yellow(uint8_t r, uint8_t g, uint8_t b) { return (r > 3 && g > 3 && b < 
 
 bool is_orange(uint8_t r, uint8_t g, uint8_t b) { return (r > 4 && g > 2 && g < r && b < 2); };
 
-#endif // DISP_6C || DISP_7C_F
+#endif // DISP_6C || DISP_7C
 
 
 void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
@@ -1730,7 +1771,7 @@ void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
         break;
     }
 
-#elif defined(DISP_7C_F)
+#elif defined(DISP_7C)
     // Binary files use RGB compression: ((r / 32) << 5) + ((g / 32) << 2) + (b / 64)
     // Pre-computed values for 7-color display palette:
     switch (color) {
@@ -1794,8 +1835,17 @@ void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
     } else {
         pixelColor = GxEPD_BLACK; // 0
     }
+#else
+    // Default handling for any other BW display
+    // Binary files for BW displays: 0-127 = black, 128-255 = white
+    if (color > 127) {
+        pixelColor = GxEPD_WHITE;
+    } else {
+        pixelColor = GxEPD_BLACK;
+    }
 #endif
 }
+
 
 } // namespace renderer
 
