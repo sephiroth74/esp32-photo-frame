@@ -68,13 +68,11 @@
 
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
 
-#define DISP_6C              // 6-color e-Paper display (GDEP073E01)
+#define DISP_BW_V2              
 #define USE_DESPI_DRIVER
 
-#define ACCENT_COLOR GxEPD_RED
+// #define ACCENT_COLOR GxEPD_RED
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 #define LOCALE it_IT
-
-#define ENABLE_GxEPD2_GFX_DEBUG 1

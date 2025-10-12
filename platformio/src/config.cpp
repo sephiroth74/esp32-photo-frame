@@ -55,13 +55,13 @@
 #endif
 
 /// Ensure exactly one display type is selected
-#if !defined(DISP_BW_V2) && !defined(DISP_7C_F) && !defined(DISP_6C)
-#error "Display type must be defined: choose one of DISP_BW_V2, DISP_7C_F, or DISP_6C"
+#if !defined(DISP_BW_V2) && !defined(DISP_7C) && !defined(DISP_6C)
+#error "Display type must be defined: choose one of DISP_BW_V2, DISP_7C, or DISP_6C"
 #endif
 
 /// Prevent multiple display type definitions
-#if (defined(DISP_BW_V2) && defined(DISP_7C_F)) || (defined(DISP_BW_V2) && defined(DISP_6C)) || (defined(DISP_7C_F) && defined(DISP_6C))
-#error "Only one display type can be defined: DISP_BW_V2, DISP_7C_F, or DISP_6C"
+#if (defined(DISP_BW_V2) && defined(DISP_7C)) || (defined(DISP_BW_V2) && defined(DISP_6C)) || (defined(DISP_7C) && defined(DISP_6C))
+#error "Only one display type can be defined: DISP_BW_V2, DISP_7C, or DISP_6C"
 #endif
 
 // ----------------------------------------------------------------------------

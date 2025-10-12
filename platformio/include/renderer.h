@@ -47,7 +47,7 @@
          : MAX_DISPLAY_BUFFER_SIZE / (EPD::WIDTH / 8))
 extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
 
-#elif defined(DISP_7C_F)
+#elif defined(DISP_7C)
 #define DISP_WIDTH  800
 #define DISP_HEIGHT 480
 #include <GxEPD2_7C.h>
@@ -251,6 +251,8 @@ bool has_partial_update();
  * @return True if fast partial updates are supported, false otherwise
  */
 bool has_fast_partial_update();
+
+bool has_color();
 
 /**
  * Draws a string on the e-paper display at the specified position with alignment.
@@ -485,7 +487,13 @@ uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int wi
  * @return True if image was drawn successfully, false otherwise
  */
 uint16_t
-draw_binary_from_file(File& file, const char* filename, int width, int height, int page_index = -1);
+draw_binary_from_file_paged(File& file, const char* filename, int width, int height, int page_index = -1);
+
+uint16_t read8(File& f);
+
+uint16_t read16(File& f);
+
+uint32_t read32(File& f);
 
 } // namespace renderer
 

@@ -9,7 +9,7 @@ pub enum ColorType {
     /// 6-color processing (matches auto.sh -t 6c)
     #[value(name = "6c")]
     SixColor,
-    /// 6-color processing (matches auto.sh -t 7c)
+    /// 7-color processing (matches auto.sh -t 7c)
     #[value(name = "7c")]
     SevenColor,
 }
