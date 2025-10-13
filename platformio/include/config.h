@@ -322,7 +322,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 /// Component-specific debug flags
 // #define DEBUG_RENDERER            // Enable renderer debug output
 // #define DEBUG_DATETIME_UTILS      // Enable date/time utilities debug output
-#define DEBUG_GOOGLE_DRIVE        // Enable Google Drive API debug output
+// #define DEBUG_GOOGLE_DRIVE        // Enable Google Drive API debug output
 // #define DEBUG_MEMORY_USAGE        // Enable memory usage monitoring
 // #define DEBUG_BATTERY_READER      // Enable battery monitoring debug output
 // #define DEBUG_WEATHER             // Enable weather API debug output
