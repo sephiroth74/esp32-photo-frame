@@ -354,7 +354,7 @@ namespace board_utils {
         Serial.println(buffer);
 #endif // DEBUG_BOARD
 
-        if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS * 2)) {
+        if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS)) {
             // increase the refresh seconds to the next step
             Serial.println(F("[board_util] Increasing refresh seconds to the next step..."));
             refresh_seconds = (refresh_seconds / (long)REFRESH_STEP_SECONDS + 1) * (long)REFRESH_STEP_SECONDS;

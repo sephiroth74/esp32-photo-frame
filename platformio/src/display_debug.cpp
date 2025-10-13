@@ -1790,6 +1790,239 @@ void testGoogleDrive()
 }
 
 // =============================================================================
+// POTENTIOMETER TEST
+// =============================================================================
+
+void testPotentiometer()
+{
+    Serial.println(F("\n[TEST] Potentiometer Test"));
+    Serial.println(F("-------------------------------"));
+    Serial.println(F("This test will continuously read the potentiometer"));
+    Serial.println(F("Press any key to stop the test\n"));
+
+#ifdef POTENTIOMETER_INPUT_PIN
+    Serial.printf("[TEST] Potentiometer Power Pin: GPIO%d\n", POTENTIOMETER_PWR_PIN);
+    Serial.printf("[TEST] Potentiometer Input Pin: GPIO%d\n", POTENTIOMETER_INPUT_PIN);
+    Serial.printf("[TEST] ADC Max Value: %d\n", POTENTIOMETER_INPUT_MAX);
+    Serial.printf("[TEST] Refresh Min: %d seconds\n", REFRESH_MIN_INTERVAL_SECONDS);
+    Serial.printf("[TEST] Refresh Max: %d seconds\n", REFRESH_MAX_INTERVAL_SECONDS);
+    Serial.printf("[TEST] Refresh Step: %d seconds\n", REFRESH_STEP_SECONDS);
+
+    Serial.println(F("\n[TEST] Starting continuous reading..."));
+    Serial.println(F("[TEST] Reading every 500ms"));
+
+    // Initialize display for live updates
+    display.setFullWindow();
+    display.setTextSize(1);
+
+    int loopCount = 0;
+    unsigned long lastDisplayUpdate = 0;
+    const unsigned long displayUpdateInterval = 2000; // Update display every 2 seconds
+
+    // Variables to track min/max values
+    long minRefresh = REFRESH_MAX_INTERVAL_SECONDS;
+    long maxRefresh = REFRESH_MIN_INTERVAL_SECONDS;
+    float avgRefresh = 0;
+    int sampleCount = 0;
+
+    while (!Serial.available()) {
+        // Use the board_utils method to read refresh seconds (same as main.cpp)
+        long refreshSeconds = photo_frame::board_utils::read_refresh_seconds();
+
+        // Track min/max/avg
+        if (refreshSeconds < minRefresh) minRefresh = refreshSeconds;
+        if (refreshSeconds > maxRefresh) maxRefresh = refreshSeconds;
+        avgRefresh = ((avgRefresh * sampleCount) + refreshSeconds) / (sampleCount + 1);
+        sampleCount++;
+
+        // Convert to minutes for display
+        float refreshMinutes = refreshSeconds / 60.0;
+
+        // Calculate percentage based on the actual refresh range before step rounding
+        // Clamp between 0-100% since step rounding can push value beyond max
+        float percentage = ((float)(refreshSeconds - REFRESH_MIN_INTERVAL_SECONDS) /
+                          (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS)) * 100.0;
+        percentage = constrain(percentage, 0.0, 100.0);
+
+        // Print to serial every loop
+        Serial.printf("[TEST] Refresh: %3ld sec (%4.1f min) | Position: %5.1f%%\n",
+                     refreshSeconds, refreshMinutes, percentage);
+
+        // Update display every 2 seconds
+        if (millis() - lastDisplayUpdate > displayUpdateInterval) {
+            lastDisplayUpdate = millis();
+
+            display.firstPage();
+            do {
+                display.fillScreen(GxEPD_WHITE);
+
+                // Title
+                display.setTextSize(2);
+                display.setTextColor(GxEPD_BLACK);
+                display.setCursor(20, 20);
+                display.println(F("Potentiometer Test"));
+
+                // Draw separator line
+                display.drawFastHLine(20, 45, DISP_WIDTH - 40, GxEPD_BLACK);
+
+                // Current values
+                display.setTextSize(2);
+                int yPos = 70;
+
+                display.setCursor(20, yPos);
+                display.printf("Refresh:     %3ld sec", refreshSeconds);
+                yPos += 25;
+
+                display.setCursor(20, yPos);
+                display.printf("            (%4.1f min)", refreshMinutes);
+                yPos += 25;
+
+                display.setCursor(20, yPos);
+                display.printf("Position:    %5.1f%%", percentage);
+                yPos += 35;
+
+                // Statistics section
+                display.drawFastHLine(20, yPos, DISP_WIDTH - 40, GxEPD_BLACK);
+                yPos += 15;
+
+                display.setTextSize(1);
+                display.setCursor(20, yPos);
+                display.println(F("Statistics:"));
+                yPos += 20;
+
+                display.setCursor(20, yPos);
+                display.printf("Min Refresh: %3ld sec (%4.1f min)", minRefresh, minRefresh / 60.0);
+                yPos += 15;
+
+                display.setCursor(20, yPos);
+                display.printf("Max Refresh: %3ld sec (%4.1f min)", maxRefresh, maxRefresh / 60.0);
+                yPos += 15;
+
+                display.setCursor(20, yPos);
+                display.printf("Avg Refresh: %3.0f sec (%4.1f min)", avgRefresh, avgRefresh / 60.0);
+                yPos += 15;
+
+                display.setCursor(20, yPos);
+                display.printf("Samples:     %d", sampleCount);
+                yPos += 25;
+
+                // Visual bar representation
+                display.drawFastHLine(20, yPos, DISP_WIDTH - 40, GxEPD_BLACK);
+                yPos += 10;
+
+                // Draw potentiometer position as a bar
+                int barWidth = DISP_WIDTH - 60;
+                int barHeight = 30;
+                display.drawRect(30, yPos, barWidth, barHeight, GxEPD_BLACK);
+
+                // Fill based on percentage
+                int fillWidth = (barWidth - 4) * percentage / 100;
+                if (fillWidth > 0) {
+                    display.fillRect(32, yPos + 2, fillWidth, barHeight - 4, GxEPD_BLACK);
+                }
+
+                // Show percentage in the bar
+                display.setTextSize(1);
+                display.setTextColor(fillWidth > barWidth/2 ? GxEPD_WHITE : GxEPD_BLACK);
+                display.setCursor(30 + barWidth/2 - 20, yPos + 12);
+                display.printf("%.0f%%", percentage);
+
+                yPos += barHeight + 20;
+
+                // Configuration info
+                display.setTextSize(1);
+                display.setTextColor(GxEPD_BLACK);
+                display.setCursor(20, yPos);
+                display.printf("Refresh Range: %d sec (%d min) to %d sec (%d min)",
+                              REFRESH_MIN_INTERVAL_SECONDS, REFRESH_MIN_INTERVAL_SECONDS/60,
+                              REFRESH_MAX_INTERVAL_SECONDS, REFRESH_MAX_INTERVAL_SECONDS/60);
+                yPos += 15;
+
+                display.setCursor(20, yPos);
+                display.printf("Step Size: %d sec | Pins: PWR=GPIO%d, IN=GPIO%d",
+                              REFRESH_STEP_SECONDS,
+                              POTENTIOMETER_PWR_PIN, POTENTIOMETER_INPUT_PIN);
+
+                // Footer
+                display.setTextSize(1);
+                display.setCursor(20, DISP_HEIGHT - 30);
+                display.println(F("Press any key to stop..."));
+
+            } while (display.nextPage());
+        }
+
+        delay(500); // Read every 500ms
+        loopCount++;
+    }
+
+    // Clear serial buffer
+    while (Serial.available()) {
+        Serial.read();
+    }
+
+    Serial.println(F("\n[TEST] Test stopped"));
+    Serial.println(F("[TEST] Final Statistics:"));
+    Serial.printf("[TEST] Min Refresh: %ld sec (%.1f min)\n", minRefresh, minRefresh / 60.0);
+    Serial.printf("[TEST] Max Refresh: %ld sec (%.1f min)\n", maxRefresh, maxRefresh / 60.0);
+    Serial.printf("[TEST] Avg Refresh: %.0f sec (%.1f min)\n", avgRefresh, avgRefresh / 60.0);
+    Serial.printf("[TEST] Total Samples: %d\n", sampleCount);
+
+    // Display final summary
+    display.firstPage();
+    do {
+        display.fillScreen(GxEPD_WHITE);
+
+        display.setTextSize(2);
+        display.setTextColor(GxEPD_BLACK);
+        display.setCursor(20, 20);
+        display.println(F("Test Complete"));
+
+        display.drawFastHLine(20, 45, DISP_WIDTH - 40, GxEPD_BLACK);
+
+        display.setTextSize(1);
+        int yPos = 70;
+
+        display.setCursor(20, yPos);
+        display.printf("Total Samples: %d", sampleCount);
+        yPos += 20;
+
+        display.setCursor(20, yPos);
+        display.printf("Min Refresh:   %ld sec (%.1f min)", minRefresh, minRefresh / 60.0);
+        yPos += 20;
+
+        display.setCursor(20, yPos);
+        display.printf("Max Refresh:   %ld sec (%.1f min)", maxRefresh, maxRefresh / 60.0);
+        yPos += 20;
+
+        display.setCursor(20, yPos);
+        display.printf("Average:       %.0f sec (%.1f min)", avgRefresh, avgRefresh / 60.0);
+        yPos += 20;
+
+        display.setCursor(20, yPos);
+        display.printf("Range Used:    %ld sec (%.1f%%)",
+                      (maxRefresh - minRefresh),
+                      ((float)(maxRefresh - minRefresh) * 100.0) / (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS));
+
+        display.setCursor(20, DISP_HEIGHT - 30);
+        display.println(F("Press any key to continue..."));
+
+    } while (display.nextPage());
+
+    // Wait for keypress
+    while (!Serial.available()) {
+        delay(10);
+    }
+    while (Serial.available()) {
+        Serial.read();
+    }
+
+#else
+    Serial.println(F("[TEST] SKIP: Potentiometer pins not defined"));
+    Serial.println(F("[TEST] Define POTENTIOMETER_INPUT_PIN and POTENTIOMETER_PWR_PIN"));
+#endif
+}
+
+// =============================================================================
 // HARDWARE FAILURE TEST
 // =============================================================================
 
@@ -2565,6 +2798,7 @@ void showMenu()
     Serial.println(F("B. Color Bars Test (All Display Colors)"));
     Serial.println(F("H. Hardware Failure Test"));
     Serial.println(F("G. Gallery - Render All SD Card Images"));
+    Serial.println(F("T. Test Potentiometer (Continuous Reading)"));
     Serial.println(F("P. Test Pins (Release SPI First)"));
     Serial.println(F("R. Show Test Results Summary"));
     Serial.println(F("C. Clear Display"));
@@ -2787,6 +3021,11 @@ void display_debug_loop()
         case 'G':
         case 'g':
             display_debug::testSDCardImages();
+            break;
+
+        case 'T':
+        case 't':
+            display_debug::testPotentiometer();
             break;
 
         case 'P':
