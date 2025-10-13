@@ -5,6 +5,50 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.2] - 2025-01-14
+
+### Fixed
+- **Binary File Rendering on B/W Displays**: Fixed white screen issue when rendering .bin files
+  - Changed from `writeImage()` to `display.drawPixel()` for proper pixel rendering
+  - Added fallback color mapping for all B/W display types in `color2Epd()` function
+  - Binary files now render correctly on black and white e-paper displays
+
+- **Display Debug Stack Overflow**: Fixed crash when testing multiple images
+  - Limited gallery test to 10 images maximum to prevent memory exhaustion
+  - Replaced `std::vector<String>` with heap-allocated array
+  - Removed memory-heavy `std::mt19937` in favor of ESP32's hardware RNG
+  - Added proper memory cleanup with `delete[]` at all exit points
+
+- **Weather Overlay Display**: Fixed weather box showing as white instead of black
+  - Manually draws black background with white text for testing
+  - Fixed timestamp staleness check preventing weather data display
+  - Weather information now properly renders with correct contrast
+
+### Added
+- **Enhanced Display Debug Features**:
+  - **Floyd-Steinberg Dithering**: Added grayscale patterns for B/W displays using error diffusion
+  - **B/W Stress Test Pattern**: Comprehensive stress test including stripes, checkerboard, circles
+  - **Balanced File Testing**: Ensures both .bmp and .bin files are tested (5 of each type)
+  - **Overlay Testing**: Optional testing of last update, image info, battery status, and weather overlays with fake data
+
+- **Gallery Test Result Summary**: Visual summary displayed on e-paper after test completion
+  - Shows total images, success/fail counts, success rate
+  - Displays total test time and average time per image
+  - Color-coded results on color displays (Green=PASS, Red=FAIL, Yellow/Orange=PARTIAL)
+  - Improved layout with proper spacing to avoid text/line overlap
+
+### Changed
+- **Gallery Test Improvements**:
+  - File selection now balances between BMP and BIN formats
+  - Added randomization using lightweight Fisher-Yates shuffle
+  - Enhanced reporting shows file type breakdown (BMP: X, BIN: Y)
+  - Result status line moved to Y=255 for better visual spacing
+
+### Technical Details
+- **Memory Optimization**: Reduced stack usage from ~10KB to under 2KB in gallery test
+- **Rendering Performance**: Binary file rendering now uses pixel-by-pixel approach for B/W displays
+- **Debug Logging**: Added comprehensive logging for pixel distribution and rendering progress
+
 ## [v0.9.0] - 2025-01-09
 
 ### Added

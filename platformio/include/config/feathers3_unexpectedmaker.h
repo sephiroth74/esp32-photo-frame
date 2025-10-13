@@ -40,6 +40,10 @@
 #define BATTERY_DELAY_BETWEEN_READINGS 10
 #define BATTERY_RESISTORS_RATIO 0.2574679943 // FeatherS3 built-in divider ratio
 
+#define USE_SENSOR_MAX1704X
+#define MAX1704X_SDA_PIN   SDA
+#define MAX1704X_SCL_PIN   SCL
+
 // Built-in LED - FeatherS3 uses RGB NeoPixel on GPIO40
 #ifdef LED_BUILTIN
 #undef LED_BUILTIN

@@ -937,6 +937,302 @@ void testRefreshTiming()
 }
 
 // =============================================================================
+// BATTERY STATUS TEST
+// =============================================================================
+
+void testBatteryStatus()
+{
+    Serial.println(F("\n[TEST] Battery Status Test"));
+    Serial.println(F("-------------------------------"));
+
+    // Initialize battery reader
+#ifndef USE_SENSOR_MAX1704X
+    photo_frame::battery_reader batteryReader(
+        BATTERY_PIN,
+        BATTERY_RESISTORS_RATIO,
+        BATTERY_NUM_READINGS,
+        BATTERY_DELAY_BETWEEN_READINGS);
+#else
+    photo_frame::battery_reader batteryReader;
+#endif
+
+    batteryReader.init();
+
+    Serial.println(F("[TEST] Taking battery readings..."));
+
+    // Take multiple readings
+    const int NUM_READINGS = 5;
+    photo_frame::battery_info_t readings[NUM_READINGS];
+    float avgVoltage = 0;
+    float avgPercent = 0;
+
+    for (int i = 0; i < NUM_READINGS; i++) {
+        Serial.printf("[TEST] Reading %d/%d...\n", i + 1, NUM_READINGS);
+        readings[i] = batteryReader.read();
+
+#ifdef USE_SENSOR_MAX1704X
+        Serial.printf("[TEST]   Cell Voltage: %.3fV\n", readings[i].cell_voltage);
+        Serial.printf("[TEST]   Charge Rate: %.1fmA\n", readings[i].charge_rate);
+        Serial.printf("[TEST]   Percentage: %.1f%%\n", readings[i].percent);
+        Serial.printf("[TEST]   Millivolts: %lumV\n", readings[i].millivolts);
+        avgVoltage += readings[i].cell_voltage;
+#else
+        Serial.printf("[TEST]   Raw ADC: %lu\n", readings[i].raw_value);
+        Serial.printf("[TEST]   Raw mV: %lumV\n", readings[i].raw_millivolts);
+        Serial.printf("[TEST]   Corrected mV: %lumV\n", readings[i].millivolts);
+        Serial.printf("[TEST]   Percentage: %.1f%%\n", readings[i].percent);
+        avgVoltage += readings[i].millivolts / 1000.0f;
+#endif
+        avgPercent += readings[i].percent;
+
+        delay(500); // Short delay between readings
+    }
+
+    avgVoltage /= NUM_READINGS;
+    avgPercent /= NUM_READINGS;
+
+    // Get final reading for display
+    photo_frame::battery_info_t finalReading = batteryReader.read();
+
+    // Analyze battery status
+    Serial.println(F("\n[TEST] Battery Status Analysis:"));
+    Serial.println(F("-------------------------------"));
+    Serial.printf("[TEST] Average Voltage: %.3fV\n", avgVoltage);
+    Serial.printf("[TEST] Average Percentage: %.1f%%\n", avgPercent);
+    Serial.printf("[TEST] Is Charging: %s\n", finalReading.is_charging() ? "YES" : "NO");
+    Serial.printf("[TEST] Is Low: %s (%d%%)\n", finalReading.is_low() ? "YES" : "NO", BATTERY_PERCENT_LOW);
+    Serial.printf("[TEST] Is Critical: %s (%d%%)\n", finalReading.is_critical() ? "YES" : "NO", BATTERY_PERCENT_CRITICAL);
+    Serial.printf("[TEST] Is Empty: %s (%d%%)\n", finalReading.is_empty() ? "YES" : "NO", BATTERY_PERCENT_EMPTY);
+
+    // Display results on screen
+    Serial.println(F("\n[TEST] Displaying battery status on screen..."));
+
+    display.setFullWindow();
+    display.firstPage();
+
+    do {
+        display.fillScreen(GxEPD_WHITE);
+
+        // Title
+        display.setTextSize(2);
+        display.setTextColor(GxEPD_BLACK);
+        display.setCursor(20, 20);
+        display.println(F("Battery Status Test"));
+
+        // Draw separator line
+        display.drawFastHLine(20, 45, DISP_WIDTH - 40, GxEPD_BLACK);
+
+        // Battery icon visualization
+        int iconX = 20;
+        int iconY = 65;
+        int iconWidth = 80;
+        int iconHeight = 40;
+
+        // Draw battery outline
+        display.drawRect(iconX, iconY, iconWidth, iconHeight, GxEPD_BLACK);
+        display.drawRect(iconX + 1, iconY + 1, iconWidth - 2, iconHeight - 2, GxEPD_BLACK);
+
+        // Draw battery terminal
+        display.fillRect(iconX + iconWidth, iconY + 10, 8, 20, GxEPD_BLACK);
+
+        // Fill battery based on percentage
+        int fillWidth = (iconWidth - 6) * finalReading.percent / 100;
+        if (fillWidth > 0) {
+            uint16_t fillColor = GxEPD_BLACK;
+
+#if defined(DISP_6C) || defined(DISP_7C)
+            // Use colors on color displays
+            if (finalReading.is_critical()) {
+                fillColor = GxEPD_RED;
+            } else if (finalReading.is_low()) {
+                fillColor = GxEPD_YELLOW;
+            } else {
+                fillColor = GxEPD_GREEN;
+            }
+#endif
+
+            display.fillRect(iconX + 3, iconY + 3, fillWidth, iconHeight - 6, fillColor);
+        }
+
+        // Display percentage inside battery icon
+        display.setTextSize(2);
+        display.setTextColor(fillWidth > 40 ? GxEPD_WHITE : GxEPD_BLACK);
+        display.setCursor(iconX + 20, iconY + 13);
+        display.printf("%.0f%%", finalReading.percent);
+
+        // Voltage information
+        display.setTextSize(2);
+        display.setTextColor(GxEPD_BLACK);
+        display.setCursor(iconX + iconWidth + 30, iconY + 13);
+#ifdef USE_SENSOR_MAX1704X
+        display.printf("%.2fV", finalReading.cell_voltage);
+#else
+        display.printf("%.2fV", finalReading.millivolts / 1000.0f);
+#endif
+
+        // Detailed readings
+        display.setTextSize(1);
+        display.setCursor(20, iconY + iconHeight + 20);
+        display.println(F("Detailed Readings:"));
+
+        int yPos = iconY + iconHeight + 40;
+
+#ifdef USE_SENSOR_MAX1704X
+        display.setCursor(20, yPos);
+        display.printf("Cell Voltage:  %.3fV", finalReading.cell_voltage);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Charge Rate:   %.1fmA", finalReading.charge_rate);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Percentage:    %.1f%%", finalReading.percent);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Millivolts:    %lumV", finalReading.millivolts);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.println(F("Sensor Type:   MAX1704X"));
+#else
+        display.setCursor(20, yPos);
+        display.printf("Raw ADC:       %lu", finalReading.raw_value);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Raw Voltage:   %lumV", finalReading.raw_millivolts);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Corrected:     %lumV", finalReading.millivolts);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Percentage:    %.1f%%", finalReading.percent);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("ADC Pin:       GPIO%d", BATTERY_PIN);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Divider Ratio: %.3f", BATTERY_RESISTORS_RATIO);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.println(F("Sensor Type:   Analog"));
+#endif
+
+        yPos += 25;
+
+        // Status indicators
+        display.setTextSize(2);
+        display.setCursor(20, yPos);
+        display.print(F("Status: "));
+
+        // Determine status text and color
+        String statusText;
+        uint16_t statusColor = GxEPD_BLACK;
+
+        if (finalReading.is_charging()) {
+            statusText = "CHARGING";
+#if defined(DISP_6C) || defined(DISP_7C)
+            statusColor = GxEPD_BLUE;
+#endif
+        } else if (finalReading.is_empty()) {
+            statusText = "EMPTY";
+#if defined(DISP_6C) || defined(DISP_7C)
+            statusColor = GxEPD_RED;
+#endif
+        } else if (finalReading.is_critical()) {
+            statusText = "CRITICAL";
+#if defined(DISP_6C) || defined(DISP_7C)
+            statusColor = GxEPD_RED;
+#endif
+        } else if (finalReading.is_low()) {
+            statusText = "LOW";
+#if defined(DISP_6C) || defined(DISP_7C)
+            statusColor = GxEPD_YELLOW;
+#elif defined(DISP_7C)
+            statusColor = GxEPD_ORANGE;
+#endif
+        } else {
+            statusText = "GOOD";
+#if defined(DISP_6C) || defined(DISP_7C)
+            statusColor = GxEPD_GREEN;
+#endif
+        }
+
+        display.setTextColor(statusColor);
+        display.print(statusText);
+
+        yPos += 30;
+
+        // Thresholds information
+        display.setTextSize(1);
+        display.setTextColor(GxEPD_BLACK);
+        display.setCursor(20, yPos);
+        display.println(F("Battery Thresholds:"));
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Low:      < %d%%", BATTERY_PERCENT_LOW);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Critical: < %d%%", BATTERY_PERCENT_CRITICAL);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Empty:    < %d%%", BATTERY_PERCENT_EMPTY);
+        yPos += 15;
+
+        display.setCursor(20, yPos);
+        display.printf("Charging: > %dmV", BATTERY_CHARGING_MILLIVOLTS);
+        yPos += 20;
+
+        // Test result
+        display.drawFastHLine(20, yPos, DISP_WIDTH - 40, GxEPD_BLACK);
+        yPos += 10;
+
+        display.setTextSize(2);
+        bool testPassed = (finalReading.percent >= 0 && finalReading.percent <= 120) &&
+                         (finalReading.millivolts > 0 && finalReading.millivolts < 5000);
+
+        display.setCursor(20, yPos);
+        display.print(F("Test Result: "));
+
+#if defined(DISP_6C) || defined(DISP_7C)
+        display.setTextColor(testPassed ? GxEPD_GREEN : GxEPD_RED);
+#else
+        display.setTextColor(GxEPD_BLACK);
+#endif
+        display.print(testPassed ? F("PASS") : F("FAIL"));
+
+        // Footer
+        display.setTextSize(1);
+        display.setTextColor(GxEPD_BLACK);
+        display.setCursor(20, DISP_HEIGHT - 30);
+        display.println(F("Press any key to continue..."));
+
+    } while (display.nextPage());
+
+    // Update test results
+    test_results.power_supply_ok = (finalReading.millivolts > 3000 && finalReading.millivolts < 4500);
+
+    Serial.println(F("[TEST] Battery status displayed on screen"));
+    Serial.println(F("[TEST] Press any key to continue..."));
+
+    // Wait for user input
+    while (!Serial.available())
+        delay(10);
+    while (Serial.available())
+        Serial.read(); // Clear buffer
+}
+
+// =============================================================================
 // HARDWARE FAILURE TEST
 // =============================================================================
 
@@ -1707,6 +2003,7 @@ void showMenu()
     Serial.println(F("6. BUSY Pin Test"));
     Serial.println(F("7. SPI Communication Test"));
     Serial.println(F("8. Refresh Timing Test"));
+    Serial.println(F("9. Battery Status Test"));
     Serial.println(F("B. Color Bars Test (All Display Colors)"));
     Serial.println(F("H. Hardware Failure Test"));
     Serial.println(F("G. Gallery - Render All SD Card Images"));
@@ -1793,6 +2090,9 @@ void runFullDiagnostic()
     delay(2000);
 
     testRefreshTiming();
+    delay(2000);
+
+    testBatteryStatus(); // Add battery test
     delay(2000);
 
     showResults();
@@ -1902,6 +2202,10 @@ void display_debug_loop()
 
         case '8':
             display_debug::testRefreshTiming();
+            break;
+
+        case '9':
+            display_debug::testBatteryStatus();
             break;
 
         case 'B':
