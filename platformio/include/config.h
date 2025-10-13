@@ -41,8 +41,8 @@
 /// Current firmware version components (used for version comparison and OTA updates)
 #define FIRMWARE_VERSION_MAJOR  0
 #define FIRMWARE_VERSION_MINOR  9
-#define FIRMWARE_VERSION_PATCH  1
-#define FIRMWARE_VERSION_STRING "v0.9.1"
+#define FIRMWARE_VERSION_PATCH  2
+#define FIRMWARE_VERSION_STRING "v0.9.2"
 
 /// Minimum supported version for OTA compatibility
 /// Devices with firmware older than this version must be manually updated
