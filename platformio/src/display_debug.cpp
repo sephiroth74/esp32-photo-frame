@@ -1838,15 +1838,18 @@ void testPotentiometer()
         // Convert to minutes for display
         float refreshMinutes = refreshSeconds / 60.0;
 
-        // Calculate percentage based on the actual refresh range before step rounding
-        // Clamp between 0-100% since step rounding can push value beyond max
-        float percentage = ((float)(refreshSeconds - REFRESH_MIN_INTERVAL_SECONDS) /
-                          (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS)) * 100.0;
-        percentage = constrain(percentage, 0.0, 100.0);
+        // Calculate the exponential percentage based on the refresh value
+        // Since we're using cubed position, we need to reverse it
+        float exponential_percentage = ((float)(refreshSeconds - REFRESH_MIN_INTERVAL_SECONDS) /
+                                       (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS)) * 100.0;
+        exponential_percentage = constrain(exponential_percentage, 0.0, 100.0);
+
+        // Calculate approximate linear position (inverse of cube - cube root)
+        float linear_percentage = pow(exponential_percentage / 100.0, 1.0/3.0) * 100.0;
 
         // Print to serial every loop
-        Serial.printf("[TEST] Refresh: %3ld sec (%4.1f min) | Position: %5.1f%%\n",
-                     refreshSeconds, refreshMinutes, percentage);
+        Serial.printf("[TEST] Refresh: %3ld sec (%4.1f min) | Linear: %5.1f%% | Expo: %5.1f%%\n",
+                     refreshSeconds, refreshMinutes, linear_percentage, exponential_percentage);
 
         // Update display every 2 seconds
         if (millis() - lastDisplayUpdate > displayUpdateInterval) {
@@ -1878,7 +1881,11 @@ void testPotentiometer()
                 yPos += 25;
 
                 display.setCursor(20, yPos);
-                display.printf("Position:    %5.1f%%", percentage);
+                display.printf("Linear Pos:  %5.1f%%", linear_percentage);
+                yPos += 25;
+
+                display.setCursor(20, yPos);
+                display.printf("Expo Pos:    %5.1f%%", exponential_percentage);
                 yPos += 35;
 
                 // Statistics section
@@ -1915,17 +1922,17 @@ void testPotentiometer()
                 int barHeight = 30;
                 display.drawRect(30, yPos, barWidth, barHeight, GxEPD_BLACK);
 
-                // Fill based on percentage
-                int fillWidth = (barWidth - 4) * percentage / 100;
+                // Fill based on linear percentage (physical position)
+                int fillWidth = (barWidth - 4) * linear_percentage / 100;
                 if (fillWidth > 0) {
                     display.fillRect(32, yPos + 2, fillWidth, barHeight - 4, GxEPD_BLACK);
                 }
 
-                // Show percentage in the bar
+                // Show linear percentage in the bar
                 display.setTextSize(1);
                 display.setTextColor(fillWidth > barWidth/2 ? GxEPD_WHITE : GxEPD_BLACK);
                 display.setCursor(30 + barWidth/2 - 20, yPos + 12);
-                display.printf("%.0f%%", percentage);
+                display.printf("%.0f%%", linear_percentage);
 
                 yPos += barHeight + 20;
 
