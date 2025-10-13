@@ -5,7 +5,41 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.9.2] - 2025-01-14
+## [v0.9.3] - 2025-10-13
+
+### Added
+- **Potentiometer Test in Display Debug**: Comprehensive test for potentiometer functionality
+  - Continuous reading using `board_utils::read_refresh_seconds()` method
+  - Real-time display updates showing refresh interval and position
+  - Statistics tracking (min/max/average refresh times)
+  - Visual progress bar with percentage indicator
+  - Shows both linear (physical) and exponential (mapped) positions
+
+### Changed
+- **Exponential Potentiometer Mapping**: Improved refresh interval control with cubic curve
+  - Replaced linear mapping with cubic exponential curve (position³)
+  - Provides ultra-fine control at lower values (5-30 minutes)
+  - First 25% of potentiometer covers only 5-9 minutes range
+  - First 50% of potentiometer covers 5-33 minutes (most common usage)
+  - Natural progression: small movements = small time changes at low values
+  - Mapping examples:
+    - Linear 10% → Exponential 0.1% → ~5.3 minutes
+    - Linear 25% → Exponential 1.56% → ~9 minutes
+    - Linear 50% → Exponential 12.5% → ~33 minutes
+    - Linear 75% → Exponential 42.2% → ~106 minutes
+  - Addresses difficulty in selecting short refresh intervals (5-10 minutes)
+
+### Fixed
+- **Potentiometer Percentage Display**: Fixed percentage showing >100% due to step rounding
+  - Added `constrain()` to clamp percentage between 0-100%
+  - Correctly handles cases where step rounding pushes value beyond configured maximum
+
+### Technical Details
+- **Exponential Mapping Formula**: `position³` provides optimal control distribution
+- **Debug Output**: Enhanced with linear vs exponential position comparison
+- **Menu Integration**: Potentiometer test added as option 'T' in debug menu
+
+## [v0.9.2] - 2025-10-13
 
 ### Fixed
 - **Binary File Rendering on B/W Displays**: Fixed white screen issue when rendering .bin files
@@ -49,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rendering Performance**: Binary file rendering now uses pixel-by-pixel approach for B/W displays
 - **Debug Logging**: Added comprehensive logging for pixel distribution and rendering progress
 
-## [v0.9.0] - 2025-01-09
+## [v0.9.0] - 2025-10-09
 
 ### Added
 - **PSRAM Framework Detection**: Improved PSRAM initialization with automatic framework detection
@@ -165,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Build System**: Streamlined configuration with mandatory PSRAM requirement
 - **Hardware Abstraction**: Enhanced board-specific configuration system for ProS3(d)
 
-## [v0.7.1] - 2025-01-27
+## [v0.7.1] - 2025-09-27
 
 ### Changed
 - **Runtime Weather Configuration**: Removed `USE_WEATHER` compile-time conditional in favor of unified runtime configuration
@@ -256,7 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Locale Support**: Enhanced strftime formatting ensures proper Italian weekday and month name display
 - **Hardware Compatibility**: Corrected ESP32-S3 PSRAM interface configuration for reliable memory expansion
 
-## [v0.5.0] - 2025-01-21
+## [v0.5.0] - 2025-09-21
 
 ### Added
 - **RGB Status System**: Complete visual feedback system using FeatherS3 built-in NeoPixel LED
@@ -302,7 +336,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deep Sleep Optimization**: Proper GPIO hold disable and RTC configuration for reliable wakeup
 - **Error Handling**: Comprehensive pin validation and RTC capability testing
 
-## [v0.4.1] - 2025-01-18
+## [v0.4.1] - 2025-09-18
 
 ### Fixed
 - **File Extension Detection Bug**: Fixed critical bug where runtime file format detection failed when using LittleFS temporary files
@@ -316,7 +350,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Memory Efficiency**: Maintains existing LittleFS temporary file approach while fixing format detection accuracy
 - **Error Context**: Improved error messages by using original filenames in renderer error reporting
 
-## [v0.4.0] - 2025-01-17
+## [v0.4.0] - 2025-09-17
 
 ### Added
 - **Runtime File Format Detection**: ESP32 firmware now automatically detects file format based on extension (.bin or .bmp)
@@ -395,7 +429,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TOC system uses `toc_data.txt` (file entries) and `toc_meta.txt` (metadata) for data integrity
 - Page boundaries calculated dynamically based on display specifications (e.g., 163px height sections)
 
-## [v0.1.0] - 2024-12-01
+## [v0.1.0] - 2024-09-01
 
 ### Added
 - Initial release of ESP32 Photo Frame firmware

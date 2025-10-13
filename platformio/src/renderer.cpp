@@ -751,7 +751,7 @@ void draw_battery_status(photo_frame::battery_info_t battery_info) {
     String message = String((uint16_t)battery_percentage) + "% (" +
                      String((float)battery_voltage / 1000, 2) + "V)";
 
-#ifdef USE_SENSOR_MAX1704X
+#if defined(USE_SENSOR_MAX1704X) && defined(DEBUG_BATTERY_READER)
     if (battery_info.charge_rate != 0.0) {
         message += " - " + String(battery_info.charge_rate, 2) + "mA";
     }

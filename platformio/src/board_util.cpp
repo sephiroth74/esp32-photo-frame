@@ -340,11 +340,30 @@ namespace board_utils {
         Serial.println(level);
 #endif // DEBUG_BOARD
 
-        long refresh_seconds = map(level,
-            0,
-            POTENTIOMETER_INPUT_MAX,
-            REFRESH_MIN_INTERVAL_SECONDS,
-            REFRESH_MAX_INTERVAL_SECONDS);
+        // Use exponential mapping for better control at lower values
+        // Convert level to 0-1 range
+        float linear_position = (float)level / POTENTIOMETER_INPUT_MAX;
+
+        // Apply exponential curve (power of 3 for more aggressive curve)
+        // This gives even more resolution at lower values:
+        //   Linear 10% → Exponential 0.1%  → ~5.3 minutes
+        //   Linear 25% → Exponential 1.56% → ~9 minutes
+        //   Linear 50% → Exponential 12.5% → ~33 minutes
+        //   Linear 75% → Exponential 42.2% → ~106 minutes
+        //   Linear 100%→ Exponential 100%  → 240 minutes
+        float exponential_position = linear_position * linear_position * linear_position;  // Cube the position for more aggressive exponential curve
+
+#ifdef DEBUG_BOARD
+        Serial.print(F("[board_util] Linear position: "));
+        Serial.print(linear_position * 100, 1);
+        Serial.print(F("% -> Exponential position: "));
+        Serial.print(exponential_position * 100, 1);
+        Serial.println(F("%"));
+#endif // DEBUG_BOARD
+
+        // Map the exponential position to refresh seconds
+        long refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS +
+                              (long)(exponential_position * (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS));
 
         char buffer[64];
         photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
