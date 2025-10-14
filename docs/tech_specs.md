@@ -756,9 +756,13 @@ The SD card is used for the unified configuration file, certificates, and Google
   - Charging: >4.3V (normal operation)
 
 #### 5.2 Refresh Scheduling
-- **Base Interval**: Potentiometer-controlled (10 minutes to 4 hours)
-- **Low Battery Mode**: Extended to 8 hours
-- **Day/Night Schedule**: 
+- **Base Interval**: Potentiometer-controlled (5 minutes to 4 hours)
+  - **Exponential Mapping** (v0.9.3): Cubic curve (position³) for ultra-fine control
+  - First 25% of rotation: 5-9 minutes (precise short intervals)
+  - First 50% of rotation: 5-33 minutes (most common usage)
+  - Remaining 50%: 33-240 minutes (occasional/overnight)
+- **Low Battery Mode**: Extended to 12 hours
+- **Day/Night Schedule**:
   - Active: 6 AM to 11 PM
   - Inactive: 11 PM to 6 AM (sleep until morning)
 - **Maximum Sleep**: 24 hours (ESP32 hardware limit)
