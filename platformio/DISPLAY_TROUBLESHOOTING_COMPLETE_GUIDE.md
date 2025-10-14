@@ -48,6 +48,7 @@ Display Debug Menu
 ========================================
 1. Run Full Diagnostic Suite  ← Start here!
 2. Color Pattern Test
+T. Test Potentiometer (v0.9.3)
 3. High Stress Color Test (Timeout Test) ← NEW!
 4. LittleFS Image Render Test ← NEW!
 5. Power Supply Test
@@ -208,6 +209,41 @@ This test:
 1. Run normal operation first to cache an image
 2. Or enable shared SPI mode which caches to LittleFS
 3. Then run this test again
+
+### Potentiometer Test (Option T - v0.9.3)
+
+**Tests refresh interval control with exponential mapping.**
+
+This test:
+- Continuously reads potentiometer value using `board_utils::read_refresh_seconds()`
+- Displays real-time refresh interval and position on e-paper display
+- Shows both linear (physical) and exponential (mapped) positions
+- Tracks min/max/average refresh times with statistics
+- Uses cubic curve (position³) for ultra-fine control at low values
+
+**Key Features:**
+- **First 25% of rotation**: 5-9 minutes (precise short intervals)
+- **First 50% of rotation**: 5-33 minutes (most common usage)
+- **Remaining 50%**: 33-240 minutes (occasional/overnight)
+
+**Display Information:**
+- Current refresh interval (seconds and minutes)
+- Linear position (physical potentiometer position)
+- Exponential position (mapped value after cubic curve)
+- Visual progress bar showing physical position
+- Statistics: min/max/average refresh times
+- Configuration: refresh range, step size, GPIO pins
+
+**When to use this test:**
+- To verify potentiometer functionality
+- To calibrate refresh interval settings
+- To understand the exponential mapping behavior
+- To debug refresh timing issues
+
+**Expected Behavior:**
+- Small movements at low end = small time changes (5-10 minutes)
+- Larger movements needed for hour-scale adjustments
+- Press any key to stop the test and view final statistics
 
 ### High Stress Color Test (Option 3 - Critical!)
 

@@ -18,7 +18,10 @@
 - **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup for Unexpected Maker FeatherS3
 - Battery voltage monitoring and reporting with power-saving modes
 - **PCF8523 RTC Integration**: Real-time clock support with automatic NTP fallback for accurate timekeeping
-- Potentiometer to regulate the refresh delay
+- **Exponential Potentiometer Control** (v0.9.3): Cubic curve mapping for ultra-fine control at short intervals
+  - First 25% of rotation covers 5-9 minutes for precise short-interval adjustments
+  - First 50% covers 5-33 minutes (most common usage range)
+  - Remaining 50% covers 33-240 minutes for occasional/overnight use
 - **Security**: Configurable TLS/SSL security for cloud connections
 - Multi-language support (English, Italian)
 - **Rate Limiting**: Built-in API rate limiting for Google Drive requests
