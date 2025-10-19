@@ -2,7 +2,10 @@
 
 **esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from Google Drive cloud storage on an e-paper (EPD) display, with features such as battery monitoring, real-time clock (RTC) support, and multi-language localization. The SD card is used for initial operations including local caching, configuration storage, and temporary files, then shut down before display operations to avoid SPI conflicts.
 
-<img src="assets/image001.jpg" alt="ESP32 Photo Frame Example" width="800" />
+<img src="assets/PXL_20251019_160143849.jpg" alt="ESP32 Photo Frame" width="600" />
+<img src="assets/PXL_20251019_160130264.jpg" alt="ESP32 Photo Frame" width="600" />
+<img src="assets/screenshot2.png" alt="ESP32 Photo Frame 3D model" width="600" />
+<img src="assets/screenshot3.png" alt="ESP32 Photo Frame 3D model" width="600" />
 
 ## Features
 
