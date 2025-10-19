@@ -469,6 +469,11 @@ Weather is now fully runtime-configurable via the unified `/config.json`:
 - **Timing**: Adjust refresh intervals and sleep timing in the configuration files
 - **Battery**: Configure battery monitoring thresholds and power-saving modes
 
+
+### 3D Model
+
+A 3D model ready to print is included here <a href="assets/3d model/ESP32-Photo-Frame.3mf">/assets/3d model/ESP32-Photo-Frame.3mf</a>
+
 ## License
 
 MIT License
