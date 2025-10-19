@@ -1,6 +1,6 @@
 # Arduino E-Paper Photo Frame
 
-**esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from Google Drive cloud storage on an e-paper (EPD) display, with features such as battery monitoring, real-time clock (RTC) support, and multi-language localization. The SD card is used for initial operations including local caching, configuration storage, and temporary files, then shut down before display operations to avoid SPI conflicts.
+**esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from Google Drive cloud storage on an e-paper (EPD) display, with features such as battery monitoring and multi-language localization. The SD card is used for initial operations including local caching, configuration storage, and temporary files, then shut down before display operations to avoid SPI conflicts.
 
 <img src="assets/PXL_20251019_160143849.jpg" alt="ESP32 Photo Frame" width="600" />
 <img src="assets/PXL_20251019_160130264.jpg" alt="ESP32 Photo Frame" width="600" />
@@ -9,38 +9,25 @@
 
 ## Features
 
-- **🎨 RGB Status System** (v0.5.0): Visual feedback using built-in NeoPixel LED with 14 predefined status states
-  - Real-time system status indication (WiFi, SD operations, Google Drive, rendering, etc.)
-  - Battery-aware power management with automatic brightness scaling
-  - FreeRTOS task-based smooth animations (50Hz update rate)
-  - Ultra power-efficient design (2-5mA additional current, auto-disabled during sleep)
 - **Google Drive Integration**: Primary image source with automatic synchronization and caching from Google Drive folders
 - **SD Card Caching**: Local caching system for improved performance and offline capabilities
 - **Smart Image Processing**: Automatic resizing, annotation, and format conversion
 - **Weather Display**: Runtime-configurable weather information with location, timezone, and update intervals (controlled via JSON config)
-- **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup for Unexpected Maker FeatherS3
-- Battery voltage monitoring and reporting with power-saving modes
-- **PCF8523 RTC Integration**: Real-time clock support with automatic NTP fallback for accurate timekeeping
 - **Exponential Potentiometer Control** (v0.9.3): Cubic curve mapping for ultra-fine control at short intervals
   - First 25% of rotation covers 5-9 minutes for precise short-interval adjustments
   - First 50% covers 5-33 minutes (most common usage range)
   - Remaining 50% covers 33-240 minutes for occasional/overnight use
+- Battery voltage monitoring and reporting with power-saving modes
 - **Security**: Configurable TLS/SSL security for cloud connections
 - Multi-language support (English, Italian)
 - **Rate Limiting**: Built-in API rate limiting for Google Drive requests
 - Modular code structure for easy customization and extension
 
-### Recent Improvements (v0.8.0)
-- **🆕 ProS3(d) Board Support**: Full integration for Unexpected Maker ProS3(d) ESP32-S3 development board
-  - **Enhanced GPIO Layout**: Extensive pin availability with optimized pin assignments
-  - **I2C Battery Fuel Gauge**: MAX1704X precision battery monitoring on shared I2C bus
-  - **Advanced Power Management**: 5V detection, LDO2 control, enhanced deep sleep capabilities
-  - **High-Performance Configuration**: 16MB Flash, 8MB PSRAM, USB-C connectivity
-- **🕒 PCF8523 RTC Integration**: Real-time clock support eliminates NTP dependency
-  - **Adafruit PCF8523 Support**: Accurate timekeeping with backup battery capability
-  - **Shared I2C Bus**: Efficient resource utilization with battery fuel gauge
-  - **Smart Time Management**: Automatic fallback to NTP with intelligent validation
-  - **Deep Sleep Persistence**: Continuous time tracking during power-saving modes
+### Recent Improvements (v0.9.3)
+- **📊 Exponential Potentiometer Mapping**: Ultra-fine control for refresh intervals
+  - Cubic curve (position³) provides natural feel for dialing in short intervals
+  - First quarter of rotation covers just 5-9 minutes for precise testing
+  - Addresses user feedback about difficulty setting 5-10 minute intervals
 - **🎯 PSRAM Mandatory**: Simplified architecture with guaranteed PSRAM availability
   - **Code Simplification**: Removed conditional PSRAM compilation blocks
   - **Enhanced Performance**: Optimized memory allocation strategies
@@ -68,73 +55,31 @@
 ## Getting Started
 
 1. **Hardware Requirements**
-   - ESP32-S3 board with **PSRAM** (mandatory) - see supported boards below
+   - **Unexpected Maker FeatherS3** - ESP32-S3 board with 8MB PSRAM (default board)
    - [Waveshare 7.5 e-paper display](https://www.waveshare.com/7.5inch-e-paper-hat.htm)
    - [Good Display DESPI-C02](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) Connector board
    - [Adafruit microSD](https://www.adafruit.com/product/4682?srsltid=AfmBOopfN-tYU3fKgpQquFOTLEY50Pl4PY8iTpBpGoXCpbJ8EQGVqBHn)
-   - [Adafruit PCF8523 RTC Breakout](https://www.adafruit.com/product/3295) (optional, eliminates NTP dependency)
    - 3.7V 5000mAh LiPo Battery
 
 2. **Hardware Assembly & Wiring**
    - **📋 [Complete Wiring Diagram](docs/wiring-diagram.md)** - Comprehensive pin connections and assembly guide
-   - **Supported Boards (v0.8.0)**:
-     - **🆕 Unexpected Maker ProS3(d)** - Professional development board with advanced features
-       - ESP32-S3 dual core, **8MB PSRAM**, 16MB Flash, extensive GPIO layout
-       - **I2C Battery Fuel Gauge**: MAX1704X precision battery monitoring (IO8/IO9)
-       - **Advanced Features**: 5V detection (IO33), LDO2 power control (IO17), USB-C
-       - **PCF8523 RTC Support**: Shares I2C bus with battery fuel gauge for optimal pin usage
-       - **Enhanced Pin Layout**: More available GPIOs for custom expansions
-     - **🥇 Unexpected Maker FeatherS3** - Fully optimized with RGB status system
-       - ESP32-S3 dual core, **8MB PSRAM**, 16MB Flash, built-in NeoPixel RGB LED
-       - USB-C, excellent battery management, no I2C/WiFi interference issues
-       - **RGB Status Feedback**: Built-in NeoPixel on GPIO40 for visual system status
-       - **Deep Sleep Wakeup**: Optimized RTC GPIO configuration (GPIO1 with proper pull-up)
-   - **Alternative Boards**:
-     - **Adafruit Huzzah32 Feather v2** (ESP32-S3, 2MB PSRAM, Feather ecosystem - requires external RGB LED)
+   - **Default Board**: Unexpected Maker FeatherS3
+     - ESP32-S3 dual core with 8MB PSRAM and 16MB Flash
+     - USB-C with excellent battery management
+     - Deep sleep wakeup optimized (GPIO1 with internal pull-up)
    - **Key Connections**:
      - **SD Card**: SD_MMC interface (SDIO) for high-speed access
      - **E-Paper Display**: Dedicated SPI pins to avoid SD card conflicts
-     - **RGB Status LED**: Built-in NeoPixel (FeatherS3) or external WS2812B LED
-     - **I2C**: PCF8523 RTC, MAX1704X battery fuel gauge (ProS3(d)), optional sensors
-     - **Analog**: Battery monitoring via built-in voltage divider or I2C fuel gauge
-   - **Wakeup Button**: Connected between GPIO1 and GND with internal pull-up (FeatherS3 optimized)
+     - **Potentiometer**: For manual refresh rate control
+     - **Analog**: Battery monitoring via built-in voltage divider
+   - **Wakeup Button**: Connected between GPIO1 and GND with internal pull-up
 
 3. **Setup**
    - Clone this repository
    - Open the project in [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/)
    - Configure your hardware settings in `include/config.h` and `src/config.cpp` if needed
 
-## 🎨 RGB Status System (v0.5.0)
-
-The FeatherS3 version includes a comprehensive RGB status system using the built-in NeoPixel LED for real-time visual feedback:
-
-### Status Indicators
-- **🔷 Starting**: White pulse during system startup (3s)
-- **🔵 WiFi Connecting**: Blue pulse while connecting to WiFi
-- **🔴 WiFi Failed**: Red slow blink when connection fails
-- **🟢 Weather Fetching**: Green pulse while fetching weather data
-- **🟠 SD Operations**: Orange pulse during SD card operations
-- **🟡 SD Writing**: Yellow pulse during SD card writes
-- **🔵 Google Drive**: Cyan pulse during Google Drive operations
-- **🟣 Downloading**: Purple pulse during file downloads
-- **🟡 Rendering**: Pink solid during display rendering
-- **🔴 Battery Low**: Red slow blink for critical battery warning
-- **🔴 Error**: Red fast blink for system errors
-- **⚪ Sleep Prep**: Dim white fade-out before deep sleep
-
-### Power Management
-- **Battery-Aware**: Automatic brightness reduction when battery is low
-- **Ultra Power Efficient**: 2-5mA additional consumption (ultra-low brightness levels)
-- **Sleep Optimization**: Complete shutdown during deep sleep (0mA impact)
-- **Critical Battery Protection**: RGB system auto-disables to preserve power
-
-### Technical Features
-- **FreeRTOS Task**: Smooth 50Hz animations in dedicated thread
-- **14 Predefined States**: Comprehensive system status coverage
-- **Custom Colors**: Support for user-defined colors and effects
-- **Hardware Control**: Power management via GPIO39 (LDO2)
-
-4. **Image Processing Pipeline (Required)**
+3. **Image Processing Pipeline (Required)**
 
    **🔧 All images must be processed before upload to Google Drive**
 
@@ -285,49 +230,44 @@ The FeatherS3 version includes a comprehensive RGB status system using the built
    - Connect your ESP32 board
    - Use PlatformIO to build and upload the firmware
 
-## ESP32-C6 Success Story - Memory Breakthrough 🚀
+## Complete Hardware List
 
-**ESP32-C6 is now fully recommended** with breakthrough memory optimizations that completely eliminate previous limitations!
+### Essential Components
 
-### **Revolutionary Performance Achievement**
-Recent testing on **DFRobot FireBeetle 2 ESP32-C6** achieved remarkable results:
+| Component | Model/Specification | Purpose | Purchase Link |
+|-----------|-------------------|---------|---------------|
+| **Microcontroller** | Unexpected Maker FeatherS3 | Main processor (ESP32-S3 with 8MB PSRAM) | [Unexpected Maker](https://unexpectedmaker.com/shop/feathers3) |
+| **E-Paper Display** | Waveshare 7.5" (800×480) | Main display | [Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm) |
+| **Display Connector** | Good Display DESPI-C02 | E-paper connection board | [Good Display](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) |
+| **SD Card Module** | Adafruit MicroSD Breakout | Configuration and caching | [Adafruit](https://www.adafruit.com/product/4682) |
+| **Battery** | 3.7V 5000mAh LiPo | Power source (JST connector) | Various suppliers |
+| **Potentiometer** | 50kΩ Linear | Refresh rate control | Various suppliers |
+| **Push Button** | Momentary switch | Manual wake trigger | Various suppliers |
 
-- ✅ **352 Google Drive files** processed successfully (exceeded previous estimates by 200%!)
-- ✅ **38.2-38.4% memory usage** throughout entire operation (vs 96.5% crashes before)
-- ✅ **Streaming TOC processing** eliminates memory spikes entirely
-- ✅ **Complete stability** with room for even larger collections
+### Wiring Components
 
-### **Breakthrough Memory Optimizations (2025)**
+| Component | Specification | Quantity | Purpose |
+|-----------|--------------|----------|---------|
+| **Jumper Wires** | Female-to-Female | 20+ | Connections between components |
+| **Breadboard** | Half-size or larger | 1 | Prototyping (optional) |
+| **Pull-up Resistor** | 10kΩ | 1 | BUSY pin stabilization (optional) |
+| **Capacitor** | 100-470µF | 1 | Power smoothing (optional) |
 
-The firmware now implements **revolutionary streaming architecture** that works on ALL ESP32 variants:
+### Enclosure & Mounting
 
-| Optimization Technology | Memory Saved | Performance Impact |
-|------------------------|--------------|-------------------|
-| **Streaming TOC Processing** | ~100-150KB | Direct disk writing eliminates file accumulation |
-| **Eliminated google_drive_files_list** | ~50-100KB | No more 347-file vector storage |
-| **Simplified Metadata** | ~7-14KB | Removed unused mimeType/modifiedTime fields |
-| **Optimized JSON Parsing** | ~20-50KB | Static allocation prevents fragmentation |
-| **Total Memory Savings** | **200-350KB+** | **Any ESP32 → 350+ files capable** |
+| Component | Description | Notes |
+|-----------|-------------|-------|
+| **3D Printed Case** | Custom design | STL files included in `/assets/3d model/` |
+| **Mounting Hardware** | M2.5 or M3 screws | For securing components |
+| **Standoffs** | 5-10mm height | Space between boards |
 
-### **I2C/WiFi Coexistence Solution**
-While ESP32-C6 has I2C/WiFi interference, the firmware includes **complete isolation architecture**:
+### Tools Required
 
-1. **Complete I2C Shutdown**: I2C bus shut down before any WiFi operations
-2. **Sequential Operation**: All network tasks happen while I2C is disabled  
-3. **NTP-Only Time Sync**: Eliminates RTC complexity entirely
-4. **Deferred Updates**: Time stored during WiFi, applied after I2C restart
-
-**Result**: ESP32-C6 now operates **flawlessly** with large Google Drive collections.
-
-### **Platform Comparison (Updated 2025)**
-
-| Platform | Max Files Tested | Memory Usage | Recommendation |
-|----------|------------------|--------------|----------------|
-| **ESP32-C6** | **352 files** ✅ | **38% stable** | **✅ Fully Recommended** |
-| **ESP32-S3** | **350+ files** ✅ | **30-35%** | **✅ Excellent Choice** |
-| **Standard ESP32** | **300+ files** ✅ | **45-50%** | **✅ Good Performance** |
-
-**All platforms now support large collections** - choose based on **features**, not memory limitations!
+- Soldering iron (for permanent connections)
+- Multimeter (for troubleshooting)
+- USB-C cable (for programming and power)
+- MicroSD card reader (for configuration setup)
+- 3D printer or printing service (for enclosure)
 
 ## PSRAM Enhancement - Performance Bonus (Optional)
 
