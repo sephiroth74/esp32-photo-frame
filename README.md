@@ -1,418 +1,423 @@
-# Arduino E-Paper Photo Frame
+# ESP32 E-Paper Photo Frame
 
-**esp32-photo-frame** is a firmware project for an ESP32-based digital photo frame. The project is designed to display images from Google Drive cloud storage on an e-paper (EPD) display, with features such as battery monitoring and multi-language localization. The SD card is used for initial operations including local caching, configuration storage, and temporary files, then shut down before display operations to avoid SPI conflicts.
+## Introduction
 
-<img src="assets/PXL_20251019_160143849.jpg" alt="ESP32 Photo Frame" width="600" />
-<img src="assets/PXL_20251019_160130264.jpg" alt="ESP32 Photo Frame" width="600" />
-<img src="assets/screenshot2.png" alt="ESP32 Photo Frame 3D model" width="600" />
-<img src="assets/screenshot3.png" alt="ESP32 Photo Frame 3D model" width="600" />
+This project implements a battery-powered digital photo frame using an ESP32 microcontroller and e-paper display technology. The system displays images from Google Drive cloud storage with weather information overlay, achieving months of battery life through intelligent power management and the inherent low-power characteristics of e-paper displays.
+
+The photo frame features automatic image synchronization, configurable refresh intervals, and a comprehensive configuration system that allows runtime customization without firmware recompilation. Images are processed through dedicated tools to optimize them for e-paper display characteristics before being uploaded to Google Drive.
+
+<img src="assets/PXL_20251019_160143849.jpg" alt="ESP32 Photo Frame - Front View" width="600" />
+<img src="assets/PXL_20251019_160130264.jpg" alt="ESP32 Photo Frame - Side View" width="600" />
+<img src="assets/screenshot2.png" alt="ESP32 Photo Frame - 3D Model Front" width="600" />
+<img src="assets/screenshot3.png" alt="ESP32 Photo Frame - 3D Model Back" width="600" />
 
 ## Features
 
-- **Google Drive Integration**: Primary image source with automatic synchronization and caching from Google Drive folders
-- **SD Card Caching**: Local caching system for improved performance and offline capabilities
-- **Smart Image Processing**: Automatic resizing, annotation, and format conversion
-- **Weather Display**: Runtime-configurable weather information with location, timezone, and update intervals (controlled via JSON config)
-- **Exponential Potentiometer Control** (v0.9.3): Cubic curve mapping for ultra-fine control at short intervals
-  - First 25% of rotation covers 5-9 minutes for precise short-interval adjustments
-  - First 50% covers 5-33 minutes (most common usage range)
-  - Remaining 50% covers 33-240 minutes for occasional/overnight use
-- Battery voltage monitoring and reporting with power-saving modes
-- **Security**: Configurable TLS/SSL security for cloud connections
-- Multi-language support (English, Italian)
-- **Rate Limiting**: Built-in API rate limiting for Google Drive requests
-- Modular code structure for easy customization and extension
+### Core Firmware Features
+- Google Drive integration with automatic file synchronization and local SD card caching
+- Weather information display with configurable location and update intervals
+- Exponential potentiometer control (v0.9.3) using cubic curve mapping for precise refresh interval adjustment
+- Battery monitoring with power-saving modes and adaptive refresh scheduling
+- Deep sleep operation between updates for extended battery life (2-3 months on 5000mAh)
+- Automatic file format detection supporting both binary (.bin) and bitmap (.bmp) formats
+- Streaming architecture supporting 350+ files on any ESP32 variant
+- Unified configuration system via single JSON file
+- Multi-language support (English and Italian localization)
+- Day/night scheduling to prevent overnight updates
+- Comprehensive debug mode for hardware troubleshooting
 
-### Recent Improvements (v0.9.3)
-- **📊 Exponential Potentiometer Mapping**: Ultra-fine control for refresh intervals
-  - Cubic curve (position³) provides natural feel for dialing in short intervals
-  - First quarter of rotation covers just 5-9 minutes for precise testing
-  - Addresses user feedback about difficulty setting 5-10 minute intervals
-- **🎯 PSRAM Mandatory**: Simplified architecture with guaranteed PSRAM availability
-  - **Code Simplification**: Removed conditional PSRAM compilation blocks
-  - **Enhanced Performance**: Optimized memory allocation strategies
-  - **Dynamic Buffer Sizing**: Intelligent scaling based on available flash memory (1MB-4MB buffers)
+### Image Processing Tools
 
-### Previous Improvements (v0.7.1)
-- **⚙️ Unified Configuration System**: Single `/config.json` file replaces 3 separate configuration files
-  - **Runtime Weather Control**: Weather functionality now controlled by JSON config
-  - **Enhanced Validation**: Automatic value capping and fallback to preprocessor constants
+#### Rust Processor (rust/photoframe-processor)
+- High-performance batch processing with 5-10x speed improvement over shell scripts
+- AI-powered person detection using YOLO11 for intelligent cropping
+- Automatic portrait pairing for landscape displays
+- Multi-format output support (BMP, binary, JPEG, PNG)
+- EXIF metadata extraction for date annotation
+- Font customization for image overlays
+- Filename encoding with Base64 for special character support
 
-### Previous Improvements (v0.7.0)
-- **🗂️ Optimized Storage Layout**: Eliminated factory partition and redistributed 4MB additional space
-- **⚡ PSRAM Streaming**: Enhanced HTTP client to leverage full 8MB PSRAM with chunked reading
-- **🌅 Fixed Weather Times**: Corrected sunrise/sunset display using Unix timestamps
-- **🛡️ Memory Safety**: Fixed critical memory corruption crashes with improved HTTPClient usage
+#### Android Application (android/PhotoFrameProcessor)
+- Graphical user interface for image selection and processing
+- Real-time preview of processed images
+- Touch-based crop selection
+- Batch processing with progress tracking
+- Direct Google Drive upload integration
+- Person detection and smart cropping
 
 ## Project Structure
 
-- `src/` - Main source code for device logic, battery, SD card, rendering, RTC, and localization
-- `include/` - Header files and configuration
-- `icons/` - Scripts and assets for generating icon headers
-- `lib/` - External libraries and assets
-- `platformio.ini` - PlatformIO project configuration
+```
+esp32-photo-frame/
+├── platformio/                 # ESP32 firmware (PlatformIO project)
+│   ├── src/                   # Source code files
+│   ├── include/               # Header files and board configurations
+│   ├── lib/                   # External libraries
+│   └── platformio.ini         # PlatformIO configuration
+├── rust/                      # Rust-based tools
+│   ├── photoframe-processor/  # Main image processing tool
+│   ├── bin2bmp/              # Binary to image converter
+│   └── bmp2cpp/              # Bitmap to C++ header converter
+├── android/                   # Android companion app
+│   └── PhotoFrameProcessor/   # Kotlin-based image processor
+├── docs/                      # Technical documentation
+├── assets/                    # Images and resources
+│   └── 3d model/             # 3D printable enclosure files
+├── scripts/                   # Shell scripts (deprecated)
+└── icons/                     # Icon generation scripts
+```
 
-## Getting Started
+## Recent Changes
 
-1. **Hardware Requirements**
-   - **Unexpected Maker FeatherS3** - ESP32-S3 board with 8MB PSRAM (default board)
-   - [Waveshare 7.5 e-paper display](https://www.waveshare.com/7.5inch-e-paper-hat.htm)
-   - [Good Display DESPI-C02](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) Connector board
-   - [Adafruit microSD](https://www.adafruit.com/product/4682?srsltid=AfmBOopfN-tYU3fKgpQquFOTLEY50Pl4PY8iTpBpGoXCpbJ8EQGVqBHn)
-   - 3.7V 5000mAh LiPo Battery
+For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG.md).
 
-2. **Hardware Assembly & Wiring**
-   - **📋 [Complete Wiring Diagram](docs/wiring-diagram.md)** - Comprehensive pin connections and assembly guide
-   - **Default Board**: Unexpected Maker FeatherS3
-     - ESP32-S3 dual core with 8MB PSRAM and 16MB Flash
-     - USB-C with excellent battery management
-     - Deep sleep wakeup optimized (GPIO1 with internal pull-up)
-   - **Key Connections**:
-     - **SD Card**: SD_MMC interface (SDIO) for high-speed access
-     - **E-Paper Display**: Dedicated SPI pins to avoid SD card conflicts
-     - **Potentiometer**: For manual refresh rate control
-     - **Analog**: Battery monitoring via built-in voltage divider
-   - **Wakeup Button**: Connected between GPIO1 and GND with internal pull-up
-
-3. **Setup**
-   - Clone this repository
-   - Open the project in [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/)
-   - Configure your hardware settings in `include/config.h` and `src/config.cpp` if needed
-
-3. **Image Processing Pipeline (Required)**
-
-   **🔧 All images must be processed before upload to Google Drive**
-
-   Images must be converted to the ESP32-compatible format and uploaded to Google Drive using:
-
-   **📋 [Rust Image Processor](rust/photoframe-processor/)** - High-performance image processing tool
-
-   ```bash
-   # Black & white processing (800x480 display)
-   ./rust/photoframe-processor/target/release/photoframe-processor \
-     -i ~/Photos -o ~/processed_images -t bw -s 800x480 --extensions jpg,png --auto
-
-   # 6-color processing with custom fonts
-   ./rust/photoframe-processor/target/release/photoframe-processor \
-     -i ~/Photos -o ~/processed_images -t 6c -s 800x480 --extensions jpg,png,heic \
-     --auto --font "Arial-Bold" --pointsize 32
-   ```
-
-   **Alternative: Android App**
-   
-   Use the Android PhotoFrameProcessor app located in `android/PhotoFrameProcessor/` for a user-friendly GUI to process images with:
-   - AI-powered person detection and smart cropping
-   - Automatic EXIF date extraction and labeling
-   - Portrait image pairing for landscape display
-   - Real-time preview of processed results
-
-   **Alternative: Rust Binary Converter (Recommended for Performance)**
-   
-   Use the high-performance Rust-based `photoframe-processor` tool for batch processing with **5-10x faster processing** and **AI-powered people detection**:
-   
-   **📋 [Complete Rust Processor Documentation](docs/rust-photoframe-processor.md)** - Comprehensive guide with AI features, font support, and performance optimization
-
-4. **Unified Configuration System (v0.7.1)**
-
-   **🔧 Single Configuration File**: All settings (WiFi, Google Drive, Weather, Board) in one unified `/config.json` file on the SD card
-
-   Create a single `/config.json` file on your SD card root with all system configuration:
-
-   ```json
-   {
-     "wifi": {
-       "ssid": "YourWiFiNetwork",
-       "password": "YourWiFiPassword"
-     },
-     "google_drive": {
-       "authentication": {
-         "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
-         "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT\n-----END PRIVATE KEY-----\n",
-         "client_id": "your-client-id"
-       },
-       "drive": {
-         "folder_id": "your-google-drive-folder-id",
-         "root_ca_path": "/certs/google_root_ca.pem",
-         "list_page_size": 100,
-         "use_insecure_tls": false
-       },
-       "caching": {
-         "local_path": "/gdrive",
-         "toc_max_age_seconds": 604800
-       },
-       "rate_limiting": {
-         "max_requests_per_window": 100,
-         "rate_limit_window_seconds": 100,
-         "min_request_delay_ms": 500,
-         "max_retry_attempts": 3,
-         "backoff_base_delay_ms": 5000,
-         "max_wait_time_ms": 30000
-       }
-     },
-     "weather": {
-       "enabled": true,
-       "latitude": 40.7128,
-       "longitude": -74.0060,
-       "update_interval_minutes": 120,
-       "celsius": true,
-       "battery_threshold": 15,
-       "max_age_hours": 3,
-       "timezone": "auto",
-       "temperature_unit": "celsius",
-       "wind_speed_unit": "kmh",
-       "precipitation_unit": "mm"
-     },
-     "board": {
-       "day_start_hour": 6,
-       "day_end_hour": 23,
-       "refresh": {
-         "min_seconds": 600,
-         "max_seconds": 14400,
-         "step": 300,
-         "low_battery_multiplier": 3
-       }
-     }
-   }
-   ```
-
-5. **Google Drive Setup (Required)**
-
-   **📤 Complete Workflow**: Process images → Upload to Google Drive → Share with service account → Configure JSON file
-
-   Google Drive is the **only supported image source** for the photo frame:
-
-   - **Step 1**: Process your images using the tools above to create `.bin` files
-   - **Step 2**: Create a Google Service Account in [Google Cloud Console](https://console.cloud.google.com/)
-   - **Step 3**: Enable the Google Drive API for your project
-   - **Step 4**: Download the service account JSON key file
-   - **Step 5**: **Create a Google Drive folder** and upload your processed `.bin` files to it
-   - **Step 6**: **Critical**: Share your Google Drive folder with the service account email (found in the JSON key file)
-   - **Step 7**: Add your Google Drive configuration to the unified `/config.json` file (see configuration section above)
-
-   **SD Card Usage**
-
-   The SD card serves as **configuration and caching storage only** (images are stored in Google Drive):
-
-   - **Unified Configuration**: Single `/config.json` file with all system settings (WiFi, Google Drive, Weather, Board)
-   - **Local Image Caching**: Downloaded Google Drive images are cached locally for improved performance and offline display
-   - **Weather Data**: Cached weather information for offline display
-   - **Temporary Files**: Download and processing temporary storage
-   - **TOC System**: Two-file Table of Contents system (`toc_data.txt` and `toc_meta.txt`) for enhanced data integrity
-
-   **Architecture Note**: Images are sourced exclusively from Google Drive and cached on SD card. The SD card is shut down after download operations complete to avoid SPI conflicts with the e-paper display. On shared SPI boards (e.g., FeatherS3), images are copied to LittleFS before display operations begin.
-
-   **Enhanced TOC System (2025)**: The firmware now uses a robust 2-file TOC system with `toc_data.txt` containing file entries and `toc_meta.txt` containing metadata and integrity information, providing better error recovery and data validation.
-
-5. **Binary to Image Conversion**
-
-   The project includes a powerful Rust-based tool for converting ESP32 binary image files back to viewable formats:
-
-   **📋 [Binary to Image Converter Documentation](docs/bin_2_image.md)** - Complete guide for the `bin2bmp` tool
-
-   ```bash
-   # Convert binary to BMP with default 800x480 size
-   ./rust/bin2bmp/target/release/bin2bmp -i photo.bin -t bw
-   
-   # Convert 6-color binary to JPEG with custom size
-   ./rust/bin2bmp/target/release/bin2bmp -i photo.bin -o output/ -s 1200x825 -t 6c -f jpeg
-   
-   # Validate binary file only
-   ./rust/bin2bmp/target/release/bin2bmp --validate-only -i photo.bin
-   ```
-
-   **Key Features:**
-   - 🚀 **Fast**: Native Rust performance with animated progress bars
-   - 🎯 **Smart Validation**: Helpful error messages with dimension suggestions  
-   - 🎨 **Multiple Formats**: BMP, JPEG, PNG output support
-   - 📁 **Auto Naming**: Automatically generates output filenames
-
-6. **Build and Upload**
-   - Connect your ESP32 board
-   - Use PlatformIO to build and upload the firmware
-
-## Complete Hardware List
+## Required Hardware
 
 ### Essential Components
 
-| Component | Model/Specification | Purpose | Purchase Link |
-|-----------|-------------------|---------|---------------|
-| **Microcontroller** | Unexpected Maker FeatherS3 | Main processor (ESP32-S3 with 8MB PSRAM) | [Unexpected Maker](https://unexpectedmaker.com/shop/feathers3) |
-| **E-Paper Display** | Waveshare 7.5" (800×480) | Main display | [Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm) |
-| **Display Connector** | Good Display DESPI-C02 | E-paper connection board | [Good Display](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) |
-| **SD Card Module** | Adafruit MicroSD Breakout | Configuration and caching | [Adafruit](https://www.adafruit.com/product/4682) |
-| **Battery** | 3.7V 5000mAh LiPo | Power source (JST connector) | Various suppliers |
-| **Potentiometer** | 50kΩ Linear | Refresh rate control | Various suppliers |
-| **Push Button** | Momentary switch | Manual wake trigger | Various suppliers |
+| Component | Specification | Purchase Link |
+|-----------|--------------|---------------|
+| Microcontroller | Unexpected Maker FeatherS3(D) (ESP32-S3, 8MB PSRAM, 16MB Flash) | [Unexpected Maker](https://unexpectedmaker.com/shop/feathers3) |
+| E-Paper Display | Waveshare 7.5" (800×480 pixels, B/W or color) | [Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm) |
+| Display Connector | Good Display DESPI-C02 | [Good Display](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) |
+| SD Card Module | Adafruit MicroSD Breakout Board | [Adafruit #4682](https://www.adafruit.com/product/4682) |
+| Battery | 3.7V 5000mAh LiPo with JST connector | Various suppliers |
+| Potentiometer | 50kΩ linear potentiometer | Various suppliers |
+| Push Buttons | Momentary switch (normally open) | Various suppliers |
+| MicroSD Card | 8GB or larger, FAT32 formatted | Various suppliers |
+
+### Optional Components
+
+| Component | Purpose | Notes |
+|-----------|---------|-------|
+| RTC Module | Accurate timekeeping without NTP | PCF8523 or DS3231 compatible |
+| Battery Monitor | Precise battery level tracking | MAX1704X I2C fuel gauge |
 
 ### Wiring Components
 
 | Component | Specification | Quantity | Purpose |
 |-----------|--------------|----------|---------|
-| **Jumper Wires** | Female-to-Female | 20+ | Connections between components |
-| **Breadboard** | Half-size or larger | 1 | Prototyping (optional) |
-| **Pull-up Resistor** | 10kΩ | 1 | BUSY pin stabilization (optional) |
-| **Capacitor** | 100-470µF | 1 | Power smoothing (optional) |
+| Jumper Wires | Female-to-Female, 10-20cm | 20+ | Component connections |
+| Breadboard | Half-size (400 tie points) | 1 | Prototyping (optional) |
+| Pull-up Resistor | 10kΩ, 1/4W | 1-2 | BUSY pin and I2C (if needed) |
+| Capacitor | 100-470µF, 16V electrolytic | 1 | Power supply filtering |
+| Heat Shrink Tubing | Various sizes | Assorted | Wire insulation |
 
-### Enclosure & Mounting
+### Enclosure and Mounting
 
-| Component | Description | Notes |
-|-----------|-------------|-------|
-| **3D Printed Case** | Custom design | STL files included in `/assets/3d model/` |
-| **Mounting Hardware** | M2.5 or M3 screws | For securing components |
-| **Standoffs** | 5-10mm height | Space between boards |
+| Component | Description |
+|-----------|-------------|
+| 3D Printed Case | Custom design, PLA or PETG material |
+| Mounting Screws | M2.5 × 6mm or M3 × 6mm |
+| Standoffs | 5-10mm height, brass or nylon |
+| Display Mounting | Double-sided tape or mounting brackets |
 
-### Tools Required
+### Required Tools
 
-- Soldering iron (for permanent connections)
-- Multimeter (for troubleshooting)
-- USB-C cable (for programming and power)
-- MicroSD card reader (for configuration setup)
-- 3D printer or printing service (for enclosure)
+- Soldering iron with fine tip (15-25W)
+- Solder wire (0.6-0.8mm rosin core)
+- Wire strippers
+- Multimeter for continuity testing
+- USB-C cable for programming
+- MicroSD card reader
+- 3D printer or access to printing service
+- Small screwdriver
+- Flush cutters for wire trimming
 
-## PSRAM Enhancement - Performance Bonus (Optional)
+## Supported Hardware
 
-With the **breakthrough streaming architecture**, PSRAM is **no longer required** for large Google Drive collections. However, **ESP32-S3 boards with PSRAM** still receive **performance bonuses** for ultra-fast processing.
+### Microcontroller Boards
 
-### **All Platforms Now Handle Large Collections**
+| Board | Support Level | Notes |
+|-------|--------------|-------|
+| Unexpected Maker FeatherS3 | Primary | Default configuration, full feature support |
+| Unexpected Maker ProS3 | Full | Extended GPIO, MAX1704X battery monitor |
+| Adafruit Huzzah32 Feather V2 | Good | 2MB PSRAM, reduced buffer sizes |
+| DFRobot FireBeetle 2 ESP32-C6 | Limited | I2C/WiFi interference, requires isolation |
+| Arduino Nano ESP32 | Limited | Requires pin remapping |
+| Generic ESP32-S3 (8MB PSRAM) | Good | May require configuration adjustments |
 
-**✅ New Reality (2025)**: Every ESP32 variant can handle 300+ files with streaming optimizations:
+### Display Support
 
-| Platform | Files Supported | Memory Usage | Speed |
-|----------|----------------|--------------|--------|
-| **Standard ESP32** | **300+ files** ✅ | 45-50% | Streaming architecture |
-| **ESP32-C6** | **352+ files** ✅ | 38% | Streaming + isolation fixes |
-| **ESP32-S3** | **350+ files** ✅ | 30-35% | Streaming baseline |
-| **ESP32-S3 + PSRAM** | **500+ files** ✅ | 25-30% | **Performance bonus** |
+| Display Type | Resolution | Color Support | Status |
+|-------------|------------|---------------|--------|
+| Waveshare 7.5" V2 | 800×480 | Black/White | Fully Supported |
+| Waveshare 7.5" | 800×480 | Black/White/Red | Fully Supported |
+| Good Display 7.5" | 800×480 | 6-Color ACeP | Fully Supported |
+| Waveshare 7.5" HD | 880×528 | Black/White | Configuration required |
+| Waveshare 5.65" | 600×448 | 7-Color | Configuration required |
 
-### **PSRAM Performance Bonus Features**
+### Limitations by Platform
 
-While no longer necessary, PSRAM still provides **premium performance** for power users:
+#### ESP32-C6 Boards
+- Hardware I2C/WiFi interference requires complete I2C shutdown during network operations
+- RTC modules cannot be used reliably
+- NTP-only time synchronization
 
-**Enhanced Capabilities with PSRAM:**
-- **Larger Buffer Processing**: 4MB JSON responses processed instantly (vs streaming)
-- **Faster Sync Times**: 3-5x faster for very large collections (500+ files)
-- **Zero Stream Parsing**: Eliminate processing overhead entirely
-- **Future-Proofing**: Ready for massive collections (1000+ files)
+#### Low PSRAM Boards (2MB)
+- Reduced JSON buffer sizes
+- May experience slower Google Drive synchronization
+- Limited to ~200 files without streaming optimizations
 
-### **Image Rendering Performance Optimization (v0.2.0)**
+#### Non-ESP32-S3 Boards
+- No native USB support
+- Reduced processing performance
+- May require external programmer
 
-The firmware includes improved page-aware rendering that reduces image display time:
+## Wiring
 
-**Performance Comparison:**
-| Rendering Stage | Before | After | Improvement |
-|----------------|--------|--------|-------------|
-| **Full Image Rendering** | 81+ seconds | ~27 seconds | 3x faster |
-| **Per-Page Processing** | 27s each × 3 pages | ~9s each × 3 pages | 67% reduction per page |
-| **Pixel Processing** | 384,000 pixels × 3 | ~128,000 pixels/page | Optimized processing |
+The project uses separate communication buses to avoid conflicts between the SD card and e-paper display. The SD card utilizes the high-speed SDIO interface while the display uses a dedicated SPI bus.
 
-**Technical Improvements:**
-- **Page-Aware Processing**: Only processes pixels relevant to current display page
-- **Coordinate System**: Uses absolute coordinates with GxEPD2's automatic clipping
-- **Memory Efficiency**: Maintains low memory usage while improving rendering speed
-- **Multi-Page Support**: Optimized for displays requiring multiple page updates (163px height sections)
+For detailed pin connections and wiring diagrams, see [Wiring Diagram Documentation](docs/wiring-diagram.md).
 
-**Result**: Image display time reduced from over a minute to under 30 seconds.
+Key connections:
+- SD Card: SDIO interface (GPIO 11, 12, 13, 14, 16, 17)
+- E-Paper: Dedicated SPI (GPIO 35, 36, 37, 38 plus control pins)
+- Potentiometer: Analog input (GPIO 18)
+- Wake Button: GPIO 1 with internal pull-up
 
-### **Automatic Optimization**
+## Setup
 
-**Bottom Line**: Choose your platform based on **features and price** - all platforms handle large Google Drive collections excellently!
+### Development Environment
 
-## Technical Specifications
+1. **Install Visual Studio Code**
+   - Download from [code.visualstudio.com](https://code.visualstudio.com/)
+   - Install the PlatformIO IDE extension from the marketplace
 
-For detailed technical documentation including comprehensive error handling system, system architecture, hardware specifications, and API references, see **📋 [Technical Specifications](docs/tech_specs.md)**.
+2. **Clone the Repository**
+   ```bash
+   git clone https://github.com/sephiroth74/esp32-photo-frame.git
+   cd esp32-photo-frame/platformio
+   ```
 
-### Documentation Index
+3. **Configure PlatformIO**
+   - Open the project in VS Code
+   - PlatformIO will automatically install required packages
+   - Select your board environment in `platformio.ini` (default: feathers3_unexpectedmaker)
 
-- **📋 [Technical Specifications](docs/tech_specs.md)** - System architecture, error handling, and API references
-- **📋 [Changelog](CHANGELOG.md)** - Version history and release notes
-- **📋 [Weather Display](docs/weather.md)** - Weather integration setup, configuration, and API usage
-- **📋 [Image Processing Pipeline](docs/image_processing.md)** - Complete guide for bash/ImageMagick processing
-- **📋 [Rust Image Processor](docs/rust-photoframe-processor.md)** - High-performance Rust tool with AI features
-- **📋 [Binary Format Converter](docs/bin_2_image.md)** - ESP32 binary to image conversion tool
-- **📋 [Wiring Diagram](docs/wiring-diagram.md)** - Hardware assembly and connections
+### Configuration System
 
-## ⚙️ Unified Configuration System (v0.7.1)
+The photo frame uses a unified configuration system with a single `/config.json` file on the SD card root.
 
-### **Single Configuration File**
+#### Basic Configuration Example
 
-The photo frame now uses a **unified configuration system** with a single `/config.json` file on the SD card, replacing the previous 3 separate configuration files:
+```json
+{
+  "wifi": {
+    "ssid": "YourNetworkName",
+    "password": "YourPassword"
+  },
+  "google_drive": {
+    "authentication": {
+      "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
+      "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+      "client_id": "123456789"
+    },
+    "drive": {
+      "folder_id": "1ABC...XYZ",
+      "list_page_size": 100,
+      "use_insecure_tls": false
+    }
+  },
+  "weather": {
+    "enabled": false
+  }
+}
+```
 
-**Previous System (v0.7.0 and earlier)**:
-- ❌ `wifi.txt` - WiFi credentials
-- ❌ `google_drive_config.json` - Google Drive settings
-- ❌ `weather_config.json` - Weather configuration
+#### Complete Configuration with Weather
 
-**New Unified System (v0.7.1+)**:
-- ✅ `/config.json` - **All configuration in one place**
-
-### **Key Benefits**
-
-- **🔧 Simplified Setup**: All settings in one JSON file
-- **⚡ Faster Startup**: Single SD card read instead of 3 separate reads
-- **🛡️ Enhanced Validation**: Automatic value capping and fallback handling
-- **🔄 Runtime Control**: Weather functionality controlled at runtime (no recompilation needed)
-- **💾 Better Error Handling**: Extended sleep on SD card failure with graceful recovery
-- **🧹 Code Simplification**: Eliminated conditional compilation blocks
-
-### **Fallback System**
-
-If the SD card fails or `/config.json` is missing, the system:
-1. **Loads fallback values** from `config.h` preprocessor constants
-2. **Enters extended sleep** (midpoint between min/max refresh intervals)
-3. **Retries on next wakeup** for automatic recovery
-
-### **Configuration Validation**
-
-The system automatically validates and caps configuration values:
-- **Refresh intervals**: Capped to valid ranges (5 min - 4 hours)
-- **Weather settings**: Battery threshold (5-50%), max age (1-24 hours)
-- **Board timing**: Day start/end hours validated
-- **Google Drive**: Rate limiting and timeout values enforced
-
-### **Runtime Weather Control**
-
-Weather functionality is now **runtime-configurable**:
-- **Enable/Disable**: Set `"weather.enabled": true/false` in config.json
-- **No Recompilation**: Same firmware works with or without weather
-- **Battery Aware**: Automatically disabled when battery is below threshold
-- **Configuration Driven**: All weather settings in unified config
-
-## Configuration & Customization
-
-### Security Settings
-
-The `use_insecure_tls` setting in your unified `/config.json` file controls SSL/TLS security:
-
-- **Secure (Recommended)**: Set `"google_drive.drive.use_insecure_tls": false` and provide a valid `root_ca_path`
-- **Insecure**: Set `"google_drive.drive.use_insecure_tls": true` to skip certificate validation (not recommended for production)
+```json
+{
+  "wifi": {
+    "ssid": "YourNetworkName",
+    "password": "YourPassword"
+  },
+  "google_drive": {
+    "authentication": {
+      "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
+      "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+      "client_id": "123456789"
+    },
+    "drive": {
+      "folder_id": "1ABC...XYZ",
+      "root_ca_path": "/certs/google_root_ca.pem",
+      "list_page_size": 100,
+      "use_insecure_tls": false
+    },
+    "caching": {
+      "local_path": "/gdrive",
+      "toc_max_age_seconds": 604800
+    },
+    "rate_limiting": {
+      "max_requests_per_window": 100,
+      "rate_limit_window_seconds": 100,
+      "min_request_delay_ms": 500
+    }
+  },
+  "weather": {
+    "enabled": true,
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "update_interval_minutes": 120,
+    "celsius": true,
+    "battery_threshold": 15,
+    "max_age_hours": 3,
+    "timezone": "America/New_York",
+    "temperature_unit": "celsius",
+    "wind_speed_unit": "kmh",
+    "precipitation_unit": "mm"
+  },
+  "board": {
+    "day_start_hour": 6,
+    "day_end_hour": 23,
+    "refresh": {
+      "min_seconds": 300,
+      "max_seconds": 14400,
+      "step": 300,
+      "low_battery_multiplier": 3
+    }
+  }
+}
+```
 
 ### Weather Configuration
 
-Weather is now fully runtime-configurable via the unified `/config.json`:
+Weather display is controlled entirely through the configuration file without requiring firmware recompilation.
 
-- **Enable/Disable**: Control weather display without firmware changes
-- **Location Settings**: Latitude/longitude for accurate weather data
-- **Update Control**: Configurable intervals and battery thresholds
-- **Units**: Temperature (Celsius/Fahrenheit), wind speed, precipitation
-- **Timezone**: Auto-detection or manual specification
+#### Weather Settings
 
-### Hardware Configuration
+- **enabled**: Set to `true` to enable weather display
+- **latitude/longitude**: Your location coordinates for accurate weather data
+- **update_interval_minutes**: How often to fetch new weather data (default: 120)
+- **celsius**: Display temperature in Celsius (true) or Fahrenheit (false)
+- **battery_threshold**: Minimum battery percentage for weather updates
+- **timezone**: IANA timezone (e.g., "America/New_York") or "auto" for automatic detection
 
-- **Board Selection**: Choose your target board in `platformio.ini` 
-- **Display Type**: Configure your e-paper display type in your board's config file
-- **Pin Mapping**: Adjust pin assignments in `include/config/your_board.h`
+The weather system automatically:
+- Disables when battery is below threshold
+- Caches data for offline display
+- Shows sunrise/sunset times in local timezone
+- Displays temperature, precipitation, and wind data
 
-### Software Customization
+## Images Pipeline
 
-- **Localization**: Add or modify language files in `include/locales/`
-- **Icons**: Use scripts in `icons/` to generate new icon headers from PNG or SVG files
-- **Timing**: Adjust refresh intervals and sleep timing in the configuration files
-- **Battery**: Configure battery monitoring thresholds and power-saving modes
+### Google Drive Setup
 
+1. **Create a Google Cloud Project**
+   - Visit [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing
+   - Enable the Google Drive API
 
-### 3D Model
+2. **Create Service Account**
+   - Navigate to IAM & Admin → Service Accounts
+   - Create a new service account
+   - Download the JSON key file
+   - Extract credentials for config.json
 
-A 3D model ready to print is included here <a href="assets/3d model/ESP32-Photo-Frame.3mf">/assets/3d model/ESP32-Photo-Frame.3mf</a>
+3. **Prepare Google Drive Folder**
+   - Create a folder in Google Drive for your photos
+   - Share the folder with the service account email
+   - Copy the folder ID from the URL
+
+4. **Process Images**
+   - Use either the Rust processor or Android app (see below)
+   - Upload processed files to the Google Drive folder
+
+### Using the Rust Processor
+
+```bash
+cd rust/photoframe-processor
+cargo build --release
+
+# Process images for black & white display
+./target/release/photoframe-processor \
+  -i ~/photos -o ~/processed \
+  -t bw -s 800x480 --auto
+
+# Process with person detection and 6-color output
+./target/release/photoframe-processor \
+  -i ~/photos -o ~/processed \
+  -t 6c -s 800x480 \
+  --detect-people --auto-color --force
+```
+
+### Using the Android App
+
+1. Install the PhotoFrameProcessor app from `android/PhotoFrameProcessor/`
+2. Select images from your gallery
+3. Configure processing options (crop, color mode, annotations)
+4. Process batch and upload directly to Google Drive
+
+## Image Processing
+
+### Technical Overview
+
+The e-paper display requires images in specific formats optimized for its unique characteristics. Unlike traditional LCD screens, e-paper displays have limited color palettes and refresh rates, necessitating specialized image processing.
+
+#### Processing Pipeline
+
+1. **Input Analysis**: Images are loaded and analyzed for composition, detecting faces and subjects using AI models
+2. **Intelligent Cropping**: Based on detected subjects, images are cropped to the target aspect ratio
+3. **Color Quantization**: Images are converted to the target color palette (B/W, 6-color, or 7-color)
+4. **Dithering**: Floyd-Steinberg or ordered dithering is applied for better perceived quality
+5. **Binary Encoding**: Final image is encoded in a compact binary format for efficient storage
+
+#### Binary Format Structure
+
+The custom binary format consists of:
+- 4-byte header with version and flags
+- Image dimensions and color mode
+- Compressed pixel data using run-length encoding
+- Optional metadata (date, annotations)
+
+This format achieves 50-70% size reduction compared to BMP while maintaining fast decoding on the ESP32.
+
+### Rust Processor Details
+
+The Rust-based processor (`rust/photoframe-processor`) provides:
+- Parallel processing utilizing all CPU cores
+- YOLO11 neural network for person detection
+- Automatic portrait pairing for combined displays
+- EXIF metadata extraction for date annotations
+- Multiple output formats with organized directory structure
+
+For detailed documentation, see [Rust Processor Documentation](docs/rust-photoframe-processor.md).
+
+### Android App Details
+
+The Android application offers:
+- Intuitive touch interface for image selection
+- Real-time preview of processing effects
+- Batch operations with progress tracking
+- Direct Google Drive integration
+- Settings persistence for repeated use
+
+## Documentation Index
+
+- [Technical Specifications](docs/tech_specs.md) - System architecture and API documentation
+- [Wiring Diagram](docs/wiring-diagram.md) - Detailed hardware connections
+- [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing documentation
+- [Weather Integration](docs/weather.md) - Weather API setup and configuration
+- [Image Processing Pipeline](docs/image_processing.md) - Legacy bash script documentation
+- [Display Troubleshooting](platformio/DISPLAY_TROUBLESHOOTING_COMPLETE_GUIDE.md) - Hardware debugging guide
+
+## 3D Printable Enclosure
+
+A complete 3D printable enclosure design is available at [`/assets/3d model/ESP32-Photo-Frame.3mf`](assets/3d%20model/ESP32-Photo-Frame.3mf).
+
+The enclosure features:
+- Integrated mounting points for all components
+- Cable management channels
+- Ventilation for battery safety
+- Easy access to SD card and USB port
+- Stand for desktop display
+
+Recommended print settings:
+- Layer height: 0.2mm
+- Infill: 20%
+- Support: Required for some parts
+- Material: PLA or PETG
 
 ## License
 
