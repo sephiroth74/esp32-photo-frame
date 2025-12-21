@@ -9,6 +9,7 @@ repository = "https://github.com/sephiroth74/arduino/esp32-photo-frame"
 keywords = ["esp32", "e-paper", "image-processing", "cli", "embedded"]
 categories = ["multimedia::images", "command-line-utilities", "embedded"]
 readme = "README.md"
+default-run = "photoframe-processor"
 
 [[bin]]
 name = "photoframe-processor"
