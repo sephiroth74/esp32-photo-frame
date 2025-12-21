@@ -26,7 +26,16 @@
 #include "config.h"
 #include "errors.h"
 #include <Arduino.h>
-#include <SD_MMC.h>
+
+// Support both SDIO (SD_MMC) and SPI (SD) interfaces
+#ifdef SD_USE_SPI
+    #include <SD.h>
+    #include <SPI.h>
+    #define SD_CARD SD  // Use SPI SD library
+#else
+    #include <SD_MMC.h>
+    #define SD_CARD SD_MMC  // Use SDIO SD_MMC library
+#endif
 
 namespace photo_frame {
 

@@ -166,6 +166,15 @@ pub struct Args {
     )]
     pub divider_color: String,
 
+    /// Dithering method: "enhanced" (Floyd-Steinberg with perceptual weighting) or "ordered" (Bayer matrix)
+    #[arg(
+        long = "dithering",
+        default_value = "enhanced",
+        value_name = "METHOD",
+        help = "Dithering method: 'enhanced' for smoother gradients or 'ordered' for less noise"
+    )]
+    pub dithering_method: String,
+
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
     #[arg(short = 'j', long = "jobs", default_value = "0", value_name = "N")]
     pub jobs: usize,

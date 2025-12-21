@@ -87,8 +87,10 @@ DateTime fetch_datetime(wifi_manager& wifiManager, bool reset, photo_frame_error
         Serial.println(F("[rtc_util] DS3231 RTC initialized successfully!"));
         rtc.begin();
         #endif // RTC_CLASS == RTC_PCF8523
-        
-        rtc.disable32K(); // Disable 32kHz output to save power
+
+        #ifdef RTC_CLASS_DS3231
+        rtc.disable32K(); // Disable 32kHz output to save power (DS3231 only)
+        #endif
         if (rtc.lostPower() || reset) {
             // Set the time to a default value if the RTC lost power
             Serial.println(F("[rtc_util] RTC lost power (or force is true), setting the time!"));

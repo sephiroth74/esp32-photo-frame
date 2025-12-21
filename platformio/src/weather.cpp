@@ -479,7 +479,7 @@ void WeatherManager::save_weather_cache() {
     doc["sunset_time"]    = current_weather.sunset_time;
     doc["has_daily_data"] = current_weather.has_daily_data;
 
-    File cache_file       = SD_MMC.open(WEATHER_CACHE_FILE, FILE_WRITE);
+    File cache_file       = SD_CARD.open(WEATHER_CACHE_FILE, FILE_WRITE);
     if (!cache_file) {
         Serial.println("[WeatherManager] Failed to open cache file for writing");
         return;
@@ -492,12 +492,12 @@ void WeatherManager::save_weather_cache() {
 }
 
 bool WeatherManager::load_weather_cache() {
-    if (!SD_MMC.exists(WEATHER_CACHE_FILE)) {
+    if (!SD_CARD.exists(WEATHER_CACHE_FILE)) {
         Serial.println("[WeatherManager] No cached weather data found");
         return false;
     }
 
-    File cache_file = SD_MMC.open(WEATHER_CACHE_FILE, FILE_READ);
+    File cache_file = SD_CARD.open(WEATHER_CACHE_FILE, FILE_READ);
     if (!cache_file) {
         Serial.println("[WeatherManager] Failed to open cache file for reading");
         return false;

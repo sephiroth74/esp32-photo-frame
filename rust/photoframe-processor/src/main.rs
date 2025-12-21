@@ -342,6 +342,8 @@ fn main() -> Result<()> {
         // Portrait combination divider settings
         divider_width: args.divider_width,
         divider_color,
+        // Dithering method
+        dithering_method: args.dithering_method.clone(),
     };
 
     if config.verbose {
@@ -397,6 +399,16 @@ fn main() -> Result<()> {
         println!(
             "    Color: RGB({}, {}, {})",
             config.divider_color[0], config.divider_color[1], config.divider_color[2]
+        );
+
+        // Dithering method
+        println!(
+            "  Dithering method: {}",
+            if config.dithering_method == "ordered" {
+                "Ordered (Bayer matrix)"
+            } else {
+                "Enhanced Floyd-Steinberg"
+            }
         );
 
         // Color correction status

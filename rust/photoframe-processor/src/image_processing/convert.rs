@@ -9,11 +9,11 @@ use super::ProcessingType;
 /// - BlackWhite: Convert to grayscale and apply Floyd-Steinberg dithering
 /// - SixColor: Reduce to 6-color palette and apply dithering
 /// - SevenColor: Reduce to 7-color palette and apply dithering
-pub fn process_image(img: &RgbImage, processing_type: &ProcessingType) -> Result<RgbImage> {
+pub fn process_image(img: &RgbImage, processing_type: &ProcessingType, dithering_method: &str) -> Result<RgbImage> {
     match processing_type {
         ProcessingType::BlackWhite => apply_bw_processing(img),
-        ProcessingType::SixColor => apply_6c_processing(img),
-        ProcessingType::SevenColor => apply_7c_processing(img),
+        ProcessingType::SixColor => apply_6c_processing(img, dithering_method),
+        ProcessingType::SevenColor => apply_7c_processing(img, dithering_method),
     }
 }
 
@@ -26,14 +26,32 @@ fn apply_bw_processing(img: &RgbImage) -> Result<RgbImage> {
     apply_floyd_steinberg_dithering(&grayscale)
 }
 
-/// Apply 6-color processing with palette reduction and dithering
-fn apply_6c_processing(img: &RgbImage) -> Result<RgbImage> {
-    apply_floyd_steinberg_dithering_with_palette(img, &SIX_COLOR_PALETTE)
+/// Apply 6-color processing with selectable dithering method
+fn apply_6c_processing(img: &RgbImage, dithering_method: &str) -> Result<RgbImage> {
+    match dithering_method {
+        "ordered" => {
+            // Use ordered dithering (Bayer matrix) for less noise
+            super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
+        }
+        _ => {
+            // Default to enhanced Floyd-Steinberg for better gradients
+            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SIX_COLOR_PALETTE)
+        }
+    }
 }
 
-/// Apply 7-color processing with palette reduction and dithering
-fn apply_7c_processing(img: &RgbImage) -> Result<RgbImage> {
-    apply_floyd_steinberg_dithering_with_palette(img, &SEVEN_COLOR_PALETTE)
+/// Apply 7-color processing with selectable dithering method
+fn apply_7c_processing(img: &RgbImage, dithering_method: &str) -> Result<RgbImage> {
+    match dithering_method {
+        "ordered" => {
+            // Use ordered dithering (Bayer matrix) for less noise
+            super::convert_improved::apply_ordered_dithering(img, &SEVEN_COLOR_PALETTE)
+        }
+        _ => {
+            // Default to enhanced Floyd-Steinberg for better gradients
+            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SEVEN_COLOR_PALETTE)
+        }
+    }
 }
 
 /// Convert RGB image to grayscale using luminance weights

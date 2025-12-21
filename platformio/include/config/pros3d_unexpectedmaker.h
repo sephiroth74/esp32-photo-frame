@@ -1,0 +1,84 @@
+#include <Arduino.h>
+
+// Configuration for Unexpected Maker ProS3(d) (ESP32-S3)
+// Pin definitions based on ProS3 pinout
+// https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737
+
+// -------------------------------------------
+// OTA Update Configuration
+// -------------------------------------------
+
+#define OTA_USE_SSL true // Use HTTPS for secure updates
+
+// Pin definitions for ProS3(d) (ESP32-S3) - Based on actual pinout
+// SD Card - using SPI interface for standard breakout boards
+// Compatible with both SDIO and SPI SD card modules
+// Using available GPIO pins that don't conflict with other peripherals
+#define SD_USE_SPI          // Use SPI instead of SDIO for SD card
+#define SD_CS_PIN      12   // SD Card Chip Select (CS) - IO12
+#define SD_SCK_PIN     14   // SD Card SPI Clock (CLK) - IO14
+#define SD_MOSI_PIN    16   // SD Card SPI MOSI (DI - Data In) - IO16
+#define SD_MISO_PIN    15   // SD Card SPI MISO (DO - Data Out) - IO15
+
+// e-Paper Display - using separate SPI bus to avoid conflicts with SD card
+// ProS3 has enough pins to use separate SPI buses for SD and display
+#define EPD_BUSY_PIN 6   // IO6 - available digital pin
+#define EPD_RST_PIN  5   // IO5 - available digital pin
+#define EPD_DC_PIN   13  // IO13 - available digital pin
+#define EPD_CS_PIN   38  // IO38 - SPI CS for e-paper
+#define EPD_SCK_PIN  36  // IO36 - SPI Clock for e-paper
+#define EPD_MOSI_PIN 35  // IO35 - SPI MOSI for e-paper
+
+// Potentiometer pin - using analog pins
+#define POTENTIOMETER_PWR_PIN   7    // IO7 - available digital pin for power control
+#define POTENTIOMETER_INPUT_PIN 4    // IO4 - Analog pin (ADC1_CH3)
+#define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC
+
+// Battery monitoring - ProS3 has MAX1704X fuel gauge over I2C
+#define BATTERY_PIN                    2 // Built-in battery voltage pin (GPIO2) - backup only
+#define BATTERY_NUM_READINGS           100
+#define BATTERY_DELAY_BETWEEN_READINGS 10
+#define BATTERY_RESISTORS_RATIO 0.2574679943 // ProS3 built-in divider ratio
+
+// MAX1704X I2C fuel gauge - primary battery monitoring method
+// Note: USE_SENSOR_MAX1704X is defined in platformio.ini build_flags
+#define MAX1704X_SDA_PIN   8  // IO8 - I2C SDA (shared with RTC)
+#define MAX1704X_SCL_PIN   9  // IO9 - I2C SCL (shared with RTC)
+
+// Built-in LED - ProS3 uses RGB NeoPixel on GPIO18
+#ifdef LED_BUILTIN
+#undef LED_BUILTIN
+#endif // LED_BUILTIN
+
+#define LED_BUILTIN 21 // ProS3 LED pin
+
+// RGB NeoPixel LED configuration - ProS3 built-in
+#define RGB_LED_PIN     18  // GPIO18 - Built-in RGB NeoPixel on ProS3
+#define RGB_LED_COUNT   1   // Single RGB LED
+// #define LED_PWR_PIN 39      // Led power control pin (GPIO39)
+
+// PCF8523 RTC - shares I2C bus with battery fuel gauge
+// Note: USE_RTC is defined in platformio.ini build_flags
+#define RTC_SDA_PIN 8 // IO8 - I2C SDA for RTC (shared with battery fuel gauge)
+#define RTC_SCL_PIN 9 // IO9 - I2C SCL for RTC (shared with battery fuel gauge)
+// RTC Class definition for PCF8523
+#define RTC_CLASS_PCF8523
+
+// External wakeup configuration
+#define WAKEUP_EXT0
+#define WAKEUP_PIN GPIO_NUM_1 // GPIO1 is an RTC IO pin on ESP32-S3
+#define WAKEUP_PIN_MODE INPUT_PULLUP   // Internal pull-up for button to GND
+#define WAKEUP_LEVEL    LOW            // Button press pulls pin LOW
+
+#define DELAY_BEFORE_SLEEP 8000 // Reduced since no I2C/WiFi conflicts
+
+#define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
+
+#define DISP_6C
+#define USE_DESPI_DRIVER
+
+// #define ACCENT_COLOR GxEPD_RED
+
+#define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
+
+#define LOCALE it_IT

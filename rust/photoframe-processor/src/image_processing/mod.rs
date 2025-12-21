@@ -4,6 +4,7 @@ pub mod binary;
 pub mod color_correction;
 pub mod combine;
 pub mod convert;
+pub mod convert_improved;
 pub mod orientation;
 pub mod resize;
 pub mod subject_detection;
@@ -85,6 +86,8 @@ pub struct ProcessingConfig {
     // Portrait combination divider settings
     pub divider_width: u32,
     pub divider_color: Rgb<u8>,
+    // Dithering method
+    pub dithering_method: String,
 }
 
 pub struct ProcessingEngine {
@@ -1062,7 +1065,7 @@ impl ProcessingEngine {
         std::thread::yield_now();
         progress_bar.set_position(80); // Show progress during color processing
         let processed_img =
-            convert::process_image(&color_corrected_img, &self.config.processing_type)?;
+            convert::process_image(&color_corrected_img, &self.config.processing_type, &self.config.dithering_method)?;
         progress_bar.set_position(85); // Color processing complete
 
         // Save files to multiple formats (90-95%)
@@ -1210,7 +1213,7 @@ impl ProcessingEngine {
         progress_bar.set_message(format!("{} - Color processing", filename));
         std::thread::yield_now();
         let processed_img =
-            convert::process_image(&color_corrected_img, &self.config.processing_type)?;
+            convert::process_image(&color_corrected_img, &self.config.processing_type, &self.config.dithering_method)?;
         progress_bar.set_position(85);
 
         // Save portrait files to multiple formats (90-95%)
@@ -1651,10 +1654,10 @@ impl ProcessingEngine {
 
         progress_bar.set_position(52); // Processing left image colors
         let left_processed =
-            convert::process_image(&left_color_corrected, &self.config.processing_type)?;
+            convert::process_image(&left_color_corrected, &self.config.processing_type, &self.config.dithering_method)?;
         progress_bar.set_position(54); // Processing right image colors
         let right_processed =
-            convert::process_image(&right_color_corrected, &self.config.processing_type)?;
+            convert::process_image(&right_color_corrected, &self.config.processing_type, &self.config.dithering_method)?;
         progress_bar.set_position(55); // Color processing complete
 
         // Stage 6: Apply annotations (55-65%) - conditional based on config

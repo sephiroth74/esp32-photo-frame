@@ -2039,6 +2039,8 @@ void testHardwareFailure()
     Serial.println(F("-------------------------------"));
     Serial.println(F("This test checks for display/DESPI hardware issues\n"));
 
+    int failedColors = 0;  // Track number of failed color tests
+
     // Test 1: Black and White Only
     Serial.println(F("[TEST 1/4] Black & White Pattern Test"));
     Serial.println(F("If this works but colors fail = Color circuit issue"));
