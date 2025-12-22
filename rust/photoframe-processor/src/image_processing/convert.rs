@@ -136,6 +136,7 @@ fn apply_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
 }
 
 /// Generic function to find the closest color in any palette
+#[allow(dead_code)]
 fn find_closest_color(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8, u8) {
     let mut min_distance = f32::MAX;
     let mut closest_color = palette[0];
@@ -158,6 +159,7 @@ fn find_closest_color(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8,
 }
 
 /// Create working buffers for Floyd-Steinberg dithering
+#[allow(dead_code)]
 fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<Vec<f32>>) {
     let (width, height) = img.dimensions();
     let mut working_r: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
@@ -185,6 +187,7 @@ fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<
 }
 
 /// Apply Floyd-Steinberg error distribution to neighboring pixels
+#[allow(dead_code)]
 fn distribute_floyd_steinberg_error(
     working_r: &mut [Vec<f32>],
     working_g: &mut [Vec<f32>],
@@ -236,6 +239,7 @@ fn distribute_floyd_steinberg_error(
 /// Generic Floyd-Steinberg dithering with any color palette
 ///
 /// This implements Floyd-Steinberg error diffusion for any color palette
+#[allow(dead_code)]
 fn apply_floyd_steinberg_dithering_with_palette(
     img: &RgbImage,
     palette: &[(u8, u8, u8)],
@@ -319,6 +323,7 @@ const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
 
 /// 7-color palette for e-paper displays
 /// These are the ESP32-representable colors based on the RRRGGGBB format
+#[allow(dead_code)]
 const SEVEN_COLOR_PALETTE: [(u8, u8, u8); 7] = [
     (0, 0, 0),       // Black   (ESP32: 0x00)
     (255, 255, 255), // White   (ESP32: 0xFF)

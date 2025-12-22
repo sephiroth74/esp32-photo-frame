@@ -121,6 +121,7 @@ fn apply_gamma(value: f32) -> f32 {
 }
 
 /// Apply inverse gamma correction
+#[allow(dead_code)]
 fn apply_inverse_gamma(value: f32) -> f32 {
     let normalized = value / 255.0;
     let corrected = normalized.powf(1.0 / 2.2);
@@ -229,6 +230,7 @@ pub fn apply_ordered_dithering(
 }
 
 /// Apply pre-processing to enhance image before dithering
+#[allow(dead_code)]
 pub fn preprocess_for_dithering(img: &RgbImage) -> RgbImage {
     let (width, height) = img.dimensions();
     let mut output = RgbImage::new(width, height);
@@ -250,6 +252,7 @@ pub fn preprocess_for_dithering(img: &RgbImage) -> RgbImage {
 }
 
 /// Convert RGB to HSV color space
+#[allow(dead_code)]
 fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
     let r = r as f32 / 255.0;
     let g = g as f32 / 255.0;
@@ -276,6 +279,7 @@ fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
 }
 
 /// Convert HSV back to RGB
+#[allow(dead_code)]
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     let c = v * s;
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
@@ -303,6 +307,7 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
 }
 
 /// 6-color palette for e-paper displays
+#[allow(dead_code)]
 pub const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
     (0, 0, 0),       // Black
     (255, 255, 255), // White
@@ -313,6 +318,7 @@ pub const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
 ];
 
 /// 7-color palette for e-paper displays
+#[allow(dead_code)]
 pub const SEVEN_COLOR_PALETTE: [(u8, u8, u8); 7] = [
     (0, 0, 0),       // Black
     (255, 255, 255), // White
