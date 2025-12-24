@@ -35,6 +35,110 @@ pub fn convert_to_esp32_binary(img: &RgbImage) -> Result<Vec<u8>> {
     Ok(binary_data)
 }
 
+/// Convert RGB pixel to 6-color native format (writeNative() input format)
+///
+/// This converts an RGB pixel to the format expected by GxEPD2's writeNative() method
+/// for GDEP073E01 6-color displays. The library will call _convert_to_native() on these values.
+///
+/// Input format (3 bits per pixel, using lower nibble):
+/// - 0x0 = BLACK   - RGB(0, 0, 0)
+/// - 0x1 = WHITE   - RGB(255, 255, 255)
+/// - 0x2 = GREEN   - RGB(0, 252, 0)
+/// - 0x3 = BLUE    - RGB(0, 0, 255)
+/// - 0x4 = RED     - RGB(252, 0, 0)
+/// - 0x5 = YELLOW  - RGB(252, 252, 0)
+///
+/// The actual display uses different values but _convert_to_native() handles that conversion.
+///
+/// IMPORTANT: This function expects the image has already been dithered to the 6-color palette.
+/// It simply maps the palette RGB values to their corresponding nibble values.
+pub fn rgb_to_6c_native(pixel: &Rgb<u8>) -> u8 {
+    let r = pixel[0];
+    let g = pixel[1];
+    let b = pixel[2];
+
+    // Map from 6-color palette RGB values to native nibbles
+    // These are the exact colors from convert.rs::SIX_COLOR_PALETTE
+    match (r, g, b) {
+        (0, 0, 0) => 0x0,           // BLACK
+        (255, 255, 255) => 0x1,     // WHITE
+        (252, 0, 0) => 0x4,         // RED
+        (0, 252, 0) => 0x2,         // GREEN
+        (0, 0, 255) => 0x3,         // BLUE
+        (252, 252, 0) => 0x5,       // YELLOW
+        _ => {
+            // Fallback: find closest color by distance
+            // This shouldn't happen if image is properly dithered
+            let black_dist = color_distance(r, g, b, 0, 0, 0);
+            let white_dist = color_distance(r, g, b, 255, 255, 255);
+            let red_dist = color_distance(r, g, b, 252, 0, 0);
+            let green_dist = color_distance(r, g, b, 0, 252, 0);
+            let blue_dist = color_distance(r, g, b, 0, 0, 255);
+            let yellow_dist = color_distance(r, g, b, 252, 252, 0);
+
+            let min_dist = black_dist.min(white_dist).min(red_dist).min(green_dist).min(blue_dist).min(yellow_dist);
+
+            if min_dist == black_dist { 0x0 }
+            else if min_dist == white_dist { 0x1 }
+            else if min_dist == red_dist { 0x4 }
+            else if min_dist == green_dist { 0x2 }
+            else if min_dist == blue_dist { 0x3 }
+            else { 0x5 } // yellow
+        }
+    }
+}
+
+/// Calculate color distance (squared Euclidean distance)
+#[inline]
+fn color_distance(r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) -> u32 {
+    let dr = (r1 as i32 - r2 as i32).abs() as u32;
+    let dg = (g1 as i32 - g2 as i32).abs() as u32;
+    let db = (b1 as i32 - b2 as i32).abs() as u32;
+    dr * dr + dg * dg + db * db
+}
+
+/// Convert an RGB image to 6-color native binary format
+///
+/// This format uses 2 pixels per byte (4 bits per pixel) for the GDEP073E01 6-color display.
+/// The output is compatible with GxEPD2's writeNative() method.
+///
+/// File size is 50% smaller than the standard format: (width * height) / 2 bytes
+///
+/// Format: 2 pixels packed into each byte
+/// - High nibble: left pixel (bits 4-7)
+/// - Low nibble: right pixel (bits 0-3)
+pub fn convert_to_6c_native_binary(img: &RgbImage) -> Result<Vec<u8>> {
+    let (width, height) = img.dimensions();
+    let expected_size = ((width * height) / 2) as usize;
+    let mut binary_data = Vec::with_capacity(expected_size);
+
+    let pixels: Vec<&Rgb<u8>> = img.pixels().collect();
+
+    // Process pixels in pairs
+    for i in (0..pixels.len()).step_by(2) {
+        let nibble1 = rgb_to_6c_native(pixels[i]);
+        let nibble2 = if i + 1 < pixels.len() {
+            rgb_to_6c_native(pixels[i + 1])
+        } else {
+            0x1 // Default to WHITE for odd pixel count
+        };
+
+        // Pack two pixels into one byte
+        let packed = (nibble1 << 4) | nibble2;
+        binary_data.push(packed);
+    }
+
+    if binary_data.len() != expected_size {
+        return Err(anyhow::anyhow!(
+            "Native binary data size mismatch: expected {} bytes, got {}",
+            expected_size,
+            binary_data.len()
+        ));
+    }
+
+    Ok(binary_data)
+}
+
 /// Convert RGB pixel to ESP32 color format using bmp2cpp approach
 ///
 /// This uses the same RGB compression format as the bmp2cpp project:

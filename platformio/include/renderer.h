@@ -489,6 +489,17 @@ uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int wi
 uint16_t
 draw_binary_from_file_paged(File& file, const char* filename, int width, int height, int page_index = -1);
 
+/**
+ * @brief Draws a native format binary image from a file on 6-color e-paper displays.
+ * Native format uses 2 pixels per byte (4 bits per pixel) for optimal memory and performance.
+ * @param file File handle for the native binary image
+ * @param filename Name of the file (for debugging/logging)
+ * @param width Width of the binary image in pixels
+ * @param height Height of the binary image in pixels
+ * @return Error code (0 = success, non-zero = error)
+ */
+uint16_t draw_native_binary_from_file(File& file, const char* filename, int width, int height);
+
 uint16_t read8(File& f);
 
 uint16_t read16(File& f);

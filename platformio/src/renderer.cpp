@@ -93,11 +93,20 @@ void init_display() {
         return;
     }
 
+#if defined(SD_USE_SPI) && defined(USE_HSPI_FOR_SD)
+    // When using separate SPI buses (HSPI for SD, VSPI for display),
+    // initialize VSPI for display only if not already done
+    Serial.println("[renderer] Initializing VSPI for e-paper display (separate from HSPI SD card)");
+    SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // Initialize VSPI for display, -1 for MISO (not used)
+#else
+    // When using shared SPI or SDIO for SD card, re-initialize SPI for display
+    Serial.println("[renderer] Re-initializing SPI for e-paper display");
     SPI.end();
     SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD, -1 for MISO (not used)
+#endif
 
 #ifdef USE_DESPI_DRIVER
-    display.init(115200);
+    display.init(115200, true, 10, false);
 #else  // USE_WAVESHARE_DRIVER
     display.init(115200, true, 2, false);
 #endif // USE_DESPI_DRIVER
@@ -1426,6 +1435,97 @@ uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int wi
     Serial.printf("[renderer] Total pixels processed: %u\n", totalPixelsProcessed);
     Serial.println("[renderer] Binary file processed successfully (buffered with internal paging)");
     return 0; // Success
+}
+
+uint16_t draw_native_binary_from_file(File& file, const char* filename, int width, int height) {
+    Serial.print("[renderer] draw_native_binary_from_file: ");
+    Serial.print(filename);
+    Serial.print(", width: ");
+    Serial.print(width);
+    Serial.print(", height: ");
+    Serial.println(height);
+
+#if defined(DISP_6C) || defined(DISP_7C)
+    // Validate image dimensions
+    auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
+        width, height, display.width(), display.height(), filename);
+    if (dimensionError != photo_frame::error_type::None) {
+        dimensionError.log_detailed();
+        return photo_frame::error_type::BinaryRenderingFailed.code;
+    }
+
+    if (!file) {
+        Serial.println("[renderer] File not open or invalid");
+        return photo_frame::error_type::FileOpenFailed.code;
+    }
+
+    // Native format file size validation: (width * height) / 2 bytes
+    size_t expectedSize = (width * height) / 2;
+    if (file.size() != expectedSize) {
+        Serial.printf("[renderer] ERROR: Native format file size mismatch\n");
+        Serial.printf("[renderer] Expected: %d bytes, Got: %d bytes\n", expectedSize, file.size());
+        return photo_frame::error_type::BinaryRenderingFailed.code;
+    }
+
+    Serial.printf("[renderer] Native format file size: %d bytes (50%% of standard format)\n", expectedSize);
+
+    // Allocate buffer for the entire image using PSRAM if available
+    uint8_t* buffer = nullptr;
+#ifdef BOARD_HAS_PSRAM
+    buffer = (uint8_t*)ps_malloc(expectedSize);
+    if (buffer) {
+        Serial.println("[renderer] Allocated native format buffer in PSRAM");
+    }
+#endif
+
+    if (!buffer) {
+        // Fallback to regular heap if PSRAM not available or allocation failed
+        buffer = (uint8_t*)malloc(expectedSize);
+        if (!buffer) {
+            Serial.println("[renderer] ERROR: Failed to allocate buffer for native format");
+            return photo_frame::error_type::BinaryRenderingFailed.code;
+        }
+        Serial.println("[renderer] Allocated native format buffer in regular heap");
+    }
+
+    // Read the entire file into buffer
+    auto startTime = millis();
+    file.seek(0);
+    size_t bytesRead = file.read(buffer, expectedSize);
+    auto readTime = millis() - startTime;
+
+    if (bytesRead != expectedSize) {
+        Serial.printf("[renderer] ERROR: Failed to read file (got %d bytes, expected %d)\n",
+                     bytesRead, expectedSize);
+        free(buffer);
+        return photo_frame::error_type::PixelReadError.code;
+    }
+
+    Serial.printf("[renderer] Read %d bytes in %lu ms\n", bytesRead, readTime);
+
+    // Render using writeNative() - single bulk transfer!
+    Serial.println("[renderer] Rendering using writeNative() method...");
+    display.setFullWindow();
+    display.fillScreen(GxEPD_WHITE);
+
+    auto renderStart = millis();
+    display.writeNative(buffer, nullptr, 0, 0, width, height, false, false, false);
+    display.refresh();
+    auto renderTime = millis() - renderStart;
+
+    free(buffer);
+
+    Serial.printf("[renderer] Native format rendering complete!\n");
+    Serial.printf("[renderer]   Read time:   %lu ms (50%% faster than standard)\n", readTime);
+    Serial.printf("[renderer]   Render time: %lu ms\n", renderTime);
+    Serial.printf("[renderer]   Total time:  %lu ms\n", readTime + renderTime);
+
+    return 0; // Success
+
+#else
+    Serial.println("[renderer] ERROR: Native format only supported on 6-color and 7-color displays");
+    return photo_frame::error_type::BinaryRenderingFailed.code;
+#endif
 }
 
 uint16_t draw_bitmap_from_file_buffered(File& file,

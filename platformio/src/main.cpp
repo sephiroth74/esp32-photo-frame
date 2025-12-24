@@ -443,8 +443,28 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             Serial.print(F("Drawing page: "));
             Serial.println(page_index);
             if (photo_frame::io_utils::is_binary_format(format_filename)) {
-                error_code = photo_frame::renderer::draw_binary_from_file_paged(
-                    file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
+                // Detect format based on file size
+                size_t standardSize = DISP_WIDTH * DISP_HEIGHT;      // 384,000 bytes for 800x480
+                size_t nativeSize = (DISP_WIDTH * DISP_HEIGHT) / 2;  // 192,000 bytes for 800x480
+                size_t fileSize = file.size();
+
+                if (fileSize == nativeSize) {
+                    // Native format (2 pixels per byte) - only for 6-color/7-color displays
+                    Serial.println(F("[main] Detected native format (192KB) - using writeNative()"));
+                    error_code = photo_frame::renderer::draw_native_binary_from_file(
+                        file, original_filename, DISP_WIDTH, DISP_HEIGHT);
+                    // Native format renders the entire image at once, no paging needed
+                    break; // Exit the page loop after rendering
+                } else if (fileSize == standardSize) {
+                    // Standard format (1 byte per pixel)
+                    Serial.println(F("[main] Detected standard format (384KB) - using paged rendering"));
+                    error_code = photo_frame::renderer::draw_binary_from_file_paged(
+                        file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
+                } else {
+                    Serial.printf("[main] ERROR: Unknown binary format size: %d bytes\n", fileSize);
+                    Serial.printf("[main] Expected: %d (standard) or %d (native)\n", standardSize, nativeSize);
+                    error_code = photo_frame::error_type::BinaryRenderingFailed.code;
+                }
             } else {
                 error_code = photo_frame::renderer::draw_bitmap_from_file(
                     file, original_filename, 0, 0, false);

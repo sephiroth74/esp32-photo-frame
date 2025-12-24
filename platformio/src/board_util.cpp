@@ -309,8 +309,10 @@ namespace board_utils {
         }
 
         // now read the level
+#if POTENTIOMETER_PWR_PIN > -1
         pinMode(POTENTIOMETER_PWR_PIN, OUTPUT);
         digitalWrite(POTENTIOMETER_PWR_PIN, HIGH); // Power on the potentiometer
+#endif
 
         // Set ADC attenuation for better range utilization
         analogSetPinAttenuation(POTENTIOMETER_INPUT_PIN, ADC_11db);
@@ -322,7 +324,10 @@ namespace board_utils {
             level += analogRead(POTENTIOMETER_INPUT_PIN); // Read the potentiometer
             delay(1); // Wait for 1ms
         }
+
+#if POTENTIOMETER_PWR_PIN > -1
         digitalWrite(POTENTIOMETER_PWR_PIN, LOW); // Power off the level shifter
+#endif
         level /= 10; // Average the result
 
 #ifdef DEBUG_BOARD

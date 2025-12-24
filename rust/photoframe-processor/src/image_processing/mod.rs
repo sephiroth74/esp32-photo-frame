@@ -1107,7 +1107,12 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                        // Use native format for 6-color (50% smaller files)
+                        let binary_data = if matches!(self.config.processing_type, ProcessingType::SixColor) {
+                            binary::convert_to_6c_native_binary(&processed_img)?
+                        } else {
+                            binary::convert_to_esp32_binary(&processed_img)?
+                        };
                         std::fs::write(&output_path, binary_data).with_context(|| {
                             format!("Failed to save binary: {}", output_path.display())
                         })?;
@@ -1256,7 +1261,12 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        let binary_data = binary::convert_to_esp32_binary(&processed_img)?;
+                        // Use native format for 6-color (50% smaller files)
+                        let binary_data = if matches!(self.config.processing_type, ProcessingType::SixColor) {
+                            binary::convert_to_6c_native_binary(&processed_img)?
+                        } else {
+                            binary::convert_to_esp32_binary(&processed_img)?
+                        };
                         std::fs::write(&output_path, binary_data).with_context(|| {
                             format!("Failed to save portrait binary: {}", output_path.display())
                         })?;
@@ -1763,7 +1773,12 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        let binary_data = binary::convert_to_esp32_binary(&combined_img)?;
+                        // Use native format for 6-color (50% smaller files)
+                        let binary_data = if matches!(self.config.processing_type, ProcessingType::SixColor) {
+                            binary::convert_to_6c_native_binary(&combined_img)?
+                        } else {
+                            binary::convert_to_esp32_binary(&combined_img)?
+                        };
                         std::fs::write(&output_path, &binary_data).with_context(|| {
                             format!("Failed to save combined binary: {}", output_path.display())
                         })?;

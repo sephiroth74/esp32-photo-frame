@@ -65,14 +65,25 @@ RGBStatus::RGBStatus() :
 RGBStatus::~RGBStatus() { end(); }
 
 bool RGBStatus::begin() {
+#ifdef LED_PWR_PIN
+    // Enable power to RGB LED first
+    Serial.printf("[RGB] Enabling LED power on GPIO%d\n", LED_PWR_PIN);
+    pinMode(LED_PWR_PIN, OUTPUT);
+    digitalWrite(LED_PWR_PIN, HIGH); // Power on
+    delay(50); // Wait for power stabilization
+#endif
+
     // Initialize NeoPixel
     pixels = new Adafruit_NeoPixel(RGB_LED_COUNT, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
     if (!pixels) {
         Serial.println(F("[RGB] Failed to create NeoPixel object"));
+#ifdef LED_PWR_PIN
+        digitalWrite(LED_PWR_PIN, LOW); // Power off on failure
+#endif
         return false;
     }
 
-    delay(10); // Allow power to stabilize
+    delay(10); // Allow additional stabilization
 
     pixels->begin();
     pixels->clear();
@@ -119,6 +130,12 @@ void RGBStatus::end() {
         delete pixels;
         pixels = nullptr;
     }
+
+#ifdef LED_PWR_PIN
+    // Power off LED
+    digitalWrite(LED_PWR_PIN, LOW);
+    Serial.println(F("[RGB] LED power disabled"));
+#endif
 
     Serial.println(F("[RGB] RGB status system stopped"));
 }
@@ -195,6 +212,13 @@ void RGBStatus::turnOff() {
         pixels->clear();
         pixels->show();
     }
+
+#ifdef LED_PWR_PIN
+    // Power off LED
+    digitalWrite(LED_PWR_PIN, LOW);
+    Serial.println(F("[RGB] LED power disabled"));
+#endif
+
     currentState  = SystemState::IDLE;
     currentConfig = StatusConfig(SystemState::IDLE, RGBColors::OFF, RGBEffect::OFF);
 }

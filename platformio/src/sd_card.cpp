@@ -22,6 +22,12 @@
 
 #include "sd_card.h"
 
+// Create HSPI instance for SD card when using separate SPI buses
+// Only needed when SD_USE_SPI is defined (SPI mode, not SDIO)
+#if defined(SD_USE_SPI) && defined(USE_HSPI_FOR_SD)
+SPIClass hspi(HSPI);
+#endif
+
 namespace photo_frame {
 
 photo_frame_error_t scan_directory(uint32_t* index,
@@ -107,12 +113,25 @@ photo_frame_error_t sd_card::begin() {
 #ifdef SD_USE_SPI
     Serial.println("[sdcard] Initializing SD card using SPI...");
 
-    // Initialize SPI for SD card
+#ifdef USE_HSPI_FOR_SD
+    // Using separate HSPI bus for SD card
+    Serial.println("[sdcard] Initializing HSPI bus for SD card");
+    hspi.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
+
+    if (!SD_CARD.begin(SD_CS_PIN, hspi)) {
+        Serial.println("[sdcard] Failed to initialize SD card on HSPI");
+        return error_type::CardMountFailed;
+    }
+#else
+    // Using default SPI bus for SD card
+    Serial.println("[sdcard] Initializing default SPI bus for SD card");
     SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
     if (!SD_CARD.begin(SD_CS_PIN, SPI)) {
+        Serial.println("[sdcard] Failed to initialize SD card on default SPI");
         return error_type::CardMountFailed;
     }
+#endif
 #else
     Serial.println("[sdcard] Initializing SD card using SD_MMC (SDIO)...");
 
