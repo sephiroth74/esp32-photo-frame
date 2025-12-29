@@ -35,8 +35,7 @@ time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
 
     fs::File file = sdCard_.open(tocFilePath_, FILE_READ);
     if (!file) {
-        Serial.print(F("[google_drive_toc_parser] Failed to open TOC file for timestamp: "));
-        Serial.println(tocFilePath_);
+        log_e("[google_drive_toc_parser] Failed to open TOC file for timestamp: %s", tocFilePath_);
         if (error) {
             *error = error_type::SdCardFileOpenFailed;
         }
@@ -48,7 +47,7 @@ time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
     file.close();
 
     if (line.length() == 0) {
-        Serial.println(F("[google_drive_toc_parser] TOC file is empty or missing timestamp line"));
+        log_e("[google_drive_toc_parser] TOC file is empty or missing timestamp line");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -58,8 +57,7 @@ time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
     // Parse "timestamp = <number>"
     int equalPos = line.indexOf('=');
     if (equalPos == -1) {
-        Serial.println(
-            F("[google_drive_toc_parser] Invalid TOC format: missing '=' in timestamp line"));
+        log_e("[google_drive_toc_parser] Invalid TOC format: missing '=' in timestamp line");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -71,7 +69,7 @@ time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
 
     time_t timestamp = timestampStr.toInt();
     if (timestamp == 0 && timestampStr != "0") {
-        Serial.println(F("[google_drive_toc_parser] Invalid timestamp value in TOC"));
+        log_e("[google_drive_toc_parser] Invalid timestamp value in TOC");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -88,8 +86,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
 
     fs::File file = sdCard_.open(tocFilePath_, FILE_READ);
     if (!file) {
-        Serial.print(F("[google_drive_toc_parser] Failed to open TOC file for file count: "));
-        Serial.println(tocFilePath_);
+        log_e("[google_drive_toc_parser] Failed to open TOC file for file count: %s", tocFilePath_);
         if (error) {
             *error = error_type::SdCardFileOpenFailed;
         }
@@ -99,7 +96,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
     // Skip line 1 (timestamp)
     String line = file.readStringUntil('\n');
     if (line.length() == 0) {
-        Serial.println(F("[google_drive_toc_parser] TOC file is empty or invalid"));
+        log_e("[google_drive_toc_parser] TOC file is empty or invalid");
         file.close();
         if (error) {
             *error = error_type::JsonParseFailed;
@@ -112,7 +109,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
     file.close();
 
     if (line.length() == 0) {
-        Serial.println(F("[google_drive_toc_parser] TOC file missing fileCount line"));
+        log_e("[google_drive_toc_parser] TOC file missing fileCount line");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -122,8 +119,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
     // Parse "fileCount = <number>"
     int equalPos = line.indexOf('=');
     if (equalPos == -1) {
-        Serial.println(
-            F("[google_drive_toc_parser] Invalid TOC format: missing '=' in fileCount line"));
+        log_e("[google_drive_toc_parser] Invalid TOC format: missing '=' in fileCount line");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -135,7 +131,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
 
     size_t fileCount = countStr.toInt();
     if (fileCount == 0 && countStr != "0") {
-        Serial.println(F("[google_drive_toc_parser] Invalid fileCount value in TOC"));
+        log_e("[google_drive_toc_parser] Invalid fileCount value in TOC");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -147,8 +143,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
 
 google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
                                                              photo_frame_error_t* error) {
-    Serial.print(F("[google_drive_toc_parser] Getting TOC file at index: "));
-    Serial.println(index);
+    log_d("[google_drive_toc_parser] Getting TOC file at index: %zu", index);
 
     if (error) {
         *error = error_type::None;
@@ -168,8 +163,7 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
     for (size_t i = 0; i < index; i++) {
         String skipLine = file.readStringUntil('\n');
         if (skipLine.length() == 0) {
-            Serial.print(F("[google_drive_toc_parser] TOC file ended before reaching index "));
-            Serial.println(index);
+            log_e("[google_drive_toc_parser] TOC file ended before reaching index %zu", index);
             file.close();
             if (error) {
                 *error = error_type::JsonParseFailed;
@@ -183,8 +177,7 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
     file.close();
 
     if (targetLine.length() == 0) {
-        Serial.print(F("[google_drive_toc_parser] No file entry found at index "));
-        Serial.println(index);
+        log_e("[google_drive_toc_parser] No file entry found at index %zu", index);
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -196,8 +189,7 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
 
 google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename,
                                                             photo_frame_error_t* error) {
-    Serial.print(F("[google_drive_toc_parser] Getting TOC file by name: "));
-    Serial.println(filename);
+    log_d("[google_drive_toc_parser] Getting TOC file by name: %s", filename);
 
     if (error) {
         *error = error_type::None;
@@ -237,8 +229,7 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
         if (name.equals(filename)) {
             file.close();
 
-            Serial.print(F("[google_drive_toc_parser] Found file by name: "));
-            Serial.println(filename);
+            log_d("[google_drive_toc_parser] Found file by name: %s", filename);
 
             return parse_file_line(line.c_str(), error);
         }
@@ -246,8 +237,7 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
 
     file.close();
 
-    Serial.print(F("[google_drive_toc_parser] File not found by name: "));
-    Serial.println(filename);
+    log_w("[google_drive_toc_parser] File not found by name: %s", filename);
 
     if (error) {
         *error = error_type::SdCardFileNotFound;
@@ -267,7 +257,7 @@ google_drive_file google_drive_toc_parser::parse_file_line(const char* line,
     // Parse line: id|name
     int pos1 = lineStr.indexOf('|');
     if (pos1 == -1) {
-        Serial.println(F("[google_drive_toc_parser] Invalid file entry format: missing separator"));
+        log_e("[google_drive_toc_parser] Invalid file entry format: missing separator");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -283,8 +273,7 @@ google_drive_file google_drive_toc_parser::parse_file_line(const char* line,
 bool google_drive_toc_parser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error) {
     file = sdCard_.open(tocFilePath_, FILE_READ);
     if (!file) {
-        Serial.print(F("[google_drive_toc_parser] Failed to open TOC file: "));
-        Serial.println(tocFilePath_);
+        log_e("[google_drive_toc_parser] Failed to open TOC file: %s", tocFilePath_);
         if (error) {
             *error = error_type::SdCardFileOpenFailed;
         }
@@ -295,13 +284,13 @@ bool google_drive_toc_parser::open_and_validate_toc(fs::File& file, photo_frame_
 }
 
 bool google_drive_toc_parser::skip_header(fs::File& file, photo_frame_error_t* error) {
-    Serial.println(F("[google_drive_toc_parser] Skipping TOC header lines..."));
+    log_d("[google_drive_toc_parser] Skipping TOC header lines...");
     // Skip line 1 (timestamp) and line 2 (fileCount)
     String line1 = file.readStringUntil('\n');
     String line2 = file.readStringUntil('\n');
 
     if (line1.length() == 0 || line2.length() == 0) {
-        Serial.println(F("[google_drive_toc_parser] TOC file missing header lines"));
+        log_e("[google_drive_toc_parser] TOC file missing header lines");
         if (error) {
             *error = error_type::JsonParseFailed;
         }

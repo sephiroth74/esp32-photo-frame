@@ -157,32 +157,46 @@ typedef class photo_frame_error {
      * @brief Log detailed error information to Serial.
      */
     void log_detailed() const {
-        Serial.print(F("["));
-        Serial.print(severity_to_string());
-        Serial.print(F("] "));
-        Serial.print(F("Error "));
-        Serial.print(code);
-        Serial.print(F(" ("));
-        Serial.print(category_to_string());
-        Serial.print(F("): "));
-        Serial.println(message);
-
-        if (context) {
-            Serial.print(F("  Context: "));
-            Serial.println(context);
-        }
-
-        if (source_file && source_line > 0) {
-            Serial.print(F("  Location: "));
-            Serial.print(source_file);
-            Serial.print(F(":"));
-            Serial.println(source_line);
-        }
-
-        if (timestamp > 0) {
-            Serial.print(F("  Time: "));
-            Serial.print(timestamp);
-            Serial.println(F("ms"));
+        // Select appropriate log function based on severity
+        switch (severity) {
+        case ERROR_SEVERITY_INFO:
+            log_i("[%s] Error %d (%s): %s", severity_to_string(), code, category_to_string(), message);
+            if (context) {
+                log_i("  Context: %s", context);
+            }
+            if (source_file && source_line > 0) {
+                log_i("  Location: %s:%d", source_file, source_line);
+            }
+            if (timestamp > 0) {
+                log_i("  Time: %ums", timestamp);
+            }
+            break;
+        case ERROR_SEVERITY_WARNING:
+            log_w("[%s] Error %d (%s): %s", severity_to_string(), code, category_to_string(), message);
+            if (context) {
+                log_w("  Context: %s", context);
+            }
+            if (source_file && source_line > 0) {
+                log_w("  Location: %s:%d", source_file, source_line);
+            }
+            if (timestamp > 0) {
+                log_w("  Time: %ums", timestamp);
+            }
+            break;
+        case ERROR_SEVERITY_ERROR:
+        case ERROR_SEVERITY_CRITICAL:
+        default:
+            log_e("[%s] Error %d (%s): %s", severity_to_string(), code, category_to_string(), message);
+            if (context) {
+                log_e("  Context: %s", context);
+            }
+            if (source_file && source_line > 0) {
+                log_e("  Location: %s:%d", source_file, source_line);
+            }
+            if (timestamp > 0) {
+                log_e("  Time: %ums", timestamp);
+            }
+            break;
         }
     }
 

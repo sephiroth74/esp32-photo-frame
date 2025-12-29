@@ -146,11 +146,7 @@ inline String build_http_header(const String& name, const String& value) {
 inline bool check_heap_health(const char* context, size_t threshold = 4096) {
     size_t freeHeap = ESP.getFreeHeap();
     if (freeHeap < threshold) {
-        Serial.print(F("LOW HEAP WARNING in "));
-        Serial.print(context);
-        Serial.print(F(": "));
-        Serial.print(freeHeap);
-        Serial.println(F(" bytes free"));
+        log_w("LOW HEAP WARNING in %s: %u bytes free", context, freeHeap);
         return false;
     }
     return true;

@@ -67,7 +67,7 @@ RGBStatus::~RGBStatus() { end(); }
 bool RGBStatus::begin() {
 #ifdef LED_PWR_PIN
     // Enable power to RGB LED first
-    Serial.printf("[RGB] Enabling LED power on GPIO%d\n", LED_PWR_PIN);
+    log_i("[RGB] Enabling LED power on GPIO%d", LED_PWR_PIN);
     pinMode(LED_PWR_PIN, OUTPUT);
     digitalWrite(LED_PWR_PIN, HIGH); // Power on
     delay(50); // Wait for power stabilization
@@ -76,7 +76,7 @@ bool RGBStatus::begin() {
     // Initialize NeoPixel
     pixels = new Adafruit_NeoPixel(RGB_LED_COUNT, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
     if (!pixels) {
-        Serial.println(F("[RGB] Failed to create NeoPixel object"));
+        log_e("[RGB] Failed to create NeoPixel object");
 #ifdef LED_PWR_PIN
         digitalWrite(LED_PWR_PIN, LOW); // Power off on failure
 #endif
@@ -89,7 +89,7 @@ bool RGBStatus::begin() {
     pixels->clear();
     pixels->show();
 
-    Serial.println(F("[RGB] NeoPixel initialized"));
+    log_i("[RGB] NeoPixel initialized");
 
     // Create FreeRTOS task for RGB control
     BaseType_t result = xTaskCreatePinnedToCore(rgbTask,         // Task function
@@ -102,14 +102,14 @@ bool RGBStatus::begin() {
     );
 
     if (result != pdPASS) {
-        Serial.println(F("[RGB] Failed to create RGB task"));
+        log_e("[RGB] Failed to create RGB task");
         delete pixels;
         pixels = nullptr;
         return false;
     }
 
     taskRunning = true;
-    Serial.println(F("[RGB] RGB status task started"));
+    log_i("[RGB] RGB status task started");
 
     // Set initial state
     setState(SystemState::STARTING, 1000);
@@ -134,10 +134,10 @@ void RGBStatus::end() {
 #ifdef LED_PWR_PIN
     // Power off LED
     digitalWrite(LED_PWR_PIN, LOW);
-    Serial.println(F("[RGB] LED power disabled"));
+    log_i("[RGB] LED power disabled");
 #endif
 
-    Serial.println(F("[RGB] RGB status system stopped"));
+    log_i("[RGB] RGB status system stopped");
 }
 
 void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
@@ -154,8 +154,7 @@ void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
     }
 
     if (!config) {
-        Serial.print(F("[RGB] Warning: No configuration found for state "));
-        Serial.println((int)state);
+        log_w("[RGB] Warning: No configuration found for state %d", (int)state);
         return;
     }
 
@@ -169,8 +168,7 @@ void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
     lastUpdate = millis();
     effectStep = 0;
 
-    Serial.print(F("[RGB] State changed to: "));
-    Serial.println((int)state);
+    log_i("[RGB] State changed to: %d", (int)state);
 }
 
 void RGBStatus::setCustomColor(const RGBColor& color,
@@ -187,14 +185,7 @@ void RGBStatus::setCustomColor(const RGBColor& color,
     lastUpdate = millis();
     effectStep = 0;
 
-    Serial.print(F("[RGB] Custom color set: ("));
-    Serial.print(color.r);
-    Serial.print(F(","));
-    Serial.print(color.g);
-    Serial.print(F(","));
-    Serial.print(color.b);
-    Serial.print(F(") Effect: "));
-    Serial.println((int)effect);
+    log_i("[RGB] Custom color set: (%d,%d,%d) Effect: %d", color.r, color.g, color.b, (int)effect);
 }
 
 void RGBStatus::setBrightness(uint8_t brightness) { currentConfig.brightness = brightness; }
@@ -216,7 +207,7 @@ void RGBStatus::turnOff() {
 #ifdef LED_PWR_PIN
     // Power off LED
     digitalWrite(LED_PWR_PIN, LOW);
-    Serial.println(F("[RGB] LED power disabled"));
+    log_i("[RGB] LED power disabled");
 #endif
 
     currentState  = SystemState::IDLE;
@@ -227,7 +218,7 @@ void RGBStatus::turnOff() {
 void RGBStatus::rgbTask(void* parameter) {
     RGBStatus* rgb = static_cast<RGBStatus*>(parameter);
 
-    Serial.println(F("[RGB] RGB task started"));
+    log_i("[RGB] RGB task started");
 
     while (rgb->taskRunning) {
         if (rgb->enabled && rgb->pixels) {
@@ -238,7 +229,7 @@ void RGBStatus::rgbTask(void* parameter) {
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
-    Serial.println(F("[RGB] RGB task ended"));
+    log_i("[RGB] RGB task ended");
     vTaskDelete(NULL);
 }
 

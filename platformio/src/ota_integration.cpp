@@ -66,23 +66,21 @@ photo_frame_error_t initialize_ota_updates() {
     // Initialize OTA system
     auto error = ota_updater.begin(ota_config);
     if (error != error_type::None) {
-        Serial.print(TXT_OTA_INIT_FAILED);
-        Serial.println(error.code);
+        log_e("%s%d", TXT_OTA_INIT_FAILED, error.code);
         return error;
     }
 
-    Serial.println(TEXT_OTA_SYSTEM_INITIALIZED);
+    log_i("%s", TEXT_OTA_SYSTEM_INITIALIZED);
 
     // Print partition info for diagnostics
     ota_updater.print_partition_info();
 
     // Mark current firmware as valid (prevents rollback)
     if (ota_updater.is_first_boot_after_update()) {
-        Serial.println(TEXT_OTA_FIRST_BOOT_AFTER_UPDATE);
+        log_i("%s", TEXT_OTA_FIRST_BOOT_AFTER_UPDATE);
         ota_updater.mark_firmware_valid();
     } else {
-        Serial.print(TEXT_OTA_RUNNING_FROM_PARTITION);
-        Serial.println(ota_updater.get_running_partition_name());
+        log_i("%s%s", TEXT_OTA_RUNNING_FROM_PARTITION, ota_updater.get_running_partition_name());
     }
 
     return error_type::None;
@@ -101,19 +99,20 @@ photo_frame_error_t initialize_ota_updates() {
 bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason) {
     // If wakeup reason is undefined, user pressed reset button - always check for updates
     if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
-        Serial.println(F("[OTA] Reset button pressed - checking for updates"));
+        log_i("[OTA] Reset button pressed - checking for updates");
         return true;
     }
 
-    Serial.print(F("[OTA] Wakeup reason: "));
+    const char* wakeup_str;
     switch (wakeup_reason) {
-    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println(F("EXT0 (GPIO)")); break;
-    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println(F("EXT1 (GPIO)")); break;
-    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println(F("Timer")); break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println(F("Touchpad")); break;
-    case ESP_SLEEP_WAKEUP_ULP:      Serial.println(F("ULP program")); break;
-    default:                        Serial.println(F("Unknown")); break;
+    case ESP_SLEEP_WAKEUP_EXT0:     wakeup_str = "EXT0 (GPIO)"; break;
+    case ESP_SLEEP_WAKEUP_EXT1:     wakeup_str = "EXT1 (GPIO)"; break;
+    case ESP_SLEEP_WAKEUP_TIMER:    wakeup_str = "Timer"; break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: wakeup_str = "Touchpad"; break;
+    case ESP_SLEEP_WAKEUP_ULP:      wakeup_str = "ULP program"; break;
+    default:                        wakeup_str = "Unknown"; break;
     }
+    log_i("[OTA] Wakeup reason: %s", wakeup_str);
 
     // Check if enough time has elapsed since last OTA check
     auto& prefs            = PreferencesHelper::getInstance();
@@ -122,24 +121,21 @@ bool should_check_ota_updates(esp_sleep_wakeup_cause_t wakeup_reason) {
     time_t last_check_time = prefs.getOtaLastCheck();
 
     if (last_check_time == 0) {
-        Serial.println(F("[OTA] No previous check recorded - performing first check"));
+        log_i("[OTA] No previous check recorded - performing first check");
         return true;
     }
 
     time_t time_since_last_check  = current_time - last_check_time;
     time_t check_interval_seconds = OTA_CHECK_INTERVAL_HOURS * 3600;
 
-    Serial.print(F("[OTA] Time since last check: "));
-    Serial.print(time_since_last_check / 3600);
-    Serial.print(F(" hours (interval: "));
-    Serial.print(OTA_CHECK_INTERVAL_HOURS);
-    Serial.println(F(" hours)"));
+    log_i("[OTA] Time since last check: %ld hours (interval: %d hours)",
+          time_since_last_check / 3600, OTA_CHECK_INTERVAL_HOURS);
 
     if (time_since_last_check >= check_interval_seconds) {
-        Serial.println(F("[OTA] Check interval elapsed - checking for updates"));
+        log_i("[OTA] Check interval elapsed - checking for updates");
         return true;
     } else {
-        Serial.println(F("[OTA] Check interval not elapsed - skipping OTA check"));
+        log_i("[OTA] Check interval not elapsed - skipping OTA check");
         return false;
     }
 }
@@ -165,11 +161,10 @@ photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_rea
     bool should_check = should_check_ota_updates(wakeup_reason);
     bool force_check  = should_check; // Force check if wakeup reason was undefined (reset button)
 
-    Serial.print(F("[OTA] Should check for updates: "));
-    Serial.println(should_check ? F("YES") : F("NO"));
+    log_i("[OTA] Should check for updates: %s", should_check ? "YES" : "NO");
 
     if (OTA_IS_ACTIVE()) {
-        Serial.println(TEXT_OTA_UPDATE_IN_PROGRESS);
+        log_w("%s", TEXT_OTA_UPDATE_IN_PROGRESS);
         return error_type::OtaUpdateInProgress;
     }
 
@@ -185,12 +180,12 @@ photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_rea
     auto& prefs         = PreferencesHelper::getInstance();
     time_t current_time = time(NULL);
     if (!prefs.setOtaLastCheck(current_time)) {
-        Serial.println(F("[OTA] Warning: Failed to save last check time"));
+        log_w("[OTA] Warning: Failed to save last check time");
     }
 
     if (error == error_type::None) {
-        Serial.println(TEXT_OTA_UPDATE_AVAILABLE);
-        Serial.println(F("[OTA] Starting update process - device will restart if successful"));
+        log_i("%s", TEXT_OTA_UPDATE_AVAILABLE);
+        log_i("[OTA] Starting update process - device will restart if successful");
 
         // Keep RGB status showing OTA update in progress
         RGB_SET_STATE(OTA_UPDATING); // Maintain OTA status during download and installation
@@ -199,22 +194,20 @@ photo_frame_error_t handle_ota_updates_setup(esp_sleep_wakeup_cause_t wakeup_rea
         error = ota_updater.start_update();
 
         if (error != error_type::None) {
-            Serial.print(TEXT_OTA_UPDATE_FAILED);
-            Serial.println(error.code);
+            log_e("%s%d", TEXT_OTA_UPDATE_FAILED, error.code);
             return error;
         }
         // If successful, device will restart automatically - this line won't be reached
 
     } else if (error == error_type::NoUpdateNeeded) {
-        Serial.println(TEXT_OTA_FIRMWARE_UP_TO_DATE);
+        log_i("%s", TEXT_OTA_FIRMWARE_UP_TO_DATE);
         return error_type::None; // Not an error condition
     } else if (error == error_type::OtaVersionIncompatible) {
-        Serial.println(F("[OTA] Current firmware is incompatible with available update"));
-        Serial.println(F("[OTA] Manual firmware update required"));
+        log_w("[OTA] Current firmware is incompatible with available update");
+        log_w("[OTA] Manual firmware update required");
         return error;
     } else {
-        Serial.print(TEXT_OTA_UPDATE_CHECK_FAILED);
-        Serial.println(error.code);
+        log_e("%s%d", TEXT_OTA_UPDATE_CHECK_FAILED, error.code);
         return error;
     }
 
@@ -242,25 +235,23 @@ void monitor_ota_progress() {
 
     static uint8_t last_percent = 0;
     if (progress.progress_percent > last_percent + 5) { // Update every 5%
-        Serial.print(TEXT_OTA_PROGRESS);
-        Serial.print(progress.progress_percent);
-        Serial.print(F("% ("));
-        Serial.print(progress.downloaded_size);
-        Serial.print(F("/"));
-        Serial.print(progress.total_size);
-        Serial.print(TEXT_OTA_BYTES);
-        Serial.println(progress.message);
+        log_i("%s%u%% (%zu/%zu%s%s",
+              TEXT_OTA_PROGRESS,
+              progress.progress_percent,
+              progress.downloaded_size,
+              progress.total_size,
+              TEXT_OTA_BYTES,
+              progress.message);
 
         last_percent = progress.progress_percent;
     }
 
     // Handle completion or errors
     if (progress.status == ota_status_t::COMPLETED) {
-        Serial.println(TEXT_OTA_UPDATE_COMPLETED);
+        log_i("%s", TEXT_OTA_UPDATE_COMPLETED);
         // Device will restart automatically
     } else if (progress.status == ota_status_t::FAILED) {
-        Serial.print(TEXT_OTA_UPDATE_FAILED);
-        Serial.println(progress.error.message);
+        log_e("%s%s", TEXT_OTA_UPDATE_FAILED, progress.error.message);
     }
 }
 
@@ -274,7 +265,7 @@ void monitor_ota_progress() {
 void cancel_ota_update() {
     RGB_SET_STATE(OTA_UPDATING); // Show OTA cancellation in progress
     ota_updater.cancel_update();
-    Serial.println(TEXT_OTA_UPDATE_CANCELLED);
+    log_i("%s", TEXT_OTA_UPDATE_CANCELLED);
 }
 
 /**

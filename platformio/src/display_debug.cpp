@@ -24,6 +24,9 @@ extern photo_frame::battery_reader battery_reader;
 
 namespace display_debug {
 
+// Forward declarations
+void printMenu();
+
 static bool displayInitialized = false;
 static bool batteryInitialized = false;
 
@@ -31,7 +34,7 @@ void ensureDisplayInitialized() {
     if (!displayInitialized) {
         photo_frame::renderer::init_display();
         displayInitialized = true;
-        Serial.println(F("[DEBUG] Display initialized"));
+        log_d("Display initialized");
     }
 }
 
@@ -39,7 +42,7 @@ void ensureBatteryInitialized() {
     if (!batteryInitialized) {
         battery_reader.init();
         batteryInitialized = true;
-        Serial.println(F("[DEBUG] Battery initialized"));
+        log_d("Battery initialized");
     }
 }
 
@@ -47,9 +50,9 @@ void ensureBatteryInitialized() {
 // Test 1: Battery Status Test
 // ============================================================================
 void testBatteryStatus() {
-    Serial.println(F("\n========================================"));
-    Serial.println(F("[TEST] Battery Status"));
-    Serial.println(F("========================================"));
+    log_i("\n========================================");
+    log_i("Battery Status");
+    log_i("========================================");
 
     ensureBatteryInitialized();
     photo_frame::battery_info_t info = battery_reader.read();
@@ -99,9 +102,9 @@ void testBatteryStatus() {
 // Test 2: LED Test
 // ============================================================================
 void testLED() {
-    Serial.println(F("\n========================================"));
-    Serial.println(F("[TEST] LED Test"));
-    Serial.println(F("========================================"));
+    log_i("\n========================================");
+    log_i("LED Test");
+    log_i("========================================");
 
 #ifdef RGB_STATUS_ENABLED
     Serial.println(F("\nTesting RGB LED..."));
@@ -109,7 +112,7 @@ void testLED() {
 
     // Initialize RGB LED
     if (!rgbStatus.begin()) {
-        Serial.println(F("ERROR: Failed to initialize RGB LED"));
+        log_e("Failed to initialize RGB LED");
         return;
     }
 
@@ -179,9 +182,9 @@ void testLED() {
 // Test 3: Potentiometer Test
 // ============================================================================
 void testPotentiometer() {
-    Serial.println(F("\n========================================"));
-    Serial.println(F("[TEST] Potentiometer Test"));
-    Serial.println(F("========================================"));
+    log_i("\n========================================");
+    log_i("Potentiometer Test");
+    log_i("========================================");
 
 #ifdef POTENTIOMETER_INPUT_PIN
     Serial.println(F("\nReading potentiometer for 10 seconds..."));
@@ -266,12 +269,253 @@ void testPotentiometer() {
 }
 
 // ============================================================================
-// Test 4: Deep Sleep Test
+// Test 4: SD Card Tests
+// ============================================================================
+static bool sdCardInitialized = false;
+
+void ensureSDCardInitialized() {
+    if (!sdCardInitialized) {
+        log_d("Initializing SD card...");
+        photo_frame::photo_frame_error_t error = sdCard.begin();
+        if (error == photo_frame::error_type::None) {
+            sdCardInitialized = true;
+            log_d("SD card initialized successfully");
+        } else {
+            log_e("Failed to initialize SD card");
+        }
+    }
+}
+
+void testSDCardInfo() {
+    log_i("\n========================================");
+    log_i("SD Card Information");
+    log_i("========================================\n");
+
+    ensureSDCardInitialized();
+
+    if (!sdCardInitialized) {
+        log_e("ERROR: SD card not initialized!");
+        log_e("Please check:");
+        log_e("  - SD card is inserted");
+        log_e("  - SD card is formatted (FAT32)");
+        log_e("  - Connections are correct");
+        return;
+    }
+
+    // Get card info
+    Serial.println(F("SD Card Details:"));
+    Serial.print(F("  Card Type: "));
+
+    uint8_t cardType = sdCard.get_card_type();
+    switch (cardType) {
+        case CARD_NONE:
+            Serial.println(F("None"));
+            break;
+        case CARD_MMC:
+            Serial.println(F("MMC"));
+            break;
+        case CARD_SD:
+            Serial.println(F("SD"));
+            break;
+        case CARD_SDHC:
+            Serial.println(F("SDHC"));
+            break;
+        default:
+            Serial.println(F("Unknown"));
+    }
+
+    // Get size info
+    uint64_t cardSize = sdCard.card_size();
+    Serial.print(F("  Total Size: "));
+    Serial.print(cardSize / (1024 * 1024));
+    Serial.println(F(" MB"));
+
+    uint64_t usedBytes = sdCard.used_bytes();
+    Serial.print(F("  Used Space: "));
+    Serial.print(usedBytes / (1024 * 1024));
+    Serial.println(F(" MB"));
+
+    uint64_t freeBytes = cardSize - usedBytes;
+    Serial.print(F("  Free Space: "));
+    Serial.print(freeBytes / (1024 * 1024));
+    Serial.println(F(" MB"));
+
+    float usedPercent = (usedBytes * 100.0) / cardSize;
+    Serial.print(F("  Usage: "));
+    Serial.print(usedPercent, 1);
+    Serial.println(F("%"));
+
+    Serial.println(F("\n✓ SD card is working correctly!"));
+    Serial.println(F("\n========================================"));
+}
+
+void testSDCardListFiles() {
+    log_i("\n========================================");
+    log_i("List Files in Root");
+    log_i("========================================\n");
+
+    ensureSDCardInitialized();
+
+    if (!sdCardInitialized) {
+        log_e("SD card not initialized!");
+        return;
+    }
+
+    Serial.println(F("Files in root directory:"));
+    Serial.println(F("Size (KB) | Type | Name"));
+    Serial.println(F("----------|------|---------------------"));
+
+    fs::File root = sdCard.open("/");
+    if (!root) {
+        log_e("Failed to open root directory");
+        return;
+    }
+
+    if (!root.isDirectory()) {
+        log_e("Root is not a directory");
+        return;
+    }
+
+    int fileCount = 0;
+    int dirCount = 0;
+    uint64_t totalSize = 0;
+
+    fs::File file = root.openNextFile();
+    while (file) {
+        if (file.isDirectory()) {
+            Serial.print(F("   <DIR>  |  DIR | "));
+            Serial.println(file.name());
+            dirCount++;
+        } else {
+            size_t fileSize = file.size();
+            totalSize += fileSize;
+
+            char sizeStr[12];
+            sprintf(sizeStr, "%8u", (unsigned int)(fileSize / 1024));
+            Serial.print(sizeStr);
+            Serial.print(F(" | FILE | "));
+            Serial.println(file.name());
+            fileCount++;
+        }
+        file = root.openNextFile();
+    }
+
+    Serial.println(F("----------|------|---------------------"));
+    Serial.print(F("\nSummary:\n"));
+    Serial.print(F("  Files: "));
+    Serial.println(fileCount);
+    Serial.print(F("  Directories: "));
+    Serial.println(dirCount);
+    Serial.print(F("  Total size: "));
+    Serial.print(totalSize / 1024);
+    Serial.println(F(" KB"));
+
+    Serial.println(F("\n========================================"));
+}
+
+void testSDCardConfig() {
+    log_i("\n========================================");
+    log_i("Load and Validate config.json");
+    log_i("========================================\n");
+
+    ensureSDCardInitialized();
+
+    if (!sdCardInitialized) {
+        log_e("ERROR: SD card not initialized!");
+        return;
+    }
+
+    photo_frame::unified_config systemConfig; // Unified configuration system
+    photo_frame::photo_frame_error_t error = photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
+
+    if (error != photo_frame::error_type::None) {
+        log_e("Failed to load unified configuration - Error code: %d", error.code);
+    }
+
+    // Validate essential configuration
+    if (!systemConfig.wifi.is_valid()) {
+        log_w("WiFi configuration is missing or invalid!");
+        log_w("Please ensure CONFIG_FILEPATH contains valid WiFi credentials");
+    }
+
+    log_d("json: %s", systemConfig.to_json().c_str());
+
+}
+
+void showSDCardMenu() {
+    Serial.println(F("\n========================================"));
+    Serial.println(F("SD Card Test Menu"));
+    Serial.println(F("========================================"));
+    Serial.println(F("a - SD Card Information"));
+    Serial.println(F("b - List Files in Root"));
+    Serial.println(F("c - Load and Validate config.json"));
+    Serial.println(F(""));
+    Serial.println(F("0 - Back to Main Menu"));
+    Serial.println(F("========================================"));
+    Serial.println(F("Enter your choice:"));
+}
+
+void handleSDCardMenu() {
+    showSDCardMenu();
+
+    bool inSubmenu = true;
+    while (inSubmenu) {
+        if (Serial.available() > 0) {
+            char input = Serial.read();
+
+            // Clear any remaining input
+            while (Serial.available() > 0) {
+                Serial.read();
+                delay(10);
+            }
+
+            switch (input) {
+                case 'a':
+                case 'A':
+                    testSDCardInfo();
+                    showSDCardMenu();
+                    break;
+
+                case 'b':
+                case 'B':
+                    testSDCardListFiles();
+                    showSDCardMenu();
+                    break;
+
+                case 'c':
+                case 'C':
+                    testSDCardConfig();
+                    showSDCardMenu();
+                    break;
+
+                case '0':
+                    inSubmenu = false;
+                    printMenu();
+                    break;
+
+                case '\n':
+                case '\r':
+                    // Ignore newlines
+                    break;
+
+                default:
+                    Serial.print(F("Unknown command: "));
+                    Serial.println(input);
+                    Serial.println(F("Press '0' for main menu"));
+                    break;
+            }
+        }
+        delay(100);
+    }
+}
+
+// ============================================================================
+// Test 5: Deep Sleep Test
 // ============================================================================
 void testDeepSleep() {
-    Serial.println(F("\n========================================"));
-    Serial.println(F("[TEST] Deep Sleep Test"));
-    Serial.println(F("========================================"));
+    log_i("\n========================================");
+    log_i("Deep Sleep Test");
+    log_i("========================================");
 
     // Configure wake-up button
     Serial.println(F("\nConfiguring wake-up source..."));
@@ -320,9 +564,9 @@ void testDeepSleep() {
 // Restart Command
 // ============================================================================
 void restartBoard() {
-    Serial.println(F("\n========================================"));
-    Serial.println(F("[RESTART] Restarting board..."));
-    Serial.println(F("========================================"));
+    log_i("\n========================================");
+    log_i("Restarting board...");
+    log_i("========================================");
     Serial.flush();
     delay(100);
     ESP.restart();
@@ -338,7 +582,8 @@ void printMenu() {
     Serial.println(F("1 - Battery Status Test"));
     Serial.println(F("2 - LED Test"));
     Serial.println(F("3 - Potentiometer Test"));
-    Serial.println(F("4 - Deep Sleep Test"));
+    Serial.println(F("4 - SD Card Tests"));
+    Serial.println(F("5 - Deep Sleep Test"));
     Serial.println(F(""));
     Serial.println(F("r - Restart Board"));
     Serial.println(F("0 - Show this menu"));
@@ -374,6 +619,10 @@ void handleSerialInput() {
                 break;
 
             case '4':
+                handleSDCardMenu();
+                break;
+
+            case '5':
                 testDeepSleep();
                 break;
 
@@ -402,68 +651,73 @@ void handleSerialInput() {
 // Public Functions (called from main.cpp when ENABLE_DISPLAY_DIAGNOSTIC is set)
 // ============================================================================
 void display_debug_setup() {
-    delay(1000); // Give time to open serial monitor
+    // Inizializza la seriale
+    Serial.begin(115200);
 
-    Serial.println(F("\n\n========================================"));
-    Serial.println(F("Display Debug Mode - STARTED"));
-    Serial.println(F("========================================"));
+    // --- BLOCCA FINCHÉ NON APRI IL MONITOR ---
+    // Questo è vitale sulla Nano ESP32 per non perdere i messaggi iniziali
+    // Rimuovilo se devi alimentare la scheda con batterie senza PC!
+    while (!Serial) {
+        delay(100);
+    }
+
+    log_i("\n\n========================================");
+    log_i("Display Debug Mode - STARTED");
+    log_i("========================================");
 
     // Check wake-up reason
     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
-    Serial.print(F("Wake-up reason: "));
+    const char* wakeup_reason_str;
     switch (wakeup_reason) {
         case ESP_SLEEP_WAKEUP_EXT0:
-            Serial.println(F("EXT0 (Button)"));
+            wakeup_reason_str = "EXT0 (Button)";
             break;
         case ESP_SLEEP_WAKEUP_EXT1:
-            Serial.println(F("EXT1"));
+            wakeup_reason_str = "EXT1";
             break;
         case ESP_SLEEP_WAKEUP_TIMER:
-            Serial.println(F("Timer"));
+            wakeup_reason_str = "Timer";
             break;
         case ESP_SLEEP_WAKEUP_TOUCHPAD:
-            Serial.println(F("Touchpad"));
+            wakeup_reason_str = "Touchpad";
             break;
         case ESP_SLEEP_WAKEUP_ULP:
-            Serial.println(F("ULP"));
+            wakeup_reason_str = "ULP";
             break;
         case ESP_SLEEP_WAKEUP_GPIO:
-            Serial.println(F("GPIO"));
+            wakeup_reason_str = "GPIO";
             break;
         case ESP_SLEEP_WAKEUP_UART:
-            Serial.println(F("UART"));
+            wakeup_reason_str = "UART";
             break;
         case ESP_SLEEP_WAKEUP_WIFI:
-            Serial.println(F("WiFi"));
+            wakeup_reason_str = "WiFi";
             break;
         case ESP_SLEEP_WAKEUP_COCPU:
-            Serial.println(F("COCPU"));
+            wakeup_reason_str = "COCPU";
             break;
         case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG:
-            Serial.println(F("COCPU Trap"));
+            wakeup_reason_str = "COCPU Trap";
             break;
         case ESP_SLEEP_WAKEUP_BT:
-            Serial.println(F("Bluetooth"));
+            wakeup_reason_str = "Bluetooth";
             break;
         default:
-            Serial.println(F("Power-on or Reset"));
+            wakeup_reason_str = "Power-on or Reset";
             break;
     }
+    log_i("Wake-up reason: %s", wakeup_reason_str);
 
     // Print board info
-    Serial.print(F("Board: "));
-    Serial.println(ARDUINO_BOARD);
-    Serial.print(F("Display: "));
-    Serial.print(DISP_WIDTH);
-    Serial.print(F("x"));
-    Serial.println(DISP_HEIGHT);
+    log_i("Board: %s", ARDUINO_BOARD);
+    log_i("Display: %dx%d", DISP_WIDTH, DISP_HEIGHT);
 
 #if defined(DISP_BW)
-    Serial.println(F("Display Type: Black & White"));
+    log_i("Display Type: Black & White");
 #elif defined(DISP_6C)
-    Serial.println(F("Display Type: 6-Color"));
+    log_i("Display Type: 6-Color");
 #elif defined(DISP_7C)
-    Serial.println(F("Display Type: 7-Color"));
+    log_i("Display Type: 7-Color");
 #endif
 
     Serial.println();

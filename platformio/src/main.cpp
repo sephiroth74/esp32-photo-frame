@@ -211,18 +211,18 @@ void setup()
 
     // Immediate diagnostic check
     #ifdef ENABLE_DISPLAY_DIAGNOSTIC
-        Serial.println(F("\n=================================="));
-        Serial.println(F("*** DIAGNOSTIC MODE ENABLED ***"));
-        Serial.println(F("=================================="));
-        Serial.println(F("Entering display debug mode..."));
+        log_i("\n==================================");
+        log_i("*** DIAGNOSTIC MODE ENABLED ***");
+        log_i("==================================");
+        log_i("Entering display debug mode...");
         delay(500);
         // In diagnostic mode, run display debug setup instead
         display_debug_setup();
         return;
     #else
-        Serial.println(F("\n=================================="));
-        Serial.println(F("*** NORMAL MODE ***"));
-        Serial.println(F("=================================="));
+        log_i("\n==================================");
+        log_i("*** NORMAL MODE ***");
+        log_i("==================================");
 
         // Initialize hardware components
         if (!initialize_hardware()) {
@@ -237,14 +237,8 @@ void setup()
     photo_frame::board_utils::get_wakeup_reason_string(
         wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
 
-    Serial.print(F("Wakeup reason: "));
-    Serial.print(wakeup_reason_string);
-    Serial.print(F(" ("));
-    Serial.print(wakeup_reason);
-    Serial.println(F(")"));
-
-    Serial.print(F("Is reset: "));
-    Serial.println(is_reset ? "Yes" : "No");
+    log_i("Wakeup reason: %s (%d)", wakeup_reason_string, wakeup_reason);
+    log_i("Is reset: %s", is_reset ? "Yes" : "No");
 
     // Setup battery and power management
     photo_frame::battery_info_t battery_info;
@@ -267,37 +261,31 @@ void setup()
 #ifdef OTA_UPDATE_ENABLED
     // Handle OTA updates only if battery level is sufficient
     if (error == photo_frame::error_type::None && !battery_info.is_critical() && battery_info.percent >= OTA_MIN_BATTERY_PERCENT) {
-        Serial.println(F("--------------------------------------"));
-        Serial.println(F("- Checking for OTA updates..."));
-        Serial.println(F("--------------------------------------"));
+        log_i("--------------------------------------");
+        log_i("- Checking for OTA updates...");
+        log_i("--------------------------------------");
 
         auto ota_error = photo_frame::initialize_ota_updates();
         if (ota_error == photo_frame::error_type::None) {
-            Serial.println(F("OTA system initialized successfully"));
+            log_i("OTA system initialized successfully");
 
             ota_error = photo_frame::handle_ota_updates_setup(wakeup_reason);
 
             if (ota_error == photo_frame::error_type::None) {
-                Serial.println(F("OTA check completed - no update needed"));
+                log_i("OTA check completed - no update needed");
             } else if (ota_error == photo_frame::error_type::OtaVersionIncompatible) {
-                Serial.println(F("Current firmware is too old - manual update required"));
+                log_w("Current firmware is too old - manual update required");
             } else if (ota_error == photo_frame::error_type::NoUpdateNeeded) {
-                Serial.println(F("Firmware is up to date"));
+                log_i("Firmware is up to date");
             } else {
-                Serial.print(F("OTA check failed: "));
-                Serial.println(ota_error.code);
+                log_e("OTA check failed: %d", ota_error.code);
             }
             // If update was successful, device would have restarted - this line won't execute
         } else {
-            Serial.print(F("Failed to initialize OTA system: "));
-            Serial.println(ota_error.code);
+            log_e("Failed to initialize OTA system: %d", ota_error.code);
         }
     } else {
-        Serial.print(F("Battery level too low for OTA updates ("));
-        Serial.print(battery_info.percent);
-        Serial.print(F("% < "));
-        Serial.print(OTA_MIN_BATTERY_PERCENT);
-        Serial.println(F("%)"));
+        log_w("Battery level too low for OTA updates (%d%% < %d%%)", battery_info.percent, OTA_MIN_BATTERY_PERCENT);
     }
 #endif // OTA_UPDATE_ENABLED
 
@@ -306,8 +294,7 @@ void setup()
         auto weather_error = handle_weather_operations(battery_info, weatherManager);
         // Weather errors are not critical - don't update main error state
         if (weather_error != photo_frame::error_type::None) {
-            Serial.print(F("Weather operations failed: "));
-            Serial.println(weather_error.code);
+            log_w("Weather operations failed: %d", weather_error.code);
         }
     }
 
@@ -324,7 +311,7 @@ void setup()
 
     // Safely disconnect WiFi with proper cleanup
     if (wifiManager.is_connected()) {
-        Serial.println(F("Disconnecting WiFi to save power..."));
+        log_i("Disconnecting WiFi to save power...");
         // Add small delay to ensure pending WiFi operations complete
         delay(100);
         wifiManager.disconnect();
@@ -332,18 +319,18 @@ void setup()
         delay(200);
     }
 
-    Serial.println(F("WiFi operations complete - using NTP-only time"));
+    log_i("WiFi operations complete - using NTP-only time");
 
     // Calculate refresh delay
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F("- Calculating refresh rate"));
-    Serial.println(F("--------------------------------------"));
+    log_i("--------------------------------------");
+    log_i("- Calculating refresh rate");
+    log_i("--------------------------------------");
     refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
 
     // Initialize E-Paper display
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F("- Initializing E-Paper display..."));
-    Serial.println(F("--------------------------------------"));
+    log_i("--------------------------------------");
+    log_i("- Initializing E-Paper display...");
+    log_i("--------------------------------------");
 
     delay(100);
     RGB_SET_STATE(RENDERING); // Show display rendering
@@ -354,7 +341,7 @@ void setup()
 
     // Check if file is available
     if (error == photo_frame::error_type::None && !file) {
-        Serial.println(F("File is not open!"));
+        log_e("File is not open!");
         error = photo_frame::error_type::SdCardFileOpenFailed;
     }
 
@@ -424,11 +411,11 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     bool has_partial_update = photo_frame::renderer::has_partial_update();
     bool has_fast_partial_update = photo_frame::renderer::has_fast_partial_update();
 
-    if (error == photo_frame::error_type::None && !has_partial_update && !has_fast_partial_update) { 
+    if (error == photo_frame::error_type::None && !has_partial_update && !has_fast_partial_update) {
         // ----------------------------------------------
         // the display does not support partial update
         // ----------------------------------------------
-        Serial.println(F("Warning: Display does not support partial update!"));
+        log_w("Display does not support partial update!");
 
         int page_index = 0;
         bool rendering_failed = false;
@@ -440,8 +427,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         display.firstPage();
         do {
-            Serial.print(F("Drawing page: "));
-            Serial.println(page_index);
+            log_d("Drawing page: %d", page_index);
             if (photo_frame::io_utils::is_binary_format(format_filename)) {
                 // Detect format based on file size
                 size_t standardSize = DISP_WIDTH * DISP_HEIGHT;      // 384,000 bytes for 800x480
@@ -450,19 +436,19 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
                 if (fileSize == nativeSize) {
                     // Native format (2 pixels per byte) - only for 6-color/7-color displays
-                    Serial.println(F("[main] Detected native format (192KB) - using writeNative()"));
+                    log_i("[main] Detected native format (192KB) - using writeNative()");
                     error_code = photo_frame::renderer::draw_native_binary_from_file(
                         file, original_filename, DISP_WIDTH, DISP_HEIGHT);
                     // Native format renders the entire image at once, no paging needed
                     break; // Exit the page loop after rendering
                 } else if (fileSize == standardSize) {
                     // Standard format (1 byte per pixel)
-                    Serial.println(F("[main] Detected standard format (384KB) - using paged rendering"));
+                    log_i("[main] Detected standard format (384KB) - using paged rendering");
                     error_code = photo_frame::renderer::draw_binary_from_file_paged(
                         file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
                 } else {
-                    Serial.printf("[main] ERROR: Unknown binary format size: %d bytes\n", fileSize);
-                    Serial.printf("[main] Expected: %d (standard) or %d (native)\n", standardSize, nativeSize);
+                    log_e("[main] ERROR: Unknown binary format size: %d bytes", fileSize);
+                    log_e("[main] Expected: %d (standard) or %d (native)", standardSize, nativeSize);
                     error_code = photo_frame::error_type::BinaryRenderingFailed.code;
                 }
             } else {
@@ -471,7 +457,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             }
 
             if (error_code != 0) {
-                Serial.println(F("Failed to draw bitmap from file!"));
+                log_e("Failed to draw bitmap from file!");
                 rendering_failed = true;
                 break; // Exit the page rendering loop immediately
             }
@@ -527,7 +513,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // -------------------------------
         // Display has partial update
         // -------------------------------
-        Serial.println(F("Using partial update mode"));
+        log_i("Using partial update mode");
 
         /**
          * Runtime File Format Detection for Buffered Rendering
@@ -548,7 +534,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
         if (error_code != 0) {
-            Serial.println(F("Failed to draw bitmap from file!"));
+            log_e("Failed to draw bitmap from file!");
 
             // Separate error display loop to prevent cutoff issues
             display.firstPage();
@@ -600,61 +586,51 @@ bool initialize_hardware()
 #endif // LED_PWR_PIN
 
     // PSRAM initialization (mandatory)
-    Serial.println(F("[PSRAM] Initializing PSRAM..."));
+    log_i("[PSRAM] Initializing PSRAM...");
 
     // Check if PSRAM is already initialized by the framework
     if (psramFound()) {
-        Serial.println(F("[PSRAM] PSRAM already initialized by framework"));
-        Serial.print(F("[PSRAM] Available PSRAM: "));
-        Serial.print(ESP.getPsramSize());
-        Serial.println(F(" bytes"));
-        Serial.print(F("[PSRAM] Free PSRAM: "));
-        Serial.print(ESP.getFreePsram());
-        Serial.println(F(" bytes"));
+        log_i("[PSRAM] PSRAM already initialized by framework");
+        log_i("[PSRAM] Available PSRAM: %u bytes", ESP.getPsramSize());
+        log_i("[PSRAM] Free PSRAM: %u bytes", ESP.getFreePsram());
     } else {
         // Try manual initialization if not already done
         esp_err_t ret = esp_spiram_init();
         if (ret != ESP_OK) {
-            Serial.print(F("[PSRAM] CRITICAL: Failed to initialize PSRAM: "));
-            Serial.println(esp_err_to_name(ret));
-            Serial.println(F("[PSRAM] PSRAM is required for this board configuration!"));
-            Serial.println(F("[PSRAM] System will likely crash due to memory constraints"));
+            log_e("[PSRAM] CRITICAL: Failed to initialize PSRAM: %s", esp_err_to_name(ret));
+            log_e("[PSRAM] PSRAM is required for this board configuration!");
+            log_e("[PSRAM] System will likely crash due to memory constraints");
             // For ProS3(d) and other PSRAM-mandatory boards, we should halt
             #ifdef BOARD_HAS_PSRAM
                 ESP.restart(); // Restart to try again
             #endif
         } else {
-            Serial.println(F("[PSRAM] PSRAM initialized successfully"));
+            log_i("[PSRAM] PSRAM initialized successfully");
 
             // Note: esp_spiram_add_to_heapalloc() is deprecated in newer ESP-IDF
             // PSRAM should be automatically added to heap with CONFIG_SPIRAM_USE_MALLOC
             // which is set in platformio.ini via board_build.arduino.memory_type
 
-            Serial.print(F("[PSRAM] Available PSRAM: "));
-            Serial.print(ESP.getPsramSize());
-            Serial.println(F(" bytes"));
-            Serial.print(F("[PSRAM] Free PSRAM: "));
-            Serial.print(ESP.getFreePsram());
-            Serial.println(F(" bytes"));
+            log_i("[PSRAM] Available PSRAM: %u bytes", ESP.getPsramSize());
+            log_i("[PSRAM] Free PSRAM: %u bytes", ESP.getFreePsram());
         }
     }
 
 #ifdef RGB_STATUS_ENABLED
     // Initialize RGB status system (FeatherS3 NeoPixel)
-    Serial.println(F("[RGB] Initializing RGB status system..."));
+    log_i("[RGB] Initializing RGB status system...");
     if (!rgbStatus.begin()) {
-        Serial.println(F("[RGB] Warning: Failed to initialize RGB status system"));
+        log_w("[RGB] Warning: Failed to initialize RGB status system");
     } else {
         RGB_SET_STATE(STARTING); // Show startup indication
     }
 #else
-    Serial.println(F("[RGB] RGB status system disabled"));
+    log_i("[RGB] RGB status system disabled");
 #endif // RGB_STATUS_ENABLED
 
-    Serial.println(F("------------------------------"));
-    Serial.print(F("Photo Frame "));
-    Serial.println(F(FIRMWARE_VERSION_STRING));
-    Serial.println(F("------------------------------"));
+    log_i("------------------------------");
+    log_i("Photo Frame %s", FIRMWARE_VERSION_STRING);
+    log_i("------------------------------");
 
     photo_frame::board_utils::print_board_stats();
 
@@ -668,50 +644,44 @@ bool initialize_hardware()
 photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
     esp_sleep_wakeup_cause_t wakeup_reason)
 {
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F("- Reading battery level..."));
-    Serial.println(F("--------------------------------------"));
+    log_i("--------------------------------------");
+    log_i("- Reading battery level...");
+    log_i("--------------------------------------");
 
     battery_reader.init();
     battery_info = battery_reader.read();
 
     // print the battery levels
-    Serial.print(F("Battery level: "));
-    Serial.print(battery_info.percent);
-    Serial.print(F("%, "));
-    Serial.print(battery_info.millivolts);
-    Serial.print(F(" mV"));
-
 #ifdef DEBUG_BATTERY_READER
-    Serial.print(F(", Raw mV: "));
-    Serial.print(battery_info.raw_millivolts);
+    log_i("Battery level: %d%%, %d mV, Raw mV: %d", battery_info.percent, battery_info.millivolts, battery_info.raw_millivolts);
+#else
+    log_i("Battery level: %d%%, %d mV", battery_info.percent, battery_info.millivolts);
 #endif // DEBUG_BATTERY_READER
-    Serial.println();
 
     if (battery_info.is_empty()) {
-        Serial.println(F("Battery is empty!"));
+        log_e("Battery is empty!");
 #ifdef BATTERY_POWER_SAVING
         unsigned long elapsed = millis() - startupTime;
-        Serial.printf("Elapsed seconds since startup: %lu s\n", elapsed / 1000);
+        log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
 
-        Serial.println(F("Entering deep sleep to preserve battery..."));
+        log_i("Entering deep sleep to preserve battery...");
         photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
                                                                    // Battery too low to continue
 #endif // BATTERY_POWER_SAVING
 #ifdef RGB_STATUS_ENABLED
         rgbStatus.disable();
-        Serial.println(F("[RGB] Disabled RGB LED to conserve battery power"));
+        log_i("[RGB] Disabled RGB LED to conserve battery power");
 #endif // RGB_STATUS_ENABLED
         return photo_frame::error_type::BatteryEmpty;
     } else if (battery_info.is_critical()) {
-        Serial.println(F("Battery level is critical!"));
+        log_w("Battery level is critical!");
         RGB_SET_STATE_TIMED(BATTERY_LOW, 3000); // Show battery critical warning briefly
 
         // Disable RGB after warning to save maximum power
         delay(3500);
 #ifdef RGB_STATUS_ENABLED
         rgbStatus.disable();
-        Serial.println(F("[RGB] Disabled RGB LED to conserve battery power"));
+        log_i("[RGB] Disabled RGB LED to conserve battery power");
 #endif // RGB_STATUS_ENABLED
        // Indicate critical battery error
         return photo_frame::error_type::BatteryLevelCritical;
@@ -726,9 +696,9 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
 {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F("- Initialize SD card and load configuration..."));
-    Serial.println(F("--------------------------------------"));
+    log_i("--------------------------------------");
+    log_i("- Initialize SD card and load configuration...");
+    log_i("--------------------------------------");
 
     RGB_SET_STATE(SD_READING); // Show SD card operations
     error = sdCard.begin();
@@ -742,12 +712,11 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
 
     // Load unified configuration from SD card
     if (error == photo_frame::error_type::None) {
-        Serial.println(F("Loading unified configuration..."));
+        log_i("Loading unified configuration...");
         error = photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
 
         if (error != photo_frame::error_type::None) {
-            Serial.print(F("Failed to load unified configuration: "));
-            Serial.println(error.code);
+            log_w("Failed to load unified configuration: %d", error.code);
             // Configuration loading failed, but fallback values are loaded
             // Continue with fallback configuration
             error = photo_frame::error_type::None;
@@ -755,12 +724,12 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
 
         // Validate essential configuration
         if (!systemConfig.wifi.is_valid()) {
-            Serial.println(F("WARNING: WiFi configuration is missing or invalid!"));
-            Serial.println(F("Please ensure CONFIG_FILEPATH contains valid WiFi credentials"));
+            log_w("WARNING: WiFi configuration is missing or invalid!");
+            log_w("Please ensure CONFIG_FILEPATH contains valid WiFi credentials");
             error = photo_frame::error_type::WifiCredentialsNotFound;
         }
     } else {
-        Serial.println(F("SD card initialization failed - using fallback configuration"));
+        log_w("SD card initialization failed - using fallback configuration");
 
         // SD card failed, load fallback configuration and calculate extended sleep
         load_fallback_config(systemConfig);
@@ -778,7 +747,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
     }
 
     if (error == photo_frame::error_type::None) {
-        Serial.println(F("Initializing WiFi manager with unified configuration..."));
+        log_i("Initializing WiFi manager with unified configuration...");
         RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
 
         // Initialize WiFi manager with configuration from unified config
@@ -786,23 +755,21 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
 
         if (error == photo_frame::error_type::None) {
             // No RTC module - simple NTP-only time fetching
-            Serial.println(F("Fetching time from NTP servers..."));
+            log_i("Fetching time from NTP servers...");
             error = wifiManager.connect();
             if (error == photo_frame::error_type::None) {
                 now = photo_frame::rtc_utils::fetch_datetime(wifiManager, is_reset, &error);
             }
         } else {
-            Serial.println(F("WiFi initialization failed"));
+            log_e("WiFi initialization failed");
             RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
         }
     }
 
     if (error == photo_frame::error_type::None) {
-        Serial.print(F("Current time is valid: "));
-        Serial.println(now.isValid() ? "Yes" : "No");
+        log_i("Current time is valid: %s", now.isValid() ? "Yes" : "No");
     } else {
-        Serial.print(F("Failed to fetch current time! Error code: "));
-        Serial.println(String(error.code));
+        log_e("Failed to fetch current time! Error code: %d", error.code);
     }
 
     return error;
@@ -814,60 +781,56 @@ handle_weather_operations(const photo_frame::battery_info_t& battery_info,
 {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F("- Handling weather operations..."));
-    Serial.println(F("--------------------------------------"));
+    log_i("--------------------------------------");
+    log_i("- Handling weather operations...");
+    log_i("--------------------------------------");
 
     // Check if weather operations should be skipped due to battery conservation
     bool batteryConservationMode = battery_info.is_critical();
     if (batteryConservationMode) {
-        Serial.print(F("Skipping weather operations due to critical battery level ("));
-        Serial.print(battery_info.percent);
-        Serial.println(F("%) - preserving power"));
+        log_w("Skipping weather operations due to critical battery level (%d%%) - preserving power", battery_info.percent);
         return photo_frame::error_type::None; // Not an error, just skipped for power conservation
     }
 
     // Initialize weather manager from unified configuration
-    Serial.println(F("Initializing weather manager from unified config..."));
+    log_i("Initializing weather manager from unified config...");
     if (!weatherManager.begin_with_unified_config(systemConfig.weather)) {
-        Serial.println(F("Weather manager initialization failed or disabled"));
+        log_w("Weather manager initialization failed or disabled");
         return photo_frame::error_type::None; // Weather failure is not critical - continue without
                                               // weather
     }
 
     // Check if weather update is needed
     if (!weatherManager.is_configured()) {
-        Serial.println(F("Weather manager not configured - skipping weather fetch"));
+        log_i("Weather manager not configured - skipping weather fetch");
         return photo_frame::error_type::None;
     }
 
     if (!weatherManager.needs_update(battery_info.percent)) {
-        Serial.println(F("Weather update not needed at this time"));
+        log_i("Weather update not needed at this time");
         return photo_frame::error_type::None;
     }
 
     // Connect to WiFi for weather data fetching
-    Serial.println(F("Connecting to WiFi for weather data..."));
+    log_i("Connecting to WiFi for weather data...");
     RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
 
     error = wifiManager.connect();
     if (error != photo_frame::error_type::None) {
-        Serial.println(F("WiFi connection failed for weather fetch"));
+        log_e("WiFi connection failed for weather fetch");
         RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
         return error; // Return error but don't make it critical
     }
 
     // Fetch weather data
-    Serial.println(F("Fetching weather data..."));
+    log_i("Fetching weather data...");
     RGB_SET_STATE(WEATHER_FETCHING); // Show weather fetching status
 
     if (weatherManager.fetch_weather()) {
-        Serial.println(F("Weather data updated successfully"));
+        log_i("Weather data updated successfully");
         weatherManager.reset_failures(); // Reset failure count on success
     } else {
-        Serial.print(F("Weather fetch failed ("));
-        Serial.print(weatherManager.get_failure_count());
-        Serial.println(F(" consecutive failures)"));
+        log_w("Weather fetch failed (%d consecutive failures)", weatherManager.get_failure_count());
         // Don't treat weather fetch failure as critical error
     }
     return photo_frame::error_type::None; // Always return success for weather operations
@@ -885,9 +848,9 @@ handle_google_drive_operations(bool is_reset,
     photo_frame::photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
     bool write_toc = is_reset;
 
-    Serial.println(F("--------------------------------------"));
-    Serial.println(F(" - Find the next image from the SD..."));
-    Serial.println(F("--------------------------------------"));
+    log_i("--------------------------------------");
+    log_i(" - Find the next image from the SD...");
+    log_i("--------------------------------------");
 
     error = sdCard.begin(); // Initialize the SD card
 
@@ -897,14 +860,13 @@ handle_google_drive_operations(bool is_reset,
 #endif
 
         // Initialize Google Drive from unified configuration
-        Serial.println(F("Initializing Google Drive from unified config..."));
+        log_i("Initializing Google Drive from unified config...");
         error = drive.initialize_from_unified_config(systemConfig.google_drive);
 
         if (error != photo_frame::error_type::None) {
-            Serial.print(F("Failed to initialize Google Drive from unified config! Error: "));
-            Serial.println(error.code);
+            log_e("Failed to initialize Google Drive from unified config! Error: %d", error.code);
         } else {
-            Serial.println(F("Google Drive initialized successfully from unified config"));
+            log_i("Google Drive initialized successfully from unified config");
 
             // Use Google Drive to download the next image from Google Drive folder
             // The google_drive class handles authentication, caching, and file management
@@ -923,32 +885,25 @@ handle_google_drive_operations(bool is_reset,
 
                 if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
                     shouldCleanup = true;
-                    Serial.print(F("Time since last cleanup: "));
-                    Serial.print(now - lastCleanup);
-                    Serial.println(F(" seconds"));
+                    log_i("Time since last cleanup: %ld seconds", now - lastCleanup);
                 } else {
-                    Serial.print(F("Skipping cleanup, only "));
-                    Serial.print(now - lastCleanup);
-                    Serial.print(F(" seconds since last cleanup (need "));
-                    Serial.print(CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
-                    Serial.println(F(" seconds)"));
+                    log_i("Skipping cleanup, only %ld seconds since last cleanup (need %d seconds)",
+                          now - lastCleanup, CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
                 }
             }
 
             if (shouldCleanup) {
                 uint32_t cleanedFiles = drive.cleanup_temporary_files(sdCard, write_toc);
                 if (cleanedFiles > 0) {
-                    Serial.print(F("Cleaned up "));
-                    Serial.print(cleanedFiles);
-                    Serial.println(F(" temporary files from previous session"));
+                    log_i("Cleaned up %u temporary files from previous session", cleanedFiles);
                 }
 
                 // Update last cleanup time
                 auto& prefs = photo_frame::PreferencesHelper::getInstance();
                 if (prefs.setLastCleanup(time(NULL))) {
-                    Serial.println(F("Updated last cleanup time"));
+                    log_i("Updated last cleanup time");
                 } else {
-                    Serial.println(F("Failed to save cleanup time to preferences"));
+                    log_w("Failed to save cleanup time to preferences");
                 }
             }
 
@@ -956,9 +911,7 @@ handle_google_drive_operations(bool is_reset,
             // If battery is critical, use cached TOC even if expired to save power
             bool batteryConservationMode = battery_info.is_critical();
             if (batteryConservationMode) {
-                Serial.print(F("Battery critical ("));
-                Serial.print(battery_info.percent);
-                Serial.println(F("%) - using cached TOC to preserve power"));
+                log_w("Battery critical (%d%%) - using cached TOC to preserve power", battery_info.percent);
             }
 
             if (error == photo_frame::error_type::None) {
@@ -971,25 +924,21 @@ handle_google_drive_operations(bool is_reset,
                 // interference
                 total_files = drive.retrieve_toc(sdCard, batteryConservationMode);
             } else {
-                Serial.println(F("Google Drive not initialized - skipping"));
+                log_w("Google Drive not initialized - skipping");
                 total_files = 0;
             }
 
             if (total_files > 0) {
-                Serial.print(F("Total files in Google Drive folder: "));
-                Serial.println(total_files);
+                log_i("Total files in Google Drive folder: %u", total_files);
 
                 photo_frame::google_drive_file selectedFile;
 
 #ifdef GOOGLE_DRIVE_TEST_FILE
                 // Use specific test file if defined
-                Serial.print(F("Using test file: "));
-                Serial.println(GOOGLE_DRIVE_TEST_FILE);
+                log_i("Using test file: %s", GOOGLE_DRIVE_TEST_FILE);
                 selectedFile = drive.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
                 if (tocError != photo_frame::error_type::None) {
-                    Serial.print(F("Test file not found in TOC, falling back to random "
-                                   "selection. Error: "));
-                    Serial.println(tocError.code);
+                    log_w("Test file not found in TOC, falling back to random selection. Error: %d", tocError.code);
                     // Fallback to random selection
                     image_index = random(0, drive.get_toc_file_count());
                     selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
@@ -1003,22 +952,19 @@ handle_google_drive_operations(bool is_reset,
 #endif // GOOGLE_DRIVE_TEST_FILE
 
                 if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
-                    Serial.print(F("Selected file: "));
-                    Serial.println(selectedFile.name);
+                    log_i("Selected file: %s", selectedFile.name.c_str());
 
                     // Always download to SD card first for better caching
                     String localFilePath = drive.get_cached_file_path(selectedFile.name);
                     if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
-                        Serial.println(F("File already exists in SD card, using cached version"));
+                        log_i("File already exists in SD card, using cached version");
                         file = sdCard.open(localFilePath.c_str(), FILE_READ);
                         drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
                     } else {
                         // Check battery level before downloading file
                         if (batteryConservationMode) {
-                            Serial.print(
-                                F("Skipping file download due to critical battery level ("));
-                            Serial.print(battery_info.percent);
-                            Serial.println(F("%) - will use cached files if available"));
+                            log_w("Skipping file download due to critical battery level (%d%%) - will use cached files if available",
+                                  battery_info.percent);
                             error = photo_frame::error_type::BatteryLevelCritical;
                         } else {
                             // Download the selected file to SD card
@@ -1034,31 +980,29 @@ handle_google_drive_operations(bool is_reset,
                         String filePath = String(filename);
                         original_filename = String(filename); // Store original filename for format detection
 
-                        Serial.println(F("🛡️ Validating downloaded image file..."));
+                        log_i("Validating downloaded image file...");
                         auto validationError = photo_frame::io_utils::validate_image_file(
                             file, filename, DISP_WIDTH, DISP_HEIGHT);
 
                         if (validationError != photo_frame::error_type::None) {
-                            Serial.print(F("❌ Image validation FAILED: "));
-                            Serial.println(validationError.message);
+                            log_e("Image validation FAILED: %s", validationError.message);
 
                             // Close file before deletion
                             file.close();
 
                             // Delete corrupted file from SD card
                             if (sdCard.file_exists(filePath.c_str())) {
-                                Serial.print(F("🗑️ Deleting corrupted file from SD card: "));
-                                Serial.println(filePath);
+                                log_w("Deleting corrupted file from SD card: %s", filePath.c_str());
                                 if (sdCard.remove(filePath.c_str())) {
-                                    Serial.println(F("✅ Corrupted file successfully deleted"));
+                                    log_i("Corrupted file successfully deleted");
                                 } else {
-                                    Serial.println(F("❌ Failed to delete corrupted file"));
+                                    log_e("Failed to delete corrupted file");
                                 }
                             }
 
                             error = validationError;
                         } else {
-                            Serial.println(F("✅ Image validation PASSED"));
+                            log_i("Image validation PASSED");
 
                             // Now copy validated file to LittleFS
                             String littlefsPath = LITTLEFS_TEMP_IMAGE_FILE;
@@ -1070,13 +1014,12 @@ handle_google_drive_operations(bool is_reset,
 
                             if (error == photo_frame::error_type::None) {
                                 // Copy successful - shutdown SD card and open LittleFS file
-                                Serial.println(
-                                    F("Shutting down SD card after successful copy to LittleFS"));
+                                log_i("Shutting down SD card after successful copy to LittleFS");
 
                                 // Open the LittleFS file for reading
                                 file = LittleFS.open(littlefsPath.c_str(), FILE_READ);
                                 if (!file) {
-                                    Serial.println(F("Failed to open LittleFS file for reading"));
+                                    log_e("Failed to open LittleFS file for reading");
                                     error = photo_frame::error_type::LittleFSFileOpenFailed;
                                 }
                             }
@@ -1087,37 +1030,32 @@ handle_google_drive_operations(bool is_reset,
                     // conflicts
                     sdCard.end();
                 } else {
-                    Serial.print(F("Failed to get file by index. Error code: "));
-                    Serial.println(tocError.code);
+                    log_e("Failed to get file by index. Error code: %d", tocError.code);
                     error = tocError;
                 }
 
                 if (error == photo_frame::error_type::None && file) {
-                    Serial.println(F("File downloaded and ready for display!"));
+                    log_i("File downloaded and ready for display!");
                 } else {
-                    Serial.print(F("Failed to download file from Google Drive! Error code: "));
-                    Serial.println(error.code);
+                    log_e("Failed to download file from Google Drive! Error code: %d", error.code);
                 }
             } else {
                 // Check if there was an error during TOC retrieval (e.g., access token failure)
                 photo_frame::photo_frame_error_t lastDriveError = drive.get_last_error();
                 if (lastDriveError != photo_frame::error_type::None) {
-                    Serial.print(F("Failed to retrieve TOC. Error code: "));
-                    Serial.println(lastDriveError.code);
+                    log_e("Failed to retrieve TOC. Error code: %d", lastDriveError.code);
                     error = lastDriveError;
                 } else if (tocError != photo_frame::error_type::None) {
-                    Serial.print(F("Failed to read TOC file count. Error code: "));
-                    Serial.println(tocError.code);
+                    log_e("Failed to read TOC file count. Error code: %d", tocError.code);
                     error = tocError;
                 } else {
-                    Serial.println(F("No files found in Google Drive folder!"));
+                    log_w("No files found in Google Drive folder!");
                     error = photo_frame::error_type::NoImagesFound;
                 }
             }
         }
     } else {
-        Serial.print(F("Failed to initialize SD card. Error code: "));
-        Serial.println(error.code);
+        log_e("Failed to initialize SD card. Error code: %d", error.code);
     }
 
     return error;
@@ -1138,7 +1076,7 @@ process_image_file(fs::File& file,
 
     if (error == photo_frame::error_type::None && file) {
         // Image was already validated before copying to LittleFS, proceed directly to rendering
-        Serial.println(F("Rendering validated image file..."));
+        log_i("Rendering validated image file...");
         error = render_image(file,
             original_filename,
             error,
@@ -1165,7 +1103,7 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 {
 #ifdef RGB_STATUS_ENABLED
     // Shutdown RGB status system to save power during sleep
-    Serial.println(F("[RGB] Shutting down RGB status system for sleep"));
+    log_i("[RGB] Shutting down RGB status system for sleep");
     rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
 #endif // RGB_STATUS_ENABLED
 
@@ -1174,21 +1112,19 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 
     // now go to sleep using the pre-calculated refresh delay
     if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
-        Serial.print(F("Going to sleep for "));
-        Serial.print(refresh_delay.refresh_seconds, DEC);
-        Serial.print(F(" seconds ("));
-        Serial.print((unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
-        Serial.println(F(" seconds from microseconds)"));
+        log_i("Going to sleep for %ld seconds (%lu seconds from microseconds)",
+              refresh_delay.refresh_seconds,
+              (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
     } else {
         if (battery_info.is_critical()) {
-            Serial.println(F("Battery is critical, entering indefinite sleep"));
+            log_w("Battery is critical, entering indefinite sleep");
         } else {
-            Serial.println(F("Sleep time too short or invalid, entering default sleep"));
+            log_w("Sleep time too short or invalid, entering default sleep");
         }
     }
 
     unsigned long elapsed = millis() - startupTime;
-    Serial.printf("Elapsed seconds since startup: %lu s\n", elapsed / 1000);
+    log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
     photo_frame::board_utils::enter_deep_sleep(wakeup_reason, refresh_delay.refresh_microseconds);
 }
 
@@ -1204,14 +1140,14 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     refresh_delay_t refresh_delay = { 0, 0 };
 
     if (battery_info.is_critical()) {
-        Serial.println(F("Battery is critical, using low battery refresh interval"));
+        log_w("Battery is critical, using low battery refresh interval");
         refresh_delay.refresh_seconds = REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY;
         refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         return refresh_delay;
     }
 
     if (!now.isValid()) {
-        Serial.println(F("Time is invalid, using minimum refresh interval as fallback"));
+        log_w("Time is invalid, using minimum refresh interval as fallback");
         refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
         refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         return refresh_delay;
@@ -1220,8 +1156,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     if (true) { // Changed from the original condition to always execute
         refresh_delay.refresh_seconds = photo_frame::board_utils::read_refresh_seconds(battery_info.is_low());
 
-        Serial.print(F("Refresh seconds read from potentiometer: "));
-        Serial.println(refresh_delay.refresh_seconds);
+        log_i("Refresh seconds read from potentiometer: %ld", refresh_delay.refresh_seconds);
 
         // add the refresh time to the current time
         // Update the current time with the refresh interval
@@ -1231,7 +1166,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
         DateTime dayEnd = DateTime(now.year(), now.month(), now.day(), DAY_END_HOUR, 0, 0);
 
         if (nextRefresh > dayEnd) {
-            Serial.println(F("Next refresh time is after DAY_END_HOUR"));
+            log_i("Next refresh time is after DAY_END_HOUR");
             // Check if we're currently in the inactive period (before DAY_START_HOUR)
             if (now.hour() < DAY_START_HOUR) {
                 // We're in early morning hours, schedule for DAY_START_HOUR today
@@ -1245,23 +1180,19 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
             refresh_delay.refresh_seconds = nextRefresh.unixtime() - now.unixtime();
         }
 
-        Serial.print(F("Next refresh time: "));
-        Serial.println(nextRefresh.timestamp(DateTime::TIMESTAMP_FULL));
+        log_i("Next refresh time: %s", nextRefresh.timestamp(DateTime::TIMESTAMP_FULL).c_str());
 
         // Convert seconds to microseconds for deep sleep with overflow protection
         // ESP32 max sleep time is ~18 hours (281474976710655 microseconds)
         // Practical limit defined in config.h
 
         if (refresh_delay.refresh_seconds <= 0) {
-            Serial.println(
-                F("Warning: Invalid refresh interval, using minimum interval as fallback"));
+            log_w("Warning: Invalid refresh interval, using minimum interval as fallback");
             refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
             refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
             refresh_delay.refresh_microseconds = (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
-            Serial.print(F("Warning: Refresh interval capped to "));
-            Serial.print(MAX_DEEP_SLEEP_SECONDS);
-            Serial.println(F(" seconds to prevent overflow"));
+            log_w("Warning: Refresh interval capped to %d seconds to prevent overflow", MAX_DEEP_SLEEP_SECONDS);
         } else {
             // Safe calculation using 64-bit arithmetic
             refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
@@ -1271,22 +1202,19 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
         photo_frame::string_utils::seconds_to_human(
             humanReadable, sizeof(humanReadable), refresh_delay.refresh_seconds);
 
-        Serial.print(F("Refresh interval in: "));
-        Serial.println(humanReadable);
+        log_i("Refresh interval in: %s", humanReadable);
     }
 
     // Final validation - ensure we never return 0 microseconds
     if (refresh_delay.refresh_microseconds == 0) {
-        Serial.println(F("CRITICAL: refresh_microseconds is 0, forcing minimum interval"));
+        log_e("CRITICAL: refresh_microseconds is 0, forcing minimum interval");
         refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
         refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
     }
 
-    Serial.print(F("Final refresh delay: "));
-    Serial.print(refresh_delay.refresh_seconds);
-    Serial.print(F(" seconds ("));
-    Serial.print((unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
-    Serial.println(F(" microseconds)"));
+    log_i("Final refresh delay: %ld seconds (%lu microseconds)",
+          refresh_delay.refresh_seconds,
+          (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
 
     return refresh_delay;
 }

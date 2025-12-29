@@ -32,10 +32,10 @@ Add the weather section to your `/config.json` on the SD card:
     "ssid": "YourWiFiNetwork",
     "password": "YourWiFiPassword"
   },
-  "google_drive": {
+  "google_drive_config": {
     // ... your Google Drive config
   },
-  "weather": {
+  "weather_config": {
     "enabled": true,
     "latitude": 40.7128,
     "longitude": -74.0060,
@@ -48,7 +48,7 @@ Add the weather section to your `/config.json` on the SD card:
     "wind_speed_unit": "kmh",
     "precipitation_unit": "mm"
   },
-  "board": {
+  "board_config": {
     // ... your board config
   }
 }
@@ -75,7 +75,7 @@ Weather configuration is now part of the unified `/config.json` system:
 
 ```json
 {
-  "weather": {
+  "weather_config": {
     "enabled": false,
     "latitude": 40.7128,
     "longitude": -74.0060,

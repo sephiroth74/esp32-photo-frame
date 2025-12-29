@@ -24,6 +24,7 @@
 #define __UNIFIED_CONFIG_H__
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include "errors.h"
 #include "sd_card.h"
 
@@ -38,7 +39,8 @@ struct unified_config {
         String ssid;
         String password;
 
-        bool is_valid() const {
+        bool is_valid() const
+        {
             return ssid.length() > 0 && password.length() > 0;
         }
     } wifi;
@@ -46,18 +48,18 @@ struct unified_config {
     // Board-specific Configuration
     struct board_config {
         struct refresh_config {
-            uint32_t min_seconds = 600;        // 10 minutes default
-            uint32_t max_seconds = 14400;      // 4 hours default
-            uint32_t step = 300;               // 5 minutes default
+            uint32_t min_seconds = 600; // 10 minutes default
+            uint32_t max_seconds = 14400; // 4 hours default
+            uint32_t step = 300; // 5 minutes default
             uint8_t low_battery_multiplier = 3; // 3x multiplier default
         } refresh;
 
-        uint8_t day_start_hour = 6;  // 6 AM default
-        uint8_t day_end_hour = 23;   // 11 PM default
+        uint8_t day_start_hour = 6; // 6 AM default
+        uint8_t day_end_hour = 23; // 11 PM default
 
-        bool is_valid() const {
-            return day_start_hour < 24 && day_end_hour < 24 &&
-                   refresh.min_seconds > 0 && refresh.max_seconds > refresh.min_seconds;
+        bool is_valid() const
+        {
+            return day_start_hour < 24 && day_end_hour < 24 && refresh.min_seconds > 0 && refresh.max_seconds > refresh.min_seconds;
         }
     } board;
 
@@ -68,10 +70,9 @@ struct unified_config {
             String private_key_pem;
             String client_id;
 
-            bool is_valid() const {
-                return service_account_email.length() > 0 &&
-                       private_key_pem.length() > 0 &&
-                       client_id.length() > 0;
+            bool is_valid() const
+            {
+                return service_account_email.length() > 0 && private_key_pem.length() > 0 && client_id.length() > 0;
             }
         } auth;
 
@@ -81,7 +82,8 @@ struct unified_config {
             uint16_t list_page_size = 200;
             bool use_insecure_tls = true;
 
-            bool is_valid() const {
+            bool is_valid() const
+            {
                 return folder_id.length() > 0;
             }
         } drive;
@@ -100,7 +102,8 @@ struct unified_config {
             uint32_t max_wait_time_ms = 30000;
         } rate_limiting;
 
-        bool is_valid() const {
+        bool is_valid() const
+        {
             return auth.is_valid() && drive.is_valid();
         }
     } google_drive;
@@ -119,7 +122,8 @@ struct unified_config {
         String wind_speed_unit = "kmh";
         String precipitation_unit = "mm";
 
-        bool is_valid() const {
+        bool is_valid() const
+        {
             return latitude != 0.0 || longitude != 0.0; // At least one coordinate must be set
         }
     } weather;
@@ -127,16 +131,76 @@ struct unified_config {
     /**
      * @brief Check if the entire configuration is valid
      */
-    bool is_valid() const {
-        return wifi.is_valid() && board.is_valid() &&
-               google_drive.is_valid() && weather.is_valid();
+    bool is_valid() const
+    {
+        return wifi.is_valid() && board.is_valid() && google_drive.is_valid() && weather.is_valid();
     }
+
+#ifdef ENABLE_DISPLAY_DIAGNOSTIC
+    /**
+     * @brief Serializza la configurazione in formato JSON
+     */
+    String to_json() const
+    {
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+        JsonDocument doc;
+#else
+        DynamicJsonDocument doc(4096);
+#endif
+
+        doc["wifi"]["ssid"] = wifi.ssid;
+        doc["wifi"]["password"] = wifi.password;
+
+        doc["board_config"]["refresh"]["min_seconds"] = board.refresh.min_seconds;
+        doc["board_config"]["refresh"]["max_seconds"] = board.refresh.max_seconds;
+        doc["board_config"]["refresh"]["step"] = board.refresh.step;
+        doc["board_config"]["refresh"]["low_battery_multiplier"] = board.refresh.low_battery_multiplier;
+        doc["board_config"]["day_start_hour"] = board.day_start_hour;
+        doc["board_config"]["day_end_hour"] = board.day_end_hour;
+
+        doc["google_drive_config"]["authentication"]["service_account_email"] = google_drive.auth.service_account_email;
+        doc["google_drive_config"]["authentication"]["private_key_pem"] = google_drive.auth.private_key_pem;
+        doc["google_drive_config"]["authentication"]["client_id"] = google_drive.auth.client_id;
+
+        doc["google_drive_config"]["drive"]["folder_id"] = google_drive.drive.folder_id;
+        doc["google_drive_config"]["drive"]["root_ca_path"] = google_drive.drive.root_ca_path;
+        doc["google_drive_config"]["drive"]["list_page_size"] = google_drive.drive.list_page_size;
+        doc["google_drive_config"]["drive"]["use_insecure_tls"] = google_drive.drive.use_insecure_tls;
+
+        doc["google_drive_config"]["caching"]["local_path"] = google_drive.caching.local_path;
+        doc["google_drive_config"]["caching"]["toc_max_age_seconds"] = google_drive.caching.toc_max_age_seconds;
+
+        doc["google_drive_config"]["rate_limiting"]["max_requests_per_window"] = google_drive.rate_limiting.max_requests_per_window;
+        doc["google_drive_config"]["rate_limiting"]["rate_limit_window_seconds"] = google_drive.rate_limiting.rate_limit_window_seconds;
+        doc["google_drive_config"]["rate_limiting"]["min_request_delay_ms"] = google_drive.rate_limiting.min_request_delay_ms;
+        doc["google_drive_config"]["rate_limiting"]["max_retry_attempts"] = google_drive.rate_limiting.max_retry_attempts;
+        doc["google_drive_config"]["rate_limiting"]["backoff_base_delay_ms"] = google_drive.rate_limiting.backoff_base_delay_ms;
+        doc["google_drive_config"]["rate_limiting"]["max_wait_time_ms"] = google_drive.rate_limiting.max_wait_time_ms;
+
+        doc["weather_config"]["enabled"] = weather.enabled;
+        doc["weather_config"]["latitude"] = weather.latitude;
+        doc["weather_config"]["longitude"] = weather.longitude;
+        doc["weather_config"]["update_interval_minutes"] = weather.update_interval_minutes;
+        doc["weather_config"]["celsius"] = weather.celsius;
+        doc["weather_config"]["battery_threshold"] = weather.battery_threshold;
+        doc["weather_config"]["max_age_hours"] = weather.max_age_hours;
+        doc["weather_config"]["timezone"] = weather.timezone;
+        doc["weather_config"]["temperature_unit"] = weather.temperature_unit;
+        doc["weather_config"]["wind_speed_unit"] = weather.wind_speed_unit;
+        doc["weather_config"]["precipitation_unit"] = weather.precipitation_unit;
+
+        String output;
+        serializeJson(doc, output);
+        return output;
+    }
+#endif // ENABLE_DISPLAY_DIAGNOSTIC
 
     /**
      * @brief Get fallback sleep duration when SD card fails
      * Returns midpoint between refresh min and max intervals
      */
-    uint32_t get_fallback_sleep_seconds() const {
+    uint32_t get_fallback_sleep_seconds() const
+    {
         return (board.refresh.min_seconds + board.refresh.max_seconds) / 2;
     }
 };
@@ -157,8 +221,8 @@ void load_fallback_config(unified_config& config);
  * @return photo_frame_error_t Error code
  */
 photo_frame_error_t load_unified_config(sd_card& sdCard,
-                                       const char* config_path,
-                                       unified_config& config);
+    const char* config_path,
+    unified_config& config);
 
 /**
  * @brief Load unified configuration with fallback values
@@ -172,8 +236,8 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
  * @return photo_frame_error_t Error code (can return success even if file read failed)
  */
 photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
-                                                     const char* config_path,
-                                                     unified_config& config);
+    const char* config_path,
+    unified_config& config);
 
 } // namespace photo_frame
 

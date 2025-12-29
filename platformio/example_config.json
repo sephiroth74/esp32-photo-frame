@@ -7,7 +7,7 @@
         "password": "YourWiFiPassword"
     },
 
-    "google_drive": {
+    "google_drive_config": {
         "authentication": {
             "service_account_email": "your-service-account@your-project.iam.gserviceaccount.com",
             "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT_HERE\n-----END PRIVATE KEY-----\n",
@@ -33,7 +33,7 @@
         }
     },
 
-    "weather": {
+    "weather_config": {
         "_location_name": "New York City, USA",
         "enabled": true,
         "latitude": 40.7128,
@@ -48,7 +48,7 @@
         "precipitation_unit": "mm"
     },
 
-    "board": {
+    "board_config": {
         "day_start_hour": 6,
         "day_end_hour": 23,
         "refresh": {

@@ -37,59 +37,53 @@ bool SPIManager::init_littlefs() {
 
     // First try to mount without formatting
     if (!LittleFS.begin(false)) {
-        Serial.println("[spi_manager] LittleFS mount failed, attempting format...");
+        log_w("[spi_manager] LittleFS mount failed, attempting format...");
 
         // Force format and try again
         if (!LittleFS.begin(true)) {
-            Serial.println("[spi_manager] LittleFS format and initialization failed");
+            log_e("[spi_manager] LittleFS format and initialization failed");
             return false;
         }
-        Serial.println("[spi_manager] LittleFS formatted and mounted successfully");
+        log_i("[spi_manager] LittleFS formatted and mounted successfully");
     } else {
-        Serial.println("[spi_manager] LittleFS mounted successfully");
+        log_i("[spi_manager] LittleFS mounted successfully");
 
         // Check for filesystem corruption by testing basic operations
         size_t totalBytes = LittleFS.totalBytes();
         if (totalBytes == 0) {
-            Serial.println(
-                "[spi_manager] LittleFS appears corrupted (totalBytes = 0), reformatting...");
+            log_w("[spi_manager] LittleFS appears corrupted (totalBytes = 0), reformatting...");
             LittleFS.end();
             if (!LittleFS.begin(true)) {
-                Serial.println("[spi_manager] LittleFS reformat failed");
+                log_e("[spi_manager] LittleFS reformat failed");
                 return false;
             }
-            Serial.println("[spi_manager] LittleFS successfully reformatted");
+            log_i("[spi_manager] LittleFS successfully reformatted");
         }
     }
 
     littlefs_initialized = true;
-    Serial.println("[spi_manager] LittleFS initialized successfully");
+    log_i("[spi_manager] LittleFS initialized successfully");
 
     // Show detailed filesystem info for debugging LittleFS issues
     size_t totalBytes = LittleFS.totalBytes();
     size_t usedBytes  = LittleFS.usedBytes();
     size_t freeBytes  = totalBytes - usedBytes;
 
-    Serial.printf("[spi_manager] LittleFS - Total: %zu bytes (%.2f MB)\n",
-                  totalBytes,
-                  totalBytes / 1024.0 / 1024.0);
-    Serial.printf("[spi_manager] LittleFS - Used: %zu bytes (%.2f MB)\n",
-                  usedBytes,
-                  usedBytes / 1024.0 / 1024.0);
-    Serial.printf("[spi_manager] LittleFS - Free: %zu bytes (%.2f MB)\n",
-                  freeBytes,
-                  freeBytes / 1024.0 / 1024.0);
+    log_i("[spi_manager] LittleFS - Total: %zu bytes (%.2f MB)",
+          totalBytes, totalBytes / 1024.0 / 1024.0);
+    log_i("[spi_manager] LittleFS - Used: %zu bytes (%.2f MB)",
+          usedBytes, usedBytes / 1024.0 / 1024.0);
+    log_i("[spi_manager] LittleFS - Free: %zu bytes (%.2f MB)",
+          freeBytes, freeBytes / 1024.0 / 1024.0);
 
     // Check if there's enough space for a 384KB image file
     const size_t IMAGE_SIZE = DISP_WIDTH * DISP_HEIGHT * 3; // 384KB for 800x480 RGB
     if (freeBytes < IMAGE_SIZE) {
-        Serial.printf("[spi_manager] ⚠️ WARNING: Only %zu bytes free, need %zu for image file\n",
-                      freeBytes,
-                      IMAGE_SIZE);
+        log_w("[spi_manager] WARNING: Only %zu bytes free, need %zu for image file",
+              freeBytes, IMAGE_SIZE);
     } else {
-        Serial.printf("[spi_manager] ✅ Sufficient space: %zu bytes available for %zu byte image\n",
-                      freeBytes,
-                      IMAGE_SIZE);
+        log_i("[spi_manager] Sufficient space: %zu bytes available for %zu byte image",
+              freeBytes, IMAGE_SIZE);
     }
 
     return true;
@@ -102,7 +96,7 @@ void SPIManager::cleanup_temp_files(const char* pattern) {
 
     File root = LittleFS.open("/");
     if (!root || !root.isDirectory()) {
-        Serial.println("[spi_manager] Failed to open LittleFS root directory");
+        log_e("[spi_manager] Failed to open LittleFS root directory");
         return;
     }
 
@@ -117,10 +111,10 @@ void SPIManager::cleanup_temp_files(const char* pattern) {
             file.close();
 
             if (LittleFS.remove(filepath.c_str())) {
-                Serial.printf("[spi_manager] Deleted temp file: %s\n", filepath.c_str());
+                log_i("[spi_manager] Deleted temp file: %s", filepath.c_str());
                 files_deleted++;
             } else {
-                Serial.printf("[spi_manager] Failed to delete: %s\n", filepath.c_str());
+                log_w("[spi_manager] Failed to delete: %s", filepath.c_str());
             }
 
             // Reopen directory after deletion
@@ -136,7 +130,7 @@ void SPIManager::cleanup_temp_files(const char* pattern) {
     root.close();
 
     if (files_deleted > 0) {
-        Serial.printf("[spi_manager] Cleaned up %d temporary files from LittleFS\n", files_deleted);
+        log_i("[spi_manager] Cleaned up %d temporary files from LittleFS", files_deleted);
     }
 }
 

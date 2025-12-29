@@ -27,6 +27,13 @@
 // Enable separate SPI bus for SD card
 #define USE_HSPI_FOR_SD
 
+// #define SD_MMC_CLK_PIN 14 // SDIO CLK
+// #define SD_MMC_D0_PIN 6 // SDIO D0
+// #define SD_MMC_CMD_PIN 16 // SDIO CMD
+// #define SD_MMC_D3_PIN 12 // SDIO D3
+// #define SD_MMC_D1_PIN 21 // SDIO D1
+// #define SD_MMC_D2_PIN 15 // SDIO D2
+
 // SD Card - using custom HSPI bus
 #define SD_USE_SPI          // Use SPI instead of SDIO for SD card
 #define SD_CS_PIN      12   // SD Card Chip Select (CS) - IO12

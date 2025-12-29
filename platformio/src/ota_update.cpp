@@ -51,35 +51,28 @@ photo_frame_error_t OTAUpdate::begin(const ota_config_t& ota_config) {
     // Get running partition info
     running_partition = esp_ota_get_running_partition();
     if (!running_partition) {
-        Serial.println(F("[OTA] Failed to get running partition"));
+        log_e("[OTA] Failed to get running partition");
         return error_type::OtaInitFailed;
     }
 
 #ifdef DEBUG_OTA
-    Serial.print(F("[OTA] Running partition: "));
-    Serial.println(running_partition->label);
-    Serial.print(F("[OTA] Current version: "));
-    Serial.println(config.current_version);
-    Serial.print(F("[OTA] Board name: "));
-    Serial.println(config.board_name);
-    Serial.print(F("[OTA] Server URL: "));
-    Serial.println(config.server_url);
-    Serial.print(F("[OTA] Version endpoint: "));
-    Serial.println(config.version_endpoint);
-    Serial.print(F("[OTA] Firmware endpoint: "));
-    Serial.println(config.firmware_endpoint);
-    Serial.print(F("[OTA] Use SSL: "));
-    Serial.println(config.use_ssl ? "Yes" : "No");
+    log_d("[OTA] Running partition: %s", running_partition->label);
+    log_d("[OTA] Current version: %s", config.current_version.c_str());
+    log_d("[OTA] Board name: %s", config.board_name.c_str());
+    log_d("[OTA] Server URL: %s", config.server_url.c_str());
+    log_d("[OTA] Version endpoint: %s", config.version_endpoint.c_str());
+    log_d("[OTA] Firmware endpoint: %s", config.firmware_endpoint.c_str());
+    log_d("[OTA] Use SSL: %s", config.use_ssl ? "Yes" : "No");
 #endif // DEBUG_OTA
 
     // Initialize SSL client if needed
     if (config.use_ssl) {
-        Serial.println(F("[OTA] Initializing secure client for HTTPS"));
+        log_i("[OTA] Initializing secure client for HTTPS");
         secure_client = new WiFiClientSecure();
         if (config.ca_cert.length() > 0) {
             secure_client->setCACert(config.ca_cert.c_str());
         } else {
-            Serial.println(F("[OTA] No CA certificate provided, using insecure connection"));
+            log_w("[OTA] No CA certificate provided, using insecure connection");
             secure_client->setInsecure(); // Skip certificate validation (less secure)
         }
     }
@@ -93,27 +86,24 @@ photo_frame_error_t OTAUpdate::check_for_update(bool force_check) {
         unsigned long time_since_check =
             (millis() - last_check_time) / 1000 / 3600; // Convert to hours
         if (time_since_check < OTA_CHECK_INTERVAL_HOURS) {
-            Serial.print(F("[OTA] Skipping update check, "));
-            Serial.print(OTA_CHECK_INTERVAL_HOURS - time_since_check);
-            Serial.println(F(" hours remaining"));
+            log_i("[OTA] Skipping update check, %lu hours remaining", OTA_CHECK_INTERVAL_HOURS - time_since_check);
             return error_type::NoUpdateNeeded;
         }
     }
 
     progress.status  = ota_status_t::CHECKING_VERSION;
     progress.message = "Checking for updates...";
-    Serial.println(F("[OTA] Checking for firmware updates"));
+    log_i("[OTA] Checking for firmware updates");
 
     // Configure HTTP client for GitHub API
     String version_url = config.server_url + config.version_endpoint;
-    Serial.print(F("[OTA] GitHub API URL: "));
-    Serial.println(version_url);
+    log_i("[OTA] GitHub API URL: %s", version_url.c_str());
 
     if (config.use_ssl && secure_client) {
-        Serial.println(F("[OTA] Using HTTPS for version check"));
+        log_i("[OTA] Using HTTPS for version check");
         http_client.begin(*secure_client, version_url);
     } else {
-        Serial.println(F("[OTA] Using HTTP for version check"));
+        log_i("[OTA] Using HTTP for version check");
         http_client.begin(version_url);
     }
 
@@ -131,16 +121,14 @@ photo_frame_error_t OTAUpdate::check_for_update(bool force_check) {
     // Accept both OK and redirect responses
     if (http_code != HTTP_CODE_OK && http_code != HTTP_CODE_FOUND &&
         http_code != HTTP_CODE_MOVED_PERMANENTLY) {
-        Serial.print(F("[OTA] Version check failed, HTTP code: "));
-        Serial.println(http_code);
+        log_e("[OTA] Version check failed, HTTP code: %d", http_code);
         http_client.end();
         progress.status = ota_status_t::FAILED;
         progress.error  = error_type::OtaVersionCheckFailed;
         return error_type::OtaVersionCheckFailed;
     }
 
-    Serial.print(F("[OTA] Version check HTTP response code: "));
-    Serial.println(http_code);
+    log_i("[OTA] Version check HTTP response code: %d", http_code);
 
     String github_response = http_client.getString();
     http_client.end();
@@ -153,40 +141,33 @@ photo_frame_error_t OTAUpdate::check_for_update(bool force_check) {
         return error;
     }
 
-    Serial.print(F("[OTA] Latest version: "));
-    Serial.print(latest_major);
-    Serial.print(F("."));
-    Serial.print(latest_minor);
-    Serial.print(F("."));
-    Serial.println(latest_patch);
+    log_i("[OTA] Latest version: %d.%d.%d", latest_major, latest_minor, latest_patch);
 
     // Check if version is newer first - no need to download manifest if not
     if (!is_newer_version(latest_major, latest_minor, latest_patch)) {
-        Serial.println(F("[OTA] Firmware is up to date - skipping manifest download"));
+        log_i("[OTA] Firmware is up to date - skipping manifest download");
         progress.status  = ota_status_t::NO_UPDATE_NEEDED;
         progress.message = "Firmware is up to date";
         return error_type::NoUpdateNeeded;
     }
 
-    Serial.println(F("[OTA] Newer version available - checking compatibility"));
+    log_i("[OTA] Newer version available - checking compatibility");
 
     // Download and parse OTA manifest for compatibility check
     String manifest_content;
     error = download_ota_manifest(manifest_content);
     if (error != error_type::None) {
-        Serial.println(F(
-            "[OTA] Warning: Could not download manifest, proceeding without compatibility check"));
+        log_w("[OTA] Warning: Could not download manifest, proceeding without compatibility check");
         // Continue without compatibility check (non-fatal)
     } else {
         int min_major, min_minor, min_patch;
         error = parse_compatibility_info(manifest_content, min_major, min_minor, min_patch);
         if (error != error_type::None) {
-            Serial.println(F("[OTA] Warning: Could not parse compatibility info from manifest, "
-                             "proceeding without compatibility check"));
+            log_w("[OTA] Warning: Could not parse compatibility info from manifest, proceeding without compatibility check");
             // Continue without compatibility check (non-fatal)
         } else {
             if (!check_version_compatibility(min_major, min_minor, min_patch)) {
-                Serial.println(F("[OTA] Current firmware version is too old for this update"));
+                log_e("[OTA] Current firmware version is too old for this update");
                 progress.status  = ota_status_t::FAILED;
                 progress.error   = error_type::OtaVersionIncompatible;
                 progress.message = "Firmware version incompatible - manual update required";
@@ -195,7 +176,7 @@ photo_frame_error_t OTAUpdate::check_for_update(bool force_check) {
         }
     }
 
-    Serial.println(F("[OTA] New firmware version available"));
+    log_i("[OTA] New firmware version available");
 
     // Cache GitHub response for firmware URL extraction in start_update
     cached_github_response = github_response;
@@ -223,14 +204,14 @@ photo_frame_error_t OTAUpdate::start_update() {
     }
 
     // Configure task watchdog to allow longer OTA operations
-    Serial.println(F("[OTA] Configuring watchdog for OTA operations"));
+    log_i("[OTA] Configuring watchdog for OTA operations");
     esp_task_wdt_init(30, true); // 30 second timeout for OTA operations
 
     is_update_in_progress = true;
     progress.status       = ota_status_t::DOWNLOADING;
     progress.message      = "Starting firmware download...";
 
-    Serial.println(F("[OTA] Starting firmware update"));
+    log_i("[OTA] Starting firmware update");
 
     // Begin OTA update process
     auto error = begin_ota_update();
@@ -270,8 +251,8 @@ photo_frame_error_t OTAUpdate::start_update() {
     progress.message      = "Update completed successfully. Restarting...";
     is_update_in_progress = false;
 
-    Serial.println(F("[OTA] Firmware update completed successfully"));
-    Serial.println(F("[OTA] Restarting in 3 seconds..."));
+    log_i("[OTA] Firmware update completed successfully");
+    log_i("[OTA] Restarting in 3 seconds...");
 
     // Reset watchdog configuration before restart
     esp_task_wdt_reset();
@@ -286,19 +267,18 @@ bool OTAUpdate::validate_battery_level() {
     // This would ideally check the actual battery level
     // For now, we'll assume it's always valid during testing
     // In production, integrate with battery_reader
-    Serial.println(F("[OTA] Battery level validation passed"));
+    log_i("[OTA] Battery level validation passed");
     return true;
 }
 
 bool OTAUpdate::check_free_space() {
     const esp_partition_t* next_partition = esp_ota_get_next_update_partition(nullptr);
     if (!next_partition) {
-        Serial.println(F("[OTA] No OTA partition available"));
+        log_e("[OTA] No OTA partition available");
         return false;
     }
 
-    Serial.print(F("[OTA] OTA partition size: "));
-    Serial.println(next_partition->size);
+    log_i("[OTA] OTA partition size: %u", next_partition->size);
 
     // Ensure we have at least the partition size available
     return next_partition->size > 0;
@@ -310,16 +290,14 @@ OTAUpdate::parse_version_response(const String& response, int& major, int& minor
     DeserializationError json_error = deserializeJson(doc, response);
 
     if (json_error) {
-        Serial.print(F("[OTA] JSON parse error: "));
-        Serial.println(json_error.c_str());
+        log_e("[OTA] JSON parse error: %s", json_error.c_str());
         return error_type::JsonParseFailed;
     }
 
     // Handle GitHub API format with tag_name
     if (doc.containsKey("tag_name")) {
         String tag_name = doc["tag_name"].as<String>();
-        Serial.print(F("[OTA] Found tag_name: "));
-        Serial.println(tag_name);
+        log_i("[OTA] Found tag_name: %s", tag_name.c_str());
 
         // Parse version from tag_name (e.g., "v0.5.1" -> 0.5.1)
         if (tag_name.startsWith("v")) {
@@ -331,7 +309,7 @@ OTAUpdate::parse_version_response(const String& response, int& major, int& minor
         int dot2 = tag_name.indexOf('.', dot1 + 1);
 
         if (dot1 == -1 || dot2 == -1) {
-            Serial.println(F("[OTA] Invalid tag_name format - expected x.y.z"));
+            log_e("[OTA] Invalid tag_name format - expected x.y.z");
             return error_type::OtaInvalidResponse;
         }
 
@@ -339,12 +317,7 @@ OTAUpdate::parse_version_response(const String& response, int& major, int& minor
         minor = tag_name.substring(dot1 + 1, dot2).toInt();
         patch = tag_name.substring(dot2 + 1).toInt();
 
-        Serial.print(F("[OTA] Parsed version from tag_name: "));
-        Serial.print(major);
-        Serial.print(F("."));
-        Serial.print(minor);
-        Serial.print(F("."));
-        Serial.println(patch);
+        log_i("[OTA] Parsed version from tag_name: %d.%d.%d", major, minor, patch);
 
         // Check if firmware asset exists for current board
         if (doc.containsKey("assets")) {
@@ -352,49 +325,45 @@ OTAUpdate::parse_version_response(const String& response, int& major, int& minor
             String expected_firmware_name = "firmware-" + config.board_name + ".bin";
             bool firmware_found           = false;
 
-            Serial.print(F("[OTA] Looking for firmware: "));
-            Serial.println(expected_firmware_name);
+            log_i("[OTA] Looking for firmware: %s", expected_firmware_name.c_str());
 
             for (JsonVariant asset_variant : assets) {
                 JsonObject asset = asset_variant.as<JsonObject>();
                 if (asset.containsKey("name")) {
                     String asset_name = asset["name"].as<String>();
-                    Serial.print(F("[OTA] Found asset: "));
-                    Serial.println(asset_name);
+                    log_i("[OTA] Found asset: %s", asset_name.c_str());
 
                     if (asset_name == expected_firmware_name) {
                         firmware_found = true;
-                        Serial.println(F("[OTA] Firmware asset found for current board"));
+                        log_i("[OTA] Firmware asset found for current board");
                         break;
                     }
                 }
             }
 
             if (!firmware_found) {
-                Serial.print(F("[OTA] Firmware not found for board: "));
-                Serial.println(config.board_name);
+                log_e("[OTA] Firmware not found for board: %s", config.board_name.c_str());
                 return error_type::OtaInvalidResponse;
             }
         } else {
-            Serial.println(F("[OTA] No assets found in GitHub response"));
+            log_e("[OTA] No assets found in GitHub response");
             return error_type::OtaInvalidResponse;
         }
 
         return error_type::None;
 
     } else {
-        Serial.println(F("[OTA] tag_name field not found in GitHub response"));
+        log_e("[OTA] tag_name field not found in GitHub response");
         return error_type::OtaInvalidResponse;
     }
 }
 
 photo_frame_error_t OTAUpdate::download_ota_manifest(String& manifest_content) {
-    Serial.println(F("[OTA] Downloading OTA manifest"));
+    log_i("[OTA] Downloading OTA manifest");
 
     // Use the predefined manifest URL from config.h
     String manifest_url = OTA_MANIFEST_URL;
-    Serial.print(F("[OTA] Manifest URL: "));
-    Serial.println(manifest_url);
+    log_i("[OTA] Manifest URL: %s", manifest_url.c_str());
 
     HTTPClient manifest_client;
     if (config.use_ssl && secure_client) {
@@ -414,21 +383,18 @@ photo_frame_error_t OTAUpdate::download_ota_manifest(String& manifest_content) {
     // Accept both OK and redirect responses
     if (http_code != HTTP_CODE_OK && http_code != HTTP_CODE_FOUND &&
         http_code != HTTP_CODE_MOVED_PERMANENTLY) {
-        Serial.print(F("[OTA] Manifest download failed, HTTP code: "));
-        Serial.println(http_code);
+        log_e("[OTA] Manifest download failed, HTTP code: %d", http_code);
         manifest_client.end();
         return error_type::OtaVersionCheckFailed;
     }
 
-    Serial.print(F("[OTA] Manifest download HTTP response code: "));
-    Serial.println(http_code);
+    log_i("[OTA] Manifest download HTTP response code: %d", http_code);
 
     manifest_content = manifest_client.getString();
     manifest_client.end();
 
-    Serial.println(F("[OTA] Manifest downloaded successfully"));
-    Serial.print(F("[OTA] Manifest size: "));
-    Serial.println(manifest_content.length());
+    log_i("[OTA] Manifest downloaded successfully");
+    log_i("[OTA] Manifest size: %zu", manifest_content.length());
 
     return error_type::None;
 }
@@ -441,27 +407,26 @@ photo_frame_error_t OTAUpdate::parse_compatibility_info(const String& manifest_c
     DeserializationError json_error = deserializeJson(doc, manifest_content);
 
     if (json_error) {
-        Serial.print(F("[OTA] JSON parse error in manifest: "));
-        Serial.println(json_error.c_str());
+        log_e("[OTA] JSON parse error in manifest: %s", json_error.c_str());
         return error_type::JsonParseFailed;
     }
 
     // Navigate to releases array in new manifest format
     if (!doc.containsKey("releases")) {
-        Serial.println(F("[OTA] releases field not found in manifest"));
+        log_e("[OTA] releases field not found in manifest");
         return error_type::OtaInvalidResponse;
     }
 
     JsonArray releases = doc["releases"];
     if (releases.size() == 0) {
-        Serial.println(F("[OTA] No releases found in manifest"));
+        log_e("[OTA] No releases found in manifest");
         return error_type::OtaInvalidResponse;
     }
 
     // Use the first (latest) release
     JsonObject release = releases[0];
     if (!release.containsKey("compatibility")) {
-        Serial.println(F("[OTA] compatibility field not found in release"));
+        log_e("[OTA] compatibility field not found in release");
         return error_type::OtaInvalidResponse;
     }
 
@@ -470,8 +435,7 @@ photo_frame_error_t OTAUpdate::parse_compatibility_info(const String& manifest_c
     // Use board name directly from config (manifest uses plain board names now)
     String expected_board = config.board_name;
 
-    Serial.print(F("[OTA] Looking for board compatibility: "));
-    Serial.println(expected_board);
+    log_i("[OTA] Looking for board compatibility: %s", expected_board.c_str());
 
     // Find compatibility entry for current board
     bool board_found = false;
@@ -480,8 +444,7 @@ photo_frame_error_t OTAUpdate::parse_compatibility_info(const String& manifest_c
 
         if (compat_obj.containsKey("board")) {
             String board_name = compat_obj["board"].as<String>();
-            Serial.print(F("[OTA] Found board in manifest: "));
-            Serial.println(board_name);
+            log_i("[OTA] Found board in manifest: %s", board_name.c_str());
 
             if (board_name == expected_board) {
                 board_found = true;
@@ -496,23 +459,15 @@ photo_frame_error_t OTAUpdate::parse_compatibility_info(const String& manifest_c
                         min_minor = min_version_obj["minor"];
                         min_patch = min_version_obj["patch"];
 
-                        Serial.print(F("[OTA] Parsed min supported version for "));
-                        Serial.print(expected_board);
-                        Serial.print(F(": "));
-                        Serial.print(min_major);
-                        Serial.print(F("."));
-                        Serial.print(min_minor);
-                        Serial.print(F("."));
-                        Serial.println(min_patch);
+                        log_i("[OTA] Parsed min supported version for %s: %d.%d.%d", expected_board.c_str(), min_major, min_minor, min_patch);
 
                         return error_type::None;
                     } else {
-                        Serial.println(F(
-                            "[OTA] Invalid min_version object format - missing major/minor/patch"));
+                        log_e("[OTA] Invalid min_version object format - missing major/minor/patch");
                         return error_type::OtaInvalidResponse;
                     }
                 } else {
-                    Serial.println(F("[OTA] min_version field not found for board"));
+                    log_e("[OTA] min_version field not found for board");
                     return error_type::OtaInvalidResponse;
                 }
             }
@@ -520,8 +475,7 @@ photo_frame_error_t OTAUpdate::parse_compatibility_info(const String& manifest_c
     }
 
     if (!board_found) {
-        Serial.print(F("[OTA] Board not found in manifest compatibility list: "));
-        Serial.println(expected_board);
+        log_e("[OTA] Board not found in manifest compatibility list: %s", expected_board.c_str());
         return error_type::OtaInvalidResponse;
     }
 
@@ -534,8 +488,7 @@ photo_frame_error_t OTAUpdate::get_firmware_download_url(const String& github_re
     DeserializationError json_error = deserializeJson(doc, github_response);
 
     if (json_error) {
-        Serial.print(F("[OTA] JSON parse error when getting firmware URL: "));
-        Serial.println(json_error.c_str());
+        log_e("[OTA] JSON parse error when getting firmware URL: %s", json_error.c_str());
         return error_type::JsonParseFailed;
     }
 
@@ -544,8 +497,7 @@ photo_frame_error_t OTAUpdate::get_firmware_download_url(const String& github_re
         JsonArray assets              = doc["assets"];
         String expected_firmware_name = "firmware-" + config.board_name + ".bin";
 
-        Serial.print(F("[OTA] Looking for firmware asset: "));
-        Serial.println(expected_firmware_name);
+        log_i("[OTA] Looking for firmware asset: %s", expected_firmware_name.c_str());
 
         for (JsonVariant asset_variant : assets) {
             JsonObject asset = asset_variant.as<JsonObject>();
@@ -554,18 +506,16 @@ photo_frame_error_t OTAUpdate::get_firmware_download_url(const String& github_re
 
                 if (asset_name == expected_firmware_name) {
                     firmware_url = asset["browser_download_url"].as<String>();
-                    Serial.print(F("[OTA] Found firmware download URL: "));
-                    Serial.println(firmware_url);
+                    log_i("[OTA] Found firmware download URL: %s", firmware_url.c_str());
                     return error_type::None;
                 }
             }
         }
 
-        Serial.print(F("[OTA] Firmware asset not found for board: "));
-        Serial.println(config.board_name);
+        log_e("[OTA] Firmware asset not found for board: %s", config.board_name.c_str());
         return error_type::OtaInvalidResponse;
     } else {
-        Serial.println(F("[OTA] No assets found in GitHub response"));
+        log_e("[OTA] No assets found in GitHub response");
         return error_type::OtaInvalidResponse;
     }
 }
@@ -580,47 +530,36 @@ bool OTAUpdate::check_version_compatibility(int min_major, int min_minor, int mi
 #error "FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, and FIRMWARE_VERSION_PATCH must be defined"
 #endif
 
-    Serial.print(F("[OTA] Current version: "));
-    Serial.print(current_major);
-    Serial.print(F("."));
-    Serial.print(current_minor);
-    Serial.print(F("."));
-    Serial.println(current_patch);
-
-    Serial.print(F("[OTA] Minimum required version: "));
-    Serial.print(min_major);
-    Serial.print(F("."));
-    Serial.print(min_minor);
-    Serial.print(F("."));
-    Serial.println(min_patch);
+    log_i("[OTA] Current version: %d.%d.%d", current_major, current_minor, current_patch);
+    log_i("[OTA] Minimum required version: %d.%d.%d", min_major, min_minor, min_patch);
 
     // Check if current version meets minimum requirement
     // Current version must be >= minimum version
     if (current_major > min_major) {
-        Serial.println(F("[OTA] Version compatibility check passed (major)"));
+        log_i("[OTA] Version compatibility check passed (major)");
         return true;
     }
     if (current_major < min_major) {
-        Serial.println(F("[OTA] Version compatibility check failed (major too old)"));
+        log_w("[OTA] Version compatibility check failed (major too old)");
         return false;
     }
 
     // Major versions are equal, check minor
     if (current_minor > min_minor) {
-        Serial.println(F("[OTA] Version compatibility check passed (minor)"));
+        log_i("[OTA] Version compatibility check passed (minor)");
         return true;
     }
     if (current_minor < min_minor) {
-        Serial.println(F("[OTA] Version compatibility check failed (minor too old)"));
+        log_w("[OTA] Version compatibility check failed (minor too old)");
         return false;
     }
 
     // Major and minor versions are equal, check patch
     if (current_patch >= min_patch) {
-        Serial.println(F("[OTA] Version compatibility check passed (patch)"));
+        log_i("[OTA] Version compatibility check passed (patch)");
         return true;
     } else {
-        Serial.println(F("[OTA] Version compatibility check failed (patch too old)"));
+        log_w("[OTA] Version compatibility check failed (patch too old)");
         return false;
     }
 }
@@ -629,18 +568,16 @@ photo_frame_error_t OTAUpdate::begin_ota_update() {
     // Get next OTA partition
     ota_partition = esp_ota_get_next_update_partition(nullptr);
     if (!ota_partition) {
-        Serial.println(F("[OTA] No OTA partition found"));
+        log_e("[OTA] No OTA partition found");
         return error_type::OtaPartitionNotFound;
     }
 
-    Serial.print(F("[OTA] Target partition: "));
-    Serial.println(ota_partition->label);
+    log_i("[OTA] Target partition: %s", ota_partition->label);
 
     // Begin OTA update
     esp_err_t err = esp_ota_begin(ota_partition, OTA_SIZE_UNKNOWN, &ota_handle);
     if (err != ESP_OK) {
-        Serial.print(F("[OTA] esp_ota_begin failed: "));
-        Serial.println(esp_err_to_name(err));
+        log_e("[OTA] esp_ota_begin failed: %s", esp_err_to_name(err));
         return error_type::OtaBeginFailed;
     }
 
@@ -648,8 +585,7 @@ photo_frame_error_t OTAUpdate::begin_ota_update() {
 }
 
 photo_frame_error_t OTAUpdate::download_and_install_firmware(const String& firmware_url) {
-    Serial.print(F("[OTA] Downloading firmware from: "));
-    Serial.println(firmware_url);
+    log_i("[OTA] Downloading firmware from: %s", firmware_url.c_str());
 
     // Configure HTTP client for firmware download
     if (config.use_ssl && secure_client) {
@@ -669,21 +605,18 @@ photo_frame_error_t OTAUpdate::download_and_install_firmware(const String& firmw
     // Accept both OK and redirect responses
     if (http_code != HTTP_CODE_OK && http_code != HTTP_CODE_FOUND &&
         http_code != HTTP_CODE_MOVED_PERMANENTLY) {
-        Serial.print(F("[OTA] Firmware download failed, HTTP code: "));
-        Serial.println(http_code);
+        log_e("[OTA] Firmware download failed, HTTP code: %d", http_code);
         http_client.end();
         return error_type::OtaDownloadFailed;
     }
 
-    Serial.print(F("[OTA] HTTP response code: "));
-    Serial.println(http_code);
+    log_i("[OTA] HTTP response code: %d", http_code);
 
     progress.total_size      = http_client.getSize();
     progress.downloaded_size = 0;
     progress.status          = ota_status_t::DOWNLOADING;
 
-    Serial.print(F("[OTA] Firmware size: "));
-    Serial.println(progress.total_size);
+    log_i("[OTA] Firmware size: %d", progress.total_size);
 
     // Download and write firmware in chunks
     WiFiClient* stream = http_client.getStreamPtr();
@@ -697,14 +630,14 @@ photo_frame_error_t OTAUpdate::download_and_install_firmware(const String& firmw
            (progress.downloaded_size < progress.total_size || progress.total_size == -1)) {
         // Check for download timeout
         if (millis() - download_start_time > max_download_time) {
-            Serial.println(F("[OTA] Download timeout - aborting"));
+            log_e("[OTA] Download timeout - aborting");
             http_client.end();
             return error_type::OtaDownloadFailed;
         }
 
         // Check if we have a valid total size and have completed download
         if (progress.total_size > 0 && progress.downloaded_size >= progress.total_size) {
-            Serial.println(F("[OTA] Download completed"));
+            log_i("[OTA] Download completed");
             break;
         }
 
@@ -714,8 +647,7 @@ photo_frame_error_t OTAUpdate::download_and_install_firmware(const String& firmw
 
             esp_err_t err    = esp_ota_write(ota_handle, buffer, read_size);
             if (err != ESP_OK) {
-                Serial.print(F("[OTA] esp_ota_write failed: "));
-                Serial.println(esp_err_to_name(err));
+                log_e("[OTA] esp_ota_write failed: %s", esp_err_to_name(err));
                 http_client.end();
                 return error_type::OtaWriteFailed;
             }
@@ -729,13 +661,7 @@ photo_frame_error_t OTAUpdate::download_and_install_firmware(const String& firmw
                 static uint8_t last_percent = 0;
                 if (progress.progress_percent >= last_percent + 10 &&
                     progress.progress_percent <= 100) {
-                    Serial.print(F("[OTA] Progress: "));
-                    Serial.print(progress.progress_percent);
-                    Serial.print(F("% ("));
-                    Serial.print(progress.downloaded_size);
-                    Serial.print(F("/"));
-                    Serial.print(progress.total_size);
-                    Serial.println(F(" bytes)"));
+                    log_i("[OTA] Progress: %u%% (%u/%d bytes)", progress.progress_percent, progress.downloaded_size, progress.total_size);
                     last_percent = progress.progress_percent;
                 }
             }
@@ -759,9 +685,7 @@ photo_frame_error_t OTAUpdate::download_and_install_firmware(const String& firmw
 
     http_client.end();
 
-    Serial.print(F("[OTA] Downloaded "));
-    Serial.print(progress.downloaded_size);
-    Serial.println(F(" bytes"));
+    log_i("[OTA] Downloaded %u bytes", progress.downloaded_size);
 
     return error_type::None;
 }
@@ -770,19 +694,17 @@ photo_frame_error_t OTAUpdate::finalize_ota_update() {
     progress.status  = ota_status_t::INSTALLING;
     progress.message = "Installing firmware...";
 
-    Serial.println(F("[OTA] Finalizing OTA update"));
+    log_i("[OTA] Finalizing OTA update");
 
     esp_err_t err = esp_ota_end(ota_handle);
     if (err != ESP_OK) {
-        Serial.print(F("[OTA] esp_ota_end failed: "));
-        Serial.println(esp_err_to_name(err));
+        log_e("[OTA] esp_ota_end failed: %s", esp_err_to_name(err));
         return error_type::OtaEndFailed;
     }
 
     err = esp_ota_set_boot_partition(ota_partition);
     if (err != ESP_OK) {
-        Serial.print(F("[OTA] esp_ota_set_boot_partition failed: "));
-        Serial.println(esp_err_to_name(err));
+        log_e("[OTA] esp_ota_set_boot_partition failed: %s", esp_err_to_name(err));
         return error_type::OtaSetBootPartitionFailed;
     }
 
@@ -804,7 +726,7 @@ void OTAUpdate::cleanup_ota_resources() {
 
     // Reset watchdog if it was configured for OTA
     if (is_update_in_progress) {
-        Serial.println(F("[OTA] Resetting watchdog configuration"));
+        log_i("[OTA] Resetting watchdog configuration");
         esp_task_wdt_reset();
     }
 }
@@ -819,57 +741,46 @@ bool OTAUpdate::is_newer_version(int latest_major, int latest_minor, int latest_
 #error "FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, and FIRMWARE_VERSION_PATCH must be defined"
 #endif
 
-    Serial.print(F("[OTA] Current version: "));
-    Serial.print(current_major);
-    Serial.print(F("."));
-    Serial.print(current_minor);
-    Serial.print(F("."));
-    Serial.println(current_patch);
-
-    Serial.print(F("[OTA] Latest version: "));
-    Serial.print(latest_major);
-    Serial.print(F("."));
-    Serial.print(latest_minor);
-    Serial.print(F("."));
-    Serial.println(latest_patch);
+    log_i("[OTA] Current version: %d.%d.%d", current_major, current_minor, current_patch);
+    log_i("[OTA] Latest version: %d.%d.%d", latest_major, latest_minor, latest_patch);
 
     // Semantic version comparison: major.minor.patch
     if (latest_major > current_major) {
-        Serial.println(F("[OTA] Newer version available (major)"));
+        log_i("[OTA] Newer version available (major)");
         return true;
     }
     if (latest_major < current_major) {
-        Serial.println(F("[OTA] Current version is newer (major)"));
+        log_i("[OTA] Current version is newer (major)");
         return false;
     }
 
     // Major versions are equal, check minor
     if (latest_minor > current_minor) {
-        Serial.println(F("[OTA] Newer version available (minor)"));
+        log_i("[OTA] Newer version available (minor)");
         return true;
     }
     if (latest_minor < current_minor) {
-        Serial.println(F("[OTA] Current version is newer (minor)"));
+        log_i("[OTA] Current version is newer (minor)");
         return false;
     }
 
     // Major and minor versions are equal, check patch
     if (latest_patch > current_patch) {
-        Serial.println(F("[OTA] Newer version available (patch)"));
+        log_i("[OTA] Newer version available (patch)");
         return true;
     }
     if (latest_patch < current_patch) {
-        Serial.println(F("[OTA] Current version is newer (patch)"));
+        log_i("[OTA] Current version is newer (patch)");
         return false;
     }
 
-    Serial.println(F("[OTA] Versions are equal"));
+    log_i("[OTA] Versions are equal");
     return false; // Versions are equal
 }
 
 void OTAUpdate::cancel_update() {
     if (is_update_in_progress) {
-        Serial.println(F("[OTA] Cancelling OTA update"));
+        log_i("[OTA] Cancelling OTA update");
         cleanup_ota_resources();
         is_update_in_progress = false;
         progress.status       = ota_status_t::FAILED;
@@ -882,46 +793,27 @@ void OTAUpdate::print_partition_info() {
     const esp_partition_t* boot    = esp_ota_get_boot_partition();
     const esp_partition_t* next    = esp_ota_get_next_update_partition(nullptr);
 
-    Serial.println(F("[OTA] Partition Information:"));
+    log_i("[OTA] Partition Information:");
 
     if (running) {
-        Serial.print(F("[OTA] Running partition: "));
-        Serial.print(running->label);
-        Serial.print(F(" ("));
-        Serial.print(running->address, HEX);
-        Serial.print(F(", size: "));
-        Serial.print(running->size);
-        Serial.println(F(")"));
+        log_i("[OTA] Running partition: %s (0x%x, size: %u)", running->label, running->address, running->size);
     }
 
     if (boot) {
-        Serial.print(F("[OTA] Boot partition: "));
-        Serial.print(boot->label);
-        Serial.print(F(" ("));
-        Serial.print(boot->address, HEX);
-        Serial.print(F(", size: "));
-        Serial.print(boot->size);
-        Serial.println(F(")"));
+        log_i("[OTA] Boot partition: %s (0x%x, size: %u)", boot->label, boot->address, boot->size);
     }
 
     if (next) {
-        Serial.print(F("[OTA] Next OTA partition: "));
-        Serial.print(next->label);
-        Serial.print(F(" ("));
-        Serial.print(next->address, HEX);
-        Serial.print(F(", size: "));
-        Serial.print(next->size);
-        Serial.println(F(")"));
+        log_i("[OTA] Next OTA partition: %s (0x%x, size: %u)", next->label, next->address, next->size);
     }
 }
 
 void OTAUpdate::mark_firmware_valid() {
     esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
     if (err == ESP_OK) {
-        Serial.println(F("[OTA] Firmware marked as valid"));
+        log_i("[OTA] Firmware marked as valid");
     } else {
-        Serial.print(F("[OTA] Failed to mark firmware as valid: "));
-        Serial.println(esp_err_to_name(err));
+        log_e("[OTA] Failed to mark firmware as valid: %s", esp_err_to_name(err));
     }
 }
 

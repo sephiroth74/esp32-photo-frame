@@ -30,7 +30,7 @@ namespace photo_frame {
  * @brief Load fallback configuration values from config.h defines
  */
 void load_fallback_config(unified_config& config) {
-    Serial.println(F("[unified_config] Loading fallback configuration from config.h"));
+    log_i("[unified_config] Loading fallback configuration from config.h");
 
     // WiFi - no fallback, must be provided
     config.wifi.ssid = "";
@@ -72,37 +72,34 @@ void load_fallback_config(unified_config& config) {
 photo_frame_error_t load_unified_config(sd_card& sdCard,
                                        const char* config_path,
                                        unified_config& config) {
-    Serial.print(F("[unified_config] Loading configuration from: "));
-    Serial.println(config_path);
+    log_i("[unified_config] Loading configuration from: %s", config_path);
 
     if (!sdCard.is_initialized()) {
-        Serial.println(F("[unified_config] SD card not initialized"));
+        log_e("[unified_config] SD card not initialized");
         return error_type::CardMountFailed;
     }
 
     if (!sdCard.file_exists(config_path)) {
-        Serial.println(F("[unified_config] Configuration file not found"));
+        log_e("[unified_config] Configuration file not found");
         return error_type::SdCardFileNotFound;
     }
 
     // Open configuration file
     fs::File config_file = sdCard.open(config_path, FILE_READ);
     if (!config_file) {
-        Serial.println(F("[unified_config] Failed to open configuration file"));
+        log_e("[unified_config] Failed to open configuration file");
         return error_type::CardOpenFileFailed;
     }
 
     // Read file size
     size_t file_size = config_file.size();
     if (file_size == 0) {
-        Serial.println(F("[unified_config] Configuration file is empty"));
+        log_e("[unified_config] Configuration file is empty");
         config_file.close();
         return error_type::SdCardFileNotFound; // Treat empty file as not found
     }
 
-    Serial.print(F("[unified_config] Configuration file size: "));
-    Serial.print(file_size);
-    Serial.println(F(" bytes"));
+    log_d("[unified_config] Configuration file size: %lu bytes", file_size);
 
     // Allocate buffer for JSON parsing using PSRAM
     size_t buffer_size = file_size + 512; // Extra space for JSON parsing
@@ -112,7 +109,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     }
 
     if (!buffer) {
-        Serial.println(F("[unified_config] Failed to allocate buffer for config"));
+        log_e("[unified_config] Failed to allocate buffer for config");
         config_file.close();
         return error_type::CardOpenFileFailed; // Use available error type
     }
@@ -122,7 +119,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     config_file.close();
 
     if (bytes_read != file_size) {
-        Serial.println(F("[unified_config] Failed to read complete configuration file"));
+        log_e("[unified_config] Failed to read complete configuration file");
         free(buffer);
         return error_type::CardOpenFileFailed; // Use available error type
     }
@@ -135,8 +132,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     free(buffer);
 
     if (json_error) {
-        Serial.print(F("[unified_config] JSON parsing failed: "));
-        Serial.println(json_error.c_str());
+        log_e("[unified_config] JSON parsing failed: %s", json_error.c_str());
         return error_type::JsonParseFailed;
     }
 
@@ -145,6 +141,10 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         JsonObject wifi_obj = doc["wifi"];
         config.wifi.ssid = wifi_obj["ssid"].as<String>();
         config.wifi.password = wifi_obj["password"].as<String>();
+
+        log_d("[unified_config] WiFi configuration - SSID: %s, Password: %s", config.wifi.ssid.c_str(), config.wifi.password.c_str());
+    } else {
+        log_w("[unified_config] WiFi configuration missing");
     }
 
     // Extract board configuration
@@ -171,28 +171,31 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
                 config.board.refresh.max_seconds = config.board.refresh.min_seconds;
             }
 
-            Serial.print(F("[unified_config] Refresh config - min: "));
-            Serial.print(config.board.refresh.min_seconds);
-            Serial.print(F("s, max: "));
-            Serial.print(config.board.refresh.max_seconds);
-            Serial.print(F("s, step: "));
-            Serial.print(config.board.refresh.step);
-            Serial.print(F("s, multiplier: "));
-            Serial.println(config.board.refresh.low_battery_multiplier);
+            log_d("[unified_config] Refresh config - min: %d", config.board.refresh.min_seconds);
+            log_d("[unified_config] Refresh config - max: %d", config.board.refresh.max_seconds);
+            log_d("[unified_config] Refresh config - step: %d", config.board.refresh.step);
+            log_d("[unified_config] Refresh config - low battery multiplier: %d", config.board.refresh.low_battery_multiplier);
+        } else {
+            log_w("[unified_config] Board configuration missing 'refresh'");
         }
 
         // Load and validate day hours (0-23)
+
+        if(!board_obj.containsKey("day_start_hour") || !board_obj.containsKey("day_end_hour")) {
+            log_w("[unified_config] Board configuration missing 'day_start_hour' or 'day_end_hour'");
+        }
+
         uint8_t start_hour = board_obj["day_start_hour"] | DAY_START_HOUR;
         uint8_t end_hour = board_obj["day_end_hour"] | DAY_END_HOUR;
 
         config.board.day_start_hour = min(start_hour, (uint8_t)23);
         config.board.day_end_hour = min(end_hour, (uint8_t)23);
 
-        Serial.print(F("[unified_config] Day schedule - start: "));
-        Serial.print(config.board.day_start_hour);
-        Serial.print(F("h, end: "));
-        Serial.print(config.board.day_end_hour);
-        Serial.println(F("h"));
+        log_d("[unified_config] Day schedule - start: %d", config.board.day_start_hour);
+        log_d("[unified_config] Day schedule - end: %d", config.board.day_end_hour);
+
+    } else {
+        log_w("[unified_config] Board configuration missing 'board_config'");
     }
 
     // Extract Google Drive configuration
@@ -204,6 +207,12 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.auth.service_account_email = auth_obj["service_account_email"].as<String>();
             config.google_drive.auth.private_key_pem = auth_obj["private_key_pem"].as<String>();
             config.google_drive.auth.client_id = auth_obj["client_id"].as<String>();
+
+            log_d("[unified_config] Google Drive authentication - email: %s", config.google_drive.auth.service_account_email.c_str());
+            log_d("[unified_config] Google Drive authentication - client ID: %s", config.google_drive.auth.client_id.c_str());
+
+        } else {
+            log_w("[unified_config] Google Drive configuration missing 'authentication'");
         }
 
         if (gd_obj.containsKey("drive")) {
@@ -212,12 +221,22 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.drive.root_ca_path = drive_obj["root_ca_path"].as<String>();
             config.google_drive.drive.list_page_size = min(drive_obj["list_page_size"] | GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE, GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
             config.google_drive.drive.use_insecure_tls = drive_obj["use_insecure_tls"] | true;
+
+            log_d("[unified_config] Google Drive configuration - folder ID: %s", config.google_drive.drive.folder_id.c_str());
+            log_d("[unified_config] Google Drive configuration - root CA path: %s", config.google_drive.drive.root_ca_path.c_str());
+            log_d("[unified_config] Google Drive configuration - list page size: %d", config.google_drive.drive.list_page_size);
+            log_d("[unified_config] Google Drive configuration - use insecure TLS: %s", config.google_drive.drive.use_insecure_tls ? "true" : "false");
+
+        } else {
+            log_w("[unified_config] Google Drive configuration missing 'drive'");
         }
 
         if (gd_obj.containsKey("caching")) {
             JsonObject cache_obj = gd_obj["caching"];
             config.google_drive.caching.local_path = cache_obj["local_path"] | "/gdrive";
             config.google_drive.caching.toc_max_age_seconds = cache_obj["toc_max_age_seconds"] | GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
+        } else {
+            log_w("[unified_config] Google Drive configuration missing 'caching'");
         }
 
         if (gd_obj.containsKey("rate_limiting")) {
@@ -228,7 +247,11 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.rate_limiting.max_retry_attempts = rate_obj["max_retry_attempts"] | GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS;
             config.google_drive.rate_limiting.backoff_base_delay_ms = rate_obj["backoff_base_delay_ms"] | GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS;
             config.google_drive.rate_limiting.max_wait_time_ms = rate_obj["max_wait_time_ms"] | GOOGLE_DRIVE_MAX_WAIT_TIME_MS;
+        } else {
+            log_w("[unified_config] Google Drive configuration missing 'rate_limiting'");
         }
+    } else {
+        log_w("[unified_config] Google Drive configuration missing: 'google_drive_config'");
     }
 
     // Extract weather configuration
@@ -245,9 +268,11 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         config.weather.temperature_unit = weather_obj["temperature_unit"] | "celsius";
         config.weather.wind_speed_unit = weather_obj["wind_speed_unit"] | "kmh";
         config.weather.precipitation_unit = weather_obj["precipitation_unit"] | "mm";
+    } else {
+        log_d("[unified_config] Weather configuration missing");
     }
 
-    Serial.println(F("[unified_config] Configuration loaded successfully"));
+    log_d("[unified_config] Configuration loaded successfully");
     return error_type::None;
 }
 
@@ -258,7 +283,7 @@ photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
     photo_frame_error_t result = load_unified_config(sdCard, config_path, config);
 
     if (result != error_type::None) {
-        Serial.println(F("[unified_config] Failed to load config from file, using fallbacks"));
+        log_w("[unified_config] Failed to load config from file, using fallbacks");
         load_fallback_config(config);
 
         // Return success even if file read failed, since we have fallbacks

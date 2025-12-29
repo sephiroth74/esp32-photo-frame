@@ -149,15 +149,16 @@ class sd_card {
      * (MMC, SDSC, SDHC, etc.) for debugging and informational purposes.
      */
     void print_card_type() const {
-        Serial.print("Card Type: ");
+        const char* card_type_str;
         switch (cardType) {
-        case CARD_MMC:     Serial.println("MMC"); break;
-        case CARD_SD:      Serial.println("SDSC"); break;
-        case CARD_SDHC:    Serial.println("SDHC"); break;
-        case CARD_UNKNOWN: Serial.println("Unknown"); break;
-        case CARD_NONE:    Serial.println("No SD card attached!"); break;
-        default:           Serial.println("Unknown card type!"); break;
+        case CARD_MMC:     card_type_str = "MMC"; break;
+        case CARD_SD:      card_type_str = "SDSC"; break;
+        case CARD_SDHC:    card_type_str = "SDHC"; break;
+        case CARD_UNKNOWN: card_type_str = "Unknown"; break;
+        case CARD_NONE:    card_type_str = "No SD card attached!"; break;
+        default:           card_type_str = "Unknown card type!"; break;
         }
+        log_i("Card Type: %s", card_type_str);
     }
 
     /**

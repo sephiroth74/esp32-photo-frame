@@ -207,7 +207,7 @@ The photo frame uses a unified configuration system with a single `/config.json`
     "ssid": "YourNetworkName",
     "password": "YourPassword"
   },
-  "google_drive": {
+  "google_drive_config": {
     "authentication": {
       "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
@@ -219,7 +219,7 @@ The photo frame uses a unified configuration system with a single `/config.json`
       "use_insecure_tls": false
     }
   },
-  "weather": {
+  "weather_config": {
     "enabled": false
   }
 }
@@ -233,7 +233,7 @@ The photo frame uses a unified configuration system with a single `/config.json`
     "ssid": "YourNetworkName",
     "password": "YourPassword"
   },
-  "google_drive": {
+  "google_drive_config": {
     "authentication": {
       "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
@@ -255,7 +255,7 @@ The photo frame uses a unified configuration system with a single `/config.json`
       "min_request_delay_ms": 500
     }
   },
-  "weather": {
+  "weather_config": {
     "enabled": true,
     "latitude": 40.7128,
     "longitude": -74.0060,
@@ -268,7 +268,7 @@ The photo frame uses a unified configuration system with a single `/config.json`
     "wind_speed_unit": "kmh",
     "precipitation_unit": "mm"
   },
-  "board": {
+  "board_config": {
     "day_start_hour": 6,
     "day_end_hour": 23,
     "refresh": {

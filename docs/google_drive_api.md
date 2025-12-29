@@ -64,7 +64,7 @@ Initialize Google Drive client from unified configuration structure.
     "ssid": "YourWiFiNetwork",
     "password": "YourWiFiPassword"
   },
-  "google_drive": {
+  "google_drive_config": {
     "authentication": {
       "service_account_email": "your-service-account@project.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
@@ -89,10 +89,10 @@ Initialize Google Drive client from unified configuration structure.
       "max_wait_time_ms": 30000
     }
   },
-  "weather": {
+  "weather_config": {
     // ... weather config
   },
-  "board": {
+  "board_config": {
     // ... board config
   }
 }
