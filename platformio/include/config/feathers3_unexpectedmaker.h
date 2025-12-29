@@ -4,13 +4,6 @@
 // Pin definitions based on FeatherS3 pinout
 // https://esp32s3.com/feathers3.html
 
-// -------------------------------------------
-// OTA Update Configuration
-// -------------------------------------------
-
-
-#define OTA_USE_SSL true // Use HTTPS for secure updates
-
 // Pin definitions for FeatherS3 (ESP32-S3) - Based on actual pinout
 // SD Card - using SD_MMC (SDIO interface) with available pins
 #define SD_MMC_CLK_PIN 14 // SDIO CLK - IO14 (left side)

@@ -31,7 +31,6 @@ RGBStatus rgbStatus;
 const StatusConfig RGBStatus::STATUS_CONFIGS[] = {
     {SystemState::IDLE,             RGBColors::DARK_BLUE,  RGBEffect::SOLID,      0,    24},
     {SystemState::STARTING,         RGBColors::WHITE,      RGBEffect::PULSE,      3000, 64},
-    {SystemState::OTA_UPDATING,     RGBColors::DARK_GREEN, RGBEffect::BLINK_SLOW, 0,    64},
     {SystemState::WIFI_CONNECTING,  RGBColors::BLUE,       RGBEffect::PULSE,      0,    64},
     {SystemState::WIFI_FAILED,      RGBColors::RED,        RGBEffect::BLINK_SLOW, 0,    64},
     {SystemState::WEATHER_FETCHING, RGBColors::GREEN,      RGBEffect::PULSE,      0,    48},

@@ -361,31 +361,6 @@
 #error "WEATHER_MAX_AGE_SECONDS must be between 30 minutes and 24 hours"
 #endif
 
-// ============================================================================
-// OTA UPDATE SYSTEM VALIDATION
-// ============================================================================
-
-#ifdef OTA_UPDATE_ENABLED
-/// Validate OTA check interval is reasonable (1 hour to 30 days)
-#if OTA_CHECK_INTERVAL_HOURS < 1 || OTA_CHECK_INTERVAL_HOURS > (30 * 24)
-#error "OTA_CHECK_INTERVAL_HOURS must be between 1 hour and 30 days"
-#endif
-
-/// Validate OTA minimum battery percentage is reasonable
-#if OTA_MIN_BATTERY_PERCENT < 10 || OTA_MIN_BATTERY_PERCENT > 90
-#error "OTA_MIN_BATTERY_PERCENT must be between 10 and 90"
-#endif
-
-/// Validate OTA timeout is reasonable (10 seconds to 10 minutes)
-#if OTA_TIMEOUT_MS < 10000 || OTA_TIMEOUT_MS > 600000
-#error "OTA_TIMEOUT_MS must be between 10000 and 600000 milliseconds (10 seconds to 10 minutes)"
-#endif
-
-/// Validate OTA buffer size is reasonable (512 bytes to 8KB)
-#if OTA_BUFFER_SIZE < 512 || OTA_BUFFER_SIZE > 8192
-#error "OTA_BUFFER_SIZE must be between 512 and 8192 bytes"
-#endif
-#endif // OTA_UPDATE_ENABLED
 
 // ============================================================================
 // RUNTIME DATA DEFINITIONS
@@ -456,7 +431,6 @@ const size_t ALLOWED_EXTENSIONS_COUNT = sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof
  * 5. SYSTEM RELIABILITY
  *    - File paths and storage thresholds are sensible
  *    - Power management settings ensure stable operation
- *    - OTA update safety requirements are met
  *
  * All validation is performed at compile time, ensuring that configuration
  * errors are caught early in the development process rather than at runtime.

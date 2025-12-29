@@ -193,45 +193,4 @@ extern const char TXT_CHARGING_CIRCUIT_FAULT[];
 extern const char TXT_BATTERY_NOT_DETECTED[];
 extern const char TXT_BATTERY_AUTHENTICATION_FAILED[];
 
-#ifdef OTA_UPDATE_ENABLED
-// OTA Update Errors (500-520)
-extern const char TXT_OTA_INIT_FAILED[];
-extern const char TXT_OTA_VERSION_CHECK_FAILED[];
-extern const char TXT_OTA_INVALID_RESPONSE[];
-extern const char TXT_OTA_UPDATE_IN_PROGRESS[];
-extern const char TXT_INSUFFICIENT_SPACE[];
-extern const char TXT_OTA_PARTITION_NOT_FOUND[];
-extern const char TXT_OTA_BEGIN_FAILED[];
-extern const char TXT_OTA_DOWNLOAD_FAILED[];
-extern const char TXT_OTA_WRITE_FAILED[];
-extern const char TXT_OTA_END_FAILED[];
-extern const char TXT_OTA_SET_BOOT_PARTITION_FAILED[];
-extern const char TXT_OTA_VERSION_INCOMPATIBLE[];
-extern const char TXT_NO_UPDATE_NEEDED[];
-
-// OTA Integration Messages
-extern const char TEXT_OTA_SYSTEM_INITIALIZED[];
-extern const char TEXT_OTA_FIRST_BOOT_AFTER_UPDATE[];
-extern const char TEXT_OTA_RUNNING_FROM_PARTITION[];
-extern const char TEXT_OTA_UPDATE_IN_PROGRESS[];
-extern const char TEXT_OTA_BATTERY_TOO_LOW[];
-extern const char TEXT_OTA_UPDATE_AVAILABLE[];
-extern const char TEXT_OTA_UPDATE_FAILED[];
-extern const char TEXT_OTA_FIRMWARE_UP_TO_DATE[];
-extern const char TEXT_OTA_UPDATE_CHECK_FAILED[];
-extern const char TEXT_OTA_PROGRESS[];
-extern const char TEXT_OTA_BYTES[];
-extern const char TEXT_OTA_UPDATE_COMPLETED[];
-extern const char TEXT_OTA_UPDATE_CANCELLED[];
-extern const char TEXT_OTA_SYSTEM_IDLE[];
-extern const char TEXT_OTA_STATUS[];
-extern const char TEXT_OTA_STATUS_NOT_STARTED[];
-extern const char TEXT_OTA_STATUS_CHECKING[];
-extern const char TEXT_OTA_STATUS_DOWNLOADING[];
-extern const char TEXT_OTA_STATUS_INSTALLING[];
-extern const char TEXT_OTA_STATUS_COMPLETED[];
-extern const char TEXT_OTA_STATUS_FAILED[];
-extern const char TEXT_OTA_STATUS_UP_TO_DATE[];
-#endif // OTA_UPDATE_ENABLED
-
 #endif

@@ -95,10 +95,4 @@ bool PreferencesHelper::setLastCleanup(time_t timestamp) {
     return putULong("last_cleanup", timestamp);
 }
 
-time_t PreferencesHelper::getOtaLastCheck() { return getULong("ota_last_check", 0); }
-
-bool PreferencesHelper::setOtaLastCheck(time_t timestamp) {
-    return putULong("ota_last_check", timestamp);
-}
-
 } // namespace photo_frame

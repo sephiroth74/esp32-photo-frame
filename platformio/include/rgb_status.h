@@ -79,7 +79,6 @@ struct RGBColor {
 enum class SystemState {
     IDLE,             // Off/Dark blue - system idle
     STARTING,         // White pulse - system starting up
-    OTA_UPDATING,     // Dark Green - performing OTA update
     WIFI_CONNECTING,  // Blue pulse - connecting to WiFi
     WIFI_FAILED,      // Red - WiFi connection failed
     WEATHER_FETCHING, // Light blue - fetching weather data

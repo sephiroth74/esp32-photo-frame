@@ -38,17 +38,11 @@
 // FIRMWARE VERSION INFORMATION
 // ============================================================================
 
-/// Current firmware version components (used for version comparison and OTA updates)
+/// Current firmware version
 #define FIRMWARE_VERSION_MAJOR  0
 #define FIRMWARE_VERSION_MINOR  9
 #define FIRMWARE_VERSION_PATCH  3
 #define FIRMWARE_VERSION_STRING "v0.9.3"
-
-/// Minimum supported version for OTA compatibility
-/// Devices with firmware older than this version must be manually updated
-#define OTA_MIN_SUPPORTED_VERSION_MAJOR 0
-#define OTA_MIN_SUPPORTED_VERSION_MINOR 4
-#define OTA_MIN_SUPPORTED_VERSION_PATCH 0
 
 // ============================================================================
 // HARDWARE CONFIGURATION
@@ -329,7 +323,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // #define DEBUG_WIFI                // Enable WiFi connection debug output
 // #define DEBUG_SD_CARD             // Enable SD card operations debug output
 // #define DEBUG_BOARD               // Enable board-specific debug output
-// #define DEBUG_OTA                 // Enable OTA update debug output
 
 /// Debug-specific settings
 // #define DEBUG_IMAGE_INDEX 381     // Force specific image for testing
@@ -345,42 +338,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 #include XSTR(LOCAL_CONFIG_FILE)
 
-// ============================================================================
-// OTA (Over-The-Air) UPDATE CONFIGURATION
-// ============================================================================
-
-/// OTA update system (conditional compilation)
-/// Enable OTA functionality by defining OTA_UPDATE_ENABLED in board config
-#ifdef OTA_UPDATE_ENABLED
-
-/// OTA server endpoints
-#define OTA_SERVER_URL         "https://api.github.com/repos/sephiroth74/esp32-photo-frame"
-#define OTA_VERSION_ENDPOINT   "/releases/latest"
-#define OTA_FIRMWARE_ENDPOINT  "/releases/download/{version}/firmware-{board}.bin"
-#define OTA_MANIFEST_URL       "https://github.com/sephiroth74/esp32-photo-frame/releases/latest/download/ota_manifest.json"
-
-/// OTA timing and safety settings
-#define OTA_CHECK_INTERVAL_HOURS 168   // Check interval (7 days)
-#define OTA_MIN_BATTERY_PERCENT  30    // Minimum battery level for OTA updates
-#define OTA_TIMEOUT_MS           30000 // 30 seconds timeout
-#define OTA_BUFFER_SIZE          1024  // 1KB buffer for download chunks
-
-/// OTA security settings
-// #define OTA_USE_SSL false  // SSL usage for OTA downloads (set to true for production)
-
-/// Board identification (automatically set from platformio.ini build flags)
-#ifdef OTA_BOARD_NAME
-#define OTA_CURRENT_BOARD_NAME OTA_BOARD_NAME
-#else
-#define OTA_CURRENT_BOARD_NAME "unknown"
-#endif // OTA_BOARD_NAME
-#endif // OTA_UPDATE_ENABLED
-
-#ifdef OTA_UPDATE_ENABLED
-#ifndef OTA_USE_SSL
-#define OTA_USE_SSL false // Default to true for security
-#endif                    // OTA_USE_SSL
-#endif                    // OTA_UPDATE_ENABLED
 
 /// Default value definitions with validation guards
 #ifndef BATTERY_CHARGING_MILLIVOLTS

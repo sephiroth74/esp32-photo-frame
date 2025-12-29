@@ -49,12 +49,12 @@ namespace photo_frame {
  * auto& prefs = PreferencesHelper::getInstance();
  *
  * // Store values
- * prefs.putULong("ota_last_check", time(NULL));
+ * prefs.putULong("last_cleanup", time(NULL));
  * prefs.putInt("refresh_interval", 3600);
  * prefs.putString("last_image", "image_123.bin");
  *
  * // Retrieve values with defaults
- * time_t last_check = prefs.getULong("ota_last_check", 0);
+ * time_t last_cleanup = prefs.getULong("last_cleanup", 0);
  * int interval = prefs.getInt("refresh_interval", 1800);
  * String image = prefs.getString("last_image", "");
  * @endcode
@@ -101,26 +101,6 @@ class PreferencesHelper {
      */
     bool setLastCleanup(time_t timestamp);
 
-    /**
-     * @brief Get the timestamp of the last OTA update check
-     *
-     * This method encapsulates the "ota_last_check" preference key
-     * and provides a type-safe way to retrieve the OTA check timestamp.
-     *
-     * @return Unix timestamp of last OTA check, or 0 if never performed
-     */
-    time_t getOtaLastCheck();
-
-    /**
-     * @brief Set the timestamp of the last OTA update check
-     *
-     * This method encapsulates the "ota_last_check" preference key
-     * and provides a type-safe way to store the OTA check timestamp.
-     *
-     * @param timestamp Unix timestamp of the OTA check operation
-     * @return true if successfully stored, false on error
-     */
-    bool setOtaLastCheck(time_t timestamp);
 
   private:
     /**

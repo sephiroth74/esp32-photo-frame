@@ -218,9 +218,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Optimized Partition Layout**: Eliminated factory partition and redistributed space for better utilization
-  - Increased OTA partitions from 4MB to 5MB each (+25% capacity for firmware growth)
+  - Expanded application partition from 4MB to 5MB (+25% capacity for firmware growth)
   - Expanded SPIFFS from 3.8MB to 5.84MB (+54% capacity for assets and cache)
-  - Improved upload address from 0x420000 to 0x20000 for direct ota_0 boot
+  - Improved upload address from 0x420000 to 0x20000 for direct boot
+  - Note: OTA (Over-The-Air update) functionality has been removed from the project
 - **PSRAM Streaming Optimization**: Enhanced HTTP client to leverage 8MB PSRAM efficiently
   - Replaced `getString()` with `getStreamPtr()` for chunked reading into PSRAM buffers
   - Uses `heap_caps_malloc(MALLOC_CAP_SPIRAM)` for direct PSRAM allocation

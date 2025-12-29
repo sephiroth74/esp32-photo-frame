@@ -4,12 +4,6 @@
 // Pin definitions based on ProS3 pinout
 // https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737
 
-// -------------------------------------------
-// OTA Update Configuration
-// -------------------------------------------
-
-#define OTA_USE_SSL true // Use HTTPS for secure updates
-
 // Pin definitions for ProS3(d) (ESP32-S3) - Based on actual pinout
 // Using SEPARATE SPI buses for SD card and e-Paper display to avoid conflicts
 //

@@ -48,10 +48,6 @@
 #include "google_drive.h"
 #include "google_drive_client.h"
 
-#ifdef OTA_UPDATE_ENABLED
-#include "ota_integration.h"
-#endif // OTA_UPDATE_ENABLED
-
 #ifdef ENABLE_DISPLAY_DIAGNOSTIC
 #include "display_debug.h"
 #endif // ENABLE_DISPLAY_DIAGNOSTIC
@@ -258,38 +254,7 @@ void setup()
         error = setup_time_and_connectivity(battery_info, is_reset, now);
     }
 
-#ifdef OTA_UPDATE_ENABLED
-    // Handle OTA updates only if battery level is sufficient
-    if (error == photo_frame::error_type::None && !battery_info.is_critical() && battery_info.percent >= OTA_MIN_BATTERY_PERCENT) {
-        log_i("--------------------------------------");
-        log_i("- Checking for OTA updates...");
-        log_i("--------------------------------------");
-
-        auto ota_error = photo_frame::initialize_ota_updates();
-        if (ota_error == photo_frame::error_type::None) {
-            log_i("OTA system initialized successfully");
-
-            ota_error = photo_frame::handle_ota_updates_setup(wakeup_reason);
-
-            if (ota_error == photo_frame::error_type::None) {
-                log_i("OTA check completed - no update needed");
-            } else if (ota_error == photo_frame::error_type::OtaVersionIncompatible) {
-                log_w("Current firmware is too old - manual update required");
-            } else if (ota_error == photo_frame::error_type::NoUpdateNeeded) {
-                log_i("Firmware is up to date");
-            } else {
-                log_e("OTA check failed: %d", ota_error.code);
-            }
-            // If update was successful, device would have restarted - this line won't execute
-        } else {
-            log_e("Failed to initialize OTA system: %d", ota_error.code);
-        }
-    } else {
-        log_w("Battery level too low for OTA updates (%d%% < %d%%)", battery_info.percent, OTA_MIN_BATTERY_PERCENT);
-    }
-#endif // OTA_UPDATE_ENABLED
-
-    // Handle weather operations after OTA updates
+    // Handle weather operations
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         auto weather_error = handle_weather_operations(battery_info, weatherManager);
         // Weather errors are not critical - don't update main error state
