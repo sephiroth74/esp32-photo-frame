@@ -106,21 +106,23 @@
 // User Interface Hardware Validation
 // ----------------------------------------------------------------------------
 
-/// Ensure potentiometer pins are defined
+#ifdef USE_POTENTIOMETER
+/// When USE_POTENTIOMETER is defined, ensure potentiometer pins are defined
 #if !defined(POTENTIOMETER_PWR_PIN) || !defined(POTENTIOMETER_INPUT_PIN)
-#error "POTENTIOMETER_PWR_PIN and POTENTIOMETER_INPUT_PIN must be defined"
+#error "POTENTIOMETER_PWR_PIN and POTENTIOMETER_INPUT_PIN must be defined when USE_POTENTIOMETER is enabled"
 #endif
 
 /// Ensure potentiometer maximum value is defined
 #if !defined(POTENTIOMETER_INPUT_MAX)
 #error \
-    "POTENTIOMETER_INPUT_MAX must be defined (typically 4095 for 12-bit ADC or 1023 for 10-bit ADC)"
+    "POTENTIOMETER_INPUT_MAX must be defined when USE_POTENTIOMETER is enabled (typically 4095 for 12-bit ADC or 1023 for 10-bit ADC)"
 #endif
 
 /// Validate potentiometer input range is reasonable
 #if POTENTIOMETER_INPUT_MAX < 255 || POTENTIOMETER_INPUT_MAX > 65535
 #error "POTENTIOMETER_INPUT_MAX must be between 255 and 65535"
 #endif
+#endif // USE_POTENTIOMETER
 
 // ----------------------------------------------------------------------------
 // Battery Sensor Validation

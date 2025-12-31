@@ -23,6 +23,7 @@
 #define EPD_MOSI_PIN 35  
 
 // Potentiometer pin - using analog pins
+#define USE_POTENTIOMETER
 #define POTENTIOMETER_PWR_PIN   33   // IO33 - available digital pin for power control
 #define POTENTIOMETER_INPUT_PIN 18   // A0 (IO17) - Analog pin from pinout
 #define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC

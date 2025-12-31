@@ -44,10 +44,11 @@ const char TXT_CONFIG_VALUE_OUT_OF_RANGE[] PROGMEM = "Value out of valid range";
 // COMPREHENSIVE ERROR SYSTEM - ENGLISH
 // ========================================
 
-// LittleFS Specific Errors (110-119)  
+// LittleFS Specific Errors (110-119)
 const char TXT_LITTLEFS_INIT_FAILED[] PROGMEM = "LittleFS initialization failed";
 const char TXT_LITTLEFS_FILE_CREATE_FAILED[] PROGMEM = "Failed to create LittleFS file";
 const char TXT_LITTLEFS_FILE_OPEN_FAILED[] PROGMEM = "Failed to open LittleFS file";
+const char TXT_FILE_COPY_FAILED[] PROGMEM = "Failed to copy file";
 
 
 

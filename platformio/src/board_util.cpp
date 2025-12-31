@@ -36,15 +36,15 @@ namespace board_utils {
 
     void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds)
     {
-        log_i("[board_util] Entering deep sleep...");
+        log_i("Entering deep sleep...");
         disable_built_in_led(); // Disable built-in LED before going to sleep
 
-        log_i("[board_util] Disabling peripherals...");
+        log_i("Disabling peripherals...");
         btStop(); // Stop Bluetooth to save power
         esp_bt_controller_disable(); // Disable Bluetooth controller
 
 #if defined(WAKEUP_EXT1)
-        log_i("[board_util] Configuring EXT1 wakeup on RTC IO pin...");
+        log_i("Configuring EXT1 wakeup on RTC IO pin...");
 
         // Test if pin supports RTC IO before configuration
         pinMode(WAKEUP_PIN, WAKEUP_PIN_MODE);
@@ -57,17 +57,17 @@ namespace board_utils {
         esp_err_t wakeup_result = esp_sleep_enable_ext1_wakeup(pin_mask, WAKEUP_LEVEL);
 
         if (wakeup_result == ESP_OK) {
-            log_i("[board_util] Testing RTC IO capability for GPIO %d... Pin state: %d | EXT1 config: SUCCESS", WAKEUP_PIN, pinState);
-            log_i("[board_util] GPIO %d configured for EXT1 wakeup with mask 0x%X, level: %s",
+            log_i("Testing RTC IO capability for GPIO %d... Pin state: %d | EXT1 config: SUCCESS", WAKEUP_PIN, pinState);
+            log_i("GPIO %d configured for EXT1 wakeup with mask 0x%X, level: %s",
                   WAKEUP_PIN, (uint32_t)pin_mask, WAKEUP_LEVEL == ESP_EXT1_WAKEUP_ANY_HIGH ? "HIGH" : "LOW");
-            log_i("[board_util] EXT1 wakeup source configured successfully");
+            log_i("EXT1 wakeup source configured successfully");
         } else {
-            log_e("[board_util] Testing RTC IO capability for GPIO %d... FAILED - Error code: %d", WAKEUP_PIN, wakeup_result);
-            log_e("[board_util] This GPIO pin does not support RTC IO / EXT1 wakeup!");
+            log_e("Testing RTC IO capability for GPIO %d... FAILED - Error code: %d", WAKEUP_PIN, wakeup_result);
+            log_e("This GPIO pin does not support RTC IO / EXT1 wakeup!");
         }
 
 #elif defined(WAKEUP_EXT0)
-        log_i("[board_util] Configuring EXT0 wakeup on RTC IO pin...");
+        log_i("Configuring EXT0 wakeup on RTC IO pin...");
 
         // Configure RTC GPIO for EXT0 wakeup (required for deep sleep)
         // First set regular GPIO mode for initial setup
@@ -89,19 +89,19 @@ namespace board_utils {
 
         // Verify pin is in expected idle state (should be HIGH with RTC pull-up)
         if (pinState != 1) {
-            log_w("[board_util] Testing RTC IO capability for GPIO %d... Pin state: %d - WARNING: Pin should be HIGH when idle - check wiring or RTC GPIO config", WAKEUP_PIN, pinState);
+            log_w("Testing RTC IO capability for GPIO %d... Pin state: %d - WARNING: Pin should be HIGH when idle - check wiring or RTC GPIO config", WAKEUP_PIN, pinState);
         } else {
-            log_i("[board_util] Testing RTC IO capability for GPIO %d... Pin state: %d - Pin correctly reads HIGH with RTC pull-up", WAKEUP_PIN, pinState);
+            log_i("Testing RTC IO capability for GPIO %d... Pin state: %d - Pin correctly reads HIGH with RTC pull-up", WAKEUP_PIN, pinState);
         }
 
         // Test EXT0 wakeup configuration
         esp_err_t wakeup_result = esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_LEVEL);
 
         if (wakeup_result == ESP_OK) {
-            log_i("[board_util] EXT0 config: SUCCESS");
+            log_i("EXT0 config: SUCCESS");
         } else {
-            log_e("[board_util] EXT0 config: FAILED - Error code: %d", wakeup_result);
-            log_e("[board_util] This GPIO pin does not support RTC IO / EXT0 wakeup!");
+            log_e("EXT0 config: FAILED - Error code: %d", wakeup_result);
+            log_e("This GPIO pin does not support RTC IO / EXT0 wakeup!");
         }
 
 #endif // WAKEUP_EXT1
@@ -109,7 +109,7 @@ namespace board_utils {
         bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
         if (delay_before_sleep) {
-            log_i("[board_util] Wakeup reason is undefined, delaying before sleep...");
+            log_i("Wakeup reason is undefined, delaying before sleep...");
             delay(DELAY_BEFORE_SLEEP);
         }
 
@@ -118,22 +118,22 @@ namespace board_utils {
         int finalPinState = digitalRead(WAKEUP_PIN);
 
         if (finalPinState == WAKEUP_LEVEL) {
-            log_w("[board_util] Final wakeup pin state before sleep: %d - WARNING: Wakeup pin is already at trigger level!", finalPinState);
-            log_w("[board_util] This would cause immediate wakeup - check button/wiring");
+            log_w("Final wakeup pin state before sleep: %d - WARNING: Wakeup pin is already at trigger level!", finalPinState);
+            log_w("This would cause immediate wakeup - check button/wiring");
         } else {
-            log_i("[board_util] Final wakeup pin state before sleep: %d", finalPinState);
+            log_i("Final wakeup pin state before sleep: %d", finalPinState);
         }
 #endif
 
         // Configure timer wakeup if refresh microseconds is provided
         if (refresh_microseconds > 0) {
-            log_i("[board_util] Configuring timer wakeup for %lu seconds", (unsigned long)(refresh_microseconds / 1000000ULL));
+            log_i("Configuring timer wakeup for %lu seconds", (unsigned long)(refresh_microseconds / 1000000ULL));
             esp_sleep_enable_timer_wakeup(refresh_microseconds);
         } else {
-            log_i("[board_util] No timer wakeup configured - will sleep indefinitely");
+            log_i("No timer wakeup configured - will sleep indefinitely");
         }
 
-        log_i("[board_util] Going to deep sleep now. Good night!");
+        log_i("Going to deep sleep now. Good night!");
         Serial.flush(); // Ensure all serial output is sent before sleeping
         esp_deep_sleep_start();
     }
@@ -194,33 +194,33 @@ namespace board_utils {
     void print_board_stats()
     {
 #ifdef DEBUG_BOARD
-        log_d("[board_util] Board Statistics:");
-        log_d("[board_util] Heap: %d", ESP.getHeapSize());
-        log_d("[board_util] Flash: %d", ESP.getFlashChipSize());
-        log_d("[board_util] Free Heap: %d", ESP.getFreeHeap());
-        log_d("[board_util] Free Flash: %d", ESP.getFreeSketchSpace());
-        log_d("[board_util] Free PSRAM: %d", ESP.getFreePsram());
-        log_d("[board_util] PSRAM Size: %d", ESP.getPsramSize());
+        log_d("Board Statistics:");
+        log_d("Heap: %d", ESP.getHeapSize());
+        log_d("Flash: %d", ESP.getFlashChipSize());
+        log_d("Free Heap: %d", ESP.getFreeHeap());
+        log_d("Free Flash: %d", ESP.getFreeSketchSpace());
+        log_d("Free PSRAM: %d", ESP.getFreePsram());
+        log_d("PSRAM Size: %d", ESP.getPsramSize());
 
         // PSRAM is mandatory for this configuration
-        log_d("[board_util] PSRAM is required and should be available");
+        log_d("PSRAM is required and should be available");
 
 #ifdef CONFIG_SPIRAM_SUPPORT
-        log_d("[board_util] CONFIG_SPIRAM_SUPPORT is defined");
+        log_d("CONFIG_SPIRAM_SUPPORT is defined");
 #else
-        log_d("[board_util] CONFIG_SPIRAM_SUPPORT is NOT defined");
+        log_d("CONFIG_SPIRAM_SUPPORT is NOT defined");
 #endif
 
         // Check if PSRAM is actually available
         if (ESP.getPsramSize() > 0) {
-            log_d("[board_util] PSRAM detected and available");
+            log_d("PSRAM detected and available");
         } else {
-            log_w("[board_util] WARNING: PSRAM not detected - check hardware/configuration");
+            log_w("WARNING: PSRAM not detected - check hardware/configuration");
         }
-        log_d("[board_util] Chip Model: %s", ESP.getChipModel());
-        log_d("[board_util] Chip Revision: %d", ESP.getChipRevision());
-        log_d("[board_util] Chip Cores: %d", ESP.getChipCores());
-        log_d("[board_util] CPU Freq: %d", ESP.getCpuFreqMHz());
+        log_d("Chip Model: %s", ESP.getChipModel());
+        log_d("Chip Revision: %d", ESP.getChipRevision());
+        log_d("Chip Cores: %d", ESP.getChipCores());
+        log_d("CPU Freq: %d", ESP.getCpuFreqMHz());
         log_d("-----------------------------");
 #endif // DEBUG_MODE
     } // print_board_stats
@@ -228,45 +228,46 @@ namespace board_utils {
     void disable_built_in_led()
     {
 #if defined(LED_BUILTIN)
-        log_i("[board_util] Disabling built-in LED on pin %d", LED_BUILTIN);
+        log_i("Disabling built-in LED on pin %d", LED_BUILTIN);
         pinMode(LED_BUILTIN, OUTPUT);
         digitalWrite(LED_BUILTIN, LOW); // Disable the built-in LED
 #else
-        log_w("[board_util] LED_BUILTIN is not defined! Cannot disable the built-in LED.");
+        log_w("LED_BUILTIN is not defined! Cannot disable the built-in LED.");
 #endif
     } // disable_builtin_led
 
     void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms)
     {
 #if defined(LED_BUILTIN)
-        log_i("[board_util] Blinking built-in LED on pin %d", LED_BUILTIN);
+        log_i("Blinking built-in LED on pin %d", LED_BUILTIN);
 
         pinMode(LED_BUILTIN, OUTPUT);
         for (int i = 0; i < count; i++) {
 #ifdef DEBUG_BOARD
-            log_d("[board_util] Blinking on..");
+            log_d("Blinking on..");
 #endif // DEBUG_BOARD
             digitalWrite(LED_BUILTIN, HIGH); // Turn the LED on
             delay(on_ms);
 #ifdef DEBUG_BOARD
-            log_d("[board_util] Blinking off..");
+            log_d("Blinking off..");
 #endif // DEBUG_BOARD
             digitalWrite(LED_BUILTIN, LOW); // Turn the LED off
             delay(off_ms);
         }
 #else
-        log_w("[board_util] LED_BUILTIN is not defined! Cannot blink the built-in LED.");
+        log_w("LED_BUILTIN is not defined! Cannot blink the built-in LED.");
 #endif
     } // blink_builtin_led
 
-    long read_refresh_seconds(bool is_battery_low)
+    long read_refresh_seconds(const unified_config& config, bool is_battery_low)
     {
-        log_i("[board_util] Reading potentiometer...");
-
         if (is_battery_low) {
-            log_i("[board_util] Battery level is low, skipping potentiometer reading.");
+            log_i("Battery level is low, using critical battery interval");
             return REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY;
         }
+
+#ifdef USE_POTENTIOMETER
+        log_i("Reading potentiometer...");
 
         // now read the level
 #if POTENTIOMETER_PWR_PIN > -1
@@ -291,7 +292,7 @@ namespace board_utils {
         level /= 10; // Average the result
 
 #ifdef DEBUG_BOARD
-        log_d("[board_util] Raw potentiometer pin reading: %lu", level);
+        log_d("Raw potentiometer pin reading: %lu", level);
 #endif // DEBUG_BOARD
 
         level = constrain(level, 0, POTENTIOMETER_INPUT_MAX); // Constrain the level to the maximum value
@@ -300,7 +301,7 @@ namespace board_utils {
         level = POTENTIOMETER_INPUT_MAX - level;
 
 #ifdef DEBUG_BOARD
-        log_d("[board_util] Potentiometer value: %lu", level);
+        log_d("Potentiometer value: %lu", level);
 #endif // DEBUG_BOARD
 
         // Use exponential mapping for better control at lower values
@@ -317,7 +318,7 @@ namespace board_utils {
         float exponential_position = linear_position * linear_position * linear_position;  // Cube the position for more aggressive exponential curve
 
 #ifdef DEBUG_BOARD
-        log_d("[board_util] Linear position: %.1f%% -> Exponential position: %.1f%%", linear_position * 100, exponential_position * 100);
+        log_d("Linear position: %.1f%% -> Exponential position: %.1f%%", linear_position * 100, exponential_position * 100);
 #endif // DEBUG_BOARD
 
         // Map the exponential position to refresh seconds
@@ -328,34 +329,47 @@ namespace board_utils {
         photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
 
 #ifdef DEBUG_BOARD
-        log_d("[board_util] Refresh seconds: %s", buffer);
+        log_d("Refresh seconds: %s", buffer);
 #endif // DEBUG_BOARD
 
         if (refresh_seconds > (REFRESH_MIN_INTERVAL_SECONDS)) {
             // increase the refresh seconds to the next step
-            log_i("[board_util] Increasing refresh seconds to the next step...");
+            log_i("Increasing refresh seconds to the next step...");
             refresh_seconds = (refresh_seconds / (long)REFRESH_STEP_SECONDS + 1) * (long)REFRESH_STEP_SECONDS;
         }
 
-        log_i("[board_util] Final refresh seconds: %ld", refresh_seconds);
+        log_i("Final refresh seconds: %ld", refresh_seconds);
 
         return refresh_seconds;
+#else
+        // USE_POTENTIOMETER not defined - use default value from config
+        long refresh_seconds = config.board.refresh.default_seconds;
+
+        // Apply low battery multiplier if needed
+        if (is_battery_low) {
+            refresh_seconds *= config.board.refresh.low_battery_multiplier;
+        }
+
+        log_i("Using default refresh interval from config: %ld seconds", refresh_seconds);
+
+        return refresh_seconds;
+#endif
     } // read_refresh_seconds
 
     void print_board_pins()
     {
-        log_i("[board_util] Board Pin Assignments:");
+        log_i("Board Pin Assignments:");
 #ifdef LED_BUILTIN
-        log_i("[board_util] LED_BUILTIN: %d", LED_BUILTIN);
+        log_i("LED_BUILTIN: %d", LED_BUILTIN);
 #else
-        log_i("[board_util] LED_BUILTIN: N/A");
+        log_i("LED_BUILTIN: N/A");
 #endif
-        log_i("[board_util] SDA: %d", SDA);
-        log_i("[board_util] SCL: %d", SCL);
-        log_i("[board_util] SCK: %d", SCK);
-        log_i("[board_util] MOSI: %d", MOSI);
-        log_i("[board_util] MISO: %d", MISO);
-        log_i("[board_util] CS: %d", SS);
+        log_i("SDA: %d", SDA);
+        log_i("SCL: %d", SCL);
+        log_i("SCK: %d", SCK);
+        log_i("MOSI: %d", MOSI);
+        log_i("MISO: %d", MISO);
+        log_i("CS: %d", SS);
     }
 
 } // namespace board_utils

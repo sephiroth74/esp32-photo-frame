@@ -40,9 +40,9 @@
 
 /// Current firmware version
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  9
-#define FIRMWARE_VERSION_PATCH  3
-#define FIRMWARE_VERSION_STRING "v0.9.3"
+#define FIRMWARE_VERSION_MINOR  10
+#define FIRMWARE_VERSION_PATCH  0
+#define FIRMWARE_VERSION_STRING "v0.10.0"
 
 // ============================================================================
 // HARDWARE CONFIGURATION
@@ -129,6 +129,8 @@
 // ----------------------------------------------------------------------------
 
 /// Potentiometer configuration for refresh rate adjustment
+/// When USE_POTENTIOMETER is not defined, board_config.refresh.default from config.json is used
+// #define USE_POTENTIOMETER              // Enable potentiometer for refresh rate adjustment
 // #define POTENTIOMETER_PWR_PIN    A6    // Power pin for potentiometer (optional)
 // #define POTENTIOMETER_INPUT_PIN  A7    // Analog input pin for potentiometer
 // #define POTENTIOMETER_INPUT_MIN  0     // Minimum ADC value (typically 0)
@@ -160,9 +162,10 @@
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY // Maximum sleep duration (24 hours)
 
 /// Display refresh timing configuration
-#define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)   // Minimum refresh interval (5 minutes) 
-#define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR)     // Maximum refresh interval (2 hours) 
-#define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE)   // Step size for refresh adjustment 
+#define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)   // Minimum refresh interval (5 minutes)
+#define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR)     // Maximum refresh interval (4 hours)
+#define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE)   // Step size for refresh adjustment
+#define REFRESH_DEFAULT_INTERVAL_SECONDS (30 * SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
 #define REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY (6 * SECONDS_IN_HOUR)  // Critical battery refresh interval
 #define REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER 3 // Multiplier for low battery refresh interval
 
@@ -427,6 +430,18 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
         #define GOOGLE_DRIVE_SAFETY_LIMIT 3145728  // 3MB safety limit for smaller flash
     #endif
 #endif
+
+#if defined(DISP_BW_V2)
+    #if defined(DISP_COLORED)
+        #undef DISP_COLORED
+    #endif
+#elif defined(DISP_7C)
+    #define DISP_COLORED
+#elif defined(DISP_6C)
+    #define DISP_COLORED
+#endif
+
+
 
 /// Display accent color determination (based on display type)
 #ifndef ACCENT_COLOR

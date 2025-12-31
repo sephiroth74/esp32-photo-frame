@@ -52,10 +52,11 @@
         "day_start_hour": 6,
         "day_end_hour": 23,
         "refresh": {
-            "_comment": "Refresh interval settings (in seconds) controlled by potentiometer",
+            "_comment": "Refresh interval settings (in seconds). If USE_POTENTIOMETER is defined, min/max/step control the potentiometer range. If not defined, 'default' sets the fixed refresh interval.",
             "min_seconds": 600,
             "max_seconds": 14400,
             "step": 300,
+            "default": 1800,
             "low_battery_multiplier": 3
         }
     }

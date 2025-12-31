@@ -30,7 +30,7 @@ namespace photo_frame {
  * @brief Load fallback configuration values from config.h defines
  */
 void load_fallback_config(unified_config& config) {
-    log_i("[unified_config] Loading fallback configuration from config.h");
+    log_i("Loading fallback configuration from config.h");
 
     // WiFi - no fallback, must be provided
     config.wifi.ssid = "";
@@ -40,6 +40,7 @@ void load_fallback_config(unified_config& config) {
     config.board.refresh.min_seconds = REFRESH_MIN_INTERVAL_SECONDS;
     config.board.refresh.max_seconds = REFRESH_MAX_INTERVAL_SECONDS;
     config.board.refresh.step = REFRESH_STEP_SECONDS;
+    config.board.refresh.default_seconds = REFRESH_DEFAULT_INTERVAL_SECONDS;
     config.board.refresh.low_battery_multiplier = REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER;
     config.board.day_start_hour = DAY_START_HOUR;
     config.board.day_end_hour = DAY_END_HOUR;
@@ -72,34 +73,34 @@ void load_fallback_config(unified_config& config) {
 photo_frame_error_t load_unified_config(sd_card& sdCard,
                                        const char* config_path,
                                        unified_config& config) {
-    log_i("[unified_config] Loading configuration from: %s", config_path);
+    log_i("Loading configuration from: %s", config_path);
 
     if (!sdCard.is_initialized()) {
-        log_e("[unified_config] SD card not initialized");
+        log_e("SD card not initialized");
         return error_type::CardMountFailed;
     }
 
     if (!sdCard.file_exists(config_path)) {
-        log_e("[unified_config] Configuration file not found");
+        log_e("Configuration file not found");
         return error_type::SdCardFileNotFound;
     }
 
     // Open configuration file
     fs::File config_file = sdCard.open(config_path, FILE_READ);
     if (!config_file) {
-        log_e("[unified_config] Failed to open configuration file");
+        log_e("Failed to open configuration file");
         return error_type::CardOpenFileFailed;
     }
 
     // Read file size
     size_t file_size = config_file.size();
     if (file_size == 0) {
-        log_e("[unified_config] Configuration file is empty");
+        log_e("Configuration file is empty");
         config_file.close();
         return error_type::SdCardFileNotFound; // Treat empty file as not found
     }
 
-    log_d("[unified_config] Configuration file size: %lu bytes", file_size);
+    log_d("Configuration file size: %lu bytes", file_size);
 
     // Allocate buffer for JSON parsing using PSRAM
     size_t buffer_size = file_size + 512; // Extra space for JSON parsing
@@ -109,7 +110,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     }
 
     if (!buffer) {
-        log_e("[unified_config] Failed to allocate buffer for config");
+        log_e("Failed to allocate buffer for config");
         config_file.close();
         return error_type::CardOpenFileFailed; // Use available error type
     }
@@ -119,7 +120,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     config_file.close();
 
     if (bytes_read != file_size) {
-        log_e("[unified_config] Failed to read complete configuration file");
+        log_e("Failed to read complete configuration file");
         free(buffer);
         return error_type::CardOpenFileFailed; // Use available error type
     }
@@ -132,7 +133,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     free(buffer);
 
     if (json_error) {
-        log_e("[unified_config] JSON parsing failed: %s", json_error.c_str());
+        log_e("JSON parsing failed: %s", json_error.c_str());
         return error_type::JsonParseFailed;
     }
 
@@ -142,9 +143,9 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         config.wifi.ssid = wifi_obj["ssid"].as<String>();
         config.wifi.password = wifi_obj["password"].as<String>();
 
-        log_d("[unified_config] WiFi configuration - SSID: %s, Password: %s", config.wifi.ssid.c_str(), config.wifi.password.c_str());
+        log_d("WiFi configuration - SSID: %s, Password: %s", config.wifi.ssid.c_str(), config.wifi.password.c_str());
     } else {
-        log_w("[unified_config] WiFi configuration missing");
+        log_w("WiFi configuration missing");
     }
 
     // Extract board configuration
@@ -158,6 +159,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             uint32_t min_seconds = refresh_obj["min_seconds"] | REFRESH_MIN_INTERVAL_SECONDS;
             uint32_t max_seconds = refresh_obj["max_seconds"] | REFRESH_MAX_INTERVAL_SECONDS;
             uint32_t step = refresh_obj["step"] | REFRESH_STEP_SECONDS;
+            uint32_t default_seconds = refresh_obj["default"] | REFRESH_DEFAULT_INTERVAL_SECONDS;
             uint8_t multiplier = refresh_obj["low_battery_multiplier"] | REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER;
 
             // Apply validation and capping
@@ -171,18 +173,23 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
                 config.board.refresh.max_seconds = config.board.refresh.min_seconds;
             }
 
-            log_d("[unified_config] Refresh config - min: %d", config.board.refresh.min_seconds);
-            log_d("[unified_config] Refresh config - max: %d", config.board.refresh.max_seconds);
-            log_d("[unified_config] Refresh config - step: %d", config.board.refresh.step);
-            log_d("[unified_config] Refresh config - low battery multiplier: %d", config.board.refresh.low_battery_multiplier);
+            // Validate and clamp default_seconds to be within [min, max] range
+            config.board.refresh.default_seconds = max(default_seconds, config.board.refresh.min_seconds);
+            config.board.refresh.default_seconds = min(config.board.refresh.default_seconds, config.board.refresh.max_seconds);
+
+            log_d("Refresh config - min: %d", config.board.refresh.min_seconds);
+            log_d("Refresh config - max: %d", config.board.refresh.max_seconds);
+            log_d("Refresh config - step: %d", config.board.refresh.step);
+            log_d("Refresh config - default: %d", config.board.refresh.default_seconds);
+            log_d("Refresh config - low battery multiplier: %d", config.board.refresh.low_battery_multiplier);
         } else {
-            log_w("[unified_config] Board configuration missing 'refresh'");
+            log_w("Board configuration missing 'refresh'");
         }
 
         // Load and validate day hours (0-23)
 
         if(!board_obj.containsKey("day_start_hour") || !board_obj.containsKey("day_end_hour")) {
-            log_w("[unified_config] Board configuration missing 'day_start_hour' or 'day_end_hour'");
+            log_w("Board configuration missing 'day_start_hour' or 'day_end_hour'");
         }
 
         uint8_t start_hour = board_obj["day_start_hour"] | DAY_START_HOUR;
@@ -191,11 +198,11 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         config.board.day_start_hour = min(start_hour, (uint8_t)23);
         config.board.day_end_hour = min(end_hour, (uint8_t)23);
 
-        log_d("[unified_config] Day schedule - start: %d", config.board.day_start_hour);
-        log_d("[unified_config] Day schedule - end: %d", config.board.day_end_hour);
+        log_d("Day schedule - start: %d", config.board.day_start_hour);
+        log_d("Day schedule - end: %d", config.board.day_end_hour);
 
     } else {
-        log_w("[unified_config] Board configuration missing 'board_config'");
+        log_w("Board configuration missing 'board_config'");
     }
 
     // Extract Google Drive configuration
@@ -208,11 +215,11 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.auth.private_key_pem = auth_obj["private_key_pem"].as<String>();
             config.google_drive.auth.client_id = auth_obj["client_id"].as<String>();
 
-            log_d("[unified_config] Google Drive authentication - email: %s", config.google_drive.auth.service_account_email.c_str());
-            log_d("[unified_config] Google Drive authentication - client ID: %s", config.google_drive.auth.client_id.c_str());
+            log_d("Google Drive authentication - email: %s", config.google_drive.auth.service_account_email.c_str());
+            log_d("Google Drive authentication - client ID: %s", config.google_drive.auth.client_id.c_str());
 
         } else {
-            log_w("[unified_config] Google Drive configuration missing 'authentication'");
+            log_w("Google Drive configuration missing 'authentication'");
         }
 
         if (gd_obj.containsKey("drive")) {
@@ -222,13 +229,13 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.drive.list_page_size = min(drive_obj["list_page_size"] | GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE, GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
             config.google_drive.drive.use_insecure_tls = drive_obj["use_insecure_tls"] | true;
 
-            log_d("[unified_config] Google Drive configuration - folder ID: %s", config.google_drive.drive.folder_id.c_str());
-            log_d("[unified_config] Google Drive configuration - root CA path: %s", config.google_drive.drive.root_ca_path.c_str());
-            log_d("[unified_config] Google Drive configuration - list page size: %d", config.google_drive.drive.list_page_size);
-            log_d("[unified_config] Google Drive configuration - use insecure TLS: %s", config.google_drive.drive.use_insecure_tls ? "true" : "false");
+            log_d("Google Drive configuration - folder ID: %s", config.google_drive.drive.folder_id.c_str());
+            log_d("Google Drive configuration - root CA path: %s", config.google_drive.drive.root_ca_path.c_str());
+            log_d("Google Drive configuration - list page size: %d", config.google_drive.drive.list_page_size);
+            log_d("Google Drive configuration - use insecure TLS: %s", config.google_drive.drive.use_insecure_tls ? "true" : "false");
 
         } else {
-            log_w("[unified_config] Google Drive configuration missing 'drive'");
+            log_w("Google Drive configuration missing 'drive'");
         }
 
         if (gd_obj.containsKey("caching")) {
@@ -236,7 +243,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.caching.local_path = cache_obj["local_path"] | "/gdrive";
             config.google_drive.caching.toc_max_age_seconds = cache_obj["toc_max_age_seconds"] | GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
         } else {
-            log_w("[unified_config] Google Drive configuration missing 'caching'");
+            log_w("Google Drive configuration missing 'caching'");
         }
 
         if (gd_obj.containsKey("rate_limiting")) {
@@ -248,10 +255,10 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             config.google_drive.rate_limiting.backoff_base_delay_ms = rate_obj["backoff_base_delay_ms"] | GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS;
             config.google_drive.rate_limiting.max_wait_time_ms = rate_obj["max_wait_time_ms"] | GOOGLE_DRIVE_MAX_WAIT_TIME_MS;
         } else {
-            log_w("[unified_config] Google Drive configuration missing 'rate_limiting'");
+            log_w("Google Drive configuration missing 'rate_limiting'");
         }
     } else {
-        log_w("[unified_config] Google Drive configuration missing: 'google_drive_config'");
+        log_w("Google Drive configuration missing: 'google_drive_config'");
     }
 
     // Extract weather configuration
@@ -269,10 +276,10 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         config.weather.wind_speed_unit = weather_obj["wind_speed_unit"] | "kmh";
         config.weather.precipitation_unit = weather_obj["precipitation_unit"] | "mm";
     } else {
-        log_d("[unified_config] Weather configuration missing");
+        log_d("Weather configuration missing");
     }
 
-    log_d("[unified_config] Configuration loaded successfully");
+    log_d("Configuration loaded successfully");
     return error_type::None;
 }
 
@@ -283,7 +290,7 @@ photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
     photo_frame_error_t result = load_unified_config(sdCard, config_path, config);
 
     if (result != error_type::None) {
-        log_w("[unified_config] Failed to load config from file, using fallbacks");
+        log_w("Failed to load config from file, using fallbacks");
         load_fallback_config(config);
 
         // Return success even if file read failed, since we have fallbacks

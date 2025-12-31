@@ -44,9 +44,10 @@
 #define EPD_MOSI_PIN 35  // IO35 - SPI MOSI for e-paper (VSPI)
 
 // Potentiometer pin - using analog pins
-#define POTENTIOMETER_PWR_PIN   7    // Disabled - direct 3.3V power
-#define POTENTIOMETER_INPUT_PIN 3    // IO3 - Analog pin (ADC1_CH2)
-#define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC
+// #define USE_POTENTIOMETER
+// #define POTENTIOMETER_PWR_PIN   7    // Disabled - direct 3.3V power
+// #define POTENTIOMETER_INPUT_PIN 3    // IO3 - Analog pin (ADC1_CH2)
+// #define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC
 
 // Battery monitoring - ProS3 has MAX1704X fuel gauge over I2C
 #define BATTERY_PIN                    2 // Built-in battery voltage pin (GPIO2) - backup only

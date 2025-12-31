@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <Arduino.h>
-#include <LittleFS.h>
 
 #include "esp32/spiram.h"
 
@@ -36,7 +35,7 @@
 
 #include "rtc_util.h"
 #include "sd_card.h"
-#include "spi_manager.h"
+#include "littlefs_manager.h"
 #include "string_utils.h"
 #include "unified_config.h"
 #include "wifi_manager.h"
@@ -44,6 +43,7 @@
 #include "weather.h"
 
 #include <assets/icons/icons.h>
+#include <Fonts/FreeMonoBold9pt7b.h>
 
 #include "google_drive.h"
 #include "google_drive_client.h"
@@ -58,7 +58,7 @@ photo_frame::google_drive drive;
 // Helper function to cleanup temporary files from LittleFS
 void cleanup_temp_image_file()
 {
-    photo_frame::spi_manager::SPIManager::cleanup_temp_files("*.tmp");
+    photo_frame::littlefs_manager::LittleFsManager::cleanup_temp_files();
 }
 
 #ifndef USE_SENSOR_MAX1704X
@@ -74,6 +74,10 @@ photo_frame::sd_card sdCard; // SD_MMC uses fixed SDIO pins
 photo_frame::wifi_manager wifiManager;
 photo_frame::unified_config systemConfig; // Unified configuration system
 photo_frame::weather::WeatherManager weatherManager;
+
+// Static image buffer for Mode 1 format (allocated once in PSRAM)
+static uint8_t* g_image_buffer = nullptr;
+static const size_t IMAGE_BUFFER_SIZE = DISP_WIDTH * DISP_HEIGHT;  // 384,000 bytes for 800x480
 
 unsigned long startupTime = 0;
 
@@ -122,11 +126,12 @@ handle_weather_operations(const photo_frame::battery_info_t& battery_info,
 /**
  * @brief Handle Google Drive operations (initialization, file selection, download)
  * @param is_reset Whether this is a reset/startup (affects TOC writing)
- * @param file Reference to store opened file handle
- * @param original_filename Reference to store original filename for format detection
+ * @param file Reference to File object for image (in LittleFS for BMP, closed for binary)
+ * @param original_filename Original filename from SD card (for format detection and logging)
  * @param image_index Reference to store selected image index
  * @param total_files Reference to store total file count
  * @param battery_info Battery information for download decisions
+ * @param file_ready Reference to boolean indicating if file is ready (buffer loaded or file open)
  * @return Error state after Google Drive operations
  */
 photo_frame::photo_frame_error_t
@@ -135,7 +140,8 @@ handle_google_drive_operations(bool is_reset,
     String& original_filename,
     uint32_t& image_index,
     uint32_t& total_files,
-    const photo_frame::battery_info_t& battery_info);
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready);
 
 /**
  * @brief Process image file (validation, copying to LittleFS, rendering)
@@ -143,6 +149,7 @@ handle_google_drive_operations(bool is_reset,
  * @param original_filename Original filename from SD card (used for format detection and error
  * reporting)
  * @param current_error Current error state
+ * @param file_ready Whether file is ready (buffer loaded or file open)
  * @param now Current DateTime for display
  * @param refresh_delay Refresh delay information
  * @param image_index Current image index
@@ -155,6 +162,7 @@ photo_frame::photo_frame_error_t
 process_image_file(fs::File& file,
     const char* original_filename,
     photo_frame::photo_frame_error_t current_error,
+    bool file_ready,
     const DateTime& now,
     const refresh_delay_t& refresh_delay,
     uint32_t image_index,
@@ -199,6 +207,67 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     photo_frame::google_drive& drive,
     const photo_frame::battery_info_t& battery_info,
     photo_frame::weather::WeatherManager& weatherManager);
+
+/**
+ * @brief Initialize the PSRAM image buffer for Mode 1 format rendering
+ *
+ * Allocates a static buffer in PSRAM for storing 800x480 images (384KB).
+ * The buffer is allocated once and reused for all images.
+ * Falls back to regular heap if PSRAM is unavailable.
+ *
+ * @note This function must be called before any image loading operations
+ */
+void init_image_buffer()
+{
+    if (g_image_buffer != nullptr) {
+        log_w("[main] Image buffer already initialized");
+        return;
+    }
+
+    log_i("[main] Initializing PSRAM image buffer...");
+    log_i("[main] Buffer size: %u bytes (%.2f KB)", IMAGE_BUFFER_SIZE, IMAGE_BUFFER_SIZE / 1024.0f);
+
+#if CONFIG_SPIRAM_USE_CAPS_ALLOC || CONFIG_SPIRAM_USE_MALLOC
+    // Try to allocate in PSRAM first
+    g_image_buffer = (uint8_t*)heap_caps_malloc(IMAGE_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
+
+    if (g_image_buffer != nullptr) {
+        log_i("[main] Successfully allocated %u bytes in PSRAM for image buffer", IMAGE_BUFFER_SIZE);
+        log_i("[main] PSRAM free after allocation: %u bytes", ESP.getFreePsram());
+    } else {
+        log_w("[main] Failed to allocate in PSRAM, falling back to regular heap");
+        g_image_buffer = (uint8_t*)malloc(IMAGE_BUFFER_SIZE);
+    }
+#else
+    // No PSRAM available, use regular heap
+    log_w("[main] PSRAM not available, using regular heap");
+    g_image_buffer = (uint8_t*)malloc(IMAGE_BUFFER_SIZE);
+#endif
+
+    if (g_image_buffer == nullptr) {
+        log_e("[main] CRITICAL: Failed to allocate image buffer!");
+        log_e("[main] Free heap: %u bytes", ESP.getFreeHeap());
+        log_e("[main] Cannot continue without image buffer");
+    } else {
+        log_i("[main] Image buffer initialized at address: %p", g_image_buffer);
+    }
+}
+
+/**
+ * @brief Free the PSRAM image buffer
+ *
+ * Deallocates the image buffer if it was allocated.
+ * This should be called before entering deep sleep or on cleanup.
+ */
+void cleanup_image_buffer()
+{
+    if (g_image_buffer != nullptr) {
+        log_i("[main] Freeing image buffer at address: %p", g_image_buffer);
+        free(g_image_buffer);
+        g_image_buffer = nullptr;
+        log_i("[main] Image buffer freed");
+    }
+}
 
 void setup()
 {
@@ -263,15 +332,23 @@ void setup()
         }
     }
 
+    // Initialize PSRAM image buffer BEFORE Google Drive operations
+    // This must be done before load_image_to_buffer() is called
+    log_i("--------------------------------------");
+    log_i("- Initializing PSRAM image buffer...");
+    log_i("--------------------------------------");
+    init_image_buffer();
+
     // Handle Google Drive operations
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
     String original_filename; // Store original filename for format detection
+    bool file_ready = false; // Track if file is ready (buffer loaded or file open)
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
         error = handle_google_drive_operations(
-            is_reset, file, original_filename, image_index, total_files, battery_info);
+            is_reset, file, original_filename, image_index, total_files, battery_info, file_ready);
     }
 
     // Safely disconnect WiFi with proper cleanup
@@ -300,13 +377,21 @@ void setup()
     delay(100);
     RGB_SET_STATE(RENDERING); // Show display rendering
     photo_frame::renderer::init_display();
-    delay(100);
 
-    display.clearScreen();
+    // Allow time for display SPI bus initialization to complete
+    delay(300);
+    log_i("Display initialization complete");
 
-    // Check if file is available
-    if (error == photo_frame::error_type::None && !file) {
-        log_e("File is not open!");
+    // Prepare display for rendering (same method as working display_debug test)
+    log_i("Preparing display for rendering...");
+    display.setFullWindow();
+    display.fillScreen(GxEPD_WHITE);
+    delay(500);
+    log_i("Display ready for rendering");
+
+    // Check if file is ready (binary in buffer or BMP file open)
+    if (error == photo_frame::error_type::None && !file_ready) {
+        log_e("File is not ready! (buffer not loaded and file not open)");
         error = photo_frame::error_type::SdCardFileOpenFailed;
     }
 
@@ -327,6 +412,7 @@ void setup()
         error = process_image_file(file,
             original_filename.c_str(),
             error,
+            file_ready,
             now,
             refresh_delay,
             image_index,
@@ -369,20 +455,17 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     photo_frame::weather::WeatherManager& weatherManager)
 {
     photo_frame::photo_frame_error_t error = current_error;
-    const char* img_filename = file.name(); // Used for logging temp filename
     const char* format_filename = original_filename; // Used for format detection
 
     // Get display capabilities
     bool has_partial_update = photo_frame::renderer::has_partial_update();
-    bool has_fast_partial_update = photo_frame::renderer::has_fast_partial_update();
 
-    if (error == photo_frame::error_type::None && !has_partial_update && !has_fast_partial_update) {
+    if (error == photo_frame::error_type::None && !has_partial_update) {
         // ----------------------------------------------
         // the display does not support partial update
         // ----------------------------------------------
         log_w("Display does not support partial update!");
 
-        int page_index = 0;
         bool rendering_failed = false;
         uint16_t error_code = 0;
 
@@ -390,30 +473,106 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         display.fillScreen(GxEPD_WHITE);
         delay(500);
 
+#if defined(DISP_6C) || defined(DISP_7C)
+        // ============================================
+        // 6C/7C displays: Non-paged rendering
+        // ============================================
+        // These displays render from PSRAM buffer (binary) or file (BMP)
+
+        if (photo_frame::io_utils::is_binary_format(format_filename)) {
+            // Binary format - render from PSRAM buffer (already loaded)
+            // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer functions
+            log_i("[main] Rendering Mode 1 format from PSRAM buffer with overlays");
+
+            // STEP 1: Create GFXcanvas8 pointing to our existing buffer
+            GFXcanvas8 canvas(DISP_WIDTH, DISP_HEIGHT, false);
+            // Access protected buffer member via memory layout
+            uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
+            *bufferPtr = g_image_buffer;
+
+            // STEP 2: Draw white overlay bars on buffer for status areas
+            log_i("Drawing white overlay bars on buffer...");
+            canvas.fillRect(0, 0, DISP_WIDTH, 16, 0xFF); // Top white bar
+
+
+            // STEP 3: Draw overlays with icons using canvas-based renderer functions
+            log_i("Drawing overlays with icons on canvas...");
+            photo_frame::renderer::draw_last_update(canvas, now, refresh_delay.refresh_seconds);
+            photo_frame::renderer::draw_image_info(canvas,
+                image_index, total_files, drive.get_last_image_source());
+            photo_frame::renderer::draw_battery_status(canvas, battery_info);
+
+            if (!battery_info.is_critical()) {
+                photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                rect_t box = photo_frame::renderer::get_weather_info_rect();
+                photo_frame::renderer::draw_weather_info(canvas, current_weather, box);
+            }
+
+            // STEP 4: Render the modified buffer to display hardware
+            log_i("Writing modified image to display hardware...");
+            error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, DISP_WIDTH, DISP_HEIGHT);
+
+            if (error_code != 0) {
+                log_e("Failed to write image from buffer!");
+                rendering_failed = true;
+            } else {
+                // STEP 5: Refresh display to show everything
+                log_i("Refreshing display...");
+                display.refresh();
+                log_i("Display refresh complete with overlays");
+            }
+        } else {
+            // BMP format - file should still be open
+            if (!file) {
+                log_e("[main] ERROR: BMP file not available for rendering");
+                error_code = photo_frame::error_type::FileOpenFailed.code;
+                rendering_failed = true;
+            } else {
+                display.firstPage();
+                do {
+                    error_code = photo_frame::renderer::draw_bitmap_from_file(
+                        file, original_filename, 0, 0, false);
+
+                    if (error_code != 0) {
+                        log_e("Failed to draw bitmap from file!");
+                        rendering_failed = true;
+                        break;
+                    }
+
+                    // Draw overlays on top of the image
+                    display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
+                    photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
+                    photo_frame::renderer::draw_image_info(
+                        image_index, total_files, drive.get_last_image_source());
+                    photo_frame::renderer::draw_battery_status(battery_info);
+
+                    if (!battery_info.is_critical()) {
+                        photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+                        rect_t box = photo_frame::renderer::get_weather_info_rect();
+                        photo_frame::renderer::draw_weather_info(current_weather, box);
+                    }
+                } while (display.nextPage());
+            }
+        }
+#else
+        // ============================================
+        // B/W displays: Paged rendering
+        // ============================================
+        int page_index = 0;
+
         display.firstPage();
         do {
             log_d("Drawing page: %d", page_index);
             if (photo_frame::io_utils::is_binary_format(format_filename)) {
-                // Detect format based on file size
-                size_t standardSize = DISP_WIDTH * DISP_HEIGHT;      // 384,000 bytes for 800x480
-                size_t nativeSize = (DISP_WIDTH * DISP_HEIGHT) / 2;  // 192,000 bytes for 800x480
+                size_t standardSize = DISP_WIDTH * DISP_HEIGHT;
                 size_t fileSize = file.size();
 
-                if (fileSize == nativeSize) {
-                    // Native format (2 pixels per byte) - only for 6-color/7-color displays
-                    log_i("[main] Detected native format (192KB) - using writeNative()");
-                    error_code = photo_frame::renderer::draw_native_binary_from_file(
-                        file, original_filename, DISP_WIDTH, DISP_HEIGHT);
-                    // Native format renders the entire image at once, no paging needed
-                    break; // Exit the page loop after rendering
-                } else if (fileSize == standardSize) {
-                    // Standard format (1 byte per pixel)
+                if (fileSize == standardSize) {
                     log_i("[main] Detected standard format (384KB) - using paged rendering");
                     error_code = photo_frame::renderer::draw_binary_from_file_paged(
                         file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
                 } else {
                     log_e("[main] ERROR: Unknown binary format size: %d bytes", fileSize);
-                    log_e("[main] Expected: %d (standard) or %d (native)", standardSize, nativeSize);
                     error_code = photo_frame::error_type::BinaryRenderingFailed.code;
                 }
             } else {
@@ -424,7 +583,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             if (error_code != 0) {
                 log_e("Failed to draw bitmap from file!");
                 rendering_failed = true;
-                break; // Exit the page rendering loop immediately
+                break;
             }
 
             display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
@@ -441,6 +600,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
             page_index++;
         } while (display.nextPage());
+#endif
 
     #if defined(DISP_6C) || defined(DISP_7C)
         // Power recovery delay after page refresh for 6-color displays
@@ -455,7 +615,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             display.fillScreen(GxEPD_WHITE);
             do {
                 photo_frame::renderer::draw_error_with_details(
-                    TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", img_filename, error_code);
+                    TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
 
                 display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
@@ -505,7 +665,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             display.firstPage();
             do {
                 photo_frame::renderer::draw_error_with_details(
-                    TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", img_filename, error_code);
+                    TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
             } while (display.nextPage());
         }
 
@@ -620,7 +780,7 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 #ifdef DEBUG_BATTERY_READER
     log_i("Battery level: %d%%, %d mV, Raw mV: %d", battery_info.percent, battery_info.millivolts, battery_info.raw_millivolts);
 #else
-    log_i("Battery level: %d%%, %d mV", battery_info.percent, battery_info.millivolts);
+    log_i("Battery level: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
 #endif // DEBUG_BATTERY_READER
 
     if (battery_info.is_empty()) {
@@ -807,10 +967,12 @@ handle_google_drive_operations(bool is_reset,
     String& original_filename,
     uint32_t& image_index,
     uint32_t& total_files,
-    const photo_frame::battery_info_t& battery_info)
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready)
 {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
     photo_frame::photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
+    file_ready = false; // Initialize to false
     bool write_toc = is_reset;
 
     log_i("--------------------------------------");
@@ -916,6 +1078,9 @@ handle_google_drive_operations(bool is_reset,
                 selectedFile = drive.get_toc_file_by_index(sdCard, image_index, &tocError);
 #endif // GOOGLE_DRIVE_TEST_FILE
 
+                // Track if file was successfully processed (binary loaded to buffer OR BMP file kept open)
+                bool fileProcessedSuccessfully = false;
+
                 if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
                     log_i("Selected file: %s", selectedFile.name.c_str());
 
@@ -939,11 +1104,11 @@ handle_google_drive_operations(bool is_reset,
                         }
                     }
 
-                    // Validate image file before copying to LittleFS
+                    // Validate and load image file directly to PSRAM buffer
                     if (error == photo_frame::error_type::None && file) {
                         const char* filename = file.name();
                         String filePath = String(filename);
-                        original_filename = String(filename); // Store original filename for format detection
+                        original_filename = String(filename); // Store original filename for error reporting
 
                         log_i("Validating downloaded image file...");
                         auto validationError = photo_frame::io_utils::validate_image_file(
@@ -966,40 +1131,98 @@ handle_google_drive_operations(bool is_reset,
                             }
 
                             error = validationError;
+
+                            // Close SD card after validation error to prevent SPI conflicts
+                            log_i("Closing SD card after validation error");
+                            sdCard.end();
                         } else {
                             log_i("Image validation PASSED");
 
-                            // Now copy validated file to LittleFS
-                            String littlefsPath = LITTLEFS_TEMP_IMAGE_FILE;
-                            error = photo_frame::io_utils::copy_sd_to_littlefs(
-                                file, littlefsPath, DISP_WIDTH, DISP_HEIGHT);
+                            // Check if file is binary or BMP format
+                            bool isBinary = photo_frame::io_utils::is_binary_format(filename);
 
-                            // Always close the SD card file after copy attempt
-                            file.close();
+                            if (isBinary) {
+                                // Binary format: Load to PSRAM buffer, then close SD card
+                                log_i("Loading binary image to PSRAM buffer from SD card...");
+                                uint16_t loadError = photo_frame::renderer::load_image_to_buffer(
+                                    g_image_buffer, file, filename, DISP_WIDTH, DISP_HEIGHT);
 
-                            if (error == photo_frame::error_type::None) {
-                                // Copy successful - shutdown SD card and open LittleFS file
-                                log_i("Shutting down SD card after successful copy to LittleFS");
+                                // Close the SD card file after loading
+                                file.close();
 
-                                // Open the LittleFS file for reading
-                                file = LittleFS.open(littlefsPath.c_str(), FILE_READ);
-                                if (!file) {
-                                    log_e("Failed to open LittleFS file for reading");
-                                    error = photo_frame::error_type::LittleFSFileOpenFailed;
+                                if (loadError != 0) {
+                                    log_e("Failed to load image to buffer, error code: %d", loadError);
+                                    error = photo_frame::error_type::BinaryRenderingFailed;
+
+                                    // Close SD card after buffer load error to prevent SPI conflicts
+                                    log_i("Closing SD card after buffer load error");
+                                    sdCard.end();
+                                } else {
+                                    log_i("Binary image loaded to PSRAM buffer");
+
+                                    // Close SD card (image is in PSRAM)
+                                    log_i("Shutting down SD card (binary image in PSRAM buffer)");
+                                    sdCard.end();
+
+                                    // Mark as successfully processed
+                                    fileProcessedSuccessfully = true;
+                                    file_ready = true; // Binary image loaded to buffer
+                                }
+                            } else {
+                                // BMP format: Copy to LittleFS before closing SD card
+                                log_i("BMP format detected - copying to LittleFS before closing SD card");
+
+                                // Initialize LittleFS if needed
+                                if (!photo_frame::littlefs_manager::LittleFsManager::init()) {
+                                    log_e("Failed to initialize LittleFS for BMP file copy");
+                                    error = photo_frame::error_type::LittleFSInitFailed;
+                                    file.close();
+                                    sdCard.end();
+                                } else {
+                                    // Copy file to LittleFS
+                                    String littlefs_path = "/temp_";
+                                    littlefs_path += filename;
+
+                                    if (photo_frame::littlefs_manager::LittleFsManager::copy_to_littlefs(file, littlefs_path.c_str())) {
+                                        log_i("Successfully copied BMP to LittleFS: %s", littlefs_path.c_str());
+
+                                        // Close SD card file
+                                        file.close();
+
+                                        // Close SD card (BMP is now in LittleFS)
+                                        log_i("Shutting down SD card (BMP image copied to LittleFS)");
+                                        sdCard.end();
+
+                                        // Open file from LittleFS for rendering
+                                        file = LittleFS.open(littlefs_path.c_str(), FILE_READ);
+                                        if (!file) {
+                                            log_e("Failed to open BMP from LittleFS: %s", littlefs_path.c_str());
+                                            error = photo_frame::error_type::FileOpenFailed;
+                                        } else {
+                                            log_i("Successfully opened BMP from LittleFS for rendering");
+                                            fileProcessedSuccessfully = true;
+                                            file_ready = true; // BMP file open from LittleFS
+                                        }
+                                    } else {
+                                        log_e("Failed to copy BMP to LittleFS");
+                                        error = photo_frame::error_type::FileCopyFailed;
+                                        file.close();
+                                        sdCard.end();
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Always close the SD card after file operations are complete to avoid
-                    // conflicts
-                    sdCard.end();
+                    // For binary files, SD card is already closed and file is in PSRAM
+                    // For BMP files, SD card remains open for rendering
                 } else {
                     log_e("Failed to get file by index. Error code: %d", tocError.code);
                     error = tocError;
                 }
 
-                if (error == photo_frame::error_type::None && file) {
+                // Check if file was successfully processed (binary in buffer OR BMP file open)
+                if (error == photo_frame::error_type::None && (fileProcessedSuccessfully || file)) {
                     log_i("File downloaded and ready for display!");
                 } else {
                     log_e("Failed to download file from Google Drive! Error code: %d", error.code);
@@ -1017,10 +1240,21 @@ handle_google_drive_operations(bool is_reset,
                     log_w("No files found in Google Drive folder!");
                     error = photo_frame::error_type::NoImagesFound;
                 }
+
+                // CRITICAL: Close SD card on error to prevent SPI conflicts with display
+                log_i("Closing SD card after Google Drive error to prevent SPI conflicts");
+                sdCard.end();
             }
         }
     } else {
         log_e("Failed to initialize SD card. Error code: %d", error.code);
+    }
+
+    // CRITICAL: Ensure SD card is closed on any error before display initialization
+    // This prevents SPI bus conflicts that cause "Busy Timeout!" on the display
+    if (error != photo_frame::error_type::None && sdCard.is_initialized()) {
+        log_w("Closing SD card due to error (code %d) to prevent SPI conflicts", error.code);
+        sdCard.end();
     }
 
     return error;
@@ -1030,6 +1264,7 @@ photo_frame::photo_frame_error_t
 process_image_file(fs::File& file,
     const char* original_filename,
     photo_frame::photo_frame_error_t current_error,
+    bool file_ready,
     const DateTime& now,
     const refresh_delay_t& refresh_delay,
     uint32_t image_index,
@@ -1039,9 +1274,11 @@ process_image_file(fs::File& file,
 {
     photo_frame::photo_frame_error_t error = current_error;
 
-    if (error == photo_frame::error_type::None && file) {
-        // Image was already validated before copying to LittleFS, proceed directly to rendering
-        log_i("Rendering validated image file...");
+    // For binary files: file_ready=true, file=closed, g_image_buffer=loaded
+    // For BMP files: file_ready=true, file=open from LittleFS
+    if (error == photo_frame::error_type::None && file_ready) {
+        // Image was already validated and is ready for rendering
+        log_i("Rendering validated image (binary in buffer or BMP from file)...");
         error = render_image(file,
             original_filename,
             error,
@@ -1055,7 +1292,7 @@ process_image_file(fs::File& file,
     }
 
     if (file) {
-        file.close(); // Close the file after drawing
+        file.close(); // Close the file after drawing (only for BMP files)
     }
 
     return error;
@@ -1071,6 +1308,9 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     log_i("[RGB] Shutting down RGB status system for sleep");
     rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
 #endif // RGB_STATUS_ENABLED
+
+    // Free image buffer before sleep to release memory
+    cleanup_image_buffer();
 
     delay(500);
     photo_frame::renderer::power_off();
@@ -1119,9 +1359,9 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     }
 
     if (true) { // Changed from the original condition to always execute
-        refresh_delay.refresh_seconds = photo_frame::board_utils::read_refresh_seconds(battery_info.is_low());
+        refresh_delay.refresh_seconds = photo_frame::board_utils::read_refresh_seconds(systemConfig, battery_info.is_low());
 
-        log_i("Refresh seconds read from potentiometer: %ld", refresh_delay.refresh_seconds);
+        log_i("Refresh seconds: %ld", refresh_delay.refresh_seconds);
 
         // add the refresh time to the current time
         // Update the current time with the refresh interval

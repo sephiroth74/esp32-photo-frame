@@ -302,6 +302,89 @@ impl ColorStats {
     }
 }
 
+/// Convert RGB pixel to drawDemoBitmap format (mode 1) for GDEP073E01
+///
+/// drawDemoBitmap() with mode=1 expects these specific byte values:
+/// - 0x00 = BLACK   - RGB(0, 0, 0)
+/// - 0xFF = WHITE   - RGB(255, 255, 255)
+/// - 0xFC = YELLOW  - RGB(252, 252, 0)
+/// - 0xE0 = RED     - RGB(252, 0, 0)
+/// - 0x03 = BLUE    - RGB(0, 0, 255)
+/// - 0x1C = GREEN   - RGB(0, 252, 0)
+///
+/// This function maps the 6-color palette RGB values to these byte values.
+/// Any unrecognized color defaults to BLACK (0x00).
+pub fn rgb_to_demo_bitmap_mode1(pixel: &Rgb<u8>) -> u8 {
+    let r = pixel[0];
+    let g = pixel[1];
+    let b = pixel[2];
+
+    // Match against the 6-color palette with tolerance
+    // White: RGB(255, 255, 255)
+    if r >= 250 && g >= 250 && b >= 250 {
+        return 0xFF;
+    }
+
+    // Yellow: RGB(252, 252, 0) or similar
+    if r >= 250 && g >= 250 && b < 10 {
+        return 0xFC;
+    }
+
+    // Red: RGB(252, 0, 0) or similar
+    if r >= 250 && g < 10 && b < 10 {
+        return 0xE0;
+    }
+
+    // Green: RGB(0, 252, 0) or similar
+    if r < 10 && g >= 250 && b < 10 {
+        return 0x1C;
+    }
+
+    // Blue: RGB(0, 0, 255) or similar
+    if r < 10 && g < 10 && b >= 250 {
+        return 0x03;
+    }
+
+    // Black: RGB(0, 0, 0)
+    if r < 10 && g < 10 && b < 10 {
+        return 0x00;
+    }
+
+    // Default to black for any other color
+    0x00
+}
+
+/// Convert image to drawDemoBitmap format (mode 1) - 1 byte per pixel
+///
+/// This format is specifically for GDEP073E01 6-color displays using drawDemoBitmap()
+/// with mode=1. The output is 384000 bytes for an 800x480 image (1 byte per pixel).
+///
+/// # Arguments
+/// * `img` - Input RGB image (must be already dithered to 6-color palette)
+///
+/// # Returns
+/// * `Result<Vec<u8>>` - Binary data in mode 1 format
+pub fn convert_to_demo_bitmap_mode1(img: &RgbImage) -> Result<Vec<u8>> {
+    let (width, height) = img.dimensions();
+    let expected_size = (width * height) as usize;
+    let mut binary_data = Vec::with_capacity(expected_size);
+
+    for pixel in img.pixels() {
+        let color_byte = rgb_to_demo_bitmap_mode1(pixel);
+        binary_data.push(color_byte);
+    }
+
+    if binary_data.len() != expected_size {
+        return Err(anyhow::anyhow!(
+            "Binary data size mismatch: expected {}, got {}",
+            expected_size,
+            binary_data.len()
+        ));
+    }
+
+    Ok(binary_data)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

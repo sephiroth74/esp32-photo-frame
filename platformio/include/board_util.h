@@ -24,6 +24,7 @@
 #define __FOTO_FRAME_BOARD_UTIL_H__
 #include "config.h"
 #include "errors.h"
+#include "unified_config.h"
 #include <Arduino.h>
 
 #ifdef WAKEUP_EXT0
@@ -124,18 +125,20 @@ void disable_built_in_led();
 void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
 
 /**
- * @brief Reads the refresh interval from potentiometer, adjusting for battery level.
+ * @brief Reads the refresh interval from potentiometer or config, adjusting for battery level.
  *
- * Determines the display refresh interval by reading an analog potentiometer value
- * and mapping it to a time range. The interval can be adjusted based on battery
- * level to conserve power when the battery is low.
+ * Determines the display refresh interval by either:
+ * - Reading an analog potentiometer value (if USE_POTENTIOMETER is defined)
+ * - Using the default value from config.board.refresh.default_seconds (if USE_POTENTIOMETER is not defined)
  *
+ * The interval can be adjusted based on battery level to conserve power when the battery is low.
+ *
+ * @param config The unified configuration containing refresh settings
  * @param is_battery_low If true, may increase the refresh interval to save power
  * @return The refresh interval in seconds
- * @note Actual implementation depends on board configuration and potentiometer presence
- * @note Returns a default value if no potentiometer is configured
+ * @note Actual implementation depends on USE_POTENTIOMETER definition
  */
-long read_refresh_seconds(bool is_battery_low = false);
+long read_refresh_seconds(const unified_config& config, bool is_battery_low = false);
 
 } // namespace board_utils
 

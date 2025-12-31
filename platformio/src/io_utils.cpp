@@ -22,7 +22,6 @@
 
 #include "io_utils.h"
 #include "renderer.h"
-#include "spi_manager.h"
 
 namespace photo_frame {
 namespace io_utils {
@@ -31,20 +30,20 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
                                         const char* filename,
                                         int expectedWidth,
                                         int expectedHeight) {
-    log_i("[io_utils] Comprehensive image validation: %s", filename);
+    log_i("Comprehensive image validation: %s", filename);
 
     auto startTime = millis();
 
     // Basic file validation
     if (!sourceFile) {
-        log_e("[io_utils] File is not open or invalid");
+        log_e("File is not open or invalid");
         return error_type::FileOpenFailed;
     }
 
     // Check file size - ensure it's not zero
     size_t fileSize = sourceFile.size();
     if (fileSize == 0) {
-        log_e("[io_utils] File is empty");
+        log_e("File is empty");
         return error_type::ImageFileEmpty;
     }
 
@@ -55,7 +54,7 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
     auto fileSizeError =
         error_utils::validate_image_file_size(fileSize, MIN_IMAGE_SIZE, MAX_IMAGE_SIZE, filename);
     if (fileSizeError != error_type::None) {
-        log_e("[io_utils] File size validation failed: %s", fileSizeError.message);
+        log_e("File size validation failed: %s", fileSizeError.message);
         return fileSizeError;
     }
 
@@ -65,26 +64,26 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
     bool isBmpFile    = is_bmp_format(filename);
 
     if (isBinaryFile) {
-        log_i("[io_utils] Performing comprehensive BINARY file validation");
+        log_i("Performing comprehensive BINARY file validation");
 
         if (expectedWidth <= 0 || expectedHeight <= 0) {
-            log_e("[io_utils] Expected dimensions not provided for binary validation");
+            log_e("Expected dimensions not provided for binary validation");
             return error_type::ImageDimensionsNotProvided;
         }
 
         // Check if file size matches expected binary size exactly
         size_t expectedBinarySize = (size_t)expectedWidth * expectedHeight;
-        log_i("[io_utils] Expected binary size: %dx%d = %zu bytes", expectedWidth, expectedHeight, expectedBinarySize);
-        log_i("[io_utils] Actual file size: %zu bytes", fileSize);
+        log_i("Expected binary size: %dx%d = %zu bytes", expectedWidth, expectedHeight, expectedBinarySize);
+        log_i("Actual file size: %zu bytes", fileSize);
 
         if (fileSize != expectedBinarySize) {
-            log_e("[io_utils] EXACT size mismatch! Expected: %zu bytes, Got: %zu bytes",
+            log_e("EXACT size mismatch! Expected: %zu bytes, Got: %zu bytes",
                   expectedBinarySize, fileSize);
 
             return error_type::ImageFileTruncated;
         }
 
-        log_i("[io_utils] File size matches expected binary format exactly");
+        log_i("File size matches expected binary format exactly");
 
         // Full validation: read entire file like renderer::validate_binary_image_file
         sourceFile.seek(0);
@@ -114,19 +113,19 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         // Serial.println(F(" pixels validated"));
 
     } else if (isBmpFile) {
-        log_i("[io_utils] Performing BMP file validation");
+        log_i("Performing BMP file validation");
 
         // Read BMP header
         sourceFile.seek(0);
         uint8_t bmpHeader[54];
         if (sourceFile.read(bmpHeader, sizeof(bmpHeader)) < 54) {
-            log_e("[io_utils] Cannot read BMP header");
+            log_e("Cannot read BMP header");
             return error_type::ImageFileReadFailed;
         }
 
         // Check BMP signature
         if (bmpHeader[0] != 'B' || bmpHeader[1] != 'M') {
-            log_e("[io_utils] Invalid BMP signature");
+            log_e("Invalid BMP signature");
             return error_type::ImageFileHeaderInvalid;
         }
 
@@ -134,12 +133,12 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         uint32_t bmpWidth  = *((uint32_t*)&bmpHeader[18]);
         uint32_t bmpHeight = *((uint32_t*)&bmpHeader[22]);
 
-        log_i("[io_utils] BMP dimensions: %ux%u", bmpWidth, bmpHeight);
+        log_i("BMP dimensions: %ux%u", bmpWidth, bmpHeight);
 
         // Validate against expected dimensions if provided
         if (expectedWidth > 0 && expectedHeight > 0) {
             if (bmpWidth != expectedWidth || bmpHeight != expectedHeight) {
-                log_e("[io_utils] BMP dimension mismatch: expected %dx%d, got %ux%u",
+                log_e("BMP dimension mismatch: expected %dx%d, got %ux%u",
                       expectedWidth, expectedHeight, bmpWidth, bmpHeight);
                 return error_type::ImageDimensionsMismatch;
             }
@@ -148,12 +147,12 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         // Validate BMP file integrity by checking data offset
         uint32_t dataOffset = *((uint32_t*)&bmpHeader[10]);
         if (dataOffset >= fileSize) {
-            log_e("[io_utils] BMP data offset beyond file size");
+            log_e("BMP data offset beyond file size");
             return error_type::ImageFileCorrupted;
         }
 
     } else {
-        log_e("[io_utils] Unknown or unsupported file format");
+        log_e("Unknown or unsupported file format");
         return error_type::ImageFileHeaderInvalid;
     }
 
@@ -161,59 +160,9 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
     sourceFile.seek(0);
 
     auto elapsedTime = millis() - startTime;
-    log_i("[io_utils] Validation completed in %lu ms", elapsedTime);
+    log_i("Validation completed in %lu ms", elapsedTime);
 
     return error_type::None;
-}
-
-photo_frame_error_t copy_sd_to_littlefs(fs::File& sourceFile,
-                                        const String& littlefsPath,
-                                        int expectedWidth,
-                                        int expectedHeight) {
-    log_i("[io_utils] Copying validated file from SD card to LittleFS");
-
-    // Initialize LittleFS
-    if (!photo_frame::spi_manager::SPIManager::init_littlefs()) {
-        log_e("[io_utils] Failed to initialize LittleFS");
-        return error_type::LittleFSInitFailed;
-    }
-
-    // Open LittleFS file for writing
-    fs::File littlefsFile = LittleFS.open(littlefsPath.c_str(), FILE_WRITE);
-    if (!littlefsFile) {
-        log_e("[io_utils] Failed to create LittleFS temp file: %s", littlefsPath.c_str());
-        return error_type::LittleFSFileCreateFailed;
-    }
-
-    // Copy data from SD card file to LittleFS
-    uint8_t buffer[1024];
-    size_t totalCopied = 0;
-
-    while (sourceFile.available()) {
-        size_t bytesRead = sourceFile.read(buffer, sizeof(buffer));
-        if (bytesRead > 0) {
-            littlefsFile.write(buffer, bytesRead);
-            totalCopied += bytesRead;
-        }
-
-        // Yield every 4KB to prevent watchdog timeout
-        if (totalCopied % 4096 == 0) {
-            yield();
-        }
-    }
-
-    // Flush and close the LittleFS file
-    littlefsFile.flush();
-    littlefsFile.close();
-
-    log_i("[io_utils] Copied %zu bytes to LittleFS", totalCopied);
-    log_i("[io_utils] File successfully copied to LittleFS");
-    return error_type::None;
-}
-
-// Backward-compatible version (assumes validation already done externally)
-photo_frame_error_t copy_sd_to_littlefs(fs::File& sourceFile, const String& littlefsPath) {
-    return copy_sd_to_littlefs(sourceFile, littlefsPath, 0, 0);
 }
 
 bool is_binary_format(const char* filename) {

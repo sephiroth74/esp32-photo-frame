@@ -38,13 +38,13 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     }
 
     if (!sdCard.file_exists(config_file)) {
-        log_e("[wifi_manager] WiFi config file not found: %s", config_file);
+        log_e("WiFi config file not found: %s", config_file);
         return error_type::WifiCredentialsNotFound;
     }
 
     fs::File file = sdCard.open(config_file, FILE_READ);
     if (!file) {
-        log_e("[wifi_manager] Failed to open WiFi config file: %s", config_file);
+        log_e("Failed to open WiFi config file: %s", config_file);
         return error_type::SdCardFileOpenFailed;
     }
 
@@ -57,12 +57,12 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     file.close();
 
     if (_ssid.isEmpty()) {
-        log_e("[wifi_manager] SSID not found in config file");
+        log_e("SSID not found in config file");
         return error_type::WifiCredentialsNotFound;
     }
 
 #ifdef DEBUG_WIFI
-    log_d("[wifi_manager] Loaded WiFi credentials for SSID: %s", _ssid.c_str());
+    log_d("Loaded WiFi credentials for SSID: %s", _ssid.c_str());
 #endif // DEBUG_WIFI
 
     _initialized = true;
@@ -76,7 +76,7 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
     }
 
     if (ssid.isEmpty()) {
-        log_e("[wifi_manager] SSID is empty");
+        log_e("SSID is empty");
         return error_type::WifiCredentialsNotFound;
     }
 
@@ -84,7 +84,7 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
     _password = password;
 
 #ifdef DEBUG_WIFI
-    log_d("[wifi_manager] Loaded WiFi credentials for SSID: %s", _ssid.c_str());
+    log_d("Loaded WiFi credentials for SSID: %s", _ssid.c_str());
 #endif // DEBUG_WIFI
 
     _initialized = true;
@@ -92,7 +92,7 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
 }
 
 void wifi_manager::set_timezone(const char* timezone) {
-    log_i("[wifi_manager] Setting timezone to: %s", timezone);
+    log_i("Setting timezone to: %s", timezone);
     setenv("TZ", timezone, 1);
     tzset();
 }
@@ -100,22 +100,22 @@ void wifi_manager::set_timezone(const char* timezone) {
 photo_frame_error_t wifi_manager::connect() {
     // Check if the WiFi manager is initialized
     if (!_initialized) {
-        log_e("[wifi_manager] WiFi manager not initialized");
+        log_e("WiFi manager not initialized");
         return error_type::WifiCredentialsNotFound;
     }
 
     // then check if we're already connected
     if (_connected) {
-        log_i("[wifi_manager] Already connected to WiFi");
+        log_i("Already connected to WiFi");
         return error_type::None;
     }
 
     if (_ssid.isEmpty() || _password.isEmpty()) {
-        log_e("[wifi_manager] WiFi credentials are empty");
+        log_e("WiFi credentials are empty");
         return error_type::WifiCredentialsNotFound;
     }
 
-    log_i("[wifi_manager] Connecting to WiFi network: %s", _ssid.c_str());
+    log_i("Connecting to WiFi network: %s", _ssid.c_str());
 
     WiFi.mode(WIFI_STA);
 
@@ -124,7 +124,7 @@ photo_frame_error_t wifi_manager::connect() {
     bool connected                = false;
 
     for (uint8_t attempt = 0; attempt < maxRetries && !connected; attempt++) {
-        log_i("[wifi_manager] WiFi connection attempt %u/%u", attempt + 1, maxRetries);
+        log_i("WiFi connection attempt %u/%u", attempt + 1, maxRetries);
 
         WiFi.begin(_ssid.c_str(), _password.c_str());
 
@@ -138,9 +138,9 @@ photo_frame_error_t wifi_manager::connect() {
         if (connection_status == WL_CONNECTED) {
             connected  = true;
             _connected = true;
-            log_i("[wifi_manager] WiFi connected! IP address: %s", WiFi.localIP().toString().c_str());
+            log_i("WiFi connected! IP address: %s", WiFi.localIP().toString().c_str());
         } else {
-            log_w("[wifi_manager] WiFi connection failed (attempt %u)", attempt + 1);
+            log_w("WiFi connection failed (attempt %u)", attempt + 1);
 
             WiFi.disconnect(true);
 
@@ -150,14 +150,14 @@ photo_frame_error_t wifi_manager::connect() {
                 unsigned long jitter       = random(0, backoffDelay / 4); // Add up to 25% jitter
                 backoffDelay += jitter;
 
-                log_i("[wifi_manager] Retrying in %lu ms...", backoffDelay);
+                log_i("Retrying in %lu ms...", backoffDelay);
                 delay(backoffDelay);
             }
         }
     }
 
     if (!connected) {
-        log_e("[wifi_manager] Failed to connect to WiFi after all retries!");
+        log_e("Failed to connect to WiFi after all retries!");
         _connected = false;
         return error_type::WifiConnectionFailed;
     }
@@ -171,7 +171,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     }
 
     if (!is_connected()) {
-        log_e("[wifi_manager] Not connected to WiFi, cannot fetch time");
+        log_e("Not connected to WiFi, cannot fetch time");
         if (error) {
             *error = error_type::WifiConnectionFailed;
         }
@@ -181,7 +181,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     set_timezone(TIMEZONE);
     configTime(0, 0, NTP_SERVER1, NTP_SERVER2);
 
-    log_i("[wifi_manager] Waiting for NTP time sync...");
+    log_i("Waiting for NTP time sync...");
 
     unsigned long startTime = millis();
     time_t now              = time(nullptr);
@@ -192,14 +192,14 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     }
 
     if (now < 1000000000) {
-        log_e("[wifi_manager] NTP time sync timeout!");
+        log_e("NTP time sync timeout!");
         if (error) {
             *error = error_type::WifiConnectionFailed;
         }
         return DateTime(); // Invalid DateTime
     }
 
-    log_i("[wifi_manager] Time synchronized.");
+    log_i("Time synchronized.");
 
     // Print the current time
     struct tm timeinfo;
@@ -211,7 +211,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
 
         char timeStr[64];
         strftime(timeStr, sizeof(timeStr), "%A, %B %d %Y %H:%M:%S", &timeinfo);
-        log_i("[wifi_manager] Current time is: %s", timeStr);
+        log_i("Current time is: %s", timeStr);
 
         return DateTime(timeinfo.tm_year + 1900,
                         timeinfo.tm_mon + 1,
@@ -221,7 +221,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
                         timeinfo.tm_sec);
     }
 
-    log_e("[wifi_manager] Failed to obtain time from NTP server within timeout");
+    log_e("Failed to obtain time from NTP server within timeout");
     if (error) {
         *error = error_type::HttpGetFailed;
     }
@@ -230,11 +230,11 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
 
 void wifi_manager::disconnect() {
     if (_connected) {
-        log_i("[wifi_manager] Disconnecting from WiFi...");
+        log_i("Disconnecting from WiFi...");
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         _connected = false;
-        log_i("[wifi_manager] WiFi disconnected and turned off");
+        log_i("WiFi disconnected and turned off");
     }
 }
 

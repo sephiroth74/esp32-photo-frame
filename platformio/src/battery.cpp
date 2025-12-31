@@ -92,13 +92,13 @@ bool battery_info_t::is_charging() const { return millivolts > BATTERY_CHARGING_
 
 void battery_reader::init() const {
 #ifdef USE_SENSOR_MAX1704X
-    log_i("[battery] Initializing MAX1704X Battery Reader on Wire");
+    log_i("Initializing MAX1704X Battery Reader on Wire");
 #if defined(MAX1704X_SDA_PIN) && defined(MAX1704X_SCL_PIN)
     TheWire.setPins(MAX1704X_SDA_PIN, MAX1704X_SCL_PIN);
 #endif
     TheWire.setTimeOut((uint16_t)SENSOR_MAX1704X_TIMEOUT);
 #else
-    log_i("[battery] Initializing battery_reader on pin %d", pin);
+    log_i("Initializing battery_reader on pin %d", pin);
     pinMode(pin, INPUT);
     // Set the pin to use the ADC with no attenuation
     analogSetPinAttenuation(pin, ADC_11db);
@@ -110,21 +110,21 @@ battery_info_t battery_reader::read() const {
 #ifdef USE_SENSOR_MAX1704X
 
     unsigned long ms = millis();
-    log_i("[battery] Reading battery level from MAX1704X sensor");
+    log_i("Reading battery level from MAX1704X sensor");
     do {
         if ((millis() - ms) > SENSOR_MAX1704X_TIMEOUT) {
-            log_e("[battery] MAX1704X sensor initialization timed out!");
+            log_e("MAX1704X sensor initialization timed out!");
             return battery_info_t::full();
         }
         delay(200); // Wait a bit before trying again
         log_i(".");
     } while (!max1704x.begin(&TheWire));
 
-    log_i("[battery] MAX1704X initialized..");
+    log_i("MAX1704X initialized..");
     delay(1000); // Allow some time for the sensor to initialize
 
     if (!max1704x.isDeviceReady()) {
-        log_e("[battery] MAX1704X device is not ready!");
+        log_e("MAX1704X device is not ready!");
         return battery_info_t::full();
     }
 
@@ -132,7 +132,7 @@ battery_info_t battery_reader::read() const {
     float percent     = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
-    log_i("[battery] Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA", voltage, percent, charge_rate);
+    log_i("Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA", voltage, percent, charge_rate);
 
     return battery_info(
         voltage /* cell_voltage */, charge_rate /* charge_rate */, percent /* percent */);
@@ -153,7 +153,7 @@ battery_info_t battery_reader::read() const {
     uint8_t percent  = calc_battery_percentage(voltage);
 
 #ifdef DEBUG_BATTERY_READER
-    log_d("[battery] Battery reading: raw: %lu, millivolts: %lu, voltage: %lu, percent: %u",
+    log_d("Battery reading: raw: %lu, millivolts: %lu, voltage: %lu, percent: %u",
           raw, millivolts, voltage, percent);
 #endif // DEBUG_BATTERY_READER
 

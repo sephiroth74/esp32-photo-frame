@@ -5,6 +5,56 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.10.0] - 2025-12-30
+
+### Changed
+- **Buffer Ownership Refactoring**: Moved PSRAM image buffer management from renderer to main application
+  - Renderer functions now accept buffer as parameter instead of managing internal static buffer
+  - Improved separation of concerns: renderer is now a pure utility, main/display_debug own memory
+  - Better testability: renderer can work with any buffer provided by caller
+  - Enhanced flexibility: main.cpp and display_debug.cpp manage their own buffers independently
+
+### Removed
+- **Native Binary Format Support**: Eliminated 192KB native format (2 pixels per byte)
+  - Only Mode 1 format (384KB, 1 byte per pixel) is now supported
+  - Simplified codebase by removing `draw_native_binary_from_file()` function
+  - All images must be 800×480 = 384,000 bytes for 6C/7C displays
+
+- **LittleFS Intermediate Storage**: Removed temporary file copying to LittleFS
+  - Binary images now loaded directly from SD card to PSRAM buffer
+  - SD card closed before display operations begin
+  - Eliminated 500-800ms overhead from file copying
+  - Simplified code flow and reduced potential failure points
+
+### Fixed
+- **Display Initialization Sequence**: Replaced `display.clearScreen()` with proper initialization
+  - Now uses `display.setFullWindow()` + `display.fillScreen(GxEPD_WHITE)` + `delay(500)`
+  - Eliminates "Busy Timeout!" errors caused by premature display refresh
+  - Consistent with working display_debug initialization pattern
+
+- **SD Card Closure in Error Paths**: Ensured SD card properly closed in all error scenarios
+  - Added `sdCard.end()` calls in validation errors, buffer load errors, and Google Drive errors
+  - Prevents SPI bus conflicts between SD card (HSPI) and display (VSPI)
+  - Added `hspi.end()` in `sd_card::end()` method for complete bus shutdown
+
+### Technical Details
+- **API Changes**:
+  - `load_image_to_buffer(uint8_t* buffer, File& file, ...)` - now requires buffer parameter
+  - `render_image_from_buffer(uint8_t* buffer, int width, int height)` - now requires buffer parameter
+  - `draw_demo_bitmap_mode1_from_file(uint8_t* buffer, File& file, ...)` - now requires buffer parameter
+  - Removed `init_image_buffer()` from renderer namespace
+
+- **Buffer Management**:
+  - main.cpp: `g_image_buffer` allocated in PSRAM (384KB) with heap fallback
+  - display_debug.cpp: Separate `g_image_buffer` for diagnostic tests
+  - Allocation uses `heap_caps_malloc(MALLOC_CAP_SPIRAM)` for PSRAM targeting
+
+- **Memory Performance**:
+  - PSRAM allocation: 384KB (~4.7% of 8MB on ESP32-S3)
+  - Eliminates malloc/free overhead per image
+  - Reduces memory fragmentation
+  - Single allocation at startup, reused for all images
+
 ## [v0.9.3] - 2025-10-13
 
 ### Added

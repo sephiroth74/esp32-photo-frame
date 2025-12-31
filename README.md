@@ -395,12 +395,17 @@ The Android application offers:
 
 ## Documentation Index
 
+### Firmware Documentation
 - [Technical Specifications](docs/tech_specs.md) - System architecture and API documentation
 - [Wiring Diagram](docs/wiring-diagram.md) - Detailed hardware connections
-- [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing documentation
-- [Weather Integration](docs/weather.md) - Weather API setup and configuration
-- [Image Processing Pipeline](docs/image_processing.md) - Legacy bash script documentation
+- [Display Rendering Architecture](platformio/DISPLAY_RENDERING_ARCHITECTURE.md) - Display rendering pipeline and format handling
+- [Buffer Management](platformio/BUFFER_MANAGEMENT.md) - Memory allocation and buffer lifecycle (v0.10.0)
 - [Display Troubleshooting](platformio/DISPLAY_TROUBLESHOOTING_COMPLETE_GUIDE.md) - Hardware debugging guide
+- [Weather Integration](docs/weather.md) - Weather API setup and configuration
+
+### Image Processing
+- [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing documentation
+- [Image Processing Pipeline](docs/image_processing.md) - Legacy bash script documentation
 
 ## 3D Printable Enclosure
 

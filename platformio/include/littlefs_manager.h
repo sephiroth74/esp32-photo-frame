@@ -24,9 +24,11 @@
 #define __SPI_MANAGER_H__
 
 #include <Arduino.h>
+#include <FS.h>
+#include <LittleFS.h>
 
 namespace photo_frame {
-namespace spi_manager {
+namespace littlefs_manager {
 
 /**
  * @brief Manages SPI configuration switching between SD card and e-paper display
@@ -34,25 +36,33 @@ namespace spi_manager {
  * This utility class handles the complexity of using different SPI pins
  * for SD card and e-paper display when using shared SPI mode on ESP32-C6.
  */
-class SPIManager {
+class LittleFsManager {
   public:
     /**
      * @brief Initialize LittleFS if not already mounted
      * @return true if LittleFS is ready, false on error
      */
-    static bool init_littlefs();
+    static bool init();
 
     /**
      * @brief Clean up temporary files from LittleFS
      * @param pattern File pattern to match (e.g., "*.tmp")
      */
-    static void cleanup_temp_files(const char* pattern = "*.tmp");
+    static void cleanup_temp_files();
+
+    /**
+     * @brief Copy a file from SD card to LittleFS
+     * @param source_file Open file handle from SD card
+     * @param dest_filename Destination filename in LittleFS (including path)
+     * @return true if copy succeeded, false on error
+     */
+    static bool copy_to_littlefs(fs::File& source_file, const char* dest_filename);
 
   private:
-    static bool littlefs_initialized;
+    static bool initialized;
 };
 
-} // namespace spi_manager
+} // namespace littlefs_manager
 } // namespace photo_frame
 
 #endif // __SPI_MANAGER_H__

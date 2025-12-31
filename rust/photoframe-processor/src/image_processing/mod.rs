@@ -1107,11 +1107,16 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        // Use native format for 6-color (50% smaller files)
-                        let binary_data = if matches!(self.config.processing_type, ProcessingType::SixColor) {
-                            binary::convert_to_6c_native_binary(&processed_img)?
-                        } else {
-                            binary::convert_to_esp32_binary(&processed_img)?
+                        // Use appropriate binary format based on display type
+                        let binary_data = match self.config.processing_type {
+                            ProcessingType::BlackWhite => {
+                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
+                                binary::convert_to_esp32_binary(&processed_img)?
+                            }
+                            ProcessingType::SixColor | ProcessingType::SevenColor => {
+                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                                binary::convert_to_demo_bitmap_mode1(&processed_img)?
+                            }
                         };
                         std::fs::write(&output_path, binary_data).with_context(|| {
                             format!("Failed to save binary: {}", output_path.display())
@@ -1261,11 +1266,16 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        // Use native format for 6-color (50% smaller files)
-                        let binary_data = if matches!(self.config.processing_type, ProcessingType::SixColor) {
-                            binary::convert_to_6c_native_binary(&processed_img)?
-                        } else {
-                            binary::convert_to_esp32_binary(&processed_img)?
+                        // Use appropriate binary format based on display type
+                        let binary_data = match self.config.processing_type {
+                            ProcessingType::BlackWhite => {
+                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
+                                binary::convert_to_esp32_binary(&processed_img)?
+                            }
+                            ProcessingType::SixColor | ProcessingType::SevenColor => {
+                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                                binary::convert_to_demo_bitmap_mode1(&processed_img)?
+                            }
                         };
                         std::fs::write(&output_path, binary_data).with_context(|| {
                             format!("Failed to save portrait binary: {}", output_path.display())
@@ -1773,11 +1783,16 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        // Use native format for 6-color (50% smaller files)
-                        let binary_data = if matches!(self.config.processing_type, ProcessingType::SixColor) {
-                            binary::convert_to_6c_native_binary(&combined_img)?
-                        } else {
-                            binary::convert_to_esp32_binary(&combined_img)?
+                        // Use appropriate binary format based on display type
+                        let binary_data = match self.config.processing_type {
+                            ProcessingType::BlackWhite => {
+                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
+                                binary::convert_to_esp32_binary(&combined_img)?
+                            }
+                            ProcessingType::SixColor | ProcessingType::SevenColor => {
+                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                                binary::convert_to_demo_bitmap_mode1(&combined_img)?
+                            }
                         };
                         std::fs::write(&output_path, &binary_data).with_context(|| {
                             format!("Failed to save combined binary: {}", output_path.display())

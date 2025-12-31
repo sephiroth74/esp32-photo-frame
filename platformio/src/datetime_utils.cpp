@@ -71,7 +71,7 @@ int format_datetime(char* buffer, size_t buffer_size, const tm& timeinfo, const 
 
 int format_datetime(char* buffer, size_t buffer_size, const time_t& timeinfo, const char* format) {
 #ifdef DEBUG_DATETIME_UTILS
-    log_d("[datetime_utils] format_datetime: %ld", timeinfo);
+    log_d("format_datetime: %ld", timeinfo);
 #endif // DEBUG_DATETIME_UTILS
 
     if (format == nullptr) {
@@ -81,7 +81,7 @@ int format_datetime(char* buffer, size_t buffer_size, const time_t& timeinfo, co
     struct tm* tm_info = localtime(&timeinfo);
 
 #ifdef DEBUG_DATETIME_UTILS
-    log_d("[datetime_utils] format_datetime: %d:%d", tm_info->tm_hour, tm_info->tm_min);
+    log_d("format_datetime: %d:%d", tm_info->tm_hour, tm_info->tm_min);
 #endif // DEBUG_DATETIME_UTILS
 
     // return format_datetime(buffer, buffer_size, *tm_info, format);

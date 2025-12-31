@@ -352,6 +352,22 @@ void draw_side_message_with_icon(gravity_t gravity,
                                  int32_t y_offset = 0);
 
 /**
+ * Draws a side message with an icon on a GFX canvas (for overlay composition).
+ * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+ * @param gravity The gravity of the message
+ * @param icon_name The name of the icon to be displayed
+ * @param message The message to be displayed next to the icon
+ * @param x_offset The x-offset from the icon position (default is 0)
+ * @param y_offset The y-offset from the icon position (default is 0)
+ */
+void draw_side_message_with_icon(Adafruit_GFX& gfx,
+                                 gravity_t gravity,
+                                 icon_name_t icon_name,
+                                 const char* message,
+                                 int32_t x_offset = 0,
+                                 int32_t y_offset = 0);
+
+/**
  * Draws a side message without an icon.
  * @param gravity The gravity of the message (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
  * @param message The message to be displayed.
@@ -367,6 +383,20 @@ void draw_side_message(gravity_t gravity,
                        int32_t y_offset = 0);
 
 /**
+ * Draws a side message without an icon on a GFX canvas (for overlay composition).
+ * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+ * @param gravity The gravity of the message
+ * @param message The message to be displayed
+ * @param x_offset The x-offset from the message position (default is 0)
+ * @param y_offset The y-offset from the message position (default is 0)
+ */
+void draw_side_message(Adafruit_GFX& gfx,
+                       gravity_t gravity,
+                       const char* message,
+                       int32_t x_offset = 0,
+                       int32_t y_offset = 0);
+
+/**
  * Draws the last update time on the e-paper display.
  * @param lastUpdate The DateTime object representing the last update time.
  * @param refresh_seconds The number of seconds since the last update (default is 0).
@@ -375,6 +405,14 @@ void draw_side_message(gravity_t gravity,
  * time.
  */
 void draw_last_update(const DateTime& lastUpdate, long refresh_seconds = 0);
+
+/**
+ * Draws the last update time on a GFX canvas (for overlay composition).
+ * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+ * @param lastUpdate The DateTime object representing the last update time.
+ * @param refresh_seconds The number of seconds since the last update (default is 0).
+ */
+void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds = 0);
 
 /**
  * Draws the battery status on the e-paper display.
@@ -387,6 +425,13 @@ void draw_last_update(const DateTime& lastUpdate, long refresh_seconds = 0);
 void draw_battery_status(photo_frame::battery_info_t battery_info);
 
 /**
+ * Draws the battery status on a GFX canvas (for overlay composition).
+ * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+ * @param battery_info Battery information structure
+ */
+void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info);
+
+/**
  * Draws image information on the e-paper display.
  * @param index The index of the current image.
  * @param total_images The total number of images.
@@ -395,6 +440,18 @@ void draw_battery_status(photo_frame::battery_info_t battery_info);
  * top center corner of the display. It is useful for providing context when viewing images.
  */
 void draw_image_info(uint32_t index,
+                     uint32_t total_images,
+                     photo_frame::image_source_t image_source);
+
+/**
+ * Draws image information on a GFX canvas (for overlay composition).
+ * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+ * @param index The index of the current image.
+ * @param total_images The total number of images.
+ * @param image_source The source of the current image (cloud or local cache).
+ */
+void draw_image_info(Adafruit_GFX& gfx,
+                     uint32_t index,
                      uint32_t total_images,
                      photo_frame::image_source_t image_source);
 
@@ -409,6 +466,14 @@ rect_t get_weather_info_rect();
  * Only displays if weather data is valid and not stale.
  */
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect);
+
+/**
+ * Draws current weather information on a GFX canvas (for overlay composition).
+ * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+ * @param weather_data The weather data to display (temperature, icon, etc.)
+ * @param box_rect Rectangle defining the weather info area
+ */
+void draw_weather_info(Adafruit_GFX& gfx, const photo_frame::weather::WeatherData& weather_data, rect_t box_rect);
 
 /**
  * Draws a rounded rectangle with dithering transparency on the e-paper display.
@@ -490,15 +555,53 @@ uint16_t
 draw_binary_from_file_paged(File& file, const char* filename, int width, int height, int page_index = -1);
 
 /**
- * @brief Draws a native format binary image from a file on 6-color e-paper displays.
- * Native format uses 2 pixels per byte (4 bits per pixel) for optimal memory and performance.
- * @param file File handle for the native binary image
- * @param filename Name of the file (for debugging/logging)
- * @param width Width of the binary image in pixels
- * @param height Height of the binary image in pixels
+ * @brief Load image file into buffer
+ *
+ * Reads Mode 1 format image (384KB, 1 byte per pixel) from SD card into the
+ * provided buffer. This allows the SD card to be closed before display operations begin.
+ *
+ * @param buffer Pointer to buffer (must be at least width * height bytes)
+ * @param file Open file handle (SD card or other filesystem)
+ * @param filename Original filename for logging and validation
+ * @param width Expected image width (should match display width, 800)
+ * @param height Expected image height (should match display height, 480)
+ * @return Error code (0 = success, non-zero = error)
+ * @note File can be closed after this function returns
+ */
+uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename, int width, int height);
+
+/**
+ * @brief Write image from buffer to display hardware (without refresh)
+ *
+ * Writes the image from provided buffer to display hardware using Mode 1 format.
+ * Uses writeDemoBitmap() which writes directly to display hardware without triggering refresh.
+ * The caller must call display.refresh() afterwards to update the physical screen.
+ *
+ * This allows overlays to be drawn on top of the image before the final refresh.
+ *
+ * @param buffer Pointer to buffer containing image data (Mode 1 format: 1 byte per pixel)
+ * @param width Image width (should match display width, 800)
+ * @param height Image height (should match display height, 480)
+ * @return Error code (0 = success, non-zero = error)
+ * @note Display must be initialized before calling this function
+ * @note Caller is responsible for calling display.refresh() after drawing overlays
+ */
+uint16_t write_image_from_buffer(uint8_t* buffer, int width, int height);
+
+/**
+ * @brief Load and render image in one call (legacy compatibility)
+ *
+ * Convenience function that combines load_image_to_buffer() and render_image_from_buffer().
+ * For better control and SPI management, use the separate functions instead.
+ *
+ * @param buffer Pointer to buffer (must be at least width * height bytes)
+ * @param file Open file handle
+ * @param filename Original filename for logging
+ * @param width Image width (should match display width, 800)
+ * @param height Image height (should match display height, 480)
  * @return Error code (0 = success, non-zero = error)
  */
-uint16_t draw_native_binary_from_file(File& file, const char* filename, int width, int height);
+uint16_t draw_demo_bitmap_mode1_from_file(uint8_t* buffer, File& file, const char* filename, int width, int height);
 
 uint16_t read8(File& f);
 

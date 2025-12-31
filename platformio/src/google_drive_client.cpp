@@ -22,7 +22,6 @@
 
 #include "google_drive_client.h"
 #include <HTTPClient.h>
-#include <SD_MMC.h>
 #include <unistd.h> // For fsync()
 #include <esp_heap_caps.h> // For ps_malloc/ps_free
 
@@ -77,13 +76,13 @@ String readHttpBody(WiFiClientSecure& client) {
 
         // Safety limit to prevent memory overflow - platform specific
         if (totalRead > GOOGLE_DRIVE_SAFETY_LIMIT) {
-            log_w("[google_drive_client] Response too large, truncating");
+            log_w("Response too large, truncating");
             break;
         }
     }
 
-    log_i("[google_drive_client] Body read complete, length: %zu", body.length());
-    log_i("[google_drive_client] Total bytes read: %zu", totalRead);
+    log_i("Body read complete, length: %zu", body.length());
+    log_i("Total bytes read: %zu", totalRead);
 
     return body;
 }
@@ -160,7 +159,7 @@ google_drive_client::google_drive_client(const google_drive_client_config& confi
     }
 
 #ifdef DEBUG_GOOGLE_DRIVE
-    log_d("[google_drive_client] Google Drive rate limiting initialized");
+    log_d("Google Drive rate limiting initialized");
 #endif // DEBUG_GOOGLE_DRIVE
 }
 
@@ -201,13 +200,13 @@ bool google_drive_client::can_make_request() {
 
     // Check minimum delay between requests
     if (lastRequestTime > 0 && (currentTime - lastRequestTime) < config->minRequestDelayMs) {
-        log_w("[google_drive_client] Minimum request delay not met");
+        log_w("Minimum request delay not met");
         return false;
     }
 
     // Check if we're within the rate limit window
     if (requestCount >= GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW) {
-        log_w("[google_drive_client] Rate limit reached: %u/%u requests in window", requestCount, GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
+        log_w("Rate limit reached: %u/%u requests in window", requestCount, GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
         return false;
     }
 
@@ -221,11 +220,11 @@ photo_frame_error_t google_drive_client::wait_for_rate_limit() {
         // Check if we've exceeded the maximum wait time
         unsigned long elapsedTime = millis() - startTime;
         if (elapsedTime >= config->maxWaitTimeMs) {
-            log_w("[google_drive_client] Rate limit wait timeout after %lums - aborting to conserve battery", elapsedTime);
+            log_w("Rate limit wait timeout after %lums - aborting to conserve battery", elapsedTime);
             return error_type::RateLimitTimeoutExceeded;
         }
 
-        log_i("[google_drive_client] Waiting for rate limit compliance...");
+        log_i("Waiting for rate limit compliance...");
 
         unsigned long currentTime     = millis();
         unsigned long nextAllowedTime = lastRequestTime + config->minRequestDelayMs;
@@ -236,17 +235,17 @@ photo_frame_error_t google_drive_client::wait_for_rate_limit() {
             // Ensure the wait time doesn't exceed our remaining budget
             unsigned long remainingBudget = config->maxWaitTimeMs - elapsedTime;
             if (waitTime > remainingBudget) {
-                log_w("[google_drive_client] Wait time (%lums) would exceed budget, aborting", waitTime);
+                log_w("Wait time (%lums) would exceed budget, aborting", waitTime);
                 return error_type::RateLimitTimeoutExceeded;
             }
 
-            log_i("[google_drive_client] Delaying %lums for rate limit", waitTime);
+            log_i("Delaying %lums for rate limit", waitTime);
             delay(waitTime);
         } else {
             // Wait a bit more for the sliding window to clear
             unsigned long remainingBudget = config->maxWaitTimeMs - elapsedTime;
             if (remainingBudget < 1000) {
-                log_w("[google_drive_client] Insufficient time budget remaining, aborting");
+                log_w("Insufficient time budget remaining, aborting");
                 return error_type::RateLimitTimeoutExceeded;
             }
             delay(1000);
@@ -272,13 +271,13 @@ void google_drive_client::record_request() {
     }
 
 #ifdef DEBUG_GOOGLE_DRIVE
-    log_d("[google_drive_client] Request recorded (%u/%u)", requestCount, GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
+    log_d("Request recorded (%u/%u)", requestCount, GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
 #endif // DEBUG_GOOGLE_DRIVE
 }
 
 bool google_drive_client::handle_rate_limit_response(uint8_t attempt) {
     if (attempt >= config->maxRetryAttempts) {
-        log_w("[google_drive_client] Max retry attempts reached for rate limit");
+        log_w("Max retry attempts reached for rate limit");
         return false;
     }
 
@@ -290,7 +289,7 @@ bool google_drive_client::handle_rate_limit_response(uint8_t attempt) {
         backoffDelay = GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS;
     }
 
-    log_w("[google_drive_client] Rate limited (HTTP 429). Backing off for %lums (attempt %u/%u)", backoffDelay, attempt + 1, config->maxRetryAttempts);
+    log_w("Rate limited (HTTP 429). Backing off for %lums (attempt %u/%u)", backoffDelay, attempt + 1, config->maxRetryAttempts);
 
     delay(backoffDelay);
     yield();
@@ -303,14 +302,22 @@ bool google_drive_client::rsaSignRS256(const String& input, String& sig_b64url) 
     mbedtls_md_context_t mdctx;
     mbedtls_md_init(&mdctx);
     const mbedtls_md_info_t* mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    if (!mdinfo)
+    if (!mdinfo) {
+        log_e("Failed to get MD info for SHA256");
         return false;
-    if (mbedtls_md_setup(&mdctx, mdinfo, 0) != 0)
+    }
+    if (mbedtls_md_setup(&mdctx, mdinfo, 0) != 0) {
+        log_e("Failed to setup MD context");
         return false;
+    }
     mbedtls_md_starts(&mdctx);
     mbedtls_md_update(&mdctx, (const unsigned char*)input.c_str(), input.length());
     mbedtls_md_finish(&mdctx, hash);
     mbedtls_md_free(&mdctx);
+
+    log_d("Parsing private key, length: %zu", strlen(config->privateKeyPem));
+    log_d("First 50 chars: %.50s", config->privateKeyPem);
+
     mbedtls_pk_context pk;
     mbedtls_pk_init(&pk);
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -331,9 +338,11 @@ bool google_drive_client::rsaSignRS256(const String& input, String& sig_b64url) 
                                    0);
 #endif
     if (ret != 0) {
+        log_e("Failed to parse private key, error code: -0x%04X", -ret);
         mbedtls_pk_free(&pk);
         return false;
     }
+    log_d("Private key parsed successfully");
     std::unique_ptr<unsigned char[]> sig(new unsigned char[MBEDTLS_PK_SIGNATURE_MAX_SIZE]);
     size_t sig_len = 0;
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -376,16 +385,16 @@ String google_drive_client::create_jwt() {
 
     // Validate system time is reasonable (between 2020 and 2100)
     if (now < 1577836800 || now > 4102444800) {  // Unix timestamps for 2020 and 2100
-        log_e("[google_drive_client] ERROR: System time is invalid: %ld", now);
-        log_e("[google_drive_client] JWT will likely fail due to invalid timestamps");
-        log_e("[google_drive_client] Check RTC module or NTP sync");
+        log_e("ERROR: System time is invalid: %ld", now);
+        log_e("JWT will likely fail due to invalid timestamps");
+        log_e("Check RTC module or NTP sync");
     }
 
     const uint32_t iat = (uint32_t)now;
     const uint32_t exp = iat + 3600;
 
 #ifdef DEBUG_GOOGLE_DRIVE
-    log_d("[google_drive_client] JWT timestamps - iat: %u (%ld), exp: %u", iat, now, exp);
+    log_d("JWT timestamps - iat: %u (%ld), exp: %u", iat, now, exp);
 #endif
     StaticJsonDocument<384> claims;
     claims["iss"]   = config->serviceAccountEmail;
@@ -410,14 +419,14 @@ String google_drive_client::create_jwt() {
 }
 
 photo_frame_error_t google_drive_client::get_access_token() {
-    log_i("[google_drive_client] Requesting new access token...");
+    log_i("Requesting new access token...");
 
     String jwt = create_jwt();
     if (jwt.isEmpty())
         return error_type::JwtCreationFailed;
 
 #ifdef DEBUG_GOOGLE_DRIVE
-    log_d("[google_drive_client] JWT created, length: %zu", jwt.length());
+    log_d("JWT created, length: %zu", jwt.length());
 #endif // DEBUG_GOOGLE_DRIVE
 
     String body = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" +
@@ -426,7 +435,7 @@ photo_frame_error_t google_drive_client::get_access_token() {
     // Apply rate limiting before making the request
     photo_frame_error_t rateLimitError = wait_for_rate_limit();
     if (rateLimitError != error_type::None) {
-        log_w("[google_drive_client] Rate limit wait timeout - aborting token request");
+        log_w("Rate limit wait timeout - aborting token request");
         return rateLimitError;
     }
 
@@ -443,18 +452,18 @@ photo_frame_error_t google_drive_client::get_access_token() {
 
         // Set up SSL/TLS
         if (config->useInsecureTls) {
-            log_w("[google_drive_client] WARNING: Using insecure TLS connection");
+            log_w("WARNING: Using insecure TLS connection");
             client.setInsecure();
         } else {
             if (g_google_root_ca.length() > 0) {
                 client.setCACert(g_google_root_ca.c_str());
             } else {
-                log_w("[google_drive_client] WARNING: No root CA certificate loaded, using insecure connection");
+                log_w("WARNING: No root CA certificate loaded, using insecure connection");
                 client.setInsecure();
             }
         }
 
-        log_i("[google_drive_client] Connecting to token endpoint: %s", TOKEN_HOST);
+        log_i("Connecting to token endpoint: %s", TOKEN_HOST);
 
         String tokenUrl = "https://";
         tokenUrl += TOKEN_HOST;
@@ -466,9 +475,9 @@ photo_frame_error_t google_drive_client::get_access_token() {
         http.addHeader("User-Agent", "ESP32-PhotoFrame");
 
 #ifdef DEBUG_GOOGLE_DRIVE
-        log_d("[google_drive_client] POST %s", tokenUrl.c_str());
-        log_d("[google_drive_client] Request body length: %zu", body.length());
-        log_d("[google_drive_client] Request body: %s", body.c_str());
+        log_d("POST %s", tokenUrl.c_str());
+        log_d("Request body length: %zu", body.length());
+        log_d("Request body: %s", body.c_str());
 #endif // DEBUG_GOOGLE_DRIVE
 
         int httpCode = http.POST(body);
@@ -503,18 +512,18 @@ photo_frame_error_t google_drive_client::get_access_token() {
                     responseBody      = String(buffer); // Convert to String for compatibility
                     free(buffer);
 
-                    log_i("[google_drive_client] Read %d bytes from token response", totalRead);
+                    log_i("Read %d bytes from token response", totalRead);
                 } else {
-                    log_e("[google_drive_client] Failed to allocate response buffer");
+                    log_e("Failed to allocate response buffer");
                     networkError = true;
                 }
             } else {
                 // Fallback to getString for unknown/large content
-                log_i("[google_drive_client] Using fallback getString, content length: %d", contentLength);
+                log_i("Using fallback getString, content length: %d", contentLength);
                 responseBody = http.getString();
             }
         } else {
-            log_e("[google_drive_client] HTTP POST failed: %d", httpCode);
+            log_e("HTTP POST failed: %d", httpCode);
             networkError = true;
         }
 
@@ -524,25 +533,25 @@ photo_frame_error_t google_drive_client::get_access_token() {
         failure_type failureType = classify_failure(statusCode, networkError);
 
         if (failureType == failure_type::Permanent) {
-            log_e("[google_drive_client] Permanent failure (HTTP %d), not retrying", statusCode);
+            log_e("Permanent failure (HTTP %d), not retrying", statusCode);
 
             // Special handling for HTTP 400 - Bad Request
             if (statusCode == 400) {
-                log_e("[google_drive_client] HTTP 400 Bad Request - Debugging info:");
-                log_e("[google_drive_client] Response body: %s", responseBody.c_str());
+                log_e("HTTP 400 Bad Request - Debugging info:");
+                log_e("Response body: %s", responseBody.c_str());
 
                 // Check for specific OAuth errors
                 if (responseBody.indexOf("invalid_grant") >= 0) {
-                    log_e("[google_drive_client] Error: invalid_grant - Service account may not have access or credentials are incorrect");
+                    log_e("Error: invalid_grant - Service account may not have access or credentials are incorrect");
                 } else if (responseBody.indexOf("invalid_client") >= 0) {
-                    log_e("[google_drive_client] Error: invalid_client - Client ID or private key may be incorrect");
+                    log_e("Error: invalid_client - Client ID or private key may be incorrect");
                 } else if (responseBody.indexOf("invalid_request") >= 0) {
-                    log_e("[google_drive_client] Error: invalid_request - JWT format or claims may be incorrect");
+                    log_e("Error: invalid_request - JWT format or claims may be incorrect");
                 }
 
                 // Log JWT creation time to check for clock skew
-                log_e("[google_drive_client] System time: %ld", time(NULL));
-                log_e("[google_drive_client] Note: HTTP 400 can be caused by:");
+                log_e("System time: %ld", time(NULL));
+                log_e("Note: HTTP 400 can be caused by:");
                 log_e("  1. Invalid service account credentials");
                 log_e("  2. System clock too far off (check RTC time)");
                 log_e("  3. Malformed JWT or missing required claims");
@@ -558,14 +567,14 @@ photo_frame_error_t google_drive_client::get_access_token() {
         if (statusCode == 200 && responseBody.length() > 0) {
             // Parse token from response body
             size_t freeHeap = ESP.getFreeHeap();
-            log_i("[google_drive_client] Free heap before token parse: %zu", freeHeap);
+            log_i("Free heap before token parse: %zu", freeHeap);
 
             StaticJsonDocument<768> doc;
             DeserializationError err = deserializeJson(doc, responseBody);
             if (err) {
-                log_e("[google_drive_client] Token parse error: %s", err.c_str());
+                log_e("Token parse error: %s", err.c_str());
 #ifdef DEBUG_GOOGLE_DRIVE
-                log_d("[google_drive_client] Response body: %s", responseBody.c_str());
+                log_d("Response body: %s", responseBody.c_str());
 #endif // DEBUG_GOOGLE_DRIVE
        // Check if this is an OAuth error response
                 if (responseBody.indexOf("invalid_grant") >= 0 ||
@@ -581,7 +590,7 @@ photo_frame_error_t google_drive_client::get_access_token() {
             unsigned int expires_in = doc["expires_in"];
 
             if (!tok) {
-                log_e("[google_drive_client] No access_token in response");
+                log_e("No access_token in response");
                 return error_type::OAuthTokenRequestFailed;
             }
 
@@ -591,8 +600,8 @@ photo_frame_error_t google_drive_client::get_access_token() {
             g_access_token.expiresAt  = tokenExpirationTime;
             g_access_token.obtainedAt = time(NULL);
 
-            log_i("[google_drive_client] Token: %s", g_access_token.accessToken);
-            log_i("[google_drive_client] Token expires at: %ld", tokenExpirationTime);
+            log_i("Token: %s", g_access_token.accessToken);
+            log_i("Token expires at: %ld", tokenExpirationTime);
             return error_type::None;
         }
 
@@ -609,7 +618,7 @@ photo_frame_error_t google_drive_client::get_access_token() {
             }
             attempt++;
         } else {
-            log_w("[google_drive_client] Max retry attempts reached for access token");
+            log_w("Max retry attempts reached for access token");
             break;
         }
     }
@@ -620,10 +629,10 @@ photo_frame_error_t google_drive_client::get_access_token() {
 photo_frame_error_t google_drive_client::download_file(const String& fileId, fs::File* outFile) {
     // Check if token is expired and refresh if needed
     if (is_token_expired()) {
-        log_i("[google_drive_client] Token expired, refreshing before download");
+        log_i("Token expired, refreshing before download");
         photo_frame_error_t refreshError = refresh_token();
         if (refreshError != error_type::None) {
-            log_e("[google_drive_client] Failed to refresh expired token");
+            log_e("Failed to refresh expired token");
             return refreshError;
         }
     }
@@ -638,7 +647,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
     // Apply rate limiting before making the request
     photo_frame_error_t rateLimitError = wait_for_rate_limit();
     if (rateLimitError != error_type::None) {
-        log_w("[google_drive_client] Rate limit wait timeout - aborting download request");
+        log_w("Rate limit wait timeout - aborting download request");
         return rateLimitError;
     }
 
@@ -654,7 +663,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
             if (g_google_root_ca.length() > 0) {
                 client.setCACert(g_google_root_ca.c_str());
             } else {
-                log_w("[google_drive_client] WARNING: No root CA certificate loaded, connection may fail");
+                log_w("WARNING: No root CA certificate loaded, connection may fail");
                 client.setInsecure(); // Fallback to insecure connection
             }
         }
@@ -662,9 +671,18 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         client.setHandshakeTimeout(HTTP_REQUEST_TIMEOUT / 1000); // Set handshake timeout in seconds
 
         unsigned long connectStart = millis();
-        if (!client.connect(DRIVE_HOST, 443)) {
+        log_i("Starting SSL connection to %s:443...", DRIVE_HOST);
+
+        bool connected = client.connect(DRIVE_HOST, 443);
+        unsigned long connectDuration = millis() - connectStart;
+
+        log_i("Connection attempt took %lu ms (timeout: %d ms)",
+              connectDuration, HTTP_CONNECT_TIMEOUT);
+
+        if (!connected) {
+            log_e("SSL connection failed after %lu ms", connectDuration);
             if (attempt < config->maxRetryAttempts - 1) {
-                log_w("[google_drive_client] Download connection failed, retrying...");
+                log_w("Download connection failed, retrying...");
                 if (!handle_rate_limit_response(attempt)) {
                     break;
                 }
@@ -672,11 +690,11 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
                 continue;
             }
             return error_type::HttpConnectFailed;
-        } else if (millis() - connectStart > HTTP_CONNECT_TIMEOUT) {
-            log_w("[google_drive_client] Download connection timeout");
+        } else if (connectDuration > HTTP_CONNECT_TIMEOUT) {
+            log_w("Download connection timeout");
             client.stop();
             if (attempt < config->maxRetryAttempts - 1) {
-                log_w("[google_drive_client] Retrying after timeout...");
+                log_w("Retrying after timeout...");
                 if (!handle_rate_limit_response(attempt)) {
                     break;
                 }
@@ -692,7 +710,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         String req = build_http_request("GET", path.c_str(), DRIVE_HOST, headers.c_str());
 
 #ifdef DEBUG_GOOGLE_DRIVE
-        log_d("[google_drive_client] HTTP Request: %s", req.c_str());
+        log_d("HTTP Request: %s", req.c_str());
 #endif // DEBUG_GOOGLE_DRIVE
 
         client.print(req);
@@ -704,14 +722,14 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         } while (statusLine.length() == 0);
 
         statusLine.trim();
-        log_i("[google_drive_client] HTTP Status: %s", statusLine.c_str());
+        log_i("HTTP Status: %s", statusLine.c_str());
 
         // Check if status is 200 OK
         if (statusLine.indexOf("200") < 0) {
-            log_e("[google_drive_client] HTTP error - not 200 OK");
+            log_e("HTTP error - not 200 OK");
             client.stop();
             if (attempt < config->maxRetryAttempts - 1) {
-                log_w("[google_drive_client] Retrying after HTTP error...");
+                log_w("Retrying after HTTP error...");
                 if (!handle_rate_limit_response(attempt)) {
                     break;
                 }
@@ -725,10 +743,10 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         HttpResponseHeaders responseHeaders =
             parse_http_headers(client, true); // verbose logging for downloads
         if (!responseHeaders.parseSuccessful) {
-            log_e("[google_drive_client] Failed to parse HTTP headers");
+            log_e("Failed to parse HTTP headers");
             client.stop();
             if (attempt < config->maxRetryAttempts - 1) {
-                log_w("[google_drive_client] Retrying after header parse failure...");
+                log_w("Retrying after header parse failure...");
                 if (!handle_rate_limit_response(attempt)) {
                     break;
                 }
@@ -746,7 +764,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
 
         if (responseHeaders.isChunked) {
             // Handle chunked transfer encoding
-            log_i("[google_drive_client] Reading chunked response");
+            log_i("Reading chunked response");
             while (client.connected() || client.available()) {
                 // Read chunk size (hex number followed by \r\n)
                 String chunkSizeLine = client.readStringUntil('\n');
@@ -760,7 +778,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
 
                 if (chunkSize == 0) {
                     // End of chunks
-                    log_i("[google_drive_client] End of chunked data");
+                    log_i("End of chunked data");
                     break;
                 }
 
@@ -794,13 +812,13 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
 
             // Flush file buffers after chunked download
             if (readAny) {
-                log_i("[google_drive_client] Flushing chunked file buffers to disk...");
+                log_i("Flushing chunked file buffers to disk...");
                 outFile->flush();
                 delay(500); // Small delay to ensure flush completes
             }
         } else {
             // Handle regular (non-chunked) response
-            log_i("[google_drive_client] Reading non-chunked response");
+            log_i("Reading non-chunked response");
             uint8_t buf[2048];
             long remainingBytes = responseHeaders.contentLength;
 
@@ -819,7 +837,7 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
                     if (responseHeaders.contentLength > 0) {
                         remainingBytes -= n;
                         if (remainingBytes <= 0) {
-                            log_i("[google_drive_client] Reached expected content length");
+                            log_i("Reached expected content length");
                             break;
                         }
                     }
@@ -836,14 +854,14 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
 
         unsigned long elapsedTime = millis() - startTime;
 
-        log_i("[google_drive_client] Total bytes downloaded: %u", bytesRead);
-        log_i("[google_drive_client] Download time (ms): %lu", elapsedTime);
+        log_i("Total bytes downloaded: %u", bytesRead);
+        log_i("Download time (ms): %lu", elapsedTime);
 
         client.stop();
 
         if (readAny) {
             // Ensure all data is flushed to disk before returning success
-            log_i("[google_drive_client] Flushing file buffers to disk...");
+            log_i("Flushing file buffers to disk...");
             outFile->flush();
             delay(500);              // Small delay to ensure flush completes
             return error_type::None; // Success
@@ -889,7 +907,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
         response.statusMessage = statusLine.substring(secondSpace + 1);
         response.statusMessage.trim();
     } else {
-        log_e("[google_drive_client] Failed to parse status line: %s", statusLine.c_str());
+        log_e("Failed to parse status line: %s", statusLine.c_str());
         return false;
     }
 
@@ -897,7 +915,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
     HttpResponseHeaders responseHeaders =
         parse_http_headers(client, false); // no verbose logging for token requests
     if (!responseHeaders.parseSuccessful) {
-        log_e("[google_drive_client] Failed to parse HTTP headers");
+        log_e("Failed to parse HTTP headers");
         return false;
     }
 
@@ -907,7 +925,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
     uint32_t bodyBytesRead = 0;
 
     if (responseHeaders.isChunked) {
-        log_i("[google_drive_client] Response uses chunked transfer encoding");
+        log_i("Response uses chunked transfer encoding");
         // Handle chunked transfer encoding with more robust parsing
         while (client.connected() || client.available()) {
             // Read chunk size line character by character to avoid issues
@@ -938,7 +956,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
             long chunkSize = strtol(chunkSizeLine.c_str(), NULL, 16);
 
 #ifdef DEBUG_GOOGLE_DRIVE
-            log_d("[google_drive_client] Chunk size: %ld (hex: %s)", chunkSize, chunkSizeLine.c_str());
+            log_d("Chunk size: %ld (hex: %s)", chunkSize, chunkSizeLine.c_str());
 #endif // DEBUG_GOOGLE_DRIVE
 
             // If chunk size is 0, we've reached the end
@@ -1032,7 +1050,7 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
 
     response.hasContent = response.body.length() > 0;
 
-    log_i("[google_drive_client] HTTP Response: %d %s, Body length: %zu", response.statusCode, response.statusMessage.c_str(), response.body.length());
+    log_i("HTTP Response: %d %s, Body length: %zu", response.statusCode, response.statusMessage.c_str(), response.body.length());
 
     return true;
 }
@@ -1083,7 +1101,7 @@ failure_type google_drive_client::classify_failure(int statusCode, bool hasNetwo
 
 bool google_drive_client::handle_transient_failure(uint8_t attempt, failure_type failureType) {
     if (attempt >= config->maxRetryAttempts) {
-        log_w("[google_drive_client] Max retry attempts reached for transient failure");
+        log_w("Max retry attempts reached for transient failure");
         return false;
     }
 
@@ -1117,7 +1135,7 @@ bool google_drive_client::handle_transient_failure(uint8_t attempt, failure_type
     // Add jitter to prevent thundering herd
     backoffDelay = add_jitter(backoffDelay);
 
-    log_w("[google_drive_client] Transient failure (%s). Backing off for %lums (attempt %u/%u)", failureTypeName, backoffDelay, attempt + 1, config->maxRetryAttempts);
+    log_w("Transient failure (%s). Backing off for %lums (attempt %u/%u)", failureTypeName, backoffDelay, attempt + 1, config->maxRetryAttempts);
 
     delay(backoffDelay);
     yield();
@@ -1137,7 +1155,7 @@ bool google_drive_client::is_token_expired(int marginSeconds) {
 }
 
 photo_frame_error_t google_drive_client::refresh_token() {
-    log_i("[google_drive_client] Refreshing access token...");
+    log_i("Refreshing access token...");
 
     // Clear the current token
     g_access_token.accessToken[0] = '\0';
@@ -1206,7 +1224,7 @@ String google_drive_client::build_http_request(const char* method,
     }
 
 #ifdef DEBUG_GOOGLE_DRIVE
-    log_d("[google_drive_client] Built HTTP request:\n%s\n", req.c_str());
+    log_d("Built HTTP request:\n%s\n", req.c_str());
 #endif // DEBUG_GOOGLE_DRIVE
 
     return req;
@@ -1214,45 +1232,45 @@ String google_drive_client::build_http_request(const char* method,
 
 void google_drive_client::set_root_ca_certificate(const String& rootCA) {
     g_google_root_ca = rootCA;
-    log_i("[google_drive_client] Root CA certificate set for Google Drive client");
+    log_i("Root CA certificate set for Google Drive client");
 }
 
 size_t google_drive_client::list_files_streaming(const char* folderId,
                                                  sd_card& sdCard,
                                                  const char* tocFilePath,
                                                  int pageSize) {
-    log_i("[google_drive_client] list_files_streaming with folderId=%s, tocFilePath=%s, pageSize=%d", folderId, tocFilePath, pageSize);
+    log_i("list_files_streaming with folderId=%s, tocFilePath=%s, pageSize=%d", folderId, tocFilePath, pageSize);
 
     char nextPageToken[GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE] = "";
     int pageNumber                                          = 1;
     size_t totalFilesWritten                                = 0;
 
     do {
-        log_i("[google_drive_client] Fetching page %d with pageSize=%d, current total files=%zu", pageNumber, pageSize, totalFilesWritten);
+        log_i("Fetching page %d with pageSize=%d, current total files=%zu", pageNumber, pageSize, totalFilesWritten);
 
         size_t filesThisPage = list_files_in_folder_streaming(
             folderId, sdCard, tocFilePath, pageSize, nextPageToken, nextPageToken);
         if (filesThisPage == 0) {
-            log_e("[google_drive_client] Error fetching page %d - no files returned", pageNumber);
+            log_e("Error fetching page %d - no files returned", pageNumber);
             return totalFilesWritten; // Return what we have written so far
         }
 
         totalFilesWritten += filesThisPage;
 
 #ifdef DEBUG_GOOGLE_DRIVE
-        log_d("[google_drive_client] Page %d complete: got %zu files, total now %zu, nextPageToken size='%zu'", pageNumber, filesThisPage, totalFilesWritten, strlen(nextPageToken));
+        log_d("Page %d complete: got %zu files, total now %zu, nextPageToken size='%zu'", pageNumber, filesThisPage, totalFilesWritten, strlen(nextPageToken));
 #endif // DEBUG_GOOGLE_DRIVE
 
         pageNumber++;
 
         // Safety check to prevent infinite loops
         if (pageNumber > 50) {
-            log_w("[google_drive_client] Warning: Reached maximum page limit (50)");
+            log_w("Warning: Reached maximum page limit (50)");
             break;
         }
     } while (strlen(nextPageToken) > 0);
 
-    log_i("[google_drive_client] Pagination complete: streamed %zu total files to TOC", totalFilesWritten);
+    log_i("Pagination complete: streamed %zu total files to TOC", totalFilesWritten);
 
     return totalFilesWritten;
 }
@@ -1263,7 +1281,17 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
                                                            int pageSize,
                                                            char* nextPageToken,
                                                            const char* pageToken) {
-    log_i("[google_drive_client] list_files_in_folder_streaming folderId=%s, tocFilePath=%s, pageToken=%s", folderId, tocFilePath, pageToken);
+    log_i("list_files_in_folder_streaming folderId=%s, tocFilePath=%s, pageToken=%s", folderId, tocFilePath, pageToken);
+
+    // Check if token is expired or not acquired yet and refresh/acquire if needed
+    if (is_token_expired() || g_access_token.accessToken[0] == '\0') {
+        log_i("Token expired or not acquired, acquiring before file list request");
+        photo_frame_error_t tokenError = refresh_token();
+        if (tokenError != error_type::None) {
+            log_e("Failed to acquire access token for file list request");
+            return 0;
+        }
+    }
 
     // Check rate limiting
     photo_frame_error_t rateLimitError = wait_for_rate_limit();
@@ -1295,7 +1323,7 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
 
     if (config->useInsecureTls) {
         client.setInsecure();
-        log_w("[google_drive_client] WARNING: Using insecure TLS connection");
+        log_w("WARNING: Using insecure TLS connection");
     } else if (g_google_root_ca.length() > 0) {
         client.setCACert(g_google_root_ca.c_str());
     } else {
@@ -1313,12 +1341,12 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
 
     record_request();
 
-    log_i("[google_drive_client] Requesting URL: %s", url.c_str());
+    log_i("Requesting URL: %s", url.c_str());
 
     int httpCode = http.GET();
 
     if (httpCode != 200) {
-        log_e("[google_drive_client] HTTP Error: %d", httpCode);
+        log_e("HTTP Error: %d", httpCode);
         http.end();
         return 0;
     }
@@ -1354,23 +1382,23 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
             free(buffer);
 
 #ifdef BOARD_HAS_PSRAM
-            log_i("[google_drive_client] Read %d bytes from file list response (allocated in PSRAM)", totalRead);
+            log_i("Read %d bytes from file list response (allocated in PSRAM)", totalRead);
 #else
-            log_i("[google_drive_client] Read %d bytes from file list response (allocated in heap)", totalRead);
+            log_i("Read %d bytes from file list response (allocated in heap)", totalRead);
 #endif
         } else {
-            log_e("[google_drive_client] Failed to allocate file list buffer, using getString");
+            log_e("Failed to allocate file list buffer, using getString");
             response = http.getString();
         }
     } else {
         // Fallback to getString for unknown/large content
-        log_i("[google_drive_client] Using fallback getString for file list, content length: %d", contentLength);
+        log_i("Using fallback getString for file list, content length: %d", contentLength);
         response = http.getString();
     }
 
     http.end();
 
-    log_i("[google_drive_client] Response body length: %zu", response.length());
+    log_i("Response body length: %zu", response.length());
 
     // Parse the JSON response and write directly to TOC file
     return parse_file_list_to_toc(response, sdCard, tocFilePath, nextPageToken);
@@ -1391,8 +1419,8 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
     StaticJsonDocument<GOOGLE_DRIVE_JSON_DOC_SIZE> doc;
     DeserializationError error = deserializeJson(doc, jsonBody);
     if (error) {
-        log_e("[google_drive_client] JSON deserialization failed: %s", error.c_str());
-        log_e("[google_drive_client] Failed JSON:");
+        log_e("JSON deserialization failed: %s", error.c_str());
+        log_e("Failed JSON:");
         // print line by line to avoid large output
         int lineStart = 0;
         int lineEnd   = jsonBody.indexOf('\n');
@@ -1416,12 +1444,12 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
     // Process files array
     if (doc.containsKey("files")) {
         JsonArray files = doc["files"];
-        log_i("[google_drive_client] Found files array with %zu entries", files.size());
+        log_i("Found files array with %zu entries", files.size());
 
         // Open TOC file for appending using sdCard instance
         fs::File tocFile = sdCard.open(tocFilePath, FILE_APPEND, true);
         if (!tocFile) {
-            log_e("[google_drive_client] ERROR: Failed to open TOC file for writing: %s", tocFilePath);
+            log_e("ERROR: Failed to open TOC file for writing: %s", tocFilePath);
             return 0;
         }
 
@@ -1448,12 +1476,12 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
                 }
             }
             if (!extensionAllowed) {
-                log_i("[google_drive_client] Skipping file with unsupported extension: %s", name);
+                log_i("Skipping file with unsupported extension: %s", name);
                 continue;
             }
 
 #ifdef DEBUG_GOOGLE_DRIVE
-            log_d("[google_drive_client] File ID: %zu, name: %s", filesWritten, name);
+            log_d("File ID: %zu, name: %s", filesWritten, name);
 #endif // DEBUG_GOOGLE_DRIVE
 
             // Write directly to TOC file: id|name using efficient write() operations
@@ -1471,36 +1499,43 @@ size_t google_drive_client::parse_file_list_to_toc(const String& jsonBody,
             // Write newline
             bytesWritten += tocFile.write((const uint8_t*)"\n", 1);
 
-            tocFile.flush();
-
             // Debug: Verify write operations succeeded
             if (bytesWritten == 0) {
-                log_e("[google_drive_client] ERROR: Failed to write to TOC file!");
+                log_e("ERROR: Failed to write to TOC file!");
                 tocFile.close();
                 return filesWritten;
             }
 
 #ifdef DEBUG_GOOGLE_DRIVE
-            log_d("[google_drive_client] Wrote %zu bytes to TOC file", bytesWritten);
+            log_d("Wrote %zu bytes to TOC file", bytesWritten);
 #endif // DEBUG_GOOGLE_DRIVE
 
             filesWritten++;
 
-            // Force flush every 50 files to ensure data persists to disk
+            // Flush and yield every 50 files to prevent SD card timeout
             if (filesWritten % 50 == 0) {
+                tocFile.flush();
+                delay(10); // Give SD card time to complete write operations
                 yield();
             }
         }
 
-        // Final flush and close
+        // Final flush before close to ensure all data is written
+        log_i("Flushing final data to TOC file...");
+        tocFile.flush();
+        delay(50); // Give SD card time to complete all pending writes
+
         tocFile.close();
 
-        log_i("[google_drive_client] Final files written: %zu", filesWritten);
+        // Add delay after close to ensure SD card completes file system operations
+        delay(50);
+
+        log_i("Final files written: %zu", filesWritten);
     } else {
-        log_e("[google_drive_client] ERROR: No 'files' array found in JSON response");
+        log_e("ERROR: No 'files' array found in JSON response");
 
 #ifdef DEBUG_GOOGLE_DRIVE
-        log_d("[google_drive_client] Available JSON keys:");
+        log_d("Available JSON keys:");
         for (JsonPair p : doc.as<JsonObject>()) {
             log_d("  - Key: %s", p.key().c_str());
         }
@@ -1519,13 +1554,13 @@ HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& cl
         line.trim();
 
         if (verbose) {
-            log_i("[google_drive_client] Header[%u]: %s", headers.headerCount, line.c_str());
+            log_i("Header[%u]: %s", headers.headerCount, line.c_str());
         }
 
         // Check for end of headers
         if (line.length() == 0 || line == "\r") {
             if (verbose) {
-                log_i("[google_drive_client] End of headers detected");
+                log_i("End of headers detected");
             }
             headers.parseSuccessful = true;
             break;
@@ -1534,7 +1569,7 @@ HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& cl
         // Check for connection loss
         if (!client.connected() && !client.available()) {
             if (verbose) {
-                log_w("[google_drive_client] Connection lost while reading headers");
+                log_w("Connection lost while reading headers");
             }
             break;
         }
@@ -1544,7 +1579,7 @@ HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& cl
             if (line.indexOf("chunked") >= 0) {
                 headers.isChunked = true;
                 if (verbose) {
-                    log_i("[google_drive_client] Detected chunked transfer encoding");
+                    log_i("Detected chunked transfer encoding");
                 }
             }
         }
@@ -1556,7 +1591,7 @@ HttpResponseHeaders google_drive_client::parse_http_headers(WiFiClientSecure& cl
                 lengthStr.trim();
                 headers.contentLength = lengthStr.toInt();
                 if (verbose) {
-                    log_i("[google_drive_client] Content-Length: %d", headers.contentLength);
+                    log_i("Content-Length: %d", headers.contentLength);
                 }
             }
         }

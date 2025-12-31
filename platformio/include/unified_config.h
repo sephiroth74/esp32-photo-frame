@@ -51,6 +51,7 @@ struct unified_config {
             uint32_t min_seconds = 600; // 10 minutes default
             uint32_t max_seconds = 14400; // 4 hours default
             uint32_t step = 300; // 5 minutes default
+            uint32_t default_seconds = 1800; // 30 minutes default (used when USE_POTENTIOMETER is false)
             uint8_t low_battery_multiplier = 3; // 3x multiplier default
         } refresh;
 
@@ -59,7 +60,11 @@ struct unified_config {
 
         bool is_valid() const
         {
-            return day_start_hour < 24 && day_end_hour < 24 && refresh.min_seconds > 0 && refresh.max_seconds > refresh.min_seconds;
+            return day_start_hour < 24 && day_end_hour < 24 &&
+                   refresh.min_seconds > 0 &&
+                   refresh.max_seconds > refresh.min_seconds &&
+                   refresh.default_seconds >= refresh.min_seconds &&
+                   refresh.default_seconds <= refresh.max_seconds;
         }
     } board;
 
