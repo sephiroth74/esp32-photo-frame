@@ -2015,7 +2015,7 @@ void draw_side_message_with_icon(Adafruit_GFX& gfx,
         break;
     }
     case TOP_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
+        x = DISP_WIDTH - rect.width - 24;
         y = -rect.y;
         break;
     }
@@ -2025,7 +2025,7 @@ void draw_side_message_with_icon(Adafruit_GFX& gfx,
         break;
     }
     case BOTTOM_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
+        x = DISP_WIDTH - rect.width - 24;
         y = DISP_HEIGHT - rect.y;
         break;
     }

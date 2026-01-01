@@ -26,6 +26,7 @@
 #include "config.h"
 #include "errors.h"
 #include "sd_card.h"
+#include "unified_config.h"
 #include <WiFi.h>
 
 namespace photo_frame {
@@ -71,7 +72,7 @@ class wifi_manager {
     photo_frame_error_t init(const char* config_file, sd_card& sdCard);
 
     /**
-     * @brief Initialize WiFi manager with direct credentials.
+     * @brief Initialize WiFi manager with direct credentials (single network).
      *
      * Sets WiFi credentials directly without reading from a configuration file.
      * This method is used with the unified configuration system where credentials
@@ -80,8 +81,20 @@ class wifi_manager {
      * @param ssid WiFi network SSID
      * @param password WiFi network password
      * @return photo_frame_error_t Error status (None on success)
+     * @deprecated Use init_with_networks() for multiple network support
      */
     photo_frame_error_t init_with_config(const String& ssid, const String& password);
+
+    /**
+     * @brief Initialize WiFi manager with multiple network credentials.
+     *
+     * Sets multiple WiFi credentials from the unified configuration system.
+     * The manager will try to connect to each network in order until one succeeds.
+     *
+     * @param wifi_config Reference to wifi_config structure containing networks array
+     * @return photo_frame_error_t Error status (None on success)
+     */
+    photo_frame_error_t init_with_networks(const unified_config::wifi_config& wifi_config);
 
     /**
      * @brief Connect to WiFi network using stored credentials.
@@ -160,8 +173,14 @@ class wifi_manager {
     void end();
 
   private:
-    String _ssid;
-    String _password;
+    String _ssid;  // Currently connected SSID (for reporting)
+    String _password;  // Currently connected password
+    struct wifi_network {
+        String ssid;
+        String password;
+    };
+    wifi_network _networks[WIFI_MAX_NETWORKS];
+    uint8_t _network_count;
     bool _initialized;
     bool _connected;
 

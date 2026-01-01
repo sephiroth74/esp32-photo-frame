@@ -497,48 +497,13 @@ void draw_rounded_rect(int16_t x,
                        uint8_t transparency = 128);
 
 /**
- * @brief Draws a bitmap image from a file on the e-paper display.
- * @param file File handle for the bitmap image
- * @param filename Name of the file (for debugging/logging)
- * @param x X-coordinate for image placement (default: 0)
- * @param y Y-coordinate for image placement (default: 0)
- * @param with_color If true, renders color information (default: true)
- * @return True if image was drawn successfully, false otherwise
- */
-uint16_t draw_bitmap_from_file(File& file,
-                               const char* filename,
-                               int16_t x       = 0,
-                               int16_t y       = 0,
-                               bool with_color = true);
-
-/**
- * @brief Draws a bitmap image from a file using buffered rendering.
- *
- * This function is optimized for partial updates and uses a buffered approach
- * for better memory management and performance.
- *
- * @param file File handle for the bitmap image
- * @param filename Name of the file (for debugging/logging)
- * @param x X-coordinate for image placement (default: 0)
- * @param y Y-coordinate for image placement (default: 0)
- * @param with_color If true, renders color information (default: true)
- * @param partial_update If true, optimizes for partial display updates (default: false)
- * @return True if image was drawn successfully, false otherwise
- */
-uint16_t draw_bitmap_from_file_buffered(File& file,
-                                        const char* filename,
-                                        int16_t x           = 0,
-                                        int16_t y           = 0,
-                                        bool with_color     = true,
-                                        bool partial_update = false);
-
-/**
  * @brief Draws a binary image from a file using buffered rendering.
  * @param file File handle for the binary image
  * @param filename Name of the file (for debugging/logging)
  * @param width Width of the binary image in pixels
  * @param height Height of the binary image in pixels
  * @return True if image was drawn successfully, false otherwise
+ * @note This function is optimized for displays that don't support paging
  */
 uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int width, int height);
 

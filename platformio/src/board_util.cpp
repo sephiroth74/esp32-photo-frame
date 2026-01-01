@@ -232,7 +232,7 @@ namespace board_utils {
         pinMode(LED_BUILTIN, OUTPUT);
         digitalWrite(LED_BUILTIN, LOW); // Disable the built-in LED
 #else
-        log_w("LED_BUILTIN is not defined! Cannot disable the built-in LED.");
+        log_v("LED_BUILTIN is not defined! Cannot disable the built-in LED.");
 #endif
     } // disable_builtin_led
 
@@ -255,7 +255,7 @@ namespace board_utils {
             delay(off_ms);
         }
 #else
-        log_w("LED_BUILTIN is not defined! Cannot blink the built-in LED.");
+        log_v("LED_BUILTIN is not defined! Cannot blink the built-in LED.");
 #endif
     } // blink_builtin_led
 

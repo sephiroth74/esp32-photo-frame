@@ -40,9 +40,9 @@
 
 /// Current firmware version
 #define FIRMWARE_VERSION_MAJOR  0
-#define FIRMWARE_VERSION_MINOR  10
+#define FIRMWARE_VERSION_MINOR  11
 #define FIRMWARE_VERSION_PATCH  0
-#define FIRMWARE_VERSION_STRING "v0.10.0"
+#define FIRMWARE_VERSION_STRING "v0.11.0"
 
 // ============================================================================
 // HARDWARE CONFIGURATION
@@ -188,7 +188,8 @@
 
 /// WiFi configuration (now handled by unified config system)
 
-/// Network timeouts (configured in board-specific config or system defaults section)
+/// Network timeouts and limits (configured in board-specific config or system defaults section)
+#define WIFI_MAX_NETWORKS 3        // Maximum number of WiFi networks that can be configured
 #define WIFI_CONNECT_TIMEOUT 8000  // WiFi connection timeout in milliseconds
 #define HTTP_CONNECT_TIMEOUT 15000  // HTTP connection timeout (15 seconds)
 #define HTTP_REQUEST_TIMEOUT 30000  // HTTP request timeout (30 seconds)

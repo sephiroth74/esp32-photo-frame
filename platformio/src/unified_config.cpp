@@ -33,8 +33,7 @@ void load_fallback_config(unified_config& config) {
     log_i("Loading fallback configuration from config.h");
 
     // WiFi - no fallback, must be provided
-    config.wifi.ssid = "";
-    config.wifi.password = "";
+    config.wifi.network_count = 0;
 
     // Board configuration fallbacks
     config.board.refresh.min_seconds = REFRESH_MIN_INTERVAL_SECONDS;
@@ -139,11 +138,36 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 
     // Extract WiFi configuration
     if (doc.containsKey("wifi")) {
-        JsonObject wifi_obj = doc["wifi"];
-        config.wifi.ssid = wifi_obj["ssid"].as<String>();
-        config.wifi.password = wifi_obj["password"].as<String>();
+        // Parse WiFi networks array (supports up to WIFI_MAX_NETWORKS networks)
+        if (doc["wifi"].is<JsonArray>()) {
+            JsonArray wifiArray = doc["wifi"].as<JsonArray>();
+            config.wifi.network_count = 0;
 
-        log_d("WiFi configuration - SSID: %s, Password: %s", config.wifi.ssid.c_str(), config.wifi.password.c_str());
+            for (JsonObject wifiObj : wifiArray) {
+                if (config.wifi.network_count >= WIFI_MAX_NETWORKS) {
+                    log_w("Maximum number of WiFi networks (%d) exceeded, ignoring additional entries", WIFI_MAX_NETWORKS);
+                    break;
+                }
+
+                String ssid = wifiObj["ssid"].as<String>();
+                String password = wifiObj["password"].as<String>();
+
+                if (ssid.length() > 0 && password.length() > 0) {
+                    config.wifi.add_network(ssid, password);
+                    log_d("WiFi network #%d - SSID: %s", config.wifi.network_count, ssid.c_str());
+                } else {
+                    log_w("Invalid WiFi network entry (empty SSID or password), skipping");
+                }
+            }
+
+            if (config.wifi.network_count == 0) {
+                log_e("No valid WiFi networks found in configuration");
+            } else {
+                log_i("Loaded %d WiFi network(s) from configuration", config.wifi.network_count);
+            }
+        } else {
+            log_w("WiFi configuration is not an array");
+        }
     } else {
         log_w("WiFi configuration missing");
     }

@@ -455,7 +455,6 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     photo_frame::weather::WeatherManager& weatherManager)
 {
     photo_frame::photo_frame_error_t error = current_error;
-    const char* format_filename = original_filename; // Used for format detection
 
     // Get display capabilities
     bool has_partial_update = photo_frame::renderer::has_partial_update();
@@ -477,82 +476,47 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // ============================================
         // 6C/7C displays: Non-paged rendering
         // ============================================
-        // These displays render from PSRAM buffer (binary) or file (BMP)
+        // These displays render from PSRAM buffer (binary format only)
+        // Binary format - render from PSRAM buffer (already loaded)
+        // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer functions
+        log_i("[main] Rendering Mode 1 format from PSRAM buffer with overlays");
 
-        if (photo_frame::io_utils::is_binary_format(format_filename)) {
-            // Binary format - render from PSRAM buffer (already loaded)
-            // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer functions
-            log_i("[main] Rendering Mode 1 format from PSRAM buffer with overlays");
+        // STEP 1: Create GFXcanvas8 pointing to our existing buffer
+        GFXcanvas8 canvas(DISP_WIDTH, DISP_HEIGHT, false);
+        // Access protected buffer member via memory layout
+        uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
+        *bufferPtr = g_image_buffer;
 
-            // STEP 1: Create GFXcanvas8 pointing to our existing buffer
-            GFXcanvas8 canvas(DISP_WIDTH, DISP_HEIGHT, false);
-            // Access protected buffer member via memory layout
-            uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
-            *bufferPtr = g_image_buffer;
-
-            // STEP 2: Draw white overlay bars on buffer for status areas
-            log_i("Drawing white overlay bars on buffer...");
-            canvas.fillRect(0, 0, DISP_WIDTH, 16, 0xFF); // Top white bar
+        // STEP 2: Draw white overlay bars on buffer for status areas
+        log_i("Drawing white overlay bars on buffer...");
+        canvas.fillRect(0, 0, DISP_WIDTH, 16, 0xFF); // Top white bar
 
 
-            // STEP 3: Draw overlays with icons using canvas-based renderer functions
-            log_i("Drawing overlays with icons on canvas...");
-            photo_frame::renderer::draw_last_update(canvas, now, refresh_delay.refresh_seconds);
-            photo_frame::renderer::draw_image_info(canvas,
-                image_index, total_files, drive.get_last_image_source());
-            photo_frame::renderer::draw_battery_status(canvas, battery_info);
+        // STEP 3: Draw overlays with icons using canvas-based renderer functions
+        log_i("Drawing overlays with icons on canvas...");
+        photo_frame::renderer::draw_last_update(canvas, now, refresh_delay.refresh_seconds);
+        photo_frame::renderer::draw_image_info(canvas,
+            image_index, total_files, drive.get_last_image_source());
+        photo_frame::renderer::draw_battery_status(canvas, battery_info);
 
-            if (!battery_info.is_critical()) {
-                photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-                rect_t box = photo_frame::renderer::get_weather_info_rect();
-                photo_frame::renderer::draw_weather_info(canvas, current_weather, box);
-            }
+        if (!battery_info.is_critical()) {
+            photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
+            rect_t box = photo_frame::renderer::get_weather_info_rect();
+            photo_frame::renderer::draw_weather_info(canvas, current_weather, box);
+        }
 
-            // STEP 4: Render the modified buffer to display hardware
-            log_i("Writing modified image to display hardware...");
-            error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, DISP_WIDTH, DISP_HEIGHT);
+        // STEP 4: Render the modified buffer to display hardware
+        log_i("Writing modified image to display hardware...");
+        error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, DISP_WIDTH, DISP_HEIGHT);
 
-            if (error_code != 0) {
-                log_e("Failed to write image from buffer!");
-                rendering_failed = true;
-            } else {
-                // STEP 5: Refresh display to show everything
-                log_i("Refreshing display...");
-                display.refresh();
-                log_i("Display refresh complete with overlays");
-            }
+        if (error_code != 0) {
+            log_e("Failed to write image from buffer!");
+            rendering_failed = true;
         } else {
-            // BMP format - file should still be open
-            if (!file) {
-                log_e("[main] ERROR: BMP file not available for rendering");
-                error_code = photo_frame::error_type::FileOpenFailed.code;
-                rendering_failed = true;
-            } else {
-                display.firstPage();
-                do {
-                    error_code = photo_frame::renderer::draw_bitmap_from_file(
-                        file, original_filename, 0, 0, false);
-
-                    if (error_code != 0) {
-                        log_e("Failed to draw bitmap from file!");
-                        rendering_failed = true;
-                        break;
-                    }
-
-                    // Draw overlays on top of the image
-                    display.writeFillRect(0, 0, display.width(), 16, GxEPD_WHITE);
-                    photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
-                    photo_frame::renderer::draw_image_info(
-                        image_index, total_files, drive.get_last_image_source());
-                    photo_frame::renderer::draw_battery_status(battery_info);
-
-                    if (!battery_info.is_critical()) {
-                        photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-                        rect_t box = photo_frame::renderer::get_weather_info_rect();
-                        photo_frame::renderer::draw_weather_info(current_weather, box);
-                    }
-                } while (display.nextPage());
-            }
+            // STEP 5: Refresh display to show everything
+            log_i("Refreshing display...");
+            display.refresh();
+            log_i("Display refresh complete with overlays");
         }
 #else
         // ============================================
@@ -563,25 +527,21 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         display.firstPage();
         do {
             log_d("Drawing page: %d", page_index);
-            if (photo_frame::io_utils::is_binary_format(format_filename)) {
-                size_t standardSize = DISP_WIDTH * DISP_HEIGHT;
-                size_t fileSize = file.size();
+            // Binary format only - paged rendering
+            size_t standardSize = DISP_WIDTH * DISP_HEIGHT;
+            size_t fileSize = file.size();
 
-                if (fileSize == standardSize) {
-                    log_i("[main] Detected standard format (384KB) - using paged rendering");
-                    error_code = photo_frame::renderer::draw_binary_from_file_paged(
-                        file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
-                } else {
-                    log_e("[main] ERROR: Unknown binary format size: %d bytes", fileSize);
-                    error_code = photo_frame::error_type::BinaryRenderingFailed.code;
-                }
+            if (fileSize == standardSize) {
+                log_i("[main] Detected standard format (384KB) - using paged rendering");
+                error_code = photo_frame::renderer::draw_binary_from_file_paged(
+                    file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
             } else {
-                error_code = photo_frame::renderer::draw_bitmap_from_file(
-                    file, original_filename, 0, 0, false);
+                log_e("[main] ERROR: Unknown binary format size: %d bytes", fileSize);
+                error_code = photo_frame::error_type::BinaryRenderingFailed.code;
             }
 
             if (error_code != 0) {
-                log_e("Failed to draw bitmap from file!");
+                log_e("Failed to render binary image!");
                 rendering_failed = true;
                 break;
             }
@@ -640,21 +600,9 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // -------------------------------
         log_i("Using partial update mode");
 
-        /**
-         * Runtime File Format Detection for Buffered Rendering
-         *
-         * For partial update displays, the system uses buffered rendering with automatic
-         * format detection. The appropriate buffered renderer is selected based on file
-         * extension, maintaining the same flexibility as the full-page rendering mode.
-         */
-        uint16_t error_code;
-        if (photo_frame::io_utils::is_binary_format(format_filename)) {
-            error_code = photo_frame::renderer::draw_binary_from_file_buffered(
-                file, original_filename, DISP_WIDTH, DISP_HEIGHT);
-        } else {
-            error_code = photo_frame::renderer::draw_bitmap_from_file_buffered(
-                file, original_filename, 0, 0, false);
-        }
+        // Binary format only - buffered rendering
+        uint16_t error_code = photo_frame::renderer::draw_binary_from_file_buffered(
+            file, original_filename, DISP_WIDTH, DISP_HEIGHT);
         file.close(); // Close the file after drawing
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
@@ -875,8 +823,8 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
         log_i("Initializing WiFi manager with unified configuration...");
         RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
 
-        // Initialize WiFi manager with configuration from unified config
-        error = wifiManager.init_with_config(systemConfig.wifi.ssid, systemConfig.wifi.password);
+        // Initialize WiFi manager with multiple networks from unified config
+        error = wifiManager.init_with_networks(systemConfig.wifi);
 
         if (error == photo_frame::error_type::None) {
             // No RTC module - simple NTP-only time fetching
@@ -1138,90 +1086,42 @@ handle_google_drive_operations(bool is_reset,
                         } else {
                             log_i("Image validation PASSED");
 
-                            // Check if file is binary or BMP format
-                            bool isBinary = photo_frame::io_utils::is_binary_format(filename);
+                            // Binary format only: Load to PSRAM buffer, then close SD card
+                            log_i("Loading binary image to PSRAM buffer from SD card...");
+                            uint16_t loadError = photo_frame::renderer::load_image_to_buffer(
+                                g_image_buffer, file, filename, DISP_WIDTH, DISP_HEIGHT);
 
-                            if (isBinary) {
-                                // Binary format: Load to PSRAM buffer, then close SD card
-                                log_i("Loading binary image to PSRAM buffer from SD card...");
-                                uint16_t loadError = photo_frame::renderer::load_image_to_buffer(
-                                    g_image_buffer, file, filename, DISP_WIDTH, DISP_HEIGHT);
+                            // Close the SD card file after loading
+                            file.close();
 
-                                // Close the SD card file after loading
-                                file.close();
+                            if (loadError != 0) {
+                                log_e("Failed to load image to buffer, error code: %d", loadError);
+                                error = photo_frame::error_type::BinaryRenderingFailed;
 
-                                if (loadError != 0) {
-                                    log_e("Failed to load image to buffer, error code: %d", loadError);
-                                    error = photo_frame::error_type::BinaryRenderingFailed;
-
-                                    // Close SD card after buffer load error to prevent SPI conflicts
-                                    log_i("Closing SD card after buffer load error");
-                                    sdCard.end();
-                                } else {
-                                    log_i("Binary image loaded to PSRAM buffer");
-
-                                    // Close SD card (image is in PSRAM)
-                                    log_i("Shutting down SD card (binary image in PSRAM buffer)");
-                                    sdCard.end();
-
-                                    // Mark as successfully processed
-                                    fileProcessedSuccessfully = true;
-                                    file_ready = true; // Binary image loaded to buffer
-                                }
+                                // Close SD card after buffer load error to prevent SPI conflicts
+                                log_i("Closing SD card after buffer load error");
+                                sdCard.end();
                             } else {
-                                // BMP format: Copy to LittleFS before closing SD card
-                                log_i("BMP format detected - copying to LittleFS before closing SD card");
+                                log_i("Binary image loaded to PSRAM buffer");
 
-                                // Initialize LittleFS if needed
-                                if (!photo_frame::littlefs_manager::LittleFsManager::init()) {
-                                    log_e("Failed to initialize LittleFS for BMP file copy");
-                                    error = photo_frame::error_type::LittleFSInitFailed;
-                                    file.close();
-                                    sdCard.end();
-                                } else {
-                                    // Copy file to LittleFS
-                                    String littlefs_path = "/temp_";
-                                    littlefs_path += filename;
+                                // Close SD card (image is in PSRAM)
+                                log_i("Shutting down SD card (binary image in PSRAM buffer)");
+                                sdCard.end();
 
-                                    if (photo_frame::littlefs_manager::LittleFsManager::copy_to_littlefs(file, littlefs_path.c_str())) {
-                                        log_i("Successfully copied BMP to LittleFS: %s", littlefs_path.c_str());
-
-                                        // Close SD card file
-                                        file.close();
-
-                                        // Close SD card (BMP is now in LittleFS)
-                                        log_i("Shutting down SD card (BMP image copied to LittleFS)");
-                                        sdCard.end();
-
-                                        // Open file from LittleFS for rendering
-                                        file = LittleFS.open(littlefs_path.c_str(), FILE_READ);
-                                        if (!file) {
-                                            log_e("Failed to open BMP from LittleFS: %s", littlefs_path.c_str());
-                                            error = photo_frame::error_type::FileOpenFailed;
-                                        } else {
-                                            log_i("Successfully opened BMP from LittleFS for rendering");
-                                            fileProcessedSuccessfully = true;
-                                            file_ready = true; // BMP file open from LittleFS
-                                        }
-                                    } else {
-                                        log_e("Failed to copy BMP to LittleFS");
-                                        error = photo_frame::error_type::FileCopyFailed;
-                                        file.close();
-                                        sdCard.end();
-                                    }
-                                }
+                                // Mark as successfully processed
+                                fileProcessedSuccessfully = true;
+                                file_ready = true; // Binary image loaded to buffer
                             }
                         }
                     }
 
-                    // For binary files, SD card is already closed and file is in PSRAM
-                    // For BMP files, SD card remains open for rendering
+                    // Binary format: SD card is already closed and image is in PSRAM buffer
                 } else {
                     log_e("Failed to get file by index. Error code: %d", tocError.code);
                     error = tocError;
                 }
 
-                // Check if file was successfully processed (binary in buffer OR BMP file open)
+                // Check if file was successfully processed (binary in buffer)
                 if (error == photo_frame::error_type::None && (fileProcessedSuccessfully || file)) {
                     log_i("File downloaded and ready for display!");
                 } else {

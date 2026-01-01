@@ -34,14 +34,38 @@ namespace photo_frame {
  * @brief Unified configuration structure containing all system settings
  */
 struct unified_config {
-    // WiFi Configuration
-    struct wifi_config {
+    // WiFi Configuration (supports up to 3 networks)
+    struct wifi_network {
         String ssid;
         String password;
 
         bool is_valid() const
         {
             return ssid.length() > 0 && password.length() > 0;
+        }
+    };
+
+    struct wifi_config {
+        wifi_network networks[WIFI_MAX_NETWORKS];
+        uint8_t network_count = 0;
+
+        bool is_valid() const
+        {
+            // At least one valid network required
+            if (network_count == 0) return false;
+            for (uint8_t i = 0; i < network_count; i++) {
+                if (!networks[i].is_valid()) return false;
+            }
+            return true;
+        }
+
+        // Helper to add a network
+        bool add_network(const String& ssid, const String& password) {
+            if (network_count >= WIFI_MAX_NETWORKS) return false;
+            networks[network_count].ssid = ssid;
+            networks[network_count].password = password;
+            network_count++;
+            return true;
         }
     } wifi;
 
@@ -153,8 +177,13 @@ struct unified_config {
         DynamicJsonDocument doc(4096);
 #endif
 
-        doc["wifi"]["ssid"] = wifi.ssid;
-        doc["wifi"]["password"] = wifi.password;
+        // Serialize WiFi networks array
+        JsonArray wifiArray = doc["wifi"].to<JsonArray>();
+        for (uint8_t i = 0; i < wifi.network_count; i++) {
+            JsonObject wifiObj = wifiArray.add<JsonObject>();
+            wifiObj["ssid"] = wifi.networks[i].ssid;
+            wifiObj["password"] = wifi.networks[i].password;
+        }
 
         doc["board_config"]["refresh"]["min_seconds"] = board.refresh.min_seconds;
         doc["board_config"]["refresh"]["max_seconds"] = board.refresh.max_seconds;

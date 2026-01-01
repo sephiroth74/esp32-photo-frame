@@ -15,11 +15,12 @@ The photo frame features automatic image synchronization, configurable refresh i
 
 ### Core Firmware Features
 - Google Drive integration with automatic file synchronization and local SD card caching
+- Multiple WiFi network support (v0.11.0) with automatic failover between up to 3 configured networks
 - Weather information display with configurable location and update intervals
 - Exponential potentiometer control (v0.9.3) using cubic curve mapping for precise refresh interval adjustment
 - Battery monitoring with power-saving modes and adaptive refresh scheduling
 - Deep sleep operation between updates for extended battery life (2-3 months on 5000mAh)
-- Automatic file format detection supporting both binary (.bin) and bitmap (.bmp) formats
+- Binary image format (.bin) support optimized for e-paper displays
 - Streaming architecture supporting 350+ files on any ESP32 variant
 - Unified configuration system via single JSON file
 - Multi-language support (English and Italian localization)
@@ -203,10 +204,16 @@ The photo frame uses a unified configuration system with a single `/config.json`
 
 ```json
 {
-  "wifi": {
-    "ssid": "YourNetworkName",
-    "password": "YourPassword"
-  },
+  "wifi": [
+    {
+      "ssid": "YourPrimaryNetwork",
+      "password": "YourPassword"
+    },
+    {
+      "ssid": "YourBackupNetwork",
+      "password": "YourBackupPassword"
+    }
+  ],
   "google_drive_config": {
     "authentication": {
       "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
@@ -229,10 +236,20 @@ The photo frame uses a unified configuration system with a single `/config.json`
 
 ```json
 {
-  "wifi": {
-    "ssid": "YourNetworkName",
-    "password": "YourPassword"
-  },
+  "wifi": [
+    {
+      "ssid": "YourHomeNetwork",
+      "password": "YourHomePassword"
+    },
+    {
+      "ssid": "YourOfficeNetwork",
+      "password": "YourOfficePassword"
+    },
+    {
+      "ssid": "YourMobileHotspot",
+      "password": "YourHotspotPassword"
+    }
+  ],
   "google_drive_config": {
     "authentication": {
       "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
@@ -299,6 +316,49 @@ The weather system automatically:
 - Caches data for offline display
 - Shows sunrise/sunset times in local timezone
 - Displays temperature, precipitation, and wind data
+
+### WiFi Configuration
+
+The photo frame supports multiple WiFi networks with automatic failover (added in v0.11.0).
+
+#### Multiple Network Setup
+
+Configure up to 3 WiFi networks in your `config.json` file. The photo frame will:
+1. Try connecting to the first network (up to 3 attempts with exponential backoff)
+2. If the first network fails, try the second network
+3. If the second network fails, try the third network
+4. Continue until a successful connection is established
+
+#### WiFi Settings
+
+```json
+"wifi": [
+  {
+    "ssid": "YourPrimaryNetwork",
+    "password": "YourPrimaryPassword"
+  },
+  {
+    "ssid": "YourBackupNetwork",
+    "password": "YourBackupPassword"
+  }
+]
+```
+
+**Configuration Options:**
+- **ssid**: Network name (SSID) - required for each network
+- **password**: Network password - required for each network
+
+**Failover Behavior:**
+- Each network is tried sequentially with up to 3 connection attempts
+- Connection timeout: 10 seconds per attempt
+- Exponential backoff with jitter between retries on the same network
+- 1-second delay between switching to different networks
+- Detailed logging shows which network is being attempted
+
+**Use Cases:**
+- Primary home network + backup mobile hotspot
+- Home network + office network + travel hotspot
+- Multiple networks at different locations
 
 ## Images Pipeline
 

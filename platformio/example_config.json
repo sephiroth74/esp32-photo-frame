@@ -1,12 +1,20 @@
 {
     "_comment": "ESP32 Photo Frame Unified Configuration (v0.7.1)",
-    "_instructions": "Replace placeholder values with your actual configuration",
-
-    "wifi": {
-        "ssid": "YourWiFiNetwork",
-        "password": "YourWiFiPassword"
-    },
-
+    "_instructions": "Replace placeholder values with your actual configuration. Up to 3 WiFi networks can be configured. The system will try to connect to them in order.",
+    "wifi": [
+        {
+            "ssid": "YourHomeNetwork",
+            "password": "YourHomePassword"
+        },
+        {
+            "ssid": "YourOfficeNetwork",
+            "password": "YourOfficePassword"
+        },
+        {
+            "ssid": "YourMobileHotspot",
+            "password": "YourHotspotPassword"
+        }
+    ],
     "google_drive_config": {
         "authentication": {
             "service_account_email": "your-service-account@your-project.iam.gserviceaccount.com",
@@ -32,7 +40,6 @@
             "max_wait_time_ms": 30000
         }
     },
-
     "weather_config": {
         "_location_name": "New York City, USA",
         "enabled": true,
@@ -47,7 +54,6 @@
         "wind_speed_unit": "kmh",
         "precipitation_unit": "mm"
     },
-
     "board_config": {
         "day_start_hour": 6,
         "day_end_hour": 23,

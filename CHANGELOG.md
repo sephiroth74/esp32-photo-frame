@@ -5,6 +5,55 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.11.0] - 2025-12-31
+
+### Added
+- **Multiple WiFi Network Support**: Enhanced WiFi configuration to support up to 3 networks
+  - Configuration accepts WiFi array in `config.json` with up to 3 networks
+  - Added `WIFI_MAX_NETWORKS` constant (configurable in `config.h`)
+  - Sequential connection attempts: tries each network in order until one succeeds
+  - Per-network retry logic with exponential backoff (up to 3 attempts per network)
+  - Improved error logging and connection status reporting
+  - Maintains backward compatibility with single-network configuration
+
+### Changed
+- **WiFi Configuration Structure**: Refactored from single network to array-based configuration
+  - `unified_config::wifi_config` now contains array of `wifi_network` structures
+  - Added `network_count` field to track number of configured networks
+  - Added `add_network()` helper method for programmatic network addition
+  - WiFi manager's `connect()` method now tries all configured networks sequentially
+  - New `init_with_networks()` method accepts full WiFi configuration structure
+
+### Removed
+- **BMP Image Format Support**: Eliminated bitmap (.bmp) file format from main application
+  - Simplified codebase to support only binary (.bin) format for main rendering
+  - Removed format detection logic from main application flow
+  - Removed `draw_bitmap_from_file()` and `draw_bitmap_from_file_buffered()` from main code path
+  - BMP support retained in display_debug.cpp for diagnostic gallery test only
+  - Eliminated `format_filename` variable and `is_binary_format()` checks from main.cpp
+
+### Technical Details
+- **WiFi Failover Logic**:
+  - Tries each configured network with up to 3 connection attempts
+  - Uses exponential backoff with jitter between retries (same network)
+  - 1-second delay between different network attempts
+  - Connection timeout: 10 seconds per attempt
+  - Logs detailed status for each network and attempt
+
+- **Configuration Format** (config.json):
+  ```json
+  "wifi": [
+      {"ssid": "Network1", "password": "password1"},
+      {"ssid": "Network2", "password": "password2"},
+      {"ssid": "Network3", "password": "password3"}
+  ]
+  ```
+
+- **API Changes**:
+  - `wifi_manager::init_with_networks(const unified_config::wifi_config&)` - new method for multi-network setup
+  - `wifi_manager::init_with_config(const wifi_network&)` - deprecated, kept for backward compatibility
+  - Main application now uses binary-only rendering path
+
 ## [v0.10.0] - 2025-12-30
 
 ### Changed

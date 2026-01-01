@@ -80,6 +80,10 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
         return error_type::WifiCredentialsNotFound;
     }
 
+    // Store as single network
+    _network_count = 1;
+    _networks[0].ssid = ssid;
+    _networks[0].password = password;
     _ssid = ssid;
     _password = password;
 
@@ -88,6 +92,34 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
 #endif // DEBUG_WIFI
 
     _initialized = true;
+    return error_type::None;
+}
+
+photo_frame_error_t wifi_manager::init_with_networks(const unified_config::wifi_config& wifi_config) {
+    // skip if already initialized
+    if (_initialized) {
+        return error_type::None;
+    }
+
+    if (wifi_config.network_count == 0) {
+        log_e("No WiFi networks configured");
+        return error_type::WifiCredentialsNotFound;
+    }
+
+    // Copy all configured networks
+    _network_count = wifi_config.network_count;
+    for (uint8_t i = 0; i < _network_count; i++) {
+        _networks[i].ssid = wifi_config.networks[i].ssid;
+        _networks[i].password = wifi_config.networks[i].password;
+        log_i("Loaded WiFi network #%d: %s", i + 1, _networks[i].ssid.c_str());
+    }
+
+    // Set first network as default (will be updated when connected)
+    _ssid = _networks[0].ssid;
+    _password = _networks[0].password;
+
+    _initialized = true;
+    log_i("WiFi manager initialized with %d network(s)", _network_count);
     return error_type::None;
 }
 
@@ -110,54 +142,76 @@ photo_frame_error_t wifi_manager::connect() {
         return error_type::None;
     }
 
-    if (_ssid.isEmpty() || _password.isEmpty()) {
-        log_e("WiFi credentials are empty");
+    if (_network_count == 0) {
+        log_e("No WiFi networks configured");
         return error_type::WifiCredentialsNotFound;
     }
 
-    log_i("Connecting to WiFi network: %s", _ssid.c_str());
-
     WiFi.mode(WIFI_STA);
 
-    const uint8_t maxRetries      = 2;
+    const uint8_t maxRetriesPerNetwork = 2;
     const unsigned long baseDelay = 2000; // 2 seconds base delay
-    bool connected                = false;
+    bool connected = false;
 
-    for (uint8_t attempt = 0; attempt < maxRetries && !connected; attempt++) {
-        log_i("WiFi connection attempt %u/%u", attempt + 1, maxRetries);
+    // Try each configured network in order
+    for (uint8_t network_idx = 0; network_idx < _network_count && !connected; network_idx++) {
+        const String& ssid = _networks[network_idx].ssid;
+        const String& password = _networks[network_idx].password;
 
-        WiFi.begin(_ssid.c_str(), _password.c_str());
-
-        unsigned long timeout         = millis() + CONNECTION_TIMEOUT_MS;
-        wl_status_t connection_status = WiFi.status();
-        while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
-            delay(500);
-            connection_status = WiFi.status();
+        if (ssid.isEmpty()) {
+            log_w("Network #%d has empty SSID, skipping", network_idx + 1);
+            continue;
         }
 
-        if (connection_status == WL_CONNECTED) {
-            connected  = true;
-            _connected = true;
-            log_i("WiFi connected! IP address: %s", WiFi.localIP().toString().c_str());
-        } else {
-            log_w("WiFi connection failed (attempt %u)", attempt + 1);
+        log_i("Trying WiFi network #%d/%d: %s", network_idx + 1, _network_count, ssid.c_str());
 
-            WiFi.disconnect(true);
+        // Try connecting to this network with retries
+        for (uint8_t attempt = 0; attempt < maxRetriesPerNetwork && !connected; attempt++) {
+            log_i("Connection attempt %u/%u for network: %s",
+                  attempt + 1, maxRetriesPerNetwork, ssid.c_str());
 
-            // Exponential backoff with jitter for retries
-            if (attempt < maxRetries - 1) {
-                unsigned long backoffDelay = baseDelay * (1UL << attempt);
-                unsigned long jitter       = random(0, backoffDelay / 4); // Add up to 25% jitter
-                backoffDelay += jitter;
+            WiFi.begin(ssid.c_str(), password.c_str());
 
-                log_i("Retrying in %lu ms...", backoffDelay);
-                delay(backoffDelay);
+            unsigned long timeout = millis() + CONNECTION_TIMEOUT_MS;
+            wl_status_t connection_status = WiFi.status();
+            while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
+                delay(500);
+                connection_status = WiFi.status();
             }
+
+            if (connection_status == WL_CONNECTED) {
+                connected = true;
+                _connected = true;
+                _ssid = ssid;  // Update to reflect currently connected network
+                _password = password;
+                log_i("WiFi connected to '%s'! IP address: %s", ssid.c_str(), WiFi.localIP().toString().c_str());
+            } else {
+                log_w("Failed to connect to '%s' (attempt %u/%u)",
+                      ssid.c_str(), attempt + 1, maxRetriesPerNetwork);
+
+                WiFi.disconnect(true);
+
+                // Exponential backoff with jitter for retries (only within same network)
+                if (attempt < maxRetriesPerNetwork - 1) {
+                    unsigned long backoffDelay = baseDelay * (1UL << attempt);
+                    unsigned long jitter = random(0, backoffDelay / 4);
+                    backoffDelay += jitter;
+
+                    log_i("Retrying same network in %lu ms...", backoffDelay);
+                    delay(backoffDelay);
+                }
+            }
+        }
+
+        // If this network failed, try next network after a short delay
+        if (!connected && network_idx < _network_count - 1) {
+            log_i("Network '%s' failed, trying next network...", ssid.c_str());
+            delay(1000);
         }
     }
 
     if (!connected) {
-        log_e("Failed to connect to WiFi after all retries!");
+        log_e("Failed to connect to any configured WiFi network!");
         _connected = false;
         return error_type::WifiConnectionFailed;
     }
