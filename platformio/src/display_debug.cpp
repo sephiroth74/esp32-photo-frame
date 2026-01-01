@@ -1,5 +1,18 @@
-// Display Debug Mode - Clean Testing Suite
+// Display Debug Mode - Comprehensive Hardware Testing Suite
 // This file runs instead of main.cpp when ENABLE_DISPLAY_DIAGNOSTIC is defined
+//
+// IMPORTANT NOTES (v0.11.0):
+// - testProgmemImage() is DISABLED: requires test_image.h (24MB file removed from repository)
+// - All other diagnostic tests remain fully functional
+// - Use gallery test with SD card images for image rendering validation
+//
+// Available Tests:
+// - Battery status test (MAX1704X or analog reading)
+// - Google Drive integration test (WiFi/NTP/OAuth/file download)
+// - Potentiometer test (continuous reading with real-time display)
+// - Gallery test (BMP and BIN file support from SD card)
+// - Stress test (Floyd-Steinberg dithering for B/W displays)
+// - Hardware failure diagnostics (washout pattern detection)
 
 #ifdef ENABLE_DISPLAY_DIAGNOSTIC
 

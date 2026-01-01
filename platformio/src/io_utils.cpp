@@ -113,7 +113,23 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         // Serial.println(F(" pixels validated"));
 
     } else if (isBmpFile) {
-        // BMP format is no longer supported as of v0.11.0
+        // BMP format support removed in v0.11.0 for code simplification
+        //
+        // RATIONALE FOR REMOVAL:
+        // - BMP files are significantly larger than binary format (~1.15MB vs 384KB)
+        // - Binary format is optimized for e-paper display characteristics
+        // - Reduced firmware complexity and maintenance burden
+        // - Rust photoframe-processor provides easy conversion from any format to .bin
+        //
+        // MIGRATION PATH:
+        // Users with existing .bmp files can convert them using the Rust processor:
+        //   cd rust/photoframe-processor
+        //   cargo build --release
+        //   ./target/release/photoframe-processor
+        //     -i ~/your-images -o ~/outputs
+        //     --size 800x480 --output-format bin
+        //
+        // This validation catches .bmp files and provides clear instructions for conversion
         log_e("BMP format is no longer supported as of firmware v0.11.0");
         log_e("Please convert your images to .bin format using:");
         log_e("  rust/photoframe-processor/target/release/photoframe-processor");

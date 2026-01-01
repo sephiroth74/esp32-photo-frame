@@ -86,25 +86,47 @@ class wifi_manager {
     photo_frame_error_t init_with_config(const String& ssid, const String& password);
 
     /**
-     * @brief Initialize WiFi manager with multiple network credentials.
+     * @brief Initialize WiFi manager with multiple network credentials (v0.11.0+).
      *
      * Sets multiple WiFi credentials from the unified configuration system.
+     * Supports up to WIFI_MAX_NETWORKS (default: 3) networks.
      * The manager will try to connect to each network in order until one succeeds.
+     *
+     * FAILOVER BEHAVIOR:
+     * - Each network is tried with up to 3 connection attempts
+     * - Exponential backoff with jitter between retries on same network
+     * - 1-second delay when switching to next network
+     * - Connection timeout: 10 seconds per attempt
+     * - Detailed logging shows which network is being attempted
+     *
+     * USE CASES:
+     * - Primary home network + backup mobile hotspot
+     * - Home network + office network + travel hotspot
+     * - Multiple networks at different locations
      *
      * @param wifi_config Reference to wifi_config structure containing networks array
      * @return photo_frame_error_t Error status (None on success)
+     * @note Replaces init_with_config() for multi-network scenarios
+     * @see init_with_config() for single-network backward compatibility
      */
     photo_frame_error_t init_with_networks(const unified_config::wifi_config& wifi_config);
 
     /**
-     * @brief Connect to WiFi network using stored credentials.
+     * @brief Connect to WiFi network(s) using stored credentials.
      *
-     * Attempts to establish a connection to the WiFi network using the
-     * credentials loaded during initialization. Includes timeout handling
-     * and connection status monitoring.
+     * Attempts to establish a connection to WiFi networks using the credentials
+     * loaded during initialization. For multi-network configurations (v0.11.0+),
+     * tries each network sequentially until successful connection is established.
+     *
+     * CONNECTION PROCESS (multi-network):
+     * 1. Try first network (up to 3 attempts with exponential backoff)
+     * 2. If failed, try second network (up to 3 attempts)
+     * 3. If failed, try third network (up to 3 attempts)
+     * 4. Continue until connection succeeds or all networks exhausted
      *
      * @return photo_frame_error_t Error status (None on successful connection)
-     * @note init() must be called successfully before attempting to connect
+     * @note init_with_networks() or init_with_config() must be called first
+     * @note Includes automatic reconnection logic with backoff
      */
     photo_frame_error_t connect();
 

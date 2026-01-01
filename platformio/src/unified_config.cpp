@@ -136,11 +136,26 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         return error_type::JsonParseFailed;
     }
 
-    // Extract WiFi configuration
+    // Extract WiFi configuration with backward compatibility
+    // Supports both array format (v0.11.0+) and legacy object format (v0.10.0 and earlier)
+    //
+    // New format (v0.11.0+):
+    //   "wifi": [
+    //     {"ssid": "Network1", "password": "pass1"},
+    //     {"ssid": "Network2", "password": "pass2"}
+    //   ]
+    //
+    // Legacy format (v0.10.0 and earlier):
+    //   "wifi": {
+    //     "ssid": "Network1",
+    //     "password": "pass1"
+    //   }
+    //
+    // The legacy format is automatically migrated to array format at runtime
+    // for backward compatibility with existing config.json files.
     if (doc.containsKey("wifi")) {
         config.wifi.network_count = 0;
 
-        // Support both new array format (v0.11.0+) and legacy object format (v0.10.0 and earlier)
         if (doc["wifi"].is<JsonArray>()) {
             // New format: Array of networks (v0.11.0+)
             JsonArray wifiArray = doc["wifi"].as<JsonArray>();
@@ -169,6 +184,8 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             }
         } else if (doc["wifi"].is<JsonObject>()) {
             // Legacy format: Single network object (v0.10.0 and earlier)
+            // Automatically migrates old config format to new array-based format
+            // This ensures existing config.json files continue to work without manual updates
             log_i("Detected legacy WiFi configuration format (single object) - migrating to array format");
             JsonObject wifi_obj = doc["wifi"];
 
@@ -178,6 +195,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             if (ssid.length() > 0 && password.length() > 0) {
                 config.wifi.add_network(ssid, password);
                 log_i("Successfully migrated legacy WiFi configuration (SSID: %s)", ssid.c_str());
+                log_i("Consider updating config.json to new array format for future compatibility");
             } else {
                 log_e("Invalid legacy WiFi configuration (empty SSID or password)");
             }
