@@ -1,5 +1,5 @@
 {
-    "_comment": "ESP32 Photo Frame Unified Configuration (v0.7.1)",
+    "_comment": "ESP32 Photo Frame Unified Configuration (v0.11.0)",
     "_instructions": "Replace placeholder values with your actual configuration. Up to 3 WiFi networks can be configured. The system will try to connect to them in order.",
     "wifi": [
         {

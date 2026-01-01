@@ -138,10 +138,12 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 
     // Extract WiFi configuration
     if (doc.containsKey("wifi")) {
-        // Parse WiFi networks array (supports up to WIFI_MAX_NETWORKS networks)
+        config.wifi.network_count = 0;
+
+        // Support both new array format (v0.11.0+) and legacy object format (v0.10.0 and earlier)
         if (doc["wifi"].is<JsonArray>()) {
+            // New format: Array of networks (v0.11.0+)
             JsonArray wifiArray = doc["wifi"].as<JsonArray>();
-            config.wifi.network_count = 0;
 
             for (JsonObject wifiObj : wifiArray) {
                 if (config.wifi.network_count >= WIFI_MAX_NETWORKS) {
@@ -165,8 +167,22 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             } else {
                 log_i("Loaded %d WiFi network(s) from configuration", config.wifi.network_count);
             }
+        } else if (doc["wifi"].is<JsonObject>()) {
+            // Legacy format: Single network object (v0.10.0 and earlier)
+            log_i("Detected legacy WiFi configuration format (single object) - migrating to array format");
+            JsonObject wifi_obj = doc["wifi"];
+
+            String ssid = wifi_obj["ssid"].as<String>();
+            String password = wifi_obj["password"].as<String>();
+
+            if (ssid.length() > 0 && password.length() > 0) {
+                config.wifi.add_network(ssid, password);
+                log_i("Successfully migrated legacy WiFi configuration (SSID: %s)", ssid.c_str());
+            } else {
+                log_e("Invalid legacy WiFi configuration (empty SSID or password)");
+            }
         } else {
-            log_w("WiFi configuration is not an array");
+            log_w("WiFi configuration has unsupported format (must be array or object)");
         }
     } else {
         log_w("WiFi configuration missing");

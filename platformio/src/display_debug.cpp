@@ -17,7 +17,7 @@
 #include <Preferences.h>
 #include <SPI.h>
 #include <vector>
-#include "test_image.h"
+// #include "test_image.h"  // Removed: 24MB test image file not suitable for repository
 #include <bitmaps/Bitmaps7c800x480.h>
 #include <Fonts/FreeSans9pt7b.h>
 #include "google_drive_client.h"
@@ -1019,7 +1019,17 @@ void testClearScreen() {
 }
 
 // Test 5e: PROGMEM Image Test (with overlays like main.cpp)
+// NOTE: Disabled - requires test_image.h (24MB file removed from repository)
 void testProgmemImage() {
+    Serial.println(F("\n========================================"));
+    Serial.println(F("PROGMEM Image Test - DISABLED"));
+    Serial.println(F("========================================"));
+    Serial.println(F("This test requires test_image.h which was removed from the repository"));
+    Serial.println(F("(24MB file not suitable for git repository)"));
+    Serial.println(F("Press any key to continue..."));
+    return;
+
+    /* DISABLED CODE - requires test_image.h
     log_i("\n========================================");
     log_i("PROGMEM Image Test WITH OVERLAYS");
     log_i("========================================");
@@ -1114,6 +1124,7 @@ void testProgmemImage() {
     Serial.println(F("\nPROGMEM image with GFXcanvas8 overlays rendered!"));
     Serial.println(F("Check if text is visible on the white bar!"));
     Serial.println(F("Press any key to continue..."));
+    */ // End of DISABLED CODE
 }
 
 // Test 5f: Official Library Image Test

@@ -113,6 +113,14 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         // Serial.println(F(" pixels validated"));
 
     } else if (isBmpFile) {
+        // BMP format is no longer supported as of v0.11.0
+        log_e("BMP format is no longer supported as of firmware v0.11.0");
+        log_e("Please convert your images to .bin format using:");
+        log_e("  rust/photoframe-processor/target/release/photoframe-processor");
+        log_e("  -i <input_dir> -o <output_dir> --size 800x480 --output-format bin");
+        return error_type::ImageFormatNotSupported;
+
+        // Legacy BMP validation code (kept for reference, never executed)
         log_i("Performing BMP file validation");
 
         // Read BMP header

@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `draw_bitmap_from_file()` and `draw_bitmap_from_file_buffered()` from main code path
   - BMP support retained in display_debug.cpp for diagnostic gallery test only
   - Eliminated `format_filename` variable and `is_binary_format()` checks from main.cpp
+  - **Validation**: Files with .bmp extension now return clear error message directing users to convert images
+
+- **OTA Update System**: Removed over-the-air firmware update functionality
+  - Removed `ota_update.cpp` and `ota_integration.cpp` (1,262 lines of code)
+  - Removed `include/ota_update.h` and `include/ota_integration.h` headers
+  - Removed `scripts/build_ota_release.sh` build script (359 lines)
+  - **Rationale**: Simplified codebase and reduced firmware size
+  - **Impact**: Firmware updates now require USB/serial connection
+  - **Alternative**: Use PlatformIO upload via USB for firmware updates
 
 ### Technical Details
 - **WiFi Failover Logic**:
@@ -53,6 +62,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `wifi_manager::init_with_networks(const unified_config::wifi_config&)` - new method for multi-network setup
   - `wifi_manager::init_with_config(const wifi_network&)` - deprecated, kept for backward compatibility
   - Main application now uses binary-only rendering path
+
+### Migration Guide from v0.10.0
+
+**WiFi Configuration (Breaking Change)**:
+- **Old format** (v0.10.0): Single object
+  ```json
+  "wifi": {
+    "ssid": "MyNetwork",
+    "password": "password"
+  }
+  ```
+- **New format** (v0.11.0): Array of networks
+  ```json
+  "wifi": [
+    {
+      "ssid": "MyNetwork",
+      "password": "password"
+    }
+  ]
+  ```
+- **Backward Compatibility**: The old format is automatically migrated at runtime, but updating config.json to the new format is recommended for future compatibility.
+
+**Image Format (Non-Breaking Change)**:
+- Only `.bin` format is supported in v0.11.0
+- Existing `.bmp` files will be rejected with a clear error message
+- **Action Required**: Convert all images to `.bin` format:
+  ```bash
+  cd rust/photoframe-processor
+  cargo build --release
+  ./target/release/photoframe-processor \
+    -i ~/your-images -o ~/outputs \
+    --size 800x480 --output-format bin
+  ```
+
+**OTA Updates (Breaking Change)**:
+- OTA update system has been removed
+- **Action Required**: Use USB/serial connection for firmware updates:
+  ```bash
+  cd platformio
+  pio run -e your_board -t upload
+  ```
 
 ## [v0.10.0] - 2025-12-30
 
