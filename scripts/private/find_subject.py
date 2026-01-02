@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # wget https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt

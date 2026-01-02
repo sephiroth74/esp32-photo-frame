@@ -40,16 +40,13 @@ pub mod python_yolo_integration {
 
     pub struct PythonYolo {
         script_path: String,
-        python_path: String, // Path to Python interpreter
     }
 
     impl PythonYolo {
         pub fn new(
             script_path: &str,
-            python_path: &str,
         ) -> Result<Self, Box<dyn std::error::Error>> {
             let script_path = Path::new(script_path);
-            let python_path = python_path.to_string();
 
             if !script_path.exists() {
                 return Err(format!(
@@ -59,13 +56,8 @@ pub mod python_yolo_integration {
                 .into());
             }
 
-            if !Path::new(&python_path).exists() {
-                return Err(format!("Python interpreter not found: {}", python_path).into());
-            }
-
             Ok(PythonYolo {
                 script_path: script_path.to_string_lossy().to_string(),
-                python_path,
             })
         }
 
@@ -75,9 +67,8 @@ pub mod python_yolo_integration {
             confidence_threshold: f32,
         ) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
             // Run find_subject.py script with JSON output and confidence threshold
-            // python3 find_subject.py --image image.jpg --output-format json --confidence 0.6
-            let output = Command::new(self.python_path.clone())
-                .arg(&self.script_path)
+            // find_subject.py --image image.jpg --output-format json --confidence 0.6
+            let output = Command::new(self.script_path.clone())
                 .arg("--image")
                 .arg(img_path)
                 .arg("--output-format")
@@ -139,14 +130,11 @@ impl SubjectDetector {
     ///
     /// This uses the existing Python script for people detection,
     /// which already implements YOLOv3 with proper configuration
-    pub fn new(script_path: &Path, python_path: &Path) -> Result<Self> {
+    pub fn new(script_path: &Path) -> Result<Self> {
         let python_yolo = PythonYolo::new(
             script_path
                 .to_str()
                 .ok_or_else(|| anyhow::anyhow!("Invalid script path"))?,
-            python_path
-                .to_str()
-                .ok_or_else(|| anyhow::anyhow!("Invalid Python path"))?,
         )
         .map_err(|e| anyhow::anyhow!("Failed to initialize Python YOLO: {}", e))?;
 
@@ -261,22 +249,14 @@ impl SubjectDetector {
 
 /// Create a subject detector using the find_subject.py script
 #[allow(dead_code)]
-pub fn create_default_detector(script_path: &Path, python_path: &Path) -> Result<SubjectDetector> {
+pub fn create_default_detector(script_path: &Path) -> Result<SubjectDetector> {
     if !script_path.exists() {
         return Err(anyhow::anyhow!(
             "find_subject.py script not found: {}",
             script_path.display()
         ));
     }
-
-    if !python_path.exists() {
-        return Err(anyhow::anyhow!(
-            "Python interpreter not found: {}",
-            python_path.display()
-        ));
-    }
-
-    SubjectDetector::new(script_path, python_path)
+    SubjectDetector::new(script_path)
 }
 
 #[cfg(test)]
@@ -350,9 +330,8 @@ mod tests {
         {
             // Test with Python find_subject.py script
             let script_path = Path::new("/Users/alessandro/Documents/git/sephiroth74/arduino/esp32-photo-frame/scripts/private/find_subject.py");
-            let python_path = Path::new("/usr/local/bin/python3"); // Adjust as needed
             if script_path.exists() {
-                match create_default_detector(script_path, python_path) {
+                match create_default_detector(script_path) {
                     Ok(detector) => {
                         match detector.detect_people(&img, 0.6) {
                             Ok(result) => {

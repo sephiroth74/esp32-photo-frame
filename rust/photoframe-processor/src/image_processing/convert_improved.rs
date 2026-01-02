@@ -3,9 +3,15 @@ use image::{Rgb, RgbImage};
 
 /// Enhanced Floyd-Steinberg dithering that simulates a full color range
 /// using only the limited e-paper palette
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength:
+/// - 1.0 = normal (default)
+/// - <1.0 = subtle dithering
+/// - >1.0 = pronounced dithering
 pub fn apply_enhanced_floyd_steinberg_dithering(
     img: &RgbImage,
     palette: &[(u8, u8, u8)],
+    dither_strength: f32,
 ) -> Result<RgbImage> {
     let (width, height) = img.dimensions();
     let mut output = RgbImage::new(width, height);
@@ -35,10 +41,10 @@ pub fn apply_enhanced_floyd_steinberg_dithering(
             // Set output pixel to palette color
             output.put_pixel(x, y, Rgb([palette_r, palette_g, palette_b]));
 
-            // Calculate error (difference between desired and actual color)
-            let error_r = current_r - (palette_r as f32);
-            let error_g = current_g - (palette_g as f32);
-            let error_b = current_b - (palette_b as f32);
+            // Calculate error (difference between desired and actual color) multiplied by strength
+            let error_r = (current_r - (palette_r as f32)) * dither_strength;
+            let error_g = (current_g - (palette_g as f32)) * dither_strength;
+            let error_b = (current_b - (palette_b as f32)) * dither_strength;
 
             // Distribute error to neighboring pixels using Floyd-Steinberg weights
             distribute_error_floyd_steinberg(
@@ -61,7 +67,7 @@ pub fn apply_enhanced_floyd_steinberg_dithering(
 
 /// Enhanced color matching using perceptual color distance
 /// This uses weighted Euclidean distance based on human color perception
-fn find_closest_color_weighted(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8, u8) {
+pub fn find_closest_color_weighted(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8, u8) {
     let mut min_distance = f32::MAX;
     let mut closest_color = palette[0];
 
@@ -85,7 +91,7 @@ fn find_closest_color_weighted(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) ->
 }
 
 /// Create working buffers from the original image
-fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<Vec<f32>>) {
+pub fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<Vec<f32>>) {
     let (width, height) = img.dimensions();
     let mut working_r: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
     let mut working_g: Vec<Vec<f32>> = Vec::with_capacity(height as usize);

@@ -382,11 +382,11 @@ void setup()
     delay(300);
     log_i("Display initialization complete");
 
-    // Prepare display for rendering (same method as working display_debug test)
+    // Prepare display for rendering
+    // Note: fillScreen() removed in v0.11.0 to eliminate race condition causing white vertical stripes
+    // The full-screen image write will overwrite the entire display buffer, making fillScreen() redundant
     log_i("Preparing display for rendering...");
     display.setFullWindow();
-    display.fillScreen(GxEPD_WHITE);
-    delay(500);
     log_i("Display ready for rendering");
 
     // Check if file is ready (binary in buffer or BMP file open)
@@ -564,8 +564,12 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
     #if defined(DISP_6C) || defined(DISP_7C)
         // Power recovery delay after page refresh for 6-color displays
-        // Helps prevent washout by allowing capacitors to recharge
-        delay(200);
+        // Increased from 400ms to 1000ms in v0.11.1 to improve power stability
+        // Helps prevent:
+        // - White vertical stripes from voltage drop
+        // - Washout from incomplete capacitor recharge
+        // - Display artifacts from power supply instability
+        delay(1000);
     #endif
 
         // Handle rendering errors in a separate loop to prevent cutoff

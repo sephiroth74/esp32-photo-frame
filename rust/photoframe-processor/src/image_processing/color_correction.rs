@@ -295,6 +295,35 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
     )
 }
 
+/// Apply contrast adjustment to enhance or reduce image contrast
+/// contrast_adjustment: -1.0 to 1.0
+///   - Positive values increase contrast (makes darks darker, lights lighter)
+///   - Negative values decrease contrast (flattens the image)
+///   - 0.0 = no change
+pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: f32) -> Result<RgbImage> {
+    if contrast_adjustment == 0.0 {
+        // No adjustment needed
+        return Ok(img.clone());
+    }
+
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+
+    // Contrast formula: adjusted = ((pixel - 128) * (1 + contrast)) + 128
+    // This pivots around middle gray (128)
+    let factor = 1.0 + contrast_adjustment;
+
+    for (x, y, pixel) in img.enumerate_pixels() {
+        let r = ((pixel[0] as f32 - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
+        let g = ((pixel[1] as f32 - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
+        let b = ((pixel[2] as f32 - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
+
+        output.put_pixel(x, y, Rgb([r, g, b]));
+    }
+
+    Ok(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,6 +2,7 @@ use anyhow::Result;
 use image::{Rgb, RgbImage};
 
 use super::ProcessingType;
+use crate::cli::DitherMethod;
 
 /// Process an image with color conversion and dithering
 ///
@@ -9,47 +10,68 @@ use super::ProcessingType;
 /// - BlackWhite: Convert to grayscale and apply Floyd-Steinberg dithering
 /// - SixColor: Reduce to 6-color palette and apply dithering
 /// - SevenColor: Reduce to 7-color palette and apply dithering
-pub fn process_image(img: &RgbImage, processing_type: &ProcessingType, dithering_method: &str) -> Result<RgbImage> {
+///
+/// The dither_strength parameter (0.0-2.0) controls the strength of error diffusion:
+/// - 1.0 = normal strength (default)
+/// - <1.0 = subtle dithering
+/// - >1.0 = pronounced dithering
+pub fn process_image(img: &RgbImage, processing_type: &ProcessingType, dithering_method: &DitherMethod, dither_strength: f32) -> Result<RgbImage> {
     match processing_type {
-        ProcessingType::BlackWhite => apply_bw_processing(img),
-        ProcessingType::SixColor => apply_6c_processing(img, dithering_method),
-        ProcessingType::SevenColor => apply_7c_processing(img, dithering_method),
+        ProcessingType::BlackWhite => apply_bw_processing(img, dither_strength),
+        ProcessingType::SixColor => apply_6c_processing(img, dithering_method, dither_strength),
+        ProcessingType::SevenColor => apply_7c_processing(img, dithering_method, dither_strength),
     }
 }
 
 /// Apply black & white processing with Floyd-Steinberg dithering
-fn apply_bw_processing(img: &RgbImage) -> Result<RgbImage> {
+fn apply_bw_processing(img: &RgbImage, dither_strength: f32) -> Result<RgbImage> {
     // Convert to grayscale first
     let grayscale = convert_to_grayscale(img);
 
-    // Apply Floyd-Steinberg dithering
-    apply_floyd_steinberg_dithering(&grayscale)
+    // Apply Floyd-Steinberg dithering with strength
+    apply_floyd_steinberg_dithering(&grayscale, dither_strength)
 }
 
 /// Apply 6-color processing with selectable dithering method
-fn apply_6c_processing(img: &RgbImage, dithering_method: &str) -> Result<RgbImage> {
+fn apply_6c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_strength: f32) -> Result<RgbImage> {
     match dithering_method {
-        "ordered" => {
-            // Use ordered dithering (Bayer matrix) for less noise
-            super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
+        DitherMethod::FloydSteinberg => {
+            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
         }
-        _ => {
-            // Default to enhanced Floyd-Steinberg for better gradients
-            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SIX_COLOR_PALETTE)
+        DitherMethod::Atkinson => {
+            super::dithering::apply_atkinson_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
+        }
+        DitherMethod::Stucki => {
+            super::dithering::apply_stucki_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
+        }
+        DitherMethod::JarvisJudiceNinke => {
+            super::dithering::apply_jarvis_judice_ninke_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
+        }
+        DitherMethod::Ordered => {
+            // Ordered dithering doesn't use error diffusion, so strength doesn't apply
+            super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
         }
     }
 }
 
 /// Apply 7-color processing with selectable dithering method
-fn apply_7c_processing(img: &RgbImage, dithering_method: &str) -> Result<RgbImage> {
+fn apply_7c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_strength: f32) -> Result<RgbImage> {
     match dithering_method {
-        "ordered" => {
-            // Use ordered dithering (Bayer matrix) for less noise
-            super::convert_improved::apply_ordered_dithering(img, &SEVEN_COLOR_PALETTE)
+        DitherMethod::FloydSteinberg => {
+            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
         }
-        _ => {
-            // Default to enhanced Floyd-Steinberg for better gradients
-            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SEVEN_COLOR_PALETTE)
+        DitherMethod::Atkinson => {
+            super::dithering::apply_atkinson_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
+        }
+        DitherMethod::Stucki => {
+            super::dithering::apply_stucki_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
+        }
+        DitherMethod::JarvisJudiceNinke => {
+            super::dithering::apply_jarvis_judice_ninke_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
+        }
+        DitherMethod::Ordered => {
+            // Ordered dithering doesn't use error diffusion, so strength doesn't apply
+            super::convert_improved::apply_ordered_dithering(img, &SEVEN_COLOR_PALETTE)
         }
     }
 }
@@ -77,7 +99,12 @@ fn convert_to_grayscale(img: &RgbImage) -> RgbImage {
 ///
 /// This implements the Floyd-Steinberg error diffusion algorithm
 /// to convert grayscale images to pure black and white
-fn apply_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength:
+/// - 1.0 = normal (default)
+/// - <1.0 = subtle dithering
+/// - >1.0 = pronounced dithering
+fn apply_floyd_steinberg_dithering(img: &RgbImage, dither_strength: f32) -> Result<RgbImage> {
     let (width, height) = img.dimensions();
     let mut output = img.clone();
 
@@ -101,7 +128,7 @@ fn apply_floyd_steinberg_dithering(img: &RgbImage) -> Result<RgbImage> {
 
             working_buffer[y as usize][x as usize] = new_pixel;
 
-            let error = old_pixel - new_pixel;
+            let error = (old_pixel - new_pixel) * dither_strength;
 
             // Distribute error to neighboring pixels
             // Floyd-Steinberg error distribution:

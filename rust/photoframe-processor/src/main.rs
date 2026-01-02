@@ -8,7 +8,7 @@ mod cli;
 mod image_processing;
 mod utils;
 
-use cli::{Args, ColorType};
+use cli::{Args, ColorType, DitherMethod};
 use image_processing::{
     color_correction, ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult,
     ProcessingType, SkipReason,
@@ -311,7 +311,7 @@ fn main() -> Result<()> {
         processing_type: args.processing_type.clone().into(),
         target_width: args.target_width(),
         target_height: args.target_height(),
-        auto_process: args.auto_process,
+        auto_orientation: args.auto_orientation,
         font_name: args.font.clone(),
         font_size: args.pointsize as f32,
         annotation_background: args.annotate_background.clone(),
@@ -326,7 +326,6 @@ fn main() -> Result<()> {
         // Python people detection configuration
         detect_people: args.detect_people,
         python_script_path: args.python_script_path.clone(),
-        python_path: args.python_path.clone(),
         // Duplicate handling
         force: args.force,
         // Debug mode
@@ -344,6 +343,14 @@ fn main() -> Result<()> {
         divider_color,
         // Dithering method
         dithering_method: args.dithering_method.clone(),
+        // Dithering strength
+        dither_strength: args.dither_strength,
+        // Contrast adjustment
+        contrast: args.contrast,
+        // Auto-optimization
+        auto_optimize: args.auto_optimize,
+        explain_optimization: args.explain_optimization,
+        optimization_report: args.optimization_report,
     };
 
     if config.verbose {
@@ -353,7 +360,7 @@ fn main() -> Result<()> {
             config.target_width, config.target_height
         );
         println!("  Processing type: {:?}", config.processing_type);
-        println!("  Auto processing: {}", config.auto_process);
+        println!("  Auto processing: {}", config.auto_orientation);
         println!("  Parallel jobs: {}", config.parallel_jobs);
         println!("  Extensions: {:?}", config.extensions);
         println!("  Font name: {:?}", config.font_name);
@@ -404,11 +411,21 @@ fn main() -> Result<()> {
         // Dithering method
         println!(
             "  Dithering method: {}",
-            if config.dithering_method == "ordered" {
-                "Ordered (Bayer matrix)"
-            } else {
-                "Enhanced Floyd-Steinberg"
+            match config.dithering_method {
+                DitherMethod::FloydSteinberg => "Floyd-Steinberg (enhanced)",
+                DitherMethod::Atkinson => "Atkinson (brightness preserving)",
+                DitherMethod::Stucki => "Stucki (pattern reducing)",
+                DitherMethod::JarvisJudiceNinke => "Jarvis-Judice-Ninke (photo optimized)",
+                DitherMethod::Ordered => "Ordered/Bayer (text optimized)",
             }
+        );
+        println!("    Strength: {:.1}x", config.dither_strength);
+
+        // Contrast adjustment
+        println!(
+            "  Contrast adjustment: {}{:.2}",
+            if config.contrast >= 0.0 { "+" } else { "" },
+            config.contrast
         );
 
         // Color correction status
@@ -837,6 +854,13 @@ fn main() -> Result<()> {
         "All files:"
     };
     println!("  {}: {}", location_label, args.output_dir.display());
+
+    // Print optimization report if enabled
+    if args.optimization_report && args.auto_optimize {
+        let report = engine.get_optimization_report();
+        let report_guard = report.lock().unwrap();
+        report_guard.print();
+    }
 
     if dry_run_mode {
         println!();

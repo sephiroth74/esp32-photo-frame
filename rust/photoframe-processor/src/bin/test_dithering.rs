@@ -76,6 +76,7 @@ fn process_enhanced(img: &RgbImage, output_dir: &PathBuf, stem: &str) -> Result<
     let result = convert_improved::apply_enhanced_floyd_steinberg_dithering(
         img,
         &convert_improved::SIX_COLOR_PALETTE,
+        1.0, // Default dither strength
     )?;
 
     let output_path = output_dir.join(format!("{}_enhanced.bmp", stem));
@@ -110,6 +111,7 @@ fn process_preprocessed(img: &RgbImage, output_dir: &PathBuf, stem: &str) -> Res
     let result = convert_improved::apply_enhanced_floyd_steinberg_dithering(
         &preprocessed,
         &convert_improved::SIX_COLOR_PALETTE,
+        1.0, // Default dither strength
     )?;
 
     let output_path = output_dir.join(format!("{}_preprocessed.bmp", stem));

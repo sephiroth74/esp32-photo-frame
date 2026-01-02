@@ -30,6 +30,25 @@ pub enum OutputType {
     Png,
 }
 
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+pub enum DitherMethod {
+    /// Floyd-Steinberg with perceptual color weighting (best for gradients)
+    #[value(name = "floyd-steinberg")]
+    FloydSteinberg,
+    /// Atkinson dithering (preserves brightness, good for photos)
+    #[value(name = "atkinson")]
+    Atkinson,
+    /// Stucki dithering (similar to Floyd-Steinberg but more diffused)
+    #[value(name = "stucki")]
+    Stucki,
+    /// Jarvis-Judice-Ninke dithering (very diffused, best for photos)
+    #[value(name = "jarvis")]
+    JarvisJudiceNinke,
+    /// Ordered dithering with Bayer matrix (less noise, good for text)
+    #[value(name = "ordered")]
+    Ordered,
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "photoframe-processor",
@@ -128,8 +147,8 @@ pub struct Args {
     pub extensions_str: String,
 
     /// Enable automatic orientation handling (swaps dimensions when needed)
-    #[arg(long = "auto")]
-    pub auto_process: bool,
+    #[arg(long = "auto-orientation")]
+    pub auto_orientation: bool,
 
     /// Font size for filename annotations
     #[arg(long = "pointsize", default_value = "22", value_name = "SIZE")]
@@ -166,14 +185,53 @@ pub struct Args {
     )]
     pub divider_color: String,
 
-    /// Dithering method: "enhanced" (Floyd-Steinberg with perceptual weighting) or "ordered" (Bayer matrix)
+    /// Dithering method for color quantization
     #[arg(
         long = "dithering",
-        default_value = "enhanced",
+        default_value = "floyd-steinberg",
         value_name = "METHOD",
-        help = "Dithering method: 'enhanced' for smoother gradients or 'ordered' for less noise"
+        help = "Dithering algorithm: floyd-steinberg (best gradients), atkinson (bright), stucki (diffused), jarvis (photos), ordered (text)"
     )]
-    pub dithering_method: String,
+    pub dithering_method: DitherMethod,
+
+    /// Dithering strength (0.0-2.0, default 1.0). Higher values = stronger dithering effect
+    #[arg(
+        long = "dither-strength",
+        default_value = "1.0",
+        value_name = "STRENGTH",
+        help = "Dithering strength multiplier. 1.0 = normal, <1.0 = subtle, >1.0 = pronounced"
+    )]
+    pub dither_strength: f32,
+
+    /// Contrast adjustment (-1.0 to 1.0, default 0.0). Positive = increase, negative = decrease
+    #[arg(
+        long = "contrast",
+        default_value = "0.0",
+        value_name = "ADJUSTMENT",
+        help = "Contrast adjustment: -1.0 (low contrast) to 1.0 (high contrast), 0.0 = no change"
+    )]
+    pub contrast: f32,
+
+    /// Enable automatic per-image parameter optimization (overrides manual dithering/contrast settings)
+    #[arg(
+        long = "auto-optimize",
+        help = "Automatically select optimal dithering, strength, and contrast for each image based on content analysis"
+    )]
+    pub auto_optimize: bool,
+
+    /// Show detailed explanation of auto-optimization decisions (requires --auto-optimize)
+    #[arg(
+        long = "explain-optimization",
+        help = "Display reasoning behind automatic parameter selection for each image"
+    )]
+    pub explain_optimization: bool,
+
+    /// Generate optimization report table at the end (requires --auto-optimize)
+    #[arg(
+        long = "optimization-report",
+        help = "Display formatted table with optimization results for all processed images"
+    )]
+    pub optimization_report: bool,
 
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
     #[arg(short = 'j', long = "jobs", default_value = "0", value_name = "N")]
@@ -191,19 +249,11 @@ pub struct Args {
     #[arg(long = "detect-people")]
     pub detect_people: bool,
 
-    #[arg(
-        long = "python-path",
-        value_name = "FILE",
-        help = "Path to Python interpreter (if not in system PATH)"
-    )]
-    pub python_path: Option<PathBuf>,
-
     /// Path to find_subject.py script for people detection
     #[arg(
         long = "python-script",
         value_name = "FILE",
-        requires = "python_path",
-        help = "Path to find_subject.py script for people detection"
+        help = "Path to find_subject.py script for people detection (uses system Python)"
     )]
     pub python_script_path: Option<PathBuf>,
 
@@ -403,7 +453,7 @@ impl Default for Args {
             processing_type: ColorType::BlackWhite,
             output_formats_str: "bmp".to_string(),
             extensions_str: "jpg,png".to_string(),
-            auto_process: false,
+            auto_orientation: false,
             pointsize: 24,
             font: "Arial".to_string(),
             annotate_background: "#00000040".to_string(),
@@ -412,7 +462,6 @@ impl Default for Args {
             validate_only: false,
             detect_people: false,
             python_script_path: None,
-            python_path: None,
             force: false,
             find_original: None,
             find_hash: None,

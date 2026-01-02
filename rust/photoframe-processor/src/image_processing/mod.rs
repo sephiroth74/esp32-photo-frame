@@ -1,10 +1,13 @@
 pub mod annotate;
+pub mod auto_optimizer;
+pub mod optimization_report;
 pub mod batch;
 pub mod binary;
 pub mod color_correction;
 pub mod combine;
 pub mod convert;
 pub mod convert_improved;
+pub mod dithering;
 pub mod orientation;
 pub mod resize;
 pub mod subject_detection;
@@ -20,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
 
+use crate::cli::DitherMethod;
 use crate::utils::{
     create_combined_portrait_filename, encode_filename_base64, has_valid_extension, verbose_println,
 };
@@ -59,7 +63,7 @@ pub struct ProcessingConfig {
     pub processing_type: ProcessingType,
     pub target_width: u32,
     pub target_height: u32,
-    pub auto_process: bool,
+    pub auto_orientation: bool,
     pub font_name: String,
     pub font_size: f32,
     pub annotation_background: String,
@@ -70,7 +74,6 @@ pub struct ProcessingConfig {
     // Python people detection configuration
     pub detect_people: bool,
     pub python_script_path: Option<PathBuf>,
-    pub python_path: Option<PathBuf>,
     // Duplicate handling
     pub force: bool,
     // Debug mode
@@ -87,12 +90,21 @@ pub struct ProcessingConfig {
     pub divider_width: u32,
     pub divider_color: Rgb<u8>,
     // Dithering method
-    pub dithering_method: String,
+    pub dithering_method: DitherMethod,
+    // Dithering strength (0.0-2.0, multiplier for error diffusion)
+    pub dither_strength: f32,
+    // Contrast adjustment (-1.0 to 1.0, applied before dithering)
+    pub contrast: f32,
+    // Auto-optimization
+    pub auto_optimize: bool,
+    pub explain_optimization: bool,
+    pub optimization_report: bool,
 }
 
 pub struct ProcessingEngine {
     config: ProcessingConfig,
     subject_detector: Option<subject_detection::SubjectDetector>,
+    optimization_report: Arc<Mutex<optimization_report::OptimizationReport>>,
 }
 
 impl ProcessingEngine {
@@ -200,16 +212,17 @@ impl ProcessingEngine {
 
         let subject_detector = if config.detect_people {
             if let Some(ref script_path) = config.python_script_path {
-                let python_path = config
-                    .python_path
-                    .clone()
-                    .unwrap_or_else(|| PathBuf::from("python"));
+                let _python_path = PathBuf::from("python3"); // Use system python3
                 verbose_println(config.verbose, "Initializing Python people detection...");
                 verbose_println(
                     config.verbose,
                     &format!("Using script: {}", script_path.display()),
                 );
-                match subject_detection::create_default_detector(script_path, python_path.as_path())
+                verbose_println(
+                    config.verbose,
+                    "Using system Python interpreter (python3)",
+                );
+                match subject_detection::create_default_detector(script_path)
                 {
                     Ok(detector) => {
                         verbose_println(
@@ -245,7 +258,13 @@ impl ProcessingEngine {
         Ok(Self {
             config,
             subject_detector,
+            optimization_report: Arc::new(Mutex::new(optimization_report::OptimizationReport::new())),
         })
+    }
+
+    /// Get the optimization report (for printing at the end)
+    pub fn get_optimization_report(&self) -> Arc<Mutex<optimization_report::OptimizationReport>> {
+        Arc::clone(&self.optimization_report)
     }
 
     /// Scan destination folder for existing files and create skip mapping
@@ -967,6 +986,7 @@ impl ProcessingEngine {
                 progress_bar,
                 people_detection,
                 start_time,
+                orientation_info.exif_orientation,
             )?
         } else {
             progress_bar.set_message(format!("{} - Processing landscape", filename));
@@ -978,6 +998,7 @@ impl ProcessingEngine {
                 progress_bar,
                 people_detection,
                 start_time,
+                orientation_info.exif_orientation,
             )?
         };
 
@@ -996,6 +1017,7 @@ impl ProcessingEngine {
         progress_bar: &ProgressBar,
         people_detection: Option<subject_detection::SubjectDetectionResult>,
         start_time: std::time::Instant,
+        orientation: orientation::ExifOrientation,
     ) -> Result<ProcessingResult> {
         let filename = input_path
             .file_name()
@@ -1020,7 +1042,7 @@ impl ProcessingEngine {
             img,
             self.config.target_width,
             self.config.target_height,
-            self.config.auto_process,
+            self.config.auto_orientation,
             people_detection.as_ref(),
             self.config.verbose,
         )?;
@@ -1047,25 +1069,70 @@ impl ProcessingEngine {
             resized_img
         };
 
-        // Apply automatic color correction if enabled (75-78%)
+        // Auto-optimization: analyze image and determine optimal parameters (75%)
+        let (optimized_dither_method, optimized_dither_strength, optimized_contrast, optimized_auto_color, image_analysis) =
+            if self.config.auto_optimize {
+                progress_bar.set_message(format!("{} - Analyzing image", filename));
+                let optimization_result = auto_optimizer::analyze_and_optimize(&annotated_img, people_detection.as_ref())?;
+                let analysis = auto_optimizer::analyze_image_characteristics(&annotated_img, people_detection.as_ref())?;
+
+                if self.config.explain_optimization {
+                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for '{}':", filename));
+                    for reason in &optimization_result.reasoning {
+                        verbose_println(self.config.verbose, &format!("   {}", reason));
+                    }
+                }
+
+                (
+                    optimization_result.dither_method,
+                    optimization_result.dither_strength,
+                    optimization_result.contrast_adjustment,
+                    optimization_result.auto_color_correct,
+                    Some(analysis),
+                )
+            } else {
+                // Use config defaults when auto-optimization is disabled
+                (
+                    self.config.dithering_method.clone(),
+                    self.config.dither_strength,
+                    self.config.contrast,
+                    self.config.auto_color_correct,
+                    None,
+                )
+            };
+
+        // Apply automatic color correction if enabled (75-76%)
         progress_bar.set_position(75);
-        let color_corrected_img = if self.config.auto_color_correct {
+        let color_corrected_img = if optimized_auto_color {
             progress_bar.set_message(format!("{} - Auto color correction", filename));
             std::thread::yield_now();
             let corrected = color_correction::apply_auto_color_correction(&annotated_img)?;
-            progress_bar.set_position(78);
+            progress_bar.set_position(76);
             corrected
         } else {
-            progress_bar.set_position(78);
+            progress_bar.set_position(76);
             annotated_img
         };
 
-        // Apply color conversion and dithering (78-85%)
+        // Apply contrast adjustment (76-78%) - use optimized parameter
+        progress_bar.set_position(76);
+        let contrast_adjusted_img = if optimized_contrast != 0.0 {
+            progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+            std::thread::yield_now();
+            let adjusted = color_correction::apply_contrast_adjustment(&color_corrected_img, optimized_contrast)?;
+            progress_bar.set_position(78);
+            adjusted
+        } else {
+            progress_bar.set_position(78);
+            color_corrected_img
+        };
+
+        // Apply color conversion and dithering (78-85%) - use optimized parameters
         progress_bar.set_message(format!("{} - Color processing", filename));
         std::thread::yield_now();
         progress_bar.set_position(80); // Show progress during color processing
         let processed_img =
-            convert::process_image(&color_corrected_img, &self.config.processing_type, &self.config.dithering_method)?;
+            convert::process_image(&contrast_adjusted_img, &self.config.processing_type, &optimized_dither_method, optimized_dither_strength)?;
         progress_bar.set_position(85); // Color processing complete
 
         // Save files to multiple formats (90-95%)
@@ -1133,6 +1200,33 @@ impl ProcessingEngine {
 
         progress_bar.set_position(95);
 
+        // Collect optimization report data if enabled
+        if self.config.optimization_report && self.config.auto_optimize {
+            if let Some(analysis) = image_analysis {
+                let was_rotated = !matches!(orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+                let color_skipped = !optimized_auto_color && self.config.auto_color_correct;
+
+                let entry = optimization_report::OptimizationEntry {
+                    input_filename: optimization_report::extract_filename(input_path),
+                    output_filename: saved_paths.get(&self.config.output_formats[0])
+                        .and_then(|p| p.file_name())
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("unknown").to_string(),
+                    dither_method: optimized_dither_method,
+                    dither_strength: optimized_dither_strength,
+                    contrast: optimized_contrast,
+                    auto_color: optimized_auto_color,
+                    people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                    people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
+                    is_pastel: analysis.is_pastel_toned,
+                    was_rotated,
+                    color_skipped,
+                };
+
+                self.optimization_report.lock().unwrap().add_landscape(entry);
+            }
+        }
+
         Ok(ProcessingResult {
             input_path: input_path.to_path_buf(),
             output_paths: saved_paths,
@@ -1156,6 +1250,7 @@ impl ProcessingEngine {
         progress_bar: &ProgressBar,
         people_detection: Option<subject_detection::SubjectDetectionResult>,
         start_time: std::time::Instant,
+        orientation: orientation::ExifOrientation,
     ) -> Result<ProcessingResult> {
         let filename = input_path
             .file_name()
@@ -1184,7 +1279,7 @@ impl ProcessingEngine {
             img,
             half_width,
             self.config.target_height,
-            self.config.auto_process,
+            self.config.auto_orientation,
             people_detection.as_ref(),
             self.config.verbose,
         )?;
@@ -1206,24 +1301,69 @@ impl ProcessingEngine {
             resized_img
         };
 
-        // Apply automatic color correction if enabled (80-82%)
+        // Auto-optimization: analyze image and determine optimal parameters (portrait)
+        let (optimized_dither_method, optimized_dither_strength, optimized_contrast, optimized_auto_color, image_analysis) =
+            if self.config.auto_optimize {
+                progress_bar.set_message(format!("{} - Analyzing portrait", filename));
+                let optimization_result = auto_optimizer::analyze_and_optimize(&annotated_img, people_detection.as_ref())?;
+                let analysis = auto_optimizer::analyze_image_characteristics(&annotated_img, people_detection.as_ref())?;
+
+                if self.config.explain_optimization {
+                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for portrait '{}':", filename));
+                    for reason in &optimization_result.reasoning {
+                        verbose_println(self.config.verbose, &format!("   {}", reason));
+                    }
+                }
+
+                (
+                    optimization_result.dither_method,
+                    optimization_result.dither_strength,
+                    optimization_result.contrast_adjustment,
+                    optimization_result.auto_color_correct,
+                    Some(analysis),
+                )
+            } else {
+                // Use config defaults when auto-optimization is disabled
+                (
+                    self.config.dithering_method.clone(),
+                    self.config.dither_strength,
+                    self.config.contrast,
+                    self.config.auto_color_correct,
+                    None,
+                )
+            };
+
+        // Apply automatic color correction if enabled (80-81%)
         progress_bar.set_position(80);
-        let color_corrected_img = if self.config.auto_color_correct {
+        let color_corrected_img = if optimized_auto_color {
             progress_bar.set_message(format!("{} - Auto color correction", filename));
             std::thread::yield_now();
             let corrected = color_correction::apply_auto_color_correction(&annotated_img)?;
-            progress_bar.set_position(82);
+            progress_bar.set_position(81);
             corrected
         } else {
-            progress_bar.set_position(82);
+            progress_bar.set_position(81);
             annotated_img
         };
 
-        // Apply color conversion and dithering (82-85%)
+        // Apply contrast adjustment (81-82%) - use optimized parameter
+        progress_bar.set_position(81);
+        let contrast_adjusted_img = if optimized_contrast != 0.0 {
+            progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+            std::thread::yield_now();
+            let adjusted = color_correction::apply_contrast_adjustment(&color_corrected_img, optimized_contrast)?;
+            progress_bar.set_position(82);
+            adjusted
+        } else {
+            progress_bar.set_position(82);
+            color_corrected_img
+        };
+
+        // Apply color conversion and dithering (82-85%) - use optimized parameters
         progress_bar.set_message(format!("{} - Color processing", filename));
         std::thread::yield_now();
         let processed_img =
-            convert::process_image(&color_corrected_img, &self.config.processing_type, &self.config.dithering_method)?;
+            convert::process_image(&contrast_adjusted_img, &self.config.processing_type, &optimized_dither_method, optimized_dither_strength)?;
         progress_bar.set_position(85);
 
         // Save portrait files to multiple formats (90-95%)
@@ -1291,6 +1431,33 @@ impl ProcessingEngine {
         }
 
         progress_bar.set_position(95);
+
+        // Collect optimization report data if enabled
+        if self.config.optimization_report && self.config.auto_optimize {
+            if let Some(analysis) = image_analysis {
+                let was_rotated = !matches!(orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+                let color_skipped = !optimized_auto_color && self.config.auto_color_correct;
+
+                let entry = optimization_report::OptimizationEntry {
+                    input_filename: optimization_report::extract_filename(input_path),
+                    output_filename: saved_paths.get(&self.config.output_formats[0])
+                        .and_then(|p| p.file_name())
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("unknown").to_string(),
+                    dither_method: optimized_dither_method,
+                    dither_strength: optimized_dither_strength,
+                    contrast: optimized_contrast,
+                    auto_color: optimized_auto_color,
+                    people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                    people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
+                    is_pastel: analysis.is_pastel_toned,
+                    was_rotated,
+                    color_skipped,
+                };
+
+                self.optimization_report.lock().unwrap().add_portrait(entry);
+            }
+        }
 
         verbose_println(self.config.verbose, &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
 
@@ -1576,21 +1743,21 @@ impl ProcessingEngine {
         std::thread::yield_now();
 
         progress_bar.set_position(18);
-        let left_rotated = match orientation::detect_orientation(left_path, &left_img) {
+        let (left_rotated, left_orientation) = match orientation::detect_orientation(left_path, &left_img) {
             Ok(orientation_info) => {
-                orientation::apply_rotation(&left_img, orientation_info.exif_orientation)
-                    .unwrap_or_else(|_| left_img.clone())
+                let exif_orient = orientation_info.exif_orientation;
+                (orientation::apply_rotation(&left_img, exif_orient).unwrap_or_else(|_| left_img.clone()), exif_orient)
             }
-            Err(_) => left_img.clone(),
+            Err(_) => (left_img.clone(), orientation::ExifOrientation::Undefined),
         };
 
         progress_bar.set_position(22);
-        let right_rotated = match orientation::detect_orientation(right_path, &right_img) {
+        let (right_rotated, right_orientation) = match orientation::detect_orientation(right_path, &right_img) {
             Ok(orientation_info) => {
-                orientation::apply_rotation(&right_img, orientation_info.exif_orientation)
-                    .unwrap_or_else(|_| right_img.clone())
+                let exif_orient = orientation_info.exif_orientation;
+                (orientation::apply_rotation(&right_img, exif_orient).unwrap_or_else(|_| right_img.clone()), exif_orient)
             }
-            Err(_) => right_img.clone(),
+            Err(_) => (right_img.clone(), orientation::ExifOrientation::Undefined),
         };
         progress_bar.set_position(25);
 
@@ -1629,7 +1796,7 @@ impl ProcessingEngine {
             &left_rotated,
             half_width,
             self.config.target_height,
-            self.config.auto_process,
+            self.config.auto_orientation,
             left_detection.as_ref(),
             self.config.verbose,
         )?;
@@ -1639,33 +1806,105 @@ impl ProcessingEngine {
             &right_rotated,
             half_width,
             self.config.target_height,
-            self.config.auto_process,
+            self.config.auto_orientation,
             right_detection.as_ref(),
             self.config.verbose,
         )?;
         progress_bar.set_position(45); // Both resizes complete
 
-        // Stage 5: Apply color correction if enabled (45-50%)
+        // Auto-optimization: analyze both images and determine optimal parameters (portrait pair)
+        let (left_optimized_dither, left_optimized_strength, left_optimized_contrast, left_optimized_auto_color, left_analysis) =
+            if self.config.auto_optimize {
+                progress_bar.set_message(format!("Analyzing {}", left_filename));
+                let optimization_result = auto_optimizer::analyze_and_optimize(&left_resized, left_detection.as_ref())?;
+                let analysis = auto_optimizer::analyze_image_characteristics(&left_resized, left_detection.as_ref())?;
+
+                if self.config.explain_optimization {
+                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for left portrait '{}':", left_filename));
+                    for reason in &optimization_result.reasoning {
+                        verbose_println(self.config.verbose, &format!("   {}", reason));
+                    }
+                }
+
+                (
+                    optimization_result.dither_method,
+                    optimization_result.dither_strength,
+                    optimization_result.contrast_adjustment,
+                    optimization_result.auto_color_correct,
+                    Some(analysis),
+                )
+            } else {
+                (
+                    self.config.dithering_method.clone(),
+                    self.config.dither_strength,
+                    self.config.contrast,
+                    self.config.auto_color_correct,
+                    None,
+                )
+            };
+
+        let (right_optimized_dither, right_optimized_strength, right_optimized_contrast, right_optimized_auto_color, right_analysis) =
+            if self.config.auto_optimize {
+                progress_bar.set_message(format!("Analyzing {}", right_filename));
+                let optimization_result = auto_optimizer::analyze_and_optimize(&right_resized, right_detection.as_ref())?;
+                let analysis = auto_optimizer::analyze_image_characteristics(&right_resized, right_detection.as_ref())?;
+
+                if self.config.explain_optimization {
+                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for right portrait '{}':", right_filename));
+                    for reason in &optimization_result.reasoning {
+                        verbose_println(self.config.verbose, &format!("   {}", reason));
+                    }
+                }
+
+                (
+                    optimization_result.dither_method,
+                    optimization_result.dither_strength,
+                    optimization_result.contrast_adjustment,
+                    optimization_result.auto_color_correct,
+                    Some(analysis),
+                )
+            } else {
+                (
+                    self.config.dithering_method.clone(),
+                    self.config.dither_strength,
+                    self.config.contrast,
+                    self.config.auto_color_correct,
+                    None,
+                )
+            };
+
+        // Stage 5: Apply color correction if enabled (45-48%) - per-image optimization
         progress_bar.set_position(45);
-        let (left_color_corrected, right_color_corrected) = if self.config.auto_color_correct {
-            progress_bar.set_message(format!(
-                "Auto color correction for {} + {}",
-                left_filename, right_filename
-            ));
-            std::thread::yield_now();
-
-            progress_bar.set_position(47); // Processing left image correction
-            let left_corrected = color_correction::apply_auto_color_correction(&left_resized)?;
-            progress_bar.set_position(49); // Processing right image correction
-            let right_corrected = color_correction::apply_auto_color_correction(&right_resized)?;
-            progress_bar.set_position(50);
-            (left_corrected, right_corrected)
+        progress_bar.set_position(46); // Processing left image correction
+        let left_color_corrected = if left_optimized_auto_color {
+            color_correction::apply_auto_color_correction(&left_resized)?
         } else {
-            progress_bar.set_position(50);
-            (left_resized, right_resized)
+            left_resized
         };
+        progress_bar.set_position(47); // Processing right image correction
+        let right_color_corrected = if right_optimized_auto_color {
+            color_correction::apply_auto_color_correction(&right_resized)?
+        } else {
+            right_resized
+        };
+        progress_bar.set_position(48);
 
-        // Stage 6: Apply image processing (50-55%)
+        // Stage 5b: Apply contrast adjustment if enabled (48-50%) - per-image optimization
+        progress_bar.set_position(48);
+        progress_bar.set_position(49); // Adjusting left image contrast
+        let left_contrast_adjusted = if left_optimized_contrast != 0.0 {
+            color_correction::apply_contrast_adjustment(&left_color_corrected, left_optimized_contrast)?
+        } else {
+            left_color_corrected
+        };
+        let right_contrast_adjusted = if right_optimized_contrast != 0.0 {
+            color_correction::apply_contrast_adjustment(&right_color_corrected, right_optimized_contrast)?
+        } else {
+            right_color_corrected
+        };
+        progress_bar.set_position(50);
+
+        // Stage 6: Apply image processing (50-55%) - per-image optimized parameters
         progress_bar.set_message(format!(
             "Processing colors for {} + {}",
             left_filename, right_filename
@@ -1674,10 +1913,10 @@ impl ProcessingEngine {
 
         progress_bar.set_position(52); // Processing left image colors
         let left_processed =
-            convert::process_image(&left_color_corrected, &self.config.processing_type, &self.config.dithering_method)?;
+            convert::process_image(&left_contrast_adjusted, &self.config.processing_type, &left_optimized_dither, left_optimized_strength)?;
         progress_bar.set_position(54); // Processing right image colors
         let right_processed =
-            convert::process_image(&right_color_corrected, &self.config.processing_type, &self.config.dithering_method)?;
+            convert::process_image(&right_contrast_adjusted, &self.config.processing_type, &right_optimized_dither, right_optimized_strength)?;
         progress_bar.set_position(55); // Color processing complete
 
         // Stage 6: Apply annotations (55-65%) - conditional based on config
@@ -1843,6 +2082,57 @@ impl ProcessingEngine {
         // Calculate combined statistics
         let combined_people_detected = individual_portraits.iter().any(|p| p.people_detected);
         let combined_people_count = individual_portraits.iter().map(|p| p.people_count).sum();
+
+        // Collect optimization report data if enabled
+        if self.config.optimization_report && self.config.auto_optimize {
+            if let (Some(left_img_analysis), Some(right_img_analysis)) = (left_analysis, right_analysis) {
+                let left_was_rotated = !matches!(left_orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+                let left_color_skipped = !left_optimized_auto_color && self.config.auto_color_correct;
+                let right_was_rotated = !matches!(right_orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+                let right_color_skipped = !right_optimized_auto_color && self.config.auto_color_correct;
+
+                let left_entry = optimization_report::OptimizationEntry {
+                    input_filename: optimization_report::extract_filename(left_path),
+                    output_filename: format!("{} (left)", optimization_report::extract_filename(left_path)),
+                    dither_method: left_optimized_dither,
+                    dither_strength: left_optimized_strength,
+                    contrast: left_optimized_contrast,
+                    auto_color: left_optimized_auto_color,
+                    people_detected: left_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                    people_count: left_detection.as_ref().map_or(0, |d| d.person_count),
+                    is_pastel: left_img_analysis.is_pastel_toned,
+                    was_rotated: left_was_rotated,
+                    color_skipped: left_color_skipped,
+                };
+
+                let right_entry = optimization_report::OptimizationEntry {
+                    input_filename: optimization_report::extract_filename(right_path),
+                    output_filename: format!("{} (right)", optimization_report::extract_filename(right_path)),
+                    dither_method: right_optimized_dither,
+                    dither_strength: right_optimized_strength,
+                    contrast: right_optimized_contrast,
+                    auto_color: right_optimized_auto_color,
+                    people_detected: right_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                    people_count: right_detection.as_ref().map_or(0, |d| d.person_count),
+                    is_pastel: right_img_analysis.is_pastel_toned,
+                    was_rotated: right_was_rotated,
+                    color_skipped: right_color_skipped,
+                };
+
+                let combined_output = saved_paths.get(&self.config.output_formats[0])
+                    .and_then(|p| p.file_name())
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("unknown").to_string();
+
+                let pair_entry = optimization_report::PortraitPairEntry {
+                    left: left_entry,
+                    right: right_entry,
+                    combined_output,
+                };
+
+                self.optimization_report.lock().unwrap().add_portrait_pair(pair_entry);
+            }
+        }
 
         Ok(ProcessingResult {
             input_path: left_path.to_path_buf(), // Use first image as representative
@@ -2030,7 +2320,7 @@ impl ProcessingEngine {
 
         // Run Python script directly to get raw JSON
 
-        let output = std::process::Command::new(self.config.python_path.as_ref().unwrap())
+        let output = std::process::Command::new("python3")
             .arg(self.config.python_script_path.as_ref().unwrap())
             .arg("--image")
             .arg(&temp_path)
@@ -2211,7 +2501,7 @@ impl ProcessingEngine {
             image_is_portrait,
             self.config.target_width,
             self.config.target_height,
-            self.config.auto_process,
+            self.config.auto_orientation,
         );
 
         // Calculate crop dimensions to maintain aspect ratio
