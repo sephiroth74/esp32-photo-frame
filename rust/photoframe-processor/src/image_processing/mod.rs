@@ -1549,17 +1549,12 @@ impl ProcessingEngine {
         let mut rng = rand::rng();
         portrait_files.shuffle(&mut rng);
 
-        // If odd number of portraits, discard the last one
-        if portrait_files.len() % 2 == 1 {
-            let discarded = portrait_files.pop().unwrap();
-            verbose_println(
-                self.config.verbose,
-                &format!(
-                    "ℹ Discarding leftover portrait: {}",
-                    discarded.file_name().unwrap_or_default().to_string_lossy()
-                ),
-            );
-        }
+        // Check if there's an unpaired portrait (odd number)
+        let unpaired_portrait = if portrait_files.len() % 2 == 1 {
+            Some(portrait_files.pop().unwrap())
+        } else {
+            None
+        };
 
         // Create pairs from randomized portraits
         let portrait_pairs: Vec<(PathBuf, PathBuf)> = portrait_files
@@ -1575,7 +1570,7 @@ impl ProcessingEngine {
         completion_progress.set_message("Processing portrait pairs in parallel...");
 
         // Process each pair individually using the thread pool (just like landscapes)
-        let results = self.process_portrait_pairs_parallel(
+        let mut results = self.process_portrait_pairs_parallel(
             &portrait_pairs,
             output_dir,
             main_progress,
@@ -1583,7 +1578,50 @@ impl ProcessingEngine {
             completion_progress,
         )?;
 
-        completion_progress.set_message("Portrait pairing complete");
+        // Process unpaired portrait as individual half-width image
+        if let Some(unpaired_path) = unpaired_portrait {
+            verbose_println(
+                self.config.verbose,
+                &format!(
+                    "ℹ️ Processing unpaired portrait as individual image: {}",
+                    unpaired_path.file_name().unwrap_or_default().to_string_lossy()
+                ),
+            );
+
+            completion_progress.set_message("Processing unpaired portrait...");
+
+            // Get a thread progress bar for this single image
+            let thread_pb = &thread_progress_bars[0];
+
+            // Load and process the single portrait
+            let start_time = std::time::Instant::now();
+            let img = image::open(&unpaired_path)
+                .with_context(|| format!("Failed to open image: {}", unpaired_path.display()))?
+                .to_rgb8();
+
+            // Detect orientation and apply rotation
+            let orientation_info = orientation::detect_orientation(&unpaired_path, &img)?;
+            let rotated_img = orientation::apply_rotation(&img, orientation_info.exif_orientation)?;
+
+            // Run people detection if enabled
+            let people_detection = self.detect_people_with_logging(&rotated_img, &unpaired_path);
+
+            let result = self.process_portrait_image_with_progress(
+                &rotated_img,
+                &unpaired_path,
+                output_dir,
+                0, // index
+                thread_pb,
+                people_detection,
+                start_time,
+                orientation_info.exif_orientation,
+            );
+
+            results.push(result);
+            main_progress.inc(1); // Inc progress for the single portrait
+        }
+
+        completion_progress.set_message("Portrait processing complete");
         Ok(results)
     }
 

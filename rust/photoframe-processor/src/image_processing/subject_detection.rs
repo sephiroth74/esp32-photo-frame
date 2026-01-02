@@ -75,23 +75,6 @@ pub mod python_yolo_integration {
                 .and_then(|p| p.parent()); // project root
 
             let output = if let Some(root) = project_root {
-                let venv_activate = root.join(".venv/bin/activate");
-                if venv_activate.exists() {
-                    // Use bash to source venv and run script
-                    let cmd = format!(
-                        "source {} && {} --image {} --output-format json --confidence {}",
-                        venv_activate.display(),
-                        self.script_path,
-                        img_path,
-                        confidence_threshold
-                    );
-                    Command::new("bash")
-                        .arg("-c")
-                        .arg(&cmd)
-                        .output()
-                        .map_err(|e| format!("Failed to execute find_subject.py with venv: {}", e))?
-                } else {
-                    // No venv, run script directly
                     Command::new(&self.script_path)
                         .arg("--image")
                         .arg(img_path)
@@ -101,7 +84,6 @@ pub mod python_yolo_integration {
                         .arg(confidence_threshold.to_string())
                         .output()
                         .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
-                }
             } else {
                 // Can't find project root, run script directly
                 Command::new(&self.script_path)
