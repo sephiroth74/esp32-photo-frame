@@ -1192,31 +1192,29 @@ impl ProcessingEngine {
 
         progress_bar.set_position(95);
 
-        // Collect optimization report data if enabled
-        if self.config.optimization_report && self.config.auto_optimize {
-            if let Some(analysis) = image_analysis {
-                let was_rotated = !matches!(orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
-                let color_skipped = !optimized_auto_color && self.config.auto_color_correct;
+        // Collect processing report data if enabled
+        if self.config.optimization_report {
+            let was_rotated = !matches!(orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+            let color_skipped = !optimized_auto_color && self.config.auto_color_correct;
 
-                let entry = optimization_report::OptimizationEntry {
-                    input_filename: optimization_report::extract_filename(input_path),
-                    output_filename: saved_paths.get(&self.config.output_formats[0])
-                        .and_then(|p| p.file_name())
-                        .and_then(|f| f.to_str())
-                        .unwrap_or("unknown").to_string(),
-                    dither_method: optimized_dither_method,
-                    dither_strength: optimized_dither_strength,
-                    contrast: optimized_contrast,
-                    auto_color: optimized_auto_color,
-                    people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
-                    people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
-                    is_pastel: analysis.is_pastel_toned,
-                    was_rotated,
-                    color_skipped,
-                };
+            let entry = optimization_report::OptimizationEntry {
+                input_filename: optimization_report::extract_filename(input_path),
+                output_filename: saved_paths.get(&self.config.output_formats[0])
+                    .and_then(|p| p.file_name())
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("unknown").to_string(),
+                dither_method: optimized_dither_method,
+                dither_strength: optimized_dither_strength,
+                contrast: optimized_contrast,
+                auto_color: optimized_auto_color,
+                people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
+                is_pastel: image_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                was_rotated,
+                color_skipped,
+            };
 
-                self.optimization_report.lock().unwrap().add_landscape(entry);
-            }
+            self.optimization_report.lock().unwrap().add_landscape(entry);
         }
 
         Ok(ProcessingResult {
@@ -1417,31 +1415,29 @@ impl ProcessingEngine {
 
         progress_bar.set_position(95);
 
-        // Collect optimization report data if enabled
-        if self.config.optimization_report && self.config.auto_optimize {
-            if let Some(analysis) = image_analysis {
-                let was_rotated = !matches!(orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
-                let color_skipped = !optimized_auto_color && self.config.auto_color_correct;
+        // Collect processing report data if enabled
+        if self.config.optimization_report {
+            let was_rotated = !matches!(orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+            let color_skipped = !optimized_auto_color && self.config.auto_color_correct;
 
-                let entry = optimization_report::OptimizationEntry {
-                    input_filename: optimization_report::extract_filename(input_path),
-                    output_filename: saved_paths.get(&self.config.output_formats[0])
-                        .and_then(|p| p.file_name())
-                        .and_then(|f| f.to_str())
-                        .unwrap_or("unknown").to_string(),
-                    dither_method: optimized_dither_method,
-                    dither_strength: optimized_dither_strength,
-                    contrast: optimized_contrast,
-                    auto_color: optimized_auto_color,
-                    people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
-                    people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
-                    is_pastel: analysis.is_pastel_toned,
-                    was_rotated,
-                    color_skipped,
-                };
+            let entry = optimization_report::OptimizationEntry {
+                input_filename: optimization_report::extract_filename(input_path),
+                output_filename: saved_paths.get(&self.config.output_formats[0])
+                    .and_then(|p| p.file_name())
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("unknown").to_string(),
+                dither_method: optimized_dither_method,
+                dither_strength: optimized_dither_strength,
+                contrast: optimized_contrast,
+                auto_color: optimized_auto_color,
+                people_detected: people_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                people_count: people_detection.as_ref().map_or(0, |d| d.person_count),
+                is_pastel: image_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                was_rotated,
+                color_skipped,
+            };
 
-                self.optimization_report.lock().unwrap().add_portrait(entry);
-            }
+            self.optimization_report.lock().unwrap().add_portrait(entry);
         }
 
         verbose_println(self.config.verbose, &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
@@ -2054,55 +2050,53 @@ impl ProcessingEngine {
         let combined_people_detected = individual_portraits.iter().any(|p| p.people_detected);
         let combined_people_count = individual_portraits.iter().map(|p| p.people_count).sum();
 
-        // Collect optimization report data if enabled
-        if self.config.optimization_report && self.config.auto_optimize {
-            if let (Some(left_img_analysis), Some(right_img_analysis)) = (left_analysis, right_analysis) {
-                let left_was_rotated = !matches!(left_orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
-                let left_color_skipped = !left_optimized_auto_color && self.config.auto_color_correct;
-                let right_was_rotated = !matches!(right_orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
-                let right_color_skipped = !right_optimized_auto_color && self.config.auto_color_correct;
+        // Collect processing report data if enabled
+        if self.config.optimization_report {
+            let left_was_rotated = !matches!(left_orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+            let left_color_skipped = !left_optimized_auto_color && self.config.auto_color_correct;
+            let right_was_rotated = !matches!(right_orientation, orientation::ExifOrientation::TopLeft | orientation::ExifOrientation::Undefined);
+            let right_color_skipped = !right_optimized_auto_color && self.config.auto_color_correct;
 
-                let left_entry = optimization_report::OptimizationEntry {
-                    input_filename: optimization_report::extract_filename(left_path),
-                    output_filename: format!("{} (left)", optimization_report::extract_filename(left_path)),
-                    dither_method: left_optimized_dither,
-                    dither_strength: left_optimized_strength,
-                    contrast: left_optimized_contrast,
-                    auto_color: left_optimized_auto_color,
-                    people_detected: left_detection.as_ref().map_or(false, |d| d.person_count > 0),
-                    people_count: left_detection.as_ref().map_or(0, |d| d.person_count),
-                    is_pastel: left_img_analysis.is_pastel_toned,
-                    was_rotated: left_was_rotated,
-                    color_skipped: left_color_skipped,
-                };
+            let left_entry = optimization_report::OptimizationEntry {
+                input_filename: optimization_report::extract_filename(left_path),
+                output_filename: format!("{} (left)", optimization_report::extract_filename(left_path)),
+                dither_method: left_optimized_dither,
+                dither_strength: left_optimized_strength,
+                contrast: left_optimized_contrast,
+                auto_color: left_optimized_auto_color,
+                people_detected: left_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                people_count: left_detection.as_ref().map_or(0, |d| d.person_count),
+                is_pastel: left_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                was_rotated: left_was_rotated,
+                color_skipped: left_color_skipped,
+            };
 
-                let right_entry = optimization_report::OptimizationEntry {
-                    input_filename: optimization_report::extract_filename(right_path),
-                    output_filename: format!("{} (right)", optimization_report::extract_filename(right_path)),
-                    dither_method: right_optimized_dither,
-                    dither_strength: right_optimized_strength,
-                    contrast: right_optimized_contrast,
-                    auto_color: right_optimized_auto_color,
-                    people_detected: right_detection.as_ref().map_or(false, |d| d.person_count > 0),
-                    people_count: right_detection.as_ref().map_or(0, |d| d.person_count),
-                    is_pastel: right_img_analysis.is_pastel_toned,
-                    was_rotated: right_was_rotated,
-                    color_skipped: right_color_skipped,
-                };
+            let right_entry = optimization_report::OptimizationEntry {
+                input_filename: optimization_report::extract_filename(right_path),
+                output_filename: format!("{} (right)", optimization_report::extract_filename(right_path)),
+                dither_method: right_optimized_dither,
+                dither_strength: right_optimized_strength,
+                contrast: right_optimized_contrast,
+                auto_color: right_optimized_auto_color,
+                people_detected: right_detection.as_ref().map_or(false, |d| d.person_count > 0),
+                people_count: right_detection.as_ref().map_or(0, |d| d.person_count),
+                is_pastel: right_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                was_rotated: right_was_rotated,
+                color_skipped: right_color_skipped,
+            };
 
-                let combined_output = saved_paths.get(&self.config.output_formats[0])
-                    .and_then(|p| p.file_name())
-                    .and_then(|f| f.to_str())
-                    .unwrap_or("unknown").to_string();
+            let combined_output = saved_paths.get(&self.config.output_formats[0])
+                .and_then(|p| p.file_name())
+                .and_then(|f| f.to_str())
+                .unwrap_or("unknown").to_string();
 
-                let pair_entry = optimization_report::PortraitPairEntry {
-                    left: left_entry,
-                    right: right_entry,
-                    combined_output,
-                };
+            let pair_entry = optimization_report::PortraitPairEntry {
+                left: left_entry,
+                right: right_entry,
+                combined_output,
+            };
 
-                self.optimization_report.lock().unwrap().add_portrait_pair(pair_entry);
-            }
+            self.optimization_report.lock().unwrap().add_portrait_pair(pair_entry);
         }
 
         Ok(ProcessingResult {

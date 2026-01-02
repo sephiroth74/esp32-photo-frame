@@ -722,8 +722,14 @@ fn main() -> Result<()> {
         );
     }
 
-    // Detailed processing results
-    if successful > 0 {
+    // Print processing report table if enabled (replaces detailed results)
+    if args.report {
+        println!();
+        let report = engine.get_optimization_report();
+        let report_guard = report.lock().unwrap();
+        report_guard.print();
+    } else if successful > 0 {
+        // Show simple detailed results only if report is not enabled
         println!();
         let detailed_header = if dry_run_mode {
             style("Detailed Simulation Results:").bold().blue()
@@ -853,13 +859,6 @@ fn main() -> Result<()> {
         "All files:"
     };
     println!("  {}: {}", location_label, args.output_dir.display());
-
-    // Print processing report if enabled
-    if args.report {
-        let report = engine.get_optimization_report();
-        let report_guard = report.lock().unwrap();
-        report_guard.print();
-    }
 
     if dry_run_mode {
         println!();
