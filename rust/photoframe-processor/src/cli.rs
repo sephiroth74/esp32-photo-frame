@@ -219,12 +219,12 @@ pub struct Args {
     )]
     pub auto_optimize: bool,
 
-    /// Generate optimization report table at the end (requires --auto-optimize)
+    /// Generate processing report table at the end
     #[arg(
-        long = "optimization-report",
-        help = "Display formatted table with optimization results for all processed images"
+        long = "report",
+        help = "Display formatted table with processing parameters for all images"
     )]
-    pub optimization_report: bool,
+    pub report: bool,
 
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
     #[arg(short = 'j', long = "jobs", default_value = "0", value_name = "N")]

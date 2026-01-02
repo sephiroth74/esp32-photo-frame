@@ -67,17 +67,53 @@ pub mod python_yolo_integration {
             confidence_threshold: f32,
         ) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
             // Run find_subject.py script with JSON output and confidence threshold
-            // python3 find_subject.py --image image.jpg --output-format json --confidence 0.6
-            let output = Command::new("python3")
-                .arg(&self.script_path)
-                .arg("--image")
-                .arg(img_path)
-                .arg("--output-format")
-                .arg("json")
-                .arg("--confidence")
-                .arg(confidence_threshold.to_string())
-                .output()
-                .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?;
+            // Activate venv before running the script if .venv exists
+            let script_path = Path::new(&self.script_path);
+            let project_root = script_path
+                .parent() // private/
+                .and_then(|p| p.parent()) // scripts/
+                .and_then(|p| p.parent()); // project root
+
+            let output = if let Some(root) = project_root {
+                let venv_activate = root.join(".venv/bin/activate");
+                if venv_activate.exists() {
+                    // Use bash to source venv and run script
+                    let cmd = format!(
+                        "source {} && {} --image {} --output-format json --confidence {}",
+                        venv_activate.display(),
+                        self.script_path,
+                        img_path,
+                        confidence_threshold
+                    );
+                    Command::new("bash")
+                        .arg("-c")
+                        .arg(&cmd)
+                        .output()
+                        .map_err(|e| format!("Failed to execute find_subject.py with venv: {}", e))?
+                } else {
+                    // No venv, run script directly
+                    Command::new(&self.script_path)
+                        .arg("--image")
+                        .arg(img_path)
+                        .arg("--output-format")
+                        .arg("json")
+                        .arg("--confidence")
+                        .arg(confidence_threshold.to_string())
+                        .output()
+                        .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
+                }
+            } else {
+                // Can't find project root, run script directly
+                Command::new(&self.script_path)
+                    .arg("--image")
+                    .arg(img_path)
+                    .arg("--output-format")
+                    .arg("json")
+                    .arg("--confidence")
+                    .arg(confidence_threshold.to_string())
+                    .output()
+                    .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
+            };
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);

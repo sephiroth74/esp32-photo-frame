@@ -349,7 +349,7 @@ fn main() -> Result<()> {
         contrast: args.contrast,
         // Auto-optimization
         auto_optimize: args.auto_optimize,
-        optimization_report: args.optimization_report,
+        optimization_report: args.report,
     };
 
     if config.verbose {
@@ -854,8 +854,8 @@ fn main() -> Result<()> {
     };
     println!("  {}: {}", location_label, args.output_dir.display());
 
-    // Print optimization report if enabled
-    if args.optimization_report && args.auto_optimize {
+    // Print processing report if enabled
+    if args.report {
         let report = engine.get_optimization_report();
         let report_guard = report.lock().unwrap();
         report_guard.print();
