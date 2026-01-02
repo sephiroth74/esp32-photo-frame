@@ -52,6 +52,7 @@ pub fn convert_to_esp32_binary(img: &RgbImage) -> Result<Vec<u8>> {
 ///
 /// IMPORTANT: This function expects the image has already been dithered to the 6-color palette.
 /// It simply maps the palette RGB values to their corresponding nibble values.
+#[allow(dead_code)]
 pub fn rgb_to_6c_native(pixel: &Rgb<u8>) -> u8 {
     let r = pixel[0];
     let g = pixel[1];
@@ -60,12 +61,12 @@ pub fn rgb_to_6c_native(pixel: &Rgb<u8>) -> u8 {
     // Map from 6-color palette RGB values to native nibbles
     // These are the exact colors from convert.rs::SIX_COLOR_PALETTE
     match (r, g, b) {
-        (0, 0, 0) => 0x0,           // BLACK
-        (255, 255, 255) => 0x1,     // WHITE
-        (252, 0, 0) => 0x4,         // RED
-        (0, 252, 0) => 0x2,         // GREEN
-        (0, 0, 255) => 0x3,         // BLUE
-        (252, 252, 0) => 0x5,       // YELLOW
+        (0, 0, 0) => 0x0,       // BLACK
+        (255, 255, 255) => 0x1, // WHITE
+        (252, 0, 0) => 0x4,     // RED
+        (0, 252, 0) => 0x2,     // GREEN
+        (0, 0, 255) => 0x3,     // BLUE
+        (252, 252, 0) => 0x5,   // YELLOW
         _ => {
             // Fallback: find closest color by distance
             // This shouldn't happen if image is properly dithered
@@ -76,20 +77,33 @@ pub fn rgb_to_6c_native(pixel: &Rgb<u8>) -> u8 {
             let blue_dist = color_distance(r, g, b, 0, 0, 255);
             let yellow_dist = color_distance(r, g, b, 252, 252, 0);
 
-            let min_dist = black_dist.min(white_dist).min(red_dist).min(green_dist).min(blue_dist).min(yellow_dist);
+            let min_dist = black_dist
+                .min(white_dist)
+                .min(red_dist)
+                .min(green_dist)
+                .min(blue_dist)
+                .min(yellow_dist);
 
-            if min_dist == black_dist { 0x0 }
-            else if min_dist == white_dist { 0x1 }
-            else if min_dist == red_dist { 0x4 }
-            else if min_dist == green_dist { 0x2 }
-            else if min_dist == blue_dist { 0x3 }
-            else { 0x5 } // yellow
+            if min_dist == black_dist {
+                0x0
+            } else if min_dist == white_dist {
+                0x1
+            } else if min_dist == red_dist {
+                0x4
+            } else if min_dist == green_dist {
+                0x2
+            } else if min_dist == blue_dist {
+                0x3
+            } else {
+                0x5
+            } // yellow
         }
     }
 }
 
 /// Calculate color distance (squared Euclidean distance)
 #[inline]
+#[allow(dead_code)]
 fn color_distance(r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) -> u32 {
     let dr = (r1 as i32 - r2 as i32).abs() as u32;
     let dg = (g1 as i32 - g2 as i32).abs() as u32;
@@ -107,6 +121,7 @@ fn color_distance(r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) -> u32 {
 /// Format: 2 pixels packed into each byte
 /// - High nibble: left pixel (bits 4-7)
 /// - Low nibble: right pixel (bits 0-3)
+#[allow(dead_code)]
 pub fn convert_to_6c_native_binary(img: &RgbImage) -> Result<Vec<u8>> {
     let (width, height) = img.dimensions();
     let expected_size = ((width * height) / 2) as usize;

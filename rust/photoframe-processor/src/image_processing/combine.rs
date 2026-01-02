@@ -69,7 +69,5 @@ pub fn combine_processed_portraits(
     Ok(combined)
 }
 
-
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

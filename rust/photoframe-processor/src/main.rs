@@ -304,7 +304,11 @@ fn main() -> Result<()> {
     // Parse divider color
     let divider_color_rgba = image_processing::annotate::parse_hex_color(&args.divider_color)
         .with_context(|| format!("Invalid divider color: {}", args.divider_color))?;
-    let divider_color = image::Rgb([divider_color_rgba.0, divider_color_rgba.1, divider_color_rgba.2]);
+    let divider_color = image::Rgb([
+        divider_color_rgba.0,
+        divider_color_rgba.1,
+        divider_color_rgba.2,
+    ]);
 
     // Create processing configuration
     let config = ProcessingConfig {

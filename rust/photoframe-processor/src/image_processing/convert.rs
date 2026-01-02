@@ -15,7 +15,12 @@ use crate::cli::DitherMethod;
 /// - 1.0 = normal strength (default)
 /// - <1.0 = subtle dithering
 /// - >1.0 = pronounced dithering
-pub fn process_image(img: &RgbImage, processing_type: &ProcessingType, dithering_method: &DitherMethod, dither_strength: f32) -> Result<RgbImage> {
+pub fn process_image(
+    img: &RgbImage,
+    processing_type: &ProcessingType,
+    dithering_method: &DitherMethod,
+    dither_strength: f32,
+) -> Result<RgbImage> {
     match processing_type {
         ProcessingType::BlackWhite => apply_bw_processing(img, dither_strength),
         ProcessingType::SixColor => apply_6c_processing(img, dithering_method, dither_strength),
@@ -33,10 +38,18 @@ fn apply_bw_processing(img: &RgbImage, dither_strength: f32) -> Result<RgbImage>
 }
 
 /// Apply 6-color processing with selectable dithering method
-fn apply_6c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_strength: f32) -> Result<RgbImage> {
+fn apply_6c_processing(
+    img: &RgbImage,
+    dithering_method: &DitherMethod,
+    dither_strength: f32,
+) -> Result<RgbImage> {
     match dithering_method {
         DitherMethod::FloydSteinberg => {
-            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
+            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(
+                img,
+                &SIX_COLOR_PALETTE,
+                dither_strength,
+            )
         }
         DitherMethod::Atkinson => {
             super::dithering::apply_atkinson_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
@@ -44,9 +57,11 @@ fn apply_6c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_s
         DitherMethod::Stucki => {
             super::dithering::apply_stucki_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
         }
-        DitherMethod::JarvisJudiceNinke => {
-            super::dithering::apply_jarvis_judice_ninke_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
-        }
+        DitherMethod::JarvisJudiceNinke => super::dithering::apply_jarvis_judice_ninke_dithering(
+            img,
+            &SIX_COLOR_PALETTE,
+            dither_strength,
+        ),
         DitherMethod::Ordered => {
             // Ordered dithering doesn't use error diffusion, so strength doesn't apply
             super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
@@ -55,10 +70,18 @@ fn apply_6c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_s
 }
 
 /// Apply 7-color processing with selectable dithering method
-fn apply_7c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_strength: f32) -> Result<RgbImage> {
+fn apply_7c_processing(
+    img: &RgbImage,
+    dithering_method: &DitherMethod,
+    dither_strength: f32,
+) -> Result<RgbImage> {
     match dithering_method {
         DitherMethod::FloydSteinberg => {
-            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
+            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(
+                img,
+                &SEVEN_COLOR_PALETTE,
+                dither_strength,
+            )
         }
         DitherMethod::Atkinson => {
             super::dithering::apply_atkinson_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
@@ -66,9 +89,11 @@ fn apply_7c_processing(img: &RgbImage, dithering_method: &DitherMethod, dither_s
         DitherMethod::Stucki => {
             super::dithering::apply_stucki_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
         }
-        DitherMethod::JarvisJudiceNinke => {
-            super::dithering::apply_jarvis_judice_ninke_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
-        }
+        DitherMethod::JarvisJudiceNinke => super::dithering::apply_jarvis_judice_ninke_dithering(
+            img,
+            &SEVEN_COLOR_PALETTE,
+            dither_strength,
+        ),
         DitherMethod::Ordered => {
             // Ordered dithering doesn't use error diffusion, so strength doesn't apply
             super::convert_improved::apply_ordered_dithering(img, &SEVEN_COLOR_PALETTE)

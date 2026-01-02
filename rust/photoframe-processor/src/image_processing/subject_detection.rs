@@ -43,9 +43,7 @@ pub mod python_yolo_integration {
     }
 
     impl PythonYolo {
-        pub fn new(
-            script_path: &str,
-        ) -> Result<Self, Box<dyn std::error::Error>> {
+        pub fn new(script_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
             let script_path = Path::new(script_path);
 
             if !script_path.exists() {
@@ -74,16 +72,16 @@ pub mod python_yolo_integration {
                 .and_then(|p| p.parent()) // scripts/
                 .and_then(|p| p.parent()); // project root
 
-            let output = if let Some(root) = project_root {
-                    Command::new(&self.script_path)
-                        .arg("--image")
-                        .arg(img_path)
-                        .arg("--output-format")
-                        .arg("json")
-                        .arg("--confidence")
-                        .arg(confidence_threshold.to_string())
-                        .output()
-                        .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
+            let output = if let Some(_root) = project_root {
+                Command::new(&self.script_path)
+                    .arg("--image")
+                    .arg(img_path)
+                    .arg("--output-format")
+                    .arg("json")
+                    .arg("--confidence")
+                    .arg(confidence_threshold.to_string())
+                    .output()
+                    .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
             } else {
                 // Can't find project root, run script directly
                 Command::new(&self.script_path)
@@ -254,9 +252,25 @@ impl SubjectDetector {
 
     /// Save image to temporary file for Python script
     fn save_temp_image(&self, img: &RgbImage) -> Result<String> {
-        // Create temporary file path
+        // Create temporary file path with unique name for parallel processing
+        // Use process ID, thread ID hash, and nanosecond timestamp for guaranteed uniqueness
         let temp_dir = std::env::temp_dir();
-        let temp_filename = format!("yolo_input_{}.jpg", std::process::id());
+        let thread_id = format!("{:?}", std::thread::current().id());
+        // Extract numeric part from ThreadId (remove "ThreadId(" and ")")
+        let thread_id_num = thread_id
+            .trim_start_matches("ThreadId(")
+            .trim_end_matches(")")
+            .to_string();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let temp_filename = format!(
+            "yolo_input_{}_{}_{}.jpg",
+            std::process::id(),
+            thread_id_num,
+            nanos
+        );
         let temp_path = temp_dir.join(temp_filename);
 
         // Save image as JPEG

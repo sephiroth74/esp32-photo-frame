@@ -5,7 +5,6 @@
 /// - GDEP073E01 6-color ACeP display (Black, White, Red, Yellow, Green, Blue)
 /// - Portrait photography with preference for pastel/soft tones
 /// - People-focused photography (solo or group)
-
 use anyhow::Result;
 use image::RgbImage;
 
@@ -16,15 +15,15 @@ use crate::image_processing::subject_detection::SubjectDetectionResult;
 pub struct ImageAnalysis {
     pub has_people: bool,
     pub people_count: usize,
-    pub avg_brightness: f32,        // 0.0-1.0 (0=dark, 1=bright)
-    pub contrast_ratio: f32,        // 0.0-1.0 (0=flat, 1=high contrast)
-    pub color_saturation: f32,      // 0.0-1.0 (0=grayscale, 1=vibrant)
-    pub detail_complexity: f32,     // 0.0-1.0 (0=simple, 1=complex)
-    pub dominant_hue: String,       // "red", "blue", "green", "neutral"
+    pub avg_brightness: f32,    // 0.0-1.0 (0=dark, 1=bright)
+    pub contrast_ratio: f32,    // 0.0-1.0 (0=flat, 1=high contrast)
+    pub color_saturation: f32,  // 0.0-1.0 (0=grayscale, 1=vibrant)
+    pub detail_complexity: f32, // 0.0-1.0 (0=simple, 1=complex)
+    pub dominant_hue: String,   // "red", "blue", "green", "neutral"
     pub is_low_light: bool,
     pub is_high_contrast: bool,
     pub is_monochrome_like: bool,
-    pub is_pastel_toned: bool,      // True if colors are soft/desaturated
+    pub is_pastel_toned: bool, // True if colors are soft/desaturated
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +32,7 @@ pub struct OptimizationResult {
     pub dither_strength: f32,
     pub contrast_adjustment: f32,
     pub auto_color_correct: bool,
+    #[allow(dead_code)]
     pub reasoning: Vec<String>,
 }
 
@@ -94,11 +94,9 @@ fn calculate_brightness_stats(img: &RgbImage) -> (f32, f32, f32) {
 
     for pixel in img.pixels() {
         // Perceptual brightness (ITU-R BT.709)
-        let brightness = (
-            (pixel[0] as f32 * 0.2126) +
-            (pixel[1] as f32 * 0.7152) +
-            (pixel[2] as f32 * 0.0722)
-        ) as u8;
+        let brightness = ((pixel[0] as f32 * 0.2126)
+            + (pixel[1] as f32 * 0.7152)
+            + (pixel[2] as f32 * 0.0722)) as u8;
 
         sum += brightness as u64;
         min_brightness = min_brightness.min(brightness);
@@ -204,15 +202,22 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
     // ========================================
 
     let dither_method = if analysis.has_people {
-        reasoning.push(format!("📸 Portrait photo with {} people detected", analysis.people_count));
+        reasoning.push(format!(
+            "📸 Portrait photo with {} people detected",
+            analysis.people_count
+        ));
 
         if analysis.is_pastel_toned {
             // PASTEL TONES: Use Atkinson for brightness preservation
-            reasoning.push("🎨 Pastel tones detected → Atkinson dithering preserves soft colors".to_string());
+            reasoning.push(
+                "🎨 Pastel tones detected → Atkinson dithering preserves soft colors".to_string(),
+            );
             DitherMethod::Atkinson
         } else if analysis.detail_complexity > 0.25 {
             // HIGH DETAIL: Use Jarvis for smooth skin tones (ridotto da 0.4 a 0.25)
-            reasoning.push("🔍 High detail complexity → Jarvis-Judice-Ninke for smooth skin".to_string());
+            reasoning.push(
+                "🔍 High detail complexity → Jarvis-Judice-Ninke for smooth skin".to_string(),
+            );
             DitherMethod::JarvisJudiceNinke
         } else if analysis.is_low_light {
             // LOW LIGHT: Use Stucki for better shadow detail (changed from Floyd)
@@ -220,7 +225,8 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
             DitherMethod::Stucki
         } else {
             // DEFAULT PORTRAIT: Floyd-Steinberg for balanced results
-            reasoning.push("👤 Standard portrait → Floyd-Steinberg for balanced rendering".to_string());
+            reasoning
+                .push("👤 Standard portrait → Floyd-Steinberg for balanced rendering".to_string());
             DitherMethod::FloydSteinberg
         }
     } else {
@@ -228,7 +234,9 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
 
         if analysis.is_monochrome_like {
             // B/W SCENES: Use ordered dithering for clean patterns
-            reasoning.push("⚫⚪ Near-monochrome → Ordered dithering for classic halftone look".to_string());
+            reasoning.push(
+                "⚫⚪ Near-monochrome → Ordered dithering for classic halftone look".to_string(),
+            );
             DitherMethod::Ordered
         } else if analysis.detail_complexity > 0.35 {
             // COMPLEX SCENES: Use Stucki for wide diffusion (ridotto da 0.5 a 0.35)
@@ -244,7 +252,8 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
             DitherMethod::JarvisJudiceNinke
         } else {
             // DEFAULT LANDSCAPE: Floyd-Steinberg
-            reasoning.push("🏔️ Standard landscape → Floyd-Steinberg for balanced results".to_string());
+            reasoning
+                .push("🏔️ Standard landscape → Floyd-Steinberg for balanced results".to_string());
             DitherMethod::FloydSteinberg
         }
     };
@@ -255,29 +264,40 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
 
     let dither_strength = if analysis.is_pastel_toned {
         // PASTEL PREFERENCE: Gentle dithering to preserve soft tones
-        reasoning.push("✨ Pastel optimization: Reduced dither strength (0.8) to preserve soft gradients".to_string());
+        reasoning.push(
+            "✨ Pastel optimization: Reduced dither strength (0.8) to preserve soft gradients"
+                .to_string(),
+        );
         0.8
     } else if analysis.has_people {
         if analysis.is_low_light {
             // DARK PORTRAITS: Low dithering to reduce noise
-            reasoning.push("🌙 Dark portrait → Low dither (0.7) to minimize noise on faces".to_string());
+            reasoning
+                .push("🌙 Dark portrait → Low dither (0.7) to minimize noise on faces".to_string());
             0.7
         } else if analysis.avg_brightness > 0.7 {
             // BRIGHT PORTRAITS: Standard dithering
-            reasoning.push("☀️ Bright portrait → Standard dither (1.0) for detail preservation".to_string());
+            reasoning.push(
+                "☀️ Bright portrait → Standard dither (1.0) for detail preservation".to_string(),
+            );
             1.0
         } else {
             // NORMAL PORTRAITS: Gentle dithering for smooth skin
-            reasoning.push("👥 Normal lighting → Gentle dither (0.9) for smooth skin tones".to_string());
+            reasoning
+                .push("👥 Normal lighting → Gentle dither (0.9) for smooth skin tones".to_string());
             0.9
         }
     } else {
         // LANDSCAPES: More aggressive dithering acceptable
         if analysis.detail_complexity > 0.5 {
-            reasoning.push("🌿 High-detail scene → Strong dither (1.3) for texture rendering".to_string());
+            reasoning.push(
+                "🌿 High-detail scene → Strong dither (1.3) for texture rendering".to_string(),
+            );
             1.3
         } else if analysis.is_monochrome_like {
-            reasoning.push("📷 Monochrome scene → Moderate dither (1.1) for tonal transitions".to_string());
+            reasoning.push(
+                "📷 Monochrome scene → Moderate dither (1.1) for tonal transitions".to_string(),
+            );
             1.1
         } else {
             reasoning.push("🖼️ Standard scene → Balanced dither (1.0)".to_string());
@@ -291,12 +311,17 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
 
     let contrast_adjustment = if analysis.is_pastel_toned {
         // PASTEL PRESERVATION: Avoid increasing contrast (would destroy soft look)
-        reasoning.push("🎀 Pastel preservation: No contrast boost to maintain soft aesthetic".to_string());
+        reasoning.push(
+            "🎀 Pastel preservation: No contrast boost to maintain soft aesthetic".to_string(),
+        );
         0.0
     } else if analysis.contrast_ratio < 0.2 {
         // EXTREMELY FLAT IMAGE: Minimal boost needed (riduciamo l'aggressività)
         if analysis.has_people {
-            reasoning.push("📉 Very low contrast portrait → Gentle boost (+0.10) for subtle features".to_string());
+            reasoning.push(
+                "📉 Very low contrast portrait → Gentle boost (+0.10) for subtle features"
+                    .to_string(),
+            );
             0.10
         } else {
             reasoning.push("📉 Very flat scene → Light boost (+0.15) for depth".to_string());
@@ -305,7 +330,9 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
     } else if analysis.contrast_ratio < 0.35 {
         // LOW CONTRAST: Minimal boost (riduciamo drasticamente per preferire toni pastello)
         if analysis.has_people {
-            reasoning.push("📊 Low contrast portrait → Minimal boost (+0.05) for definition".to_string());
+            reasoning.push(
+                "📊 Low contrast portrait → Minimal boost (+0.05) for definition".to_string(),
+            );
             0.05
         } else {
             reasoning.push("📊 Low contrast scene → Light boost (+0.10) for clarity".to_string());
@@ -317,12 +344,17 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
             reasoning.push("⚡ High contrast portrait → Strong reduction (-0.20) for softer, pastel-like shadows".to_string());
             -0.20
         } else {
-            reasoning.push("⚡ High contrast scene → Moderate reduction (-0.15) for softer look".to_string());
+            reasoning.push(
+                "⚡ High contrast scene → Moderate reduction (-0.15) for softer look".to_string(),
+            );
             -0.15
         }
     } else {
         // NORMAL CONTRAST: Preferenza per toni pastello - riduzione più marcata
-        reasoning.push("🌸 Normal contrast → Moderate reduction (-0.10) for lighter, pastel preference".to_string());
+        reasoning.push(
+            "🌸 Normal contrast → Moderate reduction (-0.10) for lighter, pastel preference"
+                .to_string(),
+        );
         -0.10
     };
 
@@ -336,7 +368,8 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
         false
     } else if analysis.is_low_light && !analysis.is_monochrome_like {
         // LOW LIGHT COLOR IMAGES: Apply correction
-        reasoning.push("💡 Low light color photo → Enable color correction for vibrancy".to_string());
+        reasoning
+            .push("💡 Low light color photo → Enable color correction for vibrancy".to_string());
         true
     } else if analysis.color_saturation < 0.2 && !analysis.is_monochrome_like {
         // DESATURATED (BUT NOT B/W): Apply gentle correction
@@ -352,12 +385,8 @@ fn determine_optimal_parameters(analysis: &ImageAnalysis) -> Result<Optimization
     // 5. 6-COLOR DISPLAY SPECIFIC ADJUSTMENTS
     // ========================================
 
-    let (dither_method, dither_strength, mut reasoning) = adjust_for_6color_display(
-        dither_method,
-        dither_strength,
-        analysis,
-        reasoning,
-    );
+    let (dither_method, dither_strength, mut reasoning) =
+        adjust_for_6color_display(dither_method, dither_strength, analysis, reasoning);
 
     // Add final summary
     reasoning.push(format!(
@@ -401,7 +430,10 @@ fn adjust_for_6color_display(
     // Native display colors (red, yellow) can use less dithering
     if analysis.dominant_hue == "red" || analysis.dominant_hue == "green" {
         dither_strength *= 0.9;
-        reasoning.push(format!("  ├─ Dominant {} hue: Reduced dither (native color)", analysis.dominant_hue));
+        reasoning.push(format!(
+            "  ├─ Dominant {} hue: Reduced dither (native color)",
+            analysis.dominant_hue
+        ));
     }
 
     // Blue-heavy images need more dithering (blue is less saturated on 6-color)

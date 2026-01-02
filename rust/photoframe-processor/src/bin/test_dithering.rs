@@ -1,7 +1,7 @@
 use anyhow::Result;
+use clap::Parser;
 use image::{self, RgbImage};
 use std::path::PathBuf;
-use clap::Parser;
 
 // Import the modules we need
 mod convert_improved {
@@ -36,7 +36,9 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(&args.output)?;
 
     // Get the base filename
-    let stem = args.input.file_stem()
+    let stem = args
+        .input
+        .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image");
 
@@ -89,10 +91,8 @@ fn process_enhanced(img: &RgbImage, output_dir: &PathBuf, stem: &str) -> Result<
 fn process_ordered(img: &RgbImage, output_dir: &PathBuf, stem: &str) -> Result<()> {
     println!("Processing with ORDERED dithering (Bayer matrix)...");
 
-    let result = convert_improved::apply_ordered_dithering(
-        img,
-        &convert_improved::SIX_COLOR_PALETTE,
-    )?;
+    let result =
+        convert_improved::apply_ordered_dithering(img, &convert_improved::SIX_COLOR_PALETTE)?;
 
     let output_path = output_dir.join(format!("{}_ordered.bmp", stem));
     result.save(&output_path)?;

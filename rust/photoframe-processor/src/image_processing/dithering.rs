@@ -2,7 +2,6 @@
 ///
 /// This module implements Atkinson, Stucki, and Jarvis-Judice-Ninke dithering algorithms
 /// as alternatives to the standard Floyd-Steinberg dithering.
-
 use anyhow::Result;
 use image::{Rgb, RgbImage};
 

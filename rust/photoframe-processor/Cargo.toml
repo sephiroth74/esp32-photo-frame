@@ -1,6 +1,6 @@
 [package]
 name = "photoframe-processor"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Alessandro Crugnola"]
 description = "High-performance image processor for converting images to binary or bitmaps ready files to be displayed on ESP32 board with e-paper display."

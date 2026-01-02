@@ -32,7 +32,8 @@ Run from command line with required arguments:
 
 Example:
 --------
-    python find_subject.py --image input.jpg --model yolov3.onnx --names coco.names --confidence 0.7
+    source .venv/bin/activate && ./find_subject.py --image input.jpg --output-format json
+
 
 Dependencies:
 -------------

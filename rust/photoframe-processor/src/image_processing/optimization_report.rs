@@ -1,11 +1,10 @@
+use crate::cli::DitherMethod;
+use prettytable::{format, Cell, Row, Table};
 /// Optimization report generation for auto-optimize feature
 ///
 /// This module generates formatted tables showing optimization decisions and results
 /// for each processed image, with special formatting for portrait pairs.
-
 use std::path::Path;
-use crate::cli::DitherMethod;
-use prettytable::{Table, Row, Cell, format};
 
 /// Single image optimization entry for the report
 #[derive(Debug, Clone)]
@@ -19,8 +18,8 @@ pub struct OptimizationEntry {
     pub people_detected: bool,
     pub people_count: usize,
     pub is_pastel: bool,
-    pub was_rotated: bool,        // Se l'immagine è stata ruotata per EXIF
-    pub color_skipped: bool,      // Se auto-color è stato skippato (perché pastel o altro)
+    pub was_rotated: bool,   // Se l'immagine è stata ruotata per EXIF
+    pub color_skipped: bool, // Se auto-color è stato skippato (perché pastel o altro)
 }
 
 /// Portrait pair optimization entry (two images combined)
@@ -71,7 +70,10 @@ impl OptimizationReport {
 
         // Print landscape images
         if !self.landscape_entries.is_empty() {
-            println!("📷 LANDSCAPE IMAGES ({} total)\n", self.landscape_entries.len());
+            println!(
+                "📷 LANDSCAPE IMAGES ({} total)\n",
+                self.landscape_entries.len()
+            );
             let mut table = Table::new();
             table.set_format(*format::consts::FORMAT_BOX_CHARS);
 
@@ -99,7 +101,10 @@ impl OptimizationReport {
 
         // Print portrait pairs
         if !self.portrait_pairs.is_empty() {
-            println!("🖼️  COMBINED PORTRAITS ({} pairs)\n", self.portrait_pairs.len());
+            println!(
+                "🖼️  COMBINED PORTRAITS ({} pairs)\n",
+                self.portrait_pairs.len()
+            );
             let mut table = Table::new();
             table.set_format(*format::consts::FORMAT_BOX_CHARS);
 
@@ -142,7 +147,10 @@ impl OptimizationReport {
 
         // Print single portraits (if any)
         if !self.portrait_entries.is_empty() {
-            println!("🎭 INDIVIDUAL PORTRAITS ({} total)\n", self.portrait_entries.len());
+            println!(
+                "🎭 INDIVIDUAL PORTRAITS ({} total)\n",
+                self.portrait_entries.len()
+            );
             let mut table = Table::new();
             table.set_format(*format::consts::FORMAT_BOX_CHARS);
 
@@ -169,22 +177,49 @@ impl OptimizationReport {
         }
 
         // Print summary
-        let total_images = self.landscape_entries.len() +
-                          self.portrait_entries.len() +
-                          (self.portrait_pairs.len() * 2);
-        let total_with_people = self.landscape_entries.iter().filter(|e| e.people_detected).count() +
-                               self.portrait_entries.iter().filter(|e| e.people_detected).count() +
-                               self.portrait_pairs.iter().filter(|p| p.left.people_detected || p.right.people_detected).count() * 2;
-        let total_pastel = self.landscape_entries.iter().filter(|e| e.is_pastel).count() +
-                          self.portrait_entries.iter().filter(|e| e.is_pastel).count() +
-                          self.portrait_pairs.iter().filter(|p| p.left.is_pastel || p.right.is_pastel).count();
+        let total_images = self.landscape_entries.len()
+            + self.portrait_entries.len()
+            + (self.portrait_pairs.len() * 2);
+        let total_with_people = self
+            .landscape_entries
+            .iter()
+            .filter(|e| e.people_detected)
+            .count()
+            + self
+                .portrait_entries
+                .iter()
+                .filter(|e| e.people_detected)
+                .count()
+            + self
+                .portrait_pairs
+                .iter()
+                .filter(|p| p.left.people_detected || p.right.people_detected)
+                .count()
+                * 2;
+        let total_pastel = self
+            .landscape_entries
+            .iter()
+            .filter(|e| e.is_pastel)
+            .count()
+            + self.portrait_entries.iter().filter(|e| e.is_pastel).count()
+            + self
+                .portrait_pairs
+                .iter()
+                .filter(|p| p.left.is_pastel || p.right.is_pastel)
+                .count();
 
         println!("📊 Summary:");
         println!("   • Total images processed: {}", total_images);
-        println!("   • Images with people detected: {} ({:.1}%)", total_with_people,
-                 (total_with_people as f32 / total_images as f32) * 100.0);
-        println!("   • Images with pastel tones: {} ({:.1}%)", total_pastel,
-                 (total_pastel as f32 / total_images as f32) * 100.0);
+        println!(
+            "   • Images with people detected: {} ({:.1}%)",
+            total_with_people,
+            (total_with_people as f32 / total_images as f32) * 100.0
+        );
+        println!(
+            "   • Images with pastel tones: {} ({:.1}%)",
+            total_pastel,
+            (total_pastel as f32 / total_images as f32) * 100.0
+        );
         println!("   • Landscape images: {}", self.landscape_entries.len());
         println!("   • Portrait pairs: {}", self.portrait_pairs.len());
         println!("   • Individual portraits: {}", self.portrait_entries.len());
@@ -203,11 +238,11 @@ impl OptimizationReport {
             "✗".to_string()
         };
         let pastel_marker = if entry.is_pastel { "🌸 " } else { "" };
-        let input_with_marker = format!("{}{}", pastel_marker, truncate(&entry.input_filename, 18));
+        let input_with_marker = format!("{}{}", pastel_marker, truncate(&entry.input_filename, 25));
 
         table.add_row(Row::new(vec![
             Cell::new(&input_with_marker),
-            Cell::new(&truncate(&entry.output_filename, 20)),
+            Cell::new(&truncate(&entry.output_filename, 25)),
             Cell::new(&dither_name),
             Cell::new(&format!("{:.1}", entry.dither_strength)),
             Cell::new(&format!("{:+.2}", entry.contrast)),

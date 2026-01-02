@@ -170,11 +170,7 @@ pub struct Args {
     pub annotate_background: String,
 
     /// Width of the divider line between combined portrait images in pixels
-    #[arg(
-        long = "divider-width",
-        default_value = "3",
-        value_name = "WIDTH"
-    )]
+    #[arg(long = "divider-width", default_value = "3", value_name = "WIDTH")]
     pub divider_width: u32,
 
     /// Color of the divider line between combined portrait images (hex RGB, e.g., #FFFFFF for white)
