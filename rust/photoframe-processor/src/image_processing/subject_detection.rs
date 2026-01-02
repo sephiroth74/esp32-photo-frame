@@ -67,8 +67,9 @@ pub mod python_yolo_integration {
             confidence_threshold: f32,
         ) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
             // Run find_subject.py script with JSON output and confidence threshold
-            // find_subject.py --image image.jpg --output-format json --confidence 0.6
-            let output = Command::new(self.script_path.clone())
+            // python3 find_subject.py --image image.jpg --output-format json --confidence 0.6
+            let output = Command::new("python3")
+                .arg(&self.script_path)
                 .arg("--image")
                 .arg(img_path)
                 .arg("--output-format")
