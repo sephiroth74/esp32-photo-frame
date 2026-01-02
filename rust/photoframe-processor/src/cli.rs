@@ -219,13 +219,6 @@ pub struct Args {
     )]
     pub auto_optimize: bool,
 
-    /// Show detailed explanation of auto-optimization decisions (requires --auto-optimize)
-    #[arg(
-        long = "explain-optimization",
-        help = "Display reasoning behind automatic parameter selection for each image"
-    )]
-    pub explain_optimization: bool,
-
     /// Generate optimization report table at the end (requires --auto-optimize)
     #[arg(
         long = "optimization-report",

@@ -97,7 +97,6 @@ pub struct ProcessingConfig {
     pub contrast: f32,
     // Auto-optimization
     pub auto_optimize: bool,
-    pub explain_optimization: bool,
     pub optimization_report: bool,
 }
 
@@ -1076,13 +1075,6 @@ impl ProcessingEngine {
                 let optimization_result = auto_optimizer::analyze_and_optimize(&annotated_img, people_detection.as_ref())?;
                 let analysis = auto_optimizer::analyze_image_characteristics(&annotated_img, people_detection.as_ref())?;
 
-                if self.config.explain_optimization {
-                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for '{}':", filename));
-                    for reason in &optimization_result.reasoning {
-                        verbose_println(self.config.verbose, &format!("   {}", reason));
-                    }
-                }
-
                 (
                     optimization_result.dither_method,
                     optimization_result.dither_strength,
@@ -1307,13 +1299,6 @@ impl ProcessingEngine {
                 progress_bar.set_message(format!("{} - Analyzing portrait", filename));
                 let optimization_result = auto_optimizer::analyze_and_optimize(&annotated_img, people_detection.as_ref())?;
                 let analysis = auto_optimizer::analyze_image_characteristics(&annotated_img, people_detection.as_ref())?;
-
-                if self.config.explain_optimization {
-                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for portrait '{}':", filename));
-                    for reason in &optimization_result.reasoning {
-                        verbose_println(self.config.verbose, &format!("   {}", reason));
-                    }
-                }
 
                 (
                     optimization_result.dither_method,
@@ -1819,13 +1804,6 @@ impl ProcessingEngine {
                 let optimization_result = auto_optimizer::analyze_and_optimize(&left_resized, left_detection.as_ref())?;
                 let analysis = auto_optimizer::analyze_image_characteristics(&left_resized, left_detection.as_ref())?;
 
-                if self.config.explain_optimization {
-                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for left portrait '{}':", left_filename));
-                    for reason in &optimization_result.reasoning {
-                        verbose_println(self.config.verbose, &format!("   {}", reason));
-                    }
-                }
-
                 (
                     optimization_result.dither_method,
                     optimization_result.dither_strength,
@@ -1848,13 +1826,6 @@ impl ProcessingEngine {
                 progress_bar.set_message(format!("Analyzing {}", right_filename));
                 let optimization_result = auto_optimizer::analyze_and_optimize(&right_resized, right_detection.as_ref())?;
                 let analysis = auto_optimizer::analyze_image_characteristics(&right_resized, right_detection.as_ref())?;
-
-                if self.config.explain_optimization {
-                    verbose_println(self.config.verbose, &format!("🎨 Auto-optimization for right portrait '{}':", right_filename));
-                    for reason in &optimization_result.reasoning {
-                        verbose_println(self.config.verbose, &format!("   {}", reason));
-                    }
-                }
 
                 (
                     optimization_result.dither_method,

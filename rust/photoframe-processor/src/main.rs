@@ -349,7 +349,6 @@ fn main() -> Result<()> {
         contrast: args.contrast,
         // Auto-optimization
         auto_optimize: args.auto_optimize,
-        explain_optimization: args.explain_optimization,
         optimization_report: args.optimization_report,
     };
 
