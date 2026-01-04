@@ -70,6 +70,10 @@
 // #define USE_DESPI_DRIVER      // Use Despi driver for e-Paper display
 // #define USE_WAVESHARE_DRIVER  // Use Waveshare driver for e-Paper display
 
+/// Display orientation (define which best suits for you)
+// #define ORIENTATION_LANDSCAPE
+// #define ORIENTATION_PORTRAIT
+
 // ----------------------------------------------------------------------------
 // SD Card Configuration (SDIO Interface)
 // ----------------------------------------------------------------------------
@@ -342,6 +346,10 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 #include XSTR(LOCAL_CONFIG_FILE)
 
+/// Default orientation for the display
+#if !defined(ORIENTATION_PORTRAIT) && !defined(ORIENTATION_LANDSCAPE)
+#define ORIENTATION_LANDSCAPE
+#endif
 
 /// Default value definitions with validation guards
 #ifndef BATTERY_CHARGING_MILLIVOLTS

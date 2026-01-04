@@ -374,6 +374,12 @@ void setup()
     log_i("- Initializing E-Paper display...");
     log_i("--------------------------------------");
 
+#ifdef ORIENTAION_LANDSCAPE
+    log_v("Landscape mode selected");
+#else
+    log_v("Portrait mode selected");
+#endif
+
     delay(100);
     RGB_SET_STATE(RENDERING); // Show display rendering
     photo_frame::renderer::init_display();
@@ -481,16 +487,39 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer functions
         log_i("[main] Rendering Mode 1 format from PSRAM buffer with overlays");
 
+#if defined(ORIENTATION_PORTRAIT)
+        // Portrait mode: Image is PRE-ROTATED to 800×480 by Rust processor
+        // Apply overlay directly on landscape buffer (RIGHT side statusbar)
+        log_i("Portrait mode: Image already pre-rotated to 800×480, applying overlay directly");
+
+        // STEP 1: Create GFXcanvas8 with hardware dimensions (800×480)
+        GFXcanvas8 canvas(display.width(), display.height(), false);
+        uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
+        *bufferPtr = g_image_buffer;
+
+        // STEP 2: Draw white bar on RIGHT side of landscape (16 pixels wide, full height)
+        log_i("Drawing white overlay bar on RIGHT side of landscape canvas (16×480)...");
+        canvas.fillRect(display.width() - 16, 0, 16, display.height(), 0xFF);
+
+        // STEP 3: Draw overlays with rotation for vertical text
+        log_i("Drawing overlays on landscape canvas (rotation 1 for vertical text)...");
+        canvas.setRotation(1); // 90° CW rotation for vertical text on RIGHT side
+        photo_frame::renderer::draw_last_update(canvas, now, refresh_delay.refresh_seconds);
+        photo_frame::renderer::draw_image_info(canvas,
+            image_index, total_files, drive.get_last_image_source());
+        photo_frame::renderer::draw_battery_status(canvas, battery_info);
+#else
+        // Landscape mode: buffer is 800×480, standard overlay
+        log_i("Landscape mode: creating 800×480 canvas for standard overlay");
+
         // STEP 1: Create GFXcanvas8 pointing to our existing buffer
-        GFXcanvas8 canvas(DISP_WIDTH, DISP_HEIGHT, false);
-        // Access protected buffer member via memory layout
+        GFXcanvas8 canvas(display.width(), display.height(), false);
         uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
         *bufferPtr = g_image_buffer;
 
         // STEP 2: Draw white overlay bars on buffer for status areas
         log_i("Drawing white overlay bars on buffer...");
-        canvas.fillRect(0, 0, DISP_WIDTH, 16, 0xFF); // Top white bar
-
+        canvas.fillRect(0, 0, canvas.width(), 16, 0xFF); // Top white bar
 
         // STEP 3: Draw overlays with icons using canvas-based renderer functions
         log_i("Drawing overlays with icons on canvas...");
@@ -498,6 +527,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         photo_frame::renderer::draw_image_info(canvas,
             image_index, total_files, drive.get_last_image_source());
         photo_frame::renderer::draw_battery_status(canvas, battery_info);
+#endif
 
         if (!battery_info.is_critical()) {
             photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
@@ -507,7 +537,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         // STEP 4: Render the modified buffer to display hardware
         log_i("Writing modified image to display hardware...");
-        error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, DISP_WIDTH, DISP_HEIGHT);
+        error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, display.width(), display.height());
 
         if (error_code != 0) {
             log_e("Failed to write image from buffer!");
@@ -528,13 +558,13 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         do {
             log_d("Drawing page: %d", page_index);
             // Binary format only - paged rendering
-            size_t standardSize = DISP_WIDTH * DISP_HEIGHT;
+            size_t standardSize = display.width() * display.height();
             size_t fileSize = file.size();
 
             if (fileSize == standardSize) {
-                log_i("[main] Detected standard format (384KB) - using paged rendering");
+                log_i("[main] Detected standard format (%d bytes) - using paged rendering", standardSize);
                 error_code = photo_frame::renderer::draw_binary_from_file_paged(
-                    file, original_filename, DISP_WIDTH, DISP_HEIGHT, page_index);
+                    file, original_filename, display.width(), display.height(), page_index);
             } else {
                 log_e("[main] ERROR: Unknown binary format size: %d bytes", fileSize);
                 error_code = photo_frame::error_type::BinaryRenderingFailed.code;
@@ -606,7 +636,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         // Binary format only - buffered rendering
         uint16_t error_code = photo_frame::renderer::draw_binary_from_file_buffered(
-            file, original_filename, DISP_WIDTH, DISP_HEIGHT);
+            file, original_filename, display.width(), display.height());
         file.close(); // Close the file after drawing
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
@@ -1064,7 +1094,7 @@ handle_google_drive_operations(bool is_reset,
 
                         log_i("Validating downloaded image file...");
                         auto validationError = photo_frame::io_utils::validate_image_file(
-                            file, filename, DISP_WIDTH, DISP_HEIGHT);
+                            file, filename, display.width(), display.height());
 
                         if (validationError != photo_frame::error_type::None) {
                             log_e("Image validation FAILED: %s", validationError.message);
@@ -1093,7 +1123,7 @@ handle_google_drive_operations(bool is_reset,
                             // Binary format only: Load to PSRAM buffer, then close SD card
                             log_i("Loading binary image to PSRAM buffer from SD card...");
                             uint16_t loadError = photo_frame::renderer::load_image_to_buffer(
-                                g_image_buffer, file, filename, DISP_WIDTH, DISP_HEIGHT);
+                                g_image_buffer, file, filename, display.width(), display.height());
 
                             // Close the SD card file after loading
                             file.close();
@@ -1216,8 +1246,11 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     // Free image buffer before sleep to release memory
     cleanup_image_buffer();
 
-    delay(500);
-    photo_frame::renderer::power_off();
+    delay(100);
+    // photo_frame::renderer::power_off();
+    photo_frame::renderer::hibernate();
+    delay(400);
+    photo_frame::renderer::end();
 
     // now go to sleep using the pre-calculated refresh delay
     if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {

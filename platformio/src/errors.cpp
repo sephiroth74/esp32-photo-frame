@@ -173,6 +173,8 @@ photo_frame_error validate_image_dimensions(int width,
     char dimensions[64];
     snprintf(dimensions, sizeof(dimensions), "%dx%d", width, height);
 
+    log_v("validateImageDimensions: width=%d, height=%d, maxWidth=%d, maxHeight=%d", width, height, maxWidth, maxHeight);
+
     if (width <= 0 || height <= 0) {
         return create_image_error(
             "invalid_dimensions", filename, dimensions, "Width or height is zero or negative");

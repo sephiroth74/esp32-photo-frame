@@ -92,6 +92,9 @@
 #define DISP_6C
 #define USE_DESPI_DRIVER
 
+#define ORIENTATION_PORTRAIT
+// #define ORIENTATION_LANDSCAPE
+
 // #define ACCENT_COLOR GxEPD_RED
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"

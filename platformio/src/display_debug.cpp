@@ -19,6 +19,7 @@
 #include <Arduino.h>
 #include "config.h"
 #include "renderer.h"
+#include "display_7c_helper.h"
 #include "battery.h"
 #include "board_util.h"
 #include "string_utils.h"
@@ -32,6 +33,7 @@
 #include <vector>
 // #include "test_image.h"  // Removed: 24MB test image file not suitable for repository
 #include <bitmaps/Bitmaps7c800x480.h>
+#include "test_photo_6c_portrait.h"  // Portrait test image (480×800)
 #include <Fonts/FreeSans9pt7b.h>
 #include "google_drive_client.h"
 #include "wifi_manager.h"
@@ -47,6 +49,7 @@ namespace display_debug {
 
 // Forward declarations
 void printMenu();
+void testPortraitImage();
 
 static bool displayInitialized = false;
 static bool batteryInitialized = false;
@@ -967,11 +970,9 @@ void testDisplayImages() {
             success = (photo_frame::renderer::draw_binary_from_file_paged(imgFile, imagePath.c_str(), DISP_WIDTH, DISP_HEIGHT) > 0);
 #endif
         } else {
-            // Bitmap format - this one needs firstPage/nextPage
-            display.firstPage();
-            do {
-                success = (photo_frame::renderer::draw_bitmap_from_file_buffered(imgFile, imagePath.c_str(), 0, 0, true) > 0);
-            } while (display.nextPage());
+            // Bitmap format - DEPRECATED: draw_bitmap_from_file_buffered has been removed
+            Serial.println(F("BMP format not supported in this test (use BIN format)"));
+            success = false;
         }
 
         imgFile.close();
@@ -1118,11 +1119,8 @@ void testProgmemImage() {
     // STEP 5: Render the modified buffer to display hardware
     Serial.println(F("Writing modified image to display..."));
     display.setFullWindow();
-    display.fillScreen(GxEPD_WHITE);
     delay(500);
-
     display.epd2.writeDemoBitmap(modifiedBuffer, 0, 0, 0, DISP_WIDTH, DISP_HEIGHT, 1, false, false);
-
     // STEP 6: Refresh display
     Serial.println(F("Refreshing display..."));
     display.refresh();
@@ -1138,6 +1136,129 @@ void testProgmemImage() {
     Serial.println(F("Check if text is visible on the white bar!"));
     Serial.println(F("Press any key to continue..."));
     */ // End of DISABLED CODE
+}
+
+// Test 5g: Portrait Image Test with Rotation
+void testPortraitImage() {
+    log_i("\n========================================");
+    log_i("Portrait Image Test WITH ROTATION AND STATUSBAR");
+    log_i("========================================");
+
+    ensureDisplayInitialized();
+    ensureBatteryInitialized();
+
+    Serial.println(F("\nTesting PRE-ROTATED portrait image (800×480 already rotated)..."));
+    Serial.print(F("Image size: "));
+    Serial.print(sizeof(test_photo_6c_portrait));
+    Serial.println(F(" bytes"));
+    Serial.print(F("Expected: "));
+    Serial.print(800 * 480);
+    Serial.println(F(" bytes (800×480 pre-rotated for portrait display)"));
+
+    // Copy from PROGMEM to RAM buffer
+    // Image is ALREADY 800×480 (pre-rotated by Rust processor)
+    uint8_t* imageBuffer = nullptr;
+#if CONFIG_SPIRAM_USE_CAPS_ALLOC || CONFIG_SPIRAM_USE_MALLOC
+    imageBuffer = (uint8_t*)heap_caps_malloc(800 * 480, MALLOC_CAP_SPIRAM);
+    if (imageBuffer) {
+        Serial.println(F("Allocated image buffer in PSRAM"));
+    }
+#else
+    imageBuffer = (uint8_t*)malloc(800 * 480);
+#endif
+
+    if (!imageBuffer) {
+        Serial.println(F("ERROR: Failed to allocate image buffer!"));
+        return;
+    }
+
+    Serial.println(F("Copying PRE-ROTATED image from PROGMEM to RAM..."));
+    memcpy_P(imageBuffer, test_photo_6c_portrait, 800 * 480);
+
+    // Create fake data for statusbar overlays
+    Serial.println(F("Creating fake data for statusbar overlays..."));
+
+    // Fake date/time (January 3, 2026 at 14:30)
+    DateTime fake_now(2026, 1, 3, 14, 30, 0);
+    long fake_refresh_seconds = 1800; // 30 minutes
+
+    // Fake battery info
+    photo_frame::battery_info_t fake_battery;
+    fake_battery.percent = 78.5f;
+    fake_battery.millivolts = 4050;
+#ifndef USE_SENSOR_MAX1704X
+    fake_battery.raw_value = 4050;
+    fake_battery.raw_millivolts = 4050;
+#else
+    fake_battery.cell_voltage = 4.05f;
+    fake_battery.charge_rate = 0.0f;
+#endif
+
+    // Fake image info
+    uint32_t fake_image_index = 12;
+    uint32_t fake_total_images = 87;
+    photo_frame::image_source_t fake_source = photo_frame::IMAGE_SOURCE_CLOUD;
+
+    Serial.println(F("Test parameters:"));
+    Serial.print(F("  Battery: ")); Serial.print(fake_battery.percent); Serial.println(F("%"));
+    Serial.print(F("  Time: ")); Serial.println(fake_now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+    Serial.print(F("  Refresh: ")); Serial.print(fake_refresh_seconds); Serial.println(F(" seconds"));
+    Serial.print(F("  Images: ")); Serial.print(fake_image_index); Serial.print(F(" / ")); Serial.println(fake_total_images);
+
+    // Image is ALREADY pre-rotated to 800×480 by Rust processor
+    // Apply overlay directly on landscape buffer (RIGHT side statusbar)
+    Serial.println(F("Creating canvas for landscape overlay (image already rotated)..."));
+    GFXcanvas8 landscapeCanvas(HW_WIDTH, HW_HEIGHT, false);
+    uint8_t** landscapeBufferPtr = (uint8_t**)((uint8_t*)&landscapeCanvas + sizeof(Adafruit_GFX));
+    *landscapeBufferPtr = imageBuffer;
+
+    // Draw white bar on RIGHT side of landscape (16 pixels wide, 480 pixels tall)
+    // This is where the statusbar appears on portrait-mode displays
+    Serial.println(F("Drawing statusbar on RIGHT side of landscape..."));
+    landscapeCanvas.fillRect(HW_WIDTH - 16, 0, 16, HW_HEIGHT, 0xFF);
+
+    // Set rotation for vertical text rendering
+    // Rotation 1 = 90° CW makes text read from bottom to top (correct for RIGHT side)
+    landscapeCanvas.setRotation(1);
+
+    // Draw overlays - they will appear vertically on the right side
+    Serial.println(F("Drawing statusbar overlays on landscape canvas..."));
+    photo_frame::renderer::draw_last_update(landscapeCanvas, fake_now, fake_refresh_seconds);
+    photo_frame::renderer::draw_image_info(landscapeCanvas, fake_image_index, fake_total_images, fake_source);
+    photo_frame::renderer::draw_battery_status(landscapeCanvas, fake_battery);
+
+    // Clear display
+    display.setFullWindow();
+    delay(500);
+
+    // Write the pre-rotated buffer with overlays directly to display
+    Serial.println(F("Writing pre-rotated image with overlays to display..."));
+    auto renderStart = millis();
+
+#if defined(DISP_6C) || defined(DISP_7C)
+    display.epd2.writeDemoBitmap(imageBuffer, 0, 0, 0, HW_WIDTH, HW_HEIGHT, 1, false, false);
+#else
+    Serial.println(F("ERROR: This test requires 6C or 7C display!"));
+    free(imageBuffer);
+    return;
+#endif
+
+    // Refresh display
+    Serial.println(F("Refreshing display..."));
+    display.refresh();
+
+    auto renderTime = millis() - renderStart;
+
+    // Cleanup
+    free(imageBuffer);
+
+    log_i("Total render time: %lu ms", renderTime);
+
+    Serial.println(F("\nPre-rotated portrait image rendered with statusbar!"));
+    Serial.println(F("The image was already rotated 90° CW by Rust processor"));
+    Serial.println(F("No runtime rotation needed - direct display!"));
+    Serial.println(F("Check if statusbar text is visible on the white bar!"));
+    Serial.println(F("Press any key to continue..."));
 }
 
 // Test 5f: Official Library Image Test
@@ -1255,6 +1376,7 @@ void displayTestsMenu() {
         Serial.println(F("5 - PROGMEM Image Test (our native format)"));
         Serial.println(F("6 - Official Library Image Test (standard format)"));
         Serial.println(F("7 - Error Rendering Test (no SD/Drive needed)"));
+        Serial.println(F("8 - Portrait Image Test (480×800 with rotation)"));
         Serial.println(F(""));
         Serial.println(F("0 - Back to Main Menu"));
         Serial.println(F("========================================"));
@@ -1287,6 +1409,10 @@ void displayTestsMenu() {
             Serial.readStringUntil('\n'); // Clear input
         } else if (input == "7") {
             testErrorRendering();
+            while (!Serial.available()) delay(10);
+            Serial.readStringUntil('\n'); // Clear input
+        } else if (input == "8") {
+            testPortraitImage();
             while (!Serial.available()) delay(10);
             Serial.readStringUntil('\n'); // Clear input
         } else if (input == "0") {
@@ -1379,7 +1505,9 @@ bool ensureGoogleDriveClientInitialized() {
         }
 
         // Validate WiFi credentials
-        if (unifiedConfig.wifi.ssid.isEmpty() || unifiedConfig.wifi.password.isEmpty()) {
+        if (unifiedConfig.wifi.network_count == 0 ||
+            unifiedConfig.wifi.networks[0].ssid.isEmpty() ||
+            unifiedConfig.wifi.networks[0].password.isEmpty()) {
             log_e("[WiFi] ERROR: WiFi credentials not found in config.json");
             log_e("[WiFi] Please configure WiFi in /config.json on SD card");
             return false;
@@ -1387,14 +1515,14 @@ bool ensureGoogleDriveClientInitialized() {
 
         // Initialize WiFi manager
         log_i("[WiFi] Initializing WiFi manager...");
-        error = wifiManager.init_with_config(unifiedConfig.wifi.ssid, unifiedConfig.wifi.password);
+        error = wifiManager.init_with_config(unifiedConfig.wifi.networks[0].ssid, unifiedConfig.wifi.networks[0].password);
         if (error != photo_frame::error_type::None) {
             log_e("[WiFi] ERROR: Failed to initialize WiFi manager");
             return false;
         }
 
         // Connect to WiFi
-        log_i("[WiFi] Connecting to: %s", unifiedConfig.wifi.ssid.c_str());
+        log_i("[WiFi] Connecting to: %s", unifiedConfig.wifi.networks[0].ssid.c_str());
 
         error = wifiManager.connect();
         if (error != photo_frame::error_type::None) {
@@ -1738,9 +1866,9 @@ void testGoogleDriveDownload() {
             bool isBmp = selectedFileName.endsWith(".bmp") || selectedFileName.endsWith(".BMP");
 
             if (isBmp) {
-                Serial.println(F("  Format: BMP"));
-                renderError = photo_frame::renderer::draw_bitmap_from_file(
-                    imageFile, selectedFileName.c_str(), DISP_WIDTH, DISP_HEIGHT);
+                Serial.println(F("  Format: BMP (DEPRECATED - not supported)"));
+                Serial.println(F("  Use BIN format instead"));
+                renderError = photo_frame::error_type::ImageFormatNotSupported.code;
             } else {
                 // Binary format - only Mode 1 format supported (384KB)
                 size_t expectedSize = DISP_WIDTH * DISP_HEIGHT;  // 384000 bytes for 800x480

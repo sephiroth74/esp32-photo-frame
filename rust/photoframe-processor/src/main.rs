@@ -7,12 +7,14 @@ use std::time::Instant;
 mod cli;
 mod image_processing;
 mod utils;
+mod json_output;
 
 use cli::{Args, ColorType, DitherMethod};
 use image_processing::{
     color_correction, ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult,
     ProcessingType, SkipReason,
 };
+use json_output::JsonMessage;
 use utils::{create_progress_bar, format_duration, validate_inputs, verbose_println};
 
 impl From<ColorType> for ProcessingType {
@@ -315,7 +317,7 @@ fn main() -> Result<()> {
         processing_type: args.processing_type.clone().into(),
         target_width: args.target_width(),
         target_height: args.target_height(),
-        auto_orientation: args.auto_orientation,
+        auto_orientation: true, // Always enabled for smart orientation detection
         font_name: args.font.clone(),
         font_size: args.pointsize as f32,
         annotation_background: args.annotate_background.clone(),
@@ -330,6 +332,7 @@ fn main() -> Result<()> {
         // Python people detection configuration
         detect_people: args.detect_people,
         python_script_path: args.python_script_path.clone(),
+        python_path: args.python_path.clone(),
         // Duplicate handling
         force: args.force,
         // Debug mode
@@ -354,9 +357,16 @@ fn main() -> Result<()> {
         // Auto-optimization
         auto_optimize: args.auto_optimize,
         optimization_report: args.report,
+        // Target display orientation
+        target_orientation: args.target_orientation.clone(),
+        // Pre-rotation (only for 6c/7c portrait mode)
+        needs_pre_rotation: args.needs_pre_rotation(),
+        // JSON progress output
+        json_progress: args.json_progress,
     };
 
-    if config.verbose {
+    // Suppress all output when JSON progress is enabled (except JSON)
+    if config.verbose && !config.json_progress {
         println!("{}", style("Configuration:").bold());
         println!(
             "  Target size: {}x{}",
@@ -491,16 +501,17 @@ fn main() -> Result<()> {
     let parallel_jobs = config.parallel_jobs;
     let debug_mode = config.debug;
     let dry_run_mode = config.dry_run;
+    let json_progress = config.json_progress;
     let output_formats = config.output_formats.clone();
 
     // Initialize processing engine
     let engine = ProcessingEngine::new(config)?;
 
-    // Initialize multi-progress system (disabled in debug mode)
+    // Initialize multi-progress system (disabled in debug or JSON mode)
     let multi_progress = MultiProgress::new();
 
-    // Create discovery progress bar (only if not in debug mode)
-    let discovery_pb = if debug_mode {
+    // Create discovery progress bar (hidden in debug/JSON mode)
+    let discovery_pb = if debug_mode || json_progress {
         ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(ProgressBar::new(args.input_paths.len() as u64));
@@ -515,22 +526,27 @@ fn main() -> Result<()> {
     // Discover all images
     let image_files = engine.discover_images(&args.input_paths)?;
 
-    if debug_mode {
+    if json_progress {
+        // JSON mode: emit initial progress
+        JsonMessage::progress(0, image_files.len(), "Discovered images");
+    } else if debug_mode {
         verbose_println(true, &format!("Found {} image files", image_files.len()));
     } else {
         discovery_pb.finish_with_message(format!("✓ Found {} images", image_files.len()));
     }
 
     if image_files.is_empty() {
-        println!(
-            "{}",
-            style("No images found with specified extensions").red()
-        );
+        if !json_progress {
+            println!(
+                "{}",
+                style("No images found with specified extensions").red()
+            );
+        }
         return Ok(());
     }
 
     // Create main processing progress bar (only if not in debug mode)
-    let main_progress = if debug_mode {
+    let main_progress = if debug_mode || json_progress {
         ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(create_progress_bar(image_files.len() as u64));
@@ -542,7 +558,7 @@ fn main() -> Result<()> {
     let thread_count = parallel_jobs.min(image_files.len());
     let mut thread_progress_bars = Vec::new();
 
-    if debug_mode {
+    if debug_mode || json_progress {
         // In debug mode, create hidden progress bars
         for _ in 0..thread_count {
             thread_progress_bars.push(ProgressBar::hidden());
@@ -563,7 +579,7 @@ fn main() -> Result<()> {
     }
 
     // Create completion progress bar (only if not in debug mode)
-    let completion_pb = if debug_mode {
+    let completion_pb = if debug_mode || json_progress {
         ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(ProgressBar::new(100));
@@ -576,7 +592,7 @@ fn main() -> Result<()> {
     };
 
     // Process images based on mode
-    let (results, skipped_results) = if debug_mode {
+    let (results, skipped_results) = if debug_mode || json_progress {
         verbose_println(true, "Debug mode: visualizing detection boxes...");
 
         // In debug mode, process all images as a flat list (no pairing)
@@ -599,7 +615,31 @@ fn main() -> Result<()> {
     };
 
     // Finish all progress bars (only if not in debug mode)
-    if debug_mode {
+    if json_progress {
+        // JSON mode: emit file completion events for all results
+        for result in &results {
+            match result {
+                Ok(processing_result) => {
+                    // Collect output paths from the result
+                    let output_paths: Vec<(std::path::PathBuf, String)> = processing_result
+                        .output_paths
+                        .iter()
+                        .map(|(format, path)| (path.clone(), format!("{:?}", format)))
+                        .collect();
+
+                    JsonMessage::file_completed(
+                        &processing_result.input_path,
+                        &output_paths,
+                        processing_result.processing_time.as_millis(),
+                    );
+                }
+                Err(e) => {
+                    // Extract path from error if possible, otherwise use generic path
+                    JsonMessage::file_failed(&std::path::PathBuf::from("unknown"), e.to_string());
+                }
+            }
+        }
+    } else if debug_mode {
         verbose_println(true, "✓ Processing complete!");
     } else {
         main_progress.finish_with_message("✓ Processing complete!");
@@ -611,7 +651,9 @@ fn main() -> Result<()> {
         }
     }
 
-    println!();
+    if !json_progress {
+        println!();
+    }
 
     // Print results summary
     let successful = results.iter().filter(|r| r.is_ok()).count();
@@ -639,17 +681,20 @@ fn main() -> Result<()> {
             match processing_result.image_type {
                 ImageType::Portrait => portraits_processed += 1,
                 ImageType::Landscape => landscapes_processed += 1,
-                ImageType::CombinedPortrait => landscapes_processed += 1, // Combined portraits count as landscapes
+                ImageType::CombinedPortrait => landscapes_processed += 1, // Combined portraits (side-by-side) count as landscapes
+                ImageType::CombinedLandscape => portraits_processed += 1, // Combined landscapes (top-bottom) count as portraits
             }
         }
     }
 
-    let header = if dry_run_mode {
-        style("Dry Run Results Summary:").bold().cyan()
-    } else {
-        style("Results Summary:").bold().green()
-    };
-    println!("{}", header);
+    // Skip all console output in JSON mode (only JSON events are emitted)
+    if !json_progress {
+        let header = if dry_run_mode {
+            style("Dry Run Results Summary:").bold().cyan()
+        } else {
+            style("Results Summary:").bold().green()
+        };
+        println!("{}", header);
 
     let processed_label = if dry_run_mode {
         "Would be processed:"
@@ -758,7 +803,8 @@ fn main() -> Result<()> {
                 let image_type = match processing_result.image_type {
                     ImageType::Portrait => style("Portrait").magenta(),
                     ImageType::Landscape => style("Landscape").cyan(),
-                    ImageType::CombinedPortrait => style("Combined").yellow(),
+                    ImageType::CombinedPortrait => style("Combined H").yellow(),
+                    ImageType::CombinedLandscape => style("Combined V").yellow(),
                 };
 
                 // Show people detection result
@@ -839,30 +885,42 @@ fn main() -> Result<()> {
         }
     }
 
-    println!();
-    println!("{}", style("Performance:").bold().blue());
-    println!(
-        "  Total processing time: {}",
-        style(format_duration(total_time)).bold()
-    );
-    println!(
-        "  Average time per image: {}",
-        style(format_duration(total_time / image_files.len() as u32)).dim()
-    );
+    // Emit JSON summary or print normal output
+    if json_progress {
+        // JSON mode: emit final summary
+        JsonMessage::summary(
+            image_files.len(),
+            successful,
+            failed,
+            total_time.as_secs_f64(),
+        );
+    } else {
+        // Normal mode: print performance stats
+        println!();
+        println!("{}", style("Performance:").bold().blue());
+        println!(
+            "  Total processing time: {}",
+            style(format_duration(total_time)).bold()
+        );
+        println!(
+            "  Average time per image: {}",
+            style(format_duration(total_time / image_files.len() as u32)).dim()
+        );
 
-    println!();
-    let output_header = if dry_run_mode {
-        style("Output files (would be created):").bold().cyan()
-    } else {
-        style("Output files:").bold().green()
-    };
-    println!("{}", output_header);
-    let location_label = if dry_run_mode {
-        "Would be saved to:"
-    } else {
-        "All files:"
-    };
-    println!("  {}: {}", location_label, args.output_dir.display());
+        println!();
+        let output_header = if dry_run_mode {
+            style("Output files (would be created):").bold().cyan()
+        } else {
+            style("Output files:").bold().green()
+        };
+        println!("{}", output_header);
+        let location_label = if dry_run_mode {
+            "Would be saved to:"
+        } else {
+            "All files:"
+        };
+        println!("  {}: {}", location_label, args.output_dir.display());
+    }
 
     if dry_run_mode {
         println!();
@@ -958,6 +1016,8 @@ fn main() -> Result<()> {
         );
         println!("  Use --force to process all files regardless of existing outputs");
     }
+
+    } // End of !json_progress block
 
     Ok(())
 }

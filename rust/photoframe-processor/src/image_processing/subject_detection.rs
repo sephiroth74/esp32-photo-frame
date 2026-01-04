@@ -1,13 +1,12 @@
 use anyhow::Result;
 use image::RgbImage;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // People detection using existing find_subject.py script
 pub mod python_yolo_integration {
     use anyhow::Result;
     use serde::{Deserialize, Serialize};
     use std::path::Path;
-    use std::process::Command;
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct ImageSize {
@@ -39,7 +38,7 @@ pub mod python_yolo_integration {
     }
 
     pub struct PythonYolo {
-        script_path: String,
+        _script_path: String,
     }
 
     impl PythonYolo {
@@ -55,61 +54,8 @@ pub mod python_yolo_integration {
             }
 
             Ok(PythonYolo {
-                script_path: script_path.to_string_lossy().to_string(),
+                _script_path: script_path.to_string_lossy().to_string(),
             })
-        }
-
-        pub fn detect_people(
-            &self,
-            img_path: &str,
-            confidence_threshold: f32,
-        ) -> Result<FindSubjectResult, Box<dyn std::error::Error>> {
-            // Run find_subject.py script with JSON output and confidence threshold
-            // Activate venv before running the script if .venv exists
-            let script_path = Path::new(&self.script_path);
-            let project_root = script_path
-                .parent() // private/
-                .and_then(|p| p.parent()) // scripts/
-                .and_then(|p| p.parent()); // project root
-
-            let output = if let Some(_root) = project_root {
-                Command::new(&self.script_path)
-                    .arg("--image")
-                    .arg(img_path)
-                    .arg("--output-format")
-                    .arg("json")
-                    .arg("--confidence")
-                    .arg(confidence_threshold.to_string())
-                    .output()
-                    .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
-            } else {
-                // Can't find project root, run script directly
-                Command::new(&self.script_path)
-                    .arg("--image")
-                    .arg(img_path)
-                    .arg("--output-format")
-                    .arg("json")
-                    .arg("--confidence")
-                    .arg(confidence_threshold.to_string())
-                    .output()
-                    .map_err(|e| format!("Failed to execute find_subject.py: {}", e))?
-            };
-
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(format!("find_subject.py failed: {}", stderr).into());
-            }
-
-            // Parse JSON output from Python script
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let result: FindSubjectResult = serde_json::from_str(&stdout).map_err(|e| {
-                format!(
-                    "Failed to parse JSON output: {} | Raw output: {}",
-                    e, stdout
-                )
-            })?;
-
-            Ok(result)
         }
     }
 }
@@ -139,6 +85,8 @@ pub struct SubjectDetectionResult {
 #[allow(dead_code)]
 pub struct SubjectDetector {
     python_yolo: PythonYolo,
+    python_path: Option<PathBuf>,
+    script_path: PathBuf,
 }
 
 #[allow(dead_code)]
@@ -146,8 +94,12 @@ impl SubjectDetector {
     /// Create a new subject detector using find_subject.py
     ///
     /// This uses the existing Python script for people detection,
-    /// which already implements YOLOv3 with proper configuration
-    pub fn new(script_path: &Path) -> Result<Self> {
+    /// which already implements YOLO11 with proper configuration
+    ///
+    /// # Arguments
+    /// * `script_path` - Path to find_subject.py
+    /// * `python_path` - Optional path to Python interpreter (e.g., .venv/bin/python3)
+    pub fn new(script_path: &Path, python_path: Option<PathBuf>) -> Result<Self> {
         let python_yolo = PythonYolo::new(
             script_path
                 .to_str()
@@ -155,7 +107,11 @@ impl SubjectDetector {
         )
         .map_err(|e| anyhow::anyhow!("Failed to initialize Python YOLO: {}", e))?;
 
-        Ok(Self { python_yolo })
+        Ok(Self {
+            python_yolo,
+            python_path,
+            script_path: script_path.to_path_buf(),
+        })
     }
 
     /// Detect people in an image and return detection result
@@ -173,11 +129,8 @@ impl SubjectDetector {
         // Save image to temporary file for Python script
         let temp_path = self.save_temp_image(img)?;
 
-        // Run Python script for people detection
-        let python_result = self
-            .python_yolo
-            .detect_people(&temp_path, confidence_threshold)
-            .map_err(|e| anyhow::anyhow!("Python detection failed: {}", e))?;
+        // Run Python script for people detection using custom python_path or default "python"
+        let python_result = self.run_python_detection(&temp_path, confidence_threshold)?;
 
         // Clean up temporary file
         let _ = std::fs::remove_file(&temp_path);
@@ -250,6 +203,49 @@ impl SubjectDetector {
         })
     }
 
+    /// Run people detection using custom Python interpreter or default "python3"
+    fn run_python_detection(
+        &self,
+        img_path: &str,
+        confidence_threshold: f32,
+    ) -> Result<python_yolo_integration::FindSubjectResult> {
+        use std::process::Command;
+
+        // Use custom python_path if provided, otherwise default to "python"
+        let python_interpreter = self.python_path
+            .as_ref()
+            .map(|p| p.as_os_str())
+            .unwrap_or_else(|| std::ffi::OsStr::new("python"));
+
+        // Run Python script
+        let output = Command::new(python_interpreter)
+            .arg(&self.script_path)
+            .arg("--image")
+            .arg(img_path)
+            .arg("--output-format")
+            .arg("json")
+            .arg("--filter")
+            .arg("person")
+            .arg("--confidence")
+            .arg(confidence_threshold.to_string())
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to execute find_subject.py: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow::anyhow!("find_subject.py failed: {}", stderr));
+        }
+
+        // Parse JSON output
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let result: python_yolo_integration::FindSubjectResult =
+            serde_json::from_str(&stdout).map_err(|e| {
+                anyhow::anyhow!("Failed to parse JSON output: {} | Raw: {}", e, stdout)
+            })?;
+
+        Ok(result)
+    }
+
     /// Save image to temporary file for Python script
     fn save_temp_image(&self, img: &RgbImage) -> Result<String> {
         // Create temporary file path with unique name for parallel processing
@@ -282,14 +278,14 @@ impl SubjectDetector {
 
 /// Create a subject detector using the find_subject.py script
 #[allow(dead_code)]
-pub fn create_default_detector(script_path: &Path) -> Result<SubjectDetector> {
+pub fn create_default_detector(script_path: &Path, python_path: Option<PathBuf>) -> Result<SubjectDetector> {
     if !script_path.exists() {
         return Err(anyhow::anyhow!(
             "find_subject.py script not found: {}",
             script_path.display()
         ));
     }
-    SubjectDetector::new(script_path)
+    SubjectDetector::new(script_path, python_path)
 }
 
 #[cfg(test)]

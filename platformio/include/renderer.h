@@ -36,8 +36,17 @@
 #define MAX_DISPLAY_BUFFER_SIZE 65536ul // e.g.
 
 #if defined(DISP_BW_V2)
-#define DISP_WIDTH  800
+#ifdef ORIENTATION_PORTRAIT
+#define DISP_WIDTH 480
+#define DISP_HEIGHT 800
+#else
+#define DISP_WIDTH 800
 #define DISP_HEIGHT 480
+#endif
+
+#define HW_WIDTH 800
+#define HW_HEIGHT 480
+
 #include <GxEPD2_BW.h>
 #define GxEPD2_DISPLAY_CLASS GxEPD2_BW
 #define GxEPD2_DRIVER_CLASS  GxEPD2_750_GDEY075T7
@@ -48,8 +57,17 @@
 extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
 
 #elif defined(DISP_7C)
-#define DISP_WIDTH  800
+#ifdef ORIENTATION_PORTRAIT
+#define DISP_WIDTH 480
+#define DISP_HEIGHT 800
+#else
+#define DISP_WIDTH 800
 #define DISP_HEIGHT 480
+#endif
+
+#define HW_WIDTH 800
+#define HW_HEIGHT 480
+
 #include <GxEPD2_7C.h>
 #define GxEPD2_DISPLAY_CLASS GxEPD2_7C
 #define GxEPD2_DRIVER_CLASS  GxEPD2_730c_GDEY073D46
@@ -60,8 +78,17 @@ extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)
 extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
 
 #elif defined(DISP_6C)
-#define DISP_WIDTH  800
-#define DISP_HEIGHT 480
+#ifdef ORIENTATION_PORTRAIT
+    #define DISP_WIDTH  480
+    #define DISP_HEIGHT 800
+#else
+    #define DISP_WIDTH  800
+    #define DISP_HEIGHT 480
+#endif
+
+#define HW_WIDTH 800
+#define HW_HEIGHT 480
+
 #include <GxEPD2_7C.h>
 #define GxEPD2_DISPLAY_CLASS GxEPD2_7C
 #define GxEPD2_DRIVER_CLASS  GxEPD2_730c_GDEP073E01
@@ -225,6 +252,10 @@ void init_display();
  * It releases the SPI and control pins and turns off the display.
  */
 void power_off();
+
+void hibernate();
+
+void end();
 
 
 /**

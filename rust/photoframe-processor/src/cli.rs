@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
 pub enum ColorType {
     /// Black & White processing (matches auto.sh -t bw)
     #[value(name = "bw")]
@@ -28,6 +28,16 @@ pub enum OutputType {
     /// Generate only PNG files
     #[value(name = "png")]
     Png,
+}
+
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+pub enum TargetOrientation {
+    /// Target landscape display (default) - pairs portraits side-by-side
+    #[value(name = "landscape")]
+    Landscape,
+    /// Target portrait display - pairs landscapes top-bottom
+    #[value(name = "portrait")]
+    Portrait,
 }
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
@@ -125,16 +135,8 @@ pub struct Args {
     )]
     pub output_dir: PathBuf,
 
-    /// Target display size (format: WIDTHxHEIGHT, e.g., 800x480)
-    #[arg(
-        short = 's',
-        long = "size",
-        default_value = "800x480",
-        value_name = "WIDTHxHEIGHT"
-    )]
-    pub size: String,
-
-    /// Processing type: bw (black & white) or 6c (6-color)
+    /// Display type: bw (black & white), 6c (6-color), or 7c (7-color)
+    /// This determines both the processing type and output dimensions
     #[arg(short = 't', long = "type", default_value = "bw")]
     pub processing_type: ColorType,
 
@@ -142,13 +144,20 @@ pub struct Args {
     #[arg(long = "output-format", default_value = "bmp")]
     pub output_formats_str: String,
 
+    /// Display orientation (how the physical display is mounted)
+    /// - landscape: Display mounted horizontally (800×480 visual)
+    /// - portrait: Display mounted vertically (480×800 visual, images pre-rotated for 6c/7c)
+    #[arg(
+        long = "orientation",
+        default_value = "landscape",
+        value_name = "ORIENTATION",
+        help = "Display mounting orientation: 'landscape' (horizontal) or 'portrait' (vertical)"
+    )]
+    pub target_orientation: TargetOrientation,
+
     /// Comma-separated list of image extensions to process
     #[arg(long = "extensions", default_value = "jpg,jpeg,png,heic,webp,tiff")]
     pub extensions_str: String,
-
-    /// Enable automatic orientation handling (swaps dimensions when needed)
-    #[arg(long = "auto-orientation")]
-    pub auto_orientation: bool,
 
     /// Font size for filename annotations
     #[arg(long = "pointsize", default_value = "22", value_name = "SIZE")]
@@ -230,6 +239,10 @@ pub struct Args {
     #[arg(short = 'v', long = "verbose")]
     pub verbose: bool,
 
+    /// Output progress as JSON lines (for GUI integration, suppresses all other output)
+    #[arg(long = "json-progress")]
+    pub json_progress: bool,
+
     /// Skip processing and only validate input files
     #[arg(long = "validate-only")]
     pub validate_only: bool,
@@ -242,9 +255,17 @@ pub struct Args {
     #[arg(
         long = "python-script",
         value_name = "FILE",
-        help = "Path to find_subject.py script for people detection (uses system Python)"
+        help = "Path to find_subject.py script for people detection"
     )]
     pub python_script_path: Option<PathBuf>,
+
+    /// Path to Python interpreter (optional, defaults to system python3)
+    #[arg(
+        long = "python-path",
+        value_name = "PATH",
+        help = "Path to Python interpreter executable (e.g., /path/to/.venv/bin/python3)"
+    )]
+    pub python_path: Option<PathBuf>,
 
     /// Force processing even if output files already exist (bypass duplicate check)
     #[arg(long = "force")]
@@ -280,32 +301,34 @@ pub struct Args {
 }
 
 impl Args {
-    /// Parse the size string into width and height
-    pub fn parse_size(&self) -> Result<(u32, u32), String> {
-        let parts: Vec<&str> = self.size.split('x').collect();
-        if parts.len() != 2 {
-            return Err(format!(
-                "Invalid size format '{}'. Use WIDTHxHEIGHT (e.g., 800x480)",
-                self.size
-            ));
+    /// Determine output dimensions automatically based on display type and orientation
+    ///
+    /// Logic:
+    /// - B/W displays: Dimensions match visual orientation (GxEPD2 handles rotation)
+    ///   - Landscape: 800×480
+    ///   - Portrait: 480×800
+    ///
+    /// - 6C/7C displays: Always hardware dimensions (writeDemoBitmap requires pre-rotation)
+    ///   - Landscape: 800×480 (no pre-rotation)
+    ///   - Portrait: 800×480 (with pre-rotation)
+    pub fn get_dimensions(&self) -> (u32, u32) {
+        match (&self.processing_type, &self.target_orientation) {
+            // B/W displays: dimensions match visual orientation
+            (ColorType::BlackWhite, TargetOrientation::Landscape) => (800, 480),
+            (ColorType::BlackWhite, TargetOrientation::Portrait) => (480, 800),
+
+            // 6C/7C displays: always hardware dimensions 800×480
+            (ColorType::SixColor | ColorType::SevenColor, _) => (800, 480),
         }
+    }
 
-        let width = parts[0]
-            .parse::<u32>()
-            .map_err(|_| format!("Invalid width: '{}'", parts[0]))?;
-        let height = parts[1]
-            .parse::<u32>()
-            .map_err(|_| format!("Invalid height: '{}'", parts[1]))?;
-
-        if width == 0 || height == 0 {
-            return Err("Width and height must be greater than 0".to_string());
+    /// Check if pre-rotation is needed for the current configuration
+    pub fn needs_pre_rotation(&self) -> bool {
+        match (&self.processing_type, &self.target_orientation) {
+            // Only 6C/7C in portrait mode need pre-rotation
+            (ColorType::SixColor | ColorType::SevenColor, TargetOrientation::Portrait) => true,
+            _ => false,
         }
-
-        if width > 4000 || height > 4000 {
-            return Err("Width and height must be less than 4000 pixels".to_string());
-        }
-
-        Ok((width, height))
     }
 
     /// Parse the extensions string into a vector
@@ -358,11 +381,11 @@ impl Args {
 
     // Getters that match the expected interface
     pub fn target_width(&self) -> u32 {
-        self.parse_size().unwrap().0
+        self.get_dimensions().0
     }
 
     pub fn target_height(&self) -> u32 {
-        self.parse_size().unwrap().1
+        self.get_dimensions().1
     }
 
     pub fn extensions(&self) -> Vec<String> {
@@ -380,39 +403,91 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_size() {
+    fn test_get_dimensions_bw() {
+        // B/W landscape
         let args = Args {
-            size: "800x480".to_string(),
+            processing_type: ColorType::BlackWhite,
+            target_orientation: TargetOrientation::Landscape,
             ..Default::default()
         };
-        assert_eq!(args.parse_size().unwrap(), (800, 480));
+        assert_eq!(args.get_dimensions(), (800, 480));
 
+        // B/W portrait
         let args = Args {
-            size: "1920x1080".to_string(),
+            processing_type: ColorType::BlackWhite,
+            target_orientation: TargetOrientation::Portrait,
             ..Default::default()
         };
-        assert_eq!(args.parse_size().unwrap(), (1920, 1080));
+        assert_eq!(args.get_dimensions(), (480, 800));
     }
 
     #[test]
-    fn test_parse_size_invalid() {
+    fn test_get_dimensions_6c_7c() {
+        // 6C landscape
         let args = Args {
-            size: "invalid".to_string(),
+            processing_type: ColorType::SixColor,
+            target_orientation: TargetOrientation::Landscape,
             ..Default::default()
         };
-        assert!(args.parse_size().is_err());
+        assert_eq!(args.get_dimensions(), (800, 480));
+
+        // 6C portrait (still 800×480, pre-rotation applied later)
+        let args = Args {
+            processing_type: ColorType::SixColor,
+            target_orientation: TargetOrientation::Portrait,
+            ..Default::default()
+        };
+        assert_eq!(args.get_dimensions(), (800, 480));
+
+        // 7C landscape
+        let args = Args {
+            processing_type: ColorType::SevenColor,
+            target_orientation: TargetOrientation::Landscape,
+            ..Default::default()
+        };
+        assert_eq!(args.get_dimensions(), (800, 480));
+
+        // 7C portrait
+        let args = Args {
+            processing_type: ColorType::SevenColor,
+            target_orientation: TargetOrientation::Portrait,
+            ..Default::default()
+        };
+        assert_eq!(args.get_dimensions(), (800, 480));
+    }
+
+    #[test]
+    fn test_needs_pre_rotation() {
+        // B/W never needs pre-rotation
+        let args = Args {
+            processing_type: ColorType::BlackWhite,
+            target_orientation: TargetOrientation::Portrait,
+            ..Default::default()
+        };
+        assert_eq!(args.needs_pre_rotation(), false);
+
+        // 6C/7C landscape doesn't need pre-rotation
+        let args = Args {
+            processing_type: ColorType::SixColor,
+            target_orientation: TargetOrientation::Landscape,
+            ..Default::default()
+        };
+        assert_eq!(args.needs_pre_rotation(), false);
+
+        // 6C/7C portrait NEEDS pre-rotation
+        let args = Args {
+            processing_type: ColorType::SixColor,
+            target_orientation: TargetOrientation::Portrait,
+            ..Default::default()
+        };
+        assert_eq!(args.needs_pre_rotation(), true);
 
         let args = Args {
-            size: "800".to_string(),
+            processing_type: ColorType::SevenColor,
+            target_orientation: TargetOrientation::Portrait,
             ..Default::default()
         };
-        assert!(args.parse_size().is_err());
-
-        let args = Args {
-            size: "0x480".to_string(),
-            ..Default::default()
-        };
-        assert!(args.parse_size().is_err());
+        assert_eq!(args.needs_pre_rotation(), true);
     }
 
     #[test]

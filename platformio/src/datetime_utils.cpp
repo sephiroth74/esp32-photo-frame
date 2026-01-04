@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "config.h"
 #include "datetime_utils.h"
 
 namespace photo_frame {
@@ -30,14 +31,18 @@ namespace datetime_utils {
 const char dateTimeFormatLong[] = "%04d/%02d/%02d %02d:%02d";
 
 // This will format the date and time as "Lun, 1 Gen 2023 12:00"
-const char dateTimeFormatShort[] = "%a, %e %b %Y %H:%M";
+const char dateTimeFormatFull[] = "%a, %e %b %Y %H:%M";
 
-// This will format the date and time as "Monday, January 01 2023 12:00:00"
-const char dateTimeFormatFull[] = "%A, %B %d %Y %H:%M:%S";
+// This will format the date and time as ""
+const char dateTimeFormatShort[] = "%d/%m/%y %H:%M";
 
 int format_datetime(char* buffer, size_t buffer_size, const DateTime& now, const char* format) {
     if (format == nullptr) {
+#ifdef ORIENTATION_PORTRAIT
         format = dateTimeFormatShort;
+#else
+        format = dateTimeFormatFull;
+#endif
     }
 
     // Convert DateTime to tm structure for strftime
@@ -124,7 +129,7 @@ int format_duration(char* buffer, size_t buffer_size, long seconds) {
     }
 
     // Add seconds if present
-    if (remaining_seconds > 0) {
+    if (remaining_seconds > 0 && !has_previous) {
         if (has_previous && pos < sizeof(temp_buffer) - 1) {
             temp_buffer[pos++] = ' ';
         }

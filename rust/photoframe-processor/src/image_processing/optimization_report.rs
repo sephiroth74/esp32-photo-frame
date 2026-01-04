@@ -22,11 +22,19 @@ pub struct OptimizationEntry {
     pub color_skipped: bool, // Se auto-color è stato skippato (perché pastel o altro)
 }
 
-/// Portrait pair optimization entry (two images combined)
+/// Portrait pair optimization entry (two images combined side-by-side)
 #[derive(Debug, Clone)]
 pub struct PortraitPairEntry {
     pub left: OptimizationEntry,
     pub right: OptimizationEntry,
+    pub combined_output: String,
+}
+
+/// Landscape pair optimization entry (two images combined top-bottom)
+#[derive(Debug, Clone)]
+pub struct LandscapePairEntry {
+    pub top: OptimizationEntry,
+    pub bottom: OptimizationEntry,
     pub combined_output: String,
 }
 
@@ -36,6 +44,7 @@ pub struct OptimizationReport {
     pub landscape_entries: Vec<OptimizationEntry>,
     pub portrait_entries: Vec<OptimizationEntry>,
     pub portrait_pairs: Vec<PortraitPairEntry>,
+    pub landscape_pairs: Vec<LandscapePairEntry>,
 }
 
 impl OptimizationReport {
@@ -44,6 +53,7 @@ impl OptimizationReport {
             landscape_entries: Vec::new(),
             portrait_entries: Vec::new(),
             portrait_pairs: Vec::new(),
+            landscape_pairs: Vec::new(),
         }
     }
 
@@ -60,6 +70,11 @@ impl OptimizationReport {
     /// Add a portrait pair entry
     pub fn add_portrait_pair(&mut self, pair: PortraitPairEntry) {
         self.portrait_pairs.push(pair);
+    }
+
+    /// Add a landscape pair entry
+    pub fn add_landscape_pair(&mut self, pair: LandscapePairEntry) {
+        self.landscape_pairs.push(pair);
     }
 
     /// Print the complete report as a formatted table
@@ -145,6 +160,52 @@ impl OptimizationReport {
             println!();
         }
 
+        // Print landscape pairs
+        if !self.landscape_pairs.is_empty() {
+            println!(
+                "🌄 COMBINED LANDSCAPES ({} pairs)\n",
+                self.landscape_pairs.len()
+            );
+            let mut table = Table::new();
+            table.set_format(*format::consts::FORMAT_BOX_CHARS);
+
+            // Add header
+            table.add_row(Row::new(vec![
+                Cell::new("Input (T/B)"),
+                Cell::new("Output"),
+                Cell::new("Dithering"),
+                Cell::new("Strength"),
+                Cell::new("Contrast"),
+                Cell::new("Color"),
+                Cell::new("Rot."),
+                Cell::new("Skip"),
+                Cell::new("People"),
+            ]));
+
+            // Add landscape pairs
+            for pair in &self.landscape_pairs {
+                // Top image
+                self.add_entry_row(&mut table, &pair.top);
+                // Bottom image
+                self.add_entry_row(&mut table, &pair.bottom);
+                // Combined output row
+                table.add_row(Row::new(vec![
+                    Cell::new("└─> Combined:"),
+                    Cell::new(&truncate(&pair.combined_output, 20)),
+                    Cell::new(""),
+                    Cell::new(""),
+                    Cell::new(""),
+                    Cell::new(""),
+                    Cell::new(""),
+                    Cell::new(""),
+                    Cell::new(""),
+                ]));
+            }
+
+            table.printstd();
+            println!();
+        }
+
         // Print single portraits (if any)
         if !self.portrait_entries.is_empty() {
             println!(
@@ -179,7 +240,8 @@ impl OptimizationReport {
         // Print summary
         let total_images = self.landscape_entries.len()
             + self.portrait_entries.len()
-            + (self.portrait_pairs.len() * 2);
+            + (self.portrait_pairs.len() * 2)
+            + (self.landscape_pairs.len() * 2);
         let total_with_people = self
             .landscape_entries
             .iter()
@@ -195,6 +257,12 @@ impl OptimizationReport {
                 .iter()
                 .filter(|p| p.left.people_detected || p.right.people_detected)
                 .count()
+                * 2
+            + self
+                .landscape_pairs
+                .iter()
+                .filter(|p| p.top.people_detected || p.bottom.people_detected)
+                .count()
                 * 2;
         let total_pastel = self
             .landscape_entries
@@ -206,6 +274,11 @@ impl OptimizationReport {
                 .portrait_pairs
                 .iter()
                 .filter(|p| p.left.is_pastel || p.right.is_pastel)
+                .count()
+            + self
+                .landscape_pairs
+                .iter()
+                .filter(|p| p.top.is_pastel || p.bottom.is_pastel)
                 .count();
 
         println!("📊 Summary:");
@@ -221,7 +294,8 @@ impl OptimizationReport {
             (total_pastel as f32 / total_images as f32) * 100.0
         );
         println!("   • Landscape images: {}", self.landscape_entries.len());
-        println!("   • Portrait pairs: {}", self.portrait_pairs.len());
+        println!("   • Portrait pairs (side-by-side): {}", self.portrait_pairs.len());
+        println!("   • Landscape pairs (top-bottom): {}", self.landscape_pairs.len());
         println!("   • Individual portraits: {}", self.portrait_entries.len());
         println!();
     }

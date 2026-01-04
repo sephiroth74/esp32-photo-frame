@@ -24,6 +24,10 @@
 #include "datetime_utils.h"
 #include "google_drive.h"
 
+#ifdef DISP_COLORED
+#include "display_7c_helper.h"
+#endif
+
 #include FONT_HEADER
 
 #if !defined(USE_DESPI_DRIVER) && !defined(USE_WAVESHARE_DRIVER)
@@ -105,13 +109,19 @@ void init_display() {
     SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD, -1 for MISO (not used)
 #endif
 
+    // Set display rotation BEFORE init
+    // IMPORTANT: For 6C/7C displays using writeDemoBitmap() Mode 1, rotation must stay at 0
+    // because writeDemoBitmap() writes directly to hardware controller bypassing rotation.
+    // Portrait orientation must be handled by generating 800x480 images rotated 90° in software.
+    display.setRotation(0);
+    log_i("Display rotation set to 0 (hardware always expects landscape 800x480)");
+
 #ifdef USE_DESPI_DRIVER
     display.init(115200);
 #else  // USE_WAVESHARE_DRIVER
     display.init(115200, true, 2, false);
 #endif // USE_DESPI_DRIVER
 
-    display.setRotation(0);
     display.setTextSize(1);
     // display.clearScreen(); // black
     display.setTextColor(GxEPD_BLACK);
@@ -152,16 +162,24 @@ void init_display() {
  */
 void power_off() {
     log_i("Powering off e-paper display...");
-
     // Static buffers - no need to free
-
-    // display.hibernate();
     display.powerOff(); // turns off the display
-    delay(100);         // wait for the display to power off
+    delay(400);         // wait for the display to power off
     display.end();      // release SPI and control pins
     SPI.end();          // release SPI pins
-    return;
 } // end powerOff
+
+void hibernate() {
+    log_i("Hibernate e-paper display...");
+    display.hibernate();
+}
+
+void end() {
+    log_i("End e-paper display...");
+    display.end();
+    SPI.end();
+    return;
+}
 
 void refresh(bool partial_update_mode) { display.refresh(partial_update_mode); }
 
@@ -365,22 +383,26 @@ void draw_error_message(const gravity_t gravity, const uint8_t code) {
 
     rect_t rect = get_text_bounds(errMsgLn1.c_str(), 0, 0);
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = display.width();
+    int16_t disp_h = display.height();
+
     switch (gravity) {
     case TOP_LEFT: {
         draw_string(10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
         break;
     }
     case TOP_RIGHT: {
-        draw_string(DISP_WIDTH - rect.width - 10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
+        draw_string(disp_w - rect.width - 10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
         break;
     }
     case BOTTOM_LEFT: {
-        draw_string(10, DISP_HEIGHT - rect.height - 10, errMsgLn1.c_str(), GxEPD_BLACK);
+        draw_string(10, disp_h - rect.height - 10, errMsgLn1.c_str(), GxEPD_BLACK);
         break;
     }
     case BOTTOM_RIGHT: {
-        draw_string(DISP_WIDTH - rect.width - 10,
-                    DISP_HEIGHT - rect.height - 10,
+        draw_string(disp_w - rect.width - 10,
+                    disp_h - rect.height - 10,
                     errMsgLn1.c_str(),
                     GxEPD_BLACK);
         break;
@@ -400,20 +422,24 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
     }
 #endif // DEBUG_RENDERER
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = display.width();
+    int16_t disp_h = display.height();
+
     // Position error text higher on screen (no icon space needed)
-    // int16_t baseY = DISP_HEIGHT / 2 - 60; // Higher position without icon
-    int16_t baseY = DISP_HEIGHT / 2 + 196 / 2 - 21;
+    // int16_t baseY = disp_h / 2 - 60; // Higher position without icon
+    int16_t baseY = disp_h / 2 + 196 / 2 - 21;
 
     display.setFont(&FONT_26pt8b);
     if (!errMsgLn2.isEmpty()) {
-        draw_string(DISP_WIDTH / 2, baseY, errMsgLn1.c_str(), CENTER);
-        draw_string(DISP_WIDTH / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
+        draw_string(disp_w / 2, baseY, errMsgLn1.c_str(), CENTER);
+        draw_string(disp_w / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
     } else {
-        draw_multiline_string(DISP_WIDTH / 2, baseY, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
+        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - 200, 2, 55);
     }
 
-    display.drawInvertedBitmap(DISP_WIDTH / 2 - 196 / 2,
-                               DISP_HEIGHT / 2 - 196 / 2 - 42,
+    display.drawInvertedBitmap(disp_w / 2 - 196 / 2,
+                               disp_h / 2 - 196 / 2 - 42,
                                bitmap_196x196,
                                196,
                                196,
@@ -436,22 +462,56 @@ void draw_error_with_details(const String& errMsgLn1,
                   errorCode);
 #endif // DEBUG_RENDERER
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = display.width();
+    int16_t disp_h = display.height();
+
     // Position error text higher on screen (no icon space needed)
-    int16_t baseY = DISP_HEIGHT / 2 - 80; // Higher position for more content
+    int16_t baseY = disp_h / 2 - 80; // Higher position for more content
 
     // Draw main error messages
     display.setFont(&FONT_26pt8b);
     if (!errMsgLn2.isEmpty()) {
-        draw_string(DISP_WIDTH / 2, baseY, errMsgLn1.c_str(), CENTER);
-        draw_string(DISP_WIDTH / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
+        draw_string(disp_w / 2, baseY, errMsgLn1.c_str(), CENTER);
+        draw_string(disp_w / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
         baseY += 110; // Move to next line after 2 large lines
     } else {
-        draw_multiline_string(DISP_WIDTH / 2, baseY, errMsgLn1, CENTER, DISP_WIDTH - 200, 2, 55);
+        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - 200, 2, 55);
         baseY += 55; // Move to next line after 1 large line
     }
 
-    // Add small line with filename and error code
+    // Add detail lines with filename and error code
+    // In portrait mode (more vertical space), we can show details on separate lines
     display.setFont(&FONT_9pt8b);
+
+#if defined(ORIENTATION_PORTRAIT)
+    // Portrait mode: Show details on multiple lines for better readability
+    baseY += 40; // Extra spacing before details
+
+    // Line 1: Filename
+    if (filename && strlen(filename) > 0) {
+        // Extract just the filename from the path
+        const char* baseName = strrchr(filename, '/');
+        if (baseName) {
+            baseName++; // Skip the '/'
+        } else {
+            baseName = filename;
+        }
+        String filenameLine = "File: " + String(baseName);
+        draw_string(disp_w / 2, baseY, filenameLine.c_str(), CENTER, GxEPD_BLACK);
+        baseY += 25; // Line spacing
+    }
+
+    // Line 2: Error code
+    String errorLine = "Error Code: " + String(errorCode);
+    draw_string(disp_w / 2, baseY, errorLine.c_str(), CENTER, GxEPD_BLACK);
+    baseY += 25;
+
+    // Line 3: Additional context (optional - can be expanded)
+    String contextLine = "Please check the image format";
+    draw_string(disp_w / 2, baseY, contextLine.c_str(), CENTER, GxEPD_BLACK);
+#else
+    // Landscape mode: Keep compact single line format
     String detailLine = "File: ";
     if (filename && strlen(filename) > 0) {
         // Extract just the filename from the path
@@ -467,7 +527,8 @@ void draw_error_with_details(const String& errMsgLn1,
     }
     detailLine += " | Error: " + String(errorCode);
 
-    draw_string(DISP_WIDTH / 2, baseY + 30, detailLine.c_str(), CENTER, GxEPD_BLACK);
+    draw_string(disp_w / 2, baseY + 30, detailLine.c_str(), CENTER, GxEPD_BLACK);
+#endif
 
     return;
 } // end drawErrorWithDetails
@@ -489,7 +550,16 @@ void draw_image_info(uint32_t index,
 }
 
 
-rect_t get_weather_info_rect() { return {16 - 8, DISP_HEIGHT - 88 - 8, 184, 88}; }
+rect_t get_weather_info_rect() {
+#if defined(ORIENTATION_PORTRAIT)
+    // Portrait mode: position weather info at bottom-left with adjusted coordinates
+    // In portrait (480x800), we have more vertical space, so keep it at bottom
+    return {8, static_cast<int16_t>(display.height() - 96), 184, 88};
+#else
+    // Landscape mode: original bottom-left position
+    return {8, DISP_HEIGHT - 96, 184, 88};
+#endif
+}
 
 void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect) {
     // Only display if weather data is valid and not stale (max 3 hours old)
@@ -773,7 +843,12 @@ void draw_last_update(const DateTime& lastUpdate, long refresh_seconds) {
     photo_frame::datetime_utils::format_datetime(dateTimeBuffer,
                                                  sizeof(dateTimeBuffer),
                                                  lastUpdate,
-                                                 photo_frame::datetime_utils::dateTimeFormatShort);
+#ifdef ORIENTATION_PORTRAIT
+                                                 photo_frame::datetime_utils::dateTimeFormatShort
+#else
+                                                 photo_frame::datetime_utils::dateTimeFormatFull
+#endif
+                                                );
 
     // Format the refresh time using datetime_utils
     char refreshBuffer[16] = {0}; // Buffer for refresh time string (e.g., "2h 30m")
@@ -797,10 +872,14 @@ void draw_side_message(gravity_t gravity, const char* message, int32_t x_offset,
     display.setTextColor(GxEPD_BLACK);
     rect_t rect = get_text_bounds(message, 0, 0);
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = display.width();
+    int16_t disp_h = display.height();
+
     int16_t x = 0, y = 0;
     switch (gravity) {
     case TOP_CENTER: {
-        x = (DISP_WIDTH - rect.width) / 2;
+        x = (disp_w - rect.width) / 2;
         y = -rect.y;
         break;
     }
@@ -811,18 +890,18 @@ void draw_side_message(gravity_t gravity, const char* message, int32_t x_offset,
         break;
     }
     case TOP_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
+        x = disp_w - rect.width - 20;
         y = -rect.y;
         break;
     }
     case BOTTOM_LEFT: {
         x = 0;
-        y = DISP_HEIGHT - rect.y;
+        y = disp_h - rect.y;
         break;
     }
     case BOTTOM_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
-        y = DISP_HEIGHT - rect.y;
+        x = disp_w - rect.width - 20;
+        y = disp_h - rect.y;
         break;
     }
     default: {
@@ -851,10 +930,14 @@ void draw_side_message_with_icon(gravity_t gravity,
     display.setTextColor(GxEPD_BLACK);
     rect_t rect = get_text_bounds(message, 0, 0);
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = display.width();
+    int16_t disp_h = display.height();
+
     int16_t x = 0, y = 0;
     switch (gravity) {
     case TOP_CENTER: {
-        x = (DISP_WIDTH - rect.width - icon_size - 2) / 2; // leave space for icon
+        x = (disp_w - rect.width - icon_size - 2) / 2; // leave space for icon
         y = -rect.y;
         break;
     }
@@ -865,18 +948,18 @@ void draw_side_message_with_icon(gravity_t gravity,
         break;
     }
     case TOP_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
+        x = disp_w - rect.width - 20;
         y = -rect.y;
         break;
     }
     case BOTTOM_LEFT: {
         x = 0;
-        y = DISP_HEIGHT - rect.y;
+        y = disp_h - rect.y;
         break;
     }
     case BOTTOM_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
-        y = DISP_HEIGHT - rect.y;
+        x = disp_w - rect.width - 20;
+        y = disp_h - rect.y;
         break;
     }
 
@@ -1442,6 +1525,7 @@ uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename,
 #endif
 }
 
+
 /**
  * @brief Write image from buffer to display hardware (without refresh)
  */
@@ -1455,9 +1539,9 @@ uint16_t write_image_from_buffer(uint8_t* buffer, int width, int height) {
         return photo_frame::error_type::BinaryRenderingFailed.code;
     }
 
-    // Write image using writeDemoBitmap() Mode 1 (NO automatic refresh)
-    // The caller is responsible for calling display.refresh() after drawing overlays
-    log_i("Writing image from buffer using writeDemoBitmap() Mode 1...");
+    // Images are now pre-rotated by Rust processor for Portrait orientation
+    // No runtime rotation needed - write directly to display
+    log_i("Writing pre-rotated image from buffer...");
 
     auto writeStart = millis();
     display.epd2.writeDemoBitmap(buffer, 0, 0, 0, width, height, 1, false, false);
@@ -1940,10 +2024,14 @@ void draw_side_message(Adafruit_GFX& gfx, gravity_t gravity, const char* message
     gfx.getTextBounds(message, 0, 0, &x1, &y1, &w, &h);
     rect_t rect = rect_t::from_xywh(x1, y1, w, h);
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = display.width();
+    int16_t disp_h = display.height();
+
     int16_t x = 0, y = 0;
     switch (gravity) {
     case TOP_CENTER: {
-        x = (DISP_WIDTH - rect.width) / 2;
+        x = (disp_w - rect.width) / 2;
         y = -rect.y;
         break;
     }
@@ -1954,18 +2042,18 @@ void draw_side_message(Adafruit_GFX& gfx, gravity_t gravity, const char* message
         break;
     }
     case TOP_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
+        x = disp_w - rect.width - 20;
         y = -rect.y;
         break;
     }
     case BOTTOM_LEFT: {
         x = 0;
-        y = DISP_HEIGHT - rect.y;
+        y = disp_h - rect.y;
         break;
     }
     case BOTTOM_RIGHT: {
-        x = DISP_WIDTH - rect.width - 20;
-        y = DISP_HEIGHT - rect.y;
+        x = disp_w - rect.width - 20;
+        y = disp_h - rect.y;
         break;
     }
     default: {
@@ -2001,10 +2089,14 @@ void draw_side_message_with_icon(Adafruit_GFX& gfx,
     gfx.getTextBounds(message, 0, 0, &x1, &y1, &w, &h);
     rect_t rect = rect_t::from_xywh(x1, y1, w, h);
 
+    // Use dynamic display dimensions to support both landscape and portrait orientations
+    int16_t disp_w = gfx.width();
+    int16_t disp_h = gfx.height();
+
     int16_t x = 0, y = 0;
     switch (gravity) {
     case TOP_CENTER: {
-        x = (DISP_WIDTH - rect.width - icon_size - 2) / 2;
+        x = (disp_w - rect.width - icon_size - 2) / 2;
         y = -rect.y;
         break;
     }
@@ -2015,18 +2107,18 @@ void draw_side_message_with_icon(Adafruit_GFX& gfx,
         break;
     }
     case TOP_RIGHT: {
-        x = DISP_WIDTH - rect.width - 24;
+        x = disp_w - rect.width - 24;
         y = -rect.y;
         break;
     }
     case BOTTOM_LEFT: {
         x = 0;
-        y = DISP_HEIGHT - rect.y;
+        y = disp_h - rect.y;
         break;
     }
     case BOTTOM_RIGHT: {
-        x = DISP_WIDTH - rect.width - 24;
-        y = DISP_HEIGHT - rect.y;
+        x = disp_w - rect.width - 24;
+        y = disp_h - rect.y;
         break;
     }
 
@@ -2054,7 +2146,12 @@ void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refres
     photo_frame::datetime_utils::format_datetime(dateTimeBuffer,
                                                  sizeof(dateTimeBuffer),
                                                  lastUpdate,
-                                                 photo_frame::datetime_utils::dateTimeFormatShort);
+#ifdef ORIENTATION_PORTRAIT
+                                                 photo_frame::datetime_utils::dateTimeFormatShort
+#else
+                                                 photo_frame::datetime_utils::dateTimeFormatFull
+#endif
+                                                );
 
     char refreshBuffer[16] = {0};
     photo_frame::datetime_utils::format_duration(
@@ -2068,7 +2165,11 @@ void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refres
         snprintf(lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s", dateTimeBuffer);
     }
 
+#ifdef ORIENTATION_LANDSCAPE
     draw_side_message_with_icon(gfx, gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateBuffer);
+#else
+    draw_side_message(gfx, gravity::TOP_LEFT, lastUpdateBuffer);
+#endif
 }
 
 void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info) {
@@ -2112,8 +2213,9 @@ void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_
 #endif
 #endif
 
-    message += " - ";
-    message += String(FIRMWARE_VERSION_STRING);
+    // Adding version string
+    // message += " - ";
+    // message += String(FIRMWARE_VERSION_STRING);
 
     draw_side_message_with_icon(gfx, gravity::TOP_RIGHT, icon_name, message.c_str(), 0, 0);
 }

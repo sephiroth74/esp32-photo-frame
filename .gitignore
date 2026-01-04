@@ -40,3 +40,11 @@ rust/photoframe-processor/CLAUDE.md
 CLAUDE.md
 platformio/ota/RELEASE_SUMMARY.md
 platformio/ota/firmware/firmware-feathers3_unexpectedmaker.bin
+platformio/scripts/
+DISPLAY_STRIPES_INVESTIGATION.md
+DITHERING_ALGORITHMS_IMPLEMENTATION.md
+rust/photoframe-processor/ARCHITECTURE.md
+rust/photoframe-processor/GUI_README.md
+scripts/bin2progmem.py
+platformio/data/test_photo_6c_portrait.bin
+rust/photoframe-processor/src/main.rs.bak

@@ -64,6 +64,14 @@
 #error "Only one display type can be defined: DISP_BW_V2, DISP_7C, or DISP_6C"
 #endif
 
+#if defined(ORIENTATION_PORTRAIT) && defined(ORIENTATION_LANDSCAPE)
+#error "Only one orientation can be defined: ORIENTATION_PORTRAIT or ORIENTATION_LANDSCAPE"
+#elif !defined(ORIENTATION_PORTRAIT) && !defined(ORIENTATION_LANDSCAPE)
+#error "ORIENTATION_PORTRAIT or ORIENTATION_LANDSCAPE must be defined"
+#endif
+
+
+
 // ----------------------------------------------------------------------------
 // RGB Status LED Validation
 // ----------------------------------------------------------------------------

@@ -74,6 +74,7 @@ pub struct ProcessingConfig {
     // Python people detection configuration
     pub detect_people: bool,
     pub python_script_path: Option<PathBuf>,
+    pub python_path: Option<PathBuf>,
     // Duplicate handling
     pub force: bool,
     // Debug mode
@@ -98,6 +99,12 @@ pub struct ProcessingConfig {
     // Auto-optimization
     pub auto_optimize: bool,
     pub optimization_report: bool,
+    // Target display orientation
+    pub target_orientation: crate::cli::TargetOrientation,
+    // Pre-rotation flag (true for 6c/7c portrait mode only)
+    pub needs_pre_rotation: bool,
+    // JSON progress output (suppresses all other output)
+    pub json_progress: bool,
 }
 
 pub struct ProcessingEngine {
@@ -211,14 +218,20 @@ impl ProcessingEngine {
 
         let subject_detector = if config.detect_people {
             if let Some(ref script_path) = config.python_script_path {
-                let _python_path = PathBuf::from("python3"); // Use system python3
                 verbose_println(config.verbose, "Initializing Python people detection...");
                 verbose_println(
                     config.verbose,
                     &format!("Using script: {}", script_path.display()),
                 );
-                verbose_println(config.verbose, "Using system Python interpreter (python3)");
-                match subject_detection::create_default_detector(script_path) {
+                if let Some(ref py_path) = config.python_path {
+                    verbose_println(
+                        config.verbose,
+                        &format!("Using custom Python interpreter: {}", py_path.display()),
+                    );
+                } else {
+                    verbose_println(config.verbose, "Using system Python interpreter (auto-detected)");
+                }
+                match subject_detection::create_default_detector(script_path, config.python_path.clone()) {
                     Ok(detector) => {
                         verbose_println(
                             config.verbose,
@@ -796,32 +809,74 @@ impl ProcessingEngine {
 
         let mut all_results = Vec::new();
 
-        // Process landscape images (each increments main progress by 1)
-        if !landscape_files.is_empty() {
-            completion_progress.set_message("Processing landscape images...");
-            let landscape_results = self.process_batch_with_progress(
-                &landscape_files,
-                output_dir,
-                main_progress,
-                thread_progress_bars,
-                completion_progress,
-            )?;
-            all_results.extend(landscape_results);
-        }
+        // Pairing behavior depends on target orientation
+        match self.config.target_orientation {
+            crate::cli::TargetOrientation::Landscape => {
+                // LANDSCAPE TARGET: Process landscapes individually, pair portraits side-by-side
+                verbose_println(
+                    self.config.verbose,
+                    "Target orientation: Landscape (pairing portraits side-by-side)",
+                );
 
-        // Process portrait images in pairs
-        if !portrait_files.is_empty() {
-            completion_progress.set_message("Processing portrait pairs...");
-            // Don't reset main_progress position - let it continue from where landscapes left off
+                // Process landscape images individually (each increments main progress by 1)
+                if !landscape_files.is_empty() {
+                    completion_progress.set_message("Processing landscape images...");
+                    let landscape_results = self.process_batch_with_progress(
+                        &landscape_files,
+                        output_dir,
+                        main_progress,
+                        thread_progress_bars,
+                        completion_progress,
+                    )?;
+                    all_results.extend(landscape_results);
+                }
 
-            let portrait_results = self.process_portrait_pairs_with_progress(
-                &portrait_files,
-                output_dir,
-                main_progress,
-                thread_progress_bars,
-                completion_progress,
-            )?;
-            all_results.extend(portrait_results);
+                // Process portrait images in pairs (side-by-side)
+                if !portrait_files.is_empty() {
+                    completion_progress.set_message("Processing portrait pairs (side-by-side)...");
+                    let portrait_results = self.process_portrait_pairs_with_progress(
+                        &portrait_files,
+                        output_dir,
+                        main_progress,
+                        thread_progress_bars,
+                        completion_progress,
+                    )?;
+                    all_results.extend(portrait_results);
+                }
+            }
+            crate::cli::TargetOrientation::Portrait => {
+                // PORTRAIT TARGET: Process portraits individually, pair landscapes top-bottom
+                verbose_println(
+                    self.config.verbose,
+                    "Target orientation: Portrait (pairing landscapes top-bottom)",
+                );
+
+                // Process portrait images individually (each increments main progress by 1)
+                if !portrait_files.is_empty() {
+                    completion_progress.set_message("Processing portrait images...");
+                    let portrait_results = self.process_batch_with_progress(
+                        &portrait_files,
+                        output_dir,
+                        main_progress,
+                        thread_progress_bars,
+                        completion_progress,
+                    )?;
+                    all_results.extend(portrait_results);
+                }
+
+                // Process landscape images in pairs (top-bottom)
+                if !landscape_files.is_empty() {
+                    completion_progress.set_message("Processing landscape pairs (top-bottom)...");
+                    let landscape_results = self.process_landscape_pairs_with_progress(
+                        &landscape_files,
+                        output_dir,
+                        main_progress,
+                        thread_progress_bars,
+                        completion_progress,
+                    )?;
+                    all_results.extend(landscape_results);
+                }
+            }
         }
 
         // Main progress should already be at 100% from incremental updates
@@ -1141,6 +1196,24 @@ impl ProcessingEngine {
         )?;
         progress_bar.set_position(85); // Color processing complete
 
+        // Apply 90° CW rotation if needed (85-88%)
+        // Pre-rotation is only needed for 6c/7c portrait mode (writeDemoBitmap doesn't support rotation)
+        // B/W displays use GxEPD2 setRotation() so no pre-rotation needed
+        let final_img = if self.config.needs_pre_rotation {
+            progress_bar.set_message(format!("{} - Pre-rotating for portrait display", filename));
+            progress_bar.set_position(86);
+            verbose_println(
+                self.config.verbose,
+                "🔄 Pre-rotating 90° CW for 6c/7c portrait display (writeDemoBitmap requires pre-rotated data)",
+            );
+            let rotated = image::imageops::rotate90(&processed_img);
+            progress_bar.set_position(88);
+            rotated
+        } else {
+            progress_bar.set_position(88);
+            processed_img
+        };
+
         // Save files to multiple formats (90-95%)
         progress_bar.set_position(90);
 
@@ -1175,7 +1248,7 @@ impl ProcessingEngine {
                     crate::cli::OutputType::Bmp
                     | crate::cli::OutputType::Jpg
                     | crate::cli::OutputType::Png => {
-                        processed_img.save(&output_path).with_context(|| {
+                        final_img.save(&output_path).with_context(|| {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
@@ -1184,11 +1257,11 @@ impl ProcessingEngine {
                         let binary_data = match self.config.processing_type {
                             ProcessingType::BlackWhite => {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&processed_img)?
+                                binary::convert_to_esp32_binary(&final_img)?
                             }
                             ProcessingType::SixColor | ProcessingType::SevenColor => {
                                 // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&processed_img)?
+                                binary::convert_to_demo_bitmap_mode1(&final_img)?
                             }
                         };
                         std::fs::write(&output_path, binary_data).with_context(|| {
@@ -1284,14 +1357,19 @@ impl ProcessingEngine {
             progress_bar.set_message(format!("{} - Portrait resizing", filename));
         }
 
-        // For now, process as half-width landscape to fit the display
-        let half_width = self.config.target_width / 2;
+        // Portrait resize dimensions depend on target orientation:
+        // - Landscape target: half-width (will be paired side-by-side)
+        // - Portrait target: full-width (individual display)
+        let portrait_width = match self.config.target_orientation {
+            crate::cli::TargetOrientation::Landscape => self.config.target_width / 2,
+            crate::cli::TargetOrientation::Portrait => self.config.target_width,
+        };
         std::thread::yield_now();
 
         progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
             img,
-            half_width,
+            portrait_width,
             self.config.target_height,
             self.config.auto_orientation,
             people_detection.as_ref(),
@@ -1389,6 +1467,23 @@ impl ProcessingEngine {
         )?;
         progress_bar.set_position(85);
 
+        // Apply 90° CW rotation if needed (85-88%)
+        // Pre-rotation is only needed for 6c/7c portrait mode
+        let final_img = if self.config.needs_pre_rotation {
+            progress_bar.set_message(format!("{} - Pre-rotating for portrait display", filename));
+            progress_bar.set_position(86);
+            verbose_println(
+                self.config.verbose,
+                "🔄 Pre-rotating 90° CW for 6c/7c portrait display (writeDemoBitmap requires pre-rotated data)",
+            );
+            let rotated = image::imageops::rotate90(&processed_img);
+            progress_bar.set_position(88);
+            rotated
+        } else {
+            progress_bar.set_position(88);
+            processed_img
+        };
+
         // Save portrait files to multiple formats (90-95%)
         progress_bar.set_position(90);
 
@@ -1424,7 +1519,7 @@ impl ProcessingEngine {
                     crate::cli::OutputType::Bmp
                     | crate::cli::OutputType::Jpg
                     | crate::cli::OutputType::Png => {
-                        processed_img.save(&output_path).with_context(|| {
+                        final_img.save(&output_path).with_context(|| {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
@@ -1433,11 +1528,11 @@ impl ProcessingEngine {
                         let binary_data = match self.config.processing_type {
                             ProcessingType::BlackWhite => {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&processed_img)?
+                                binary::convert_to_esp32_binary(&final_img)?
                             }
                             ProcessingType::SixColor | ProcessingType::SevenColor => {
                                 // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&processed_img)?
+                                binary::convert_to_demo_bitmap_mode1(&final_img)?
                             }
                         };
                         std::fs::write(&output_path, binary_data).with_context(|| {
@@ -2036,7 +2131,24 @@ impl ProcessingEngine {
             self.config.divider_width,
             self.config.divider_color,
         )?;
-        progress_bar.set_position(75); // Combining complete
+        progress_bar.set_position(72); // Combining complete
+
+        // Apply 90° CW rotation if needed (72-75%)
+        // Pre-rotation is only needed for 6c/7c portrait mode
+        let final_combined_img = if self.config.needs_pre_rotation {
+            progress_bar.set_message(format!(
+                "Pre-rotating combined for portrait: {} + {}",
+                left_filename, right_filename
+            ));
+            verbose_println(
+                self.config.verbose,
+                "🔄 Pre-rotating combined 90° CW for 6c/7c portrait display",
+            );
+            image::imageops::rotate90(&combined_img)
+        } else {
+            combined_img
+        };
+        progress_bar.set_position(75); // Rotation complete (or skipped)
 
         // Stage 8: Save final result (75-95%)
         progress_bar.set_position(75);
@@ -2082,7 +2194,7 @@ impl ProcessingEngine {
                     crate::cli::OutputType::Bmp
                     | crate::cli::OutputType::Jpg
                     | crate::cli::OutputType::Png => {
-                        combined_img.save(&output_path).with_context(|| {
+                        final_combined_img.save(&output_path).with_context(|| {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
@@ -2091,11 +2203,11 @@ impl ProcessingEngine {
                         let binary_data = match self.config.processing_type {
                             ProcessingType::BlackWhite => {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&combined_img)?
+                                binary::convert_to_esp32_binary(&final_combined_img)?
                             }
                             ProcessingType::SixColor | ProcessingType::SevenColor => {
                                 // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&combined_img)?
+                                binary::convert_to_demo_bitmap_mode1(&final_combined_img)?
                             }
                         };
                         std::fs::write(&output_path, &binary_data).with_context(|| {
@@ -2226,6 +2338,693 @@ impl ProcessingEngine {
             people_detected: combined_people_detected,
             people_count: combined_people_count,
             individual_portraits: Some(individual_portraits),
+        })
+    }
+
+    /// Process landscape pairs with progress tracking (for portrait target displays)
+    pub fn process_landscape_pairs_with_progress(
+        &self,
+        landscape_files: &[PathBuf],
+        output_dir: &Path,
+        main_progress: &ProgressBar,
+        thread_progress_bars: &[ProgressBar],
+        completion_progress: &ProgressBar,
+    ) -> Result<Vec<Result<ProcessingResult>>> {
+        if landscape_files.is_empty() {
+            return Ok(vec![]);
+        }
+
+        verbose_println(
+            self.config.verbose,
+            &format!("Processing {} landscape images", landscape_files.len()),
+        );
+
+        // Randomize landscape order for more interesting combinations
+        let mut landscape_files = landscape_files.to_vec();
+        use rand::seq::SliceRandom;
+        let mut rng = rand::rng();
+        landscape_files.shuffle(&mut rng);
+
+        // Check if there's an unpaired landscape (odd number)
+        let unpaired_landscape = if landscape_files.len() % 2 == 1 {
+            Some(landscape_files.pop().unwrap())
+        } else {
+            None
+        };
+
+        if unpaired_landscape.is_some() {
+            verbose_println(
+                self.config.verbose,
+                &format!(
+                    "ℹ Discarding leftover landscape: {}",
+                    unpaired_landscape
+                        .unwrap()
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                ),
+            );
+        }
+
+        // Create pairs from randomized landscapes
+        let landscape_pairs: Vec<(PathBuf, PathBuf)> = landscape_files
+            .chunks_exact(2)
+            .map(|chunk| (chunk[0].clone(), chunk[1].clone()))
+            .collect();
+
+        verbose_println(
+            self.config.verbose,
+            &format!("Created {} landscape pairs", landscape_pairs.len()),
+        );
+
+        completion_progress.set_message("Processing landscape pairs in parallel...");
+
+        // Process each pair individually using the thread pool
+        let results = self.process_landscape_pairs_parallel(
+            &landscape_pairs,
+            output_dir,
+            main_progress,
+            thread_progress_bars,
+            completion_progress,
+        )?;
+
+        completion_progress.set_message("Landscape processing complete");
+        Ok(results)
+    }
+
+    /// Process landscape pairs in parallel using the thread pool
+    fn process_landscape_pairs_parallel(
+        &self,
+        landscape_pairs: &[(PathBuf, PathBuf)],
+        output_dir: &Path,
+        main_progress: &ProgressBar,
+        thread_progress_bars: &[ProgressBar],
+        completion_progress: &ProgressBar,
+    ) -> Result<Vec<Result<ProcessingResult>>> {
+        use std::collections::HashMap;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let processed_count = AtomicUsize::new(0);
+        let thread_assignment = Arc::new(Mutex::new(HashMap::new()));
+        let next_thread_id = AtomicUsize::new(0);
+
+        completion_progress.set_message("Processing landscape pairs in parallel...");
+
+        let results: Vec<Result<ProcessingResult>> = landscape_pairs
+            .par_iter()
+            .enumerate()
+            .map(|(index, (top_path, bottom_path))| {
+                // Get or assign thread progress bar
+                let current_thread_id = rayon::current_thread_index().unwrap_or(0);
+                let pb_index = {
+                    let mut assignment = thread_assignment.lock().unwrap();
+                    if let Some(&pb_index) = assignment.get(&current_thread_id) {
+                        pb_index
+                    } else {
+                        let pb_index = next_thread_id.fetch_add(1, Ordering::Relaxed)
+                            % thread_progress_bars.len();
+                        assignment.insert(current_thread_id, pb_index);
+                        pb_index
+                    }
+                };
+
+                let thread_pb = &thread_progress_bars[pb_index];
+
+                // Update thread progress
+                let top_filename = top_path
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("unknown");
+                let bottom_filename = bottom_path
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("unknown");
+                thread_pb.set_message(format!("Processing {} + {}", top_filename, bottom_filename));
+
+                // Process the landscape pair
+                let result = self.process_single_landscape_pair_with_progress(
+                    top_path, bottom_path, output_dir, index, thread_pb,
+                );
+
+                // Update main progress - increment by 2 since we processed 2 images
+                let pairs_processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
+                main_progress.inc(2); // Each pair processes 2 images
+                let images_processed = pairs_processed * 2;
+                let total_landscape_images = landscape_pairs.len() * 2;
+                main_progress.set_message(format!(
+                    "Completed: {}/{}",
+                    images_processed, total_landscape_images
+                ));
+
+                // Update completion progress
+                let progress_percent =
+                    (pairs_processed as f64 / landscape_pairs.len() as f64) * 100.0;
+                completion_progress.set_position(progress_percent as u64);
+                completion_progress.set_message(format!(
+                    "Processing pairs: {}/{} ({} images)",
+                    pairs_processed,
+                    landscape_pairs.len(),
+                    images_processed
+                ));
+
+                // Mark thread as idle
+                thread_pb.set_message("Idle");
+
+                result
+            })
+            .collect();
+
+        completion_progress.set_message("Finalizing landscape results...");
+        Ok(results)
+    }
+
+    /// Process a single landscape pair from raw image files (complete pipeline for portrait target)
+    fn process_single_landscape_pair_with_progress(
+        &self,
+        top_path: &Path,
+        bottom_path: &Path,
+        output_dir: &Path,
+        _index: usize,
+        progress_bar: &ProgressBar,
+    ) -> Result<ProcessingResult> {
+        let start_time = std::time::Instant::now();
+        let top_filename = top_path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("unknown");
+        let bottom_filename = bottom_path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("unknown");
+
+        verbose_println(
+            self.config.verbose,
+            &format!(
+                "Processing landscape pair: {} + {}",
+                top_filename, bottom_filename
+            ),
+        );
+
+        // Stage 1: Load both images (10-15%)
+        progress_bar.set_position(10);
+        progress_bar.set_message(format!("Loading {} + {}", top_filename, bottom_filename));
+        std::thread::yield_now();
+
+        progress_bar.set_position(12);
+        let top_img = image::open(top_path)
+            .with_context(|| format!("Failed to open top image: {}", top_path.display()))?
+            .to_rgb8();
+        progress_bar.set_position(13);
+        let bottom_img = image::open(bottom_path)
+            .with_context(|| format!("Failed to open bottom image: {}", bottom_path.display()))?
+            .to_rgb8();
+        progress_bar.set_position(15);
+
+        // Stage 2: Apply EXIF rotation (15-25%)
+        progress_bar.set_position(15);
+        progress_bar.set_message(format!(
+            "Applying rotation to {} + {}",
+            top_filename, bottom_filename
+        ));
+        std::thread::yield_now();
+
+        progress_bar.set_position(18);
+        let (top_rotated, top_orientation) =
+            match orientation::detect_orientation(top_path, &top_img) {
+                Ok(orientation_info) => {
+                    let exif_orient = orientation_info.exif_orientation;
+                    (
+                        orientation::apply_rotation(&top_img, exif_orient)
+                            .unwrap_or_else(|_| top_img.clone()),
+                        exif_orient,
+                    )
+                }
+                Err(_) => (top_img.clone(), orientation::ExifOrientation::Undefined),
+            };
+
+        progress_bar.set_position(22);
+        let (bottom_rotated, bottom_orientation) =
+            match orientation::detect_orientation(bottom_path, &bottom_img) {
+                Ok(orientation_info) => {
+                    let exif_orient = orientation_info.exif_orientation;
+                    (
+                        orientation::apply_rotation(&bottom_img, exif_orient)
+                            .unwrap_or_else(|_| bottom_img.clone()),
+                        exif_orient,
+                    )
+                }
+                Err(_) => (bottom_img.clone(), orientation::ExifOrientation::Undefined),
+            };
+        progress_bar.set_position(25);
+
+        // Stage 3: People detection (25-35%)
+        progress_bar.set_position(25);
+        progress_bar.set_message(format!(
+            "Detecting people in {} + {}",
+            top_filename, bottom_filename
+        ));
+        std::thread::yield_now();
+
+        progress_bar.set_position(28);
+        let top_detection = if self.subject_detector.is_some() {
+            self.detect_people_with_logging(&top_rotated, top_path)
+        } else {
+            None
+        };
+
+        progress_bar.set_position(32);
+        let bottom_detection = if self.subject_detector.is_some() {
+            self.detect_people_with_logging(&bottom_rotated, bottom_path)
+        } else {
+            None
+        };
+        progress_bar.set_position(35);
+
+        // Stage 4: Resize landscapes for combination (35-45%)
+        progress_bar.set_position(35);
+        progress_bar.set_message(format!("Resizing {} + {}", top_filename, bottom_filename));
+        std::thread::yield_now();
+
+        // For pre-rotation mode (6c/7c portrait), we need to:
+        // 1. Resize to half-height × target_width (e.g., 240×800 becomes 400×480 after rotation)
+        // 2. Rotate 90° CW
+        // 3. Combine side-by-side (like portraits)
+        //
+        // For normal mode:
+        // 1. Resize to target_width × half-height (e.g., 800×240)
+        // 2. Combine top-bottom
+        let (resize_width, resize_height) = if self.config.needs_pre_rotation {
+            // Portrait mode: resize to half-width × full-height (will be rotated to full-height × half-width)
+            // 480×400 → rotate90 → 400×480, then combine side-by-side → 800×480
+            (self.config.target_height, self.config.target_width / 2)  // e.g., 480×400
+        } else {
+            // Landscape mode: standard full-width × half-height, combine top-bottom
+            (self.config.target_width, self.config.target_height / 2)  // e.g., 800×240
+        };
+
+        progress_bar.set_position(38);
+        let top_resized = resize::smart_resize_with_people_detection(
+            &top_rotated,
+            resize_width,
+            resize_height,
+            self.config.auto_orientation,
+            top_detection.as_ref(),
+            self.config.verbose,
+        )?;
+
+        progress_bar.set_position(42);
+        let bottom_resized = resize::smart_resize_with_people_detection(
+            &bottom_rotated,
+            resize_width,
+            resize_height,
+            self.config.auto_orientation,
+            bottom_detection.as_ref(),
+            self.config.verbose,
+        )?;
+        progress_bar.set_position(45);
+
+        // Stage 5: Auto-optimization or use global settings
+        progress_bar.set_position(45);
+        let (
+            top_optimized_dither,
+            top_optimized_strength,
+            top_optimized_contrast,
+            top_optimized_auto_color,
+            top_analysis,
+        ) = if self.config.auto_optimize {
+            progress_bar.set_message(format!("Analyzing {}", top_filename));
+            let optimization_result =
+                auto_optimizer::analyze_and_optimize(&top_resized, top_detection.as_ref())?;
+            let analysis = auto_optimizer::analyze_image_characteristics(
+                &top_resized,
+                top_detection.as_ref(),
+            )?;
+
+            (
+                optimization_result.dither_method,
+                optimization_result.dither_strength,
+                optimization_result.contrast_adjustment,
+                optimization_result.auto_color_correct,
+                Some(analysis),
+            )
+        } else {
+            (
+                self.config.dithering_method.clone(),
+                self.config.dither_strength,
+                self.config.contrast,
+                self.config.auto_color_correct,
+                None,
+            )
+        };
+
+        let (
+            bottom_optimized_dither,
+            bottom_optimized_strength,
+            bottom_optimized_contrast,
+            bottom_optimized_auto_color,
+            bottom_analysis,
+        ) = if self.config.auto_optimize {
+            progress_bar.set_message(format!("Analyzing {}", bottom_filename));
+            let optimization_result =
+                auto_optimizer::analyze_and_optimize(&bottom_resized, bottom_detection.as_ref())?;
+            let analysis = auto_optimizer::analyze_image_characteristics(
+                &bottom_resized,
+                bottom_detection.as_ref(),
+            )?;
+
+            (
+                optimization_result.dither_method,
+                optimization_result.dither_strength,
+                optimization_result.contrast_adjustment,
+                optimization_result.auto_color_correct,
+                Some(analysis),
+            )
+        } else {
+            (
+                self.config.dithering_method.clone(),
+                self.config.dither_strength,
+                self.config.contrast,
+                self.config.auto_color_correct,
+                None,
+            )
+        };
+
+        // Stage 6: Apply color correction if enabled (45-48%)
+        progress_bar.set_position(45);
+        progress_bar.set_position(46);
+        let top_color_corrected = if top_optimized_auto_color {
+            color_correction::apply_auto_color_correction(&top_resized)?
+        } else {
+            top_resized
+        };
+        progress_bar.set_position(47);
+        let bottom_color_corrected = if bottom_optimized_auto_color {
+            color_correction::apply_auto_color_correction(&bottom_resized)?
+        } else {
+            bottom_resized
+        };
+        progress_bar.set_position(48);
+
+        // Stage 7: Apply contrast adjustment (48-50%)
+        progress_bar.set_position(48);
+        progress_bar.set_position(49);
+        let top_contrast_adjusted = if top_optimized_contrast != 0.0 {
+            color_correction::apply_contrast_adjustment(
+                &top_color_corrected,
+                top_optimized_contrast,
+            )?
+        } else {
+            top_color_corrected
+        };
+        let bottom_contrast_adjusted = if bottom_optimized_contrast != 0.0 {
+            color_correction::apply_contrast_adjustment(
+                &bottom_color_corrected,
+                bottom_optimized_contrast,
+            )?
+        } else {
+            bottom_color_corrected
+        };
+        progress_bar.set_position(50);
+
+        // Stage 8: Apply image processing (50-55%)
+        progress_bar.set_message(format!(
+            "Processing colors for {} + {}",
+            top_filename, bottom_filename
+        ));
+        std::thread::yield_now();
+
+        progress_bar.set_position(52);
+        let top_processed = convert::process_image(
+            &top_contrast_adjusted,
+            &self.config.processing_type,
+            &top_optimized_dither,
+            top_optimized_strength,
+        )?;
+        progress_bar.set_position(54);
+        let bottom_processed = convert::process_image(
+            &bottom_contrast_adjusted,
+            &self.config.processing_type,
+            &bottom_optimized_dither,
+            bottom_optimized_strength,
+        )?;
+        progress_bar.set_position(55);
+
+        // Stage 9: Apply annotations (55-65%)
+        progress_bar.set_position(55);
+        let (top_annotated, bottom_annotated) = if self.config.annotate {
+            progress_bar.set_message(format!(
+                "Adding annotations to {} + {}",
+                top_filename, bottom_filename
+            ));
+            std::thread::yield_now();
+
+            progress_bar.set_position(58);
+            let top_annotated = annotate::add_filename_annotation(
+                &top_processed,
+                top_path,
+                &self.config.font_name,
+                self.config.font_size,
+                &self.config.annotation_background,
+            )?;
+            progress_bar.set_position(61);
+            let bottom_annotated = annotate::add_filename_annotation(
+                &bottom_processed,
+                bottom_path,
+                &self.config.font_name,
+                self.config.font_size,
+                &self.config.annotation_background,
+            )?;
+            progress_bar.set_position(65);
+            (top_annotated, bottom_annotated)
+        } else {
+            progress_bar.set_message(format!(
+                "Skipping annotations for {} + {}",
+                top_filename, bottom_filename
+            ));
+            progress_bar.set_position(65);
+            (top_processed, bottom_processed)
+        };
+
+        // Stage 10: Rotate (if needed) and combine images (65-75%)
+        progress_bar.set_position(65);
+
+        let combined = if self.config.needs_pre_rotation {
+            // Pre-rotation mode (6c/7c portrait): rotate then combine side-by-side
+            progress_bar.set_message(format!(
+                "Rotating {} + {} for portrait",
+                top_filename, bottom_filename
+            ));
+
+            // Rotate both images 90° CW (240×800 → 800×240 becomes 240×800 → 800×240)
+            // Wait, dimensions after rotation: 240×800 → rotate90 → 800×240
+            progress_bar.set_position(67);
+            let top_rotated = image::imageops::rotate90(&top_annotated);
+            let bottom_rotated = image::imageops::rotate90(&bottom_annotated);
+            progress_bar.set_position(70);
+
+            // Now combine side-by-side like portraits
+            progress_bar.set_message(format!(
+                "Combining {} + {} (side-by-side rotated)",
+                top_filename, bottom_filename
+            ));
+            combine::combine_processed_portraits(
+                &top_rotated,
+                &bottom_rotated,
+                self.config.target_width,
+                self.config.target_height,
+                self.config.divider_width,
+                self.config.divider_color,
+            )?
+        } else {
+            // Normal mode: combine top-bottom
+            progress_bar.set_message(format!(
+                "Combining {} + {} (top-bottom)",
+                top_filename, bottom_filename
+            ));
+            progress_bar.set_position(70);
+            combine::combine_processed_landscapes(
+                &top_annotated,
+                &bottom_annotated,
+                self.config.target_width,
+                self.config.target_height,
+                self.config.divider_width,
+                self.config.divider_color,
+            )?
+        };
+        progress_bar.set_position(75);
+
+        // Save combined files to multiple formats (75-95%)
+        progress_bar.set_position(75);
+
+        let mut saved_paths = std::collections::HashMap::new();
+        let progress_per_format = 20.0 / self.config.output_formats.len() as f64;
+        let mut current_progress = 75.0;
+
+        for format in &self.config.output_formats {
+            let format_name = match format {
+                crate::cli::OutputType::Bmp => "combined BMP",
+                crate::cli::OutputType::Bin => "combined Binary",
+                crate::cli::OutputType::Jpg => "combined JPG",
+                crate::cli::OutputType::Png => "combined PNG",
+            };
+
+            progress_bar.set_message(format!(
+                "Saving {}: {} + {}",
+                format_name, top_filename, bottom_filename
+            ));
+
+            let output_path =
+                self.get_combined_format_output_path(output_dir, top_path, bottom_path, format);
+
+            if self.config.dry_run {
+                verbose_println(
+                    self.config.verbose,
+                    &format!(
+                        "Dry run: Would save {} '{}' + '{}' to {}",
+                        format_name,
+                        top_filename,
+                        bottom_filename,
+                        output_path.display()
+                    ),
+                );
+            } else {
+                match format {
+                    crate::cli::OutputType::Bmp
+                    | crate::cli::OutputType::Jpg
+                    | crate::cli::OutputType::Png => {
+                        combined.save(&output_path).with_context(|| {
+                            format!("Failed to save {}: {}", format_name, output_path.display())
+                        })?;
+                    }
+                    crate::cli::OutputType::Bin => {
+                        // Use appropriate binary format based on display type
+                        let binary_data = match self.config.processing_type {
+                            ProcessingType::BlackWhite => {
+                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
+                                binary::convert_to_esp32_binary(&combined)?
+                            }
+                            ProcessingType::SixColor | ProcessingType::SevenColor => {
+                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                                binary::convert_to_demo_bitmap_mode1(&combined)?
+                            }
+                        };
+                        std::fs::write(&output_path, &binary_data).with_context(|| {
+                            format!("Failed to save combined binary: {}", output_path.display())
+                        })?;
+                    }
+                }
+
+                saved_paths.insert(format.clone(), output_path);
+            }
+
+            current_progress += progress_per_format;
+            progress_bar.set_position(current_progress as u64);
+        }
+        progress_bar.set_position(95);
+
+        // Stage 12: Add to optimization report if enabled (95-100%)
+        progress_bar.set_position(95);
+        if self.config.optimization_report {
+            let top_was_rotated = top_orientation != orientation::ExifOrientation::Undefined
+                && top_orientation != orientation::ExifOrientation::TopLeft;
+            let bottom_was_rotated = bottom_orientation != orientation::ExifOrientation::Undefined
+                && bottom_orientation != orientation::ExifOrientation::TopLeft;
+
+            let top_color_skipped = top_analysis
+                .as_ref()
+                .map_or(false, |a| a.is_pastel_toned && !top_optimized_auto_color);
+            let bottom_color_skipped = bottom_analysis
+                .as_ref()
+                .map_or(false, |a| a.is_pastel_toned && !bottom_optimized_auto_color);
+
+            let top_entry = optimization_report::OptimizationEntry {
+                input_filename: optimization_report::extract_filename(top_path),
+                output_filename: format!(
+                    "{} (top)",
+                    optimization_report::extract_filename(top_path)
+                ),
+                dither_method: top_optimized_dither,
+                dither_strength: top_optimized_strength,
+                contrast: top_optimized_contrast,
+                auto_color: top_optimized_auto_color,
+                people_detected: top_detection
+                    .as_ref()
+                    .map_or(false, |d| d.person_count > 0),
+                people_count: top_detection.as_ref().map_or(0, |d| d.person_count),
+                is_pastel: top_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                was_rotated: top_was_rotated,
+                color_skipped: top_color_skipped,
+            };
+
+            let bottom_entry = optimization_report::OptimizationEntry {
+                input_filename: optimization_report::extract_filename(bottom_path),
+                output_filename: format!(
+                    "{} (bottom)",
+                    optimization_report::extract_filename(bottom_path)
+                ),
+                dither_method: bottom_optimized_dither,
+                dither_strength: bottom_optimized_strength,
+                contrast: bottom_optimized_contrast,
+                auto_color: bottom_optimized_auto_color,
+                people_detected: bottom_detection
+                    .as_ref()
+                    .map_or(false, |d| d.person_count > 0),
+                people_count: bottom_detection.as_ref().map_or(0, |d| d.person_count),
+                is_pastel: bottom_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                was_rotated: bottom_was_rotated,
+                color_skipped: bottom_color_skipped,
+            };
+
+            let combined_output = saved_paths
+                .get(&self.config.output_formats[0])
+                .and_then(|p| p.file_name())
+                .and_then(|f| f.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            let pair_entry = optimization_report::LandscapePairEntry {
+                top: top_entry,
+                bottom: bottom_entry,
+                combined_output,
+            };
+
+            self.optimization_report
+                .lock()
+                .unwrap()
+                .add_landscape_pair(pair_entry);
+        }
+        progress_bar.set_position(100);
+
+        let individual_landscapes = vec![
+            IndividualPortraitResult {
+                path: top_path.to_path_buf(),
+                people_detected: top_detection
+                    .as_ref()
+                    .map_or(false, |d| d.person_count > 0),
+                people_count: top_detection.as_ref().map_or(0, |d| d.person_count),
+                confidence: top_detection.as_ref().map_or(0.0, |d| d.confidence),
+            },
+            IndividualPortraitResult {
+                path: bottom_path.to_path_buf(),
+                people_detected: bottom_detection
+                    .as_ref()
+                    .map_or(false, |d| d.person_count > 0),
+                people_count: bottom_detection.as_ref().map_or(0, |d| d.person_count),
+                confidence: bottom_detection.as_ref().map_or(0.0, |d| d.confidence),
+            },
+        ];
+
+        let combined_people_detected = individual_landscapes.iter().any(|p| p.people_detected);
+        let combined_people_count = individual_landscapes.iter().map(|p| p.people_count).sum();
+
+        Ok(ProcessingResult {
+            input_path: top_path.to_path_buf(), // Use first image as representative
+            output_paths: saved_paths,
+            image_type: ImageType::CombinedLandscape,
+            processing_time: start_time.elapsed(),
+            people_detected: combined_people_detected,
+            people_count: combined_people_count,
+            individual_portraits: Some(individual_landscapes),
         })
     }
 
@@ -2801,4 +3600,6 @@ pub enum ImageType {
     Portrait,
     #[allow(dead_code)]
     CombinedPortrait,
+    #[allow(dead_code)]
+    CombinedLandscape,
 }

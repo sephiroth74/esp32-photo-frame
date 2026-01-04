@@ -106,8 +106,9 @@ photo_frame_error_t sd_card::begin() {
     // Using separate HSPI bus for SD card
     log_i("Initializing HSPI bus for SD card");
     hspi.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
+    delay(100);
 
-    if (!SD_CARD.begin(SD_CS_PIN, hspi)) {
+    if (!SD_CARD.begin(SD_CS_PIN, hspi, 2000000U)) {
         log_e("Failed to initialize SD card on HSPI");
         return error_type::CardMountFailed;
     }

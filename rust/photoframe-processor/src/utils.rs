@@ -59,9 +59,8 @@ pub fn validate_inputs(args: &Args) -> Result<()> {
         }
     }
 
-    // Validate size format
-    args.parse_size()
-        .map_err(|e| anyhow::anyhow!("Size validation failed: {}", e))?;
+    // Size is determined automatically from display type and orientation
+    // No validation needed
 
     // Validate extensions
     let extensions = args.parse_extensions();
