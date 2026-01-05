@@ -1,6 +1,6 @@
 [package]
 name = "photoframe-processor"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Alessandro Crugnola"]
 description = "High-performance image processor for converting images to binary or bitmaps ready files to be displayed on ESP32 board with e-paper display."
@@ -74,10 +74,12 @@ prettytable-rs = "0.10.0"
 eframe = { version = "0.33.3", optional = true }
 egui = { version = "0.33.3", optional = true }
 rfd = { version = "0.16.0", optional = true }  # Native file dialogs
+dirs = { version = "6.0.0", optional = true }  # Config directory
+font-kit = { version = "0.14.2", optional = true }  # System font enumeration
 
 [features]
 default = []
-gui = ["eframe", "egui", "rfd"]
+gui = ["eframe", "egui", "rfd", "dirs", "font-kit"]
 test_dithering = []
 
 [profile.release]

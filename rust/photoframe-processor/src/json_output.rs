@@ -28,10 +28,7 @@ pub enum JsonMessage {
         processing_time_ms: u128,
     },
     /// File processing failed
-    FileFailed {
-        input_path: String,
-        error: String,
-    },
+    FileFailed { input_path: String, error: String },
     /// Processing summary
     Summary {
         total_files: usize,
@@ -77,6 +74,7 @@ impl JsonMessage {
     }
 
     /// Create and emit file completed message
+    #[allow(dead_code)]
     pub fn file_completed(
         input_path: &PathBuf,
         output_paths: &[(PathBuf, String)],
@@ -94,6 +92,7 @@ impl JsonMessage {
     }
 
     /// Create and emit file failed message
+    #[allow(dead_code)]
     pub fn file_failed(input_path: &PathBuf, error: impl Into<String>) {
         Self::FileFailed {
             input_path: input_path.display().to_string(),

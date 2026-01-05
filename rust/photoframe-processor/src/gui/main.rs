@@ -17,8 +17,6 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "ESP32 Photo Frame Processor",
         options,
-        Box::new(|cc| {
-            Ok(Box::new(PhotoFrameApp::new(cc)))
-        }),
+        Box::new(|cc| Ok(Box::new(PhotoFrameApp::new(cc)))),
     )
 }

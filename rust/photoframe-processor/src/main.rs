@@ -2,12 +2,14 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 mod cli;
 mod image_processing;
-mod utils;
 mod json_output;
+mod utils;
 
 use cli::{Args, ColorType, DitherMethod};
 use image_processing::{
@@ -546,7 +548,16 @@ fn main() -> Result<()> {
     }
 
     // Create main processing progress bar (only if not in debug mode)
-    let main_progress = if debug_mode || json_progress {
+    let main_progress = if json_progress {
+        // JSON mode: Create a progress bar that emits JSON on updates
+        let pb = ProgressBar::hidden();
+        pb.set_length(image_files.len() as u64);
+        pb.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+
+        // Wrap with callback to emit JSON on progress
+        // Note: We'll emit JSON manually based on results count
+        pb
+    } else if debug_mode {
         ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(create_progress_bar(image_files.len() as u64));
@@ -591,8 +602,52 @@ fn main() -> Result<()> {
         pb
     };
 
+    // Spawn JSON progress monitoring thread if in JSON mode
+    let processing_complete = Arc::new(AtomicBool::new(false));
+    let json_monitor_handle = if json_progress {
+        let main_pb_clone = main_progress.clone();
+        let complete_flag = Arc::clone(&processing_complete);
+
+        Some(std::thread::spawn(move || {
+            let mut last_position = 0;
+
+            loop {
+                let current_position = main_pb_clone.position() as usize;
+                let total = main_pb_clone.length().unwrap_or(0) as usize;
+
+                if current_position != last_position {
+                    JsonMessage::progress(
+                        current_position,
+                        total,
+                        format!("Processing {}/{}", current_position, total),
+                    );
+                    last_position = current_position;
+                }
+
+                // Exit when processing is complete
+                if complete_flag.load(Ordering::Relaxed) {
+                    // Emit final progress with updated total
+                    let final_position = main_pb_clone.position() as usize;
+                    let final_total = main_pb_clone.length().unwrap_or(0) as usize;
+                    if final_position != last_position {
+                        JsonMessage::progress(
+                            final_position,
+                            final_total,
+                            format!("Processing {}/{}", final_position, final_total),
+                        );
+                    }
+                    break;
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(40)); // 25 FPS
+            }
+        }))
+    } else {
+        None
+    };
+
     // Process images based on mode
-    let (results, skipped_results) = if debug_mode || json_progress {
+    let (results, skipped_results) = if debug_mode {
         verbose_println(true, "Debug mode: visualizing detection boxes...");
 
         // In debug mode, process all images as a flat list (no pairing)
@@ -614,31 +669,18 @@ fn main() -> Result<()> {
         )?
     };
 
+    // Signal processing completion and wait for JSON monitor thread to finish
+    processing_complete.store(true, Ordering::Relaxed);
+    if let Some(handle) = json_monitor_handle {
+        let _ = handle.join();
+    }
+
     // Finish all progress bars (only if not in debug mode)
     if json_progress {
-        // JSON mode: emit file completion events for all results
-        for result in &results {
-            match result {
-                Ok(processing_result) => {
-                    // Collect output paths from the result
-                    let output_paths: Vec<(std::path::PathBuf, String)> = processing_result
-                        .output_paths
-                        .iter()
-                        .map(|(format, path)| (path.clone(), format!("{:?}", format)))
-                        .collect();
-
-                    JsonMessage::file_completed(
-                        &processing_result.input_path,
-                        &output_paths,
-                        processing_result.processing_time.as_millis(),
-                    );
-                }
-                Err(e) => {
-                    // Extract path from error if possible, otherwise use generic path
-                    JsonMessage::file_failed(&std::path::PathBuf::from("unknown"), e.to_string());
-                }
-            }
-        }
+        // JSON mode: emit final progress with actual processed count
+        // Some images may not be processed (e.g., unpaired portraits in landscape mode)
+        let actual_processed = results.len();
+        JsonMessage::progress(actual_processed, image_files.len(), "Processing complete");
     } else if debug_mode {
         verbose_println(true, "✓ Processing complete!");
     } else {
@@ -696,327 +738,328 @@ fn main() -> Result<()> {
         };
         println!("{}", header);
 
-    let processed_label = if dry_run_mode {
-        "Would be processed:"
-    } else {
-        "Successfully processed:"
-    };
-    println!(
-        "  {}: {}",
-        processed_label,
-        style(successful).bold().green()
-    );
-    if failed > 0 {
-        println!("  Failed: {}", style(failed).bold().red());
-    }
-    if skipped > 0 {
-        println!(
-            "  Skipped (already exist): {}",
-            style(skipped).bold().yellow()
-        );
-    }
-
-    // Image type statistics
-    if portraits_processed > 0 || landscapes_processed > 0 {
-        println!();
-        println!("{}", style("Image Types:").bold().blue());
-        if landscapes_processed > 0 {
-            println!(
-                "  Landscape images: {}",
-                style(landscapes_processed).bold().cyan()
-            );
-        }
-        if portraits_processed > 0 {
-            println!(
-                "  Portrait images: {} (combined into landscape pairs)",
-                style(portraits_processed).bold().magenta()
-            );
-        }
-    }
-
-    // People detection statistics (only show if AI feature was used)
-    if people_hits > 0 || people_misses > 0 {
-        println!();
-        println!("{}", style("People Detection Results:").bold().cyan());
-        println!(
-            "  Images with people detected: {}",
-            style(people_hits).bold().green()
-        );
-        println!(
-            "  Images without people: {}",
-            style(people_misses).bold().yellow()
-        );
-        if people_hits > 0 {
-            println!(
-                "  Total people found: {}",
-                style(total_people_found).bold().cyan()
-            );
-            println!(
-                "  Average people per image: {:.1}",
-                style(format!(
-                    "{:.1}",
-                    total_people_found as f64 / people_hits as f64
-                ))
-                .dim()
-            );
-        }
-        let detection_rate = if (people_hits + people_misses) > 0 {
-            (people_hits as f64 / (people_hits + people_misses) as f64) * 100.0
+        let processed_label = if dry_run_mode {
+            "Would be processed:"
         } else {
-            0.0
+            "Successfully processed:"
         };
         println!(
-            "  People detection rate: {:.1}%",
-            style(format!("{:.1}%", detection_rate)).bold()
+            "  {}: {}",
+            processed_label,
+            style(successful).bold().green()
         );
-    }
+        if failed > 0 {
+            println!("  Failed: {}", style(failed).bold().red());
+        }
+        if skipped > 0 {
+            println!(
+                "  Skipped (already exist): {}",
+                style(skipped).bold().yellow()
+            );
+        }
 
-    // Print processing report table if enabled (replaces detailed results)
-    if args.report {
-        println!();
-        let report = engine.get_optimization_report();
-        let report_guard = report.lock().unwrap();
-        report_guard.print();
-    } else if successful > 0 {
-        // Show simple detailed results only if report is not enabled
-        println!();
-        let detailed_header = if dry_run_mode {
-            style("Detailed Simulation Results:").bold().blue()
-        } else {
-            style("Detailed Processing Results:").bold().blue()
-        };
-        println!("{}", detailed_header);
-        let mut success_count = 0;
-        for (i, result) in results.iter().enumerate() {
-            if let Ok(processing_result) = result {
-                success_count += 1;
-                let filename = if i < image_files.len() {
-                    image_files[i]
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or("unknown")
-                } else {
-                    "unknown"
-                };
+        // Image type statistics
+        if portraits_processed > 0 || landscapes_processed > 0 {
+            println!();
+            println!("{}", style("Image Types:").bold().blue());
+            if landscapes_processed > 0 {
+                println!(
+                    "  Landscape images: {}",
+                    style(landscapes_processed).bold().cyan()
+                );
+            }
+            if portraits_processed > 0 {
+                println!(
+                    "  Portrait images: {} (combined into landscape pairs)",
+                    style(portraits_processed).bold().magenta()
+                );
+            }
+        }
 
-                // Show image type
-                let image_type = match processing_result.image_type {
-                    ImageType::Portrait => style("Portrait").magenta(),
-                    ImageType::Landscape => style("Landscape").cyan(),
-                    ImageType::CombinedPortrait => style("Combined H").yellow(),
-                    ImageType::CombinedLandscape => style("Combined V").yellow(),
-                };
+        // People detection statistics (only show if AI feature was used)
+        if people_hits > 0 || people_misses > 0 {
+            println!();
+            println!("{}", style("People Detection Results:").bold().cyan());
+            println!(
+                "  Images with people detected: {}",
+                style(people_hits).bold().green()
+            );
+            println!(
+                "  Images without people: {}",
+                style(people_misses).bold().yellow()
+            );
+            if people_hits > 0 {
+                println!(
+                    "  Total people found: {}",
+                    style(total_people_found).bold().cyan()
+                );
+                println!(
+                    "  Average people per image: {:.1}",
+                    style(format!(
+                        "{:.1}",
+                        total_people_found as f64 / people_hits as f64
+                    ))
+                    .dim()
+                );
+            }
+            let detection_rate = if (people_hits + people_misses) > 0 {
+                (people_hits as f64 / (people_hits + people_misses) as f64) * 100.0
+            } else {
+                0.0
+            };
+            println!(
+                "  People detection rate: {:.1}%",
+                style(format!("{:.1}%", detection_rate)).bold()
+            );
+        }
 
-                // Show people detection result
-                let people_info = if processing_result.people_detected {
-                    if processing_result.people_count == 1 {
-                        style(format!("✓ {} person", processing_result.people_count)).green()
+        // Print processing report table if enabled (replaces detailed results)
+        if args.report {
+            println!();
+            let report = engine.get_optimization_report();
+            let report_guard = report.lock().unwrap();
+            report_guard.print();
+        } else if successful > 0 {
+            // Show simple detailed results only if report is not enabled
+            println!();
+            let detailed_header = if dry_run_mode {
+                style("Detailed Simulation Results:").bold().blue()
+            } else {
+                style("Detailed Processing Results:").bold().blue()
+            };
+            println!("{}", detailed_header);
+            let mut success_count = 0;
+            for (i, result) in results.iter().enumerate() {
+                if let Ok(processing_result) = result {
+                    success_count += 1;
+                    let filename = if i < image_files.len() {
+                        image_files[i]
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("unknown")
                     } else {
-                        style(format!("✓ {} people", processing_result.people_count)).green()
-                    }
-                } else {
-                    style(format!("○ No people")).dim()
-                };
+                        "unknown"
+                    };
 
-                // Show destination filenames in dry-run mode
-                let destination_info = if dry_run_mode {
-                    // Get the first output path as an example (they all have the same stem)
-                    if let Some((_, first_path)) = processing_result.output_paths.iter().next() {
-                        if let Some(dest_filename) = first_path.file_stem().and_then(|s| s.to_str())
+                    // Show image type
+                    let image_type = match processing_result.image_type {
+                        ImageType::Portrait => style("Portrait").magenta(),
+                        ImageType::Landscape => style("Landscape").cyan(),
+                        ImageType::CombinedPortrait => style("Combined H").yellow(),
+                        ImageType::CombinedLandscape => style("Combined V").yellow(),
+                    };
+
+                    // Show people detection result
+                    let people_info = if processing_result.people_detected {
+                        if processing_result.people_count == 1 {
+                            style(format!("✓ {} person", processing_result.people_count)).green()
+                        } else {
+                            style(format!("✓ {} people", processing_result.people_count)).green()
+                        }
+                    } else {
+                        style(format!("○ No people")).dim()
+                    };
+
+                    // Show destination filenames in dry-run mode
+                    let destination_info = if dry_run_mode {
+                        // Get the first output path as an example (they all have the same stem)
+                        if let Some((_, first_path)) = processing_result.output_paths.iter().next()
                         {
-                            format!(" → {}", style(dest_filename).cyan())
+                            if let Some(dest_filename) =
+                                first_path.file_stem().and_then(|s| s.to_str())
+                            {
+                                format!(" → {}", style(dest_filename).cyan())
+                            } else {
+                                String::new()
+                            }
                         } else {
                             String::new()
                         }
                     } else {
                         String::new()
-                    }
-                } else {
-                    String::new()
-                };
+                    };
 
-                println!(
-                    "  {}: {} [{}] - {}{}",
-                    style(format!("#{}", success_count)).dim(),
-                    style(filename).bold(),
-                    image_type,
-                    people_info,
-                    destination_info
-                );
+                    println!(
+                        "  {}: {} [{}] - {}{}",
+                        style(format!("#{}", success_count)).dim(),
+                        style(filename).bold(),
+                        image_type,
+                        people_info,
+                        destination_info
+                    );
 
-                // For combined portraits, show individual portrait detection results
-                if let Some(ref individual_results) = processing_result.individual_portraits {
-                    for (idx, portrait) in individual_results.iter().enumerate() {
-                        let portrait_filename = portrait
-                            .path
-                            .file_name()
-                            .and_then(|name| name.to_str())
-                            .unwrap_or("unknown");
+                    // For combined portraits, show individual portrait detection results
+                    if let Some(ref individual_results) = processing_result.individual_portraits {
+                        for (idx, portrait) in individual_results.iter().enumerate() {
+                            let portrait_filename = portrait
+                                .path
+                                .file_name()
+                                .and_then(|name| name.to_str())
+                                .unwrap_or("unknown");
 
-                        let portrait_people_info = if portrait.people_detected {
-                            if portrait.people_count == 1 {
-                                style(format!(
-                                    "✓ {} person (conf: {:.0}%)",
-                                    portrait.people_count,
-                                    portrait.confidence * 100.0
-                                ))
-                                .green()
+                            let portrait_people_info = if portrait.people_detected {
+                                if portrait.people_count == 1 {
+                                    style(format!(
+                                        "✓ {} person (conf: {:.0}%)",
+                                        portrait.people_count,
+                                        portrait.confidence * 100.0
+                                    ))
+                                    .green()
+                                } else {
+                                    style(format!(
+                                        "✓ {} people (conf: {:.0}%)",
+                                        portrait.people_count,
+                                        portrait.confidence * 100.0
+                                    ))
+                                    .green()
+                                }
                             } else {
-                                style(format!(
-                                    "✓ {} people (conf: {:.0}%)",
-                                    portrait.people_count,
-                                    portrait.confidence * 100.0
-                                ))
-                                .green()
-                            }
-                        } else {
-                            style(format!("○ No people")).dim()
-                        };
+                                style(format!("○ No people")).dim()
+                            };
 
-                        println!(
-                            "    └─ {}: {} - {}",
-                            style(format!("Portrait {}", idx + 1)).dim(),
-                            style(portrait_filename).bold(),
-                            portrait_people_info
-                        );
+                            println!(
+                                "    └─ {}: {} - {}",
+                                style(format!("Portrait {}", idx + 1)).dim(),
+                                style(portrait_filename).bold(),
+                                portrait_people_info
+                            );
+                        }
                     }
                 }
             }
         }
-    }
 
-    // Emit JSON summary or print normal output
-    if json_progress {
-        // JSON mode: emit final summary
-        JsonMessage::summary(
-            image_files.len(),
-            successful,
-            failed,
-            total_time.as_secs_f64(),
-        );
-    } else {
-        // Normal mode: print performance stats
-        println!();
-        println!("{}", style("Performance:").bold().blue());
-        println!(
-            "  Total processing time: {}",
-            style(format_duration(total_time)).bold()
-        );
-        println!(
-            "  Average time per image: {}",
-            style(format_duration(total_time / image_files.len() as u32)).dim()
-        );
-
-        println!();
-        let output_header = if dry_run_mode {
-            style("Output files (would be created):").bold().cyan()
+        // Emit JSON summary or print normal output
+        if json_progress {
+            // JSON mode: emit final summary
+            JsonMessage::summary(
+                image_files.len(),
+                successful,
+                failed,
+                total_time.as_secs_f64(),
+            );
         } else {
-            style("Output files:").bold().green()
-        };
-        println!("{}", output_header);
-        let location_label = if dry_run_mode {
-            "Would be saved to:"
-        } else {
-            "All files:"
-        };
-        println!("  {}: {}", location_label, args.output_dir.display());
-    }
+            // Normal mode: print performance stats
+            println!();
+            println!("{}", style("Performance:").bold().blue());
+            println!(
+                "  Total processing time: {}",
+                style(format_duration(total_time)).bold()
+            );
+            println!(
+                "  Average time per image: {}",
+                style(format_duration(total_time / image_files.len() as u32)).dim()
+            );
 
-    if dry_run_mode {
-        println!();
-        println!("{}", style("💡 Dry Run Mode:").bold().yellow());
-        println!("  • No files were created during this simulation");
-        println!("  • Remove --dry-run to actually process the images");
-        println!("  • Output formats: {:?}", output_formats);
-    }
+            println!();
+            let output_header = if dry_run_mode {
+                style("Output files (would be created):").bold().cyan()
+            } else {
+                style("Output files:").bold().green()
+            };
+            println!("{}", output_header);
+            let location_label = if dry_run_mode {
+                "Would be saved to:"
+            } else {
+                "All files:"
+            };
+            println!("  {}: {}", location_label, args.output_dir.display());
+        }
 
-    if failed > 0 {
-        println!();
-        println!("{}", style("Errors encountered:").bold().red());
-        let mut error_count = 0;
-        for (i, result) in results.iter().enumerate() {
-            if let Err(e) = result {
-                error_count += 1;
-                // Try to get the actual filename from the image_files list
-                let filename = if i < image_files.len() {
-                    image_files[i]
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or("unknown")
-                } else {
-                    "unknown"
-                };
+        if dry_run_mode {
+            println!();
+            println!("{}", style("💡 Dry Run Mode:").bold().yellow());
+            println!("  • No files were created during this simulation");
+            println!("  • Remove --dry-run to actually process the images");
+            println!("  • Output formats: {:?}", output_formats);
+        }
+
+        if failed > 0 {
+            println!();
+            println!("{}", style("Errors encountered:").bold().red());
+            let mut error_count = 0;
+            for (i, result) in results.iter().enumerate() {
+                if let Err(e) = result {
+                    error_count += 1;
+                    // Try to get the actual filename from the image_files list
+                    let filename = if i < image_files.len() {
+                        image_files[i]
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("unknown")
+                    } else {
+                        "unknown"
+                    };
+                    println!(
+                        "  {}: {} - {}",
+                        style(format!("#{}", error_count)).dim(),
+                        style(filename).bold().red(),
+                        e
+                    );
+                }
+            }
+
+            if error_count > 0 {
+                println!();
                 println!(
-                    "  {}: {} - {}",
-                    style(format!("#{}", error_count)).dim(),
-                    style(filename).bold().red(),
-                    e
+                    "{}",
+                    style(format!(
+                        "⚠ {} errors occurred during processing",
+                        error_count
+                    ))
+                    .bold()
+                    .yellow()
                 );
+                println!("  Check image files and try again with --verbose for more details");
             }
         }
 
-        if error_count > 0 {
+        // Show skipped files if any
+        if !skipped_results.is_empty() {
+            println!();
+            println!(
+                "{}",
+                style("Skipped files (already exist):").bold().yellow()
+            );
+            for (i, skipped) in skipped_results.iter().enumerate() {
+                let filename = skipped
+                    .input_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("unknown");
+
+                let reason_desc = match skipped.reason {
+                    SkipReason::LandscapeExists => "skipped",
+                    SkipReason::PortraitInCombined => "skipped",
+                };
+
+                let existing_filename = skipped
+                    .existing_output_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("unknown");
+
+                println!(
+                    "  {}: {} - {} (existing: {})",
+                    style(format!("#{}", i + 1)).dim(),
+                    style(filename).bold().yellow(),
+                    reason_desc,
+                    style(existing_filename).dim()
+                );
+            }
+
             println!();
             println!(
                 "{}",
                 style(format!(
-                    "⚠ {} errors occurred during processing",
-                    error_count
+                    "ℹ {} files skipped to avoid duplicates",
+                    skipped_results.len()
                 ))
                 .bold()
-                .yellow()
+                .blue()
             );
-            println!("  Check image files and try again with --verbose for more details");
+            println!("  Use --force to process all files regardless of existing outputs");
         }
-    }
-
-    // Show skipped files if any
-    if !skipped_results.is_empty() {
-        println!();
-        println!(
-            "{}",
-            style("Skipped files (already exist):").bold().yellow()
-        );
-        for (i, skipped) in skipped_results.iter().enumerate() {
-            let filename = skipped
-                .input_path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("unknown");
-
-            let reason_desc = match skipped.reason {
-                SkipReason::LandscapeExists => "skipped",
-                SkipReason::PortraitInCombined => "skipped",
-            };
-
-            let existing_filename = skipped
-                .existing_output_path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("unknown");
-
-            println!(
-                "  {}: {} - {} (existing: {})",
-                style(format!("#{}", i + 1)).dim(),
-                style(filename).bold().yellow(),
-                reason_desc,
-                style(existing_filename).dim()
-            );
-        }
-
-        println!();
-        println!(
-            "{}",
-            style(format!(
-                "ℹ {} files skipped to avoid duplicates",
-                skipped_results.len()
-            ))
-            .bold()
-            .blue()
-        );
-        println!("  Use --force to process all files regardless of existing outputs");
-    }
-
     } // End of !json_progress block
 
     Ok(())

@@ -1,12 +1,12 @@
 // Processing implementation for the GUI
 // This module contains the actual processing logic that runs in a background thread
 
-use super::{PhotoFrameApp, ProgressMessage, parse_hex_color};
+use super::{PhotoFrameApp, ProgressMessage};
+use image::Rgb;
 use photoframe_processor::cli::{ColorType, OutputType};
 use photoframe_processor::image_processing::{ProcessingConfig, ProcessingEngine, ProcessingType};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
-use image::Rgb;
 
 impl PhotoFrameApp {
     pub fn start_processing(&mut self) {
@@ -21,6 +21,9 @@ impl PhotoFrameApp {
             self.error_message = "Please select at least one output format".to_string();
             return;
         }
+
+        // Save configuration before starting
+        let _ = self.save_config();
 
         // Clear previous state
         self.is_processing = true;
@@ -44,10 +47,15 @@ impl PhotoFrameApp {
         };
 
         // Calculate dimensions automatically based on display type and orientation
-        let (target_width, target_height) = match (&self.processing_type, &self.target_orientation) {
+        let (target_width, target_height) = match (&self.processing_type, &self.target_orientation)
+        {
             // B/W displays: dimensions match visual orientation
-            (ColorType::BlackWhite, photoframe_processor::cli::TargetOrientation::Landscape) => (800, 480),
-            (ColorType::BlackWhite, photoframe_processor::cli::TargetOrientation::Portrait) => (480, 800),
+            (ColorType::BlackWhite, photoframe_processor::cli::TargetOrientation::Landscape) => {
+                (800, 480)
+            }
+            (ColorType::BlackWhite, photoframe_processor::cli::TargetOrientation::Portrait) => {
+                (480, 800)
+            }
             // 6C/7C displays: always hardware dimensions 800×480
             (ColorType::SixColor | ColorType::SevenColor, _) => (800, 480),
         };
@@ -55,7 +63,10 @@ impl PhotoFrameApp {
         // Determine if pre-rotation is needed (only for 6c/7c portrait)
         let needs_pre_rotation = matches!(
             (&self.processing_type, &self.target_orientation),
-            (ColorType::SixColor | ColorType::SevenColor, photoframe_processor::cli::TargetOrientation::Portrait)
+            (
+                ColorType::SixColor | ColorType::SevenColor,
+                photoframe_processor::cli::TargetOrientation::Portrait
+            )
         );
 
         let target_orientation = self.target_orientation.clone();
@@ -67,10 +78,18 @@ impl PhotoFrameApp {
 
         // Output formats
         let mut output_formats = Vec::new();
-        if self.output_bmp { output_formats.push(OutputType::Bmp); }
-        if self.output_bin { output_formats.push(OutputType::Bin); }
-        if self.output_jpg { output_formats.push(OutputType::Jpg); }
-        if self.output_png { output_formats.push(OutputType::Png); }
+        if self.output_bmp {
+            output_formats.push(OutputType::Bmp);
+        }
+        if self.output_bin {
+            output_formats.push(OutputType::Bin);
+        }
+        if self.output_jpg {
+            output_formats.push(OutputType::Jpg);
+        }
+        if self.output_png {
+            output_formats.push(OutputType::Png);
+        }
 
         // People detection
         let detect_people = self.detect_people;
@@ -97,23 +116,24 @@ impl PhotoFrameApp {
         let divider_color_str = self.divider_color.clone();
 
         // Parse divider color
-        let divider_color = parse_hex_color(&divider_color_str).unwrap_or(Rgb([255, 255, 255]));
+        let divider_color =
+            super::parse_hex_color(&divider_color_str).unwrap_or(Rgb([255, 255, 255]));
 
         // Processing options
         let force = self.force;
         let dry_run = self.dry_run;
         let debug = self.debug;
-        let verbose = self.verbose;
         let report = self.report;
         let jobs = if self.jobs == 0 {
-            // Auto-detect CPU cores - fallback to 4 if detection fails
             std::thread::available_parallelism()
                 .map(|p| p.get())
                 .unwrap_or(4)
         } else {
             self.jobs
         };
-        let extensions: Vec<String> = self.extensions.split(',')
+        let extensions: Vec<String> = self
+            .extensions
+            .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
@@ -124,12 +144,12 @@ impl PhotoFrameApp {
                 processing_type,
                 target_width,
                 target_height,
-                auto_orientation: true, // Always enabled for smart orientation detection
+                auto_orientation: true,
                 font_name: font,
                 font_size: pointsize,
                 annotation_background: annotate_background,
                 extensions,
-                verbose,
+                verbose: false,
                 parallel_jobs: jobs,
                 output_formats,
                 detect_people,
@@ -150,14 +170,17 @@ impl PhotoFrameApp {
                 optimization_report: report,
                 target_orientation,
                 needs_pre_rotation,
-                json_progress: false, // GUI doesn't use JSON progress (uses internal channel)
+                json_progress: false,
             };
 
             // Create processing engine
             let engine = match ProcessingEngine::new(config) {
                 Ok(e) => e,
                 Err(e) => {
-                    let _ = tx.send(ProgressMessage::Error(format!("Failed to create processing engine: {}", e)));
+                    let _ = tx.send(ProgressMessage::Error(format!(
+                        "Failed to create processing engine: {}",
+                        e
+                    )));
                     return;
                 }
             };
@@ -166,13 +189,18 @@ impl PhotoFrameApp {
             let image_files = match engine.discover_images(&[input_path]) {
                 Ok(files) => files,
                 Err(e) => {
-                    let _ = tx.send(ProgressMessage::Error(format!("Failed to discover images: {}", e)));
+                    let _ = tx.send(ProgressMessage::Error(format!(
+                        "Failed to discover images: {}",
+                        e
+                    )));
                     return;
                 }
             };
 
             if image_files.is_empty() {
-                let _ = tx.send(ProgressMessage::Error("No images found in input directory".to_string()));
+                let _ = tx.send(ProgressMessage::Error(
+                    "No images found in input directory".to_string(),
+                ));
                 return;
             }
 
@@ -180,36 +208,86 @@ impl PhotoFrameApp {
             let _ = tx.send(ProgressMessage::Progress {
                 current: 0,
                 total,
-                file: "Starting...".to_string()
+                file: "Starting...".to_string(),
             });
 
-            // Process images (simplified - no progress bars in GUI mode)
-            let mut success_count = 0;
-            let mut failed_count = 0;
+            // Create progress bars with channel callback
+            use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-            for (idx, image_path) in image_files.iter().enumerate() {
-                let filename = image_path.file_name()
-                    .and_then(|f| f.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+            let multi_progress = MultiProgress::new();
+            let main_progress = multi_progress.add(ProgressBar::new(total as u64));
+            main_progress.set_style(
+                ProgressStyle::with_template("{bar:40.green/blue} {pos}/{len} {msg}")
+                    .unwrap_or(ProgressStyle::default_bar())
+                    .progress_chars("██▌ "),
+            );
 
-                let _ = tx.send(ProgressMessage::Progress {
-                    current: idx + 1,
-                    total,
-                    file: filename,
-                });
+            // Spawn a thread to monitor progress and send updates via channel
+            let monitor_tx = tx.clone();
+            let monitor_pb = main_progress.clone();
+            std::thread::spawn(move || {
+                let mut last_pos = 0;
+                loop {
+                    let current_pos = monitor_pb.position() as usize;
+                    let total_len = monitor_pb.length().unwrap_or(0) as usize;
 
-                // TODO: Implement actual single image processing
-                // For now just simulate
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                success_count += 1;
-            }
+                    if current_pos != last_pos {
+                        let _ = monitor_tx.send(ProgressMessage::Progress {
+                            current: current_pos,
+                            total: total_len,
+                            file: format!("Processing {}/{}", current_pos, total_len),
+                        });
+                        last_pos = current_pos;
+                    }
 
-            let message = if failed_count == 0 {
-                format!("Successfully processed {} images", success_count)
+                    // Exit when progress is complete
+                    if total_len > 0 && current_pos >= total_len {
+                        break;
+                    }
+
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            });
+
+            // Create dummy thread progress bars (not used in GUI)
+            let thread_progress_bars = vec![ProgressBar::hidden(); jobs];
+            let completion_pb = multi_progress.add(ProgressBar::new(100));
+
+            // Process images using the real engine
+            let (results, skipped_results) = match engine.process_batch_with_smart_pairing(
+                &image_files,
+                &output_path,
+                &main_progress,
+                &thread_progress_bars,
+                &completion_pb,
+            ) {
+                Ok(res) => res,
+                Err(e) => {
+                    let _ = tx.send(ProgressMessage::Error(format!("Processing failed: {}", e)));
+                    return;
+                }
+            };
+
+            // Count successes and failures
+            let success_count = results.iter().filter(|r| r.is_ok()).count();
+            let failed_count = results.len() - success_count;
+            let skipped_count = skipped_results.len();
+
+            let message = if failed_count == 0 && skipped_count == 0 {
+                format!("✓ Successfully processed {} images", success_count)
+            } else if failed_count == 0 {
+                format!(
+                    "✓ Processed {} images ({} skipped)",
+                    success_count, skipped_count
+                )
             } else {
-                format!("Processed {} images ({} succeeded, {} failed)",
-                    total, success_count, failed_count)
+                format!(
+                    "Processed {} images ({} succeeded, {} failed, {} skipped)",
+                    success_count + failed_count,
+                    success_count,
+                    failed_count,
+                    skipped_count
+                )
             };
 
             let _ = tx.send(ProgressMessage::Complete {
@@ -240,15 +318,23 @@ impl PhotoFrameApp {
         let mut should_clear_receiver = false;
         for msg in messages {
             match msg {
-                ProgressMessage::Progress { current, total, file } => {
+                ProgressMessage::Progress {
+                    current,
+                    total,
+                    file,
+                } => {
                     self.processed_count = current;
                     self.total_count = total;
                     self.current_file = file;
                     if total > 0 {
-                        self.progress = (current as f32 / total as f32) * 100.0;
+                        self.progress = current as f32 / total as f32; // 0.0 to 1.0 for egui
                     }
                 }
-                ProgressMessage::Complete { success: _, failed: _, message } => {
+                ProgressMessage::Complete {
+                    success: _,
+                    failed: _,
+                    message,
+                } => {
                     self.is_processing = false;
                     self.results_message = message;
                     should_clear_receiver = true;

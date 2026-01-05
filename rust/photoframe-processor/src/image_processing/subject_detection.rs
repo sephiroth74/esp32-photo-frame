@@ -212,7 +212,8 @@ impl SubjectDetector {
         use std::process::Command;
 
         // Use custom python_path if provided, otherwise default to "python"
-        let python_interpreter = self.python_path
+        let python_interpreter = self
+            .python_path
             .as_ref()
             .map(|p| p.as_os_str())
             .unwrap_or_else(|| std::ffi::OsStr::new("python"));
@@ -238,10 +239,8 @@ impl SubjectDetector {
 
         // Parse JSON output
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: python_yolo_integration::FindSubjectResult =
-            serde_json::from_str(&stdout).map_err(|e| {
-                anyhow::anyhow!("Failed to parse JSON output: {} | Raw: {}", e, stdout)
-            })?;
+        let result: python_yolo_integration::FindSubjectResult = serde_json::from_str(&stdout)
+            .map_err(|e| anyhow::anyhow!("Failed to parse JSON output: {} | Raw: {}", e, stdout))?;
 
         Ok(result)
     }
@@ -278,7 +277,10 @@ impl SubjectDetector {
 
 /// Create a subject detector using the find_subject.py script
 #[allow(dead_code)]
-pub fn create_default_detector(script_path: &Path, python_path: Option<PathBuf>) -> Result<SubjectDetector> {
+pub fn create_default_detector(
+    script_path: &Path,
+    python_path: Option<PathBuf>,
+) -> Result<SubjectDetector> {
     if !script_path.exists() {
         return Err(anyhow::anyhow!(
             "find_subject.py script not found: {}",

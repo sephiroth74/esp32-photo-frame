@@ -211,10 +211,11 @@ impl ProcessingEngine {
 
     pub fn new(config: ProcessingConfig) -> Result<Self> {
         // Initialize thread pool with specified number of jobs
-        rayon::ThreadPoolBuilder::new()
+        // Note: build_global() can only be called once per process
+        // If it fails, the global pool is already initialized, which is fine
+        let _ = rayon::ThreadPoolBuilder::new()
             .num_threads(config.parallel_jobs)
-            .build_global()
-            .context("Failed to initialize thread pool")?;
+            .build_global();
 
         let subject_detector = if config.detect_people {
             if let Some(ref script_path) = config.python_script_path {
@@ -229,9 +230,15 @@ impl ProcessingEngine {
                         &format!("Using custom Python interpreter: {}", py_path.display()),
                     );
                 } else {
-                    verbose_println(config.verbose, "Using system Python interpreter (auto-detected)");
+                    verbose_println(
+                        config.verbose,
+                        "Using system Python interpreter (auto-detected)",
+                    );
                 }
-                match subject_detection::create_default_detector(script_path, config.python_path.clone()) {
+                match subject_detection::create_default_detector(
+                    script_path,
+                    config.python_path.clone(),
+                ) {
                     Ok(detector) => {
                         verbose_println(
                             config.verbose,
@@ -804,6 +811,30 @@ impl ProcessingEngine {
                 "Separated {} portrait images and {} landscape images",
                 portrait_files.len(),
                 landscape_files.len()
+            ),
+        );
+
+        // Calculate actual number of output images after pairing
+        let actual_output_count = match self.config.target_orientation {
+            crate::cli::TargetOrientation::Landscape => {
+                // Landscape target: landscapes processed individually + portraits paired (2→1)
+                landscape_files.len() + (portrait_files.len() / 2)
+            }
+            crate::cli::TargetOrientation::Portrait => {
+                // Portrait target: portraits processed individually + landscapes paired (2→1)
+                portrait_files.len() + (landscape_files.len() / 2)
+            }
+        };
+
+        // Update main progress bar with correct total
+        main_progress.set_length(actual_output_count as u64);
+
+        verbose_println(
+            self.config.verbose,
+            &format!(
+                "Will produce {} output images ({} input images after pairing)",
+                actual_output_count,
+                images_to_process.len()
             ),
         );
 
@@ -1792,25 +1823,19 @@ impl ProcessingEngine {
                     left_path, right_path, output_dir, index, thread_pb,
                 );
 
-                // Update main progress - increment by 2 since we processed 2 images
+                // Update main progress - increment by 1 since we generate 1 output (combined image)
                 let pairs_processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
-                main_progress.inc(2); // Each pair processes 2 images
-                let images_processed = pairs_processed * 2;
-                let total_portrait_images = portrait_pairs.len() * 2;
-                main_progress.set_message(format!(
-                    "Completed: {}/{}",
-                    images_processed, total_portrait_images
-                ));
+                main_progress.inc(1); // Each pair generates 1 combined output
+                main_progress.set_message(format!("Completed: {} portrait pairs", pairs_processed));
 
                 // Update completion progress
                 let progress_percent =
                     (pairs_processed as f64 / portrait_pairs.len() as f64) * 100.0;
                 completion_progress.set_position(progress_percent as u64);
                 completion_progress.set_message(format!(
-                    "Processing pairs: {}/{} ({} images)",
+                    "Processing portrait pairs: {}/{}",
                     pairs_processed,
-                    portrait_pairs.len(),
-                    images_processed
+                    portrait_pairs.len()
                 ));
 
                 // Mark thread as idle
@@ -2463,28 +2488,27 @@ impl ProcessingEngine {
 
                 // Process the landscape pair
                 let result = self.process_single_landscape_pair_with_progress(
-                    top_path, bottom_path, output_dir, index, thread_pb,
+                    top_path,
+                    bottom_path,
+                    output_dir,
+                    index,
+                    thread_pb,
                 );
 
-                // Update main progress - increment by 2 since we processed 2 images
+                // Update main progress - increment by 1 since we generate 1 output (combined image)
                 let pairs_processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
-                main_progress.inc(2); // Each pair processes 2 images
-                let images_processed = pairs_processed * 2;
-                let total_landscape_images = landscape_pairs.len() * 2;
-                main_progress.set_message(format!(
-                    "Completed: {}/{}",
-                    images_processed, total_landscape_images
-                ));
+                main_progress.inc(1); // Each pair generates 1 combined output
+                main_progress
+                    .set_message(format!("Completed: {} landscape pairs", pairs_processed));
 
                 // Update completion progress
                 let progress_percent =
                     (pairs_processed as f64 / landscape_pairs.len() as f64) * 100.0;
                 completion_progress.set_position(progress_percent as u64);
                 completion_progress.set_message(format!(
-                    "Processing pairs: {}/{} ({} images)",
+                    "Processing landscape pairs: {}/{}",
                     pairs_processed,
-                    landscape_pairs.len(),
-                    images_processed
+                    landscape_pairs.len()
                 ));
 
                 // Mark thread as idle
@@ -2616,10 +2640,10 @@ impl ProcessingEngine {
         let (resize_width, resize_height) = if self.config.needs_pre_rotation {
             // Portrait mode: resize to half-width × full-height (will be rotated to full-height × half-width)
             // 480×400 → rotate90 → 400×480, then combine side-by-side → 800×480
-            (self.config.target_height, self.config.target_width / 2)  // e.g., 480×400
+            (self.config.target_height, self.config.target_width / 2) // e.g., 480×400
         } else {
             // Landscape mode: standard full-width × half-height, combine top-bottom
-            (self.config.target_width, self.config.target_height / 2)  // e.g., 800×240
+            (self.config.target_width, self.config.target_height / 2) // e.g., 800×240
         };
 
         progress_bar.set_position(38);
@@ -2947,9 +2971,7 @@ impl ProcessingEngine {
                 dither_strength: top_optimized_strength,
                 contrast: top_optimized_contrast,
                 auto_color: top_optimized_auto_color,
-                people_detected: top_detection
-                    .as_ref()
-                    .map_or(false, |d| d.person_count > 0),
+                people_detected: top_detection.as_ref().map_or(false, |d| d.person_count > 0),
                 people_count: top_detection.as_ref().map_or(0, |d| d.person_count),
                 is_pastel: top_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
                 was_rotated: top_was_rotated,
@@ -2970,7 +2992,9 @@ impl ProcessingEngine {
                     .as_ref()
                     .map_or(false, |d| d.person_count > 0),
                 people_count: bottom_detection.as_ref().map_or(0, |d| d.person_count),
-                is_pastel: bottom_analysis.as_ref().map_or(false, |a| a.is_pastel_toned),
+                is_pastel: bottom_analysis
+                    .as_ref()
+                    .map_or(false, |a| a.is_pastel_toned),
                 was_rotated: bottom_was_rotated,
                 color_skipped: bottom_color_skipped,
             };
@@ -2998,9 +3022,7 @@ impl ProcessingEngine {
         let individual_landscapes = vec![
             IndividualPortraitResult {
                 path: top_path.to_path_buf(),
-                people_detected: top_detection
-                    .as_ref()
-                    .map_or(false, |d| d.person_count > 0),
+                people_detected: top_detection.as_ref().map_or(false, |d| d.person_count > 0),
                 people_count: top_detection.as_ref().map_or(0, |d| d.person_count),
                 confidence: top_detection.as_ref().map_or(0.0, |d| d.confidence),
             },

@@ -294,8 +294,14 @@ impl OptimizationReport {
             (total_pastel as f32 / total_images as f32) * 100.0
         );
         println!("   • Landscape images: {}", self.landscape_entries.len());
-        println!("   • Portrait pairs (side-by-side): {}", self.portrait_pairs.len());
-        println!("   • Landscape pairs (top-bottom): {}", self.landscape_pairs.len());
+        println!(
+            "   • Portrait pairs (side-by-side): {}",
+            self.portrait_pairs.len()
+        );
+        println!(
+            "   • Landscape pairs (top-bottom): {}",
+            self.landscape_pairs.len()
+        );
         println!("   • Individual portraits: {}", self.portrait_entries.len());
         println!();
     }

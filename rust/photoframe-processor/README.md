@@ -2,6 +2,11 @@
 
 High-performance Rust implementation of the ESP32 Photo Frame image processing pipeline with optimized performance and enhanced functionality.
 
+**Available as both CLI and GUI!** 🎨
+
+- **CLI**: Powerful command-line tool for batch processing and automation
+- **GUI**: User-friendly graphical interface built with egui (see [GUI_README.md](GUI_README.md))
+
 ## 🚀 Performance Benefits
 
 - **5-10x faster processing** with optimized algorithms
