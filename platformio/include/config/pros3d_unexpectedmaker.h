@@ -19,7 +19,9 @@
 // This approach resolves SPI conflicts that occur when both devices share the same bus
 
 // Enable separate SPI bus for SD card
-#define USE_HSPI_FOR_SD
+// Disabled: Using default SPI bus (VSPI) for better stability
+// SD card and display are never used simultaneously, so sharing the bus is safe
+// #define USE_HSPI_FOR_SD
 
 // #define SD_MMC_CLK_PIN 14 // SDIO CLK
 // #define SD_MMC_D0_PIN 6 // SDIO D0
@@ -28,12 +30,12 @@
 // #define SD_MMC_D1_PIN 21 // SDIO D1
 // #define SD_MMC_D2_PIN 15 // SDIO D2
 
-// SD Card - using custom HSPI bus
+// SD Card - sharing default SPI bus (VSPI) with display
 #define SD_USE_SPI          // Use SPI instead of SDIO for SD card
 #define SD_CS_PIN      12   // SD Card Chip Select (CS) - IO12
-#define SD_SCK_PIN     14   // SD SPI Clock - IO14 (HSPI)
-#define SD_MOSI_PIN    16   // SD SPI MOSI - IO16 (HSPI)
-#define SD_MISO_PIN    15   // SD SPI MISO - IO15 (HSPI)
+#define SD_SCK_PIN     36   // SD SPI Clock - IO36 (VSPI, shared with display)
+#define SD_MOSI_PIN    35   // SD SPI MOSI - IO35 (VSPI, shared with display)
+#define SD_MISO_PIN    37   // SD SPI MISO - IO37 (VSPI)
 
 // e-Paper Display - using default SPI (VSPI)
 #define EPD_BUSY_PIN 6   // IO6 - available digital pin

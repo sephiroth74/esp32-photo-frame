@@ -52,6 +52,15 @@ static const uint16_t input_buffer_pixels = 200; // Reduced to save DRAM (was 80
 static const uint16_t max_row_width       = 800; // Optimized for 800x480 display (was 1448)
 static const uint16_t max_palette_pixels  = 256; // for depth <= 8
 
+#ifdef ORIENTATION_LANDSCAPE
+static const uint8_t multiline_error_maxlines = 2;
+static const uint16_t multiline_error_h_padding = 200;
+#else
+static const uint8_t multiline_error_maxlines = 4;
+static const uint16_t multiline_error_h_padding = 80;
+#endif
+
+
 // Static buffers - using plenty of available memory
 uint8_t input_buffer[3 * input_buffer_pixels];        // up to depth 24
 uint8_t output_row_mono_buffer[max_row_width / 8];    // buffer for at least one row of b/w bits
@@ -435,7 +444,7 @@ void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const St
         draw_string(disp_w / 2, baseY, errMsgLn1.c_str(), CENTER);
         draw_string(disp_w / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
     } else {
-        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - 200, 2, 55);
+        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - multiline_error_h_padding, multiline_error_maxlines, 55);
     }
 
     display.drawInvertedBitmap(disp_w / 2 - 196 / 2,
@@ -476,7 +485,7 @@ void draw_error_with_details(const String& errMsgLn1,
         draw_string(disp_w / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
         baseY += 110; // Move to next line after 2 large lines
     } else {
-        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - 200, 2, 55);
+        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - multiline_error_h_padding, multiline_error_maxlines, 55);
         baseY += 55; // Move to next line after 1 large line
     }
 

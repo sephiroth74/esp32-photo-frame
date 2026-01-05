@@ -106,12 +106,15 @@ photo_frame_error_t sd_card::begin() {
     // Using separate HSPI bus for SD card
     log_i("Initializing HSPI bus for SD card");
     hspi.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
-    delay(100);
+    delay(250); // Increased delay for SD card power-up and stabilization
 
-    if (!SD_CARD.begin(SD_CS_PIN, hspi, 2000000U)) {
-        log_e("Failed to initialize SD card on HSPI");
+    // Use 1MHz for more stable operation (balance between speed and reliability)
+    // Too fast (2MHz+) causes timeouts, too slow (400kHz) may have issues during operations
+    if (!SD_CARD.begin(SD_CS_PIN, hspi, 1000000U)) {
+        log_e("Failed to initialize SD card on HSPI at 1MHz");
         return error_type::CardMountFailed;
     }
+    log_i("SD card initialized successfully at 1MHz");
 #else
     // Using default SPI bus for SD card
     log_i("Initializing default SPI bus for SD card");

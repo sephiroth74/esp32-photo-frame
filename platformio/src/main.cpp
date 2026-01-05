@@ -404,6 +404,14 @@ void setup()
     // Handle errors or process image file
     if (error != photo_frame::error_type::None) {
         RGB_SET_STATE(ERROR); // Show error status
+
+        // Set rotation for portrait mode
+        #if defined(ORIENTATION_PORTRAIT)
+            display.setRotation(1); // 90° CW rotation for portrait
+        #else
+            display.setRotation(0); // No rotation for landscape
+        #endif
+
         display.firstPage();
         do {
             photo_frame::renderer::draw_error(error);
@@ -413,6 +421,8 @@ void setup()
                 photo_frame::renderer::draw_last_update(now, refresh_delay.refresh_seconds);
             }
         } while (display.nextPage());
+
+        display.setRotation(0); // Reset rotation
     } else {
         // Process image file (validation and rendering)
         error = process_image_file(file,
@@ -475,8 +485,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         uint16_t error_code = 0;
 
         display.setFullWindow();
-        display.fillScreen(GxEPD_WHITE);
-        delay(500);
+        delay(1000);
 
 #if defined(DISP_6C) || defined(DISP_7C)
         // ============================================
@@ -604,9 +613,15 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         // Handle rendering errors in a separate loop to prevent cutoff
         if (rendering_failed) {
+            // Set rotation for portrait mode
+            #if defined(ORIENTATION_PORTRAIT)
+                display.setRotation(1); // 90° CW rotation for portrait
+            #else
+                display.setRotation(0); // No rotation for landscape
+            #endif
+
             display.firstPage();
             display.setFullWindow();
-            display.fillScreen(GxEPD_WHITE);
             do {
                 photo_frame::renderer::draw_error_with_details(
                     TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
@@ -623,6 +638,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
                     photo_frame::renderer::draw_weather_info(current_weather, box);
                 }
             } while (display.nextPage());
+
+            display.setRotation(0); // Reset rotation
         }
 
         file.close(); // Close the file after drawing
