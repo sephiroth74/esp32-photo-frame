@@ -48,3 +48,6 @@ rust/photoframe-processor/GUI_README.md
 scripts/bin2progmem.py
 platformio/data/test_photo_6c_portrait.bin
 rust/photoframe-processor/src/main.rs.bak
+photoframe_flutter/FIX_SCRIPT.md
+photoframe_flutter/IMPLEMENTATION_GUIDE.md
+rust/photoframe-processor/PORTRAIT_PREROTATION_COMPLETE.md
