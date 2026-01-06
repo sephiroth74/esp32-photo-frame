@@ -16,11 +16,6 @@ name = "photoframe-processor"
 path = "src/main.rs"
 
 [[bin]]
-name = "photoframe-processor-gui"
-path = "src/gui/main.rs"
-required-features = ["gui"]
-
-[[bin]]
 name = "test-dithering"
 path = "src/bin/test_dithering.rs"
 required-features = ["test_dithering"]
@@ -70,16 +65,8 @@ rand = "0.9.2"
 # Table formatting
 prettytable-rs = "0.10.0"
 
-# GUI dependencies (optional, only for photoframe-processor-gui binary)
-eframe = { version = "0.33.3", optional = true }
-egui = { version = "0.33.3", optional = true }
-rfd = { version = "0.16.0", optional = true }  # Native file dialogs
-dirs = { version = "6.0.0", optional = true }  # Config directory
-font-kit = { version = "0.14.2", optional = true }  # System font enumeration
-
 [features]
 default = []
-gui = ["eframe", "egui", "rfd", "dirs", "font-kit"]
 test_dithering = []
 
 [profile.release]

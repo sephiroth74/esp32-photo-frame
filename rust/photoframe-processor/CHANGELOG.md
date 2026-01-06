@@ -5,6 +5,20 @@ All notable changes to the Photoframe Processor Rust tools will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-01-06
+
+### Removed
+- **Rust GUI Application** (`photoframe-processor-gui`)
+  - Removed egui-based GUI in favor of new Flutter macOS application
+  - Removed GUI-related dependencies: `eframe`, `egui`, `rfd`, `dirs`, `font-kit`
+  - Removed `--features gui` build option
+  - See `../../photoframe_flutter/` for the new native macOS GUI
+
+### Notes
+- The CLI tool (`photoframe-processor`) remains unchanged
+- For GUI functionality, use the new Flutter app: `cd ../../photoframe_flutter && flutter run -d macos`
+- All GUI features have been reimplemented in Flutter with native macOS UI
+
 ## [v1.1.0] - 2026-01-05
 
 ### Added

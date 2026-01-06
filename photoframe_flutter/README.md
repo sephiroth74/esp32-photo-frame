@@ -1,37 +1,37 @@
 # Photo Frame Processor - Flutter macOS
 
-GUI nativa macOS per il processore di immagini ESP32 Photo Frame, costruita con Flutter e [appkit_ui_elements](https://github.com/sephiroth74/appkit_ui_elements).
+Native macOS GUI for ESP32 Photo Frame image processor, built with Flutter and [appkit_ui_elements](https://github.com/sephiroth74/appkit_ui_elements).
 
-## ✨ Caratteristiche
+## ✨ Features
 
-- **Interfaccia nativa macOS**: Usa AppKit UI Elements per un'esperienza utente nativa
-- **Theme System**: Supporto completo per light/dark mode automatico
-- **Progress Real-time**: Monitoraggio del progresso tramite JSON output
-- **Persistenza Configurazione**: Salvataggio automatico delle impostazioni
-- **Integrazione con Rust**: Esecuzione diretta del binario `photoframe-processor`
+- **Native macOS Interface**: Uses AppKit UI Elements for a native user experience
+- **Theme System**: Full support for automatic light/dark mode
+- **Real-time Progress**: Progress monitoring via JSON output
+- **Configuration Persistence**: Automatic settings save
+- **Rust Integration**: Direct execution of `photoframe-processor` binary
 
-## 📋 Requisiti
+## 📋 Requirements
 
-- Flutter SDK 3.10.3 o superiore
-- macOS 11.0 (Big Sur) o superiore
-- Xcode 13 o superiore
-- Rust photoframe-processor compilato (v1.1.0+)
+- Flutter SDK 3.10.3 or higher
+- macOS 11.0 (Big Sur) or higher
+- Xcode 13 or higher
+- Rust photoframe-processor compiled (v1.1.0+)
 
-## 🚀 Installazione
+## 🚀 Installation
 
 ```bash
-# Clona il repository (se non l'hai già fatto)
+# Clone the repository (if you haven't already)
 cd /path/to/esp32-photo-frame
 
-# Installa le dipendenze Flutter
+# Install Flutter dependencies
 cd photoframe_flutter
 flutter pub get
 
-# Genera il codice JSON serialization
+# Generate JSON serialization code
 flutter pub run build_runner build
 ```
 
-## 🛠️ Compilazione
+## 🛠️ Building
 
 ### Development
 ```bash
@@ -43,43 +43,48 @@ flutter run -d macos
 flutter build macos --release
 ```
 
-Il binario compilato sarà disponibile in:
+The compiled binary will be available at:
 ```
 build/macos/Build/Products/Release/photoframe_flutter.app
 ```
 
-## 📦 Struttura del Progetto
+## 📦 Project Structure
 
 ```
 photoframe_flutter/
 ├── lib/
-│   ├── main.dart                      # Entry point con AppKitApp
+│   ├── main.dart                      # Entry point with AppKitApp
 │   ├── models/
-│   │   └── processing_config.dart     # Model della configurazione
+│   │   └── processing_config.dart     # Configuration model
 │   ├── providers/
-│   │   └── processing_provider.dart   # State management con Provider
-│   └── screens/
-│       └── home_screen.dart           # Schermata principale
-├── pubspec.yaml                       # Dipendenze Flutter
-└── README.md                          # Questo file
+│   │   └── processing_provider.dart   # State management with Provider
+│   ├── screens/
+│   │   └── home_screen.dart           # Main screen
+│   └── services/
+│       ├── font_service.dart          # System font enumeration
+│       └── window_preferences.dart    # Window size persistence
+├── pubspec.yaml                       # Flutter dependencies
+└── README.md                          # This file
 ```
 
-## 🎨 Interfaccia Utente
+## 🎨 User Interface
 
-L'interfaccia usa i seguenti componenti AppKit:
+The interface uses the following AppKit components:
 
-- **AppKitScaffold**: Struttura principale con toolbar
-- **AppKitGroupContainer**: Gruppi di controlli con titolo
-- **AppKitPushButton**: Pulsanti nativi macOS
-- **AppKitPopupButton**: Menu a tendina
-- **AppKitCheckbox**: Checkbox nativi
-- **AppKitSlider**: Slider nativi
-- **AppKitProgressBar**: Barra di progresso
+- **AppKitScaffold**: Main structure with toolbar
+- **AppKitGroupBox**: Control groups with title
+- **AppKitButton**: Native macOS buttons
+- **AppKitPopupButton**: Dropdown menus
+- **AppKitCheckbox**: Native checkboxes
+- **AppKitSlider**: Native sliders
+- **AppKitProgressBar**: Progress bar
+- **AppKitTextField**: Native text fields
+- **AppKitDialog**: Modal dialogs
 
-### Sezioni dell'interfaccia
+### Interface Sections
 
 1. **File Selection**
-   - Input e Output directory con file picker nativo
+   - Input and Output directories with native file picker
 
 2. **Display Settings**
    - Display Type (Black & White, 6-Color, 7-Color)
@@ -88,109 +93,137 @@ L'interfaccia usa i seguenti componenti AppKit:
 3. **Dithering Settings**
    - Auto-optimize checkbox
    - Dither method popup
-   - Strength e Contrast sliders (quando auto-optimize è off)
+   - Strength and Contrast sliders (when auto-optimize is off)
 
 4. **Output Formats**
-   - Checkbox multiple per BMP, BIN, JPEG, PNG
+   - Multiple checkboxes for BMP, BIN, JPEG, PNG
 
-5. **Process Button & Progress**
-   - Pulsante grande "Process Images"
-   - Progress bar e conteggio durante il processing
+5. **People Detection** (AI)
+   - Enable/disable people detection
+   - Python script and interpreter paths
+   - Confidence threshold slider
 
-6. **Progress Section**
-   - File corrente in elaborazione
-   - Messaggi di completamento/errore
+6. **Annotation Settings**
+   - Enable/disable annotation
+   - System font selector (native font enumeration)
+   - Font size and background color
 
-## 🔧 Configurazione
+7. **Divider Settings**
+   - Divider width and color for portrait image pairing
 
-### Persistenza Configurazione
+8. **Advanced Options**
+   - Force overwrite
+   - Dry run mode
+   - Debug mode
+   - Generate processing report
+   - Parallel jobs
+   - File extensions filter
 
-La configurazione viene salvata automaticamente in:
+9. **Processor Binary**
+   - Custom binary path selection
+   - Automatic fallback to common locations
+
+10. **Process Button & Progress**
+    - Large "Process Images" button
+    - Modal progress dialog with real-time updates
+    - Success/error messages
+
+## 🔧 Configuration
+
+### Configuration Persistence
+
+Configuration is automatically saved to:
 ```
 ~/Library/Application Support/it.sephiroth.photoframeFlutter/config.json
 ```
 
-Include tutti i parametri:
-- Percorsi input/output
-- Display type e orientation
+Includes all parameters:
+- Input/output paths
+- Display type and orientation
 - Dithering settings
 - Output formats
+- People detection settings
+- Annotation settings
+- Divider settings
 - Advanced options
+- Processor binary path
 
-### Integrazione Rust Binary
+### Window Persistence
 
-Il provider cerca il binario `photoframe-processor` in queste posizioni:
-1. `../rust/photoframe-processor/target/release/photoframe-processor` (relativo)
-2. Path assoluto nel progetto
-3. PATH di sistema
+Window size and position are automatically saved to:
+```
+~/Library/Application Support/it.sephiroth.photoframeFlutter/window_preferences.json
+```
 
-Per configurare un path personalizzato, modifica `_findProcessorBinary()` in `processing_provider.dart`.
+### Rust Binary Integration
 
-## 📝 Dipendenze Principali
+The provider searches for the `photoframe-processor` binary in these locations:
+1. `../rust/photoframe-processor/target/release/photoframe-processor` (relative)
+2. Absolute path in the project
+3. System PATH
+4. Custom path configured in the UI
+
+## 📝 Main Dependencies
 
 ```yaml
 dependencies:
-  appkit_ui_elements: ^0.2.1      # Componenti UI nativi macOS
+  appkit_ui_elements: ^0.2.2      # Native macOS UI components
   provider: ^6.1.2                # State management
-  file_picker: ^8.1.6             # File/directory picker nativo
-  path_provider: ^2.1.5           # Percorsi di sistema
-  json_annotation: ^4.9.0         # Serializzazione JSON
-  process_run: ^1.2.1             # Esecuzione processi
+  file_picker: ^10.3.8            # Native file/directory picker
+  path_provider: ^2.1.5           # System paths
+  json_annotation: ^4.9.0         # JSON serialization
+  process_run: ^1.2.1             # Process execution
+  window_manager: ^0.5.0          # Window management
 ```
-
-## 🚧 Funzionalità Future
-
-- [ ] Sezione Processing Options completa (AI detection)
-- [ ] Sezione Annotation Settings
-- [ ] Sezione Divider Settings
-- [ ] Advanced Options (force, dry-run, debug, etc.)
-- [ ] Visualizzazione log real-time dal processo
-- [ ] Anteprima immagini prima/dopo
-- [ ] Presets configurabili
-- [ ] Export/import configurazioni
-- [ ] Notifiche sistema al completamento
 
 ## 🐛 Troubleshooting
 
-### Build fallisce
-Assicurati di aver eseguito il code generation:
+### Build fails
+Make sure you've run code generation:
 ```bash
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-### Binary non trovato
-Verifica che il binario Rust sia compilato:
+### Binary not found
+Verify that the Rust binary is compiled:
 ```bash
 cd ../rust/photoframe-processor
 cargo build --release
 ```
 
-### AppKit UI non appare correttamente
-Verifica che la versione di appkit_ui_elements sia corretta:
+### AppKit UI doesn't appear correctly
+Verify that the appkit_ui_elements version is correct:
 ```bash
 flutter pub outdated
 flutter pub upgrade appkit_ui_elements
 ```
 
-## 📚 Riferimenti
+### File picker error
+Ensure entitlements are properly configured:
+- `com.apple.security.files.user-selected.read-only`
+- `com.apple.security.files.user-selected.read-write`
+
+These are already configured in `DebugProfile.entitlements` and `Release.entitlements`.
+
+## 📚 References
 
 - [Flutter Documentation](https://docs.flutter.dev/)
 - [appkit_ui_elements](https://github.com/sephiroth74/appkit_ui_elements)
 - [Provider Package](https://pub.dev/packages/provider)
 - [ESP32 Photo Frame Processor](https://github.com/sephiroth74/arduino/tree/main/esp32-photo-frame)
 
-## 📄 Licenza
+## 📄 License
 
-Questo progetto è parte del progetto ESP32 Photo Frame ed è rilasciato sotto licenza MIT.
+This project is part of the ESP32 Photo Frame project and is released under the MIT license.
 
-## 👤 Autore
+## 👤 Author
 
 Alessandro Crugnola
 
-## 🤝 Contributi
+## 🤝 Contributing
 
-Contributi, issues e feature requests sono benvenuti!
+Contributions, issues and feature requests are welcome!
 
 ---
 
-**Nota**: Questa è una versione iniziale dell'app Flutter. Molte funzionalità della GUI Rust (come AI detection, annotation settings, etc.) devono ancora essere implementate.
+**Note**: This Flutter app replaces the previous Rust GUI (photoframe-processor-gui). All features have been implemented with native macOS components for a better user experience.

@@ -948,11 +948,52 @@ void testDisplayImages() {
                     size_t bytesRead = imgFile.read(buffer, expectedSize);
 
                     if (bytesRead == expectedSize) {
-                        // Render using drawDemoBitmap with mode 1
+                        // Create fake data for statusbar overlays (like testPortraitImage)
+                        Serial.println(F("Creating fake data for statusbar overlays..."));
+
+                        // Fake date/time (current or fake time)
+                        DateTime fake_now(2026, 1, 6, 10, 15, 0);
+                        long fake_refresh_seconds = 1800; // 30 minutes
+
+                        // Fake battery info
+                        photo_frame::battery_info_t fake_battery;
+                        fake_battery.percent = 82.5f;
+                        fake_battery.millivolts = 4100;
+#ifndef USE_SENSOR_MAX1704X
+                        fake_battery.raw_value = 4100;
+                        fake_battery.raw_millivolts = 4100;
+#else
+                        fake_battery.cell_voltage = 4.10f;
+                        fake_battery.charge_rate = 0.0f;
+#endif
+
+                        // Fake image info
+                        uint32_t fake_image_index = i + 1;
+                        uint32_t fake_total_images = imageFiles.size();
+                        photo_frame::image_source_t fake_source = photo_frame::IMAGE_SOURCE_SDCARD;
+
+                        // Create GFXcanvas8 pointing to buffer for overlay drawing
+                        Serial.println(F("Creating canvas for overlay drawing..."));
+                        GFXcanvas8 canvas(DISP_WIDTH, DISP_HEIGHT, false);
+                        uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
+                        *bufferPtr = buffer;
+
+                        // Draw white overlay bar on top for status area
+                        Serial.println(F("Drawing white overlay bar..."));
+                        canvas.fillRect(0, 0, DISP_WIDTH, 16, 0xFF); // Top white bar
+
+                        // Draw overlays with icons using canvas-based renderer functions
+                        Serial.println(F("Drawing overlays with renderer functions..."));
+                        photo_frame::renderer::draw_last_update(canvas, fake_now, fake_refresh_seconds);
+                        photo_frame::renderer::draw_image_info(canvas, fake_image_index, fake_total_images, fake_source);
+                        photo_frame::renderer::draw_battery_status(canvas, fake_battery);
+
+                        // Render using drawDemoBitmap with mode 1 (modified buffer with overlays)
+                        Serial.println(F("Writing image with overlays to display..."));
                         auto renderStart = millis();
                         display.epd2.drawDemoBitmap(buffer, 0, 0, 0, DISP_WIDTH, DISP_HEIGHT, 1, false, false);
                         auto renderTime = millis() - renderStart;
-                        log_i("Rendered in %lu ms using drawDemoBitmap mode 1", renderTime);
+                        log_i("Rendered in %lu ms using drawDemoBitmap mode 1 with overlays", renderTime);
                         success = true;
                     } else {
                         log_e("Read %d bytes, expected %d", bytesRead, expectedSize);
@@ -1264,31 +1305,91 @@ void testPortraitImage() {
 // Test 5f: Official Library Image Test
 void testOfficialLibraryImage() {
     log_i("\n========================================");
-    log_i("Official Library Image Test");
+    log_i("Official Library Image Test WITH OVERLAYS");
     log_i("========================================");
 
     ensureDisplayInitialized();
+    ensureBatteryInitialized();
 
-    Serial.println(F("\nTesting official GxEPD2 library image..."));
+    Serial.println(F("\nTesting official GxEPD2 library image with overlays..."));
     Serial.println(F("Image: Bitmap7c800x480 (384000 bytes, standard format)"));
 
-    // Render using drawDemoBitmap() as used in the official example
-    // This is the special format for 6/7-color ACeP displays
-    Serial.println(F("Rendering image using drawDemoBitmap()..."));
+    // Copy image from PROGMEM to RAM buffer so we can add overlays
+    uint8_t* buffer = nullptr;
+#if CONFIG_SPIRAM_USE_CAPS_ALLOC || CONFIG_SPIRAM_USE_MALLOC
+    buffer = (uint8_t*)heap_caps_malloc(DISP_WIDTH * DISP_HEIGHT, MALLOC_CAP_SPIRAM);
+    if (buffer) {
+        Serial.println(F("Allocated buffer in PSRAM"));
+    }
+#else
+    buffer = (uint8_t*)malloc(DISP_WIDTH * DISP_HEIGHT);
+#endif
 
+    if (!buffer) {
+        Serial.println(F("ERROR: Failed to allocate buffer!"));
+        return;
+    }
+
+    Serial.println(F("Copying image from PROGMEM to RAM..."));
+    memcpy_P(buffer, Bitmap7c800x480, DISP_WIDTH * DISP_HEIGHT);
+
+    // Create fake data for statusbar overlays (like testPortraitImage)
+    Serial.println(F("Creating fake data for statusbar overlays..."));
+
+    // Fake date/time
+    DateTime fake_now(2026, 1, 6, 10, 15, 0);
+    long fake_refresh_seconds = 1800; // 30 minutes
+
+    // Fake battery info
+    photo_frame::battery_info_t fake_battery;
+    fake_battery.percent = 82.5f;
+    fake_battery.millivolts = 4100;
+#ifndef USE_SENSOR_MAX1704X
+    fake_battery.raw_value = 4100;
+    fake_battery.raw_millivolts = 4100;
+#else
+    fake_battery.cell_voltage = 4.10f;
+    fake_battery.charge_rate = 0.0f;
+#endif
+
+    // Fake image info
+    uint32_t fake_image_index = 1;
+    uint32_t fake_total_images = 1;
+    photo_frame::image_source_t fake_source = photo_frame::IMAGE_SOURCE_SDCARD;
+
+    // Create GFXcanvas8 pointing to buffer for overlay drawing
+    Serial.println(F("Creating canvas for overlay drawing..."));
+    GFXcanvas8 canvas(DISP_WIDTH, DISP_HEIGHT, false);
+    uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
+    *bufferPtr = buffer;
+
+    // Draw white overlay bar on top for status area
+    Serial.println(F("Drawing white overlay bar..."));
+    canvas.fillRect(0, 0, DISP_WIDTH, 16, 0xFF); // Top white bar
+
+    // Draw overlays with icons using canvas-based renderer functions
+    Serial.println(F("Drawing overlays with renderer functions..."));
+    photo_frame::renderer::draw_last_update(canvas, fake_now, fake_refresh_seconds);
+    photo_frame::renderer::draw_image_info(canvas, fake_image_index, fake_total_images, fake_source);
+    photo_frame::renderer::draw_battery_status(canvas, fake_battery);
+
+    // Render using drawDemoBitmap with mode 1 (modified buffer with overlays)
+    Serial.println(F("Rendering image with overlays using drawDemoBitmap()..."));
     auto renderStart = millis();
     // drawDemoBitmap(bitmap, x1, y1, x2, w, h, mode, invert, pgm)
-    // mode 0 = special format, pgm = true for PROGMEM
-    display.epd2.drawDemoBitmap(Bitmap7c800x480, 0, 0, 0, 800, 480, 0, false, true);
+    // mode 1 = standard format (1 byte per pixel), pgm = false for RAM
+    display.epd2.drawDemoBitmap(buffer, 0, 0, 0, DISP_WIDTH, DISP_HEIGHT, 1, false, false);
     auto renderTime = millis() - renderStart;
+
+    // Cleanup
+    free(buffer);
 
     log_i("Official library image test complete!");
     log_i("  Render time: %lu ms", renderTime);
 
-    Serial.println(F("\nOfficial library image rendered successfully"));
+    Serial.println(F("\nOfficial library image with overlays rendered successfully"));
+    Serial.println(F("Check if statusbar is visible on the display!"));
     Serial.println(F("Press any key to continue..."));
-
-
 }
 
 // ============================================================================
