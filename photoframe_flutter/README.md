@@ -107,7 +107,7 @@ L'interfaccia usa i seguenti componenti AppKit:
 
 La configurazione viene salvata automaticamente in:
 ```
-~/Library/Application Support/com.example.photoframeFlutter/config.json
+~/Library/Application Support/it.sephiroth.photoframeFlutter/config.json
 ```
 
 Include tutti i parametri:
