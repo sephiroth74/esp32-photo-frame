@@ -8,7 +8,7 @@
 PRODUCT_NAME = photoframe_flutter
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.photoframeFlutter
+PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.photoframeFlutter
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Alessandro Crugnola. All rights reserved.
