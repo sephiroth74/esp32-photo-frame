@@ -1204,36 +1204,36 @@ impl ProcessingEngine {
             annotated_img
         };
 
-        // Apply brightness adjustment (76-77%) - use optimized parameter
+        // Apply brightness and contrast adjustments (76-78%) - combined for efficiency
         progress_bar.set_position(76);
-        let brightness_adjusted_img = if optimized_brightness != 0 {
-            progress_bar.set_message(format!("{} - Adjusting brightness", filename));
+        let brightness_contrast_adjusted_img = if optimized_brightness != 0 || optimized_contrast != 0 {
+            if optimized_brightness != 0 && optimized_contrast != 0 {
+                progress_bar.set_message(format!("{} - Adjusting brightness and contrast", filename));
+            } else if optimized_brightness != 0 {
+                progress_bar.set_message(format!("{} - Adjusting brightness", filename));
+            } else {
+                progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+            }
             std::thread::yield_now();
-            let adjusted = color_correction::apply_brightness_adjustment(
-                &color_corrected_img,
-                optimized_brightness,
-            )?;
-            progress_bar.set_position(77);
-            adjusted
-        } else {
-            progress_bar.set_position(77);
-            color_corrected_img
-        };
 
-        // Apply contrast adjustment (77-78%) - use optimized parameter
-        progress_bar.set_position(77);
-        let contrast_adjusted_img = if optimized_contrast != 0 {
-            progress_bar.set_message(format!("{} - Adjusting contrast", filename));
-            std::thread::yield_now();
-            let adjusted = color_correction::apply_contrast_adjustment(
-                &brightness_adjusted_img,
-                optimized_contrast,
-            )?;
+            // Apply both together using ImageMagick when available
+            let adjusted = if color_correction::is_imagemagick_available() {
+                color_correction::apply_imagemagick_brightness_contrast_public(
+                    &color_corrected_img,
+                    optimized_brightness,
+                    optimized_contrast,
+                )?
+            } else {
+                // Fall back to separate operations
+                let temp = color_correction::apply_brightness_adjustment(&color_corrected_img, optimized_brightness)?;
+                color_correction::apply_contrast_adjustment(&temp, optimized_contrast)?
+            };
+
             progress_bar.set_position(78);
             adjusted
         } else {
             progress_bar.set_position(78);
-            brightness_adjusted_img
+            color_corrected_img
         };
 
         // Apply color conversion and dithering (78-85%) - use optimized parameters
@@ -1241,7 +1241,7 @@ impl ProcessingEngine {
         std::thread::yield_now();
         progress_bar.set_position(80); // Show progress during color processing
         let processed_img = convert::process_image(
-            &contrast_adjusted_img,
+            &brightness_contrast_adjusted_img,
             &self.config.processing_type,
             &optimized_dither_method,
             optimized_dither_strength,

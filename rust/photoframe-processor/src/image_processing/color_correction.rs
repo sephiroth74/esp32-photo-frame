@@ -296,7 +296,7 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
 }
 
 /// Apply brightness and contrast adjustments using ImageMagick
-fn apply_imagemagick_brightness_contrast(
+pub fn apply_imagemagick_brightness_contrast_public(
     img: &RgbImage,
     brightness_adjustment: i32,
     contrast_adjustment: i32,
@@ -367,7 +367,7 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Re
 
     // Try ImageMagick first for superior contrast adjustment
     if is_imagemagick_available() {
-        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, 0, contrast_adjustment) {
+        if let Ok(adjusted) = apply_imagemagick_brightness_contrast_public(img, 0, contrast_adjustment) {
             return Ok(adjusted);
         }
     }
@@ -405,7 +405,7 @@ pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: i32) -
 
     // Try ImageMagick first for superior brightness adjustment
     if is_imagemagick_available() {
-        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, brightness_adjustment, 0) {
+        if let Ok(adjusted) = apply_imagemagick_brightness_contrast_public(img, brightness_adjustment, 0) {
             return Ok(adjusted);
         }
     }
