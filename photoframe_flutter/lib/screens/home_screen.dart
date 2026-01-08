@@ -474,11 +474,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                         children: [
                           Text('Contrast: ${config.contrast.toStringAsFixed(2)}'),
                           AppKitSlider(
-                            value: config.contrast + 0.5,
+                            value: config.contrast + 1.0,
                             min: 0.0,
-                            max: 1.0,
+                            max: 2.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(contrast: value - 0.5));
+                              provider.updateConfig(config.copyWith(contrast: value - 1.0));
                             },
                           ),
                         ],
@@ -491,11 +491,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                         children: [
                           Text('Brightness: ${config.brightness.toStringAsFixed(2)}'),
                           AppKitSlider(
-                            value: config.brightness + 0.5,
+                            value: config.brightness + 1.0,
                             min: 0.0,
-                            max: 1.0,
+                            max: 2.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(brightness: value - 0.5));
+                              provider.updateConfig(config.copyWith(brightness: value - 1.0));
                             },
                           ),
                         ],
