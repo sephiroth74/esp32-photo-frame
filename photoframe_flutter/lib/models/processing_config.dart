@@ -41,6 +41,7 @@ class ProcessingConfig {
   final DitherMethod ditherMethod;
   final double ditherStrength;
   final double contrast;
+  final double brightness;
   final bool autoOptimize;
   final bool outputBmp;
   final bool outputBin;
@@ -73,6 +74,7 @@ class ProcessingConfig {
     this.ditherMethod = DitherMethod.jarvisJudiceNinke,
     this.ditherStrength = 1.0,
     this.contrast = 0.0,
+    this.brightness = 0.0,
     this.autoOptimize = false,
     this.outputBmp = false,
     this.outputBin = true,
@@ -111,6 +113,7 @@ class ProcessingConfig {
     DitherMethod? ditherMethod,
     double? ditherStrength,
     double? contrast,
+    double? brightness,
     bool? autoOptimize,
     bool? outputBmp,
     bool? outputBin,
@@ -143,6 +146,7 @@ class ProcessingConfig {
       ditherMethod: ditherMethod ?? this.ditherMethod,
       ditherStrength: ditherStrength ?? this.ditherStrength,
       contrast: contrast ?? this.contrast,
+      brightness: brightness ?? this.brightness,
       autoOptimize: autoOptimize ?? this.autoOptimize,
       outputBmp: outputBmp ?? this.outputBmp,
       outputBin: outputBin ?? this.outputBin,

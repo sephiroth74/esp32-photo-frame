@@ -96,6 +96,8 @@ pub struct ProcessingConfig {
     pub dither_strength: f32,
     // Contrast adjustment (-1.0 to 1.0, applied before dithering)
     pub contrast: f32,
+    // Brightness adjustment (-1.0 to 1.0, applied before dithering)
+    pub brightness: f32,
     // Auto-optimization
     pub auto_optimize: bool,
     pub optimization_report: bool,
@@ -1157,6 +1159,7 @@ impl ProcessingEngine {
             optimized_dither_method,
             optimized_dither_strength,
             optimized_contrast,
+            optimized_brightness,
             optimized_auto_color,
             image_analysis,
         ) = if self.config.auto_optimize {
@@ -1172,6 +1175,7 @@ impl ProcessingEngine {
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
                 optimization_result.contrast_adjustment,
+                self.config.brightness, // Use config brightness (not auto-optimized yet)
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -1181,6 +1185,7 @@ impl ProcessingEngine {
                 self.config.dithering_method.clone(),
                 self.config.dither_strength,
                 self.config.contrast,
+                self.config.brightness,
                 self.config.auto_color_correct,
                 None,
             )
@@ -1199,20 +1204,36 @@ impl ProcessingEngine {
             annotated_img
         };
 
-        // Apply contrast adjustment (76-78%) - use optimized parameter
+        // Apply brightness adjustment (76-77%) - use optimized parameter
         progress_bar.set_position(76);
+        let brightness_adjusted_img = if optimized_brightness != 0.0 {
+            progress_bar.set_message(format!("{} - Adjusting brightness", filename));
+            std::thread::yield_now();
+            let adjusted = color_correction::apply_brightness_adjustment(
+                &color_corrected_img,
+                optimized_brightness,
+            )?;
+            progress_bar.set_position(77);
+            adjusted
+        } else {
+            progress_bar.set_position(77);
+            color_corrected_img
+        };
+
+        // Apply contrast adjustment (77-78%) - use optimized parameter
+        progress_bar.set_position(77);
         let contrast_adjusted_img = if optimized_contrast != 0.0 {
             progress_bar.set_message(format!("{} - Adjusting contrast", filename));
             std::thread::yield_now();
             let adjusted = color_correction::apply_contrast_adjustment(
-                &color_corrected_img,
+                &brightness_adjusted_img,
                 optimized_contrast,
             )?;
             progress_bar.set_position(78);
             adjusted
         } else {
             progress_bar.set_position(78);
-            color_corrected_img
+            brightness_adjusted_img
         };
 
         // Apply color conversion and dithering (78-85%) - use optimized parameters

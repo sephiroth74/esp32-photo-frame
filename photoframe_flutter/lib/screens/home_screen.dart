@@ -484,6 +484,23 @@ class _DitheringSettingsSection extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Brightness: ${config.brightness.toStringAsFixed(2)}'),
+                          AppKitSlider(
+                            value: config.brightness + 0.5,
+                            min: 0.0,
+                            max: 1.0,
+                            onChanged: (value) {
+                              provider.updateConfig(config.copyWith(brightness: value - 0.5));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ] else ...[

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use image::{Rgb, RgbImage};
+use image::{imageops, Rgb, RgbImage};
 use std::fs;
 use std::process::Command;
 
@@ -320,6 +320,28 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: f32) -> Re
 
         output.put_pixel(x, y, Rgb([r, g, b]));
     }
+
+    Ok(output)
+}
+
+/// Apply brightness adjustment to make image lighter or darker
+/// brightness_adjustment: -1.0 to 1.0
+///   - Positive values increase brightness (makes image lighter)
+///   - Negative values decrease brightness (makes image darker)
+///   - 0.0 = no change
+pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: f32) -> Result<RgbImage> {
+    if brightness_adjustment == 0.0 {
+        // No adjustment needed
+        return Ok(img.clone());
+    }
+
+    // Convert adjustment range from -1.0..1.0 to brightness delta in 0-255 range
+    // brightness_adjustment of 1.0 adds 255 (max brightness)
+    // brightness_adjustment of -1.0 subtracts 255 (max darkness)
+    let delta = (brightness_adjustment * 255.0) as i32;
+
+    // Use image::imageops::brighten function
+    let output = imageops::brighten(img, delta);
 
     Ok(output)
 }

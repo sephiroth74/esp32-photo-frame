@@ -356,6 +356,8 @@ fn main() -> Result<()> {
         dither_strength: args.dither_strength,
         // Contrast adjustment
         contrast: args.contrast,
+        // Brightness adjustment
+        brightness: args.brightness,
         // Auto-optimization
         auto_optimize: args.auto_optimize,
         optimization_report: args.report,

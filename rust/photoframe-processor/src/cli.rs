@@ -217,6 +217,15 @@ pub struct Args {
     )]
     pub contrast: f32,
 
+    /// Brightness adjustment (-1.0 to 1.0, default 0.0). Positive = lighter, negative = darker
+    #[arg(
+        long = "brightness",
+        default_value = "0.0",
+        value_name = "ADJUSTMENT",
+        help = "Brightness adjustment: -1.0 (darker) to 1.0 (lighter), 0.0 = no change"
+    )]
+    pub brightness: f32,
+
     /// Enable automatic per-image parameter optimization (overrides manual dithering/contrast settings)
     #[arg(
         long = "auto-optimize",
@@ -536,6 +545,15 @@ impl Default for Args {
             confidence_threshold: 0.6,
             divider_width: 3,
             divider_color: "#FFFFFF".to_string(),
+            dithering_method: DitherMethod::FloydSteinberg,
+            dither_strength: 1.0,
+            contrast: 0.0,
+            brightness: 0.0,
+            auto_optimize: false,
+            report: false,
+            json_progress: false,
+            python_path: None,
+            target_orientation: TargetOrientation::Landscape,
         }
     }
 }

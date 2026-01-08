@@ -177,6 +177,7 @@ class ProcessingProvider with ChangeNotifier {
         _ditherMethodToString(_config.ditherMethod),
         '--dither-strength=${_config.ditherStrength}',
         '--contrast=${_config.contrast}',
+        '--brightness=${_config.brightness}',
       ]);
     }
 
