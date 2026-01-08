@@ -137,32 +137,12 @@ struct unified_config {
         }
     } google_drive;
 
-    // Weather Configuration
-    struct weather_config {
-        bool enabled = false;
-        double latitude = 0.0;
-        double longitude = 0.0;
-        uint16_t update_interval_minutes = 120;
-        bool celsius = true;
-        uint8_t battery_threshold = 15;
-        uint8_t max_age_hours = 3;
-        String timezone = "auto";
-        String temperature_unit = "celsius";
-        String wind_speed_unit = "kmh";
-        String precipitation_unit = "mm";
-
-        bool is_valid() const
-        {
-            return latitude != 0.0 || longitude != 0.0; // At least one coordinate must be set
-        }
-    } weather;
-
     /**
      * @brief Check if the entire configuration is valid
      */
     bool is_valid() const
     {
-        return wifi.is_valid() && board.is_valid() && google_drive.is_valid() && weather.is_valid();
+        return wifi.is_valid() && board.is_valid() && google_drive.is_valid();
     }
 
 #ifdef ENABLE_DISPLAY_DIAGNOSTIC
@@ -210,18 +190,6 @@ struct unified_config {
         doc["google_drive_config"]["rate_limiting"]["max_retry_attempts"] = google_drive.rate_limiting.max_retry_attempts;
         doc["google_drive_config"]["rate_limiting"]["backoff_base_delay_ms"] = google_drive.rate_limiting.backoff_base_delay_ms;
         doc["google_drive_config"]["rate_limiting"]["max_wait_time_ms"] = google_drive.rate_limiting.max_wait_time_ms;
-
-        doc["weather_config"]["enabled"] = weather.enabled;
-        doc["weather_config"]["latitude"] = weather.latitude;
-        doc["weather_config"]["longitude"] = weather.longitude;
-        doc["weather_config"]["update_interval_minutes"] = weather.update_interval_minutes;
-        doc["weather_config"]["celsius"] = weather.celsius;
-        doc["weather_config"]["battery_threshold"] = weather.battery_threshold;
-        doc["weather_config"]["max_age_hours"] = weather.max_age_hours;
-        doc["weather_config"]["timezone"] = weather.timezone;
-        doc["weather_config"]["temperature_unit"] = weather.temperature_unit;
-        doc["weather_config"]["wind_speed_unit"] = weather.wind_speed_unit;
-        doc["weather_config"]["precipitation_unit"] = weather.precipitation_unit;
 
         String output;
         serializeJson(doc, output);

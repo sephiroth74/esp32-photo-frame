@@ -440,8 +440,8 @@ fn main() -> Result<()> {
 
         // Contrast adjustment
         println!(
-            "  Contrast adjustment: {}{:.2}",
-            if config.contrast >= 0.0 { "+" } else { "" },
+            "  Contrast adjustment: {}{}",
+            if config.contrast >= 0 { "+" } else { "" },
             config.contrast
         );
 

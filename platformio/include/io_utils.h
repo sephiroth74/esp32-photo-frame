@@ -52,20 +52,16 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
                                         int expectedHeight = 0);
 
 /**
- * @brief Detect file format based on filename extension for runtime rendering selection
+ * @brief Detect binary format based on filename extension for runtime rendering selection
  *
- * This function enables runtime file format detection by examining the file extension.
- * It's used throughout the ESP32 photo frame system to automatically select the
- * appropriate rendering engine without compile-time configuration.
+ * This function checks if a file is in binary format (.bin extension) used by the
+ * ESP32 photo frame for optimized e-paper rendering.
  *
  * @param filename The filename to examine (must include extension)
  * @return true if binary format (.bin) - uses optimized binary renderer
- * @return false if bitmap format (.bmp) - uses standard bitmap renderer
- * @return false if filename is null or has no extension
+ * @return false if filename is null, has no extension, or is not a .bin file
  *
- * @note This replaces the old compile-time EPD_USE_BINARY_FILE flag system
- * @note Both formats can coexist in the same directory/Google Drive folder
- * @see ALLOWED_FILE_EXTENSIONS for complete list of supported extensions
+ * @note Only binary format (.bin) is supported - other formats will return false
  *
  * @example
  * ```cpp
@@ -73,21 +69,13 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
  *     // Use binary rendering engine
  *     draw_binary_from_file(...);
  * } else {
- *     // Use bitmap rendering engine
- *     draw_bitmap_from_file(...);
+ *     // Format not supported
+ *     log_e("Unsupported file format");
  * }
  * ```
  */
 bool is_binary_format(const char* filename);
 
-/**
- * @brief Detect if the file is in BMP format based on filename extension
- *
- * @param filename The filename to examine (must include extension)
- * @return true if BMP format (.bmp) - uses standard bitmap renderer
- * @return false if filename is null or has no extension
- */
-bool is_bmp_format(const char* filename);
 
 } // namespace io_utils
 } // namespace photo_frame

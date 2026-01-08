@@ -296,7 +296,7 @@ const photo_frame_error BatteryLevelCritical{TXT_BATTERY_LEVEL_CRITICAL, 10, ERR
 const photo_frame_error BatteryEmpty{TXT_BATTERY_EMPTY, 14, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_BATTERY};
 
 // Hardware errors
-const photo_frame_error RTCInitializationFailed{TXT_RTC_MODULE_NOT_FOUND, 15, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error NTPSyncFailed{TXT_NTP_SYNC_FAILED, 15, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_HARDWARE};
 
 // Authentication errors
 const photo_frame_error JwtCreationFailed{TXT_JWT_CREATION_FAILED, 16, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_AUTHENTICATION};

@@ -50,11 +50,8 @@
 #define RGB_LED_COUNT   1   // Single RGB LED
 // #define LED_PWR_PIN 39      // Led power control pin (GPIO39)
 
-// PCF8523 RTC - shares I2C bus with battery fuel gauge
-#define RTC_SDA_PIN 8 // IO8 - I2C SDA for RTC (shared with battery fuel gauge)
-#define RTC_SCL_PIN 9 // IO9 - I2C SCL for RTC (shared with battery fuel gauge)
-// RTC Class definition for DS3231
-#define RTC_CLASS_DS3231
+// Note: RTC hardware support removed - time synchronization uses NTP only
+// I2C pins IO8/IO9 are now only used for MAX1704X battery fuel gauge
 
 // External wakeup configuration
 #define WAKEUP_EXT0

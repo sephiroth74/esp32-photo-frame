@@ -40,8 +40,8 @@ class ProcessingConfig {
   final bool autoColorCorrect;
   final DitherMethod ditherMethod;
   final double ditherStrength;
-  final double contrast;
-  final double brightness;
+  final int contrast;
+  final int brightness;
   final bool autoOptimize;
   final bool outputBmp;
   final bool outputBin;
@@ -73,8 +73,8 @@ class ProcessingConfig {
     this.autoColorCorrect = true,
     this.ditherMethod = DitherMethod.jarvisJudiceNinke,
     this.ditherStrength = 1.0,
-    this.contrast = 0.0,
-    this.brightness = 0.0,
+    this.contrast = 0,
+    this.brightness = 0,
     this.autoOptimize = false,
     this.outputBmp = false,
     this.outputBin = true,
@@ -112,8 +112,8 @@ class ProcessingConfig {
     bool? autoColorCorrect,
     DitherMethod? ditherMethod,
     double? ditherStrength,
-    double? contrast,
-    double? brightness,
+    int? contrast,
+    int? brightness,
     bool? autoOptimize,
     bool? outputBmp,
     bool? outputBin,

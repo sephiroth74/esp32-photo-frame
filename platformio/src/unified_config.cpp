@@ -54,19 +54,6 @@ void load_fallback_config(unified_config& config) {
     config.google_drive.drive.use_insecure_tls = true;
     config.google_drive.caching.local_path = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
     config.google_drive.caching.toc_max_age_seconds = GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
-
-    // Weather - fallback to disabled
-    config.weather.enabled = false;
-    config.weather.latitude = 0.0;
-    config.weather.longitude = 0.0;
-    config.weather.update_interval_minutes = 120;
-    config.weather.celsius = true;
-    config.weather.battery_threshold = 15;
-    config.weather.max_age_hours = 3;
-    config.weather.timezone = "auto";
-    config.weather.temperature_unit = "celsius";
-    config.weather.wind_speed_unit = "kmh";
-    config.weather.precipitation_unit = "mm";
 }
 
 photo_frame_error_t load_unified_config(sd_card& sdCard,
@@ -317,24 +304,6 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         }
     } else {
         log_w("Google Drive configuration missing: 'google_drive_config'");
-    }
-
-    // Extract weather configuration
-    if (doc.containsKey("weather_config")) {
-        JsonObject weather_obj = doc["weather_config"];
-        config.weather.enabled = weather_obj["enabled"] | false;
-        config.weather.latitude = weather_obj["latitude"] | 0.0;
-        config.weather.longitude = weather_obj["longitude"] | 0.0;
-        config.weather.update_interval_minutes = weather_obj["update_interval_minutes"] | 120;
-        config.weather.celsius = weather_obj["celsius"] | true;
-        config.weather.battery_threshold = weather_obj["battery_threshold"] | 15;
-        config.weather.max_age_hours = weather_obj["max_age_hours"] | 3;
-        config.weather.timezone = weather_obj["timezone"] | "auto";
-        config.weather.temperature_unit = weather_obj["temperature_unit"] | "celsius";
-        config.weather.wind_speed_unit = weather_obj["wind_speed_unit"] | "kmh";
-        config.weather.precipitation_unit = weather_obj["precipitation_unit"] | "mm";
-    } else {
-        log_d("Weather configuration missing");
     }
 
     log_d("Configuration loaded successfully");

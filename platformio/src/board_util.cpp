@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include "board_util.h"
-#include "esp_bt.h"
 #include "string_utils.h"
 
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -40,8 +39,8 @@ namespace board_utils {
         disable_built_in_led(); // Disable built-in LED before going to sleep
 
         log_i("Disabling peripherals...");
-        btStop(); // Stop Bluetooth to save power
-        esp_bt_controller_disable(); // Disable Bluetooth controller
+        // btStop(); // Stop Bluetooth to save power
+        // esp_bt_controller_disable(); // Disable Bluetooth controller
 
 #if defined(WAKEUP_EXT1)
         log_i("Configuring EXT1 wakeup on RTC IO pin...");
@@ -195,12 +194,33 @@ namespace board_utils {
     {
 #ifdef DEBUG_BOARD
         log_d("Board Statistics:");
-        log_d("Heap: %d", ESP.getHeapSize());
-        log_d("Flash: %d", ESP.getFlashChipSize());
-        log_d("Free Heap: %d", ESP.getFreeHeap());
+
+        log_d("Board: %s", ARDUINO_BOARD);
+        log_d("Chip Model: %s", ESP.getChipModel());
+        log_d("Chip Revision: %d", ESP.getChipRevision());
+        log_d("Cores: %d", ESP.getChipCores());
+        log_d("CPU Frequency: %d MHz", ESP.getCpuFreqMHz());
+
+        log_d("Flash Size: %u bytes (%.2f MB)", ESP.getFlashChipSize(), ESP.getFlashChipSize() / 1048576.0f);
+        log_d("Flash Speed: %u MHz", ESP.getFlashChipSpeed() / 1000000);
+
+        log_d("Free Heap: %u bytes (%.2f KB)", ESP.getFreeHeap(), ESP.getFreeHeap() / 1024.0f);
+        log_d("Total Heap: %u bytes (%.2f KB)", ESP.getHeapSize(), ESP.getHeapSize() / 1024.0f);
+        log_d("Min Free Heap: %u bytes (%.2f KB)", ESP.getMinFreeHeap(), ESP.getMinFreeHeap() / 1024.0f);
+
+        if (psramFound()) {
+            log_d("PSRAM: FOUND");
+            log_d("PSRAM Size: %u bytes (%.2f MB)", ESP.getPsramSize(), ESP.getPsramSize() / 1048576.0f);
+            log_d("Free PSRAM: %u bytes (%.2f MB)", ESP.getFreePsram(), ESP.getFreePsram() / 1048576.0f);
+            log_d("Min Free PSRAM: %u bytes (%.2f MB)", ESP.getMinFreePsram(), ESP.getMinFreePsram() / 1048576.0f);
+        } else {
+            log_w("PSRAM: NOT FOUND");
+        }
+
+        // SDK and MAC
+        log_d("SDK Version: %s", ESP.getSdkVersion());
+
         log_d("Free Flash: %d", ESP.getFreeSketchSpace());
-        log_d("Free PSRAM: %d", ESP.getFreePsram());
-        log_d("PSRAM Size: %d", ESP.getPsramSize());
 
         // PSRAM is mandatory for this configuration
         log_d("PSRAM is required and should be available");

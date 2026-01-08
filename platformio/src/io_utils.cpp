@@ -61,7 +61,6 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
     // Determine file type based on extension or header
     String fileName   = String(filename);
     bool isBinaryFile = is_binary_format(filename);
-    bool isBmpFile    = is_bmp_format(filename);
 
     if (isBinaryFile) {
         log_i("Performing comprehensive BINARY file validation");
@@ -112,72 +111,8 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
         // Serial.print(pixelsValidated);
         // Serial.println(F(" pixels validated"));
 
-    } else if (isBmpFile) {
-        // BMP format support removed in v0.11.0 for code simplification
-        //
-        // RATIONALE FOR REMOVAL:
-        // - BMP files are significantly larger than binary format (~1.15MB vs 384KB)
-        // - Binary format is optimized for e-paper display characteristics
-        // - Reduced firmware complexity and maintenance burden
-        // - Rust photoframe-processor provides easy conversion from any format to .bin
-        //
-        // MIGRATION PATH:
-        // Users with existing .bmp files can convert them using the Rust processor:
-        //   cd rust/photoframe-processor
-        //   cargo build --release
-        //   ./target/release/photoframe-processor
-        //     -i ~/your-images -o ~/outputs
-        //     --size 800x480 --output-format bin
-        //
-        // This validation catches .bmp files and provides clear instructions for conversion
-        log_e("BMP format is no longer supported as of firmware v0.11.0");
-        log_e("Please convert your images to .bin format using:");
-        log_e("  rust/photoframe-processor/target/release/photoframe-processor");
-        log_e("  -i <input_dir> -o <output_dir> --size 800x480 --output-format bin");
-        return error_type::ImageFormatNotSupported;
-
-        // Legacy BMP validation code (kept for reference, never executed)
-        log_i("Performing BMP file validation");
-
-        // Read BMP header
-        sourceFile.seek(0);
-        uint8_t bmpHeader[54];
-        if (sourceFile.read(bmpHeader, sizeof(bmpHeader)) < 54) {
-            log_e("Cannot read BMP header");
-            return error_type::ImageFileReadFailed;
-        }
-
-        // Check BMP signature
-        if (bmpHeader[0] != 'B' || bmpHeader[1] != 'M') {
-            log_e("Invalid BMP signature");
-            return error_type::ImageFileHeaderInvalid;
-        }
-
-        // Extract BMP dimensions
-        uint32_t bmpWidth  = *((uint32_t*)&bmpHeader[18]);
-        uint32_t bmpHeight = *((uint32_t*)&bmpHeader[22]);
-
-        log_i("BMP dimensions: %ux%u", bmpWidth, bmpHeight);
-
-        // Validate against expected dimensions if provided
-        if (expectedWidth > 0 && expectedHeight > 0) {
-            if (bmpWidth != expectedWidth || bmpHeight != expectedHeight) {
-                log_e("BMP dimension mismatch: expected %dx%d, got %ux%u",
-                      expectedWidth, expectedHeight, bmpWidth, bmpHeight);
-                return error_type::ImageDimensionsMismatch;
-            }
-        }
-
-        // Validate BMP file integrity by checking data offset
-        uint32_t dataOffset = *((uint32_t*)&bmpHeader[10]);
-        if (dataOffset >= fileSize) {
-            log_e("BMP data offset beyond file size");
-            return error_type::ImageFileCorrupted;
-        }
-
     } else {
-        log_e("Unknown or unsupported file format");
-        return error_type::ImageFileHeaderInvalid;
+        return error_type::ImageFormatNotSupported;
     }
 
     // Reset file position for subsequent operations
@@ -200,15 +135,5 @@ bool is_binary_format(const char* filename) {
     return strcmp(extension, ".bin") == 0;
 }
 
-bool is_bmp_format(const char* filename) {
-    if (!filename)
-        return false;
-
-    const char* extension = strrchr(filename, '.');
-    if (!extension)
-        return false;
-
-    return strcmp(extension, ".bmp") == 0;
-}
 } // namespace io_utils
 } // namespace photo_frame

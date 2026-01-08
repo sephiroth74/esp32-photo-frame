@@ -117,18 +117,6 @@
 // #define BATTERY_POWER_SAVING  // Enable power-saving mode when battery is low
 
 // ----------------------------------------------------------------------------
-// RTC (Real Time Clock) Configuration
-// ----------------------------------------------------------------------------
-
-/// External RTC module configuration (optional - NTP used as fallback)
-/// Note: RTC is not supported on ESP32-C6 due to I2C/WiFi interference
-// #define USE_RTC           // Enable external RTC module for timekeeping
-// #define RTC_SDA_PIN   A4  // I2C data pin for RTC module
-// #define RTC_SCL_PIN   A5  // I2C clock pin for RTC module
-// #define RTC_CLASS_PCF8523  // Uncomment if using PCF8523 RTC
-// #define RTC_CLASS_DS3231   // Uncomment if using DS3231 RTC
-
-// ----------------------------------------------------------------------------
 // User Interface Hardware
 // ----------------------------------------------------------------------------
 
@@ -267,15 +255,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.bin"  // Force specific test file
 
 // ============================================================================
-// WEATHER DISPLAY CONFIGURATION
-// ============================================================================
-
-/// Weather functionality (optional feature)
-#define WEATHER_CACHE_FILE  "/weather_cache.json"   // Weather data cache file
-
-/// Weather data management
-#define WEATHER_MAX_AGE_SECONDS (6 * SECONDS_IN_HOUR) // Weather data expiry time
-
 // ============================================================================
 // DISPLAY AND USER INTERFACE
 // ============================================================================
@@ -327,7 +306,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // #define DEBUG_GOOGLE_DRIVE        // Enable Google Drive API debug output
 // #define DEBUG_MEMORY_USAGE        // Enable memory usage monitoring
 // #define DEBUG_BATTERY_READER      // Enable battery monitoring debug output
-// #define DEBUG_WEATHER             // Enable weather API debug output
 // #define DEBUG_WIFI                // Enable WiFi connection debug output
 // #define DEBUG_SD_CARD             // Enable SD card operations debug output
 // #define DEBUG_BOARD               // Enable board-specific debug output

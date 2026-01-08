@@ -360,19 +360,6 @@
 #endif
 
 // ============================================================================
-// WEATHER SYSTEM VALIDATION
-// ============================================================================
-
-/// Weather configuration validation
-/// Removed: WEATHER_CONFIG_FILE check (replaced by CONFIG_FILEPATH unified configuration)
-
-/// Validate weather data expiry time is reasonable (30 minutes to 24 hours)
-#if WEATHER_MAX_AGE_SECONDS < (30 * SECONDS_IN_MINUTE) || WEATHER_MAX_AGE_SECONDS > SECONDS_IN_DAY
-#error "WEATHER_MAX_AGE_SECONDS must be between 30 minutes and 24 hours"
-#endif
-
-
-// ============================================================================
 // RUNTIME DATA DEFINITIONS
 // ============================================================================
 
@@ -394,7 +381,6 @@
  */
 const char* ALLOWED_FILE_EXTENSIONS[] = {
     ".bin", ///< Binary format for optimized e-paper rendering
-    ".bmp" ///< Bitmap format for compatibility and debugging
 };
 
 /**

@@ -24,10 +24,6 @@
 #include "datetime_utils.h"
 #include "google_drive.h"
 
-#ifdef DISP_COLORED
-#include "display_7c_helper.h"
-#endif
-
 #include FONT_HEADER
 
 #if !defined(USE_DESPI_DRIVER) && !defined(USE_WAVESHARE_DRIVER)
@@ -115,24 +111,19 @@ void init_display() {
     // When using shared SPI or SDIO for SD card, re-initialize SPI for display
     log_i("Re-initializing SPI for e-paper display");
     SPI.end();
+    delay(1);
     SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD, -1 for MISO (not used)
 #endif
 
-    // Set display rotation BEFORE init
-    // IMPORTANT: For 6C/7C displays using writeDemoBitmap() Mode 1, rotation must stay at 0
-    // because writeDemoBitmap() writes directly to hardware controller bypassing rotation.
-    // Portrait orientation must be handled by generating 800x480 images rotated 90° in software.
-    display.setRotation(0);
-    log_i("Display rotation set to 0 (hardware always expects landscape 800x480)");
-
 #ifdef USE_DESPI_DRIVER
     display.init(115200);
+// display.init(115200, true, 2, false);
 #else  // USE_WAVESHARE_DRIVER
     display.init(115200, true, 2, false);
 #endif // USE_DESPI_DRIVER
 
+    display.setRotation(0);
     display.setTextSize(1);
-    // display.clearScreen(); // black
     display.setTextColor(GxEPD_BLACK);
     display.setTextWrap(false);
 
@@ -160,6 +151,7 @@ void init_display() {
 
     // Static buffers are ready to use - no allocation needed
 
+    // log_d("setFullWindow");
     // display.setFullWindow();
     // display.fillScreen(GxEPD_WHITE);
     // display.firstPage(); // use paged drawing mode, sets fillScreen(GxEPD_WHITE)
@@ -174,8 +166,7 @@ void power_off() {
     // Static buffers - no need to free
     display.powerOff(); // turns off the display
     delay(400);         // wait for the display to power off
-    display.end();      // release SPI and control pins
-    SPI.end();          // release SPI pins
+    // end();
 } // end powerOff
 
 void hibernate() {
@@ -558,121 +549,6 @@ void draw_image_info(uint32_t index,
                                 -2);
 }
 
-
-rect_t get_weather_info_rect() {
-#if defined(ORIENTATION_PORTRAIT)
-    // Portrait mode: position weather info at bottom-left with adjusted coordinates
-    // In portrait (480x800), we have more vertical space, so keep it at bottom
-    return {8, static_cast<int16_t>(display.height() - 96), 184, 88};
-#else
-    // Landscape mode: original bottom-left position
-    return {8, DISP_HEIGHT - 96, 184, 88};
-#endif
-}
-
-void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect) {
-    // Only display if weather data is valid and not stale (max 3 hours old)
-    if (!weather_data.is_displayable(WEATHER_MAX_AGE_SECONDS)) {
-        log_i("drawWeatherInfo: Weather data invalid or stale, skipping display");
-        return;
-    }
-
-#ifdef DEBUG_RENDERER
-    log_d("drawWeatherInfo: %.1f°C, %s",
-                  weather_data.temperature,
-                  weather_data.description.c_str());
-#endif // DEBUG_RENDERER
-
-    // Calculate position based on gravity (positioned in bottom-left area like the image)
-    int16_t box_x         = box_rect.x;
-    int16_t box_y         = box_rect.y;
-    uint16_t box_width    = box_rect.width;
-    uint16_t box_height   = box_rect.height;
-
-    int16_t base_x        = box_x + 8;
-    int16_t base_y        = box_y + 8;
-
-    auto text_color       = GxEPD_WHITE;
-    auto icon_color       = GxEPD_WHITE;
-    auto background_color = GxEPD_BLACK;
-
-    // Draw rounded background box using reusable function with 50% transparency
-    // draw_rounded_rect(box_x, box_y, box_width, box_height, 10, background_color, 128);
-    display.fillRoundRect(box_x, box_y, box_width, box_height, 4, background_color);
-
-    // Get weather icon mapped to system icon
-    icon_name_t weather_icon = photo_frame::weather::weather_icon_to_system_icon(weather_data.icon);
-
-    // Draw weather icon
-    const unsigned char* icon_bitmap = getBitmap(weather_icon, 48);
-    if (icon_bitmap) {
-        // draw the weather icon centered vertically
-        display.drawInvertedBitmap(base_x, base_y + 10, icon_bitmap, 48, 48, icon_color);
-    }
-
-    // Position text to the right of icon
-    int16_t text_x        = base_x + 60;
-    int16_t text_y        = base_y;
-
-    auto temperature_unit = weather_data.temperature_unit;
-    temperature_unit.replace("°", "\260"); // remove degree symbol for display
-
-    // Draw main temperature with unit (large text)
-    String main_temp = String((int)weather_data.temperature) + " " + temperature_unit;
-
-    display.setFont(&FONT_18pt8b);
-    draw_string(text_x, text_y + 22, main_temp.c_str(), text_color);
-    text_y += 44;
-
-    // Draw high/low temperatures with units if available
-    if (weather_data.has_daily_data && weather_data.temp_min != 0.0f &&
-        weather_data.temp_max != 0.0f) {
-        String temp_range = String((int)weather_data.temp_min) + "\260" + " - " +
-                            String((int)weather_data.temp_max) + "\260";
-        display.setFont(&FONT_9pt8b);
-        draw_string(text_x, text_y, temp_range.c_str(), text_color);
-        text_y += 24;
-    }
-
-    // Draw sunrise time if available
-    if (weather_data.has_daily_data) {
-        char sunrise_buffer[16];
-        char sunset_buffer[16];
-
-#ifdef DEBUG_RENDERER
-        log_d("drawWeatherInfo: sunrise time: %lu", weather_data.sunrise_time);
-#endif // DEBUG_RENDERER
-
-        // if both sunrise and sunset are available, reserve space for the icon
-        if (photo_frame::datetime_utils::format_datetime(
-                sunrise_buffer, sizeof(sunrise_buffer), weather_data.sunrise_time, "%H:%M") > 0 &&
-            photo_frame::datetime_utils::format_datetime(
-                sunset_buffer, sizeof(sunset_buffer), weather_data.sunset_time, "%H:%M") > 0) {
-
-            display.setFont(&FONT_7pt8b);
-
-            // first draw the sunrise icon
-            const unsigned char* sunrise_icon = getBitmap(icon_name::sunrise_0deg, 16);
-            const unsigned char* sunset_icon  = getBitmap(icon_name::sunset_0deg, 16);
-
-            if (sunrise_icon && sunset_icon) {
-                display.drawInvertedBitmap(text_x, text_y - 12, sunrise_icon, 16, 16, icon_color);
-                text_x += 18; // leave space for the icon
-            }
-
-            draw_string(text_x, text_y, sunrise_buffer, text_color);
-
-            if (sunset_icon) {
-                // draw the sunset icon after the sunrise time
-                text_x += get_string_width(sunrise_buffer) + 4; // space after sunrise time
-                display.drawInvertedBitmap(text_x, text_y - 12, sunset_icon, 16, 16, icon_color);
-                text_x += 18; // leave space for the icon
-            }
-
-            draw_string(text_x, text_y, sunset_buffer, text_color);
-        }
-    }
-}
 
 void draw_rounded_rect(int16_t x,
                        int16_t y,
@@ -1089,7 +965,6 @@ draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bo
                         // }
                     }
                 }
-                // display.clearScreen();
                 log_i("Starting non-paged BMP rendering");
                 log_i("Processing %d rows in single pass (no paging)", h);
                 log_i("Image dimensions: %dx%d", w, h);
@@ -2241,101 +2116,6 @@ void draw_image_info(Adafruit_GFX& gfx,
                                 message.c_str(),
                                 -4,
                                 0);
-}
-
-void draw_weather_info(Adafruit_GFX& gfx, const photo_frame::weather::WeatherData& weather_data, rect_t box_rect) {
-    // Only display if weather data is valid and not stale
-    if (!weather_data.is_displayable(WEATHER_MAX_AGE_SECONDS)) {
-        return;
-    }
-
-    // Calculate positions (same as display version)
-    int16_t box_x         = box_rect.x;
-    int16_t box_y         = box_rect.y;
-    uint16_t box_width    = box_rect.width;
-    uint16_t box_height   = box_rect.height;
-
-    int16_t base_x        = box_x + 8;
-    int16_t base_y        = box_y + 8;
-
-    // For 6C Mode 1 format: 0x00=black, 0x01=white
-    auto text_color       = 0x01; // White text on black background
-    auto background_color = 0x00; // Black background
-
-    // Draw rounded background box
-    gfx.fillRoundRect(box_x, box_y, box_width, box_height, 4, background_color);
-
-    // Get weather icon
-    icon_name_t weather_icon = photo_frame::weather::weather_icon_to_system_icon(weather_data.icon);
-
-    // Draw weather icon (48x48) using helper function - white (0x01) on black background
-    const unsigned char* icon_bitmap = getBitmap(weather_icon, 48);
-    if (icon_bitmap) {
-        drawInvertedBitmap(gfx, base_x, base_y + 10, icon_bitmap, 48, 48, 0x01);
-    }
-
-    // Position text to the right of icon
-    int16_t text_x        = base_x + 60;
-    int16_t text_y        = base_y;
-
-    auto temperature_unit = weather_data.temperature_unit;
-    temperature_unit.replace("°", "\260");
-
-    // Draw main temperature with unit (large text)
-    String main_temp = String((int)weather_data.temperature) + " " + temperature_unit;
-
-    gfx.setFont(&FONT_18pt8b);
-    gfx.setTextColor(text_color);
-    gfx.setCursor(text_x, text_y + 22);
-    gfx.print(main_temp);
-    text_y += 44;
-
-    // Draw high/low temperatures if available
-    if (weather_data.has_daily_data && weather_data.temp_min != 0.0f &&
-        weather_data.temp_max != 0.0f) {
-        String temp_range = String((int)weather_data.temp_min) + "\260" + " - " +
-                            String((int)weather_data.temp_max) + "\260";
-        gfx.setFont(&FONT_9pt8b);
-        gfx.setCursor(text_x, text_y);
-        gfx.print(temp_range);
-        text_y += 24;
-    }
-
-    // Draw sunrise/sunset times if available
-    if (weather_data.has_daily_data) {
-        char sunrise_buffer[16];
-        char sunset_buffer[16];
-
-        if (photo_frame::datetime_utils::format_datetime(
-                sunrise_buffer, sizeof(sunrise_buffer), weather_data.sunrise_time, "%H:%M") > 0 &&
-            photo_frame::datetime_utils::format_datetime(
-                sunset_buffer, sizeof(sunset_buffer), weather_data.sunset_time, "%H:%M") > 0) {
-
-            gfx.setFont(&FONT_7pt8b);
-
-            // Draw sunrise/sunset icons using helper function - white (0x01) on black background
-            const unsigned char* sunrise_icon = getBitmap(icon_name::sunrise_0deg, 16);
-            const unsigned char* sunset_icon  = getBitmap(icon_name::sunset_0deg, 16);
-
-            if (sunrise_icon && sunset_icon) {
-                drawInvertedBitmap(gfx, text_x, text_y - 12, sunrise_icon, 16, 16, 0x01);
-                text_x += 18;
-            }
-
-            gfx.setCursor(text_x, text_y);
-            gfx.print(sunrise_buffer);
-
-            if (sunset_icon) {
-                // Draw sunset icon after sunrise time
-                text_x += get_string_width(sunrise_buffer) + 4;
-                drawInvertedBitmap(gfx, text_x, text_y - 12, sunset_icon, 16, 16, 0x01);
-                text_x += 18;
-            }
-
-            gfx.setCursor(text_x, text_y);
-            gfx.print(sunset_buffer);
-        }
-    }
 }
 
 

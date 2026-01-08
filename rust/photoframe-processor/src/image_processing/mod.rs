@@ -94,10 +94,10 @@ pub struct ProcessingConfig {
     pub dithering_method: DitherMethod,
     // Dithering strength (0.0-2.0, multiplier for error diffusion)
     pub dither_strength: f32,
-    // Contrast adjustment (-1.0 to 1.0, applied before dithering)
-    pub contrast: f32,
-    // Brightness adjustment (-1.0 to 1.0, applied before dithering)
-    pub brightness: f32,
+    // Contrast adjustment (-100 to 100, applied before dithering)
+    pub contrast: i32,
+    // Brightness adjustment (-100 to 100, applied before dithering)
+    pub brightness: i32,
     // Auto-optimization
     pub auto_optimize: bool,
     pub optimization_report: bool,
@@ -1174,7 +1174,7 @@ impl ProcessingEngine {
             (
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
-                optimization_result.contrast_adjustment,
+                (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 self.config.brightness, // Use config brightness (not auto-optimized yet)
                 optimization_result.auto_color_correct,
                 Some(analysis),
@@ -1206,7 +1206,7 @@ impl ProcessingEngine {
 
         // Apply brightness adjustment (76-77%) - use optimized parameter
         progress_bar.set_position(76);
-        let brightness_adjusted_img = if optimized_brightness != 0.0 {
+        let brightness_adjusted_img = if optimized_brightness != 0 {
             progress_bar.set_message(format!("{} - Adjusting brightness", filename));
             std::thread::yield_now();
             let adjusted = color_correction::apply_brightness_adjustment(
@@ -1222,7 +1222,7 @@ impl ProcessingEngine {
 
         // Apply contrast adjustment (77-78%) - use optimized parameter
         progress_bar.set_position(77);
-        let contrast_adjusted_img = if optimized_contrast != 0.0 {
+        let contrast_adjusted_img = if optimized_contrast != 0 {
             progress_bar.set_message(format!("{} - Adjusting contrast", filename));
             std::thread::yield_now();
             let adjusted = color_correction::apply_contrast_adjustment(
@@ -1349,7 +1349,7 @@ impl ProcessingEngine {
                     .to_string(),
                 dither_method: optimized_dither_method,
                 dither_strength: optimized_dither_strength,
-                contrast: optimized_contrast,
+                contrast: optimized_contrast as f32,
                 auto_color: optimized_auto_color,
                 people_detected: people_detection
                     .as_ref()
@@ -1464,7 +1464,7 @@ impl ProcessingEngine {
             (
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
-                optimization_result.contrast_adjustment,
+                (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -1494,7 +1494,7 @@ impl ProcessingEngine {
 
         // Apply contrast adjustment (81-82%) - use optimized parameter
         progress_bar.set_position(81);
-        let contrast_adjusted_img = if optimized_contrast != 0.0 {
+        let contrast_adjusted_img = if optimized_contrast != 0 {
             progress_bar.set_message(format!("{} - Adjusting contrast", filename));
             std::thread::yield_now();
             let adjusted = color_correction::apply_contrast_adjustment(
@@ -1620,7 +1620,7 @@ impl ProcessingEngine {
                     .to_string(),
                 dither_method: optimized_dither_method,
                 dither_strength: optimized_dither_strength,
-                contrast: optimized_contrast,
+                contrast: optimized_contrast as f32,
                 auto_color: optimized_auto_color,
                 people_detected: people_detection
                     .as_ref()
@@ -2019,7 +2019,7 @@ impl ProcessingEngine {
             (
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
-                optimization_result.contrast_adjustment,
+                (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -2051,7 +2051,7 @@ impl ProcessingEngine {
             (
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
-                optimization_result.contrast_adjustment,
+                (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -2084,7 +2084,7 @@ impl ProcessingEngine {
         // Stage 5b: Apply contrast adjustment if enabled (48-50%) - per-image optimization
         progress_bar.set_position(48);
         progress_bar.set_position(49); // Adjusting left image contrast
-        let left_contrast_adjusted = if left_optimized_contrast != 0.0 {
+        let left_contrast_adjusted = if left_optimized_contrast != 0 {
             color_correction::apply_contrast_adjustment(
                 &left_color_corrected,
                 left_optimized_contrast,
@@ -2092,7 +2092,7 @@ impl ProcessingEngine {
         } else {
             left_color_corrected
         };
-        let right_contrast_adjusted = if right_optimized_contrast != 0.0 {
+        let right_contrast_adjusted = if right_optimized_contrast != 0 {
             color_correction::apply_contrast_adjustment(
                 &right_color_corrected,
                 right_optimized_contrast,
@@ -2327,7 +2327,7 @@ impl ProcessingEngine {
                 ),
                 dither_method: left_optimized_dither,
                 dither_strength: left_optimized_strength,
-                contrast: left_optimized_contrast,
+                contrast: left_optimized_contrast as f32,
                 auto_color: left_optimized_auto_color,
                 people_detected: left_detection
                     .as_ref()
@@ -2346,7 +2346,7 @@ impl ProcessingEngine {
                 ),
                 dither_method: right_optimized_dither,
                 dither_strength: right_optimized_strength,
-                contrast: right_optimized_contrast,
+                contrast: right_optimized_contrast as f32,
                 auto_color: right_optimized_auto_color,
                 people_detected: right_detection
                     .as_ref()
@@ -2708,7 +2708,7 @@ impl ProcessingEngine {
             (
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
-                optimization_result.contrast_adjustment,
+                (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -2740,7 +2740,7 @@ impl ProcessingEngine {
             (
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
-                optimization_result.contrast_adjustment,
+                (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -2773,7 +2773,7 @@ impl ProcessingEngine {
         // Stage 7: Apply contrast adjustment (48-50%)
         progress_bar.set_position(48);
         progress_bar.set_position(49);
-        let top_contrast_adjusted = if top_optimized_contrast != 0.0 {
+        let top_contrast_adjusted = if top_optimized_contrast != 0 {
             color_correction::apply_contrast_adjustment(
                 &top_color_corrected,
                 top_optimized_contrast,
@@ -2781,7 +2781,7 @@ impl ProcessingEngine {
         } else {
             top_color_corrected
         };
-        let bottom_contrast_adjusted = if bottom_optimized_contrast != 0.0 {
+        let bottom_contrast_adjusted = if bottom_optimized_contrast != 0 {
             color_correction::apply_contrast_adjustment(
                 &bottom_color_corrected,
                 bottom_optimized_contrast,
@@ -2990,7 +2990,7 @@ impl ProcessingEngine {
                 ),
                 dither_method: top_optimized_dither,
                 dither_strength: top_optimized_strength,
-                contrast: top_optimized_contrast,
+                contrast: top_optimized_contrast as f32,
                 auto_color: top_optimized_auto_color,
                 people_detected: top_detection.as_ref().map_or(false, |d| d.person_count > 0),
                 people_count: top_detection.as_ref().map_or(0, |d| d.person_count),
@@ -3007,7 +3007,7 @@ impl ProcessingEngine {
                 ),
                 dither_method: bottom_optimized_dither,
                 dither_strength: bottom_optimized_strength,
-                contrast: bottom_optimized_contrast,
+                contrast: bottom_optimized_contrast as f32,
                 auto_color: bottom_optimized_auto_color,
                 people_detected: bottom_detection
                     .as_ref()

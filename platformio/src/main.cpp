@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_DISPLAY_DIAGNOSTIC
+
 #include <Arduino.h>
 
 #include "esp32/spiram.h"
@@ -33,24 +35,17 @@
 #include "renderer.h"
 #include "rgb_status.h"
 
-#include "rtc_util.h"
 #include "sd_card.h"
 #include "littlefs_manager.h"
 #include "string_utils.h"
 #include "unified_config.h"
 #include "wifi_manager.h"
 
-#include "weather.h"
-
 #include <assets/icons/icons.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 
 #include "google_drive.h"
 #include "google_drive_client.h"
-
-#ifdef ENABLE_DISPLAY_DIAGNOSTIC
-#include "display_debug.h"
-#endif // ENABLE_DISPLAY_DIAGNOSTIC
 
 // Google Drive instance (initialized from JSON config)
 photo_frame::google_drive drive;
@@ -73,11 +68,10 @@ photo_frame::battery_reader battery_reader;
 photo_frame::sd_card sdCard; // SD_MMC uses fixed SDIO pins
 photo_frame::wifi_manager wifiManager;
 photo_frame::unified_config systemConfig; // Unified configuration system
-photo_frame::weather::WeatherManager weatherManager;
 
 // Static image buffer for Mode 1 format (allocated once in PSRAM)
 static uint8_t* g_image_buffer = nullptr;
-static const size_t IMAGE_BUFFER_SIZE = DISP_WIDTH * DISP_HEIGHT;  // 384,000 bytes for 800x480
+static const size_t IMAGE_BUFFER_SIZE = DISP_WIDTH * DISP_HEIGHT; // 384,000 bytes for 800x480
 
 unsigned long startupTime = 0;
 
@@ -113,20 +107,11 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, bool is_reset, DateTime& now);
 
-/**
- * @brief Handle weather data fetching with WiFi connection management
- * @param battery_info Battery information for power conservation decisions
- * @param weatherManager Weather manager instance for updates
- * @return Error state after weather operations
- */
-photo_frame::photo_frame_error_t
-handle_weather_operations(const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager);
 
 /**
  * @brief Handle Google Drive operations (initialization, file selection, download)
  * @param is_reset Whether this is a reset/startup (affects TOC writing)
- * @param file Reference to File object for image (in LittleFS for BMP, closed for binary)
+ * @param file Reference to File object for image (closed after loading to buffer)
  * @param original_filename Original filename from SD card (for format detection and logging)
  * @param image_index Reference to store selected image index
  * @param total_files Reference to store total file count
@@ -155,7 +140,6 @@ handle_google_drive_operations(bool is_reset,
  * @param image_index Current image index
  * @param total_files Total number of files
  * @param battery_info Battery information
- * @param weatherManager Weather manager instance
  * @return Updated error state after image processing
  */
 photo_frame::photo_frame_error_t
@@ -167,8 +151,7 @@ process_image_file(fs::File& file,
     const refresh_delay_t& refresh_delay,
     uint32_t image_index,
     uint32_t total_files,
-    const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager);
+    const photo_frame::battery_info_t& battery_info);
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep
@@ -194,7 +177,6 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
  * @param total_files Total number of files
  * @param drive Google Drive instance
  * @param battery_info Battery information
- * @param weatherManager Weather manager instance
  * @return Updated error state after rendering attempt
  */
 photo_frame::photo_frame_error_t render_image(fs::File& file,
@@ -205,8 +187,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     uint32_t image_index,
     uint32_t total_files,
     photo_frame::google_drive& drive,
-    const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager);
+    const photo_frame::battery_info_t& battery_info);
 
 /**
  * @brief Initialize the PSRAM image buffer for Mode 1 format rendering
@@ -272,27 +253,19 @@ void cleanup_image_buffer()
 void setup()
 {
     Serial.begin(115200);
-    while (!Serial && millis() < 3000) delay(10);  // Wait for serial or timeout
+    while (!Serial && millis() < 3000)
+        delay(10); // Wait for serial or timeout
 
     // Immediate diagnostic check
-    #ifdef ENABLE_DISPLAY_DIAGNOSTIC
-        log_i("\n==================================");
-        log_i("*** DIAGNOSTIC MODE ENABLED ***");
-        log_i("==================================");
-        log_i("Entering display debug mode...");
-        delay(500);
-        // In diagnostic mode, run display debug setup instead
-        display_debug_setup();
-        return;
-    #else
-        log_i("\n==================================");
-        log_i("*** NORMAL MODE ***");
-        log_i("==================================");
 
-        // Initialize hardware components
-        if (!initialize_hardware()) {
-            return;
-        }
+    log_i("\n==================================");
+    log_i("*** NORMAL MODE ***");
+    log_i("==================================");
+
+    // Initialize hardware components
+    if (!initialize_hardware()) {
+        return;
+    }
 
     // Determine wakeup reason and setup basic state
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
@@ -321,15 +294,6 @@ void setup()
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         error = setup_time_and_connectivity(battery_info, is_reset, now);
-    }
-
-    // Handle weather operations
-    if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
-        auto weather_error = handle_weather_operations(battery_info, weatherManager);
-        // Weather errors are not critical - don't update main error state
-        if (weather_error != photo_frame::error_type::None) {
-            log_w("Weather operations failed: %d", weather_error.code);
-        }
     }
 
     // Initialize PSRAM image buffer BEFORE Google Drive operations
@@ -392,12 +356,10 @@ void setup()
     // Note: fillScreen() removed in v0.11.0 to eliminate race condition causing white vertical stripes
     // The full-screen image write will overwrite the entire display buffer, making fillScreen() redundant
     log_i("Preparing display for rendering...");
-    display.setFullWindow();
-    log_i("Display ready for rendering");
 
-    // Check if file is ready (binary in buffer or BMP file open)
+    // Check if file is ready (binary image loaded to buffer)
     if (error == photo_frame::error_type::None && !file_ready) {
-        log_e("File is not ready! (buffer not loaded and file not open)");
+        log_e("File is not ready! (buffer not loaded)");
         error = photo_frame::error_type::SdCardFileOpenFailed;
     }
 
@@ -405,12 +367,12 @@ void setup()
     if (error != photo_frame::error_type::None) {
         RGB_SET_STATE(ERROR); // Show error status
 
-        // Set rotation for portrait mode
-        #if defined(ORIENTATION_PORTRAIT)
-            display.setRotation(1); // 90° CW rotation for portrait
-        #else
-            display.setRotation(0); // No rotation for landscape
-        #endif
+// Set rotation for portrait mode
+#if defined(ORIENTATION_PORTRAIT)
+        display.setRotation(1); // 90° CW rotation for portrait
+#else
+        display.setRotation(0); // No rotation for landscape
+#endif
 
         display.firstPage();
         do {
@@ -433,30 +395,18 @@ void setup()
             refresh_delay,
             image_index,
             total_files,
-            battery_info,
-            weatherManager);
+            battery_info);
     }
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
     delay(2500); // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
-#endif // ENABLE_DISPLAY_DIAGNOSTIC
 }
 
 void loop()
 {
-#ifdef ENABLE_DISPLAY_DIAGNOSTIC
-    // In diagnostic mode, run display debug loop instead
-    display_debug_loop();
-    return;
-#else 
-    // Nothing to do here, the ESP32 will go to sleep after setup
-    // The loop is intentionally left empty
-    // All processing is done in the setup function
-    // The ESP32 will wake up from deep sleep and run the setup function again
     delay(1000); // Just to avoid watchdog reset
-#endif // ENABLE_DISPLAY_DIAGNOSTIC
 }
 
 photo_frame::photo_frame_error_t render_image(fs::File& file,
@@ -467,8 +417,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     uint32_t image_index,
     uint32_t total_files,
     photo_frame::google_drive& drive,
-    const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager)
+    const photo_frame::battery_info_t& battery_info)
 {
     photo_frame::photo_frame_error_t error = current_error;
 
@@ -483,9 +432,6 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         bool rendering_failed = false;
         uint16_t error_code = 0;
-
-        display.setFullWindow();
-        delay(1000);
 
 #if defined(DISP_6C) || defined(DISP_7C)
         // ============================================
@@ -502,6 +448,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         log_i("Portrait mode: Image already pre-rotated to 800×480, applying overlay directly");
 
         // STEP 1: Create GFXcanvas8 with hardware dimensions (800×480)
+        log_d("Creating canvas with size: %dx%d", display.width(), display.height());
+
         GFXcanvas8 canvas(display.width(), display.height(), false);
         uint8_t** bufferPtr = (uint8_t**)((uint8_t*)&canvas + sizeof(Adafruit_GFX));
         *bufferPtr = g_image_buffer;
@@ -538,21 +486,23 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         photo_frame::renderer::draw_battery_status(canvas, battery_info);
 #endif
 
-        if (!battery_info.is_critical()) {
-            photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-            rect_t box = photo_frame::renderer::get_weather_info_rect();
-            photo_frame::renderer::draw_weather_info(canvas, current_weather, box);
-        }
+        // STEP 4: Set full window and initialize buffer before writing new content
+        log_i("Setting full window for image rendering...");
+        display.setFullWindow(); // 1. Set full window FIRST (like working example)
+        display.writeScreenBuffer(); // 2. Initialize screen buffer SECOND
+        display.clearScreen(); // 3. Clear screen to white
+        delay(500); // 4. Stabilization delay
 
-        // STEP 4: Render the modified buffer to display hardware
+        // STEP 5: Render the modified buffer to display hardware
         log_i("Writing modified image to display hardware...");
-        error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, display.width(), display.height());
+        display.epd2.writeDemoBitmap(g_image_buffer, 0, 0, 0, HW_WIDTH, HW_HEIGHT, 1, false, false);
+        // error_code = photo_frame::renderer::write_image_from_buffer(g_image_buffer, display.width(), display.height());
 
         if (error_code != 0) {
             log_e("Failed to write image from buffer!");
             rendering_failed = true;
         } else {
-            // STEP 5: Refresh display to show everything
+            // STEP 6: Refresh display to show everything
             log_i("Refreshing display...");
             display.refresh();
             log_i("Display refresh complete with overlays");
@@ -591,17 +541,11 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
                 image_index, total_files, drive.get_last_image_source());
             photo_frame::renderer::draw_battery_status(battery_info);
 
-            if (!battery_info.is_critical()) {
-                photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-                rect_t box = photo_frame::renderer::get_weather_info_rect();
-                photo_frame::renderer::draw_weather_info(current_weather, box);
-            }
-
             page_index++;
         } while (display.nextPage());
 #endif
 
-    #if defined(DISP_6C) || defined(DISP_7C)
+#if defined(DISP_6C) || defined(DISP_7C)
         // Power recovery delay after page refresh for 6-color displays
         // Increased from 400ms to 1000ms in v0.11.1 to improve power stability
         // Helps prevent:
@@ -609,19 +553,19 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // - Washout from incomplete capacitor recharge
         // - Display artifacts from power supply instability
         delay(1000);
-    #endif
+#endif
 
         // Handle rendering errors in a separate loop to prevent cutoff
         if (rendering_failed) {
-            // Set rotation for portrait mode
-            #if defined(ORIENTATION_PORTRAIT)
-                display.setRotation(1); // 90° CW rotation for portrait
-            #else
-                display.setRotation(0); // No rotation for landscape
-            #endif
+            log_w("Rendering failed!");
+// Set rotation for portrait mode
+#if defined(ORIENTATION_PORTRAIT)
+            display.setRotation(1); // 90° CW rotation for portrait
+#else
+            display.setRotation(0); // No rotation for landscape
+#endif
 
             display.firstPage();
-            display.setFullWindow();
             do {
                 photo_frame::renderer::draw_error_with_details(
                     TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
@@ -631,12 +575,6 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
                 photo_frame::renderer::draw_image_info(
                     image_index, total_files, drive.get_last_image_source());
                 photo_frame::renderer::draw_battery_status(battery_info);
-
-                if (!battery_info.is_critical()) {
-                    photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-                    rect_t box = photo_frame::renderer::get_weather_info_rect();
-                    photo_frame::renderer::draw_weather_info(current_weather, box);
-                }
             } while (display.nextPage());
 
             display.setRotation(0); // Reset rotation
@@ -658,7 +596,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
         if (error_code != 0) {
-            log_e("Failed to draw bitmap from file!");
+            log_e("Failed to draw binary image from file!");
 
             // Separate error display loop to prevent cutoff issues
             display.firstPage();
@@ -679,19 +617,6 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
                 image_index, total_files, drive.get_last_image_source());
             photo_frame::renderer::draw_battery_status(battery_info);
         } while (display.nextPage()); // Clear the display
-
-        if (!battery_info.is_critical()) {
-            photo_frame::weather::WeatherData current_weather = weatherManager.get_current_weather();
-            if (current_weather.is_displayable()) {
-                rect_t box = photo_frame::renderer::get_weather_info_rect();
-
-                display.setPartialWindow(box.x, box.y, box.width, box.height);
-                display.firstPage();
-                do {
-                    photo_frame::renderer::draw_weather_info(current_weather, box);
-                } while (display.nextPage());
-            }
-        }
     }
 
     return error;
@@ -724,10 +649,10 @@ bool initialize_hardware()
             log_e("[PSRAM] CRITICAL: Failed to initialize PSRAM: %s", esp_err_to_name(ret));
             log_e("[PSRAM] PSRAM is required for this board configuration!");
             log_e("[PSRAM] System will likely crash due to memory constraints");
-            // For ProS3(d) and other PSRAM-mandatory boards, we should halt
-            #ifdef BOARD_HAS_PSRAM
-                ESP.restart(); // Restart to try again
-            #endif
+// For ProS3(d) and other PSRAM-mandatory boards, we should halt
+#ifdef BOARD_HAS_PSRAM
+            ESP.restart(); // Restart to try again
+#endif
         } else {
             log_i("[PSRAM] PSRAM initialized successfully");
 
@@ -858,13 +783,6 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
         // SD card failed, load fallback configuration and calculate extended sleep
         load_fallback_config(systemConfig);
 
-        // Calculate extended sleep duration (midpoint between min and max refresh intervals)
-        // uint32_t fallback_sleep_seconds = systemConfig.get_fallback_sleep_seconds();
-        // uint64_t fallback_sleep_microseconds = (uint64_t)fallback_sleep_seconds * MICROSECONDS_IN_SECOND;
-        // Serial.print(F("SD card failed, entering extended sleep for "));
-        // Serial.print(fallback_sleep_seconds);
-        // Serial.println(F(" seconds"));
-
         // Enter deep sleep immediately with extended duration
         // photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED, fallback_sleep_microseconds);
         return error; // This line won't be reached, but included for completeness
@@ -878,11 +796,19 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
         error = wifiManager.init_with_networks(systemConfig.wifi);
 
         if (error == photo_frame::error_type::None) {
-            // No RTC module - simple NTP-only time fetching
+            // NTP-only time fetching
             log_i("Fetching time from NTP servers...");
             error = wifiManager.connect();
             if (error == photo_frame::error_type::None) {
-                now = photo_frame::rtc_utils::fetch_datetime(wifiManager, is_reset, &error);
+                now = wifiManager.fetch_datetime(&error);
+                if (!now.isValid() || error != photo_frame::error_type::None) {
+                    log_e("Failed to fetch time from NTP!");
+                    if (error == photo_frame::error_type::None) {
+                        error = photo_frame::error_type::NTPSyncFailed;
+                    }
+                } else {
+                    log_i("Successfully fetched time from NTP: %s", now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+                }
             }
         } else {
             log_e("WiFi initialization failed");
@@ -897,67 +823,6 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
     }
 
     return error;
-}
-
-photo_frame::photo_frame_error_t
-handle_weather_operations(const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager)
-{
-    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
-
-    log_i("--------------------------------------");
-    log_i("- Handling weather operations...");
-    log_i("--------------------------------------");
-
-    // Check if weather operations should be skipped due to battery conservation
-    bool batteryConservationMode = battery_info.is_critical();
-    if (batteryConservationMode) {
-        log_w("Skipping weather operations due to critical battery level (%d%%) - preserving power", battery_info.percent);
-        return photo_frame::error_type::None; // Not an error, just skipped for power conservation
-    }
-
-    // Initialize weather manager from unified configuration
-    log_i("Initializing weather manager from unified config...");
-    if (!weatherManager.begin_with_unified_config(systemConfig.weather)) {
-        log_w("Weather manager initialization failed or disabled");
-        return photo_frame::error_type::None; // Weather failure is not critical - continue without
-                                              // weather
-    }
-
-    // Check if weather update is needed
-    if (!weatherManager.is_configured()) {
-        log_i("Weather manager not configured - skipping weather fetch");
-        return photo_frame::error_type::None;
-    }
-
-    if (!weatherManager.needs_update(battery_info.percent)) {
-        log_i("Weather update not needed at this time");
-        return photo_frame::error_type::None;
-    }
-
-    // Connect to WiFi for weather data fetching
-    log_i("Connecting to WiFi for weather data...");
-    RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
-
-    error = wifiManager.connect();
-    if (error != photo_frame::error_type::None) {
-        log_e("WiFi connection failed for weather fetch");
-        RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
-        return error; // Return error but don't make it critical
-    }
-
-    // Fetch weather data
-    log_i("Fetching weather data...");
-    RGB_SET_STATE(WEATHER_FETCHING); // Show weather fetching status
-
-    if (weatherManager.fetch_weather()) {
-        log_i("Weather data updated successfully");
-        weatherManager.reset_failures(); // Reset failure count on success
-    } else {
-        log_w("Weather fetch failed (%d consecutive failures)", weatherManager.get_failure_count());
-        // Don't treat weather fetch failure as critical error
-    }
-    return photo_frame::error_type::None; // Always return success for weather operations
 }
 
 photo_frame::photo_frame_error_t
@@ -1014,7 +879,7 @@ handle_google_drive_operations(bool is_reset,
                     log_i("Time since last cleanup: %ld seconds", now - lastCleanup);
                 } else {
                     log_i("Skipping cleanup, only %ld seconds since last cleanup (need %d seconds)",
-                          now - lastCleanup, CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
+                        now - lastCleanup, CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
                 }
             }
 
@@ -1077,7 +942,7 @@ handle_google_drive_operations(bool is_reset,
                 selectedFile = drive.get_toc_file_by_index(sdCard, image_index, &tocError);
 #endif // GOOGLE_DRIVE_TEST_FILE
 
-                // Track if file was successfully processed (binary loaded to buffer OR BMP file kept open)
+                // Track if file was successfully processed (binary loaded to PSRAM buffer)
                 bool fileProcessedSuccessfully = false;
 
                 if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
@@ -1093,7 +958,7 @@ handle_google_drive_operations(bool is_reset,
                         // Check battery level before downloading file
                         if (batteryConservationMode) {
                             log_w("Skipping file download due to critical battery level (%d%%) - will use cached files if available",
-                                  battery_info.percent);
+                                battery_info.percent);
                             error = photo_frame::error_type::BatteryLevelCritical;
                         } else {
                             // Download the selected file to SD card
@@ -1145,24 +1010,21 @@ handle_google_drive_operations(bool is_reset,
                             // Close the SD card file after loading
                             file.close();
 
+                            // Sample first few bytes to verify buffer has data
+                            log_d("Buffer check - First 8 bytes: %02X %02X %02X %02X %02X %02X %02X %02X",
+                                g_image_buffer[0], g_image_buffer[1], g_image_buffer[2], g_image_buffer[3],
+                                g_image_buffer[4], g_image_buffer[5], g_image_buffer[6], g_image_buffer[7]);
+
                             if (loadError != 0) {
                                 log_e("Failed to load image to buffer, error code: %d", loadError);
                                 error = photo_frame::error_type::BinaryRenderingFailed;
-
-                                // Close SD card after buffer load error to prevent SPI conflicts
-                                log_i("Closing SD card after buffer load error");
-                                sdCard.end();
                             } else {
                                 log_i("Binary image loaded to PSRAM buffer");
-
-                                // Close SD card (image is in PSRAM)
-                                log_i("Shutting down SD card (binary image in PSRAM buffer)");
-                                sdCard.end();
-
                                 // Mark as successfully processed
                                 fileProcessedSuccessfully = true;
                                 file_ready = true; // Binary image loaded to buffer
                             }
+                            sdCard.end();
                         }
                     }
 
@@ -1220,16 +1082,14 @@ process_image_file(fs::File& file,
     const refresh_delay_t& refresh_delay,
     uint32_t image_index,
     uint32_t total_files,
-    const photo_frame::battery_info_t& battery_info,
-    photo_frame::weather::WeatherManager& weatherManager)
+    const photo_frame::battery_info_t& battery_info)
 {
     photo_frame::photo_frame_error_t error = current_error;
 
-    // For binary files: file_ready=true, file=closed, g_image_buffer=loaded
-    // For BMP files: file_ready=true, file=open from LittleFS
+    // Binary format only: file_ready=true, file=closed, g_image_buffer=loaded
     if (error == photo_frame::error_type::None && file_ready) {
-        // Image was already validated and is ready for rendering
-        log_i("Rendering validated image (binary in buffer or BMP from file)...");
+        // Image was already validated and loaded to PSRAM buffer
+        log_i("Rendering validated binary image from buffer...");
         error = render_image(file,
             original_filename,
             error,
@@ -1238,12 +1098,11 @@ process_image_file(fs::File& file,
             image_index,
             total_files,
             drive,
-            battery_info,
-            weatherManager);
+            battery_info);
     }
 
     if (file) {
-        file.close(); // Close the file after drawing (only for BMP files)
+        file.close(); // Ensure file is closed (should already be closed after buffer load)
     }
 
     return error;
@@ -1264,16 +1123,13 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     cleanup_image_buffer();
 
     delay(100);
-    // photo_frame::renderer::power_off();
-    photo_frame::renderer::hibernate();
-    delay(400);
-    photo_frame::renderer::end();
+    photo_frame::renderer::power_off();
 
     // now go to sleep using the pre-calculated refresh delay
     if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
         log_i("Going to sleep for %ld seconds (%lu seconds from microseconds)",
-              refresh_delay.refresh_seconds,
-              (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
+            refresh_delay.refresh_seconds,
+            (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
     } else {
         if (battery_info.is_critical()) {
             log_w("Battery is critical, entering indefinite sleep");
@@ -1372,8 +1228,12 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     }
 
     log_i("Final refresh delay: %ld seconds (%lu microseconds)",
-          refresh_delay.refresh_seconds,
-          (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
+        refresh_delay.refresh_seconds,
+        (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
 
     return refresh_delay;
 }
+
+#else
+#include "display_debug.h"
+#endif

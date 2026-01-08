@@ -21,46 +21,40 @@
 // Enable separate SPI bus for SD card
 // Disabled: Using default SPI bus (VSPI) for better stability
 // SD card and display are never used simultaneously, so sharing the bus is safe
-// #define USE_HSPI_FOR_SD
+#define USE_HSPI_FOR_SD
 
-// #define SD_MMC_CLK_PIN 14 // SDIO CLK
-// #define SD_MMC_D0_PIN 6 // SDIO D0
-// #define SD_MMC_CMD_PIN 16 // SDIO CMD
-// #define SD_MMC_D3_PIN 12 // SDIO D3
-// #define SD_MMC_D1_PIN 21 // SDIO D1
-// #define SD_MMC_D2_PIN 15 // SDIO D2
+// #define SD_MMC_CLK_PIN  12   // SDIO CLK
+// #define SD_MMC_D0_PIN   13   // SDIO D0
+// #define SD_MMC_CMD_PIN  14   // SDIO CMD
+// #define SD_MMC_D3_PIN   15   // SDIO D3
+// #define SD_MMC_D1_PIN   21   // SDIO D1
+// #define SD_MMC_D2_PIN   5    // SDIO D2
 
 // SD Card - sharing default SPI bus (VSPI) with display
 #define SD_USE_SPI          // Use SPI instead of SDIO for SD card
-#define SD_CS_PIN      12   // SD Card Chip Select (CS) - IO12
-#define SD_SCK_PIN     36   // SD SPI Clock - IO36 (VSPI, shared with display)
-#define SD_MOSI_PIN    35   // SD SPI MOSI - IO35 (VSPI, shared with display)
-#define SD_MISO_PIN    37   // SD SPI MISO - IO37 (VSPI)
+#define SD_CS_PIN      15   // SD Card Chip Select (CS)
+#define SD_SCK_PIN     12   // SD SPI Clock - IO36 (VSPI, shared with display)
+#define SD_MOSI_PIN    14   // SD SPI MOSI - IO35 (VSPI, shared with display)
+#define SD_MISO_PIN    13   // SD SPI MISO - IO37 (VSPI)
 
 // e-Paper Display - using default SPI (VSPI)
 #define EPD_BUSY_PIN 6   // IO6 - available digital pin
-#define EPD_RST_PIN  5   // IO5 - available digital pin
-#define EPD_DC_PIN   13  // IO13 - available digital pin
+#define EPD_RST_PIN  4   // IO5 - available digital pin
+#define EPD_DC_PIN   16  // IO13 - available digital pin
 #define EPD_CS_PIN   38  // IO38 - SPI CS for e-paper
 #define EPD_SCK_PIN  36  // IO36 - SPI Clock for e-paper (VSPI)
 #define EPD_MOSI_PIN 35  // IO35 - SPI MOSI for e-paper (VSPI)
 
-// Potentiometer pin - using analog pins
-// #define USE_POTENTIOMETER
-// #define POTENTIOMETER_PWR_PIN   7    // Disabled - direct 3.3V power
-// #define POTENTIOMETER_INPUT_PIN 3    // IO3 - Analog pin (ADC1_CH2)
-// #define POTENTIOMETER_INPUT_MAX 4095 // 12-bit ADC
-
 // Battery monitoring - ProS3 has MAX1704X fuel gauge over I2C
-#define BATTERY_PIN                    2 // Built-in battery voltage pin (GPIO2) - backup only
 #define BATTERY_NUM_READINGS           100
 #define BATTERY_DELAY_BETWEEN_READINGS 10
 #define BATTERY_RESISTORS_RATIO 0.2574679943 // ProS3 built-in divider ratio
 
 // MAX1704X I2C fuel gauge - primary battery monitoring method
 // Note: USE_SENSOR_MAX1704X is defined in platformio.ini build_flags
-#define MAX1704X_SDA_PIN   8  // IO8 - I2C SDA (shared with RTC)
-#define MAX1704X_SCL_PIN   9  // IO9 - I2C SCL (shared with RTC)
+// Note: RTC hardware support removed - time synchronization uses NTP only
+#define MAX1704X_SDA_PIN   8  // IO8 - I2C SDA
+#define MAX1704X_SCL_PIN   9  // IO9 - I2C SCL
 
 // Built-in LED - ProS3 uses RGB NeoPixel on GPIO18
 #ifdef LED_BUILTIN
@@ -74,12 +68,6 @@
 #define RGB_LED_COUNT   1   // Single RGB LED
 #define LED_PWR_PIN     17  // GPIO17 - RGB LED power control pin
 
-// PCF8523 RTC - shares I2C bus with battery fuel gauge
-// Note: USE_RTC is defined in platformio.ini build_flags
-#define RTC_SDA_PIN 8 // IO8 - I2C SDA for RTC (shared with battery fuel gauge)
-#define RTC_SCL_PIN 9 // IO9 - I2C SCL for RTC (shared with battery fuel gauge)
-// RTC Class definition for PCF8523
-#define RTC_CLASS_PCF8523
 
 // External wakeup configuration
 #define WAKEUP_EXT0

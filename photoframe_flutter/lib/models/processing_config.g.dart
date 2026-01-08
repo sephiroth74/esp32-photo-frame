@@ -22,8 +22,8 @@ ProcessingConfig _$ProcessingConfigFromJson(
       $enumDecodeNullable(_$DitherMethodEnumMap, json['ditherMethod']) ??
       DitherMethod.jarvisJudiceNinke,
   ditherStrength: (json['ditherStrength'] as num?)?.toDouble() ?? 1.0,
-  contrast: (json['contrast'] as num?)?.toDouble() ?? 0.0,
-  brightness: (json['brightness'] as num?)?.toDouble() ?? 0.0,
+  contrast: (json['contrast'] as num?)?.toInt() ?? 0,
+  brightness: (json['brightness'] as num?)?.toInt() ?? 0,
   autoOptimize: json['autoOptimize'] as bool? ?? false,
   outputBmp: json['outputBmp'] as bool? ?? false,
   outputBin: json['outputBin'] as bool? ?? true,

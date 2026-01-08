@@ -25,7 +25,10 @@
 
 namespace photo_frame {
 
-const unsigned long wifi_manager::CONNECTION_TIMEOUT_MS = 30000;
+// PROBLEM #1 FIX: Reduced from 30000ms (30s) to 15000ms (15s)
+// ESP32-S3 typically connects in 5-10 seconds; 30s was too long
+// and caused excessive wait times when connection actually failed
+const unsigned long wifi_manager::CONNECTION_TIMEOUT_MS = 15000;
 
 wifi_manager::wifi_manager() : _initialized(false), _connected(false) {}
 
@@ -172,6 +175,10 @@ photo_frame_error_t wifi_manager::connect() {
 
             WiFi.begin(ssid.c_str(), password.c_str());
 
+            // CRITICAL FIX: Wait for WiFi hardware to initialize before checking status
+            // WiFi.begin() is asynchronous and needs time to start the connection process
+            delay(1000);
+
             unsigned long timeout = millis() + CONNECTION_TIMEOUT_MS;
             wl_status_t connection_status = WiFi.status();
             while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
@@ -189,7 +196,14 @@ photo_frame_error_t wifi_manager::connect() {
                 log_w("Failed to connect to '%s' (attempt %u/%u)",
                       ssid.c_str(), attempt + 1, maxRetriesPerNetwork);
 
-                WiFi.disconnect(true);
+                // PROBLEM #3 FIX: Use disconnect(false) for faster retries
+                // EXCEPTION: ESP32-C6 needs disconnect(true) due to I2C/WiFi interference
+#if defined(CONFIG_IDF_TARGET_ESP32C6)
+                WiFi.disconnect(true);  // ESP32-C6: Full reset needed for I2C isolation
+#else
+                WiFi.disconnect(false);  // Other ESP32: Faster disconnect for retries
+#endif
+                delay(100);  // Small delay after disconnect for stability
 
                 // Exponential backoff with jitter for retries (only within same network)
                 if (attempt < maxRetriesPerNetwork - 1) {
@@ -285,8 +299,16 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
 void wifi_manager::disconnect() {
     if (_connected) {
         log_i("Disconnecting from WiFi...");
+
+        // PROBLEM #5 FIX: Add delays to prevent race condition
+        // WiFi.disconnect() is asynchronous and needs time to complete
+        // Calling WiFi.mode(WIFI_OFF) immediately can cause crashes
         WiFi.disconnect(true);
+        delay(100);  // Allow disconnect to start
+
         WiFi.mode(WIFI_OFF);
+        delay(100);  // Allow mode change to complete
+
         _connected = false;
         log_i("WiFi disconnected and turned off");
     }

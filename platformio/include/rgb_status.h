@@ -48,7 +48,6 @@
  * - STARTING: White pulse during system startup (3s duration)
  * - WIFI_CONNECTING: Blue pulse while connecting to WiFi
  * - WIFI_FAILED: Red slow blink when connection fails
- * - WEATHER_FETCHING: Green pulse while fetching weather data
  * - SD_READING/SD_WRITING: Orange/Yellow pulse during SD operations
  * - GOOGLE_DRIVE: Cyan pulse during Google Drive operations
  * - DOWNLOADING: Purple pulse during file downloads
@@ -81,7 +80,6 @@ enum class SystemState {
     STARTING,         // White pulse - system starting up
     WIFI_CONNECTING,  // Blue pulse - connecting to WiFi
     WIFI_FAILED,      // Red - WiFi connection failed
-    WEATHER_FETCHING, // Light blue - fetching weather data
     SD_READING,       // Orange - reading from SD card
     SD_WRITING,       // Yellow - writing to SD card
     GOOGLE_DRIVE,     // Cyan - Google Drive operations

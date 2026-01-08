@@ -23,7 +23,7 @@ required-features = ["test_dithering"]
 [dependencies]
 # Core image processing
 image = { version = "0.25.9", features = ["jpeg", "png", "webp", "tiff"] }
-imageproc = "0.25"
+imageproc = "0.26.0"
 fast_image_resize = "5.4.0"
 
 # CLI interface

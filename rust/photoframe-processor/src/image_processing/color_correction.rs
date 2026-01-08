@@ -298,8 +298,8 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
 /// Apply brightness and contrast adjustments using ImageMagick
 fn apply_imagemagick_brightness_contrast(
     img: &RgbImage,
-    brightness_adjustment: f32,
-    contrast_adjustment: f32,
+    brightness_adjustment: i32,
+    contrast_adjustment: i32,
 ) -> Result<RgbImage> {
     // Create unique temporary files
     let temp_dir = std::env::temp_dir();
@@ -324,12 +324,9 @@ fn apply_imagemagick_brightness_contrast(
     // Get the correct ImageMagick command
     let magick_cmd = get_imagemagick_command();
 
-    // Convert adjustments to ImageMagick brightness-contrast format
-    // ImageMagick expects brightness/contrast as percentages
-    // brightness: -100 to +100 (we have -1.0 to +1.0, so multiply by 100)
-    // contrast: -100 to +100 (same conversion)
-    let brightness_percent = (brightness_adjustment * 100.0).round() as i32;
-    let contrast_percent = (contrast_adjustment * 100.0).round() as i32;
+    // Values are already in ImageMagick format (-100 to +100)
+    let brightness_percent = brightness_adjustment;
+    let contrast_percent = contrast_adjustment;
 
     // Run ImageMagick with brightness-contrast adjustment
     let output = Command::new(magick_cmd)
@@ -358,19 +355,19 @@ fn apply_imagemagick_brightness_contrast(
 }
 
 /// Apply contrast adjustment to enhance or reduce image contrast
-/// contrast_adjustment: -1.0 to 1.0
+/// contrast_adjustment: -100 to 100
 ///   - Positive values increase contrast (makes darks darker, lights lighter)
 ///   - Negative values decrease contrast (flattens the image)
-///   - 0.0 = no change
-pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: f32) -> Result<RgbImage> {
-    if contrast_adjustment == 0.0 {
+///   - 0 = no change
+pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Result<RgbImage> {
+    if contrast_adjustment == 0 {
         // No adjustment needed
         return Ok(img.clone());
     }
 
     // Try ImageMagick first for superior contrast adjustment
     if is_imagemagick_available() {
-        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, 0.0, contrast_adjustment) {
+        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, 0, contrast_adjustment) {
             return Ok(adjusted);
         }
     }
@@ -381,7 +378,8 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: f32) -> Re
 
     // Contrast formula: adjusted = ((pixel - 128) * (1 + contrast)) + 128
     // This pivots around middle gray (128)
-    let factor = 1.0 + contrast_adjustment;
+    // Convert from -100..100 to factor (0..2)
+    let factor = 1.0 + (contrast_adjustment as f32 / 100.0);
 
     for (x, y, pixel) in img.enumerate_pixels() {
         let r = ((pixel[0] as f32 - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
@@ -395,28 +393,28 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: f32) -> Re
 }
 
 /// Apply brightness adjustment to make image lighter or darker
-/// brightness_adjustment: -1.0 to 1.0
+/// brightness_adjustment: -100 to 100
 ///   - Positive values increase brightness (makes image lighter)
 ///   - Negative values decrease brightness (makes image darker)
-///   - 0.0 = no change
-pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: f32) -> Result<RgbImage> {
-    if brightness_adjustment == 0.0 {
+///   - 0 = no change
+pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: i32) -> Result<RgbImage> {
+    if brightness_adjustment == 0 {
         // No adjustment needed
         return Ok(img.clone());
     }
 
     // Try ImageMagick first for superior brightness adjustment
     if is_imagemagick_available() {
-        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, brightness_adjustment, 0.0) {
+        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, brightness_adjustment, 0) {
             return Ok(adjusted);
         }
     }
 
     // Fall back to custom implementation
-    // Convert adjustment range from -1.0..1.0 to brightness delta in 0-255 range
-    // brightness_adjustment of 1.0 adds 255 (max brightness)
-    // brightness_adjustment of -1.0 subtracts 255 (max darkness)
-    let delta = (brightness_adjustment * 255.0) as i32;
+    // Convert adjustment range from -100..100 to brightness delta in 0-255 range
+    // brightness_adjustment of 100 adds 255 (max brightness)
+    // brightness_adjustment of -100 subtracts 255 (max darkness)
+    let delta = ((brightness_adjustment as f32 / 100.0) * 255.0) as i32;
 
     // Use image::imageops::brighten function
     let output = imageops::brighten(img, delta);

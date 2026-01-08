@@ -29,7 +29,6 @@
 #include "config.h"
 #include "errors.h"
 #include "google_drive.h"
-#include "weather.h"
 #include <Arduino.h>
 #include <assets/icons/icons.h>
 
@@ -485,26 +484,6 @@ void draw_image_info(Adafruit_GFX& gfx,
                      uint32_t index,
                      uint32_t total_images,
                      photo_frame::image_source_t image_source);
-
-
-rect_t get_weather_info_rect();
-
-/**
- * Draws current weather information on the e-paper display.
- * @param weather_data The weather data to display (temperature, icon, etc.)
- * @param gravity The position where to display the weather (default: TOP_CENTER_LEFT)
- * @note This function displays a weather icon and temperature on the status bar.
- * Only displays if weather data is valid and not stale.
- */
-void draw_weather_info(const photo_frame::weather::WeatherData& weather_data, rect_t box_rect);
-
-/**
- * Draws current weather information on a GFX canvas (for overlay composition).
- * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param weather_data The weather data to display (temperature, icon, etc.)
- * @param box_rect Rectangle defining the weather info area
- */
-void draw_weather_info(Adafruit_GFX& gfx, const photo_frame::weather::WeatherData& weather_data, rect_t box_rect);
 
 /**
  * Draws a rounded rectangle with dithering transparency on the e-paper display.

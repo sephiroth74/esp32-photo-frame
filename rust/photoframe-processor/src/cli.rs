@@ -208,23 +208,23 @@ pub struct Args {
     )]
     pub dither_strength: f32,
 
-    /// Contrast adjustment (-1.0 to 1.0, default 0.0). Positive = increase, negative = decrease
+    /// Contrast adjustment (-100 to 100, default 0). Positive = increase, negative = decrease
     #[arg(
         long = "contrast",
-        default_value = "0.0",
+        default_value = "0",
         value_name = "ADJUSTMENT",
-        help = "Contrast adjustment: -1.0 (low contrast) to 1.0 (high contrast), 0.0 = no change"
+        help = "Contrast adjustment: -100 (low contrast) to 100 (high contrast), 0 = no change"
     )]
-    pub contrast: f32,
+    pub contrast: i32,
 
-    /// Brightness adjustment (-1.0 to 1.0, default 0.0). Positive = lighter, negative = darker
+    /// Brightness adjustment (-100 to 100, default 0). Positive = lighter, negative = darker
     #[arg(
         long = "brightness",
-        default_value = "0.0",
+        default_value = "0",
         value_name = "ADJUSTMENT",
-        help = "Brightness adjustment: -1.0 (darker) to 1.0 (lighter), 0.0 = no change"
+        help = "Brightness adjustment: -100 (darker) to 100 (lighter), 0 = no change"
     )]
-    pub brightness: f32,
+    pub brightness: i32,
 
     /// Enable automatic per-image parameter optimization (overrides manual dithering/contrast settings)
     #[arg(
@@ -547,8 +547,8 @@ impl Default for Args {
             divider_color: "#FFFFFF".to_string(),
             dithering_method: DitherMethod::FloydSteinberg,
             dither_strength: 1.0,
-            contrast: 0.0,
-            brightness: 0.0,
+            contrast: 0,
+            brightness: 0,
             auto_optimize: false,
             report: false,
             json_progress: false,

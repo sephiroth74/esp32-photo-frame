@@ -472,13 +472,13 @@ class _DitheringSettingsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Contrast: ${config.contrast.toStringAsFixed(2)}'),
+                          Text('Contrast: ${config.contrast}'),
                           AppKitSlider(
-                            value: config.contrast + 1.0,
+                            value: (config.contrast + 100).toDouble(),
                             min: 0.0,
-                            max: 2.0,
+                            max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(contrast: value - 1.0));
+                              provider.updateConfig(config.copyWith(contrast: value.round() - 100));
                             },
                           ),
                         ],
@@ -489,13 +489,13 @@ class _DitheringSettingsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Brightness: ${config.brightness.toStringAsFixed(2)}'),
+                          Text('Brightness: ${config.brightness}'),
                           AppKitSlider(
-                            value: config.brightness + 1.0,
+                            value: (config.brightness + 100).toDouble(),
                             min: 0.0,
-                            max: 2.0,
+                            max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(brightness: value - 1.0));
+                              provider.updateConfig(config.copyWith(brightness: value.round() - 100));
                             },
                           ),
                         ],
