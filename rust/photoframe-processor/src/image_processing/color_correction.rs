@@ -19,7 +19,7 @@ pub fn apply_auto_color_correction(img: &RgbImage) -> Result<RgbImage> {
     // Apply corrections in sequence
     corrected = apply_auto_levels(&corrected)?;
     corrected = apply_white_balance_correction(&corrected)?;
-    corrected = apply_saturation_adjustment(&corrected, 1.2)?; // 20% saturation boost
+    corrected = apply_saturation_adjustment(&corrected, 1.1)?; // 10% saturation boost
 
     Ok(corrected)
 }
@@ -295,6 +295,68 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
     )
 }
 
+/// Apply brightness and contrast adjustments using ImageMagick
+fn apply_imagemagick_brightness_contrast(
+    img: &RgbImage,
+    brightness_adjustment: f32,
+    contrast_adjustment: f32,
+) -> Result<RgbImage> {
+    // Create unique temporary files
+    let temp_dir = std::env::temp_dir();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let thread_id = std::thread::current().id();
+
+    let input_path = temp_dir.join(format!(
+        "photoframe_input_{}_{:?}.png",
+        timestamp, thread_id
+    ));
+    let output_path = temp_dir.join(format!(
+        "photoframe_output_{}_{:?}.png",
+        timestamp, thread_id
+    ));
+
+    // Save input image
+    img.save(&input_path)?;
+
+    // Get the correct ImageMagick command
+    let magick_cmd = get_imagemagick_command();
+
+    // Convert adjustments to ImageMagick brightness-contrast format
+    // ImageMagick expects brightness/contrast as percentages
+    // brightness: -100 to +100 (we have -1.0 to +1.0, so multiply by 100)
+    // contrast: -100 to +100 (same conversion)
+    let brightness_percent = (brightness_adjustment * 100.0).round() as i32;
+    let contrast_percent = (contrast_adjustment * 100.0).round() as i32;
+
+    // Run ImageMagick with brightness-contrast adjustment
+    let output = Command::new(magick_cmd)
+        .arg(&input_path)
+        .arg("-brightness-contrast")
+        .arg(format!("{}x{}", brightness_percent, contrast_percent))
+        .arg(&output_path)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!(
+            "ImageMagick brightness-contrast failed: {}",
+            stderr
+        ));
+    }
+
+    // Load the adjusted image
+    let adjusted_img = image::open(&output_path)?.to_rgb8();
+
+    // Clean up temporary files
+    let _ = fs::remove_file(&input_path);
+    let _ = fs::remove_file(&output_path);
+
+    Ok(adjusted_img)
+}
+
 /// Apply contrast adjustment to enhance or reduce image contrast
 /// contrast_adjustment: -1.0 to 1.0
 ///   - Positive values increase contrast (makes darks darker, lights lighter)
@@ -306,6 +368,14 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: f32) -> Re
         return Ok(img.clone());
     }
 
+    // Try ImageMagick first for superior contrast adjustment
+    if is_imagemagick_available() {
+        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, 0.0, contrast_adjustment) {
+            return Ok(adjusted);
+        }
+    }
+
+    // Fall back to custom implementation
     let (width, height) = img.dimensions();
     let mut output = RgbImage::new(width, height);
 
@@ -335,6 +405,14 @@ pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: f32) -
         return Ok(img.clone());
     }
 
+    // Try ImageMagick first for superior brightness adjustment
+    if is_imagemagick_available() {
+        if let Ok(adjusted) = apply_imagemagick_brightness_contrast(img, brightness_adjustment, 0.0) {
+            return Ok(adjusted);
+        }
+    }
+
+    // Fall back to custom implementation
     // Convert adjustment range from -1.0..1.0 to brightness delta in 0-255 range
     // brightness_adjustment of 1.0 adds 255 (max brightness)
     // brightness_adjustment of -1.0 subtracts 255 (max darkness)
