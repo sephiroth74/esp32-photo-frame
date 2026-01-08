@@ -1458,6 +1458,7 @@ impl ProcessingEngine {
             optimized_dither_method,
             optimized_dither_strength,
             optimized_contrast,
+            optimized_brightness,
             optimized_auto_color,
             image_analysis,
         ) = if self.config.auto_optimize {
@@ -1473,6 +1474,7 @@ impl ProcessingEngine {
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
+                self.config.brightness, // Use config brightness (not auto-optimized yet)
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -1482,6 +1484,7 @@ impl ProcessingEngine {
                 self.config.dithering_method.clone(),
                 self.config.dither_strength,
                 self.config.contrast,
+                self.config.brightness,
                 self.config.auto_color_correct,
                 None,
             )
@@ -1500,18 +1503,42 @@ impl ProcessingEngine {
             annotated_img
         };
 
-        // Apply contrast adjustment (81-82%) - use optimized parameter
+        // Apply brightness and contrast adjustments (81-82%) - combined for efficiency
         progress_bar.set_position(81);
-        let contrast_adjusted_img = if optimized_contrast != 0 {
-            progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+        let brightness_contrast_adjusted_img = if optimized_brightness != 0 || optimized_contrast != 0 {
+            eprintln!(
+                "[Pipeline] Applying brightness={} contrast={} to portrait",
+                optimized_brightness, optimized_contrast
+            );
+
+            if optimized_brightness != 0 && optimized_contrast != 0 {
+                progress_bar.set_message(format!("{} - Adjusting brightness and contrast", filename));
+            } else if optimized_brightness != 0 {
+                progress_bar.set_message(format!("{} - Adjusting brightness", filename));
+            } else {
+                progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+            }
             std::thread::yield_now();
-            let adjusted = color_correction::apply_contrast_adjustment(
-                &color_corrected_img,
-                optimized_contrast,
-            )?;
+
+            // Apply both together using ImageMagick when available
+            let adjusted = if color_correction::is_imagemagick_available() {
+                eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
+                color_correction::apply_imagemagick_brightness_contrast_public(
+                    &color_corrected_img,
+                    optimized_brightness,
+                    optimized_contrast,
+                )?
+            } else {
+                // Fall back to separate operations
+                eprintln!("[Pipeline] ImageMagick not available, using fallback Rust implementation");
+                let temp = color_correction::apply_brightness_adjustment(&color_corrected_img, optimized_brightness)?;
+                color_correction::apply_contrast_adjustment(&temp, optimized_contrast)?
+            };
+
             progress_bar.set_position(82);
             adjusted
         } else {
+            eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
             progress_bar.set_position(82);
             color_corrected_img
         };
@@ -1520,7 +1547,7 @@ impl ProcessingEngine {
         progress_bar.set_message(format!("{} - Color processing", filename));
         std::thread::yield_now();
         let processed_img = convert::process_image(
-            &contrast_adjusted_img,
+            &brightness_contrast_adjusted_img,
             &self.config.processing_type,
             &optimized_dither_method,
             optimized_dither_strength,
@@ -2743,8 +2770,8 @@ impl ProcessingEngine {
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
-                optimization_result.auto_color_correct,
                 self.config.brightness, // Use config brightness (not auto-optimized yet)
+                optimization_result.auto_color_correct,
                 Some(analysis),
             )
         } else {
@@ -2752,8 +2779,8 @@ impl ProcessingEngine {
                 self.config.dithering_method.clone(),
                 self.config.dither_strength,
                 self.config.contrast,
-                self.config.auto_color_correct,
                 self.config.brightness,
+                self.config.auto_color_correct,
                 None,
             )
         };
@@ -2778,8 +2805,8 @@ impl ProcessingEngine {
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
-                optimization_result.auto_color_correct,
                 self.config.brightness, // Use config brightness (not auto-optimized yet)
+                optimization_result.auto_color_correct,
                 Some(analysis),
             )
         } else {
@@ -2787,8 +2814,8 @@ impl ProcessingEngine {
                 self.config.dithering_method.clone(),
                 self.config.dither_strength,
                 self.config.contrast,
-                self.config.auto_color_correct,
                 self.config.brightness,
+                self.config.auto_color_correct,
                 None,
             )
         };
