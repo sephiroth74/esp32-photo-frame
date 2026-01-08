@@ -98,6 +98,8 @@ pub struct ProcessingConfig {
     pub contrast: i32,
     // Brightness adjustment (-100 to 100, applied before dithering)
     pub brightness: i32,
+    // Saturation boost multiplier (0.5-2.0, 1.0 = no change)
+    pub saturation_boost: f32,
     // Auto-optimization
     pub auto_optimize: bool,
     pub optimization_report: bool,
@@ -1196,7 +1198,7 @@ impl ProcessingEngine {
         let color_corrected_img = if optimized_auto_color {
             progress_bar.set_message(format!("{} - Auto color correction", filename));
             std::thread::yield_now();
-            let corrected = color_correction::apply_auto_color_correction(&annotated_img)?;
+            let corrected = color_correction::apply_auto_color_correction_with_saturation(&annotated_img, self.config.saturation_boost)?;
             progress_bar.set_position(76);
             corrected
         } else {
@@ -1495,7 +1497,7 @@ impl ProcessingEngine {
         let color_corrected_img = if optimized_auto_color {
             progress_bar.set_message(format!("{} - Auto color correction", filename));
             std::thread::yield_now();
-            let corrected = color_correction::apply_auto_color_correction(&annotated_img)?;
+            let corrected = color_correction::apply_auto_color_correction_with_saturation(&annotated_img, self.config.saturation_boost)?;
             progress_bar.set_position(81);
             corrected
         } else {
@@ -2110,13 +2112,13 @@ impl ProcessingEngine {
         progress_bar.set_position(45);
         progress_bar.set_position(46); // Processing left image correction
         let left_color_corrected = if left_optimized_auto_color {
-            color_correction::apply_auto_color_correction(&left_resized)?
+            color_correction::apply_auto_color_correction_with_saturation(&left_resized, self.config.saturation_boost)?
         } else {
             left_resized
         };
         progress_bar.set_position(47); // Processing right image correction
         let right_color_corrected = if right_optimized_auto_color {
-            color_correction::apply_auto_color_correction(&right_resized)?
+            color_correction::apply_auto_color_correction_with_saturation(&right_resized, self.config.saturation_boost)?
         } else {
             right_resized
         };
@@ -2824,13 +2826,13 @@ impl ProcessingEngine {
         progress_bar.set_position(45);
         progress_bar.set_position(46);
         let top_color_corrected = if top_optimized_auto_color {
-            color_correction::apply_auto_color_correction(&top_resized)?
+            color_correction::apply_auto_color_correction_with_saturation(&top_resized, self.config.saturation_boost)?
         } else {
             top_resized
         };
         progress_bar.set_position(47);
         let bottom_color_corrected = if bottom_optimized_auto_color {
-            color_correction::apply_auto_color_correction(&bottom_resized)?
+            color_correction::apply_auto_color_correction_with_saturation(&bottom_resized, self.config.saturation_boost)?
         } else {
             bottom_resized
         };

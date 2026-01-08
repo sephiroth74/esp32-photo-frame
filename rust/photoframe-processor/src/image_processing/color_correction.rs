@@ -7,9 +7,16 @@ use std::process::Command;
 ///
 /// This function will try ImageMagick first (if available), then fall back to
 /// custom implementation. ImageMagick provides superior auto-color correction.
+#[allow(dead_code)]
 pub fn apply_auto_color_correction(img: &RgbImage) -> Result<RgbImage> {
-    // Try ImageMagick first for superior color correction
-    if let Ok(corrected) = apply_imagemagick_auto_color(img) {
+    // Default to 1.1 saturation boost for backward compatibility
+    apply_auto_color_correction_with_saturation(img, 1.1)
+}
+
+/// Apply automatic color correction with configurable saturation boost
+pub fn apply_auto_color_correction_with_saturation(img: &RgbImage, saturation_boost: f32) -> Result<RgbImage> {
+    // Try ImageMagick first for superior color correction (uses saturation_boost)
+    if let Ok(corrected) = apply_imagemagick_auto_color_with_saturation(img, saturation_boost) {
         return Ok(corrected);
     }
 
@@ -19,7 +26,7 @@ pub fn apply_auto_color_correction(img: &RgbImage) -> Result<RgbImage> {
     // Apply corrections in sequence
     corrected = apply_auto_levels(&corrected)?;
     corrected = apply_white_balance_correction(&corrected)?;
-    corrected = apply_saturation_adjustment(&corrected, 1.1)?; // 10% saturation boost
+    corrected = apply_saturation_adjustment(&corrected, saturation_boost)?;
 
     Ok(corrected)
 }
@@ -55,9 +62,15 @@ fn get_imagemagick_command() -> &'static str {
     }
 }
 
-/// Apply automatic color correction using ImageMagick
-/// This provides superior results compared to custom implementation
+/// Apply automatic color correction using ImageMagick (legacy compatibility)
+#[allow(dead_code)]
 fn apply_imagemagick_auto_color(img: &RgbImage) -> Result<RgbImage> {
+    // Default to 1.2 (20% boost) for backward compatibility
+    apply_imagemagick_auto_color_with_saturation(img, 1.2)
+}
+
+/// Apply automatic color correction using ImageMagick with configurable saturation
+fn apply_imagemagick_auto_color_with_saturation(img: &RgbImage, saturation_boost: f32) -> Result<RgbImage> {
     // Create unique temporary files to avoid conflicts in multi-threaded environments
     let temp_dir = std::env::temp_dir();
     let timestamp = std::time::SystemTime::now()
@@ -81,14 +94,17 @@ fn apply_imagemagick_auto_color(img: &RgbImage) -> Result<RgbImage> {
     // Get the correct ImageMagick command
     let magick_cmd = get_imagemagick_command();
 
+    // Calculate saturation percentage for ImageMagick (100 = no change)
+    let saturation_percent = (saturation_boost * 100.0) as i32;
+
     // Run ImageMagick with auto-color correction
     let output = Command::new(magick_cmd)
         .arg(&input_path)
         .arg("-auto-color") // Remove color casts
         .arg("-auto-level") // Stretch histogram
         .arg("-auto-gamma") // Adjust gamma
-        .arg("-modulate") // Enhance saturation slightly
-        .arg("100,120,100") // brightness,saturation,hue (20% more saturation)
+        .arg("-modulate") // Apply saturation adjustment
+        .arg(format!("100,{},100", saturation_percent)) // brightness,saturation,hue
         .arg(&output_path)
         .output()?;
 
@@ -215,7 +231,7 @@ fn apply_white_balance_correction(img: &RgbImage) -> Result<RgbImage> {
 
 /// Apply saturation adjustment to enhance or reduce color intensity
 /// factor > 1.0 increases saturation, factor < 1.0 decreases it
-fn apply_saturation_adjustment(img: &RgbImage, factor: f32) -> Result<RgbImage> {
+pub fn apply_saturation_adjustment(img: &RgbImage, factor: f32) -> Result<RgbImage> {
     let (width, height) = img.dimensions();
     let mut output = RgbImage::new(width, height);
 

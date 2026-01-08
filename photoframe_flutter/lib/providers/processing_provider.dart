@@ -178,13 +178,14 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.autoOptimize) {
       args.add('--auto-optimize');
     } else {
-      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}');
+      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation-boost=${_config.saturationBoost}');
       args.addAll([
         '--dithering',
         _ditherMethodToString(_config.ditherMethod),
         '--dither-strength=${_config.ditherStrength}',
         '--contrast=${_config.contrast}',
         '--brightness=${_config.brightness}',
+        '--saturation-boost=${_config.saturationBoost}',
       ]);
     }
 

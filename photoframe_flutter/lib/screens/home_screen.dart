@@ -516,6 +516,27 @@ class _DitheringSettingsSection extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Saturation Boost: ${config.saturationBoost.toStringAsFixed(1)}'),
+                          AppKitSlider(
+                            value: config.saturationBoost,
+                            min: 0.5,
+                            max: 2.0,
+                            onChanged: (value) {
+                              provider.updateConfig(config.copyWith(saturationBoost: value));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ] else ...[
                 const SizedBox(height: 8),
                 Text(

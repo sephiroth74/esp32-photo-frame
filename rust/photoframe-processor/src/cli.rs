@@ -226,6 +226,15 @@ pub struct Args {
     )]
     pub brightness: i32,
 
+    /// Saturation boost multiplier (0.5 to 2.0, default 1.0). >1.0 = more vibrant, <1.0 = less vibrant
+    #[arg(
+        long = "saturation-boost",
+        default_value = "1.1",
+        value_name = "MULTIPLIER",
+        help = "Saturation boost: 0.5 (desaturated) to 2.0 (highly saturated), 1.0 = no change"
+    )]
+    pub saturation_boost: f32,
+
     /// Enable automatic per-image parameter optimization (overrides manual dithering/contrast settings)
     #[arg(
         long = "auto-optimize",
@@ -549,6 +558,7 @@ impl Default for Args {
             dither_strength: 1.0,
             contrast: 0,
             brightness: 0,
+            saturation_boost: 1.0,
             auto_optimize: false,
             report: false,
             json_progress: false,

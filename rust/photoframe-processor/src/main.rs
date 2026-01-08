@@ -358,6 +358,8 @@ fn main() -> Result<()> {
         contrast: args.contrast,
         // Brightness adjustment
         brightness: args.brightness,
+        // Saturation boost
+        saturation_boost: args.saturation_boost,
         // Auto-optimization
         auto_optimize: args.auto_optimize,
         optimization_report: args.report,

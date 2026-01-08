@@ -42,6 +42,7 @@ class ProcessingConfig {
   final double ditherStrength;
   final int contrast;
   final int brightness;
+  final double saturationBoost;
   final bool autoOptimize;
   final bool outputBmp;
   final bool outputBin;
@@ -75,6 +76,7 @@ class ProcessingConfig {
     this.ditherStrength = 1.0,
     this.contrast = 0,
     this.brightness = 0,
+    this.saturationBoost = 1.1,
     this.autoOptimize = false,
     this.outputBmp = false,
     this.outputBin = true,
@@ -114,6 +116,7 @@ class ProcessingConfig {
     double? ditherStrength,
     int? contrast,
     int? brightness,
+    double? saturationBoost,
     bool? autoOptimize,
     bool? outputBmp,
     bool? outputBin,
@@ -147,6 +150,7 @@ class ProcessingConfig {
       ditherStrength: ditherStrength ?? this.ditherStrength,
       contrast: contrast ?? this.contrast,
       brightness: brightness ?? this.brightness,
+      saturationBoost: saturationBoost ?? this.saturationBoost,
       autoOptimize: autoOptimize ?? this.autoOptimize,
       outputBmp: outputBmp ?? this.outputBmp,
       outputBin: outputBin ?? this.outputBin,
