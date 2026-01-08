@@ -324,6 +324,7 @@ const photo_frame_error ConfigInvalidPemKey{TXT_CONFIG_INVALID_PEM_KEY, 32, ERRO
 const photo_frame_error ConfigInvalidPath{TXT_CONFIG_INVALID_PATH, 33, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
 const photo_frame_error ConfigInvalidFilename{TXT_CONFIG_INVALID_FILENAME, 34, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
 const photo_frame_error ConfigValueOutOfRange{TXT_CONFIG_VALUE_OUT_OF_RANGE, 35, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
+const photo_frame_error InvalidConfigNoImageSource{TXT_CONFIG_NO_IMAGE_SOURCE, 37, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
 
 
 // OAuth/Authentication specific errors (40-49) - Keep only the ones actually used

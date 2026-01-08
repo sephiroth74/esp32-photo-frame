@@ -63,6 +63,7 @@ extern const char TXT_CONFIG_INVALID_PEM_KEY[];
 extern const char TXT_CONFIG_INVALID_PATH[];
 extern const char TXT_CONFIG_INVALID_FILENAME[];
 extern const char TXT_CONFIG_VALUE_OUT_OF_RANGE[];
+extern const char TXT_CONFIG_NO_IMAGE_SOURCE[];
 
 extern const char TXT_ERROR_CODE[];
 

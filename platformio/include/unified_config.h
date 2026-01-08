@@ -81,6 +81,7 @@ struct unified_config {
 
         uint8_t day_start_hour = 6; // 6 AM default
         uint8_t day_end_hour = 23; // 11 PM default
+        bool portrait_mode = false; // Display orientation (dynamic, replaces compile-time constant)
 
         bool is_valid() const
         {
@@ -94,6 +95,8 @@ struct unified_config {
 
     // Google Drive Configuration
     struct google_drive_config {
+        bool enabled = true; // Enable/disable Google Drive image source
+
         struct authentication {
             String service_account_email;
             String private_key_pem;
@@ -133,16 +136,45 @@ struct unified_config {
 
         bool is_valid() const
         {
-            return auth.is_valid() && drive.is_valid();
+            // Google Drive is valid if disabled OR if enabled with valid settings
+            return !enabled || (auth.is_valid() && drive.is_valid());
         }
     } google_drive;
 
+    // SD Card Configuration
+    struct sd_card_config {
+        bool enabled = false; // Enable/disable SD card as image source
+        String images_directory = "/images"; // Directory on SD card containing images
+
+        bool is_valid() const
+        {
+            // SD card is valid if disabled OR if enabled with valid directory
+            return !enabled || images_directory.length() > 0;
+        }
+    } sd_card;
+
     /**
      * @brief Check if the entire configuration is valid
+     * At least one image source must be enabled (Google Drive or SD Card)
      */
     bool is_valid() const
     {
-        return wifi.is_valid() && board.is_valid() && google_drive.is_valid();
+        // Basic validation
+        if (!wifi.is_valid() || !board.is_valid()) {
+            return false;
+        }
+
+        // At least one image source must be enabled
+        if (!google_drive.enabled && !sd_card.enabled) {
+            return false;
+        }
+
+        // Validate enabled sources
+        if (!google_drive.is_valid() || !sd_card.is_valid()) {
+            return false;
+        }
+
+        return true;
     }
 
 #ifdef ENABLE_DISPLAY_DIAGNOSTIC

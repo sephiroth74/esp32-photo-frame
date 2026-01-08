@@ -39,6 +39,7 @@ const char TXT_CONFIG_INVALID_PEM_KEY[] PROGMEM = "Invalid PEM key format";
 const char TXT_CONFIG_INVALID_PATH[] PROGMEM = "Invalid file path";
 const char TXT_CONFIG_INVALID_FILENAME[] PROGMEM = "Invalid filename";
 const char TXT_CONFIG_VALUE_OUT_OF_RANGE[] PROGMEM = "Value out of valid range";
+const char TXT_CONFIG_NO_IMAGE_SOURCE[] PROGMEM = "No image source enabled";
 
 // ========================================
 // COMPREHENSIVE ERROR SYSTEM - ENGLISH

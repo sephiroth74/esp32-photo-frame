@@ -135,6 +135,9 @@ bool ensureDisplayInitialized()
         SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN);
         // display2.init(115200);
         display2.init(115200, false, 30, false);
+        delay(500);
+
+
         display2.setRotation(0);
         display2.setFullWindow();
 
@@ -535,7 +538,7 @@ bool testOfficialLibraryImage()
     return true;
 }
 
-void enterDeepSleep(uint16_t refresh_seconds = 20)
+void enterDeepSleep(uint16_t refresh_seconds = 60)
 {
     log_i("enterDeepSleep(%lu)", refresh_seconds);
 
@@ -692,6 +695,9 @@ void setup()
 {
     // Inizializza la seriale
     Serial.begin(115200);
+    while(!Serial.available()) {
+        ;;
+    }
     delay(5000);
 
     log_i("========================================");

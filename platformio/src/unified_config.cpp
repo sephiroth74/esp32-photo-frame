@@ -246,6 +246,10 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         log_d("Day schedule - start: %d", config.board.day_start_hour);
         log_d("Day schedule - end: %d", config.board.day_end_hour);
 
+        // Load portrait mode (dynamic display orientation)
+        config.board.portrait_mode = board_obj["portrait_mode"] | false;
+        log_i("Portrait mode: %s", config.board.portrait_mode ? "enabled" : "disabled");
+
     } else {
         log_w("Board configuration missing 'board_config'");
     }
@@ -253,6 +257,10 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     // Extract Google Drive configuration
     if (doc.containsKey("google_drive_config")) {
         JsonObject gd_obj = doc["google_drive_config"];
+
+        // Check if Google Drive is enabled
+        config.google_drive.enabled = gd_obj["enabled"] | true; // Default to true for backward compatibility
+        log_i("Google Drive: %s", config.google_drive.enabled ? "enabled" : "disabled");
 
         if (gd_obj.containsKey("authentication")) {
             JsonObject auth_obj = gd_obj["authentication"];
@@ -323,6 +331,30 @@ photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
         // Return success even if file read failed, since we have fallbacks
         // The caller can check config.is_valid() to see if essential config is missing
         return error_type::None;
+    }
+
+    // Extract SD Card configuration
+    if (doc.containsKey("sd_card_config")) {
+        JsonObject sd_obj = doc["sd_card_config"];
+
+        config.sd_card.enabled = sd_obj["enabled"] | false;
+        config.sd_card.images_directory = sd_obj["images_directory"] | "/images";
+
+        log_i("SD Card: %s", config.sd_card.enabled ? "enabled" : "disabled");
+        if (config.sd_card.enabled) {
+            log_i("SD Card images directory: %s", config.sd_card.images_directory.c_str());
+        }
+    } else {
+        // Default SD card config
+        config.sd_card.enabled = false;
+        config.sd_card.images_directory = "/images";
+        log_d("SD Card configuration not found, using defaults");
+    }
+
+    // Validate configuration: at least one image source must be enabled
+    if (!config.google_drive.enabled && !config.sd_card.enabled) {
+        log_e("Configuration error: No image source enabled! At least one of Google Drive or SD Card must be enabled.");
+        return error_type::InvalidConfigNoImageSource;
     }
 
     return error_type::None;
