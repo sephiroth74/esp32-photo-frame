@@ -445,6 +445,13 @@ fn main() -> Result<()> {
             config.contrast
         );
 
+        // Brightness adjustment
+        println!(
+            "  Brightness adjustment: {}{}",
+            if config.brightness >= 0 { "+" } else { "" },
+            config.brightness
+        );
+
         // Color correction status
         println!(
             "  Auto color correction: {}",
