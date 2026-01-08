@@ -92,6 +92,12 @@ class ProcessingProvider with ChangeNotifier {
         throw Exception('photoframe-processor binary not found');
       }
 
+      // Log the full command for debugging
+      debugPrint('=== EXECUTING COMMAND ===');
+      debugPrint('Binary: $binary');
+      debugPrint('Command: $binary ${args.join(' ')}');
+      debugPrint('========================');
+
       // Run process with JSON progress output
       final process = await Process.start(binary, args);
 
@@ -172,6 +178,7 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.autoOptimize) {
       args.add('--auto-optimize');
     } else {
+      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}');
       args.addAll([
         '--dithering',
         _ditherMethodToString(_config.ditherMethod),
