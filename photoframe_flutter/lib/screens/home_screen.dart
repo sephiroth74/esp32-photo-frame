@@ -415,6 +415,19 @@ class _DitheringSettingsSection extends StatelessWidget {
               Row(
                 children: [
                   AppKitSwitch(
+                    checked: config.autoColorCorrect,
+                    onChanged: (value) {
+                      provider.updateConfig(config.copyWith(autoColorCorrect: value));
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Auto-color correction (remove color casts, enhance quality)'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  AppKitSwitch(
                     checked: config.autoOptimize,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(autoOptimize: value));
