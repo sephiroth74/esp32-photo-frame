@@ -26,6 +26,7 @@
 #include "config.h"
 #include "errors.h"
 #include <Arduino.h>
+#include <vector>
 
 // Support both SDIO (SD_MMC) and SPI (SD) interfaces
 #ifdef SD_USE_SPI
@@ -283,6 +284,34 @@ class sd_card {
      * @note If the SD card is not initialized, it will return false.
      */
     bool create_directories(const char* path);
+
+    /**
+     * Lists all files in a directory with the specified extension.
+     * @param dir_path The directory path to list files from.
+     * @param extension The file extension to filter (e.g., ".bin"). Default is ".bin".
+     * @return Vector of file paths matching the extension.
+     * @note If the SD card is not initialized or directory doesn't exist, returns empty vector.
+     */
+    std::vector<String> list_files_in_directory(const char* dir_path, const char* extension = ".bin") const;
+
+    /**
+     * Gets a file at a specific index from a directory.
+     * @param dir_path The directory path to get file from.
+     * @param index The index of the file to get (0-based).
+     * @param extension The file extension to filter (e.g., ".bin"). Default is ".bin".
+     * @return Full path to the file, or empty string if not found.
+     * @note Files are sorted alphabetically before indexing.
+     */
+    String get_file_at_index(const char* dir_path, uint32_t index, const char* extension = ".bin") const;
+
+    /**
+     * Counts the number of files with specified extension in a directory.
+     * @param dir_path The directory path to count files in.
+     * @param extension The file extension to filter (e.g., ".bin"). Default is ".bin".
+     * @return Number of files with the specified extension.
+     * @note If the SD card is not initialized or directory doesn't exist, returns 0.
+     */
+    uint32_t count_files_in_directory(const char* dir_path, const char* extension = ".bin") const;
 
     /**
      * Gets the amount of used space in bytes on the SD card.

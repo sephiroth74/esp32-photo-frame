@@ -21,6 +21,8 @@
 // SOFTWARE.
 
 #include "sd_card.h"
+#include <vector>
+#include <algorithm>
 
 // Create HSPI instance for SD card when using separate SPI buses
 // Only needed when SD_USE_SPI is defined (SPI mode, not SDIO)
@@ -664,6 +666,95 @@ uint64_t sd_card::card_size() const {
     }
 
     return SD_CARD.cardSize();
+}
+
+std::vector<String> sd_card::list_files_in_directory(const char* dir_path, const char* extension) const {
+    std::vector<String> files;
+
+    if (!initialized) {
+        log_e("SD card not initialized.");
+        return files;
+    }
+
+    if (!is_directory(dir_path)) {
+        log_e("Directory does not exist: %s", dir_path);
+        return files;
+    }
+
+    File dir = SD_CARD.open(dir_path);
+    if (!dir) {
+        log_e("Failed to open directory: %s", dir_path);
+        return files;
+    }
+
+    File file = dir.openNextFile();
+    while (file) {
+        if (!file.isDirectory()) {
+            String filename = file.name();
+            if (filename.endsWith(extension)) {
+                // Store full path
+                String fullPath = String(dir_path);
+                if (!fullPath.endsWith("/")) {
+                    fullPath += "/";
+                }
+                fullPath += filename;
+                files.push_back(fullPath);
+            }
+        }
+        file.close();
+        file = dir.openNextFile();
+    }
+    dir.close();
+
+    // Sort files alphabetically
+    std::sort(files.begin(), files.end());
+
+    return files;
+}
+
+String sd_card::get_file_at_index(const char* dir_path, uint32_t index, const char* extension) const {
+    std::vector<String> files = list_files_in_directory(dir_path, extension);
+
+    if (index >= files.size()) {
+        log_w("Index %d out of range (total files: %d)", index, files.size());
+        return String();
+    }
+
+    return files[index];
+}
+
+uint32_t sd_card::count_files_in_directory(const char* dir_path, const char* extension) const {
+    if (!initialized) {
+        log_e("SD card not initialized.");
+        return 0;
+    }
+
+    if (!is_directory(dir_path)) {
+        log_e("Directory does not exist: %s", dir_path);
+        return 0;
+    }
+
+    uint32_t count = 0;
+    File dir = SD_CARD.open(dir_path);
+    if (!dir) {
+        log_e("Failed to open directory: %s", dir_path);
+        return 0;
+    }
+
+    File file = dir.openNextFile();
+    while (file) {
+        if (!file.isDirectory()) {
+            String filename = file.name();
+            if (filename.endsWith(extension)) {
+                count++;
+            }
+        }
+        file.close();
+        file = dir.openNextFile();
+    }
+    dir.close();
+
+    return count;
 }
 
 } // namespace photo_frame

@@ -314,6 +314,31 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         log_w("Google Drive configuration missing: 'google_drive_config'");
     }
 
+    // Extract SD Card configuration
+    if (doc.containsKey("sd_card_config")) {
+        JsonObject sd_obj = doc["sd_card_config"];
+
+        config.sd_card.enabled = sd_obj["enabled"] | false;
+        config.sd_card.images_directory = sd_obj["images_directory"] | "/images";
+
+        log_i("SD Card: %s", config.sd_card.enabled ? "enabled" : "disabled");
+        if (config.sd_card.enabled) {
+            log_i("SD Card images directory: %s", config.sd_card.images_directory.c_str());
+        }
+    } else {
+        // Default SD card config
+        config.sd_card.enabled = false;
+        config.sd_card.images_directory = "/images";
+        log_d("SD Card configuration not found, using defaults");
+    }
+
+    // Save portrait_mode to preferences for fallback when SD card fails
+    if (config.board.portrait_mode) {
+        // Store in preferences for next boot in case SD card fails
+        log_d("Saving portrait_mode to preferences: %s", config.board.portrait_mode ? "true" : "false");
+        // Note: preferences handling will be added when integrating with main.cpp
+    }
+
     log_d("Configuration loaded successfully");
     return error_type::None;
 }
@@ -331,24 +356,6 @@ photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
         // Return success even if file read failed, since we have fallbacks
         // The caller can check config.is_valid() to see if essential config is missing
         return error_type::None;
-    }
-
-    // Extract SD Card configuration
-    if (doc.containsKey("sd_card_config")) {
-        JsonObject sd_obj = doc["sd_card_config"];
-
-        config.sd_card.enabled = sd_obj["enabled"] | false;
-        config.sd_card.images_directory = sd_obj["images_directory"] | "/images";
-
-        log_i("SD Card: %s", config.sd_card.enabled ? "enabled" : "disabled");
-        if (config.sd_card.enabled) {
-            log_i("SD Card images directory: %s", config.sd_card.images_directory.c_str());
-        }
-    } else {
-        // Default SD card config
-        config.sd_card.enabled = false;
-        config.sd_card.images_directory = "/images";
-        log_d("SD Card configuration not found, using defaults");
     }
 
     // Validate configuration: at least one image source must be enabled

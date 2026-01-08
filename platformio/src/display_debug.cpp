@@ -134,9 +134,8 @@ bool ensureDisplayInitialized()
 
         SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN);
         // display2.init(115200);
-        display2.init(115200, false, 30, false);
+        display2.init(115200, true, 30, false);
         delay(500);
-
 
         display2.setRotation(0);
         display2.setFullWindow();
@@ -695,7 +694,7 @@ void setup()
 {
     // Inizializza la seriale
     Serial.begin(115200);
-    while(!Serial.available()) {
+    while(!Serial.isConnected()) {
         ;;
     }
     delay(5000);
