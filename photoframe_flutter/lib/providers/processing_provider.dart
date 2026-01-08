@@ -175,10 +175,8 @@ class ProcessingProvider with ChangeNotifier {
       args.addAll([
         '--dithering',
         _ditherMethodToString(_config.ditherMethod),
-        '--dither-strength',
-        _config.ditherStrength.toString(),
-        '--contrast',
-        _config.contrast.toString(),
+        '--dither-strength=${_config.ditherStrength}',
+        '--contrast=${_config.contrast}',
       ]);
     }
 
@@ -192,15 +190,14 @@ class ProcessingProvider with ChangeNotifier {
       if (_config.pythonPath != null) {
         args.addAll(['--python-path', _config.pythonPath!]);
       }
-      args.addAll(['--confidence', _config.confidenceThreshold.toString()]);
+      args.add('--confidence=${_config.confidenceThreshold}');
     }
     if (_config.annotate) {
       args.add('--annotate');
       args.addAll([
         '--font',
         _config.font,
-        '--pointsize',
-        _config.pointsize.toString(),
+        '--pointsize=${_config.pointsize}',
         '--annotate_background',
         _config.annotateBackground,
       ]);
@@ -209,11 +206,10 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.dryRun) args.add('--dry-run');
     if (_config.debug) args.add('--debug');
     if (_config.report) args.add('--report');
-    if (_config.jobs > 0) args.addAll(['--jobs', _config.jobs.toString()]);
+    if (_config.jobs > 0) args.add('--jobs=${_config.jobs}');
 
     args.addAll([
-      '--divider-width',
-      _config.dividerWidth.toString(),
+      '--divider-width=${_config.dividerWidth}',
       '--divider-color',
       _config.dividerColor,
       '--extensions',
