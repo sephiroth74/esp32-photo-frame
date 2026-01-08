@@ -2013,6 +2013,7 @@ impl ProcessingEngine {
             left_optimized_dither,
             left_optimized_strength,
             left_optimized_contrast,
+            left_optimized_brightness,
             left_optimized_auto_color,
             left_analysis,
         ) = if self.config.auto_optimize {
@@ -2028,6 +2029,7 @@ impl ProcessingEngine {
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
+                self.config.brightness, // Use config brightness (not auto-optimized yet)
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -2036,6 +2038,7 @@ impl ProcessingEngine {
                 self.config.dithering_method.clone(),
                 self.config.dither_strength,
                 self.config.contrast,
+                self.config.brightness,
                 self.config.auto_color_correct,
                 None,
             )
@@ -2045,6 +2048,7 @@ impl ProcessingEngine {
             right_optimized_dither,
             right_optimized_strength,
             right_optimized_contrast,
+            right_optimized_brightness,
             right_optimized_auto_color,
             right_analysis,
         ) = if self.config.auto_optimize {
@@ -2060,6 +2064,7 @@ impl ProcessingEngine {
                 optimization_result.dither_method,
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
+                self.config.brightness, // Use config brightness (not auto-optimized yet)
                 optimization_result.auto_color_correct,
                 Some(analysis),
             )
@@ -2068,6 +2073,7 @@ impl ProcessingEngine {
                 self.config.dithering_method.clone(),
                 self.config.dither_strength,
                 self.config.contrast,
+                self.config.brightness,
                 self.config.auto_color_correct,
                 None,
             )
@@ -2089,24 +2095,43 @@ impl ProcessingEngine {
         };
         progress_bar.set_position(48);
 
-        // Stage 5b: Apply contrast adjustment if enabled (48-50%) - per-image optimization
+        // Stage 5b: Apply brightness adjustment if enabled (48-49%) - per-image optimization
         progress_bar.set_position(48);
-        progress_bar.set_position(49); // Adjusting left image contrast
-        let left_contrast_adjusted = if left_optimized_contrast != 0 {
-            color_correction::apply_contrast_adjustment(
+        let left_brightness_adjusted = if left_optimized_brightness != 0 {
+            color_correction::apply_brightness_adjustment(
                 &left_color_corrected,
-                left_optimized_contrast,
+                left_optimized_brightness,
             )?
         } else {
             left_color_corrected
         };
-        let right_contrast_adjusted = if right_optimized_contrast != 0 {
-            color_correction::apply_contrast_adjustment(
+        let right_brightness_adjusted = if right_optimized_brightness != 0 {
+            color_correction::apply_brightness_adjustment(
                 &right_color_corrected,
-                right_optimized_contrast,
+                right_optimized_brightness,
             )?
         } else {
             right_color_corrected
+        };
+        progress_bar.set_position(49);
+
+        // Stage 5c: Apply contrast adjustment if enabled (49-50%) - per-image optimization
+        progress_bar.set_position(49);
+        let left_contrast_adjusted = if left_optimized_contrast != 0 {
+            color_correction::apply_contrast_adjustment(
+                &left_brightness_adjusted,
+                left_optimized_contrast,
+            )?
+        } else {
+            left_brightness_adjusted
+        };
+        let right_contrast_adjusted = if right_optimized_contrast != 0 {
+            color_correction::apply_contrast_adjustment(
+                &right_brightness_adjusted,
+                right_optimized_contrast,
+            )?
+        } else {
+            right_brightness_adjusted
         };
         progress_bar.set_position(50);
 
@@ -2702,6 +2727,7 @@ impl ProcessingEngine {
             top_optimized_dither,
             top_optimized_strength,
             top_optimized_contrast,
+            top_optimized_brightness,
             top_optimized_auto_color,
             top_analysis,
         ) = if self.config.auto_optimize {
@@ -2718,6 +2744,7 @@ impl ProcessingEngine {
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
+                self.config.brightness, // Use config brightness (not auto-optimized yet)
                 Some(analysis),
             )
         } else {
@@ -2726,6 +2753,7 @@ impl ProcessingEngine {
                 self.config.dither_strength,
                 self.config.contrast,
                 self.config.auto_color_correct,
+                self.config.brightness,
                 None,
             )
         };
@@ -2734,6 +2762,7 @@ impl ProcessingEngine {
             bottom_optimized_dither,
             bottom_optimized_strength,
             bottom_optimized_contrast,
+            bottom_optimized_brightness,
             bottom_optimized_auto_color,
             bottom_analysis,
         ) = if self.config.auto_optimize {
@@ -2750,6 +2779,7 @@ impl ProcessingEngine {
                 optimization_result.dither_strength,
                 (optimization_result.contrast_adjustment * 100.0) as i32, // Convert from -1.0..1.0 to -100..100
                 optimization_result.auto_color_correct,
+                self.config.brightness, // Use config brightness (not auto-optimized yet)
                 Some(analysis),
             )
         } else {
@@ -2758,6 +2788,7 @@ impl ProcessingEngine {
                 self.config.dither_strength,
                 self.config.contrast,
                 self.config.auto_color_correct,
+                self.config.brightness,
                 None,
             )
         };
@@ -2778,24 +2809,43 @@ impl ProcessingEngine {
         };
         progress_bar.set_position(48);
 
-        // Stage 7: Apply contrast adjustment (48-50%)
+        // Stage 7: Apply brightness adjustment (48-49%)
         progress_bar.set_position(48);
-        progress_bar.set_position(49);
-        let top_contrast_adjusted = if top_optimized_contrast != 0 {
-            color_correction::apply_contrast_adjustment(
+        let top_brightness_adjusted = if top_optimized_brightness != 0 {
+            color_correction::apply_brightness_adjustment(
                 &top_color_corrected,
-                top_optimized_contrast,
+                top_optimized_brightness,
             )?
         } else {
             top_color_corrected
         };
-        let bottom_contrast_adjusted = if bottom_optimized_contrast != 0 {
-            color_correction::apply_contrast_adjustment(
+        let bottom_brightness_adjusted = if bottom_optimized_brightness != 0 {
+            color_correction::apply_brightness_adjustment(
                 &bottom_color_corrected,
-                bottom_optimized_contrast,
+                bottom_optimized_brightness,
             )?
         } else {
             bottom_color_corrected
+        };
+        progress_bar.set_position(49);
+
+        // Stage 8: Apply contrast adjustment (49-50%)
+        progress_bar.set_position(49);
+        let top_contrast_adjusted = if top_optimized_contrast != 0 {
+            color_correction::apply_contrast_adjustment(
+                &top_brightness_adjusted,
+                top_optimized_contrast,
+            )?
+        } else {
+            top_brightness_adjusted
+        };
+        let bottom_contrast_adjusted = if bottom_optimized_contrast != 0 {
+            color_correction::apply_contrast_adjustment(
+                &bottom_brightness_adjusted,
+                bottom_optimized_contrast,
+            )?
+        } else {
+            bottom_brightness_adjusted
         };
         progress_bar.set_position(50);
 
