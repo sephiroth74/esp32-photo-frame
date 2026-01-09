@@ -310,9 +310,22 @@ void setup()
     bool file_ready = false; // Track if file is ready (buffer loaded or file open)
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
-        RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
-        error = handle_google_drive_operations(
-            is_reset, file, original_filename, image_index, total_files, battery_info, file_ready);
+        // Choose image source based on configuration
+        if (systemConfig.google_drive.enabled) {
+            log_i("Using Google Drive as image source");
+            RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
+            error = handle_google_drive_operations(
+                is_reset, file, original_filename, image_index, total_files, battery_info, file_ready);
+        } else if (systemConfig.sd_card.enabled) {
+            log_i("Using SD Card as image source (Google Drive disabled)");
+            RGB_SET_STATE(SD_CARD); // Show SD Card operations
+            error = handle_sd_card_operations(
+                is_reset, file, original_filename, image_index, total_files, battery_info, file_ready);
+        } else {
+            // This should not happen as config validation ensures at least one source is enabled
+            log_e("No image source enabled!");
+            error = photo_frame::error_type::InvalidConfigNoImageSource;
+        }
     }
 
     // Safely disconnect WiFi with proper cleanup
@@ -788,6 +801,9 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
         return error; // This line won't be reached, but included for completeness
     }
 
+    // WiFi is optional for SD card mode, required for Google Drive
+    bool wifiRequired = systemConfig.google_drive.enabled;
+
     if (error == photo_frame::error_type::None) {
         log_i("Initializing WiFi manager with unified configuration...");
         RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
@@ -813,6 +829,14 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
         } else {
             log_e("WiFi initialization failed");
             RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
+        }
+
+        // If WiFi is not required (SD card mode) and it failed, clear the error
+        if (!wifiRequired && error != photo_frame::error_type::None) {
+            log_w("WiFi failed but not required for SD card mode, continuing without time sync");
+            error = photo_frame::error_type::None;
+            // Set a default time if WiFi failed
+            now = DateTime(2024, 1, 1, 12, 0, 0);
         }
     }
 
@@ -1069,6 +1093,129 @@ handle_google_drive_operations(bool is_reset,
         log_w("Closing SD card due to error (code %d) to prevent SPI conflicts", error.code);
         sdCard.end();
     }
+
+    return error;
+}
+
+/**
+ * @brief Handle SD Card operations (image selection from local directory)
+ * @param is_reset Whether this is a reset/startup
+ * @param file Reference to File object for image
+ * @param original_filename Original filename from SD card
+ * @param image_index Reference to store selected image index
+ * @param total_files Reference to store total file count
+ * @param battery_info Battery information for power decisions
+ * @param file_ready Reference to boolean indicating if file is ready
+ * @return Error state after SD card operations
+ */
+photo_frame::photo_frame_error_t
+handle_sd_card_operations(bool is_reset,
+    fs::File& file,
+    String& original_filename,
+    uint32_t& image_index,
+    uint32_t& total_files,
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready)
+{
+    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
+    file_ready = false;
+
+    log_i("--------------------------------------");
+    log_i(" - SD Card Only Mode - Local Images");
+    log_i("--------------------------------------");
+
+    // Initialize SD card
+    error = sdCard.begin();
+    if (error != photo_frame::error_type::None) {
+        log_e("Failed to initialize SD card for image source");
+        return error;
+    }
+
+#if DEBUG_MODE
+    sdCard.print_stats(); // Print SD card statistics
+#endif
+
+    // Check if the configured directory exists
+    const char* images_dir = systemConfig.sd_card.images_directory.c_str();
+    if (!sdCard.is_directory(images_dir)) {
+        log_e("Images directory does not exist: %s", images_dir);
+        sdCard.end();
+        return photo_frame::error_type::NoImagesFound;
+    }
+
+    // Count total files in directory
+    total_files = sdCard.count_files_in_directory(images_dir, ".bin");
+    if (total_files == 0) {
+        log_e("No .bin files found in directory: %s", images_dir);
+        sdCard.end();
+        return photo_frame::error_type::NoImagesFound;
+    }
+
+    log_i("Found %d image files in %s", total_files, images_dir);
+
+    // Select a random image
+    image_index = random(0, total_files);
+    log_i("Selected random image index: %d", image_index);
+
+    // Get the file path at the selected index
+    String file_path = sdCard.get_file_at_index(images_dir, image_index, ".bin");
+    if (file_path.isEmpty()) {
+        log_e("Failed to get file at index %d", image_index);
+        sdCard.end();
+        return photo_frame::error_type::SdCardFileNotFound;
+    }
+
+    // Store the original filename for display
+    int lastSlash = file_path.lastIndexOf('/');
+    if (lastSlash >= 0) {
+        original_filename = file_path.substring(lastSlash + 1);
+    } else {
+        original_filename = file_path;
+    }
+
+    log_i("Selected image: %s", original_filename.c_str());
+
+    // Open the file
+    file = sdCard.open(file_path.c_str());
+    if (!file) {
+        log_e("Failed to open image file: %s", file_path.c_str());
+        sdCard.end();
+        return photo_frame::error_type::SdCardFileOpenFailed;
+    }
+
+    // Validate the binary file
+    error = photo_frame::io::validate_binary_file(file, original_filename.c_str());
+    if (error != photo_frame::error_type::None) {
+        log_e("Image validation failed for: %s", original_filename.c_str());
+        file.close();
+        sdCard.end();
+        return error;
+    }
+
+    log_i("Image validation PASSED");
+
+    // Load binary image to PSRAM buffer
+    log_i("Loading binary image to PSRAM buffer...");
+    uint16_t loadError = photo_frame::renderer::load_image_to_buffer(
+        g_image_buffer, file, original_filename.c_str(), display.width(), display.height());
+
+    file.close();
+
+    if (loadError != 0) {
+        log_e("Failed to load image to buffer, error code: %d", loadError);
+        sdCard.end();
+        return photo_frame::error_type::BinaryRenderingFailed;
+    }
+
+    log_i("Binary image loaded to PSRAM buffer");
+    file_ready = true;
+
+    // Store last displayed index in preferences
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
+    prefs.setImageIndex(image_index);
+
+    // Keep SD card mounted for potential next image
+    // It will be closed later if needed
 
     return error;
 }
