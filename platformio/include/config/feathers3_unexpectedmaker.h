@@ -63,8 +63,7 @@
 
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
 
-#define DISP_BW_V2              
-#define USE_DESPI_DRIVER
+#define DISP_BW              
 
 // #define ACCENT_COLOR GxEPD_RED
 

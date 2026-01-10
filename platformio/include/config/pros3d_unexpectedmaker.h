@@ -80,10 +80,9 @@
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
 
 #define DISP_6C
-#define USE_DESPI_DRIVER
 
-#define ORIENTATION_PORTRAIT
-// #define ORIENTATION_LANDSCAPE
+// Display orientation is now configured dynamically via config.json (board_config.portrait_mode)
+// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
 
 // #define ACCENT_COLOR GxEPD_RED
 

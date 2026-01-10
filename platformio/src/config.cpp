@@ -55,22 +55,14 @@
 #endif
 
 /// Ensure exactly one display type is selected
-#if !defined(DISP_BW_V2) && !defined(DISP_7C) && !defined(DISP_6C)
-#error "Display type must be defined: choose one of DISP_BW_V2, DISP_7C, or DISP_6C"
+#if !defined(DISP_BW) && !defined(DISP_6C)
+#error "Display type must be defined: choose one of DISP_BW or DISP_6C"
 #endif
 
 /// Prevent multiple display type definitions
-#if (defined(DISP_BW_V2) && defined(DISP_7C)) || (defined(DISP_BW_V2) && defined(DISP_6C)) || (defined(DISP_7C) && defined(DISP_6C))
-#error "Only one display type can be defined: DISP_BW_V2, DISP_7C, or DISP_6C"
+#if defined(DISP_BW) && defined(DISP_6C)
+#error "Only one display type can be defined: DISP_BW or DISP_6C"
 #endif
-
-#if defined(ORIENTATION_PORTRAIT) && defined(ORIENTATION_LANDSCAPE)
-#error "Only one orientation can be defined: ORIENTATION_PORTRAIT or ORIENTATION_LANDSCAPE"
-#elif !defined(ORIENTATION_PORTRAIT) && !defined(ORIENTATION_LANDSCAPE)
-#error "ORIENTATION_PORTRAIT or ORIENTATION_LANDSCAPE must be defined"
-#endif
-
-
 
 // ----------------------------------------------------------------------------
 // RGB Status LED Validation
@@ -87,28 +79,6 @@
 #error "RGB_LED_COUNT must be between 1 and 255"
 #endif
 #endif // RGB_STATUS_ENABLED
-
-// ----------------------------------------------------------------------------
-// RTC Module Validation
-// ----------------------------------------------------------------------------
-
-#ifdef USE_RTC
-/// Ensure RTC I2C pins are defined when RTC is enabled
-#if !defined(RTC_SDA_PIN) || !defined(RTC_SCL_PIN)
-#error "RTC_SDA_PIN and RTC_SCL_PIN must be defined when USE_RTC is enabled"
-#endif
-
-#if !defined(RTC_CLASS_PCF8523) && !defined(RTC_CLASS_DS3231)
-#error "RTC class must be defined: choose one of RTC_CLASS_PCF8523 or RTC_CLASS_DS3231"
-#endif // RTC_CLASS
-
-/// ESP32-C6 has I2C/WiFi coexistence issues that cause JSON parsing corruption
-/// RTC module is not supported on ESP32-C6 - use NTP-only time instead
-#if defined(CONFIG_IDF_TARGET_ESP32C6)
-#error \
-    "RTC module (USE_RTC) is not supported on ESP32-C6 due to I2C/WiFi interference. Remove USE_RTC definition and use NTP-only time synchronization."
-#endif // CONFIG_IDF_TARGET_ESP32C6
-#endif // USE_RTC
 
 // ----------------------------------------------------------------------------
 // User Interface Hardware Validation

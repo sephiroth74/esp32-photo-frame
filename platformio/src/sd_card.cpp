@@ -41,7 +41,7 @@ photo_frame_error_t scan_directory(uint32_t* index,
           path, extension, current_index, *index);
 
     bool found    = false;
-    fs::File root = SD_CARD.open(path, FILE_READ); // Open the root directory
+    fs::File root = SD_CARD_LIB.open(path, FILE_READ); // Open the root directory
 
     if (!root) {
         log_e("Failed to open root directory");
@@ -112,7 +112,7 @@ photo_frame_error_t sd_card::begin() {
 
     // Use 1MHz for more stable operation (balance between speed and reliability)
     // Too fast (2MHz+) causes timeouts, too slow (400kHz) may have issues during operations
-    if (!SD_CARD.begin(SD_CS_PIN, hspi, 1000000U)) {
+    if (!SD_CARD_LIB.begin(SD_CS_PIN, hspi, 1000000U)) {
         log_e("Failed to initialize SD card on HSPI at 1MHz");
         return error_type::CardMountFailed;
     }
@@ -122,7 +122,7 @@ photo_frame_error_t sd_card::begin() {
     log_i("Initializing default SPI bus for SD card");
     SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
-    if (!SD_CARD.begin(SD_CS_PIN, SPI)) {
+    if (!SD_CARD_LIB.begin(SD_CS_PIN, SPI)) {
         log_e("Failed to initialize SD card on default SPI");
         return error_type::CardMountFailed;
     }
@@ -131,21 +131,21 @@ photo_frame_error_t sd_card::begin() {
     log_i("Initializing SD card using SD_MMC (SDIO)...");
 
     // Configure custom SDIO pins before initialization
-    SD_CARD.setPins(
+    SD_CARD_LIB.setPins(
         SD_MMC_CLK_PIN, SD_MMC_CMD_PIN, SD_MMC_D0_PIN, SD_MMC_D1_PIN, SD_MMC_D2_PIN, SD_MMC_D3_PIN);
 
-    if (!SD_CARD.begin()) {
+    if (!SD_CARD_LIB.begin()) {
         return error_type::CardMountFailed;
     }
 #endif
 
-    cardType = SD_CARD.cardType();
+    cardType = SD_CARD_LIB.cardType();
 
     if (cardType == CARD_NONE) {
-        SD_CARD.end();
+        SD_CARD_LIB.end();
         return error_type::NoSdCardAttached;
     } else if (cardType == CARD_UNKNOWN) {
-        SD_CARD.end();
+        SD_CARD_LIB.end();
         return error_type::UnknownSdCardType;
     }
 
@@ -156,7 +156,7 @@ photo_frame_error_t sd_card::begin() {
 void sd_card::end() {
     log_i("Ending SD card...");
     if (initialized) {
-        SD_CARD.end();
+        SD_CARD_LIB.end();
 
 #if defined(SD_USE_SPI) && defined(USE_HSPI_FOR_SD)
         // Also end the HSPI bus to fully release SPI resources
@@ -191,16 +191,16 @@ void sd_card::print_stats() const {
     }
     log_i("Card Type: %s", card_type_str);
 
-    log_i("Card Size: %llu MB", SD_CARD.cardSize() / (1024 * 1024));
-    log_i("Total Size: %llu MB", SD_CARD.totalBytes() / (1024 * 1024));
-    log_i("Used Size: %llu MB", SD_CARD.usedBytes() / (1024 * 1024));
+    log_i("Card Size: %llu MB", SD_CARD_LIB.cardSize() / (1024 * 1024));
+    log_i("Total Size: %llu MB", SD_CARD_LIB.totalBytes() / (1024 * 1024));
+    log_i("Used Size: %llu MB", SD_CARD_LIB.usedBytes() / (1024 * 1024));
 } // end printStats
 
 time_t sd_card::get_last_modified(const char* path) const {
     if (!initialized) {
         return 0; // Return 0 if SD card is not initialized
     }
-    fs::File file = SD_CARD.open(path, FILE_READ);
+    fs::File file = SD_CARD_LIB.open(path, FILE_READ);
     if (!file) {
         return 0; // Return 0 if file cannot be opened
     }
@@ -227,7 +227,7 @@ void sd_card::list_files() const {
         return;
     }
 
-    File root = SD_CARD.open("/", FILE_READ);
+    File root = SD_CARD_LIB.open("/", FILE_READ);
     if (!root) {
         log_e("Failed to open root directory");
         return;
@@ -272,7 +272,7 @@ bool sd_card::file_exists(const char* path) const {
         return false;
     }
 
-    return SD_CARD.exists(path);
+    return SD_CARD_LIB.exists(path);
 } // end fileExists
 
 uint32_t sd_card::count_files() const {
@@ -283,7 +283,7 @@ uint32_t sd_card::count_files() const {
     }
 
     uint32_t count = 0;
-    File root      = SD_CARD.open("/", FILE_READ);
+    File root      = SD_CARD_LIB.open("/", FILE_READ);
     if (!root) {
         log_e("Failed to open root directory");
         return count;
@@ -328,7 +328,7 @@ fs::File sd_card::open(const char* path, const char* mode, bool create) {
         return fs::File();
     }
 
-    fs::File file = SD_CARD.open(path, mode, create);
+    fs::File file = SD_CARD_LIB.open(path, mode, create);
     return file;
 } // end open
 
@@ -345,11 +345,11 @@ bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite) {
         return false;
     }
 
-    if (SD_CARD.exists(pathTo)) {
+    if (SD_CARD_LIB.exists(pathTo)) {
         log_w("Destination file already exists.");
         if (overwrite) {
             log_i("Overwriting the existing file.");
-            if (!SD_CARD.remove(pathTo)) {
+            if (!SD_CARD_LIB.remove(pathTo)) {
                 log_e("Failed to remove existing file.");
                 return false;
             }
@@ -359,7 +359,7 @@ bool sd_card::rename(const char* pathFrom, const char* pathTo, bool overwrite) {
         }
     }
 
-    if (SD_CARD.rename(pathFrom, pathTo)) {
+    if (SD_CARD_LIB.rename(pathFrom, pathTo)) {
         log_i("File renamed successfully.");
         return true;
     } else {
@@ -381,12 +381,12 @@ bool sd_card::cleanup_dir(const char* path) {
         return false;
     }
 
-    if (!SD_CARD.exists(path)) {
+    if (!SD_CARD_LIB.exists(path)) {
         log_e("Directory does not exist.");
         return false;
     }
 
-    fs::File dir = SD_CARD.open(path, FILE_READ);
+    fs::File dir = SD_CARD_LIB.open(path, FILE_READ);
     if (!dir) {
         log_e("Failed to open directory for cleanup.");
         return false;
@@ -413,14 +413,14 @@ bool sd_card::cleanup_dir(const char* path) {
                 allRemoved = false;
             } else {
                 // After cleanup, remove the empty subdirectory
-                if (!SD_CARD.rmdir(entry.c_str())) {
+                if (!SD_CARD_LIB.rmdir(entry.c_str())) {
                     log_e("Failed to remove empty subdirectory: %s", entry.c_str());
                     allRemoved = false;
                 }
             }
         } else {
             // Remove file
-            if (!SD_CARD.remove(entry.c_str())) {
+            if (!SD_CARD_LIB.remove(entry.c_str())) {
                 log_e("Failed to remove file: %s", entry.c_str());
                 allRemoved = false;
             }
@@ -455,7 +455,7 @@ bool sd_card::rmdir(const char* path) {
         return false;
     }
 
-    if (!SD_CARD.exists(path)) {
+    if (!SD_CARD_LIB.exists(path)) {
         log_e("Directory does not exist.");
         return false;
     }
@@ -467,7 +467,7 @@ bool sd_card::rmdir(const char* path) {
     }
 
     // Now remove the empty directory
-    if (SD_CARD.rmdir(path)) {
+    if (SD_CARD_LIB.rmdir(path)) {
         log_i("Directory removed successfully.");
         return true;
     } else {
@@ -489,12 +489,12 @@ bool sd_card::remove(const char* path) {
         return false;
     }
 
-    if (!SD_CARD.exists(path)) {
+    if (!SD_CARD_LIB.exists(path)) {
         log_i("File does not exist, nothing to remove.");
         return true; // Consider it successful if file doesn't exist
     }
 
-    if (SD_CARD.remove(path)) {
+    if (SD_CARD_LIB.remove(path)) {
         log_i("File removed successfully.");
         return true;
     } else {
@@ -514,11 +514,11 @@ size_t sd_card::get_file_size(const char* path) const {
         return 0;
     }
 
-    if (!SD_CARD.exists(path)) {
+    if (!SD_CARD_LIB.exists(path)) {
         return 0; // File doesn't exist
     }
 
-    fs::File file = SD_CARD.open(path, FILE_READ);
+    fs::File file = SD_CARD_LIB.open(path, FILE_READ);
     if (!file) {
         log_e("Failed to open file for size check: %s", path);
         return 0;
@@ -541,12 +541,12 @@ bool sd_card::is_directory(const char* path) const {
         return false;
     }
 
-    if (!SD_CARD.exists(path)) {
+    if (!SD_CARD_LIB.exists(path)) {
         log_e("Directory does not exist.");
         return false;
     }
 
-    fs::File file = SD_CARD.open(path, FILE_READ);
+    fs::File file = SD_CARD_LIB.open(path, FILE_READ);
     if (!file) {
         log_e("Failed to open directory for reading: %s", path);
         return false;
@@ -568,7 +568,7 @@ bool sd_card::is_file(const char* path) const {
         return false;
     }
 
-    fs::File file = SD_CARD.open(path, FILE_READ);
+    fs::File file = SD_CARD_LIB.open(path, FILE_READ);
     if (!file) {
         log_e("Failed to open file for reading: %s", path);
         return false;
@@ -597,7 +597,7 @@ bool sd_card::create_directories(const char* path) {
     }
 
     // If directory already exists, return success
-    if (SD_CARD.exists(dirPath.c_str())) {
+    if (SD_CARD_LIB.exists(dirPath.c_str())) {
         return true;
     }
 
@@ -623,12 +623,12 @@ bool sd_card::create_directories(const char* path) {
             currentPath += dirName;
 
             // Check if this directory level exists
-            if (!SD_CARD.exists(currentPath.c_str())) {
+            if (!SD_CARD_LIB.exists(currentPath.c_str())) {
 #ifdef DEBUG_SD_CARD
                 log_d("Creating directory: %s", currentPath.c_str());
 #endif // DEBUG_SD_CARD
 
-                if (!SD_CARD.mkdir(currentPath.c_str())) {
+                if (!SD_CARD_LIB.mkdir(currentPath.c_str())) {
                     log_e("Failed to create directory: %s", currentPath.c_str());
                     return false;
                 }
@@ -647,7 +647,7 @@ uint64_t sd_card::total_bytes() const {
         return 0;
     }
 
-    return SD_CARD.totalBytes();
+    return SD_CARD_LIB.totalBytes();
 }
 
 uint64_t sd_card::used_bytes() const {
@@ -656,7 +656,7 @@ uint64_t sd_card::used_bytes() const {
         return 0;
     }
 
-    return SD_CARD.usedBytes();
+    return SD_CARD_LIB.usedBytes();
 }
 
 uint64_t sd_card::card_size() const {
@@ -665,7 +665,7 @@ uint64_t sd_card::card_size() const {
         return 0;
     }
 
-    return SD_CARD.cardSize();
+    return SD_CARD_LIB.cardSize();
 }
 
 std::vector<String> sd_card::list_files_in_directory(const char* dir_path, const char* extension) const {
@@ -681,7 +681,7 @@ std::vector<String> sd_card::list_files_in_directory(const char* dir_path, const
         return files;
     }
 
-    File dir = SD_CARD.open(dir_path);
+    File dir = SD_CARD_LIB.open(dir_path);
     if (!dir) {
         log_e("Failed to open directory: %s", dir_path);
         return files;
@@ -735,7 +735,7 @@ uint32_t sd_card::count_files_in_directory(const char* dir_path, const char* ext
     }
 
     uint32_t count = 0;
-    File dir = SD_CARD.open(dir_path);
+    File dir = SD_CARD_LIB.open(dir_path);
     if (!dir) {
         log_e("Failed to open directory: %s", dir_path);
         return 0;

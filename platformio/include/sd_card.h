@@ -32,10 +32,10 @@
 #ifdef SD_USE_SPI
     #include <SD.h>
     #include <SPI.h>
-    #define SD_CARD SD  // Use SPI SD library
+    #define SD_CARD_LIB SD  // Use SPI SD library
 #else
     #include <SD_MMC.h>
-    #define SD_CARD SD_MMC  // Use SDIO SD_MMC library
+    #define SD_CARD_LIB SD_MMC  // Use SDIO SD_MMC library
 #endif
 
 namespace photo_frame {

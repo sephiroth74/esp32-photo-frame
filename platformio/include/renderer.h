@@ -23,566 +23,185 @@
 #ifndef __PHOTO_FRAME_RENDERER_H__
 #define __PHOTO_FRAME_RENDERER_H__
 
+#include <Arduino.h>
+#include <Adafruit_GFX.h>
+#include <RTClib.h>
+
 #include "FS.h"
-#include "RTClib.h"
 #include "battery.h"
 #include "config.h"
 #include "errors.h"
+#include "geometry.h"
 #include "google_drive.h"
-#include <Arduino.h>
+#include "display_driver.h"
 #include <assets/icons/icons.h>
 
 #define MAX_DISPLAY_BUFFER_SIZE 65536ul // e.g.
 
-#if defined(DISP_BW_V2)
-#ifdef ORIENTATION_PORTRAIT
-#define DISP_WIDTH 480
-#define DISP_HEIGHT 800
-#else
-#define DISP_WIDTH 800
-#define DISP_HEIGHT 480
-#endif
-
-#define HW_WIDTH 800
-#define HW_HEIGHT 480
-
-#include <GxEPD2_BW.h>
-#define GxEPD2_DISPLAY_CLASS GxEPD2_BW
-#define GxEPD2_DRIVER_CLASS  GxEPD2_750_GDEY075T7
-#define MAX_HEIGHT(EPD)                                                                            \
-    (EPD::HEIGHT <= MAX_DISPLAY_BUFFER_SIZE / (EPD::WIDTH / 8)                                     \
-         ? EPD::HEIGHT                                                                             \
-         : MAX_DISPLAY_BUFFER_SIZE / (EPD::WIDTH / 8))
-extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
-
-#elif defined(DISP_7C)
-#ifdef ORIENTATION_PORTRAIT
-#define DISP_WIDTH 480
-#define DISP_HEIGHT 800
-#else
-#define DISP_WIDTH 800
-#define DISP_HEIGHT 480
-#endif
-
-#define HW_WIDTH 800
-#define HW_HEIGHT 480
-
-#include <GxEPD2_7C.h>
-#define GxEPD2_DISPLAY_CLASS GxEPD2_7C
-#define GxEPD2_DRIVER_CLASS  GxEPD2_730c_GDEY073D46
-#define MAX_HEIGHT(EPD)                                                                            \
-    (EPD::HEIGHT <= (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2)                                   \
-         ? EPD::HEIGHT                                                                             \
-         : (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2))
-extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
-
-#elif defined(DISP_6C)
-#ifdef ORIENTATION_PORTRAIT
-    #define DISP_WIDTH  480
-    #define DISP_HEIGHT 800
-#else
-    #define DISP_WIDTH  800
-    #define DISP_HEIGHT 480
-#endif
-
-#define HW_WIDTH 800
-#define HW_HEIGHT 480
-
-#include <GxEPD2_7C.h>
-#define GxEPD2_DISPLAY_CLASS GxEPD2_7C
-#define GxEPD2_DRIVER_CLASS  GxEPD2_730c_GDEP073E01
-#define MAX_HEIGHT(EPD)                                                                            \
-    (EPD::HEIGHT <= (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2)                                   \
-         ? EPD::HEIGHT                                                                             \
-         : (MAX_DISPLAY_BUFFER_SIZE) / (EPD::WIDTH / 2))
-extern GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display;
-#endif
-
-/**
- * @brief Represents a rectangular region with position and dimensions.
- *
- * This structure defines a rectangle with x,y coordinates for position
- * and width,height for dimensions. It provides utility methods for
- * geometric operations like intersection testing and containment checks.
- */
-typedef struct rect {
-    int16_t x;       ///< X-coordinate of the rectangle's top-left corner
-    int16_t y;       ///< Y-coordinate of the rectangle's top-left corner
-    uint16_t width;  ///< Width of the rectangle in pixels
-    uint16_t height; ///< Height of the rectangle in pixels
-
-  public:
-    /**
-     * @brief Checks if the rectangle has positive dimensions.
-     * @return True if both width and height are greater than 0
-     */
-    operator bool() const { return (width > 0 && height > 0); }
-
-    /**
-     * @brief Checks if the rectangle is empty (zero width or height).
-     * @return True if width or height is zero
-     */
-    inline constexpr bool is_empty() const { return (width == 0 || height == 0); }
-
-    /**
-     * @brief Checks if the rectangle is valid (positive position and dimensions).
-     * @return True if x >= 0, y >= 0, width > 0, and height > 0
-     */
-    inline constexpr bool is_valid() const { return (x >= 0 && y >= 0 && width > 0 && height > 0); }
-
-    /**
-     * @brief Checks if a point is contained within the rectangle.
-     * @param px X-coordinate of the point to test
-     * @param py Y-coordinate of the point to test
-     * @return True if the point is inside the rectangle
-     */
-    inline constexpr bool contains(int16_t px, int16_t py) const {
-        return (px >= x && px < x + width && py >= y && py < y + height);
-    }
-
-    /**
-     * @brief Checks if this rectangle intersects with another rectangle.
-     * @param other The other rectangle to test intersection with
-     * @return True if the rectangles overlap
-     */
-    inline constexpr bool intersects(const rect& other) const {
-        return (x < other.x + other.width && x + width > other.x && y < other.y + other.height &&
-                y + height > other.y);
-    }
-
-    /**
-     * @brief Constructor for rectangle with optional parameters.
-     * @param x X-coordinate of top-left corner (default: 0)
-     * @param y Y-coordinate of top-left corner (default: 0)
-     * @param width Width in pixels (default: 0)
-     * @param height Height in pixels (default: 0)
-     */
-    constexpr rect(int16_t x = 0, int16_t y = 0, uint16_t width = 0, uint16_t height = 0) :
-        x(x),
-        y(y),
-        width(width),
-        height(height) {}
-
-    /**
-     * @brief Static factory method to create a rectangle from coordinates and dimensions.
-     * @param x X-coordinate of top-left corner
-     * @param y Y-coordinate of top-left corner
-     * @param width Width in pixels
-     * @param height Height in pixels
-     * @return A new rect instance
-     */
-    static inline constexpr rect from_xywh(int16_t x, int16_t y, uint16_t width, uint16_t height) {
-        return rect(x, y, width, height);
-    }
-
-    /**
-     * @brief Static factory method to create an empty rectangle.
-     * @return A rect with all dimensions set to 0
-     */
-    static inline constexpr rect empty() { return rect(0, 0, 0, 0); }
-
-} rect_t;
-
-/**
- * @brief Text alignment options for rendering.
- *
- * Defines how text should be aligned relative to its position coordinates.
- */
-typedef enum alignment {
-    LEFT,  ///< Align text to the left of the position
-    RIGHT, ///< Align text to the right of the position
-    CENTER ///< Center text at the position
-} alignment_t;
-
-/**
- * @brief Gravity options for positioning elements on the display.
- *
- * Defines anchor points for positioning UI elements relative to
- * the display boundaries.
- */
-typedef enum gravity {
-    TOP_LEFT,     ///< Position at top-left corner
-    TOP_RIGHT,    ///< Position at top-right corner
-    BOTTOM_LEFT,  ///< Position at bottom-left corner
-    BOTTOM_RIGHT, ///< Position at bottom-right corner
-    TOP_CENTER,   ///< Position at top-center
-} gravity_t;
+// Dynamic display dimensions (will be set based on portrait_mode)
+extern uint16_t DISP_WIDTH;
+extern uint16_t DISP_HEIGHT;
 
 namespace photo_frame {
 namespace renderer {
 
-/**
- * Calculates the bounds of the text to be rendered.
- * @param text The text to calculate bounds for.
- * @param x The x-coordinate of the text position (default is 0).
- * @param y The y-coordinate of the text position (default is 0).
- * @return A rect_t object representing the bounds of the text.
- * @note This function calculates the width and height of the text based on the current font size
- * and style. It does not render the text on the display.
- */
-rect_t get_text_bounds(const char* text, int16_t x = 0, int16_t y = 0);
+    /**
+     * Initialize the renderer and display driver.
+     * @return True if initialization successful, false otherwise
+     */
+    bool init();
 
-/**
- * Calculates the width of the given text string.
- * @param text The text string to calculate the width for.
- * @return The width of the text in pixels.
- * @note This function uses the current font size and style to calculate the width.
- */
-uint16_t get_string_width(const String& text);
+    /**
+     * Render an image from a buffer.
+     * @param imageBuffer Pointer to image buffer (800x480 bytes) with image and overlays already drawn
+     * @return True if rendering successful, false otherwise
+     * @note The buffer should already contain the complete image with any overlays
+     */
+    bool render_image(uint8_t* imageBuffer);
 
-/**
- * Calculates the height of the given text string.
- * @param text The text string to calculate the height for.
- * @return The height of the text in pixels.
- * @note This function uses the current font size and style to calculate the height.
- */
-uint16_t get_string_height(const String& text);
+    /**
+     * Put the display into sleep mode to save power.
+     * Must be called after display operations to preserve screen lifespan.
+     */
+    void sleep();
 
-/**
- * Initializes the e-paper display.
- * Sets up the SPI communication and configures the display settings.
- * Should be called before any drawing operations.
- */
-void init_display();
+    /**
+     * Clear the display to white.
+     */
+    void clear();
 
-/**
- * Powers off the e-paper display.
- * This function should be called when the display is no longer needed.
- * It releases the SPI and control pins and turns off the display.
- */
-void power_off();
+    /**
+     * Clean up renderer resources and shut down display.
+     */
+    void cleanup();
 
-void hibernate();
+    // ========== Display state functions ==========
 
-void end();
+    void power_off();
+    void hibernate();
+    void end();
+    void refresh(bool partial_update_mode = false);
+    bool has_partial_update();
+    bool has_fast_partial_update();
+    bool has_color();
 
+    // ========== Error display functions ==========
 
-/**
- * @brief Refreshes the e-paper display to show rendered content.
- * @param partial_update_mode If true, uses partial update for faster refresh (default: false)
- * @note Full update provides better image quality but takes longer
- */
-void refresh(bool partial_update_mode = false);
+    /**
+     * Draws an error message on the canvas.
+     * @param canvas Canvas to draw on
+     * @param error The error to be displayed
+     */
+    void draw_error(GFXcanvas8& canvas, photo_frame_error_t error);
 
-/**
- * @brief Fills the entire screen with a solid color.
- * @param color The color to fill the screen with (default: GxEPD_WHITE)
- */
-void fill_screen(uint16_t color = GxEPD_WHITE);
+    /**
+     * Draws an error message with details on the canvas.
+     * @param canvas Canvas to draw on
+     * @param errMsgLn1 The first line of the error message
+     * @param errMsgLn2 The second line of the error message (optional)
+     * @param filename The filename that caused the error (optional)
+     * @param errorCode The numeric error code
+     */
+    void draw_error_with_details(GFXcanvas8& canvas,
+                                 const String& errMsgLn1,
+                                 const String& errMsgLn2,
+                                 const char* filename,
+                                 uint16_t errorCode);
 
-/**
- * @brief Checks if the display supports partial updates.
- * @return True if partial updates are supported, false otherwise
- */
-bool has_partial_update();
+    // ========== Image loading and rendering functions ==========
 
-/**
- * @brief Checks if the display supports fast partial updates.
- * @return True if fast partial updates are supported, false otherwise
- */
-bool has_fast_partial_update();
+    /**
+     * Draws a multi-line string on the e-paper display.
+     * @param x The x-coordinate of the text position.
+     * @param y The y-coordinate of the text position.
+     * @param text The multi-line text to be drawn.
+     * @param alignment The alignment of the text (LEFT, RIGHT, CENTER).
+     * @param max_width The maximum width of each line in pixels.
+     * @param max_lines The maximum number of lines to draw.
+     * @param line_spacing The spacing between lines in pixels.
+     * @param color The color of the text (default is DISPLAY_COLOR_BLACK).
+     */
+    void draw_multiline_string(GFXcanvas8 canvas, int16_t x,
+        int16_t y,
+        const String& text,
+        alignment_t alignment,
+        uint16_t max_width,
+        uint16_t max_lines,
+        int16_t line_spacing,
+        uint16_t color = DISPLAY_COLOR_BLACK);
 
-bool has_color();
+    /**
+     * Draws a side message with an icon on a GFX canvas (for overlay composition).
+     * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+     * @param gravity The gravity of the message
+     * @param icon_name The name of the icon to be displayed
+     * @param message The message to be displayed next to the icon
+     * @param x_offset The x-offset from the icon position (default is 0)
+     * @param y_offset The y-offset from the icon position (default is 0)
+     */
+    void draw_side_message_with_icon(Adafruit_GFX& gfx,
+        gravity_t gravity,
+        icon_name_t icon_name,
+        const char* message,
+        int32_t x_offset = 0,
+        int32_t y_offset = 0);
 
-/**
- * Draws a string on the e-paper display at the specified position with alignment.
- * @param x The x-coordinate of the text position.
- * @param y The y-coordinate of the text position.
- * @param text The text to be drawn.
- * @param alignment The alignment of the text (LEFT, RIGHT, CENTER).
- * @param color The color of the text (default is GxEPD_BLACK).
- */
-void draw_string(int16_t x,
-                 int16_t y,
-                 const char* text,
-                 alignment_t alignment,
-                 uint16_t color = GxEPD_BLACK);
+    /**
+     * Draws a side message without an icon on a GFX canvas (for overlay composition).
+     * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+     * @param gravity The gravity of the message
+     * @param message The message to be displayed
+     * @param x_offset The x-offset from the message position (default is 0)
+     * @param y_offset The y-offset from the message position (default is 0)
+     */
+    void draw_side_message(Adafruit_GFX& gfx,
+        gravity_t gravity,
+        const char* message,
+        int32_t x_offset = 0,
+        int32_t y_offset = 0);
 
-/**
- * Draws a string on the e-paper display at the specified position.
- * @param x The x-coordinate of the text position.
- * @param y The y-coordinate of the text position.
- * @param text The text to be drawn.
- * @param color The color of the text (default is GxEPD_BLACK).
- * @note This function does not support text alignment. It draws the text at the specified position
- * without any alignment adjustments.
- */
-void draw_string(int16_t x, int16_t y, const char* text, uint16_t color = GxEPD_BLACK);
+    /**
+     * Draws the last update time on a GFX canvas (for overlay composition).
+     * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+     * @param lastUpdate The DateTime object representing the last update time.
+     * @param refresh_seconds The number of seconds since the last update (default is 0).
+     */
+    void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds = 0);
 
-/**
- * Draws a multi-line string on the e-paper display.
- * @param x The x-coordinate of the text position.
- * @param y The y-coordinate of the text position.
- * @param text The multi-line text to be drawn.
- * @param alignment The alignment of the text (LEFT, RIGHT, CENTER).
- * @param max_width The maximum width of each line in pixels.
- * @param max_lines The maximum number of lines to draw.
- * @param line_spacing The spacing between lines in pixels.
- * @param color The color of the text (default is GxEPD_BLACK).
- */
-void draw_multiline_string(int16_t x,
-                           int16_t y,
-                           const String& text,
-                           alignment_t alignment,
-                           uint16_t max_width,
-                           uint16_t max_lines,
-                           int16_t line_spacing,
-                           uint16_t color = GxEPD_BLACK);
+    /**
+     * Draws the battery status on a GFX canvas (for overlay composition).
+     * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+     * @param battery_info Battery information structure
+     */
+    void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info);
 
-/**
- * Draws an error message on the e-paper display.
- * @param error_type The type of error to be displayed.
- * @note This function displays a predefined error message based on the error type.
- */
-void draw_error(photo_frame_error error_type);
+    /**
+     * Draws image information on a GFX canvas (for overlay composition).
+     * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
+     * @param index The index of the current image.
+     * @param total_images The total number of images.
+     * @param image_source The source of the current image (cloud or local cache).
+     */
+    void draw_image_info(Adafruit_GFX& gfx,
+        uint32_t index,
+        uint32_t total_images,
+        photo_frame::image_source_t image_source);
 
-/**
- * Draws an error message with a bitmap icon.
- * @param bitmap_196x196 The bitmap to be displayed (196x196 pixels).
- * @param errMsgLn1 The first line of the error message.
- * @param errMsgLn2 The second line of the error message (optional).
- */
-void draw_error(const uint8_t* bitmap_196x196,
-                const String& errMsgLn1,
-                const String& errMsgLn2 = "");
-
-/**
- * Draws an error message with filename and error code details.
- * @param errMsgLn1 The first line of the error message.
- * @param errMsgLn2 The second line of the error message (optional).
- * @param filename The filename that caused the error (optional).
- * @param errorCode The numeric error code.
- */
-void draw_error_with_details(const String& errMsgLn1,
-                             const String& errMsgLn2,
-                             const char* filename,
-                             uint16_t errorCode);
-
-/**
- * Draws an error message with a specific gravity and code.
- * @param gravity The gravity of the message (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
- * @param code The error code to be displayed.
- */
-void draw_error_message(const gravity_t gravity, const uint8_t code);
-
-/**
- * Draws a side message with an icon.
- * @param gravity The gravity of the message (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
- * @param icon_name The name of the icon to be displayed.
- * @param message The message to be displayed next to the icon.
- * @param x_offset The x-offset from the icon position (default is 0).
- * @param y_offset The y-offset from the icon position (default is 0).
- * @note The icon will be drawn next to the message, and the message will be aligned based on the
- * specified gravity. The icon size is fixed at 16x16 pixels.
- */
-void draw_side_message_with_icon(gravity_t gravity,
-                                 icon_name_t icon_name,
-                                 const char* message,
-                                 int32_t x_offset = 0,
-                                 int32_t y_offset = 0);
-
-/**
- * Draws a side message with an icon on a GFX canvas (for overlay composition).
- * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param gravity The gravity of the message
- * @param icon_name The name of the icon to be displayed
- * @param message The message to be displayed next to the icon
- * @param x_offset The x-offset from the icon position (default is 0)
- * @param y_offset The y-offset from the icon position (default is 0)
- */
-void draw_side_message_with_icon(Adafruit_GFX& gfx,
-                                 gravity_t gravity,
-                                 icon_name_t icon_name,
-                                 const char* message,
-                                 int32_t x_offset = 0,
-                                 int32_t y_offset = 0);
-
-/**
- * Draws a side message without an icon.
- * @param gravity The gravity of the message (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
- * @param message The message to be displayed.
- * @param x_offset The x-offset from the message position (default is 0).
- * @param y_offset The y-offset from the message position (default is 0).
- * @note This function displays a message on the side of the display without any icon. The
- * message will be aligned based on the specified gravity. The text will be drawn in the default
- * font and color (GxEPD_BLACK).
- */
-void draw_side_message(gravity_t gravity,
-                       const char* message,
-                       int32_t x_offset = 0,
-                       int32_t y_offset = 0);
-
-/**
- * Draws a side message without an icon on a GFX canvas (for overlay composition).
- * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param gravity The gravity of the message
- * @param message The message to be displayed
- * @param x_offset The x-offset from the message position (default is 0)
- * @param y_offset The y-offset from the message position (default is 0)
- */
-void draw_side_message(Adafruit_GFX& gfx,
-                       gravity_t gravity,
-                       const char* message,
-                       int32_t x_offset = 0,
-                       int32_t y_offset = 0);
-
-/**
- * Draws the last update time on the e-paper display.
- * @param lastUpdate The DateTime object representing the last update time.
- * @param refresh_seconds The number of seconds since the last update (default is 0).
- * @note This function formats the last update time and displays it on the top left corner of the
- * display. If refresh_seconds is bigger than 0, it will be displayed in parentheses next to the
- * time.
- */
-void draw_last_update(const DateTime& lastUpdate, long refresh_seconds = 0);
-
-/**
- * Draws the last update time on a GFX canvas (for overlay composition).
- * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param lastUpdate The DateTime object representing the last update time.
- * @param refresh_seconds The number of seconds since the last update (default is 0).
- */
-void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds = 0);
-
-/**
- * Draws the battery status on the e-paper display.
- * @param raw_value The raw battery value (used for debugging).
- * @param battery_voltage The battery voltage in millivolts.
- * @param battery_percentage The battery percentage (0-100).
- * @note This function displays the battery icon and its status on the top right corner of the
- * display. It uses predefined icons based on the battery percentage.
- */
-void draw_battery_status(photo_frame::battery_info_t battery_info);
-
-/**
- * Draws the battery status on a GFX canvas (for overlay composition).
- * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param battery_info Battery information structure
- */
-void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info);
-
-/**
- * Draws image information on the e-paper display.
- * @param index The index of the current image.
- * @param total_images The total number of images.
- * @param image_source The source of the current image (cloud or local cache).
- * @note This function displays the current image index and total number of images on the
- * top center corner of the display. It is useful for providing context when viewing images.
- */
-void draw_image_info(uint32_t index,
-                     uint32_t total_images,
-                     photo_frame::image_source_t image_source);
-
-/**
- * Draws image information on a GFX canvas (for overlay composition).
- * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param index The index of the current image.
- * @param total_images The total number of images.
- * @param image_source The source of the current image (cloud or local cache).
- */
-void draw_image_info(Adafruit_GFX& gfx,
-                     uint32_t index,
-                     uint32_t total_images,
-                     photo_frame::image_source_t image_source);
-
-/**
- * Draws a rounded rectangle with dithering transparency on the e-paper display.
- * @param x X-coordinate of the top-left corner
- * @param y Y-coordinate of the top-left corner
- * @param width Width of the rectangle
- * @param height Height of the rectangle
- * @param radius Corner radius for rounded edges
- * @param color Color to use for drawing
- * @param transparency Transparency level (0=opaque, 128=50% checkerboard, 255=invisible)
- * @note Creates semi-transparent effects using dithering patterns:
- *       0-64: ~75% opacity, 65-128: ~50% opacity, 129-192: ~25% opacity, 193+: ~12% opacity
- *       Useful for creating background boxes that don't completely obscure underlying content.
- */
-void draw_rounded_rect(int16_t x,
-                       int16_t y,
-                       int16_t width,
-                       int16_t height,
-                       uint16_t radius,
-                       uint16_t color,
-                       uint8_t transparency = 128);
-
-/**
- * @brief Draws a binary image from a file using buffered rendering.
- * @param file File handle for the binary image
- * @param filename Name of the file (for debugging/logging)
- * @param width Width of the binary image in pixels
- * @param height Height of the binary image in pixels
- * @return True if image was drawn successfully, false otherwise
- * @note This function is optimized for displays that don't support paging
- */
-uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int width, int height);
-
-/**
- * @brief Draws a binary image from a file on the e-paper display.
- * @param file File handle for the binary image
- * @param filename Name of the file (for debugging/logging)
- * @param width Width of the binary image in pixels
- * @param height Height of the binary image in pixels
- * @param error_code Pointer to store the specific error code if rendering fails (optional)
- * @return True if image was drawn successfully, false otherwise
- */
-uint16_t
-draw_binary_from_file_paged(File& file, const char* filename, int width, int height, int page_index = -1);
-
-/**
- * @brief Load image file into buffer
- *
- * Reads Mode 1 format image (384KB, 1 byte per pixel) from SD card into the
- * provided buffer. This allows the SD card to be closed before display operations begin.
- *
- * @param buffer Pointer to buffer (must be at least width * height bytes)
- * @param file Open file handle (SD card or other filesystem)
- * @param filename Original filename for logging and validation
- * @param width Expected image width (should match display width, 800)
- * @param height Expected image height (should match display height, 480)
- * @return Error code (0 = success, non-zero = error)
- * @note File can be closed after this function returns
- */
-uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename, int width, int height);
-
-/**
- * @brief Write image from buffer to display hardware (without refresh)
- *
- * Writes the image from provided buffer to display hardware using Mode 1 format.
- * Uses writeDemoBitmap() which writes directly to display hardware without triggering refresh.
- * The caller must call display.refresh() afterwards to update the physical screen.
- *
- * This allows overlays to be drawn on top of the image before the final refresh.
- *
- * @param buffer Pointer to buffer containing image data (Mode 1 format: 1 byte per pixel)
- * @param width Image width (should match display width, 800)
- * @param height Image height (should match display height, 480)
- * @return Error code (0 = success, non-zero = error)
- * @note Display must be initialized before calling this function
- * @note Caller is responsible for calling display.refresh() after drawing overlays
- */
-uint16_t write_image_from_buffer(uint8_t* buffer, int width, int height);
-
-/**
- * @brief Load and render image in one call (legacy compatibility)
- *
- * Convenience function that combines load_image_to_buffer() and render_image_from_buffer().
- * For better control and SPI management, use the separate functions instead.
- *
- * @param buffer Pointer to buffer (must be at least width * height bytes)
- * @param file Open file handle
- * @param filename Original filename for logging
- * @param width Image width (should match display width, 800)
- * @param height Image height (should match display height, 480)
- * @return Error code (0 = success, non-zero = error)
- */
-uint16_t draw_demo_bitmap_mode1_from_file(uint8_t* buffer, File& file, const char* filename, int width, int height);
-
-uint16_t read8(File& f);
-
-uint16_t read16(File& f);
-
-uint32_t read32(File& f);
+    /**
+     * @brief Load image file into buffer
+     *
+     * Reads Mode 1 format image (384KB, 1 byte per pixel) from SD card into the
+     * provided buffer. This allows the SD card to be closed before display operations begin.
+     *
+     * @param buffer Pointer to buffer (must be at least width * height bytes)
+     * @param file Open file handle (SD card or other filesystem)
+     * @param filename Original filename for logging and validation
+     * @param width Expected image width (should match display width, 800)
+     * @param height Expected image height (should match display height, 480)
+     * @return Error code (0 = success, non-zero = error)
+     * @note File can be closed after this function returns
+     */
+    uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename, int width, int height);
 
 } // namespace renderer
 

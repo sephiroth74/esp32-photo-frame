@@ -40,11 +40,7 @@
 
 Adafruit_MAX17048 max1704x;
 
-#ifdef USE_RTC
-#define TheWire Wire1
-#else
 #define TheWire Wire
-#endif
 
 #endif // USE_SENSOR_MAX1704X
 

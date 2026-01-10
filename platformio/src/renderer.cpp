@@ -1,2124 +1,256 @@
-// MIT License
-//
-// Copyright (c) 2025 Alessandro Crugnola
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 #include "renderer.h"
-#include "datetime_utils.h"
-#include "google_drive.h"
+#include "config.h"
+#include "display_driver_6c.h"
+#include "display_driver_bw.h"
+#include "canvas_renderer.h"
+#include "image_buffer.h"
+#include "errors.h"
+#include <Adafruit_GFX.h>
+#include <FS.h>
 
-#include FONT_HEADER
-
-#if !defined(USE_DESPI_DRIVER) && !defined(USE_WAVESHARE_DRIVER)
-#error "Please define USE_DESPI_DRIVER or USE_WAVESHARE_DRIVER."
+// Include display library headers for EPD_WIDTH and EPD_HEIGHT
+// The pins are taken from config.h (EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN)
+#ifdef DISP_6C
+#include <Display_EPD_GDEP073E01_W21.h>
+#else
+#include <Display_EPD_GDEY075T7_W21.h>
 #endif
 
-#if defined(USE_DESPI_DRIVER) && defined(USE_WAVESHARE_DRIVER)
-#error "Please define only one display driver: either USE_DESPI_DRIVER or USE_WAVESHARE_DRIVER."
-#endif
+// Dynamic display dimensions (exported for compatibility)
+// These will be set based on portrait_mode in the future
+uint16_t DISP_WIDTH = EPD_WIDTH; // 800
+uint16_t DISP_HEIGHT = EPD_HEIGHT; // 480
 
-GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>
-    display(GxEPD2_DRIVER_CLASS(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN));
+// Static display driver instance - created at compile time based on configuration
+#ifdef DISP_6C
+static DisplayDriver6C displayDriver(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN,
+    EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN);
+#else
+static DisplayDriverBW displayDriver(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN,
+    EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN);
+#endif
 
 namespace photo_frame {
 namespace renderer {
 
-void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y);
-
-// static const uint16_t input_buffer_pixels = 20; // may affect performance
-static const uint16_t input_buffer_pixels = 200; // Reduced to save DRAM (was 800, 600 bytes saved)
-
-static const uint16_t max_row_width       = 800; // Optimized for 800x480 display (was 1448)
-static const uint16_t max_palette_pixels  = 256; // for depth <= 8
-
-#ifdef ORIENTATION_LANDSCAPE
-static const uint8_t multiline_error_maxlines = 2;
-static const uint16_t multiline_error_h_padding = 200;
-#else
-static const uint8_t multiline_error_maxlines = 4;
-static const uint16_t multiline_error_h_padding = 80;
-#endif
-
-
-// Static buffers - using plenty of available memory
-uint8_t input_buffer[3 * input_buffer_pixels];        // up to depth 24
-uint8_t output_row_mono_buffer[max_row_width / 8];    // buffer for at least one row of b/w bits
-uint8_t output_row_color_buffer[max_row_width / 8];   // buffer for at least one row of color bits
-uint8_t mono_palette_buffer[max_palette_pixels / 8];  // palette buffer for depth <= 8 b/w
-uint8_t color_palette_buffer[max_palette_pixels / 8]; // palette buffer for depth <= 8 c/w
-uint16_t rgb_palette_buffer[max_palette_pixels];      // palette buffer for depth <= 8 for buffered
-                                                      // graphics, needed for 7-color display
-
-uint16_t read8(File& f) {
-    uint8_t result;
-    f.read(&result, 1); // read the next byte to move the file pointer
-    return result;
-}
-
-uint16_t read16(File& f) {
-    // BMP data is stored little-endian, same as Arduino.
-    uint16_t result;
-    ((uint8_t*)&result)[0] = f.read(); // LSB
-    ((uint8_t*)&result)[1] = f.read(); // MSB
-    return result;
-}
-
-uint32_t read32(File& f) {
-    // BMP data is stored little-endian, same as Arduino.
-    uint32_t result;
-    ((uint8_t*)&result)[0] = f.read(); // LSB
-    ((uint8_t*)&result)[1] = f.read();
-    ((uint8_t*)&result)[2] = f.read();
-    ((uint8_t*)&result)[3] = f.read(); // MSB
-    return result;
-}
-
-/*
- * Initialize e-paper display
- */
-void init_display() {
-    log_i("Initializing e-paper display...");
-
-    if (!digitalPinIsValid(EPD_BUSY_PIN) || !digitalPinIsValid(EPD_RST_PIN) ||
-        !digitalPinIsValid(EPD_DC_PIN) || !digitalPinIsValid(EPD_CS_PIN)) {
-        log_e("Invalid e-paper display pins!");
-        return;
-    }
-
-#if defined(SD_USE_SPI) && defined(USE_HSPI_FOR_SD)
-    // When using separate SPI buses (HSPI for SD, VSPI for display),
-    // initialize VSPI for display only if not already done
-    log_i("Initializing VSPI for e-paper display (separate from HSPI SD card)");
-    SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // Initialize VSPI for display, -1 for MISO (not used)
-#else
-    // When using shared SPI or SDIO for SD card, re-initialize SPI for display
-    log_i("Re-initializing SPI for e-paper display");
-    SPI.end();
-    delay(1);
-    SPI.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, EPD_CS_PIN); // remap SPI for EPD, -1 for MISO (not used)
-#endif
-
-#ifdef USE_DESPI_DRIVER
-    display.init(115200);
-// display.init(115200, true, 2, false);
-#else  // USE_WAVESHARE_DRIVER
-    display.init(115200, true, 2, false);
-#endif // USE_DESPI_DRIVER
-
-    display.setRotation(0);
-    display.setTextSize(1);
-    display.setTextColor(GxEPD_BLACK);
-    display.setTextWrap(false);
-
-#if defined(DISP_6C) || defined(DISP_7C)
-    // For GDEP073E01 6-color display: power stabilization only
-    log_i("GDEP073E01 6-color display detected - applying power stabilization...");
-    delay(500);
-    log_i("Power stabilization delay applied");
-
-#endif
-
-    auto pages = display.pages();
-    log_i("Display pages: %d", pages);
-    if (pages > 1) {
-        log_i("Display page height: %d", display.pageHeight());
-    }
-    log_i("Display width: %d", display.width());
-    log_i("Display height: %d", display.height());
-    log_i("Full refresh time: %d", display.epd2.full_refresh_time);
-    log_i("Display has color: %s", display.epd2.hasColor ? "true" : "false");
-    log_i("Display has partial update: %s",
-                  display.epd2.hasPartialUpdate ? "true" : "false");
-    log_i("Display has fast partial update: %s",
-                  display.epd2.hasFastPartialUpdate ? "true" : "false");
-
-    // Static buffers are ready to use - no allocation needed
-
-    // log_d("setFullWindow");
-    // display.setFullWindow();
-    // display.fillScreen(GxEPD_WHITE);
-    // display.firstPage(); // use paged drawing mode, sets fillScreen(GxEPD_WHITE)
-    return;
-} // end initDisplay
-
-/*
- * Power-off e-paper display
- */
-void power_off() {
-    log_i("Powering off e-paper display...");
-    // Static buffers - no need to free
-    display.powerOff(); // turns off the display
-    delay(400);         // wait for the display to power off
-    // end();
-} // end powerOff
-
-void hibernate() {
-    log_i("Hibernate e-paper display...");
-    display.hibernate();
-}
-
-void end() {
-    log_i("End e-paper display...");
-    display.end();
-    SPI.end();
-    return;
-}
-
-void refresh(bool partial_update_mode) { display.refresh(partial_update_mode); }
-
-void fill_screen(uint16_t color) { display.fillScreen(color); }
-
-bool has_partial_update() {
-    // check if the display supports partial update
-    return display.epd2.hasPartialUpdate;
-} // end hasPartialUpdate
-
-bool has_color() {
-    return display.epd2.hasColor;
-} // end has_color
-
-bool has_fast_partial_update() {
-    // check if the display supports fast partial update
-    return display.epd2.hasFastPartialUpdate;
-} // end hasFastPartialUpdate
-
-/*
- * Returns the string width in pixels
- */
-uint16_t get_string_width(const String& text) {
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-    return w;
-}
-
-/*
- * Returns the string height in pixels
- */
-uint16_t get_string_height(const String& text) {
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-    return h;
-}
-
-rect_t get_text_bounds(const char* text, int16_t x, int16_t y) {
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(text, x, y, &x1, &y1, &w, &h);
-    return rect_t::from_xywh(x1, y1, w, h);
-}
-
-/*
- * Draws a string with alignment
- */
-void draw_string(int16_t x, int16_t y, const char* text, alignment_t alignment, uint16_t color) {
-    display.setTextColor(color);
-    rect_t rect = get_text_bounds(text, x, y);
-    if (alignment == RIGHT) {
-        x = x - rect.width;
-    }
-    if (alignment == CENTER) {
-        x = x - rect.width / 2;
-    }
-    display.setCursor(x, y);
-    display.print(text);
-    return;
-} // end drawString
-
-/*
- * Draws a string without alignment
- */
-void draw_string(int16_t x, int16_t y, const char* text, uint16_t color) {
-#ifdef DEBUG_RENDERER
-    log_d("drawString: x=%d y=%d text='%s' color=0x%04X", x, y, text, color);
-#endif // DEBUG_RENDERER
-    display.setTextColor(color);
-    display.setCursor(x, y);
-    display.print(text);
-    return;
-} // end drawString
-
-/*
- * Draws a string that will flow into the next line when max_width is reached.
- * If a string exceeds max_lines an ellipsis (...) will terminate the last word.
- * Lines will break at spaces(' ') and dashes('-').
- *
- * Note: max_width should be big enough to accommodate the largest word that
- *       will be displayed. If an unbroken string of characters longer than
- *       max_width exist in text, then the string will be printed beyond
- *       max_width.
- */
-void draw_multiline_string(int16_t x,
-                           int16_t y,
-                           const String& text,
-                           alignment_t alignment,
-                           uint16_t max_width,
-                           uint16_t max_lines,
-                           int16_t line_spacing,
-                           uint16_t color) {
-    uint16_t current_line = 0;
-    String textRemaining  = text;
-    // print until we reach max_lines or no more text remains
-    while (current_line < max_lines && !textRemaining.isEmpty()) {
-        // Yield periodically during complex text processing
-        if (current_line % 5 == 0) {
-            yield();
-        }
-
-        int16_t x1, y1;
-        uint16_t w, h;
-
-        display.getTextBounds(textRemaining, 0, 0, &x1, &y1, &w, &h);
-
-        int endIndex = textRemaining.length();
-        // check if remaining text is to wide, if it is then print what we can
-        String subStr    = textRemaining;
-        int splitAt      = 0;
-        int keepLastChar = 0;
-        while (w > max_width && splitAt != -1) {
-            if (keepLastChar) {
-                // if we kept the last character during the last iteration of this while
-                // loop, remove it now so we don't get stuck in an infinite loop.
-                subStr.remove(subStr.length() - 1);
-            }
-
-            // find the last place in the string that we can break it.
-            if (current_line < max_lines - 1) {
-                splitAt = std::max(subStr.lastIndexOf(" "), subStr.lastIndexOf("-"));
-            } else {
-                // this is the last line, only break at spaces so we can add ellipsis
-                splitAt = subStr.lastIndexOf(" ");
-            }
-
-            // if splitAt == -1 then there is an unbroken set of characters that is
-            // longer than max_width. Otherwise if splitAt != -1 then we can continue
-            // the loop until the string is <= max_width
-            if (splitAt != -1) {
-                endIndex      = splitAt;
-                subStr        = subStr.substring(0, endIndex + 1);
-
-                char lastChar = subStr.charAt(endIndex);
-                if (lastChar == ' ') {
-                    // remove this char now so it is not counted towards line width
-                    keepLastChar = 0;
-                    subStr.remove(endIndex);
-                    --endIndex;
-                } else if (lastChar == '-') {
-                    // this char will be printed on this line and removed next iteration
-                    keepLastChar = 1;
-                }
-
-                if (current_line < max_lines - 1) {
-                    // this is not the last line
-                    display.getTextBounds(subStr, 0, 0, &x1, &y1, &w, &h);
-                } else {
-                    // this is the last line, we need to make sure there is space for
-                    // ellipsis
-                    display.getTextBounds(subStr + "...", 0, 0, &x1, &y1, &w, &h);
-                    if (w <= max_width) {
-                        // ellipsis fit, add them to subStr
-                        subStr = subStr + "...";
-                    }
-                }
-
-            } // end if (splitAt != -1)
-        } // end inner while
-
-        draw_string(x, y + (current_line * line_spacing), subStr.c_str(), alignment, color);
-
-        // update textRemaining to no longer include what was printed
-        // +1 for exclusive bounds, +1 to get passed space/dash
-        textRemaining = textRemaining.substring(endIndex + 2 - keepLastChar);
-
-        ++current_line;
-    } // end outer while
-
-    return;
-} // end drawMultiLnString
-
-void draw_error(photo_frame_error error) {
-    if (error == error_type::None) {
-        log_i("drawError: No error to display");
-        return;
-    }
-
-    const unsigned char* bitmap_196x196;
-
-    if (error == error_type::NoSdCardAttached) {
-        bitmap_196x196 = getBitmap(icon_name::micro_sd_card_0deg, 196);
-    } else if (error == error_type::BatteryLevelCritical) {
-        bitmap_196x196 = getBitmap(icon_name::battery_alert_0deg, 196);
-    } else {
-        bitmap_196x196 = getBitmap(icon_name::error_icon, 196);
-    }
-
-    draw_error(bitmap_196x196, error.format_for_display(), "");
-}
-
-void draw_error_message(const gravity_t gravity, const uint8_t code) {
-    String errMsgLn1 = String(TXT_ERROR_CODE) + code;
-    errMsgLn1 += " - ";
-    errMsgLn1 += String(FIRMWARE_VERSION_STRING);
-
-    display.setFont(&FONT_6pt8b);
-    display.setTextColor(GxEPD_BLACK);
-
-    rect_t rect = get_text_bounds(errMsgLn1.c_str(), 0, 0);
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = display.width();
-    int16_t disp_h = display.height();
-
-    switch (gravity) {
-    case TOP_LEFT: {
-        draw_string(10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
-        break;
-    }
-    case TOP_RIGHT: {
-        draw_string(disp_w - rect.width - 10, 10, errMsgLn1.c_str(), GxEPD_BLACK);
-        break;
-    }
-    case BOTTOM_LEFT: {
-        draw_string(10, disp_h - rect.height - 10, errMsgLn1.c_str(), GxEPD_BLACK);
-        break;
-    }
-    case BOTTOM_RIGHT: {
-        draw_string(disp_w - rect.width - 10,
-                    disp_h - rect.height - 10,
-                    errMsgLn1.c_str(),
-                    GxEPD_BLACK);
-        break;
-    }
-    default: {
-        log_w("drawErrorMessage: Invalid gravity type");
-        return;
-    }
-    }
-}
-
-void draw_error(const uint8_t* bitmap_196x196, const String& errMsgLn1, const String& errMsgLn2) {
-#ifdef DEBUG_RENDERER
-    log_d("drawError[1]: %s", errMsgLn1.c_str());
-    if (!errMsgLn2.isEmpty()) {
-        log_d("drawError[2]: %s", errMsgLn2.c_str());
-    }
-#endif // DEBUG_RENDERER
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = display.width();
-    int16_t disp_h = display.height();
-
-    // Position error text higher on screen (no icon space needed)
-    // int16_t baseY = disp_h / 2 - 60; // Higher position without icon
-    int16_t baseY = disp_h / 2 + 196 / 2 - 21;
-
-    display.setFont(&FONT_26pt8b);
-    if (!errMsgLn2.isEmpty()) {
-        draw_string(disp_w / 2, baseY, errMsgLn1.c_str(), CENTER);
-        draw_string(disp_w / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
-    } else {
-        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - multiline_error_h_padding, multiline_error_maxlines, 55);
-    }
-
-    display.drawInvertedBitmap(disp_w / 2 - 196 / 2,
-                               disp_h / 2 - 196 / 2 - 42,
-                               bitmap_196x196,
-                               196,
-                               196,
-                               ACCENT_COLOR);
-
-    return;
-} // end drawError
-
-void draw_error_with_details(const String& errMsgLn1,
-                             const String& errMsgLn2,
-                             const char* filename,
-                             uint16_t errorCode) {
-#ifdef DEBUG_RENDERER
-    log_d("drawErrorWithDetails[1]: %s", errMsgLn1.c_str());
-    if (!errMsgLn2.isEmpty()) {
-        log_d("drawErrorWithDetails[2]: %s", errMsgLn2.c_str());
-    }
-    log_d("drawErrorWithDetails filename: %s, code: %d",
-                  filename ? filename : "unknown",
-                  errorCode);
-#endif // DEBUG_RENDERER
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = display.width();
-    int16_t disp_h = display.height();
-
-    // Position error text higher on screen (no icon space needed)
-    int16_t baseY = disp_h / 2 - 80; // Higher position for more content
-
-    // Draw main error messages
-    display.setFont(&FONT_26pt8b);
-    if (!errMsgLn2.isEmpty()) {
-        draw_string(disp_w / 2, baseY, errMsgLn1.c_str(), CENTER);
-        draw_string(disp_w / 2, baseY + 55, errMsgLn2.c_str(), CENTER);
-        baseY += 110; // Move to next line after 2 large lines
-    } else {
-        draw_multiline_string(disp_w / 2, baseY, errMsgLn1, CENTER, disp_w - multiline_error_h_padding, multiline_error_maxlines, 55);
-        baseY += 55; // Move to next line after 1 large line
-    }
-
-    // Add detail lines with filename and error code
-    // In portrait mode (more vertical space), we can show details on separate lines
-    display.setFont(&FONT_9pt8b);
-
-#if defined(ORIENTATION_PORTRAIT)
-    // Portrait mode: Show details on multiple lines for better readability
-    baseY += 40; // Extra spacing before details
-
-    // Line 1: Filename
-    if (filename && strlen(filename) > 0) {
-        // Extract just the filename from the path
-        const char* baseName = strrchr(filename, '/');
-        if (baseName) {
-            baseName++; // Skip the '/'
-        } else {
-            baseName = filename;
-        }
-        String filenameLine = "File: " + String(baseName);
-        draw_string(disp_w / 2, baseY, filenameLine.c_str(), CENTER, GxEPD_BLACK);
-        baseY += 25; // Line spacing
-    }
-
-    // Line 2: Error code
-    String errorLine = "Error Code: " + String(errorCode);
-    draw_string(disp_w / 2, baseY, errorLine.c_str(), CENTER, GxEPD_BLACK);
-    baseY += 25;
-
-    // Line 3: Additional context (optional - can be expanded)
-    String contextLine = "Please check the image format";
-    draw_string(disp_w / 2, baseY, contextLine.c_str(), CENTER, GxEPD_BLACK);
-#else
-    // Landscape mode: Keep compact single line format
-    String detailLine = "File: ";
-    if (filename && strlen(filename) > 0) {
-        // Extract just the filename from the path
-        const char* baseName = strrchr(filename, '/');
-        if (baseName) {
-            baseName++; // Skip the '/'
-        } else {
-            baseName = filename;
-        }
-        detailLine += String(baseName);
-    } else {
-        detailLine += "unknown";
-    }
-    detailLine += " | Error: " + String(errorCode);
-
-    draw_string(disp_w / 2, baseY + 30, detailLine.c_str(), CENTER, GxEPD_BLACK);
-#endif
-
-    return;
-} // end drawErrorWithDetails
-
-void draw_image_info(uint32_t index,
-                     uint32_t total_images,
-                     photo_frame::image_source_t image_source) {
-#ifdef DEBUG_RENDERER
-    log_d("drawImageInfo: %d / %d", index, total_images);
-#endif // DEBUG_RENDERER
-    String message = String(index + 1) + " / " + String(total_images);
-    draw_side_message_with_icon(gravity::TOP_CENTER,
-                                image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
-                                    ? icon_name::cloud_0deg
-                                    : icon_name::micro_sd_card_0deg,
-                                message.c_str(),
-                                -4,
-                                -2);
-}
-
-
-void draw_rounded_rect(int16_t x,
-                       int16_t y,
-                       int16_t width,
-                       int16_t height,
-                       uint16_t radius,
-                       uint16_t color,
-                       uint8_t transparency) {
-    // Input validation
-#ifdef DEBUG_RENDERER
-    log_d("draw_rounded_rect: %d, %d, %d, %d, %d, %d, transparency=%d",
-          x, y, width, height, radius, color, transparency);
-#endif // DEBUG_RENDERER
-
-    if (width <= 0 || height <= 0)
-        return;
-
-    // Calculate corner radius (about 1/8 of the smaller dimension)
-    if (radius < 2)
-        radius = 2; // Minimum radius
-    if (radius > 10)
-        radius = 10; // Maximum radius for performance
-
-    // Draw rounded rectangle with dithering for semi-transparency
-    for (int16_t py = 0; py < height; py++) {
-        // Yield every 10 rows to prevent watchdog timeout
-        if (py % 10 == 0) {
-            yield();
-        }
-
-        for (int16_t px = 0; px < width; px++) {
-            // Check if we're in a corner region
-            bool inCorner    = false;
-            int16_t corner_x = 0, corner_y = 0;
-
-            // Top-left corner
-            if (px < radius && py < radius) {
-                corner_x = radius - px;
-                corner_y = radius - py;
-                inCorner = true;
-            }
-            // Top-right corner
-            else if (px >= width - radius && py < radius) {
-                corner_x = px - (width - radius - 1);
-                corner_y = radius - py;
-                inCorner = true;
-            }
-            // Bottom-left corner
-            else if (px < radius && py >= height - radius) {
-                corner_x = radius - px;
-                corner_y = py - (height - radius - 1);
-                inCorner = true;
-            }
-            // Bottom-right corner
-            else if (px >= width - radius && py >= height - radius) {
-                corner_x = px - (width - radius - 1);
-                corner_y = py - (height - radius - 1);
-                inCorner = true;
-            }
-
-            // If in corner, check if we're within the rounded area
-            bool drawPixel = true;
-            if (inCorner) {
-                // Calculate distance from corner center
-                int16_t dist_squared   = corner_x * corner_x + corner_y * corner_y;
-                int16_t radius_squared = radius * radius;
-
-                // Skip pixel if outside rounded corner
-                if (dist_squared > radius_squared) {
-                    drawPixel = false;
-                }
-            }
-
-            if (drawPixel) {
-                // Create dithering pattern based on transparency level
-                bool draw_pixel = false;
-
-                if (transparency == 0) {
-                    // Fully opaque - draw all pixels
-                    draw_pixel = true;
-                } else if (transparency == 255) {
-                    // Fully transparent - draw no pixels
-                    draw_pixel = false;
-                } else {
-                    // Semi-transparent - use dithering patterns based on transparency level
-
-                    if (transparency <= 64) {
-                        // ~75% opacity: Draw 3 out of 4 pixels (sparse transparency)
-                        draw_pixel = !((px % 2 == 1) && (py % 2 == 1));
-                    } else if (transparency <= 128) {
-                        // ~50% opacity: Standard checkerboard pattern
-                        draw_pixel = ((px + py) % 2) == 0;
-                    } else if (transparency <= 192) {
-                        // ~25% opacity: Draw 1 out of 4 pixels
-                        draw_pixel = (px % 2 == 0) && (py % 2 == 0);
-                    } else {
-                        // ~12% opacity: Very sparse pattern
-                        draw_pixel = (px % 4 == 0) && (py % 4 == 0);
-                    }
-                }
-
-                // Draw pixel if pattern allows it
-                if (draw_pixel) {
-                    display.drawPixel(x + px, y + py, color);
-                }
-                // Background pixels are left as-is (creating transparency effect)
-            }
-
-            // Yield every 100 pixels to prevent watchdog timeout
-            if (px % 100 == 0) {
-                yield();
-            }
-        }
-    }
-}
-
-void draw_battery_status(photo_frame::battery_info_t battery_info) {
-#ifdef DEBUG_RENDERER
-    log_d("drawBatteryStatus");
-#endif // DEBUG_RENDERER
-
-    auto battery_voltage    = battery_info.millivolts;
-
-    auto battery_percentage = battery_info.percent;
-
-    // Draw battery icon
-    icon_name_t icon_name;
-
-    if (battery_info.is_charging()) {
-        icon_name = icon_name::battery_charging_full_90deg;
-    } else {
-
-        if (battery_percentage >= 100) {
-            icon_name = icon_name::battery_full_90deg;
-        } else if (battery_percentage >= 80) {
-            icon_name = icon_name::battery_6_bar_90deg;
-        } else if (battery_percentage >= 60) {
-            icon_name = icon_name::battery_5_bar_90deg;
-        } else if (battery_percentage >= 40) {
-            icon_name = icon_name::battery_4_bar_90deg;
-        } else if (battery_percentage >= 20) {
-            icon_name = icon_name::battery_3_bar_90deg;
-        } else if (battery_percentage >= 10) {
-            icon_name = icon_name::battery_2_bar_90deg;
-        } else {
-            icon_name = icon_name::battery_alert_90deg; // Critical battery
-        }
-    }
-
-    String message = String((uint16_t)battery_percentage) + "% (" +
-                     String((float)battery_voltage / 1000, 2) + "V)";
-
-#if defined(USE_SENSOR_MAX1704X) && defined(DEBUG_BATTERY_READER)
-    if (battery_info.charge_rate != 0.0) {
-        message += " - " + String(battery_info.charge_rate, 2) + "mA";
-    }
-#else
-
-#ifdef DEBUG_BATTERY_READER
-    message += "  - " + String(battery_info.raw_millivolts);
-#endif // DEBUG_BATTERY
-
-#endif // USE_SENSOR_MAX1704X
-
-    message += " - ";
-    message += String(FIRMWARE_VERSION_STRING);
-
-    draw_side_message_with_icon(gravity::TOP_RIGHT, icon_name, message.c_str(), 0, -2);
-}
-
-void draw_last_update(const DateTime& lastUpdate, long refresh_seconds) {
-#ifdef DEBUG_RENDERER
-    log_d("drawLastUpdate: %s, refresh %ld seconds",
-          lastUpdate.timestamp().c_str(), refresh_seconds);
-#endif                             // DEBUG_RENDERER
-    char dateTimeBuffer[32] = {0}; // Buffer to hold formatted date and time
-    photo_frame::datetime_utils::format_datetime(dateTimeBuffer,
-                                                 sizeof(dateTimeBuffer),
-                                                 lastUpdate,
-#ifdef ORIENTATION_PORTRAIT
-                                                 photo_frame::datetime_utils::dateTimeFormatShort
-#else
-                                                 photo_frame::datetime_utils::dateTimeFormatFull
-#endif
-                                                );
-
-    // Format the refresh time using datetime_utils
-    char refreshBuffer[16] = {0}; // Buffer for refresh time string (e.g., "2h 30m")
-    photo_frame::datetime_utils::format_duration(
-        refreshBuffer, sizeof(refreshBuffer), refresh_seconds);
-
-    // Build the complete last update string
-    char lastUpdateBuffer[64] = {0};
-    if (refreshBuffer[0] != '\0') {
-        snprintf(
-            lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s (%s)", dateTimeBuffer, refreshBuffer);
-    } else {
-        snprintf(lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s", dateTimeBuffer);
-    }
-
-    draw_side_message_with_icon(gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateBuffer, 0, -2);
-} // end drawLastUpdate
-
-void draw_side_message(gravity_t gravity, const char* message, int32_t x_offset, int32_t y_offset) {
-    display.setFont(&FONT_7pt8b);
-    display.setTextColor(GxEPD_BLACK);
-    rect_t rect = get_text_bounds(message, 0, 0);
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = display.width();
-    int16_t disp_h = display.height();
-
-    int16_t x = 0, y = 0;
-    switch (gravity) {
-    case TOP_CENTER: {
-        x = (disp_w - rect.width) / 2;
-        y = -rect.y;
-        break;
-    }
-
-    case TOP_LEFT: {
-        x = 0;
-        y = -rect.y;
-        break;
-    }
-    case TOP_RIGHT: {
-        x = disp_w - rect.width - 20;
-        y = -rect.y;
-        break;
-    }
-    case BOTTOM_LEFT: {
-        x = 0;
-        y = disp_h - rect.y;
-        break;
-    }
-    case BOTTOM_RIGHT: {
-        x = disp_w - rect.width - 20;
-        y = disp_h - rect.y;
-        break;
-    }
-    default: {
-        log_w("drawSideMessage: Invalid gravity type");
-        return;
-    }
-    }
-
-    // Draw the message
-    draw_string(x + x_offset, y + y_offset, message, GxEPD_BLACK);
-} // end drawSideMessage
-
-void draw_side_message_with_icon(gravity_t gravity,
-                                 icon_name_t icon_name,
-                                 const char* message,
-                                 int32_t x_offset,
-                                 int32_t y_offset) {
-    const uint16_t icon_size  = 16;
-    const unsigned char* icon = getBitmap(icon_name, icon_size); // ensure the icon is loaded
-    if (!icon) {
-        log_e("drawSideMessageWithIcon: Icon not found");
-        return;
-    }
-
-    display.setFont(&FONT_7pt8b);
-    display.setTextColor(GxEPD_BLACK);
-    rect_t rect = get_text_bounds(message, 0, 0);
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = display.width();
-    int16_t disp_h = display.height();
-
-    int16_t x = 0, y = 0;
-    switch (gravity) {
-    case TOP_CENTER: {
-        x = (disp_w - rect.width - icon_size - 2) / 2; // leave space for icon
-        y = -rect.y;
-        break;
-    }
-
-    case TOP_LEFT: {
-        x = 0;
-        y = -rect.y;
-        break;
-    }
-    case TOP_RIGHT: {
-        x = disp_w - rect.width - 20;
-        y = -rect.y;
-        break;
-    }
-    case BOTTOM_LEFT: {
-        x = 0;
-        y = disp_h - rect.y;
-        break;
-    }
-    case BOTTOM_RIGHT: {
-        x = disp_w - rect.width - 20;
-        y = disp_h - rect.y;
-        break;
-    }
-
-    default: {
-        log_w("drawSizeMessageWithIcon: Invalid gravity type");
-        return;
-    }
-    }
-
-    // Draw the icon
-    display.drawInvertedBitmap(
-        x + x_offset, y - y + y_offset, icon, icon_size, icon_size, GxEPD_BLACK);
-    // Draw the message next to the icon
-    draw_string(x + icon_size + 2, y, message, GxEPD_BLACK);
-}
-
-uint16_t
-draw_bitmap_from_file(File& file, const char* filename, int16_t x, int16_t y, bool with_color) {
-    if (!file) {
-        log_e("draw_bitmap_from_file: File not open or invalid");
-        return photo_frame::error_type::FileOpenFailed.code;
-    }
-
-    log_i("draw_bitmap_from_file: %s", filename);
-
-    bool valid         = false; // valid format to be handled
-    bool flip          = true;  // bitmap is stored bottom-to-top
-    uint32_t startTime = millis();
-    if ((x >= display.epd2.WIDTH) || (y >= display.epd2.HEIGHT))
-        return photo_frame::error_type::ImageDimensionsInvalid.code;
-
-    // Parse BMP header
-    file.seek(0);
-    auto signature = read16(file);
-
-#ifdef DEBUG_RENDERER
-    log_d("BMP signature: 0x%04X", signature);
-#endif // DEBUG_RENDERER
-
-    if (signature == 0x4D42) // BMP signature
+    bool init()
     {
-        uint32_t fileSize = read32(file);
-#ifndef DEBUG_RENDERER
-        (void)fileSize; // unused
-#endif                  // !DEBUG_RENDERER
-        uint32_t creatorBytes = read32(file);
-        (void)creatorBytes;                  // unused
-        uint32_t imageOffset = read32(file); // Start of image data
-        uint32_t headerSize  = read32(file);
-#ifndef DEBUG_RENDERER
-        (void)headerSize; // unused
-#endif                    // !DEBUG_RENDERER
-        uint32_t width  = read32(file);
-        int32_t height  = (int32_t)read32(file);
-        uint16_t planes = read16(file);
-        uint16_t depth  = read16(file); // bits per pixel
-        uint32_t format = read32(file);
-        log_i("planes: %d", planes);
-        log_i("format: %d", format);
-        if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
-        {
-#ifdef DEBUG_RENDERER
-            log_d("File size: %d", fileSize);
-            log_d("Image Offset: %d", imageOffset);
-            log_d("Header size: %d", headerSize);
-            log_d("Bit Depth: %d", depth);
-            log_d("Image size: %dx%d", width, height);
-#endif // DEBUG_RENDERER
-       // BMP rows are padded (if needed) to 4-byte boundary
-            uint32_t rowSize = (width * depth / 8 + 3) & ~3;
-            if (depth < 8)
-                rowSize = ((width * depth + 8 - depth) / 8 + 3) & ~3;
-            if (height < 0) {
-                height = -height;
-                flip   = false;
-            }
-            uint16_t w = width;
-            uint16_t h = height;
-            if ((x + w - 1) >= display.epd2.WIDTH)
-                w = display.epd2.WIDTH - x;
-            if ((y + h - 1) >= display.epd2.HEIGHT)
-                h = display.epd2.HEIGHT - y;
-            if (w <= max_row_width) // handle with direct drawing
-            {
-                valid            = true;
-                uint8_t bitmask  = 0xFF;
-                uint8_t bitshift = 8 - depth;
-                uint16_t red, green, blue;
-                bool whitish = false;
-                bool colored = false;
-                if (depth == 1)
-                    with_color = false;
-                if (depth <= 8) {
-                    if (depth < 8)
-                        bitmask >>= depth;
-                    // file.seek(54); //palette is always @ 54
-                    file.seek(imageOffset -
-                              (4 << depth)); // 54 for regular, diff for colorsimportant
-                    for (uint16_t pn = 0; pn < (1 << depth); pn++) {
-                        blue  = file.read();
-                        green = file.read();
-                        red   = file.read();
-                        file.read();
-                        whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                             : ((red + green + blue) > 3 * 0x80); // whitish
-                        colored = (red > 0xF0) ||
-                                  ((green > 0xF0) && (blue > 0xF0)); // reddish or yellowish?
-                        if (0 == pn % 8)
-                            mono_palette_buffer[pn / 8] = 0;
-                        mono_palette_buffer[pn / 8] |= whitish << pn % 8;
-                        if (0 == pn % 8)
-                            color_palette_buffer[pn / 8] = 0;
-                        color_palette_buffer[pn / 8] |= colored << pn % 8;
+        log_i("Initializing renderer...");
 
-                        // Yield every 16 palette entries to prevent watchdog timeout
-                        // if (pn % 16 == 0) {
-                        //     yield();
-                        // }
-                    }
-                }
-                log_i("Starting non-paged BMP rendering");
-                log_i("Processing %d rows in single pass (no paging)", h);
-                log_i("Image dimensions: %dx%d", w, h);
-                log_i("This will read entire file and process all rows at once");
+        // Initialize the display driver (already created at compile time)
+        if (!displayDriver.init()) {
+            log_e("Failed to initialize display");
+            return false;
+        }
 
-                uint32_t rowPosition = flip ? imageOffset + (height - h) * rowSize : imageOffset;
-                unsigned long renderStart = millis();
+        log_i("Renderer initialized successfully with %s display", displayDriver.getDisplayType());
+        return true;
+    }
 
-                for (uint16_t row = 0; row < h; row++, rowPosition += rowSize) // for each line
-                {
-                    // Yield every 10 rows to prevent watchdog timeout
-                    if (row % 10 == 0) {
-                        yield();
-                    }
+    bool render_image(uint8_t* imageBuffer)
+    {
+        if (!displayDriver.isInitialized()) {
+            log_e("Display not initialized");
+            return false;
+        }
 
-                    // Log progress every 50 rows
-                    if (row % 50 == 0) {
-                        unsigned long elapsed = millis() - renderStart;
-                        log_i("Processing row %d/%d (%.1f%%) - Elapsed: %lu ms",
-                                      row, h, (float)row * 100.0 / h, elapsed);
-                    }
+        if (imageBuffer == nullptr) {
+            log_e("Image buffer is NULL");
+            return false;
+        }
 
-                    uint32_t in_remain     = rowSize;
-                    uint32_t in_idx        = 0;
-                    uint32_t in_bytes      = 0;
-                    uint8_t in_byte        = 0;    // for depth <= 8
-                    uint8_t in_bits        = 0;    // for depth <= 8
-                    uint8_t out_byte       = 0xFF; // white (for w%8!=0 border)
-                    uint8_t out_color_byte = 0xFF; // white (for w%8!=0 border)
-                    uint32_t out_idx       = 0;
-                    file.seek(rowPosition);
-                    for (uint16_t col = 0; col < w; col++) // for each pixel
-                    {
-                        // Time to read more pixel data?
-                        if (in_idx >=
-                            in_bytes) // ok, exact match for 24bit also (size IS multiple of 3)
-                        {
-                            in_bytes =
-                                file.read(input_buffer,
-                                          in_remain > sizeof(input_buffer) ? sizeof(input_buffer)
-                                                                           : in_remain);
-                            in_remain -= in_bytes;
-                            in_idx = 0;
-                        }
-                        switch (depth) {
-                        case 32:
-                            blue  = input_buffer[in_idx++];
-                            green = input_buffer[in_idx++];
-                            red   = input_buffer[in_idx++];
-                            in_idx++; // skip alpha
-                            whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                                 : ((red + green + blue) > 3 * 0x80); // whitish
-                            colored = (red > 0xF0) ||
-                                      ((green > 0xF0) && (blue > 0xF0)); // reddish or yellowish?
-                            break;
-                        case 24:
-                            blue    = input_buffer[in_idx++];
-                            green   = input_buffer[in_idx++];
-                            red     = input_buffer[in_idx++];
-                            whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                                 : ((red + green + blue) > 3 * 0x80); // whitish
-                            colored = (red > 0xF0) ||
-                                      ((green > 0xF0) && (blue > 0xF0)); // reddish or yellowish?
-                            break;
-                        case 16: {
-                            uint8_t lsb = input_buffer[in_idx++];
-                            uint8_t msb = input_buffer[in_idx++];
-                            if (format == 0) // 555
-                            {
-                                blue  = (lsb & 0x1F) << 3;
-                                green = ((msb & 0x03) << 6) | ((lsb & 0xE0) >> 2);
-                                red   = (msb & 0x7C) << 1;
-                            } else // 565
-                            {
-                                blue  = (lsb & 0x1F) << 3;
-                                green = ((msb & 0x07) << 5) | ((lsb & 0xE0) >> 3);
-                                red   = (msb & 0xF8);
-                            }
-                            whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                                 : ((red + green + blue) > 3 * 0x80); // whitish
-                            colored = (red > 0xF0) ||
-                                      ((green > 0xF0) && (blue > 0xF0)); // reddish or yellowish?
-                        } break;
-                        case 1:
-                        case 2:
-                        case 4:
-                        case 8: {
-                            if (0 == in_bits) {
-                                in_byte = input_buffer[in_idx++];
-                                in_bits = 8;
-                            }
-                            uint16_t pn = (in_byte >> bitshift) & bitmask;
-                            whitish     = mono_palette_buffer[pn / 8] & (0x1 << pn % 8);
-                            colored     = color_palette_buffer[pn / 8] & (0x1 << pn % 8);
-                            in_byte <<= depth;
-                            in_bits -= depth;
-                        } break;
-                        }
-                        if (whitish) {
-                            // keep white
-                        } else if (colored && with_color) {
-                            out_color_byte &= ~(0x80 >> col % 8); // colored
-                        } else {
-                            out_byte &= ~(0x80 >> col % 8); // black
-                        }
-                        if ((7 == col % 8) ||
-                            (col == w - 1)) // write that last byte! (for w%8!=0 border)
-                        {
-                            output_row_color_buffer[out_idx]  = out_color_byte;
-                            output_row_mono_buffer[out_idx++] = out_byte;
-                            out_byte                          = 0xFF; // white (for w%8!=0 border)
-                            out_color_byte                    = 0xFF; // white (for w%8!=0 border)
-                        }
+        // Display the image directly from the provided buffer
+        // The buffer should already contain the image with any overlays drawn
+        bool result = displayDriver.picDisplay(imageBuffer);
 
-                        // Yield every 100 pixels to prevent watchdog timeout
-                        // if (col % 100 == 0) {
-                        //     yield();
-                        // }
-                    } // end pixel
-                    uint16_t yrow = y + (flip ? h - row - 1 : row);
-                    display.writeImage(
-                        output_row_mono_buffer, output_row_color_buffer, x, yrow, w, 1);
-                } // end line
+        if (result) {
+            log_d("Image rendered successfully");
+        } else {
+            log_e("Failed to render image");
+        }
 
-                unsigned long totalTime = millis() - startTime;
-                log_i("========================================");
-                log_i("Non-paged BMP rendering completed:");
-                log_i("  - Total time: %lu ms", totalTime);
-                log_i("  - Rows processed: %d", h);
-                log_i("  - Average time per row: %.2f ms", (float)totalTime / h);
-                log_i("  - Image size: %dx%d pixels", w, h);
-                log_i("Note: This method does NOT use paging!");
-                log_i("All rows were sent to display buffer at once");
-                log_i("display.refresh() must be called separately");
-                log_i("========================================");
-                // display.refresh();
-                // display.refresh(true); // use partial update
-            }
+        return result;
+    }
+
+    void sleep()
+    {
+        log_i("Putting display to sleep...");
+        displayDriver.sleep();
+        log_i("Display is now in sleep mode");
+    }
+
+    void clear()
+    {
+        if (displayDriver.isInitialized()) {
+            log_i("Clearing display...");
+            displayDriver.clear();
+            log_i("Display cleared");
         }
     }
-    if (!valid) {
-        if (signature != 0x4D42) {
-            log_e("Invalid BMP signature: 0x%04X", signature);
-            auto error = photo_frame::error_type::BitmapHeaderCorrupted;
-            error.set_timestamp();
-            error.log_detailed();
-        } else {
-            log_e("bitmap format not handled.");
-            auto error = photo_frame::error_type::BitmapRenderingFailed;
-            error.set_timestamp();
-            error.log_detailed();
+
+    void cleanup()
+    {
+        log_i("Cleaning up renderer...");
+
+        // Put display to sleep if initialized
+        if (displayDriver.isInitialized()) {
+            displayDriver.sleep();
         }
-        return photo_frame::error_type::BitmapRenderingFailed.code;
-    } else {
-        log_i("bitmap loaded successfully.");
+
+        log_i("Renderer cleanup complete");
+    }
+
+    // ========== Legacy function wrappers using canvas_renderer ==========
+
+    void draw_multiline_string(GFXcanvas8 canvas, int16_t x, int16_t y, const String& text,
+        alignment_t alignment, uint16_t max_width,
+        uint16_t max_lines, int16_t line_spacing, uint16_t color)
+    {
+
+        // Draw on canvas using canvas_renderer
+        canvas_renderer::draw_multiline_string(canvas, x, y, text, alignment,
+            max_width, max_lines, line_spacing, color);
+    }
+
+    void draw_side_message_with_icon(Adafruit_GFX& gfx, gravity_t gravity,
+        icon_name_t icon_name, const char* message,
+        int32_t x_offset, int32_t y_offset)
+    {
+        // This version draws directly on the provided GFX object (could be a canvas)
+        // We assume it's a GFXcanvas8 - caller must ensure this
+        GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
+        canvas_renderer::draw_side_message_with_icon(canvas, gravity, icon_name,
+            message, x_offset, y_offset);
+    }
+
+    void draw_side_message(Adafruit_GFX& gfx, gravity_t gravity, const char* message,
+        int32_t x_offset, int32_t y_offset)
+    {
+        // This version draws directly on the provided GFX object
+        // We assume it's a GFXcanvas8 - caller must ensure this
+        GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
+        canvas_renderer::draw_side_message(canvas, gravity, message, x_offset, y_offset);
+    }
+
+    void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds)
+    {
+        // This version draws directly on the provided GFX object
+        // We assume it's a GFXcanvas8 - caller must ensure this
+        GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
+        canvas_renderer::draw_last_update(canvas, lastUpdate, refresh_seconds);
+    }
+
+    void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info)
+    {
+        // This version draws directly on the provided GFX object
+        // We assume it's a GFXcanvas8 - caller must ensure this
+        GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
+        canvas_renderer::draw_battery_status(canvas, battery_info);
+    }
+
+    void draw_image_info(Adafruit_GFX& gfx, uint32_t index, uint32_t total_images,
+        photo_frame::image_source_t image_source)
+    {
+        // This version draws directly on the provided GFX object
+        // We assume it's a GFXcanvas8 - caller must ensure this
+        GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
+        canvas_renderer::draw_image_info(canvas, index, total_images, image_source);
+    }
+
+    // ========== Display state functions ==========
+
+    void power_off()
+    {
+        log_i("Powering off display...");
+        if (displayDriver.isInitialized()) {
+            displayDriver.sleep();
+        }
+    }
+
+    void end()
+    {
+        cleanup();
+    }
+
+    void refresh(bool partial_update_mode)
+    {
+        log_i("Refreshing display (partial=%d)...", partial_update_mode);
+        if (displayDriver.isInitialized()) {
+            displayDriver.refresh();
+        }
+    }
+
+    bool has_partial_update()
+    {
+        return displayDriver.hasPartialUpdate();
+    }
+
+    bool has_color()
+    {
+        return displayDriver.hasColor();
+    }
+
+    // ========== Error display functions ==========
+
+    void draw_error(GFXcanvas8& canvas, photo_frame_error_t error)
+    {
+        // Forward to canvas_renderer
+        photo_frame::canvas_renderer::draw_error(canvas, error);
+    }
+
+    void draw_error_with_details(GFXcanvas8& canvas,
+                                 const String& errMsgLn1,
+                                 const String& errMsgLn2,
+                                 const char* filename,
+                                 uint16_t errorCode)
+    {
+        // Forward to canvas_renderer
+        photo_frame::canvas_renderer::draw_error_with_details(canvas, errMsgLn1, errMsgLn2, filename, errorCode);
+    }
+
+    // ========== Image loading functions ==========
+
+    uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename, int width, int height)
+    {
+        log_i("load_image_to_buffer: %s, width: %d, height: %d",
+              filename, width, height);
+
+        // Validate basic parameters
+        if (!file) {
+            log_e("File not open or invalid");
+            return 1;
+        }
+
+        if (!buffer) {
+            log_e("ERROR: Image buffer is null!");
+            return 2;
+        }
+
+        // Mode 1 format file size validation: width * height bytes (1 byte per pixel)
+        size_t expectedSize = width * height;
+        if (file.size() != expectedSize) {
+            log_e("ERROR: Mode 1 format file size mismatch");
+            log_e("Expected: %d bytes, Got: %d bytes", expectedSize, file.size());
+            return 3;
+        }
+
+        log_i("Mode 1 format file size: %d bytes (1 byte per pixel)", expectedSize);
+
+        // Read the entire file into provided buffer
+        auto startTime = millis();
+        file.seek(0);
+        size_t bytesRead = file.read(buffer, expectedSize);
+        auto readTime = millis() - startTime;
+
+        if (bytesRead != expectedSize) {
+            log_e("ERROR: Failed to read file (got %d bytes, expected %d)",
+                  bytesRead, expectedSize);
+            return 4;
+        }
+
+        log_i("Image loaded to buffer in %lu ms", readTime);
         return 0; // Success
     }
-} // end drawBitmapFromFile
-
-uint16_t
-draw_binary_from_file_paged(File& file, const char* filename, int width, int height, int page_index) {
-    log_i("draw_binary_from_file: %s, width: %d, height: %d", filename, width, height);
-
-    // Validate image dimensions using enhanced error system
-    auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
-        width, height, display.width(), display.height(), filename);
-    if (dimensionError != photo_frame::error_type::None) {
-        dimensionError.log_detailed();
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    if (!file) {
-        log_e("File not open or invalid");
-        return photo_frame::error_type::FileOpenFailed.code;
-    }
-
-    auto startTime           = millis();
-    uint32_t pixelsProcessed = 0;
-
-    // Calculate page boundaries for efficient processing
-    int startY = 0;
-    int endY   = height;
-
-    if (page_index >= 0 && display.pages() > 1) {
-        int pageHeight = display.pageHeight();
-        startY         = page_index * pageHeight;
-        endY           = min(startY + pageHeight, height);
-
-        log_i("Processing page %d of %d, rows %d to %d (optimized)",
-              page_index, display.pages(), startY, endY - 1);
-    } else {
-        log_i("Processing entire image (%d pages, page height: %d)",
-              display.pages(), display.pageHeight());
-    }
-
-    // Only process the rows that belong to the current page (or entire image if page_index = -1)
-    for (int y = startY; y < endY; y++) {
-        // Yield every 10 rows to prevent watchdog timeout
-        if (y % 10 == 0) {
-            yield();
-        }
-
-        for (int x = 0; x < width; x++) {
-            uint8_t color;
-            uint16_t pixelColor;
-            uint32_t idx = (y * width + x);
-
-            int byteRead = 0;
-
-            // Move to the pixel position in the file
-            if (file.seek(idx)) {
-                byteRead = file.read();
-            }
-
-            if (byteRead >= 0) {
-                color = static_cast<uint8_t>(byteRead); // Read the byte as color value
-                photo_frame::renderer::color2Epd(color, pixelColor, x, y);
-
-                // Always use absolute coordinates - GxEPD2 handles page clipping automatically
-                display.writePixel(x, y, pixelColor);
-                pixelsProcessed++;
-            } else {
-                // Create specific image processing error with granular error code
-                auto error = photo_frame::error_type::PixelReadError;
-                error.set_timestamp();
-                error.log_detailed();
-                log_e("draw_binary_from_file failed: pixel read error at position %d", idx);
-                return error.code; // Exit early if read error occurs
-            }
-
-            // Yield every 100 pixels to prevent watchdog timeout
-            if (pixelsProcessed % 100 == 0) {
-                yield();
-            }
-        }
-    }
-
-    auto elapsedTime = millis() - startTime;
-    log_i("Page rendered in: %lu ms (%d pixels)", elapsedTime, pixelsProcessed);
-    log_i("Binary file page processed successfully");
-    return 0; // Success
-}
-
-uint16_t draw_binary_from_file_buffered(File& file, const char* filename, int width, int height) {
-    log_i("draw_binary_from_file_buffered: %s, width: %d, height: %d",
-          filename, width, height);
-
-    // Validate image dimensions using enhanced error system
-    auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
-        width, height, display.width(), display.height(), filename);
-    if (dimensionError != photo_frame::error_type::None) {
-        dimensionError.log_detailed();
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    if (!file) {
-        log_e("File not open or invalid");
-        return photo_frame::error_type::FileOpenFailed.code;
-    }
-
-    // Validate file size using enhanced error system
-    size_t expectedSize = width * height;
-    auto fileSizeError  = photo_frame::error_utils::validate_image_file_size(
-        file.size(), expectedSize, expectedSize, filename);
-    if (fileSizeError != photo_frame::error_type::None) {
-        fileSizeError.log_detailed();
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    auto startTime = millis();
-
-    log_i("Multi-page buffered display: %d pages, page height: %d",
-          display.pages(), display.pageHeight());
-
-    // Allocate buffer for reading a row of pixels
-    uint8_t* rowBuffer = new uint8_t[width];
-    if (!rowBuffer) {
-        log_e("Failed to allocate row buffer");
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    // Set up display paging (like draw_bitmap_from_file_buffered does)
-    display.setFullWindow();
-    display.firstPage();
-
-    int pageIndex = 0;
-    uint32_t totalPixelsProcessed = 0;
-
-    // Process each display page
-    do {
-        // Clear screen for this page (inside the loop like bitmap renderer)
-        display.fillScreen(GxEPD_WHITE);
-        log_i("Processing page %d of %d", pageIndex + 1, display.pages());
-        uint32_t pageStartTime = millis();
-        uint32_t pixelsProcessed = 0;
-        uint32_t blackPixels = 0;
-        uint32_t whitePixels = 0;
-        uint32_t coloredPixels = 0;
-
-        // Calculate page boundaries
-        int pageHeight = display.pageHeight();
-        int startY = pageIndex * pageHeight;
-        int endY = min(startY + pageHeight, height);
-
-
-        // Process only the rows for this page
-        for (int y = startY; y < endY; y++) {
-            // Seek to the start of the current row
-            size_t rowPosition = y * width;
-            if (!file.seek(rowPosition)) {
-                delete[] rowBuffer;
-                log_e("Failed to seek to row %d", y);
-                return photo_frame::error_type::SeekOperationFailed.code;
-            }
-
-            // Read the entire row
-            size_t bytesRead = file.read(rowBuffer, width);
-            if (bytesRead != width) {
-                delete[] rowBuffer;
-                log_e("Failed to read row %d (got %d bytes, expected %d)",
-                             y, bytesRead, width);
-                return photo_frame::error_type::PixelReadError.code;
-            }
-
-            // Process each pixel in the row and draw directly (like bitmap renderer does)
-            for (int x = 0; x < width; x++) {
-                uint8_t color = rowBuffer[x];
-                uint16_t pixelColor = GxEPD_WHITE;
-
-                // Convert color value to EPD color
-                photo_frame::renderer::color2Epd(color, pixelColor, x, y);
-
-                // Draw the pixel directly (same as draw_bitmap_from_file_buffered does)
-                display.drawPixel(x, y, pixelColor);
-
-                // Track pixel statistics
-                if (pixelColor == GxEPD_WHITE) {
-                    whitePixels++;
-                } else if (pixelColor == GxEPD_BLACK) {
-                    blackPixels++;
-                } else {
-                    coloredPixels++;
-                }
-
-                pixelsProcessed++;
-
-                // Yield every 100 pixels to prevent watchdog timeout
-                if (pixelsProcessed % 100 == 0) {
-                    yield();
-                }
-            }
-
-            // Yield every row to prevent watchdog timeout
-            yield();
-        }
-
-        totalPixelsProcessed += pixelsProcessed;
-        log_i("Page %d rendered in %lu ms (%u pixels)",
-                     pageIndex + 1, millis() - pageStartTime, pixelsProcessed);
-        log_i("Pixel distribution - Black: %u, White: %u, Colored: %u",
-                     blackPixels, whitePixels, coloredPixels);
-
-        // Debug: Sample first few pixels of first row to see raw values
-        if (pageIndex == 0) {
-            file.seek(0);
-            uint8_t samplePixels[10];
-            file.read(samplePixels, 10);
-            log_d("First 10 pixel values: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
-                  samplePixels[0], samplePixels[1], samplePixels[2], samplePixels[3], samplePixels[4],
-                  samplePixels[5], samplePixels[6], samplePixels[7], samplePixels[8], samplePixels[9]);
-        }
-
-        pageIndex++;
-
-    } while (display.nextPage());
-
-    // Clean up allocated buffer
-    delete[] rowBuffer;
-
-    auto elapsedTime = millis() - startTime;
-    log_i("Binary file buffered rendering complete in %lu ms", elapsedTime);
-    log_i("Total pixels processed: %u", totalPixelsProcessed);
-    log_i("Binary file processed successfully (buffered with internal paging)");
-    return 0; // Success
-}
-
-/**
- * @brief Load image file into static PSRAM buffer
- */
-uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename, int width, int height) {
-    log_i("load_image_to_buffer: %s, width: %d, height: %d",
-          filename, width, height);
-
-#if defined(DISP_6C) || defined(DISP_7C)
-    // Validate image dimensions
-    auto dimensionError = photo_frame::error_utils::validate_image_dimensions(
-        width, height, display.width(), display.height(), filename);
-    if (dimensionError != photo_frame::error_type::None) {
-        dimensionError.log_detailed();
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    if (!file) {
-        log_e("File not open or invalid");
-        return photo_frame::error_type::FileOpenFailed.code;
-    }
-
-    // Check if buffer is provided
-    if (!buffer) {
-        log_e("ERROR: Image buffer is null!");
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    // Mode 1 format file size validation: width * height bytes (1 byte per pixel)
-    size_t expectedSize = width * height;
-    if (file.size() != expectedSize) {
-        log_e("ERROR: Mode 1 format file size mismatch");
-        log_e("Expected: %d bytes, Got: %d bytes", expectedSize, file.size());
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    log_i("Mode 1 format file size: %d bytes (1 byte per pixel)", expectedSize);
-
-    // Read the entire file into provided buffer
-    auto startTime = millis();
-    file.seek(0);
-    size_t bytesRead = file.read(buffer, expectedSize);
-    auto readTime = millis() - startTime;
-
-    if (bytesRead != expectedSize) {
-        log_e("ERROR: Failed to read file (got %d bytes, expected %d)",
-                     bytesRead, expectedSize);
-        return photo_frame::error_type::PixelReadError.code;
-    }
-
-    log_i("Image loaded to buffer in %lu ms", readTime);
-    return 0; // Success
-
-#else
-    log_e("ERROR: Mode 1 format only supported on 6-color and 7-color displays");
-    return photo_frame::error_type::BinaryRenderingFailed.code;
-#endif
-}
-
-
-/**
- * @brief Write image from buffer to display hardware (without refresh)
- */
-uint16_t write_image_from_buffer(uint8_t* buffer, int width, int height) {
-    log_i("write_image_from_buffer: width: %d, height: %d", width, height);
-
-#if defined(DISP_6C) || defined(DISP_7C)
-    // Check if buffer is provided
-    if (!buffer) {
-        log_e("ERROR: Image buffer is null!");
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-
-    // Images are now pre-rotated by Rust processor for Portrait orientation
-    // No runtime rotation needed - write directly to display
-    log_i("Writing pre-rotated image from buffer...");
-
-    auto writeStart = millis();
-    display.epd2.writeDemoBitmap(buffer, 0, 0, 0, width, height, 1, false, false);
-    auto writeTime = millis() - writeStart;
-
-    log_i("Image write complete in %lu ms (no refresh)", writeTime);
-    return 0; // Success
-
-#else
-    log_e("ERROR: Mode 1 format only supported on 6-color and 7-color displays");
-    return photo_frame::error_type::BinaryRenderingFailed.code;
-#endif
-}
-
-/**
- * @brief Legacy function: Load and write image in one call (no refresh)
- */
-uint16_t draw_demo_bitmap_mode1_from_file(uint8_t* buffer, File& file, const char* filename, int width, int height) {
-    log_i("draw_demo_bitmap_mode1_from_file (legacy): %s", filename);
-
-    // Load image to buffer
-    uint16_t loadError = load_image_to_buffer(buffer, file, filename, width, height);
-    if (loadError != 0) {
-        return loadError;
-    }
-
-    // Write image from buffer (no refresh)
-    return write_image_from_buffer(buffer, width, height);
-}
-
-uint16_t draw_bitmap_from_file_buffered(File& file,
-                                        const char* filename,
-                                        int16_t x,
-                                        int16_t y,
-                                        bool with_color,
-                                        bool partial_update) {
-
-    if (!file) {
-        log_e("File not open or invalid");
-        return photo_frame::error_type::FileOpenFailed.code;
-    }
-    log_i("draw_bitmap_from_file_buffered: %s, x: %d, y: %d, with_color: %d, partial_update: %d",
-          filename, x, y, with_color, partial_update);
-    log_i("File size available: %d bytes", file.size());
-    log_i("Current file position: %d", file.position());
-
-    bool valid = false; // valid format to be handled
-    bool flip  = true;  // bitmap is stored bottom-to-top
-    bool has_multicolors =
-        (display.epd2.panel == GxEPD2::ACeP565) || (display.epd2.panel == GxEPD2::GDEY073D46);
-    uint32_t startTime = millis();
-    if ((x >= display.width()) || (y >= display.height())) {
-        log_e("draw_bitmap_from_file_buffered: x or y out of bounds");
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    }
-    // Parse BMP header
-
-    uint16_t signature = read16(file);
-    if (signature == 0x4D42) // BMP signature
-    {
-        log_i("BMP signature: %d", signature);
-
-        uint32_t fileSize = read32(file);
-#ifndef DEBUG_RENDERER
-        (void)fileSize; // unused
-#endif                  // !DEBUG_RENDERER
-        uint32_t creatorBytes = read32(file);
-        (void)creatorBytes;                  // unused
-        uint32_t imageOffset = read32(file); // Start of image data
-        uint32_t headerSize  = read32(file);
-#ifndef DEBUG_RENDERER
-        (void)headerSize; // unused
-#endif                    // !DEBUG_RENDERER
-        uint32_t width  = read32(file);
-        int32_t height  = (int32_t)read32(file);
-        uint16_t planes = read16(file);
-        uint16_t depth  = read16(file); // bits per pixel
-        uint32_t format = read32(file);
-
-#ifdef DEBUG_RENDERER
-        log_d("planes: %d", planes);
-        log_d("format: %d", format);
-#endif // DEBUG_RENDERER
-
-        if ((planes == 1) && ((format == 0) || (format == 3))) // uncompressed is handled, 565 also
-        {
-#ifdef DEBUG_RENDERER
-            log_d("File size: %d", fileSize);
-            log_d("Image Offset: %d", imageOffset);
-            log_d("Header size: %d", headerSize);
-            log_d("Bit Depth: %d", depth);
-            log_d("Image size: %dx%d", width, height);
-#endif // DEBUG_RENDERER
-       // BMP rows are padded (if needed) to 4-byte boundary
-            uint32_t rowSize = (width * depth / 8 + 3) & ~3;
-            if (depth < 8)
-                rowSize = ((width * depth + 8 - depth) / 8 + 3) & ~3;
-            if (height < 0) {
-                height = -height;
-                flip   = false;
-            }
-            uint16_t w = width;
-            uint16_t h = height;
-            if ((x + w - 1) >= display.width())
-                w = display.width() - x;
-            if ((y + h - 1) >= display.height())
-                h = display.height() - y;
-            // if (w <= max_row_width) // handle with direct drawing
-            {
-                valid            = true;
-                uint8_t bitmask  = 0xFF;
-                uint8_t bitshift = 8 - depth;
-                uint16_t red, green, blue;
-                bool whitish = false;
-                bool colored = false;
-                if (depth == 1)
-                    with_color = false;
-                if (depth <= 8) {
-                    if (depth < 8)
-                        bitmask >>= depth;
-                    // file.seek(54); //palette is always @ 54
-                    file.seek(imageOffset -
-                              (4 << depth)); // 54 for regular, diff for colorsimportant
-                    for (uint16_t pn = 0; pn < (1 << depth); pn++) {
-                        blue  = file.read();
-                        green = file.read();
-                        red   = file.read();
-                        file.read();
-                        whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                             : ((red + green + blue) > 3 * 0x80); // whitish
-                        colored = (red > 0xF0) ||
-                                  ((green > 0xF0) && (blue > 0xF0)); // reddish or yellowish?
-                        if (0 == pn % 8)
-                            mono_palette_buffer[pn / 8] = 0;
-                        mono_palette_buffer[pn / 8] |= whitish << pn % 8;
-                        if (0 == pn % 8)
-                            color_palette_buffer[pn / 8] = 0;
-                        color_palette_buffer[pn / 8] |= colored << pn % 8;
-                        rgb_palette_buffer[pn] =
-                            ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | ((blue & 0xF8) >> 3);
-
-                        // Yield every 16 palette entries to prevent watchdog timeout
-                        if (pn % 16 == 0) {
-                            yield();
-                        }
-                    }
-                }
-                if (partial_update)
-                    display.setPartialWindow(x, y, w, h);
-                else
-                    display.setFullWindow();
-                display.firstPage();
-                display.fillScreen(GxEPD_WHITE); // clear screen if not overwriting
-                do {
-                    uint32_t rowPosition =
-                        flip ? imageOffset + (height - h) * rowSize : imageOffset;
-                    for (uint16_t row = 0; row < h; row++, rowPosition += rowSize) // for each line
-                    {
-                        // Yield every 10 rows to prevent watchdog timeout
-                        if (row % 10 == 0) {
-                            yield();
-                        }
-
-                        uint32_t in_remain = rowSize;
-                        uint32_t in_idx    = 0;
-                        uint32_t in_bytes  = 0;
-                        uint8_t in_byte    = 0; // for depth <= 8
-                        uint8_t in_bits    = 0; // for depth <= 8
-                        uint16_t color     = GxEPD_WHITE;
-                        file.seek(rowPosition);
-                        for (uint16_t col = 0; col < w; col++) // for each pixel
-                        {
-                            // Time to read more pixel data?
-                            if (in_idx >=
-                                in_bytes) // ok, exact match for 24bit also (size IS multiple of 3)
-                            {
-                                in_bytes = file.read(input_buffer,
-                                                     in_remain > sizeof(input_buffer)
-                                                         ? sizeof(input_buffer)
-                                                         : in_remain);
-                                in_remain -= in_bytes;
-                                in_idx = 0;
-                            }
-                            switch (depth) {
-                            case 32:
-                                blue  = input_buffer[in_idx++];
-                                green = input_buffer[in_idx++];
-                                red   = input_buffer[in_idx++];
-                                in_idx++; // skip alpha
-                                whitish = with_color
-                                              ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                              : ((red + green + blue) > 3 * 0x80); // whitish
-                                colored = (red > 0xF0) || ((green > 0xF0) &&
-                                                           (blue > 0xF0)); // reddish or yellowish?
-                                color   = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) |
-                                        ((blue & 0xF8) >> 3);
-                                break;
-                            case 24:
-                                blue    = input_buffer[in_idx++];
-                                green   = input_buffer[in_idx++];
-                                red     = input_buffer[in_idx++];
-                                whitish = with_color
-                                              ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                              : ((red + green + blue) > 3 * 0x80); // whitish
-                                colored = (red > 0xF0) || ((green > 0xF0) &&
-                                                           (blue > 0xF0)); // reddish or yellowish?
-                                color   = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) |
-                                        ((blue & 0xF8) >> 3);
-                                break;
-                            case 16: {
-                                uint8_t lsb = input_buffer[in_idx++];
-                                uint8_t msb = input_buffer[in_idx++];
-                                if (format == 0) // 555
-                                {
-                                    blue  = (lsb & 0x1F) << 3;
-                                    green = ((msb & 0x03) << 6) | ((lsb & 0xE0) >> 2);
-                                    red   = (msb & 0x7C) << 1;
-                                    color = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) |
-                                            ((blue & 0xF8) >> 3);
-                                } else // 565
-                                {
-                                    blue  = (lsb & 0x1F) << 3;
-                                    green = ((msb & 0x07) << 5) | ((lsb & 0xE0) >> 3);
-                                    red   = (msb & 0xF8);
-                                    color = (msb << 8) | lsb;
-                                }
-                                whitish = with_color
-                                              ? ((red > 0x80) && (green > 0x80) && (blue > 0x80))
-                                              : ((red + green + blue) > 3 * 0x80); // whitish
-                                colored = (red > 0xF0) || ((green > 0xF0) &&
-                                                           (blue > 0xF0)); // reddish or yellowish?
-                            } break;
-                            case 1:
-                            case 2:
-                            case 4:
-                            case 8: {
-                                if (0 == in_bits) {
-                                    in_byte = input_buffer[in_idx++];
-                                    in_bits = 8;
-                                }
-                                uint16_t pn = (in_byte >> bitshift) & bitmask;
-                                whitish     = mono_palette_buffer[pn / 8] & (0x1 << pn % 8);
-                                colored     = color_palette_buffer[pn / 8] & (0x1 << pn % 8);
-                                in_byte <<= depth;
-                                in_bits -= depth;
-                                color = rgb_palette_buffer[pn];
-                            } break;
-                            }
-                            if (with_color && has_multicolors) {
-                                // keep color
-                            } else if (whitish) {
-                                color = GxEPD_WHITE;
-                            } else if (colored && with_color) {
-                                // color = GxEPD_COLORED;
-                            } else {
-                                // color = GxEPD_BLACK;
-                            }
-                            uint16_t yrow = y + (flip ? h - row - 1 : row);
-                            display.drawPixel(x + col, yrow, color);
-
-                            // Yield every 100 pixels to prevent watchdog timeout
-                            if (col % 100 == 0) {
-                                yield();
-                            }
-                        } // end pixel
-                    } // end line
-                    log_i("page loaded in %lu ms", millis() - startTime);
-                } while (display.nextPage());
-                log_i("loaded in %lu ms", millis() - startTime);
-            }
-        }
-    }
-    if (!valid) {
-        if (signature != 0x4D42) {
-            log_e("Invalid BMP signature: 0x%04X", signature);
-            auto error = photo_frame::error_type::BitmapHeaderCorrupted;
-            error.set_timestamp();
-            error.log_detailed();
-        } else {
-            log_e("bitmap format not handled (signature: %d)", signature);
-            auto error = photo_frame::error_type::BufferedBitmapRenderingFailed;
-            error.set_timestamp();
-            error.log_detailed();
-        }
-        return photo_frame::error_type::BinaryRenderingFailed.code;
-    } else {
-        log_i("bitmap loaded successfully.");
-        return 0; // Success
-    }
-} // end drawBitmapFromFile_Buffered
-
-#if defined(DISP_6C) || defined(DISP_7C)
-
-bool is_dominant(uint8_t r, uint8_t g, uint8_t b) {
-    return (r >= g && r >= b) || (g >= r && g >= b) || (b >= r && b >= g);
-};
-
-bool is_light_grey(uint8_t r, uint8_t g, uint8_t b) { return (r >= 5 && g >= 5 && b >= 2); };
-
-bool is_dark_grey(uint8_t r, uint8_t g, uint8_t b) { return (r < 3 && g < 3 && b < 2); };
-
-bool is_yellow(uint8_t r, uint8_t g, uint8_t b) { return (r > 3 && g > 3 && b < 2); };
-
-bool is_orange(uint8_t r, uint8_t g, uint8_t b) { return (r > 4 && g > 2 && g < r && b < 2); };
-
-#endif // DISP_6C || DISP_7C
-
-
-void color2Epd(uint8_t color, uint16_t& pixelColor, int x, int y) {
-#ifdef DISP_6C
-    // Binary files use RGB compression: ((r / 32) << 5) + ((g / 32) << 2) + (b / 64)
-    // Pre-computed values for 6-color display palette:
-    switch (color) {
-    case 0xFF: // White (255,255,255) → 255
-        pixelColor = GxEPD_WHITE;
-        break;
-    case 0x00: // Black (0,0,0) → 0
-        pixelColor = GxEPD_BLACK;
-        break;
-    case 0xE0: // Red (255,0,0) → 224
-        pixelColor = GxEPD_RED;
-        break;
-    case 0x1C: // Green (0,255,0) → 28
-        pixelColor = GxEPD_GREEN;
-        break;
-    case 0x03: // Blue (0,0,255) → 3
-        pixelColor = GxEPD_BLUE;
-        break;
-    case 0xFC: // Yellow (255,255,0) → 252
-        pixelColor = GxEPD_YELLOW;
-        break;
-    default:
-        // Handle intermediate values by extracting RGB components
-        uint8_t r = (color >> 5) & 0x07; // from 0 to 7
-        uint8_t g = (color >> 2) & 0x07; // from 0 to 7
-        uint8_t b = color & 0x03;        // from 0 to 3
-
-        // Map to closest 6-color display color
-        if (is_dominant(r, g, b)) {
-            if (r > g && r > b) {
-                pixelColor = GxEPD_RED;
-            } else if (g > r && g > b) {
-                pixelColor = GxEPD_GREEN;
-            } else if (b > r && b > g) {
-                pixelColor = GxEPD_BLUE;
-            } else {
-                pixelColor = GxEPD_WHITE;
-            }
-        } else {
-            if (is_yellow(r, g, b)) {
-                pixelColor = GxEPD_YELLOW;
-            } else if (is_light_grey(r, g, b)) {
-                pixelColor = GxEPD_WHITE;
-            } else if (is_dark_grey(r, g, b)) {
-                pixelColor = GxEPD_BLACK;
-            } else {
-                pixelColor = GxEPD_WHITE; // Default fallback
-            }
-        }
-        break;
-    }
-
-#elif defined(DISP_7C)
-    // Binary files use RGB compression: ((r / 32) << 5) + ((g / 32) << 2) + (b / 64)
-    // Pre-computed values for 7-color display palette:
-    switch (color) {
-    case 0xFF: // White (255,255,255) → 255
-        pixelColor = GxEPD_WHITE;
-        break;
-    case 0x00: // Black (0,0,0) → 0
-        pixelColor = GxEPD_BLACK;
-        break;
-    case 0xE0: // Red (255,0,0) → 224
-        pixelColor = GxEPD_RED;
-        break;
-    case 0x1C: // Green (0,255,0) → 28
-        pixelColor = GxEPD_GREEN;
-        break;
-    case 0x03: // Blue (0,0,255) → 3
-        pixelColor = GxEPD_BLUE;
-        break;
-    case 0xFC: // Yellow (255,255,0) → 252
-        pixelColor = GxEPD_YELLOW;
-        break;
-    case 0xF4: // Orange (255,165,0) → 244
-        pixelColor = GxEPD_ORANGE;
-        break;
-    default:
-        // Handle intermediate values by extracting RGB components
-        uint8_t r = (color >> 5) & 0x07; // from 0 to 7
-        uint8_t g = (color >> 2) & 0x07; // from 0 to 7
-        uint8_t b = color & 0x03;        // from 0 to 3
-
-        // Map to closest 7-color display color
-        if (is_dominant(r, g, b)) {
-            if (r > g && r > b) {
-                pixelColor = GxEPD_RED;
-            } else if (g > r && g > b) {
-                pixelColor = GxEPD_GREEN;
-            } else if (b > r && b > g) {
-                pixelColor = GxEPD_BLUE;
-            } else {
-                pixelColor = GxEPD_WHITE;
-            }
-        } else {
-            if (is_orange(r, g, b)) {
-                pixelColor = GxEPD_ORANGE;
-            } else if (is_yellow(r, g, b)) {
-                pixelColor = GxEPD_YELLOW;
-            } else if (is_light_grey(r, g, b)) {
-                pixelColor = GxEPD_WHITE;
-            } else if (is_dark_grey(r, g, b)) {
-                pixelColor = GxEPD_BLACK;
-            } else {
-                pixelColor = GxEPD_WHITE; // Default fallback
-            }
-        }
-        break;
-    }
-
-#elif defined(DISP_BW_V2)
-    if (color > 127) {
-        pixelColor = GxEPD_WHITE; // 255
-    } else {
-        pixelColor = GxEPD_BLACK; // 0
-    }
-#else
-    // Default handling for any other BW display
-    // Binary files for BW displays: 0-127 = black, 128-255 = white
-    if (color > 127) {
-        pixelColor = GxEPD_WHITE;
-    } else {
-        pixelColor = GxEPD_BLACK;
-    }
-#endif
-}
-
-// ============================================================================
-// Overloaded functions for canvas-based rendering (overlay composition)
-// ============================================================================
-
-/**
- * @brief Helper function to draw inverted bitmap on canvas (emulates drawInvertedBitmap)
- *
- * Icons are stored for use with drawInvertedBitmap where bit=0 draws the color.
- * This function manually inverts the bitmap to work with Adafruit_GFX canvas.
- *
- * @param gfx Reference to Adafruit_GFX object (canvas)
- * @param x X-coordinate for bitmap placement
- * @param y Y-coordinate for bitmap placement
- * @param bitmap Pointer to bitmap data
- * @param w Bitmap width in pixels
- * @param h Bitmap height in pixels
- * @param color Color to draw (0x00=black, 0x01=white for Mode 1 format)
- */
-static void drawInvertedBitmap(Adafruit_GFX& gfx, int16_t x, int16_t y,
-                                const uint8_t* bitmap, int16_t w, int16_t h, uint16_t color) {
-    // Manually invert bitmap: draw pixels where bit=0, skip where bit=1
-    for (int16_t j = 0; j < h; j++) {
-        for (int16_t i = 0; i < w; i++) {
-            // Calculate byte and bit position
-            uint16_t byte_pos = j * ((w + 7) / 8) + i / 8;
-            uint8_t bit_pos = 7 - (i % 8);
-
-            // Check if bit is 0 (inverted bitmap: 0=draw, 1=transparent)
-            if (!(bitmap[byte_pos] & (1 << bit_pos))) {
-                gfx.drawPixel(x + i, y + j, color);
-            }
-        }
-    }
-}
-
-void draw_side_message(Adafruit_GFX& gfx, gravity_t gravity, const char* message, int32_t x_offset, int32_t y_offset) {
-    gfx.setFont(&FONT_7pt8b);
-    gfx.setTextColor(0x00); // Black text for 6C display (Mode 1: 0x00=black)
-
-    // Calculate text bounds using canvas instead of display
-    int16_t x1, y1;
-    uint16_t w, h;
-    gfx.getTextBounds(message, 0, 0, &x1, &y1, &w, &h);
-    rect_t rect = rect_t::from_xywh(x1, y1, w, h);
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = display.width();
-    int16_t disp_h = display.height();
-
-    int16_t x = 0, y = 0;
-    switch (gravity) {
-    case TOP_CENTER: {
-        x = (disp_w - rect.width) / 2;
-        y = -rect.y;
-        break;
-    }
-
-    case TOP_LEFT: {
-        x = 0;
-        y = -rect.y;
-        break;
-    }
-    case TOP_RIGHT: {
-        x = disp_w - rect.width - 20;
-        y = -rect.y;
-        break;
-    }
-    case BOTTOM_LEFT: {
-        x = 0;
-        y = disp_h - rect.y;
-        break;
-    }
-    case BOTTOM_RIGHT: {
-        x = disp_w - rect.width - 20;
-        y = disp_h - rect.y;
-        break;
-    }
-    default: {
-        log_w("draw_side_message (canvas): Invalid gravity type");
-        return;
-    }
-    }
-
-    // Draw the message on canvas
-    gfx.setCursor(x + x_offset, y + y_offset);
-    gfx.print(message);
-}
-
-void draw_side_message_with_icon(Adafruit_GFX& gfx,
-                                 gravity_t gravity,
-                                 icon_name_t icon_name,
-                                 const char* message,
-                                 int32_t x_offset,
-                                 int32_t y_offset) {
-    const uint16_t icon_size  = 16;
-    const unsigned char* icon = getBitmap(icon_name, icon_size);
-    if (!icon) {
-        log_e("draw_side_message_with_icon (canvas): Icon not found");
-        return;
-    }
-
-    gfx.setFont(&FONT_7pt8b);
-    gfx.setTextColor(0x00); // Black text for 6C display (Mode 1: 0x00=black)
-
-    // Calculate text bounds using canvas instead of display
-    int16_t x1, y1;
-    uint16_t w, h;
-    gfx.getTextBounds(message, 0, 0, &x1, &y1, &w, &h);
-    rect_t rect = rect_t::from_xywh(x1, y1, w, h);
-
-    // Use dynamic display dimensions to support both landscape and portrait orientations
-    int16_t disp_w = gfx.width();
-    int16_t disp_h = gfx.height();
-
-    int16_t x = 0, y = 0;
-    switch (gravity) {
-    case TOP_CENTER: {
-        x = (disp_w - rect.width - icon_size - 2) / 2;
-        y = -rect.y;
-        break;
-    }
-
-    case TOP_LEFT: {
-        x = 0;
-        y = -rect.y;
-        break;
-    }
-    case TOP_RIGHT: {
-        x = disp_w - rect.width - 24;
-        y = -rect.y;
-        break;
-    }
-    case BOTTOM_LEFT: {
-        x = 0;
-        y = disp_h - rect.y;
-        break;
-    }
-    case BOTTOM_RIGHT: {
-        x = disp_w - rect.width - 24;
-        y = disp_h - rect.y;
-        break;
-    }
-
-    default: {
-        log_w("draw_side_message_with_icon (canvas): Invalid gravity type");
-        return;
-    }
-    }
-
-    // Draw the icon on canvas using helper function
-    // Icons on white background should be black (0x00)
-    int16_t icon_x = x + x_offset;
-    int16_t icon_y = -2;
-    drawInvertedBitmap(gfx, icon_x, icon_y, icon, icon_size, icon_size, 0x00);
-
-    // Draw the message next to the icon on canvas
-    // Use 0x00 (black) for text on white background
-    gfx.setTextColor(0x00);
-    gfx.setCursor(x + icon_size + 4 + x_offset, y + y_offset);
-    gfx.print(message);
-}
-
-void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds) {
-    char dateTimeBuffer[32] = {0};
-    photo_frame::datetime_utils::format_datetime(dateTimeBuffer,
-                                                 sizeof(dateTimeBuffer),
-                                                 lastUpdate,
-#ifdef ORIENTATION_PORTRAIT
-                                                 photo_frame::datetime_utils::dateTimeFormatShort
-#else
-                                                 photo_frame::datetime_utils::dateTimeFormatFull
-#endif
-                                                );
-
-    char refreshBuffer[16] = {0};
-    photo_frame::datetime_utils::format_duration(
-        refreshBuffer, sizeof(refreshBuffer), refresh_seconds);
-
-    char lastUpdateBuffer[64] = {0};
-    if (refreshBuffer[0] != '\0') {
-        snprintf(
-            lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s (%s)", dateTimeBuffer, refreshBuffer);
-    } else {
-        snprintf(lastUpdateBuffer, sizeof(lastUpdateBuffer), "%s", dateTimeBuffer);
-    }
-
-#ifdef ORIENTATION_LANDSCAPE
-    draw_side_message_with_icon(gfx, gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateBuffer);
-#else
-    draw_side_message(gfx, gravity::TOP_LEFT, lastUpdateBuffer);
-#endif
-}
-
-void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info) {
-    auto battery_voltage    = battery_info.millivolts;
-    auto battery_percentage = battery_info.percent;
-
-    // Determine battery icon based on charge level
-    icon_name_t icon_name;
-
-    if (battery_info.is_charging()) {
-        icon_name = icon_name::battery_charging_full_90deg;
-    } else {
-        if (battery_percentage >= 100) {
-            icon_name = icon_name::battery_full_90deg;
-        } else if (battery_percentage >= 80) {
-            icon_name = icon_name::battery_6_bar_90deg;
-        } else if (battery_percentage >= 60) {
-            icon_name = icon_name::battery_5_bar_90deg;
-        } else if (battery_percentage >= 40) {
-            icon_name = icon_name::battery_4_bar_90deg;
-        } else if (battery_percentage >= 20) {
-            icon_name = icon_name::battery_3_bar_90deg;
-        } else if (battery_percentage >= 10) {
-            icon_name = icon_name::battery_2_bar_90deg;
-        } else {
-            icon_name = icon_name::battery_alert_90deg;
-        }
-    }
-
-    // Build message string (same format as display version)
-    String message = String((uint16_t)battery_percentage) + "% (" +
-                     String((float)battery_voltage / 1000, 2) + "V)";
-
-#if defined(USE_SENSOR_MAX1704X) && defined(DEBUG_BATTERY_READER)
-    if (battery_info.charge_rate != 0.0) {
-        message += " - " + String(battery_info.charge_rate, 2) + "mA";
-    }
-#else
-#ifdef DEBUG_BATTERY_READER
-    message += "  - " + String(battery_info.raw_millivolts);
-#endif
-#endif
-
-    // Adding version string
-    // message += " - ";
-    // message += String(FIRMWARE_VERSION_STRING);
-
-    draw_side_message_with_icon(gfx, gravity::TOP_RIGHT, icon_name, message.c_str(), 0, 0);
-}
-
-void draw_image_info(Adafruit_GFX& gfx,
-                     uint32_t index,
-                     uint32_t total_images,
-                     photo_frame::image_source_t image_source) {
-    String message = String(index + 1) + " / " + String(total_images);
-    draw_side_message_with_icon(gfx, gravity::TOP_CENTER,
-                                image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
-                                    ? icon_name::cloud_0deg
-                                    : icon_name::micro_sd_card_0deg,
-                                message.c_str(),
-                                -4,
-                                0);
-}
-
 
 } // namespace renderer
-
 } // namespace photo_frame

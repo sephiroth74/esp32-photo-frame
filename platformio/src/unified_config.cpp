@@ -22,6 +22,7 @@
 
 #include "unified_config.h"
 #include "config.h"
+#include "preferences_helper.h"
 #include <ArduinoJson.h>
 
 namespace photo_frame {
@@ -333,10 +334,12 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     }
 
     // Save portrait_mode to preferences for fallback when SD card fails
-    if (config.board.portrait_mode) {
-        // Store in preferences for next boot in case SD card fails
-        log_d("Saving portrait_mode to preferences: %s", config.board.portrait_mode ? "true" : "false");
-        // Note: preferences handling will be added when integrating with main.cpp
+    // This ensures correct display orientation even if SD card fails on next boot
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
+    if (prefs.setPortraitMode(config.board.portrait_mode)) {
+        log_i("Saved portrait_mode to preferences: %s", config.board.portrait_mode ? "true" : "false");
+    } else {
+        log_w("Failed to save portrait_mode to preferences");
     }
 
     log_d("Configuration loaded successfully");

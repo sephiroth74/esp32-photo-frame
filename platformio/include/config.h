@@ -62,17 +62,8 @@
 // #define EPD_MOSI_PIN  [GPIO_NUM]  // Display master out slave in pin (SPI MOSI)
 
 /// Display type selection (define exactly ONE of these in board config)
-// #define DISP_BW_V2    // Black and White e-Paper display (GDEH0154D67)
-// #define DISP_7C       // 7-color e-Paper display (GDEY073D46)
+// #define DISP_BW    // Black and White e-Paper display (GDEH0154D67)
 // #define DISP_6C       // 6-color e-Paper display (GDEP073E01)
-
-/// Display driver selection (optional - system will auto-detect if not specified)
-// #define USE_DESPI_DRIVER      // Use Despi driver for e-Paper display
-// #define USE_WAVESHARE_DRIVER  // Use Waveshare driver for e-Paper display
-
-/// Display orientation (define which best suits for you)
-// #define ORIENTATION_LANDSCAPE
-// #define ORIENTATION_PORTRAIT
 
 // ----------------------------------------------------------------------------
 // SD Card Configuration (SDIO Interface)
@@ -324,10 +315,11 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 #include XSTR(LOCAL_CONFIG_FILE)
 
-/// Default orientation for the display
-#if !defined(ORIENTATION_PORTRAIT) && !defined(ORIENTATION_LANDSCAPE)
-#define ORIENTATION_LANDSCAPE
-#endif
+/// Display orientation is now configured dynamically via config.json
+/// The board_config.portrait_mode field controls orientation:
+///   - portrait_mode: true  = 480x800 (portrait)
+///   - portrait_mode: false = 800x480 (landscape, default)
+/// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
 
 /// Default value definitions with validation guards
 #ifndef BATTERY_CHARGING_MILLIVOLTS
@@ -418,12 +410,10 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
     #endif
 #endif
 
-#if defined(DISP_BW_V2)
+#if defined(DISP_BW)
     #if defined(DISP_COLORED)
         #undef DISP_COLORED
     #endif
-#elif defined(DISP_7C)
-    #define DISP_COLORED
 #elif defined(DISP_6C)
     #define DISP_COLORED
 #endif
@@ -432,10 +422,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 /// Display accent color determination (based on display type)
 #ifndef ACCENT_COLOR
-#if defined(DISP_BW_V2)
+#if defined(DISP_BW)
 #define ACCENT_COLOR GxEPD_BLACK // Black for B&W displays
-#elif defined(DISP_7C)
-#define ACCENT_COLOR GxEPD_RED // Red for 7-color displays
 #elif defined(DISP_6C)
 #define ACCENT_COLOR GxEPD_RED // Red for 6-color displays
 #else

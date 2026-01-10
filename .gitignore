@@ -51,3 +51,7 @@ rust/photoframe-processor/src/main.rs.bak
 photoframe_flutter/FIX_SCRIPT.md
 photoframe_flutter/IMPLEMENTATION_GUIDE.md
 rust/photoframe-processor/PORTRAIT_PREROTATION_COMPLETE.md
+platformio/.cache/
+platformio/src/renderer.cpp.bak
+platformio/DISPLAY_ABSTRACTION_PLAN.md
+platformio/DISPLAY_RENDERING_ARCHITECTURE.md

@@ -196,6 +196,17 @@ Key connections:
    - PlatformIO will automatically install required packages
    - Select your board environment in `platformio.ini` (default: feathers3_unexpectedmaker)
 
+4. **Python Virtual Environment** (Important!)
+   - PlatformIO requires Python 3.10-3.13
+   - Always use the project's virtual environment:
+   ```bash
+   cd platformio
+   source .venv/bin/activate  # On macOS/Linux
+   # or
+   .venv\Scripts\activate     # On Windows
+   ```
+   - This ensures compatibility with PlatformIO's build system
+
 ### Configuration System
 
 The photo frame uses a unified configuration system with a single `/config.json` file on the SD card root.

@@ -101,6 +101,46 @@ class PreferencesHelper {
      */
     bool setLastCleanup(time_t timestamp);
 
+    /**
+     * @brief Get the display portrait mode setting
+     *
+     * This method retrieves the stored portrait_mode preference
+     * which determines if the display should be in portrait orientation.
+     *
+     * @return true for portrait, false for landscape (default)
+     */
+    bool getPortraitMode();
+
+    /**
+     * @brief Set the display portrait mode setting
+     *
+     * This method stores the portrait_mode preference
+     * which determines if the display should be in portrait orientation.
+     *
+     * @param portrait_mode true for portrait, false for landscape
+     * @return true if successfully stored, false on error
+     */
+    bool setPortraitMode(bool portrait_mode);
+
+    /**
+     * @brief Get the last displayed image index
+     *
+     * This method retrieves the index of the last displayed image.
+     *
+     * @return Image index, or 0 if not set
+     */
+    uint32_t getImageIndex();
+
+    /**
+     * @brief Set the last displayed image index
+     *
+     * This method stores the index of the last displayed image.
+     *
+     * @param index The image index to store
+     * @return true if successfully stored, false on error
+     */
+    bool setImageIndex(uint32_t index);
+
 
   private:
     /**

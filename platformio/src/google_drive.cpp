@@ -854,7 +854,7 @@ photo_frame_error_t google_drive::save_access_token_to_file() {
 
     String tokenPath   = string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
 
-    fs::File tokenFile = SD_CARD.open(tokenPath.c_str(), FILE_WRITE);
+    fs::File tokenFile = SD_CARD_LIB.open(tokenPath.c_str(), FILE_WRITE);
     if (!tokenFile) {
         log_e("Failed to create token file: %s", tokenPath.c_str());
         return error_type::SdCardFileCreateFailed;
@@ -881,12 +881,12 @@ photo_frame_error_t google_drive::load_access_token_from_file() {
 
     String tokenPath = string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
 
-    if (!SD_CARD.exists(tokenPath.c_str())) {
+    if (!SD_CARD_LIB.exists(tokenPath.c_str())) {
         log_i("Token file does not exist: %s", tokenPath.c_str());
         return error_type::SdCardFileNotFound;
     }
 
-    fs::File tokenFile = SD_CARD.open(tokenPath.c_str(), FILE_READ);
+    fs::File tokenFile = SD_CARD_LIB.open(tokenPath.c_str(), FILE_READ);
     if (!tokenFile) {
         log_e("Failed to open token file: %s", tokenPath.c_str());
         return error_type::SdCardFileOpenFailed;

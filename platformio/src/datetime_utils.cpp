@@ -38,11 +38,9 @@ const char dateTimeFormatShort[] = "%d/%m/%y %H:%M";
 
 int format_datetime(char* buffer, size_t buffer_size, const DateTime& now, const char* format) {
     if (format == nullptr) {
-#ifdef ORIENTATION_PORTRAIT
+        // Default to short format if not specified
+        // Callers should pass appropriate format based on runtime orientation
         format = dateTimeFormatShort;
-#else
-        format = dateTimeFormatFull;
-#endif
     }
 
     // Convert DateTime to tm structure for strftime

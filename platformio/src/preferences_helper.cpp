@@ -95,4 +95,34 @@ bool PreferencesHelper::setLastCleanup(time_t timestamp) {
     return putULong("last_cleanup", timestamp);
 }
 
+bool PreferencesHelper::getPortraitMode() {
+    if (!beginRead()) {
+        return false; // Default to landscape if can't read
+    }
+
+    bool value = preferences.getBool("portrait_mode", false); // Default to landscape
+    end();
+
+    return value;
+}
+
+bool PreferencesHelper::setPortraitMode(bool portrait_mode) {
+    if (!beginWrite()) {
+        return false;
+    }
+
+    size_t written = preferences.putBool("portrait_mode", portrait_mode);
+    end();
+
+    return written > 0;
+}
+
+uint32_t PreferencesHelper::getImageIndex() {
+    return getULong("image_index", 0); // Default to 0 if not set
+}
+
+bool PreferencesHelper::setImageIndex(uint32_t index) {
+    return putULong("image_index", index);
+}
+
 } // namespace photo_frame
