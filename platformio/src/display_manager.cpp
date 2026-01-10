@@ -175,20 +175,23 @@ bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size) {
 }
 
 void DisplayManager::drawOverlay() {
-    if (!initialized_)
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
         return;
     photo_frame::canvas_renderer::draw_overlay(imageBuffer_.getCanvas());
 }
 
 void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds) {
-    if (!initialized_)
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
         return;
     photo_frame::canvas_renderer::draw_last_update(
         imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
 }
 
 void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
-    if (!initialized_)
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
         return;
     photo_frame::canvas_renderer::draw_battery_status(imageBuffer_.getCanvas(), battery_info);
 }
@@ -196,7 +199,8 @@ void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
 void DisplayManager::drawImageInfo(uint32_t index,
                                    uint32_t total_images,
                                    image_source_t image_source) {
-    if (!initialized_)
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
         return;
     photo_frame::canvas_renderer::draw_image_info(
         imageBuffer_.getCanvas(), index, total_images, image_source);
@@ -204,8 +208,11 @@ void DisplayManager::drawImageInfo(uint32_t index,
 
 void DisplayManager::drawError(photo_frame_error_t error) {
     log_w("draw_error. code=%d, category%d", error.code, error.category);
-    if (!initialized_)
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized()) {
+        log_e("Cannot draw error - image buffer not initialized");
         return;
+    }
     photo_frame::canvas_renderer::draw_error(imageBuffer_.getCanvas(), error);
 }
 
@@ -213,7 +220,8 @@ void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,
                                           const String& errMsgLn2,
                                           const char* filename,
                                           uint16_t errorCode) {
-    if (!initialized_)
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
         return;
     photo_frame::canvas_renderer::draw_error_with_details(
         imageBuffer_.getCanvas(), errMsgLn1, errMsgLn2, filename, errorCode);

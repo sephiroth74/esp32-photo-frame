@@ -339,7 +339,8 @@ void setup() {
     String original_filename; // Store original filename for format detection
     bool file_ready = false;  // Track if file is ready (buffer loaded or file open)
 
-    error           = photo_frame::error_type::BatteryHealthPoor;
+    // Testing error
+    // error           = photo_frame::error_type::WifiConnectionFailed;
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         // Choose image source based on configuration
@@ -1282,9 +1283,7 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     unsigned long elapsed = millis() - startupTime;
     log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
 
-#ifndef DISABLE_DEEP_SLEEP
     photo_frame::board_utils::enter_deep_sleep(wakeup_reason, refresh_delay.refresh_microseconds);
-#endif // DISABLE_DEEP_SLEEP
 }
 
 /**

@@ -153,6 +153,8 @@ void draw_image_info(GFXcanvas8& canvas,
 }
 
 void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
+    log_d("draw_error: Starting with error code %d", error.code);
+
     // Clear canvas
     canvas.fillScreen(DISPLAY_COLOR_WHITE);
 
@@ -160,6 +162,8 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
         log_i("drawError: No error to display");
         return;
     }
+
+    log_d("draw_error: Canvas cleared, proceeding with drawing");
 
     // Select appropriate 196x196 icon based on error type
     const unsigned char* bitmap_196x196 = nullptr;
@@ -180,6 +184,9 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
     // Check if we're in portrait mode
     bool is_portrait = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
+    // Calculate vertical offset for portrait mode
+    int16_t vertical_offset = is_portrait ? -60 : 0;
+
     // Draw large central icon if we have one
     if (bitmap_196x196) {
         // Determine accent color based on display type
@@ -188,13 +195,11 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
         accent_color = DISPLAY_COLOR_RED; // Red for 6-color displays
 #endif
 
-        draw_inverted_bitmap(canvas,
-                             disp_w / 2 - 196 / 2,
-                             disp_h / 2 - 196 / 2 - 42,
-                             bitmap_196x196,
-                             196,
-                             196,
-                             accent_color);
+        // Icon position with portrait mode adjustment
+        int16_t icon_x = disp_w / 2 - 196 / 2;
+        int16_t icon_y = disp_h / 2 - 196 / 2 - 42 + vertical_offset;
+
+        draw_inverted_bitmap(canvas, icon_x, icon_y, bitmap_196x196, 196, 196, accent_color);
     }
 
     // Draw error message text below the icon
@@ -202,14 +207,12 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
     canvas.setFont(&FONT_26pt8b);
     canvas.setTextColor(DISPLAY_COLOR_BLACK);
 
-    // Position text below icon
-    int16_t baseY = disp_h / 2 + 196 / 2 - 21;
-
-    if (is_portrait)
-        baseY -= 196;
+    // Position text below icon with portrait mode adjustment
+    int16_t baseY = disp_h / 2 + 196 / 2 - 12 + vertical_offset;
 
     // Get error message
     String errorMsg = error.format_for_display();
+    log_d("draw_error: Error message: %s", errorMsg.c_str());
 
     // Adjust padding and max lines based on orientation
     int multiline_error_h_padding;
@@ -217,13 +220,22 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
 
     if (is_portrait) {
         // Portrait mode: more vertical space, less horizontal
-        multiline_error_h_padding = 40; // Less horizontal padding in portrait
-        multiline_error_maxlines  = 4;  // More lines available vertically
+        multiline_error_h_padding = 80; // Total horizontal padding (40 per side)
+        multiline_error_maxlines  = 5;  // More lines available vertically in portrait
     } else {
         // Landscape mode: more horizontal space, less vertical
-        multiline_error_h_padding = 60; // More horizontal padding in landscape
-        multiline_error_maxlines  = 3;  // Fewer lines in landscape
+        multiline_error_h_padding = 120; // Total horizontal padding (60 per side)
+        multiline_error_maxlines  = 3;   // Fewer lines in landscape
     }
+
+    // Calculate actual text width available
+    int16_t text_max_width = disp_w - multiline_error_h_padding;
+
+    log_d("draw_error: About to draw multiline string - max_width: %d, total_padding: %d, "
+          "max_lines: %d",
+          text_max_width,
+          multiline_error_h_padding,
+          multiline_error_maxlines);
 
     // Draw multi-line error message
     draw_multiline_string(canvas,
@@ -231,10 +243,12 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
                           baseY,
                           errorMsg,
                           CENTER,
-                          disp_w - multiline_error_h_padding,
+                          text_max_width, // Use calculated max width
                           multiline_error_maxlines,
                           55,
                           DISPLAY_COLOR_BLACK);
+
+    log_d("draw_error: Multiline string drawn successfully");
 
     // Draw error code in top-right corner
     String errorCode = "Error " + String(error.code) + " - " + String(FIRMWARE_VERSION_STRING);
@@ -432,6 +446,11 @@ void draw_multiline_string(GFXcanvas8& canvas,
     String textRemaining  = text;
     int16_t current_y     = y;
 
+    // Safety check for invalid parameters
+    if (max_width == 0 || max_lines == 0 || text.isEmpty()) {
+        return;
+    }
+
     // Print until we reach max_lines or no more text remains
     while (current_line < max_lines && !textRemaining.isEmpty()) {
         // Get text bounds to check width
@@ -439,16 +458,24 @@ void draw_multiline_string(GFXcanvas8& canvas,
         uint16_t w, h;
         canvas.getTextBounds(textRemaining.c_str(), 0, 0, &x1, &y1, &w, &h);
 
-        int endIndex     = textRemaining.length();
-        String subStr    = textRemaining;
-        int splitAt      = 0;
-        int keepLastChar = 0;
+        int endIndex             = textRemaining.length();
+        String subStr            = textRemaining;
+        int splitAt              = 0;
+        int keepLastChar         = 0;
+        int iterations           = 0; // Safety counter to prevent infinite loops
+        const int MAX_ITERATIONS = 100;
 
         // Check if remaining text is too wide, if it is then print what we can
-        while (w > max_width && splitAt != -1) {
+        while (w > max_width && splitAt != -1 && iterations < MAX_ITERATIONS) {
+            iterations++;
+
             if (keepLastChar) {
                 // Remove last character to avoid infinite loop
-                subStr.remove(subStr.length() - 1);
+                if (subStr.length() > 0) {
+                    subStr.remove(subStr.length() - 1);
+                } else {
+                    break; // Safety: avoid removing from empty string
+                }
             }
 
             // Find the last place in the string that we can break it
@@ -464,19 +491,43 @@ void draw_multiline_string(GFXcanvas8& canvas,
 
             // If splitAt == -1 then there is an unbroken set of characters longer than max_width
             if (splitAt != -1) {
-                endIndex      = splitAt;
-                subStr        = subStr.substring(0, endIndex + 1);
+                endIndex = splitAt;
 
-                char lastChar = subStr.charAt(endIndex);
-                if (lastChar == ' ') {
+                // Check if we're splitting at a space or hyphen
+                char splitChar = subStr.charAt(splitAt);
+                if (splitChar == ' ') {
+                    // Don't include the space in the output
+                    subStr       = subStr.substring(0, endIndex);
                     keepLastChar = 0;
-                } else {
-                    // Keep hyphen in the printed string
+                } else if (splitChar == '-') {
+                    // Include the hyphen in the output
+                    subStr       = subStr.substring(0, endIndex + 1);
                     keepLastChar = 1;
+                } else {
+                    // Shouldn't happen, but handle it
+                    subStr       = subStr.substring(0, endIndex);
+                    keepLastChar = 0;
                 }
 
                 // Recalculate bounds for the substring
                 canvas.getTextBounds(subStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+            } else {
+                // No valid split point found
+                if (subStr.length() == 0 || iterations >= MAX_ITERATIONS - 1) {
+                    // Force truncate to prevent infinite loop
+                    // Estimate how many characters might fit
+                    int avgCharWidth = 12; // Approximate for large font
+                    int maxChars     = max_width / avgCharWidth;
+                    if (maxChars > 0 && textRemaining.length() > maxChars) {
+                        subStr   = textRemaining.substring(0, maxChars);
+                        endIndex = maxChars;
+                    } else {
+                        // Just take what we can
+                        subStr   = textRemaining;
+                        endIndex = textRemaining.length();
+                    }
+                    break;
+                }
             }
         }
 

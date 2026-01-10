@@ -148,7 +148,10 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
 
     log_i("Going to deep sleep now. Good night!");
     Serial.flush(); // Ensure all serial output is sent before sleeping
+
+#ifndef DISABLE_DEEP_SLEEP
     esp_deep_sleep_start();
+#endif // DISABLE_DEEP_SLEEP
 }
 
 esp_sleep_wakeup_cause_t get_wakeup_reason() {
