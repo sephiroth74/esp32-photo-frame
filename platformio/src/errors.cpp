@@ -173,7 +173,11 @@ photo_frame_error validate_image_dimensions(int width,
     char dimensions[64];
     snprintf(dimensions, sizeof(dimensions), "%dx%d", width, height);
 
-    log_v("validateImageDimensions: width=%d, height=%d, maxWidth=%d, maxHeight=%d", width, height, maxWidth, maxHeight);
+    log_v("validateImageDimensions: width=%d, height=%d, maxWidth=%d, maxHeight=%d",
+          width,
+          height,
+          maxWidth,
+          maxHeight);
 
     if (width <= 0 || height <= 0) {
         return create_image_error(
@@ -334,9 +338,6 @@ create_charging_error(const char* errorType, float current, float voltage, const
 
 // Define the OTA error constants in the implementation file
 // This allows the use of extern locale constants in the definitions
-namespace error_type {
-
-
-} // namespace error_type
+namespace error_type {} // namespace error_type
 
 } // namespace photo_frame

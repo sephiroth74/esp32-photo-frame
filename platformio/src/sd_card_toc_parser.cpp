@@ -4,16 +4,17 @@
 
 namespace photo_frame {
 
-sd_card_toc_parser::sd_card_toc_parser(sd_card& sdCard, const char* tocDataPath, const char* tocMetaPath)
-    : sdCard_(sdCard)
-    , tocDataPath_(tocDataPath)
-    , tocMetaPath_(tocMetaPath)
-    , headerParsed_(false)
-    , cachedTimestamp_(0)
-    , cachedFileCount_(0)
-    , cachedDirModTime_(0)
-    , metaParsed_(false) {
-}
+sd_card_toc_parser::sd_card_toc_parser(sd_card& sdCard,
+                                       const char* tocDataPath,
+                                       const char* tocMetaPath) :
+    sdCard_(sdCard),
+    tocDataPath_(tocDataPath),
+    tocMetaPath_(tocMetaPath),
+    headerParsed_(false),
+    cachedTimestamp_(0),
+    cachedFileCount_(0),
+    cachedDirModTime_(0),
+    metaParsed_(false) {}
 
 bool sd_card_toc_parser::toc_exists() const {
     return sdCard_.file_exists(tocDataPath_.c_str()) && sdCard_.file_exists(tocMetaPath_.c_str());
@@ -106,7 +107,9 @@ String sd_card_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* 
     return String();
 }
 
-bool sd_card_toc_parser::validate_toc(time_t dirModTime, const char* expectedPath, const char* expectedExt) {
+bool sd_card_toc_parser::validate_toc(time_t dirModTime,
+                                      const char* expectedPath,
+                                      const char* expectedExt) {
     if (!toc_exists()) {
         return false;
     }
@@ -115,7 +118,8 @@ bool sd_card_toc_parser::validate_toc(time_t dirModTime, const char* expectedPat
     time_t storedModTime = get_directory_mod_time();
     if (storedModTime == 0 || storedModTime != dirModTime) {
         log_v("TOC invalid: directory mod time changed (stored: %ld, current: %ld)",
-              storedModTime, dirModTime);
+              storedModTime,
+              dirModTime);
         return false;
     }
 
@@ -123,7 +127,8 @@ bool sd_card_toc_parser::validate_toc(time_t dirModTime, const char* expectedPat
     String storedPath = get_directory_path();
     if (expectedPath && storedPath != String(expectedPath)) {
         log_v("TOC invalid: directory path mismatch (stored: %s, expected: %s)",
-              storedPath.c_str(), expectedPath);
+              storedPath.c_str(),
+              expectedPath);
         return false;
     }
 
@@ -131,7 +136,8 @@ bool sd_card_toc_parser::validate_toc(time_t dirModTime, const char* expectedPat
     String storedExt = get_extension();
     if (expectedExt && storedExt != String(expectedExt)) {
         log_v("TOC invalid: extension mismatch (stored: %s, expected: %s)",
-              storedExt.c_str(), expectedExt);
+              storedExt.c_str(),
+              expectedExt);
         return false;
     }
 
@@ -261,7 +267,7 @@ int sd_card_toc_parser::read_line(File& file, char* buffer, size_t maxLength) co
             return pos;
         }
 
-        if (c != '\r') {  // Skip carriage returns
+        if (c != '\r') { // Skip carriage returns
             buffer[pos++] = (char)c;
         }
     }

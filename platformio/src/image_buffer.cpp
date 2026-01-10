@@ -25,31 +25,27 @@
 
 namespace photo_frame {
 
-ImageBuffer::ImageBuffer()
-    : buffer_(nullptr)
-    , canvas_(nullptr)
-    , bufferSize_(0)
-    , width_(0)
-    , height_(0)
-    , inPsram_(false)
-{
-}
+ImageBuffer::ImageBuffer() :
+    buffer_(nullptr),
+    canvas_(nullptr),
+    bufferSize_(0),
+    width_(0),
+    height_(0),
+    inPsram_(false) {}
 
-ImageBuffer::~ImageBuffer()
-{
+ImageBuffer::~ImageBuffer() {
     if (buffer_ || canvas_) {
         log_d("ImageBuffer destructor called, releasing resources");
     }
     release();
 }
 
-bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram)
-{
+bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
     // Release any existing buffer
     release();
 
-    width_ = width;
-    height_ = height;
+    width_      = width;
+    height_     = height;
     bufferSize_ = (size_t)width * height;
 
     log_i("Initializing image buffer (%ux%u = %u bytes)...", width, height, bufferSize_);
@@ -70,7 +66,7 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram)
 
     // Fall back to regular heap if PSRAM allocation failed or not requested
     if (!buffer_) {
-        buffer_ = (uint8_t*)malloc(bufferSize_);
+        buffer_  = (uint8_t*)malloc(bufferSize_);
         inPsram_ = false;
         if (buffer_) {
             log_i("Allocated %u bytes in regular heap", bufferSize_);
@@ -86,7 +82,7 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram)
     log_d("Image buffer allocated at address: %p", buffer_);
 
     // Create canvas that will use our buffer
-    canvas_ = new GFXcanvas8(width_, height_, false);  // false = don't allocate internal buffer
+    canvas_ = new GFXcanvas8(width_, height_, false); // false = don't allocate internal buffer
     if (!canvas_) {
         log_e("Failed to create canvas!");
         free(buffer_);
@@ -103,8 +99,7 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram)
     return true;
 }
 
-void ImageBuffer::linkCanvasToBuffer()
-{
+void ImageBuffer::linkCanvasToBuffer() {
     if (!canvas_ || !buffer_) {
         return;
     }
@@ -112,20 +107,18 @@ void ImageBuffer::linkCanvasToBuffer()
     // Hack to access the internal buffer pointer of GFXcanvas8
     // The buffer pointer is the first member after the base class
     uint8_t** canvasBufferPtr = (uint8_t**)((uint8_t*)canvas_ + sizeof(Adafruit_GFX));
-    *canvasBufferPtr = buffer_;
+    *canvasBufferPtr          = buffer_;
 
     log_d("Canvas linked to buffer at %p", buffer_);
 }
 
-void ImageBuffer::clear(uint8_t color)
-{
+void ImageBuffer::clear(uint8_t color) {
     if (buffer_) {
         memset(buffer_, color, bufferSize_);
     }
 }
 
-void ImageBuffer::release()
-{
+void ImageBuffer::release() {
     if (canvas_) {
         delete canvas_;
         canvas_ = nullptr;
@@ -133,56 +126,56 @@ void ImageBuffer::release()
 
     if (buffer_) {
         log_d("Releasing image buffer at %p (%u bytes, %s)",
-              buffer_, bufferSize_, inPsram_ ? "PSRAM" : "heap");
+              buffer_,
+              bufferSize_,
+              inPsram_ ? "PSRAM" : "heap");
         free(buffer_);
-        buffer_ = nullptr;
+        buffer_     = nullptr;
         bufferSize_ = 0;
-        width_ = 0;
-        height_ = 0;
-        inPsram_ = false;
+        width_      = 0;
+        height_     = 0;
+        inPsram_    = false;
     }
 }
 
 // Move constructor
-ImageBuffer::ImageBuffer(ImageBuffer&& other) noexcept
-    : buffer_(other.buffer_)
-    , canvas_(other.canvas_)
-    , bufferSize_(other.bufferSize_)
-    , width_(other.width_)
-    , height_(other.height_)
-    , inPsram_(other.inPsram_)
-{
+ImageBuffer::ImageBuffer(ImageBuffer&& other) noexcept :
+    buffer_(other.buffer_),
+    canvas_(other.canvas_),
+    bufferSize_(other.bufferSize_),
+    width_(other.width_),
+    height_(other.height_),
+    inPsram_(other.inPsram_) {
     // Clear the other object
-    other.buffer_ = nullptr;
-    other.canvas_ = nullptr;
+    other.buffer_     = nullptr;
+    other.canvas_     = nullptr;
     other.bufferSize_ = 0;
-    other.width_ = 0;
-    other.height_ = 0;
-    other.inPsram_ = false;
+    other.width_      = 0;
+    other.height_     = 0;
+    other.inPsram_    = false;
 }
 
 // Move assignment operator
-ImageBuffer& ImageBuffer::operator=(ImageBuffer&& other) noexcept
-{
+ImageBuffer& ImageBuffer::operator=(ImageBuffer&& other) noexcept {
     if (this != &other) {
         // Release our current resources
         release();
 
         // Take ownership of other's resources
-        buffer_ = other.buffer_;
-        canvas_ = other.canvas_;
+        buffer_     = other.buffer_;
+        canvas_     = other.canvas_;
         bufferSize_ = other.bufferSize_;
-        width_ = other.width_;
-        height_ = other.height_;
-        inPsram_ = other.inPsram_;
+        width_      = other.width_;
+        height_     = other.height_;
+        inPsram_    = other.inPsram_;
 
         // Clear the other object
-        other.buffer_ = nullptr;
-        other.canvas_ = nullptr;
+        other.buffer_     = nullptr;
+        other.canvas_     = nullptr;
         other.bufferSize_ = 0;
-        other.width_ = 0;
-        other.height_ = 0;
-        other.inPsram_ = false;
+        other.width_      = 0;
+        other.height_     = 0;
+        other.inPsram_    = false;
     }
     return *this;
 }

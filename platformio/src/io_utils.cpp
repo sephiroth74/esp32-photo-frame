@@ -72,12 +72,16 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
 
         // Check if file size matches expected binary size exactly
         size_t expectedBinarySize = (size_t)expectedWidth * expectedHeight;
-        log_i("Expected binary size: %dx%d = %zu bytes", expectedWidth, expectedHeight, expectedBinarySize);
+        log_i("Expected binary size: %dx%d = %zu bytes",
+              expectedWidth,
+              expectedHeight,
+              expectedBinarySize);
         log_i("Actual file size: %zu bytes", fileSize);
 
         if (fileSize != expectedBinarySize) {
             log_e("EXACT size mismatch! Expected: %zu bytes, Got: %zu bytes",
-                  expectedBinarySize, fileSize);
+                  expectedBinarySize,
+                  fileSize);
 
             return error_type::ImageFileTruncated;
         }

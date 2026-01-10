@@ -29,22 +29,22 @@ RGBStatus rgbStatus;
 
 // Predefined status configurations - optimized for power efficiency (max brightness 64)
 const StatusConfig RGBStatus::STATUS_CONFIGS[] = {
-    {SystemState::IDLE,             RGBColors::DARK_BLUE,  RGBEffect::SOLID,      0,    24},
-    {SystemState::STARTING,         RGBColors::WHITE,      RGBEffect::PULSE,      3000, 64},
-    {SystemState::WIFI_CONNECTING,  RGBColors::BLUE,       RGBEffect::PULSE,      0,    64},
-    {SystemState::WIFI_FAILED,      RGBColors::RED,        RGBEffect::BLINK_SLOW, 0,    64},
-    {SystemState::SD_READING,       RGBColors::ORANGE,     RGBEffect::PULSE,      0,    48},
-    {SystemState::SD_WRITING,       RGBColors::YELLOW,     RGBEffect::PULSE,      0,    48},
-    {SystemState::GOOGLE_DRIVE,     RGBColors::CYAN,       RGBEffect::PULSE,      0,    64},
-    {SystemState::DOWNLOADING,      RGBColors::PURPLE,     RGBEffect::PULSE,      0,    64},
-    {SystemState::RENDERING,        RGBColors::PINK,       RGBEffect::PULSE,      0,    48},
-    {SystemState::BATTERY_LOW,      RGBColors::RED,        RGBEffect::BLINK_SLOW, 0,    48},
+    {SystemState::IDLE,            RGBColors::DARK_BLUE, RGBEffect::SOLID,      0,    24},
+    {SystemState::STARTING,        RGBColors::WHITE,     RGBEffect::PULSE,      3000, 64},
+    {SystemState::WIFI_CONNECTING, RGBColors::BLUE,      RGBEffect::PULSE,      0,    64},
+    {SystemState::WIFI_FAILED,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    64},
+    {SystemState::SD_READING,      RGBColors::ORANGE,    RGBEffect::PULSE,      0,    48},
+    {SystemState::SD_WRITING,      RGBColors::YELLOW,    RGBEffect::PULSE,      0,    48},
+    {SystemState::GOOGLE_DRIVE,    RGBColors::CYAN,      RGBEffect::PULSE,      0,    64},
+    {SystemState::DOWNLOADING,     RGBColors::PURPLE,    RGBEffect::PULSE,      0,    64},
+    {SystemState::RENDERING,       RGBColors::PINK,      RGBEffect::PULSE,      0,    48},
+    {SystemState::BATTERY_LOW,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    48},
     {SystemState::ERROR,
      RGBColors::RED,
      RGBEffect::BLINK_FAST,
-     0,                                                                                 96}, // Keep error reasonably bright for visibility
-    {SystemState::SLEEP_PREP,       RGBColors::DIM_WHITE,  RGBEffect::FADE_OUT,   2000, 64},
-    {SystemState::CUSTOM,           RGBColors::WHITE,      RGBEffect::SOLID,      0,    64}
+     0,                                                                               96}, // Keep error reasonably bright for visibility
+    {SystemState::SLEEP_PREP,      RGBColors::DIM_WHITE, RGBEffect::FADE_OUT,   2000, 64},
+    {SystemState::CUSTOM,          RGBColors::WHITE,     RGBEffect::SOLID,      0,    64}
 };
 
 const size_t RGBStatus::NUM_STATUS_CONFIGS = sizeof(STATUS_CONFIGS) / sizeof(StatusConfig);
@@ -68,7 +68,7 @@ bool RGBStatus::begin() {
     log_i("Enabling LED power on GPIO%d", LED_PWR_PIN);
     pinMode(LED_PWR_PIN, OUTPUT);
     digitalWrite(LED_PWR_PIN, HIGH); // Power on
-    delay(50); // Wait for power stabilization
+    delay(50);                       // Wait for power stabilization
 #endif
 
     // Initialize NeoPixel
@@ -245,7 +245,7 @@ void RGBStatus::updateEffect() {
 
     // Get rainbow color based on current position
     static uint16_t rainbowStep = 0;
-    RGBColor rainbowColor = rainbow(rainbowStep / 4); // Slow down rainbow transition
+    RGBColor rainbowColor       = rainbow(rainbowStep / 4); // Slow down rainbow transition
 
     // Calculate pulse effect (breathing animation)
     uint8_t pulseBrightness = calculatePulse(effectStep, 120); // Slower pulse period
@@ -257,14 +257,15 @@ void RGBStatus::updateEffect() {
     uint8_t maxBrightness = 64;
 
     // Map pulse (0-255) to brightness range (minBrightness to maxBrightness)
-    uint8_t finalBrightness = minBrightness + ((maxBrightness - minBrightness) * pulseBrightness) / 255;
+    uint8_t finalBrightness =
+        minBrightness + ((maxBrightness - minBrightness) * pulseBrightness) / 255;
 
     // Set the pixel color with pulsing rainbow
     setPixelColor(rainbowColor, finalBrightness);
 
     // Update animation steps
-    effectStep = (effectStep + 1) % 120;  // Pulse cycle
-    rainbowStep = (rainbowStep + 1) % 1024;  // Rainbow cycle (slower with /4)
+    effectStep  = (effectStep + 1) % 120;   // Pulse cycle
+    rainbowStep = (rainbowStep + 1) % 1024; // Rainbow cycle (slower with /4)
 }
 
 void RGBStatus::setPixelColor(const RGBColor& color, uint8_t brightness) {

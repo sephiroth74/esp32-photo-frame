@@ -121,8 +121,6 @@ uint32_t PreferencesHelper::getImageIndex() {
     return getULong("image_index", 0); // Default to 0 if not set
 }
 
-bool PreferencesHelper::setImageIndex(uint32_t index) {
-    return putULong("image_index", index);
-}
+bool PreferencesHelper::setImageIndex(uint32_t index) { return putULong("image_index", index); }
 
 } // namespace photo_frame

@@ -22,8 +22,8 @@
 
 #include "google_drive_client.h"
 #include <HTTPClient.h>
-#include <unistd.h> // For fsync()
 #include <esp_heap_caps.h> // For ps_malloc/ps_free
+#include <unistd.h>        // For fsync()
 
 // OAuth/Google endpoints
 static const char TOKEN_HOST[] PROGMEM      = "oauth2.googleapis.com";
@@ -206,7 +206,9 @@ bool google_drive_client::can_make_request() {
 
     // Check if we're within the rate limit window
     if (requestCount >= GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW) {
-        log_w("Rate limit reached: %u/%u requests in window", requestCount, GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
+        log_w("Rate limit reached: %u/%u requests in window",
+              requestCount,
+              GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW);
         return false;
     }
 
@@ -220,7 +222,8 @@ photo_frame_error_t google_drive_client::wait_for_rate_limit() {
         // Check if we've exceeded the maximum wait time
         unsigned long elapsedTime = millis() - startTime;
         if (elapsedTime >= config->maxWaitTimeMs) {
-            log_w("Rate limit wait timeout after %lums - aborting to conserve battery", elapsedTime);
+            log_w("Rate limit wait timeout after %lums - aborting to conserve battery",
+                  elapsedTime);
             return error_type::RateLimitTimeoutExceeded;
         }
 
@@ -289,7 +292,10 @@ bool google_drive_client::handle_rate_limit_response(uint8_t attempt) {
         backoffDelay = GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS;
     }
 
-    log_w("Rate limited (HTTP 429). Backing off for %lums (attempt %u/%u)", backoffDelay, attempt + 1, config->maxRetryAttempts);
+    log_w("Rate limited (HTTP 429). Backing off for %lums (attempt %u/%u)",
+          backoffDelay,
+          attempt + 1,
+          config->maxRetryAttempts);
 
     delay(backoffDelay);
     yield();
@@ -380,11 +386,11 @@ String google_drive_client::create_jwt() {
     hdr["typ"] = "JWT";
     String hdrStr;
     serializeJson(hdr, hdrStr);
-    String hdrB64      = base64url(hdrStr);
-    time_t now         = time(NULL);
+    String hdrB64 = base64url(hdrStr);
+    time_t now    = time(NULL);
 
     // Validate system time is reasonable (between 2020 and 2100)
-    if (now < 1577836800 || now > 4102444800) {  // Unix timestamps for 2020 and 2100
+    if (now < 1577836800 || now > 4102444800) { // Unix timestamps for 2020 and 2100
         log_e("ERROR: System time is invalid: %ld", now);
         log_e("JWT will likely fail due to invalid timestamps");
         log_e("Check RTC module or NTP sync");
@@ -542,7 +548,8 @@ photo_frame_error_t google_drive_client::get_access_token() {
 
                 // Check for specific OAuth errors
                 if (responseBody.indexOf("invalid_grant") >= 0) {
-                    log_e("Error: invalid_grant - Service account may not have access or credentials are incorrect");
+                    log_e("Error: invalid_grant - Service account may not have access or "
+                          "credentials are incorrect");
                 } else if (responseBody.indexOf("invalid_client") >= 0) {
                     log_e("Error: invalid_client - Client ID or private key may be incorrect");
                 } else if (responseBody.indexOf("invalid_request") >= 0) {
@@ -673,11 +680,12 @@ photo_frame_error_t google_drive_client::download_file(const String& fileId, fs:
         unsigned long connectStart = millis();
         log_i("Starting SSL connection to %s:443...", DRIVE_HOST);
 
-        bool connected = client.connect(DRIVE_HOST, 443);
+        bool connected                = client.connect(DRIVE_HOST, 443);
         unsigned long connectDuration = millis() - connectStart;
 
         log_i("Connection attempt took %lu ms (timeout: %d ms)",
-              connectDuration, HTTP_CONNECT_TIMEOUT);
+              connectDuration,
+              HTTP_CONNECT_TIMEOUT);
 
         if (!connected) {
             log_e("SSL connection failed after %lu ms", connectDuration);
@@ -1050,7 +1058,10 @@ bool google_drive_client::parse_http_response(WiFiClientSecure& client, HttpResp
 
     response.hasContent = response.body.length() > 0;
 
-    log_i("HTTP Response: %d %s, Body length: %zu", response.statusCode, response.statusMessage.c_str(), response.body.length());
+    log_i("HTTP Response: %d %s, Body length: %zu",
+          response.statusCode,
+          response.statusMessage.c_str(),
+          response.body.length());
 
     return true;
 }
@@ -1135,7 +1146,11 @@ bool google_drive_client::handle_transient_failure(uint8_t attempt, failure_type
     // Add jitter to prevent thundering herd
     backoffDelay = add_jitter(backoffDelay);
 
-    log_w("Transient failure (%s). Backing off for %lums (attempt %u/%u)", failureTypeName, backoffDelay, attempt + 1, config->maxRetryAttempts);
+    log_w("Transient failure (%s). Backing off for %lums (attempt %u/%u)",
+          failureTypeName,
+          backoffDelay,
+          attempt + 1,
+          config->maxRetryAttempts);
 
     delay(backoffDelay);
     yield();
@@ -1239,14 +1254,20 @@ size_t google_drive_client::list_files_streaming(const char* folderId,
                                                  sd_card& sdCard,
                                                  const char* tocFilePath,
                                                  int pageSize) {
-    log_i("list_files_streaming with folderId=%s, tocFilePath=%s, pageSize=%d", folderId, tocFilePath, pageSize);
+    log_i("list_files_streaming with folderId=%s, tocFilePath=%s, pageSize=%d",
+          folderId,
+          tocFilePath,
+          pageSize);
 
     char nextPageToken[GOOGLE_DRIVE_PAGE_TOKEN_BUFFER_SIZE] = "";
     int pageNumber                                          = 1;
     size_t totalFilesWritten                                = 0;
 
     do {
-        log_i("Fetching page %d with pageSize=%d, current total files=%zu", pageNumber, pageSize, totalFilesWritten);
+        log_i("Fetching page %d with pageSize=%d, current total files=%zu",
+              pageNumber,
+              pageSize,
+              totalFilesWritten);
 
         size_t filesThisPage = list_files_in_folder_streaming(
             folderId, sdCard, tocFilePath, pageSize, nextPageToken, nextPageToken);
@@ -1258,7 +1279,11 @@ size_t google_drive_client::list_files_streaming(const char* folderId,
         totalFilesWritten += filesThisPage;
 
 #ifdef DEBUG_GOOGLE_DRIVE
-        log_d("Page %d complete: got %zu files, total now %zu, nextPageToken size='%zu'", pageNumber, filesThisPage, totalFilesWritten, strlen(nextPageToken));
+        log_d("Page %d complete: got %zu files, total now %zu, nextPageToken size='%zu'",
+              pageNumber,
+              filesThisPage,
+              totalFilesWritten,
+              strlen(nextPageToken));
 #endif // DEBUG_GOOGLE_DRIVE
 
         pageNumber++;
@@ -1281,7 +1306,10 @@ size_t google_drive_client::list_files_in_folder_streaming(const char* folderId,
                                                            int pageSize,
                                                            char* nextPageToken,
                                                            const char* pageToken) {
-    log_i("list_files_in_folder_streaming folderId=%s, tocFilePath=%s, pageToken=%s", folderId, tocFilePath, pageToken);
+    log_i("list_files_in_folder_streaming folderId=%s, tocFilePath=%s, pageToken=%s",
+          folderId,
+          tocFilePath,
+          pageToken);
 
     // Check if token is expired or not acquired yet and refresh/acquire if needed
     if (is_token_expired() || g_access_token.accessToken[0] == '\0') {

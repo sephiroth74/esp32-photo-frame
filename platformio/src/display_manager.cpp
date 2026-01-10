@@ -22,29 +22,27 @@
 
 #include "display_manager.h"
 #include "canvas_renderer.h"
-#include "renderer.h"
+#include "config.h"
 #include "display_driver_6c.h"
 #include "display_driver_bw.h"
-#include "config.h"
+#include "renderer.h"
 
 namespace photo_frame {
 
-DisplayManager::DisplayManager()
-    : displayDriver_(nullptr)  // unique_ptr starts as nullptr
-    , initialized_(false)
-    , rotation_(0)
-{
+DisplayManager::DisplayManager() :
+    displayDriver_(nullptr) // unique_ptr starts as nullptr
+    ,
+    initialized_(false),
+    rotation_(0) {
     log_d("DisplayManager constructor");
 }
 
-DisplayManager::~DisplayManager()
-{
+DisplayManager::~DisplayManager() {
     log_d("DisplayManager destructor");
     release();
 }
 
-bool DisplayManager::init(bool preferPsram)
-{
+bool DisplayManager::init(bool preferPsram) {
     log_i("Initializing DisplayManager...");
 
     // Release any existing resources
@@ -57,8 +55,10 @@ bool DisplayManager::init(bool preferPsram)
     }
 
     log_i("Image buffer initialized (%ux%u = %u bytes, %s)",
-          imageBuffer_.getWidth(), imageBuffer_.getHeight(),
-          imageBuffer_.getSize(), imageBuffer_.isInPsram() ? "PSRAM" : "heap");
+          imageBuffer_.getWidth(),
+          imageBuffer_.getHeight(),
+          imageBuffer_.getSize(),
+          imageBuffer_.isInPsram() ? "PSRAM" : "heap");
 
     // Create and initialize the display driver
     displayDriver_ = createDisplayDriver();
@@ -70,7 +70,7 @@ bool DisplayManager::init(bool preferPsram)
 
     if (!displayDriver_->init()) {
         log_e("Failed to initialize display driver");
-        displayDriver_.reset();  // Smart pointer automatically deletes
+        displayDriver_.reset(); // Smart pointer automatically deletes
         imageBuffer_.release();
         return false;
     }
@@ -86,19 +86,19 @@ bool DisplayManager::init(bool preferPsram)
     return true;
 }
 
-std::unique_ptr<DisplayDriver> DisplayManager::createDisplayDriver()
-{
+std::unique_ptr<DisplayDriver> DisplayManager::createDisplayDriver() {
 #ifdef DISP_6C
     log_i("Creating 6-color display driver");
-    return std::unique_ptr<DisplayDriver>(new DisplayDriver6C(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN));
+    return std::unique_ptr<DisplayDriver>(new DisplayDriver6C(
+        EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN));
 #else
     log_i("Creating B/W display driver");
-    return std::unique_ptr<DisplayDriver>(new DisplayDriverBW(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN));
+    return std::unique_ptr<DisplayDriver>(new DisplayDriverBW(
+        EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN));
 #endif
 }
 
-void DisplayManager::setRotation(uint8_t rotation)
-{
+void DisplayManager::setRotation(uint8_t rotation) {
     if (rotation > 3) {
         log_w("Invalid rotation %u, using 0", rotation);
         rotation = 0;
@@ -112,45 +112,39 @@ void DisplayManager::setRotation(uint8_t rotation)
     }
 }
 
-uint8_t DisplayManager::getRotation() const
-{
+uint8_t DisplayManager::getRotation() const {
     if (imageBuffer_.isInitialized()) {
         return imageBuffer_.getCanvas().getRotation();
     }
     return rotation_;
 }
 
-bool DisplayManager::isPortraitMode() const
-{
+bool DisplayManager::isPortraitMode() const {
     uint8_t rot = getRotation();
     return (rot == 1 || rot == 3);
 }
 
-uint16_t DisplayManager::getWidth() const
-{
+uint16_t DisplayManager::getWidth() const {
     if (!imageBuffer_.isInitialized()) {
         return isPortraitMode() ? EPD_HEIGHT : EPD_WIDTH;
     }
     return imageBuffer_.getCanvas().width();
 }
 
-uint16_t DisplayManager::getHeight() const
-{
+uint16_t DisplayManager::getHeight() const {
     if (!imageBuffer_.isInitialized()) {
         return isPortraitMode() ? EPD_WIDTH : EPD_HEIGHT;
     }
     return imageBuffer_.getCanvas().height();
 }
 
-void DisplayManager::clear(uint8_t color)
-{
+void DisplayManager::clear(uint8_t color) {
     if (imageBuffer_.isInitialized()) {
         imageBuffer_.clear(color);
     }
 }
 
-bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size)
-{
+bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size) {
     if (!initialized_) {
         log_e("DisplayManager not initialized");
         return false;
@@ -165,47 +159,51 @@ bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size)
     return true;
 }
 
-void DisplayManager::drawOverlay()
-{
-    if (!initialized_) return;
+void DisplayManager::drawOverlay() {
+    if (!initialized_)
+        return;
     photo_frame::canvas_renderer::draw_overlay(imageBuffer_.getCanvas());
 }
 
-void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds)
-{
-    if (!initialized_) return;
-    photo_frame::canvas_renderer::draw_last_update(imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
+void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds) {
+    if (!initialized_)
+        return;
+    photo_frame::canvas_renderer::draw_last_update(
+        imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
 }
 
-void DisplayManager::drawBatteryStatus(battery_info_t battery_info)
-{
-    if (!initialized_) return;
+void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
+    if (!initialized_)
+        return;
     photo_frame::canvas_renderer::draw_battery_status(imageBuffer_.getCanvas(), battery_info);
 }
 
-void DisplayManager::drawImageInfo(uint32_t index, uint32_t total_images, image_source_t image_source)
-{
-    if (!initialized_) return;
-    photo_frame::canvas_renderer::draw_image_info(imageBuffer_.getCanvas(), index, total_images, image_source);
+void DisplayManager::drawImageInfo(uint32_t index,
+                                   uint32_t total_images,
+                                   image_source_t image_source) {
+    if (!initialized_)
+        return;
+    photo_frame::canvas_renderer::draw_image_info(
+        imageBuffer_.getCanvas(), index, total_images, image_source);
 }
 
-void DisplayManager::drawError(photo_frame_error_t error)
-{
-    if (!initialized_) return;
+void DisplayManager::drawError(photo_frame_error_t error) {
+    if (!initialized_)
+        return;
     photo_frame::canvas_renderer::draw_error(imageBuffer_.getCanvas(), error);
 }
 
-void DisplayManager::drawErrorWithDetails(const String& errMsgLn1, const String& errMsgLn2,
-                                          const char* filename, uint16_t errorCode)
-{
-    if (!initialized_) return;
+void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,
+                                          const String& errMsgLn2,
+                                          const char* filename,
+                                          uint16_t errorCode) {
+    if (!initialized_)
+        return;
     photo_frame::canvas_renderer::draw_error_with_details(
-        imageBuffer_.getCanvas(), errMsgLn1, errMsgLn2, filename, errorCode
-    );
+        imageBuffer_.getCanvas(), errMsgLn1, errMsgLn2, filename, errorCode);
 }
 
-bool DisplayManager::render()
-{
+bool DisplayManager::render() {
     if (!initialized_ || !displayDriver_) {
         log_e("DisplayManager not initialized");
         return false;
@@ -214,52 +212,45 @@ bool DisplayManager::render()
     return displayDriver_->picDisplay(imageBuffer_.getBuffer());
 }
 
-void DisplayManager::sleep()
-{
+void DisplayManager::sleep() {
     if (displayDriver_) {
         displayDriver_->sleep();
     }
 }
 
-void DisplayManager::powerOff()
-{
+void DisplayManager::powerOff() {
     if (displayDriver_) {
         displayDriver_->power_off();
     }
 }
 
-void DisplayManager::hibernate()
-{
+void DisplayManager::hibernate() {
     if (displayDriver_) {
         displayDriver_->hibernate();
     }
 }
 
-void DisplayManager::refresh(bool partial_update)
-{
+void DisplayManager::refresh(bool partial_update) {
     if (displayDriver_) {
         displayDriver_->refresh(partial_update);
     }
 }
 
-bool DisplayManager::hasPartialUpdate() const
-{
+bool DisplayManager::hasPartialUpdate() const {
     if (displayDriver_) {
         return displayDriver_->has_partial_update();
     }
     return false;
 }
 
-bool DisplayManager::hasFastPartialUpdate() const
-{
+bool DisplayManager::hasFastPartialUpdate() const {
     if (displayDriver_) {
         return displayDriver_->has_fast_partial_update();
     }
     return false;
 }
 
-bool DisplayManager::hasColor() const
-{
+bool DisplayManager::hasColor() const {
     if (displayDriver_) {
         return displayDriver_->has_color();
     }
@@ -270,8 +261,7 @@ bool DisplayManager::hasColor() const
 #endif
 }
 
-void DisplayManager::release()
-{
+void DisplayManager::release() {
     log_d("Releasing DisplayManager resources");
 
     // Smart pointer automatically handles deletion

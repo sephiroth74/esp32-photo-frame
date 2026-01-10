@@ -38,8 +38,7 @@ void logMemoryUsage(const char* context) {
     float usagePercent = (float)usedHeap / totalHeap * 100.0;
 
 #ifdef DEBUG_MEMORY_USAGE
-    log_d("Memory [%s]: Free=%zu Used=%zu (%.1f%%)",
-          context, freeHeap, usedHeap, usagePercent);
+    log_d("Memory [%s]: Free=%zu Used=%zu (%.1f%%)", context, freeHeap, usedHeap, usagePercent);
 #endif // DEBUG_MEMORY_USAGE
 
     // Warning if memory usage is high
@@ -87,7 +86,8 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
             unsigned long fileAge = currentTime - fileTime;
 
             log_i("TOC file age: %lu seconds, max age: %lu",
-                  fileAge, config.caching.toc_max_age_seconds);
+                  fileAge,
+                  config.caching.toc_max_age_seconds);
 
             if (fileAge <= config.caching.toc_max_age_seconds) {
                 log_i("Using cached TOC file");
@@ -100,7 +100,8 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
                 shouldFetchFromDrive = true;
             }
         } else if (batteryConservationMode) {
-            log_i("Could not determine TOC file timestamp, but using existing file due to battery conservation mode");
+            log_i("Could not determine TOC file timestamp, but using existing file due to battery "
+                  "conservation mode");
             return get_toc_file_count(sdCard, tocFullPath);
         } else {
             log_w("Could not determine TOC file timestamp, will try to fetch from Google Drive");
@@ -108,7 +109,8 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
         }
     } else if (!localTocExists) {
         if (batteryConservationMode) {
-            log_i("TOC file does not exist locally and battery conservation mode is on - returning 0");
+            log_i("TOC file does not exist locally and battery conservation mode is on - returning "
+                  "0");
             return 0; // Return 0 to avoid network operation
         } else {
             log_i("TOC file does not exist locally, will fetch from Google Drive");
@@ -142,11 +144,12 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
             if (localTocExists) {
                 log_i("Falling back to cached TOC file");
                 photo_frame_error_t toc_error = error_type::None;
-                size_t count = get_toc_file_count(sdCard, tocFullPath, &toc_error);
+                size_t count                  = get_toc_file_count(sdCard, tocFullPath, &toc_error);
 
                 if (count == 0 && toc_error != error_type::None) {
                     // Local TOC also failed - report the original access token error instead
-                    log_e("Both access token and local TOC failed. Original error: %d", original_error.code);
+                    log_e("Both access token and local TOC failed. Original error: %d",
+                          original_error.code);
                     // Store the original error so it can be retrieved later
                     last_error = original_error;
                 }
@@ -174,7 +177,8 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
         String tocDataPath = get_toc_file_path();
         String tocMetaPath = get_toc_meta_file_path();
 
-        log_i("Using 2-file TOC system: data=%s, meta=%s", tocDataPath.c_str(), tocMetaPath.c_str());
+        log_i(
+            "Using 2-file TOC system: data=%s, meta=%s", tocDataPath.c_str(), tocMetaPath.c_str());
 
         // Remove existing data file to start fresh
         if (sdCard.file_exists(tocDataPath.c_str())) {
@@ -183,8 +187,10 @@ size_t google_drive::retrieve_toc(sd_card& sdCard, bool batteryConservationMode)
         }
 
         // Stream files directly from Google Drive to TOC file to save memory
-        size_t totalFiles = client.list_files_streaming(
-            config.drive.folder_id.c_str(), sdCard, tocDataPath.c_str(), config.drive.list_page_size);
+        size_t totalFiles = client.list_files_streaming(config.drive.folder_id.c_str(),
+                                                        sdCard,
+                                                        tocDataPath.c_str(),
+                                                        config.drive.list_page_size);
 
         if (totalFiles == 0) {
             log_e("Failed to retrieve files from Google Drive");
@@ -298,7 +304,8 @@ photo_frame_error_t google_drive::create_directories(sd_card& sdCard) {
 
     // Create root directory
     if (!sdCard.create_directories(config.caching.local_path.c_str())) {
-        log_e("Failed to create root directory for Google Drive local cache: %s", config.caching.local_path.c_str());
+        log_e("Failed to create root directory for Google Drive local cache: %s",
+              config.caching.local_path.c_str());
         return photo_frame::error_type::SdCardDirCreateFailed;
     }
 
@@ -436,7 +443,9 @@ size_t google_drive::get_toc_file_count(sd_card& sdCard,
                 dataFile.close();
 
                 if (actualSize != expectedDataFileSize) {
-                    log_e("Data file integrity check failed: expected %zu bytes, found %zu", expectedDataFileSize, actualSize);
+                    log_e("Data file integrity check failed: expected %zu bytes, found %zu",
+                          expectedDataFileSize,
+                          actualSize);
                     if (error) {
                         *error = error_type::JsonParseFailed;
                     }
@@ -630,7 +639,9 @@ google_drive::download_file(sd_card& sdCard, google_drive_file file, photo_frame
     log_i("Opened file size: %zu bytes", openedFileSize);
 
     if (finalFileSize != openedFileSize) {
-        log_w("File size inconsistency! get_file_size=%zu, file.size()=%zu", finalFileSize, openedFileSize);
+        log_w("File size inconsistency! get_file_size=%zu, file.size()=%zu",
+              finalFileSize,
+              openedFileSize);
     }
 
     // Mark as downloaded from cloud since we actually downloaded it
@@ -696,7 +707,9 @@ String google_drive::load_root_ca_certificate(sd_card& sdCard, const char* rootC
 }
 
 uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard, boolean force) {
-    log_i("Cleaning up temporary files... (Local path: %s, Force: %d)", config.caching.local_path.c_str(), force);
+    log_i("Cleaning up temporary files... (Local path: %s, Force: %d)",
+          config.caching.local_path.c_str(),
+          force);
 
     uint32_t cleanedCount = 0;
 
@@ -713,7 +726,10 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard, boolean force) {
     bool lowSpace                   = freeBytes < twentyPercentThreshold;
 
     log_i("SD card space - Total: %llu MB, Free: %llu MB (%llu%%), Threshold: %llu MB",
-          totalBytes / 1024 / 1024, freeBytes / 1024 / 1024, (freeBytes * 100) / totalBytes, twentyPercentThreshold / 1024 / 1024);
+          totalBytes / 1024 / 1024,
+          freeBytes / 1024 / 1024,
+          (freeBytes * 100) / totalBytes,
+          twentyPercentThreshold / 1024 / 1024);
 
     // Always clean up temporary files from temp directory first
     log_i("Cleaning temp directory...");
@@ -740,7 +756,8 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard, boolean force) {
         log_i("FORCE CLEANUP: Removing everything");
 
         // 1. Remove access token
-        String accessTokenPath = string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
+        String accessTokenPath =
+            string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
         if (sdCard.file_exists(accessTokenPath.c_str()) && sdCard.remove(accessTokenPath.c_str())) {
             cleanedCount++;
             log_i("Removed access token");
@@ -811,7 +828,7 @@ uint32_t google_drive::cleanup_temporary_files(sd_card& sdCard, boolean force) {
 
 uint32_t google_drive::cleanup_all_cached_images(sd_card& sdCard) {
     uint32_t cleanedCount = 0;
-    String cacheDir       = string_utils::build_path(config.caching.local_path, GOOGLE_DRIVE_CACHE_DIR);
+    String cacheDir = string_utils::build_path(config.caching.local_path, GOOGLE_DRIVE_CACHE_DIR);
 
     if (!sdCard.file_exists(cacheDir.c_str())) {
         log_i("Cache directory doesn't exist");
@@ -930,9 +947,8 @@ photo_frame_error_t google_drive::load_access_token_from_file() {
     return error_type::None;
 }
 
-
-
-photo_frame_error_t google_drive::initialize_from_unified_config(const unified_config::google_drive_config& gd_config) {
+photo_frame_error_t
+google_drive::initialize_from_unified_config(const unified_config::google_drive_config& gd_config) {
     // Validate essential configuration
     if (!gd_config.is_valid()) {
         log_e("Invalid Google Drive configuration in unified config");
@@ -943,21 +959,21 @@ photo_frame_error_t google_drive::initialize_from_unified_config(const unified_c
     static google_drive_client_config client_config;
 
     // Convert String to const char* for compatibility
-    static String email_str = gd_config.auth.service_account_email;
-    static String key_str = gd_config.auth.private_key_pem;
-    static String client_id_str = gd_config.auth.client_id;
+    static String email_str           = gd_config.auth.service_account_email;
+    static String key_str             = gd_config.auth.private_key_pem;
+    static String client_id_str       = gd_config.auth.client_id;
 
     client_config.serviceAccountEmail = email_str.c_str();
-    client_config.privateKeyPem = key_str.c_str();
-    client_config.clientId = client_id_str.c_str();
-    client_config.useInsecureTls = gd_config.drive.use_insecure_tls;
+    client_config.privateKeyPem       = key_str.c_str();
+    client_config.clientId            = client_id_str.c_str();
+    client_config.useInsecureTls      = gd_config.drive.use_insecure_tls;
 
     // Pass rate limiting settings to client
     client_config.rateLimitWindowSeconds = gd_config.rate_limiting.rate_limit_window_seconds;
-    client_config.minRequestDelayMs = gd_config.rate_limiting.min_request_delay_ms;
-    client_config.maxRetryAttempts = gd_config.rate_limiting.max_retry_attempts;
-    client_config.backoffBaseDelayMs = gd_config.rate_limiting.backoff_base_delay_ms;
-    client_config.maxWaitTimeMs = gd_config.rate_limiting.max_wait_time_ms;
+    client_config.minRequestDelayMs      = gd_config.rate_limiting.min_request_delay_ms;
+    client_config.maxRetryAttempts       = gd_config.rate_limiting.max_retry_attempts;
+    client_config.backoffBaseDelayMs     = gd_config.rate_limiting.backoff_base_delay_ms;
+    client_config.maxWaitTimeMs          = gd_config.rate_limiting.max_wait_time_ms;
 
     // Initialize this instance's client
     client = google_drive_client(client_config);
@@ -997,6 +1013,5 @@ google_drive_file google_drive::get_toc_file_by_name(sd_card& sdCard,
     google_drive_toc_parser parser(sdCard, tocPath.c_str());
     return parser.get_file_by_name(filename, error);
 }
-
 
 } // namespace photo_frame

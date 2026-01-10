@@ -37,29 +37,28 @@ void load_fallback_config(unified_config& config) {
     config.wifi.network_count = 0;
 
     // Board configuration fallbacks
-    config.board.refresh.min_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-    config.board.refresh.max_seconds = REFRESH_MAX_INTERVAL_SECONDS;
-    config.board.refresh.step = REFRESH_STEP_SECONDS;
-    config.board.refresh.default_seconds = REFRESH_DEFAULT_INTERVAL_SECONDS;
+    config.board.refresh.min_seconds            = REFRESH_MIN_INTERVAL_SECONDS;
+    config.board.refresh.max_seconds            = REFRESH_MAX_INTERVAL_SECONDS;
+    config.board.refresh.step                   = REFRESH_STEP_SECONDS;
+    config.board.refresh.default_seconds        = REFRESH_DEFAULT_INTERVAL_SECONDS;
     config.board.refresh.low_battery_multiplier = REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER;
-    config.board.day_start_hour = DAY_START_HOUR;
-    config.board.day_end_hour = DAY_END_HOUR;
+    config.board.day_start_hour                 = DAY_START_HOUR;
+    config.board.day_end_hour                   = DAY_END_HOUR;
 
     // Google Drive - no fallback, must be provided
-    config.google_drive.auth.service_account_email = "";
-    config.google_drive.auth.private_key_pem = "";
-    config.google_drive.auth.client_id = "";
-    config.google_drive.drive.folder_id = "";
-    config.google_drive.drive.root_ca_path = "";
-    config.google_drive.drive.list_page_size = GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE;
-    config.google_drive.drive.use_insecure_tls = true;
-    config.google_drive.caching.local_path = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
+    config.google_drive.auth.service_account_email  = "";
+    config.google_drive.auth.private_key_pem        = "";
+    config.google_drive.auth.client_id              = "";
+    config.google_drive.drive.folder_id             = "";
+    config.google_drive.drive.root_ca_path          = "";
+    config.google_drive.drive.list_page_size        = GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE;
+    config.google_drive.drive.use_insecure_tls      = true;
+    config.google_drive.caching.local_path          = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
     config.google_drive.caching.toc_max_age_seconds = GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
 }
 
-photo_frame_error_t load_unified_config(sd_card& sdCard,
-                                       const char* config_path,
-                                       unified_config& config) {
+photo_frame_error_t
+load_unified_config(sd_card& sdCard, const char* config_path, unified_config& config) {
     log_i("Loading configuration from: %s", config_path);
 
     if (!sdCard.is_initialized()) {
@@ -91,7 +90,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 
     // Allocate buffer for JSON parsing using PSRAM
     size_t buffer_size = file_size + 512; // Extra space for JSON parsing
-    char* buffer = (char*)heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
+    char* buffer       = (char*)heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
     if (!buffer) {
         buffer = (char*)malloc(buffer_size);
     }
@@ -150,11 +149,13 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 
             for (JsonObject wifiObj : wifiArray) {
                 if (config.wifi.network_count >= WIFI_MAX_NETWORKS) {
-                    log_w("Maximum number of WiFi networks (%d) exceeded, ignoring additional entries", WIFI_MAX_NETWORKS);
+                    log_w("Maximum number of WiFi networks (%d) exceeded, ignoring additional "
+                          "entries",
+                          WIFI_MAX_NETWORKS);
                     break;
                 }
 
-                String ssid = wifiObj["ssid"].as<String>();
+                String ssid     = wifiObj["ssid"].as<String>();
                 String password = wifiObj["password"].as<String>();
 
                 if (ssid.length() > 0 && password.length() > 0) {
@@ -174,11 +175,12 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             // Legacy format: Single network object (v0.10.0 and earlier)
             // Automatically migrates old config format to new array-based format
             // This ensures existing config.json files continue to work without manual updates
-            log_i("Detected legacy WiFi configuration format (single object) - migrating to array format");
+            log_i("Detected legacy WiFi configuration format (single object) - migrating to array "
+                  "format");
             JsonObject wifi_obj = doc["wifi"];
 
-            String ssid = wifi_obj["ssid"].as<String>();
-            String password = wifi_obj["password"].as<String>();
+            String ssid         = wifi_obj["ssid"].as<String>();
+            String password     = wifi_obj["password"].as<String>();
 
             if (ssid.length() > 0 && password.length() > 0) {
                 config.wifi.add_network(ssid, password);
@@ -202,17 +204,21 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             JsonObject refresh_obj = board_obj["refresh"];
 
             // Load values with fallbacks, then apply validation/capping
-            uint32_t min_seconds = refresh_obj["min_seconds"] | REFRESH_MIN_INTERVAL_SECONDS;
-            uint32_t max_seconds = refresh_obj["max_seconds"] | REFRESH_MAX_INTERVAL_SECONDS;
-            uint32_t step = refresh_obj["step"] | REFRESH_STEP_SECONDS;
+            uint32_t min_seconds     = refresh_obj["min_seconds"] | REFRESH_MIN_INTERVAL_SECONDS;
+            uint32_t max_seconds     = refresh_obj["max_seconds"] | REFRESH_MAX_INTERVAL_SECONDS;
+            uint32_t step            = refresh_obj["step"] | REFRESH_STEP_SECONDS;
             uint32_t default_seconds = refresh_obj["default"] | REFRESH_DEFAULT_INTERVAL_SECONDS;
-            uint8_t multiplier = refresh_obj["low_battery_multiplier"] | REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER;
+            uint8_t multiplier =
+                refresh_obj["low_battery_multiplier"] | REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER;
 
             // Apply validation and capping
-            config.board.refresh.min_seconds = max(min_seconds, (uint32_t)REFRESH_MIN_INTERVAL_SECONDS);
-            config.board.refresh.max_seconds = max(max_seconds, (uint32_t)REFRESH_MAX_INTERVAL_SECONDS);
+            config.board.refresh.min_seconds =
+                max(min_seconds, (uint32_t)REFRESH_MIN_INTERVAL_SECONDS);
+            config.board.refresh.max_seconds =
+                max(max_seconds, (uint32_t)REFRESH_MAX_INTERVAL_SECONDS);
             config.board.refresh.step = max(step, (uint32_t)REFRESH_STEP_SECONDS);
-            config.board.refresh.low_battery_multiplier = max(multiplier, (uint8_t)REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER);
+            config.board.refresh.low_battery_multiplier =
+                max(multiplier, (uint8_t)REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER);
 
             // Ensure max >= min
             if (config.board.refresh.max_seconds < config.board.refresh.min_seconds) {
@@ -220,29 +226,32 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
             }
 
             // Validate and clamp default_seconds to be within [min, max] range
-            config.board.refresh.default_seconds = max(default_seconds, config.board.refresh.min_seconds);
-            config.board.refresh.default_seconds = min(config.board.refresh.default_seconds, config.board.refresh.max_seconds);
+            config.board.refresh.default_seconds =
+                max(default_seconds, config.board.refresh.min_seconds);
+            config.board.refresh.default_seconds =
+                min(config.board.refresh.default_seconds, config.board.refresh.max_seconds);
 
             log_d("Refresh config - min: %d", config.board.refresh.min_seconds);
             log_d("Refresh config - max: %d", config.board.refresh.max_seconds);
             log_d("Refresh config - step: %d", config.board.refresh.step);
             log_d("Refresh config - default: %d", config.board.refresh.default_seconds);
-            log_d("Refresh config - low battery multiplier: %d", config.board.refresh.low_battery_multiplier);
+            log_d("Refresh config - low battery multiplier: %d",
+                  config.board.refresh.low_battery_multiplier);
         } else {
             log_w("Board configuration missing 'refresh'");
         }
 
         // Load and validate day hours (0-23)
 
-        if(!board_obj.containsKey("day_start_hour") || !board_obj.containsKey("day_end_hour")) {
+        if (!board_obj.containsKey("day_start_hour") || !board_obj.containsKey("day_end_hour")) {
             log_w("Board configuration missing 'day_start_hour' or 'day_end_hour'");
         }
 
-        uint8_t start_hour = board_obj["day_start_hour"] | DAY_START_HOUR;
-        uint8_t end_hour = board_obj["day_end_hour"] | DAY_END_HOUR;
+        uint8_t start_hour          = board_obj["day_start_hour"] | DAY_START_HOUR;
+        uint8_t end_hour            = board_obj["day_end_hour"] | DAY_END_HOUR;
 
         config.board.day_start_hour = min(start_hour, (uint8_t)23);
-        config.board.day_end_hour = min(end_hour, (uint8_t)23);
+        config.board.day_end_hour   = min(end_hour, (uint8_t)23);
 
         log_d("Day schedule - start: %d", config.board.day_start_hour);
         log_d("Day schedule - end: %d", config.board.day_end_hour);
@@ -260,54 +269,71 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         JsonObject gd_obj = doc["google_drive_config"];
 
         // Check if Google Drive is enabled
-        config.google_drive.enabled = gd_obj["enabled"] | true; // Default to true for backward compatibility
+        config.google_drive.enabled =
+            gd_obj["enabled"] | true; // Default to true for backward compatibility
         log_i("Google Drive: %s", config.google_drive.enabled ? "enabled" : "disabled");
 
         if (gd_obj.containsKey("authentication")) {
             JsonObject auth_obj = gd_obj["authentication"];
-            config.google_drive.auth.service_account_email = auth_obj["service_account_email"].as<String>();
+            config.google_drive.auth.service_account_email =
+                auth_obj["service_account_email"].as<String>();
             config.google_drive.auth.private_key_pem = auth_obj["private_key_pem"].as<String>();
-            config.google_drive.auth.client_id = auth_obj["client_id"].as<String>();
+            config.google_drive.auth.client_id       = auth_obj["client_id"].as<String>();
 
-            log_d("Google Drive authentication - email: %s", config.google_drive.auth.service_account_email.c_str());
-            log_d("Google Drive authentication - client ID: %s", config.google_drive.auth.client_id.c_str());
+            log_d("Google Drive authentication - email: %s",
+                  config.google_drive.auth.service_account_email.c_str());
+            log_d("Google Drive authentication - client ID: %s",
+                  config.google_drive.auth.client_id.c_str());
 
         } else {
             log_w("Google Drive configuration missing 'authentication'");
         }
 
         if (gd_obj.containsKey("drive")) {
-            JsonObject drive_obj = gd_obj["drive"];
-            config.google_drive.drive.folder_id = drive_obj["folder_id"].as<String>();
+            JsonObject drive_obj                   = gd_obj["drive"];
+            config.google_drive.drive.folder_id    = drive_obj["folder_id"].as<String>();
             config.google_drive.drive.root_ca_path = drive_obj["root_ca_path"].as<String>();
-            config.google_drive.drive.list_page_size = min(drive_obj["list_page_size"] | GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE, GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
+            config.google_drive.drive.list_page_size =
+                min(drive_obj["list_page_size"] | GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE,
+                    GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
             config.google_drive.drive.use_insecure_tls = drive_obj["use_insecure_tls"] | true;
 
-            log_d("Google Drive configuration - folder ID: %s", config.google_drive.drive.folder_id.c_str());
-            log_d("Google Drive configuration - root CA path: %s", config.google_drive.drive.root_ca_path.c_str());
-            log_d("Google Drive configuration - list page size: %d", config.google_drive.drive.list_page_size);
-            log_d("Google Drive configuration - use insecure TLS: %s", config.google_drive.drive.use_insecure_tls ? "true" : "false");
+            log_d("Google Drive configuration - folder ID: %s",
+                  config.google_drive.drive.folder_id.c_str());
+            log_d("Google Drive configuration - root CA path: %s",
+                  config.google_drive.drive.root_ca_path.c_str());
+            log_d("Google Drive configuration - list page size: %d",
+                  config.google_drive.drive.list_page_size);
+            log_d("Google Drive configuration - use insecure TLS: %s",
+                  config.google_drive.drive.use_insecure_tls ? "true" : "false");
 
         } else {
             log_w("Google Drive configuration missing 'drive'");
         }
 
         if (gd_obj.containsKey("caching")) {
-            JsonObject cache_obj = gd_obj["caching"];
+            JsonObject cache_obj                   = gd_obj["caching"];
             config.google_drive.caching.local_path = cache_obj["local_path"] | "/gdrive";
-            config.google_drive.caching.toc_max_age_seconds = cache_obj["toc_max_age_seconds"] | GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
+            config.google_drive.caching.toc_max_age_seconds =
+                cache_obj["toc_max_age_seconds"] | GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
         } else {
             log_w("Google Drive configuration missing 'caching'");
         }
 
         if (gd_obj.containsKey("rate_limiting")) {
             JsonObject rate_obj = gd_obj["rate_limiting"];
-            config.google_drive.rate_limiting.max_requests_per_window = rate_obj["max_requests_per_window"] | GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW;
-            config.google_drive.rate_limiting.rate_limit_window_seconds = rate_obj["rate_limit_window_seconds"] | GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS;
-            config.google_drive.rate_limiting.min_request_delay_ms = rate_obj["min_request_delay_ms"] | GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS;
-            config.google_drive.rate_limiting.max_retry_attempts = rate_obj["max_retry_attempts"] | GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS;
-            config.google_drive.rate_limiting.backoff_base_delay_ms = rate_obj["backoff_base_delay_ms"] | GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS;
-            config.google_drive.rate_limiting.max_wait_time_ms = rate_obj["max_wait_time_ms"] | GOOGLE_DRIVE_MAX_WAIT_TIME_MS;
+            config.google_drive.rate_limiting.max_requests_per_window =
+                rate_obj["max_requests_per_window"] | GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW;
+            config.google_drive.rate_limiting.rate_limit_window_seconds =
+                rate_obj["rate_limit_window_seconds"] | GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS;
+            config.google_drive.rate_limiting.min_request_delay_ms =
+                rate_obj["min_request_delay_ms"] | GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS;
+            config.google_drive.rate_limiting.max_retry_attempts =
+                rate_obj["max_retry_attempts"] | GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS;
+            config.google_drive.rate_limiting.backoff_base_delay_ms =
+                rate_obj["backoff_base_delay_ms"] | GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS;
+            config.google_drive.rate_limiting.max_wait_time_ms =
+                rate_obj["max_wait_time_ms"] | GOOGLE_DRIVE_MAX_WAIT_TIME_MS;
         } else {
             log_w("Google Drive configuration missing 'rate_limiting'");
         }
@@ -317,11 +343,11 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 
     // Extract SD Card configuration
     if (doc.containsKey("sd_card_config")) {
-        JsonObject sd_obj = doc["sd_card_config"];
+        JsonObject sd_obj                  = doc["sd_card_config"];
 
-        config.sd_card.enabled = sd_obj["enabled"] | false;
-        config.sd_card.images_directory = sd_obj["images_directory"] | "/images";
-        config.sd_card.use_toc_cache = sd_obj["use_toc_cache"] | true;
+        config.sd_card.enabled             = sd_obj["enabled"] | false;
+        config.sd_card.images_directory    = sd_obj["images_directory"] | "/images";
+        config.sd_card.use_toc_cache       = sd_obj["use_toc_cache"] | true;
         config.sd_card.toc_max_age_seconds = sd_obj["toc_max_age_seconds"] | 86400;
 
         log_i("SD Card: %s", config.sd_card.enabled ? "enabled" : "disabled");
@@ -332,9 +358,9 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
         }
     } else {
         // Default SD card config
-        config.sd_card.enabled = false;
-        config.sd_card.images_directory = "/images";
-        config.sd_card.use_toc_cache = true;
+        config.sd_card.enabled             = false;
+        config.sd_card.images_directory    = "/images";
+        config.sd_card.use_toc_cache       = true;
         config.sd_card.toc_max_age_seconds = 86400;
         log_d("SD Card configuration not found, using defaults");
     }
@@ -343,7 +369,8 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
     // This ensures correct display orientation even if SD card fails on next boot
     auto& prefs = photo_frame::PreferencesHelper::getInstance();
     if (prefs.setPortraitMode(config.board.portrait_mode)) {
-        log_i("Saved portrait_mode to preferences: %s", config.board.portrait_mode ? "true" : "false");
+        log_i("Saved portrait_mode to preferences: %s",
+              config.board.portrait_mode ? "true" : "false");
     } else {
         log_w("Failed to save portrait_mode to preferences");
     }
@@ -353,8 +380,8 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 }
 
 photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
-                                                     const char* config_path,
-                                                     unified_config& config) {
+                                                      const char* config_path,
+                                                      unified_config& config) {
     // First try to load from file
     photo_frame_error_t result = load_unified_config(sdCard, config_path, config);
 
@@ -369,7 +396,8 @@ photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
 
     // Validate configuration: at least one image source must be enabled
     if (!config.google_drive.enabled && !config.sd_card.enabled) {
-        log_e("Configuration error: No image source enabled! At least one of Google Drive or SD Card must be enabled.");
+        log_e("Configuration error: No image source enabled! At least one of Google Drive or SD "
+              "Card must be enabled.");
         return error_type::InvalidConfigNoImageSource;
     }
 

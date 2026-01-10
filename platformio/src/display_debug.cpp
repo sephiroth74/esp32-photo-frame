@@ -1,31 +1,30 @@
 #ifdef ENABLE_DISPLAY_DIAGNOSTIC
 
 // New implementation using the display abstraction layer
-#include <Adafruit_GFX.h>
-#include <SPI.h>
-#include "sd_card.h"
-#include "display_manager.h"
-#include "test_photo_6c_portrait.h"
-#include <assets/icons/icons.h>
-#include <assets/fonts/Ubuntu_R.h>
 #include "battery.h"
+#include "display_manager.h"
+#include "sd_card.h"
+#include "test_photo_6c_portrait.h"
+#include <Adafruit_GFX.h>
 #include <RTClib.h>
+#include <SPI.h>
+#include <assets/fonts/Ubuntu_R.h>
+#include <assets/icons/icons.h>
 #include <esp_heap_caps.h> // For heap_caps_malloc
 
-#define COLOR_WHITE 0xFF
-#define COLOR_BLACK 0x00
-#define COLOR_RED 0xE0
-#define COLOR_GREEN 0x1C
-#define COLOR_BLUE 0x03
+#define COLOR_WHITE  0xFF
+#define COLOR_BLACK  0x00
+#define COLOR_RED    0xE0
+#define COLOR_GREEN  0x1C
+#define COLOR_BLUE   0x03
 #define COLOR_YELLOW 0xFC
 
-const char images_directory[] = "/6c/portrait/bin";
+const char images_directory[]      = "/6c/portrait/bin";
 static const char image_filename[] = "/6c/bin/6c_MjAyMjA3MjBfMTk1NjEz__portrait.bin";
 static photo_frame::DisplayManager g_display; // Use DisplayManager for all display operations
-static photo_frame::sd_card sdCard; // Use same SD card class as main.cpp
+static photo_frame::sd_card sdCard;           // Use same SD card class as main.cpp
 
-bool init_display_manager()
-{
+bool init_display_manager() {
     if (g_display.isInitialized()) {
         log_w("Display manager already initialized");
         return true;
@@ -44,8 +43,7 @@ bool init_display_manager()
     }
 }
 
-void cleanup_display_manager()
-{
+void cleanup_display_manager() {
     if (g_display.isInitialized()) {
         log_i("[display_debug] Releasing display manager");
         g_display.release();
@@ -55,8 +53,7 @@ void cleanup_display_manager()
 
 // These functions are no longer needed as we use photo_frame::sd_card class
 
-bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, size_t buffer_size)
-{
+bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, size_t buffer_size) {
     log_i("========================================");
     log_i("Portrait Image Test (From SD Card)");
     log_i("========================================");
@@ -67,9 +64,9 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
     }
 
     // First, try to use TOC cache if available
-    bool use_toc = true;  // Enable TOC by default
+    bool use_toc       = true; // Enable TOC by default
     uint32_t fileCount = 0;
-    auto ts = millis();
+    auto ts            = millis();
 
     // Build or validate TOC
     if (use_toc) {
@@ -79,8 +76,10 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
             if (sdCard.build_directory_toc(images_directory, ".bin", &tocError)) {
                 log_i("SD card TOC built successfully");
             } else {
-                log_w("Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
-                      tocError.message, tocError.code);
+                log_w(
+                    "Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
+                    tocError.message,
+                    tocError.code);
                 use_toc = false;
             }
         } else {
@@ -158,7 +157,9 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
     imageFile.close();
 
     if (bytesRead != buffer_size) {
-        log_e("Failed to read complete file! Read: %u bytes, Expected: %u bytes", bytesRead, buffer_size);
+        log_e("Failed to read complete file! Read: %u bytes, Expected: %u bytes",
+              bytesRead,
+              buffer_size);
         return false;
     }
 
@@ -166,8 +167,7 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
     return true;
 }
 
-void setup()
-{
+void setup() {
     Serial.begin(115200);
     delay(2000);
 
@@ -175,7 +175,8 @@ void setup()
 
     // ========== PHASE 1: SD Card Operations ==========
     // First, allocate a temporary buffer for loading the image
-    size_t bufferSize = photo_frame::DisplayManager::getNativeWidth() * photo_frame::DisplayManager::getNativeHeight();
+    size_t bufferSize = photo_frame::DisplayManager::getNativeWidth() *
+                        photo_frame::DisplayManager::getNativeHeight();
     uint8_t* tempBuffer = (uint8_t*)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM);
     if (!tempBuffer) {
         tempBuffer = (uint8_t*)malloc(bufferSize);
@@ -245,12 +246,12 @@ void setup()
 
     // Draw battery status
     photo_frame::battery_info_t battery_info;
-    battery_info.percent = 100;
+    battery_info.percent    = 100;
     battery_info.millivolts = 4120;
     g_display.drawBatteryStatus(battery_info);
 
     // Draw last update time
-    DateTime now = DateTime(2024, 1, 15, 12, 30, 0);
+    DateTime now         = DateTime(2024, 1, 15, 12, 30, 0);
     long refresh_seconds = 3600; // 1 hour
     g_display.drawLastUpdate(now, refresh_seconds);
 
@@ -271,8 +272,7 @@ void setup()
     cleanup_display_manager();
 }
 
-void loop()
-{
+void loop() {
     // empty
 }
 

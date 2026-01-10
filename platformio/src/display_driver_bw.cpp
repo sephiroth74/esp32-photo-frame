@@ -8,27 +8,28 @@
 
 using namespace GDEY075T7;
 
-DisplayDriverBW::DisplayDriverBW(int8_t cs_pin, int8_t dc_pin, int8_t rst_pin, int8_t busy_pin,
-    int8_t sck_pin, int8_t mosi_pin)
-    : _cs_pin(cs_pin)
-    , _dc_pin(dc_pin)
-    , _rst_pin(rst_pin)
-    , _busy_pin(busy_pin)
-    , _sck_pin(sck_pin)
-    , _mosi_pin(mosi_pin)
-{
+DisplayDriverBW::DisplayDriverBW(int8_t cs_pin,
+                                 int8_t dc_pin,
+                                 int8_t rst_pin,
+                                 int8_t busy_pin,
+                                 int8_t sck_pin,
+                                 int8_t mosi_pin) :
+    _cs_pin(cs_pin),
+    _dc_pin(dc_pin),
+    _rst_pin(rst_pin),
+    _busy_pin(busy_pin),
+    _sck_pin(sck_pin),
+    _mosi_pin(mosi_pin) {
     initialized = false;
 }
 
-DisplayDriverBW::~DisplayDriverBW()
-{
+DisplayDriverBW::~DisplayDriverBW() {
     if (initialized) {
         sleep();
     }
 }
 
-void DisplayDriverBW::configureSPI()
-{
+void DisplayDriverBW::configureSPI() {
     // Configure pins
     pinMode(_busy_pin, INPUT);
     pinMode(_rst_pin, OUTPUT);
@@ -40,8 +41,7 @@ void DisplayDriverBW::configureSPI()
     SPI.begin(_sck_pin, -1, _mosi_pin, _cs_pin);
 }
 
-bool DisplayDriverBW::init()
-{
+bool DisplayDriverBW::init() {
     if (initialized) {
         log_w("Display already initialized");
         return true;
@@ -64,8 +64,7 @@ bool DisplayDriverBW::init()
     return true;
 }
 
-bool DisplayDriverBW::picDisplay(uint8_t* imageBuffer)
-{
+bool DisplayDriverBW::picDisplay(uint8_t* imageBuffer) {
     if (!initialized) {
         log_e("Display not initialized");
         return false;
@@ -85,8 +84,7 @@ bool DisplayDriverBW::picDisplay(uint8_t* imageBuffer)
     return true;
 }
 
-void DisplayDriverBW::sleep()
-{
+void DisplayDriverBW::sleep() {
     if (!initialized) {
         log_w("Display not initialized, skipping sleep");
         return;
@@ -101,8 +99,7 @@ void DisplayDriverBW::sleep()
     log_d("Display is now in deep sleep mode");
 }
 
-void DisplayDriverBW::refresh(bool partial_update)
-{
+void DisplayDriverBW::refresh(bool partial_update) {
     if (!initialized) {
         log_w("Display not initialized");
         return;
@@ -117,20 +114,17 @@ void DisplayDriverBW::refresh(bool partial_update)
     log_d("Refresh complete");
 }
 
-void DisplayDriverBW::power_off()
-{
+void DisplayDriverBW::power_off() {
     log_d("Powering off B&W display...");
-    sleep();  // For B&W display, power_off is same as sleep
+    sleep(); // For B&W display, power_off is same as sleep
 }
 
-void DisplayDriverBW::hibernate()
-{
+void DisplayDriverBW::hibernate() {
     log_d("Putting B&W display in hibernate mode...");
-    sleep();  // For B&W display, hibernate is same as sleep
+    sleep(); // For B&W display, hibernate is same as sleep
 }
 
-void DisplayDriverBW::clear()
-{
+void DisplayDriverBW::clear() {
     if (!initialized) {
         log_w("Display not initialized");
         return;

@@ -84,11 +84,11 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
     }
 
     // Store as single network
-    _network_count = 1;
-    _networks[0].ssid = ssid;
+    _network_count        = 1;
+    _networks[0].ssid     = ssid;
     _networks[0].password = password;
-    _ssid = ssid;
-    _password = password;
+    _ssid                 = ssid;
+    _password             = password;
 
 #ifdef DEBUG_WIFI
     log_d("Loaded WiFi credentials for SSID: %s", _ssid.c_str());
@@ -98,7 +98,8 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
     return error_type::None;
 }
 
-photo_frame_error_t wifi_manager::init_with_networks(const unified_config::wifi_config& wifi_config) {
+photo_frame_error_t
+wifi_manager::init_with_networks(const unified_config::wifi_config& wifi_config) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -112,14 +113,14 @@ photo_frame_error_t wifi_manager::init_with_networks(const unified_config::wifi_
     // Copy all configured networks
     _network_count = wifi_config.network_count;
     for (uint8_t i = 0; i < _network_count; i++) {
-        _networks[i].ssid = wifi_config.networks[i].ssid;
+        _networks[i].ssid     = wifi_config.networks[i].ssid;
         _networks[i].password = wifi_config.networks[i].password;
         log_i("Loaded WiFi network #%d: %s", i + 1, _networks[i].ssid.c_str());
     }
 
     // Set first network as default (will be updated when connected)
-    _ssid = _networks[0].ssid;
-    _password = _networks[0].password;
+    _ssid        = _networks[0].ssid;
+    _password    = _networks[0].password;
 
     _initialized = true;
     log_i("WiFi manager initialized with %d network(s)", _network_count);
@@ -153,12 +154,12 @@ photo_frame_error_t wifi_manager::connect() {
     WiFi.mode(WIFI_STA);
 
     const uint8_t maxRetriesPerNetwork = 2;
-    const unsigned long baseDelay = 2000; // 2 seconds base delay
-    bool connected = false;
+    const unsigned long baseDelay      = 2000; // 2 seconds base delay
+    bool connected                     = false;
 
     // Try each configured network in order
     for (uint8_t network_idx = 0; network_idx < _network_count && !connected; network_idx++) {
-        const String& ssid = _networks[network_idx].ssid;
+        const String& ssid     = _networks[network_idx].ssid;
         const String& password = _networks[network_idx].password;
 
         if (ssid.isEmpty()) {
@@ -171,7 +172,9 @@ photo_frame_error_t wifi_manager::connect() {
         // Try connecting to this network with retries
         for (uint8_t attempt = 0; attempt < maxRetriesPerNetwork && !connected; attempt++) {
             log_i("Connection attempt %u/%u for network: %s",
-                  attempt + 1, maxRetriesPerNetwork, ssid.c_str());
+                  attempt + 1,
+                  maxRetriesPerNetwork,
+                  ssid.c_str());
 
             WiFi.begin(ssid.c_str(), password.c_str());
 
@@ -179,7 +182,7 @@ photo_frame_error_t wifi_manager::connect() {
             // WiFi.begin() is asynchronous and needs time to start the connection process
             delay(1000);
 
-            unsigned long timeout = millis() + CONNECTION_TIMEOUT_MS;
+            unsigned long timeout         = millis() + CONNECTION_TIMEOUT_MS;
             wl_status_t connection_status = WiFi.status();
             while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
                 delay(500);
@@ -187,28 +190,32 @@ photo_frame_error_t wifi_manager::connect() {
             }
 
             if (connection_status == WL_CONNECTED) {
-                connected = true;
+                connected  = true;
                 _connected = true;
-                _ssid = ssid;  // Update to reflect currently connected network
-                _password = password;
-                log_i("WiFi connected to '%s'! IP address: %s", ssid.c_str(), WiFi.localIP().toString().c_str());
+                _ssid      = ssid; // Update to reflect currently connected network
+                _password  = password;
+                log_i("WiFi connected to '%s'! IP address: %s",
+                      ssid.c_str(),
+                      WiFi.localIP().toString().c_str());
             } else {
                 log_w("Failed to connect to '%s' (attempt %u/%u)",
-                      ssid.c_str(), attempt + 1, maxRetriesPerNetwork);
+                      ssid.c_str(),
+                      attempt + 1,
+                      maxRetriesPerNetwork);
 
                 // PROBLEM #3 FIX: Use disconnect(false) for faster retries
                 // EXCEPTION: ESP32-C6 needs disconnect(true) due to I2C/WiFi interference
 #if defined(CONFIG_IDF_TARGET_ESP32C6)
-                WiFi.disconnect(true);  // ESP32-C6: Full reset needed for I2C isolation
+                WiFi.disconnect(true); // ESP32-C6: Full reset needed for I2C isolation
 #else
-                WiFi.disconnect(false);  // Other ESP32: Faster disconnect for retries
+                WiFi.disconnect(false); // Other ESP32: Faster disconnect for retries
 #endif
-                delay(100);  // Small delay after disconnect for stability
+                delay(100); // Small delay after disconnect for stability
 
                 // Exponential backoff with jitter for retries (only within same network)
                 if (attempt < maxRetriesPerNetwork - 1) {
                     unsigned long backoffDelay = baseDelay * (1UL << attempt);
-                    unsigned long jitter = random(0, backoffDelay / 4);
+                    unsigned long jitter       = random(0, backoffDelay / 4);
                     backoffDelay += jitter;
 
                     log_i("Retrying same network in %lu ms...", backoffDelay);
@@ -304,10 +311,10 @@ void wifi_manager::disconnect() {
         // WiFi.disconnect() is asynchronous and needs time to complete
         // Calling WiFi.mode(WIFI_OFF) immediately can cause crashes
         WiFi.disconnect(true);
-        delay(100);  // Allow disconnect to start
+        delay(100); // Allow disconnect to start
 
         WiFi.mode(WIFI_OFF);
-        delay(100);  // Allow mode change to complete
+        delay(100); // Allow mode change to complete
 
         _connected = false;
         log_i("WiFi disconnected and turned off");

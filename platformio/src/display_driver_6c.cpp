@@ -8,29 +8,36 @@
 
 using namespace GDEP073E01;
 
-DisplayDriver6C::DisplayDriver6C(int8_t cs_pin, int8_t dc_pin, int8_t rst_pin, int8_t busy_pin,
-    int8_t sck_pin, int8_t mosi_pin)
-    : _cs_pin(cs_pin)
-    , _dc_pin(dc_pin)
-    , _rst_pin(rst_pin)
-    , _busy_pin(busy_pin)
-    , _sck_pin(sck_pin)
-    , _mosi_pin(mosi_pin)
-{
+DisplayDriver6C::DisplayDriver6C(int8_t cs_pin,
+                                 int8_t dc_pin,
+                                 int8_t rst_pin,
+                                 int8_t busy_pin,
+                                 int8_t sck_pin,
+                                 int8_t mosi_pin) :
+    _cs_pin(cs_pin),
+    _dc_pin(dc_pin),
+    _rst_pin(rst_pin),
+    _busy_pin(busy_pin),
+    _sck_pin(sck_pin),
+    _mosi_pin(mosi_pin) {
     initialized = false;
 }
 
-DisplayDriver6C::~DisplayDriver6C()
-{
+DisplayDriver6C::~DisplayDriver6C() {
     if (initialized) {
         sleep();
     }
 }
 
-void DisplayDriver6C::configureSPI()
-{
+void DisplayDriver6C::configureSPI() {
     log_i("Configuring SPI for display");
-    log_v("pins: BUSY(%d), RST(%d), DC(%d), CS(%d), SCK(%d), MOSI(%d)", _busy_pin, _rst_pin, _dc_pin, _cs_pin, _sck_pin, _mosi_pin);
+    log_v("pins: BUSY(%d), RST(%d), DC(%d), CS(%d), SCK(%d), MOSI(%d)",
+          _busy_pin,
+          _rst_pin,
+          _dc_pin,
+          _cs_pin,
+          _sck_pin,
+          _mosi_pin);
 
     // Configure pins
     pinMode(_busy_pin, INPUT);
@@ -43,8 +50,7 @@ void DisplayDriver6C::configureSPI()
     SPI.begin(_sck_pin, -1, _mosi_pin, _cs_pin);
 }
 
-bool DisplayDriver6C::init()
-{
+bool DisplayDriver6C::init() {
     if (initialized) {
         log_w("Display already initialized");
         return true;
@@ -67,8 +73,7 @@ bool DisplayDriver6C::init()
     return true;
 }
 
-bool DisplayDriver6C::picDisplay(uint8_t* imageBuffer)
-{
+bool DisplayDriver6C::picDisplay(uint8_t* imageBuffer) {
     if (!initialized) {
         log_e("Display not initialized");
         return false;
@@ -91,8 +96,7 @@ bool DisplayDriver6C::picDisplay(uint8_t* imageBuffer)
     return true;
 }
 
-void DisplayDriver6C::sleep()
-{
+void DisplayDriver6C::sleep() {
     if (!initialized) {
         log_w("Display not initialized, skipping sleep");
         return;
@@ -107,8 +111,7 @@ void DisplayDriver6C::sleep()
     log_d("Display is now in sleep mode");
 }
 
-void DisplayDriver6C::refresh(bool partial_update)
-{
+void DisplayDriver6C::refresh(bool partial_update) {
     if (!initialized) {
         log_w("Display not initialized");
         return;
@@ -121,20 +124,17 @@ void DisplayDriver6C::refresh(bool partial_update)
     log_d("Refresh complete");
 }
 
-void DisplayDriver6C::power_off()
-{
+void DisplayDriver6C::power_off() {
     log_d("Powering off 6-color display...");
-    sleep();  // For 6-color display, power_off is same as sleep
+    sleep(); // For 6-color display, power_off is same as sleep
 }
 
-void DisplayDriver6C::hibernate()
-{
+void DisplayDriver6C::hibernate() {
     log_d("Putting 6-color display in hibernate mode...");
-    sleep();  // For 6-color display, hibernate is same as sleep
+    sleep(); // For 6-color display, hibernate is same as sleep
 }
 
-void DisplayDriver6C::clear()
-{
+void DisplayDriver6C::clear() {
     if (!initialized) {
         log_w("Display not initialized");
         return;

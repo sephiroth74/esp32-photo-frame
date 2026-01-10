@@ -10,13 +10,13 @@
 
 #ifdef TEST_DISPLAY_DRIVER
 
-#include <Arduino.h>
-#include <SD.h>
-#include <SPI.h>
 #include "config.h"
 #include "display_driver.h"
 #include "display_driver_6c.h"
 #include "display_driver_bw.h"
+#include <Arduino.h>
+#include <SD.h>
+#include <SPI.h>
 
 // Include display library headers for EPD_WIDTH and EPD_HEIGHT
 // The pins are taken from config.h (EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN)
@@ -27,7 +27,7 @@
 #endif
 
 // Test image buffer
-static uint8_t* test_image_buffer = nullptr;
+static uint8_t* test_image_buffer     = nullptr;
 static const size_t IMAGE_BUFFER_SIZE = EPD_WIDTH * EPD_HEIGHT;
 
 // Display driver instance
@@ -80,12 +80,12 @@ void setup() {
     // Create display driver based on configuration
 #ifdef DISP_6C
     log_i("Creating 6-color display driver...");
-    displayDriver = new DisplayDriver6C(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN,
-                                        EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN);
+    displayDriver = new DisplayDriver6C(
+        EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN);
 #else
     log_i("Creating B&W display driver...");
-    displayDriver = new DisplayDriverBW(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN,
-                                        EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN);
+    displayDriver = new DisplayDriverBW(
+        EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN);
 #endif
 
     if (!displayDriver) {
@@ -127,11 +127,11 @@ void setup() {
 #ifdef DISP_6C
             // For 6-color display, use colors
             switch ((x / 100) % 6) {
-                case 0: test_image_buffer[i] = DISPLAY_COLOR_RED; break;
-                case 1: test_image_buffer[i] = DISPLAY_COLOR_GREEN; break;
-                case 2: test_image_buffer[i] = DISPLAY_COLOR_BLUE; break;
-                case 3: test_image_buffer[i] = DISPLAY_COLOR_YELLOW; break;
-                default: test_image_buffer[i] = DISPLAY_COLOR_WHITE; break;
+            case 0:  test_image_buffer[i] = DISPLAY_COLOR_RED; break;
+            case 1:  test_image_buffer[i] = DISPLAY_COLOR_GREEN; break;
+            case 2:  test_image_buffer[i] = DISPLAY_COLOR_BLUE; break;
+            case 3:  test_image_buffer[i] = DISPLAY_COLOR_YELLOW; break;
+            default: test_image_buffer[i] = DISPLAY_COLOR_WHITE; break;
             }
 #else
             // For B&W display, use black and white

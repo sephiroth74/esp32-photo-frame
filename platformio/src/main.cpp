@@ -29,15 +29,15 @@
 #include "battery.h"
 #include "board_util.h"
 #include "config.h"
+#include "display_manager.h"
 #include "errors.h"
 #include "io_utils.h"
 #include "preferences_helper.h"
 #include "renderer.h"
-#include "display_manager.h"
 #include "rgb_status.h"
 
-#include "sd_card.h"
 #include "littlefs_manager.h"
+#include "sd_card.h"
 #include "string_utils.h"
 #include "unified_config.h"
 #include "wifi_manager.h"
@@ -51,17 +51,16 @@
 photo_frame::google_drive drive;
 
 // Helper function to cleanup temporary files from LittleFS
-void cleanup_temp_image_file()
-{
+void cleanup_temp_image_file() {
     photo_frame::littlefs_manager::LittleFsManager::cleanup_temp_files();
 }
 
 #ifndef USE_SENSOR_MAX1704X
 photo_frame::battery_reader battery_reader(BATTERY_PIN,
-    BATTERY_RESISTORS_RATIO,
-    BATTERY_NUM_READINGS,
-    BATTERY_DELAY_BETWEEN_READINGS);
-#else // USE_SENSOR_MAX1704X
+                                           BATTERY_RESISTORS_RATIO,
+                                           BATTERY_NUM_READINGS,
+                                           BATTERY_DELAY_BETWEEN_READINGS);
+#else  // USE_SENSOR_MAX1704X
 photo_frame::battery_reader battery_reader;
 #endif // USE_SENSOR_MAX1704X
 
@@ -95,7 +94,7 @@ bool initialize_hardware();
  * @return Error state after battery check
  */
 photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
-    esp_sleep_wakeup_cause_t wakeup_reason);
+                                                         esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
  * @brief Setup time synchronization via WiFi and NTP
@@ -105,7 +104,9 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
  * @return Error state after time/WiFi operations
  */
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, bool is_reset, DateTime& now);
+setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
+                            bool is_reset,
+                            DateTime& now);
 
 /**
  * @brief Handle Google Drive operations (initialization, file selection, download)
@@ -120,12 +121,12 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
  */
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
-    fs::File& file,
-    String& original_filename,
-    uint32_t& image_index,
-    uint32_t& total_files,
-    const photo_frame::battery_info_t& battery_info,
-    bool& file_ready);
+                               fs::File& file,
+                               String& original_filename,
+                               uint32_t& image_index,
+                               uint32_t& total_files,
+                               const photo_frame::battery_info_t& battery_info,
+                               bool& file_ready);
 
 /**
  * @brief Handle SD card operations (file selection from local storage)
@@ -140,13 +141,12 @@ handle_google_drive_operations(bool is_reset,
  */
 photo_frame::photo_frame_error_t
 handle_sd_card_operations(bool is_reset,
-    fs::File& file,
-    String& original_filename,
-    uint32_t& image_index,
-    uint32_t& total_files,
-    const photo_frame::battery_info_t& battery_info,
-    bool& file_ready);
-
+                          fs::File& file,
+                          String& original_filename,
+                          uint32_t& image_index,
+                          uint32_t& total_files,
+                          const photo_frame::battery_info_t& battery_info,
+                          bool& file_ready);
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep
@@ -156,9 +156,9 @@ handle_sd_card_operations(bool is_reset,
  * @param refresh_delay Pre-calculated refresh delay to avoid re-reading potentiometer
  */
 void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
-    DateTime& now,
-    esp_sleep_wakeup_cause_t wakeup_reason,
-    const refresh_delay_t& refresh_delay);
+                              DateTime& now,
+                              esp_sleep_wakeup_cause_t wakeup_reason,
+                              const refresh_delay_t& refresh_delay);
 
 /**
  * @brief Handle image rendering with full/partial display modes and error handling
@@ -175,14 +175,14 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
  * @return Updated error state after rendering attempt
  */
 photo_frame::photo_frame_error_t render_image(fs::File& file,
-    const char* original_filename,
-    photo_frame::photo_frame_error_t current_error,
-    const DateTime& now,
-    const refresh_delay_t& refresh_delay,
-    uint32_t image_index,
-    uint32_t total_files,
-    photo_frame::google_drive& drive,
-    const photo_frame::battery_info_t& battery_info);
+                                              const char* original_filename,
+                                              photo_frame::photo_frame_error_t current_error,
+                                              const DateTime& now,
+                                              const refresh_delay_t& refresh_delay,
+                                              uint32_t image_index,
+                                              uint32_t total_files,
+                                              photo_frame::google_drive& drive,
+                                              const photo_frame::battery_info_t& battery_info);
 
 /**
  * @brief Initialize the PSRAM image buffer for Mode 1 format rendering
@@ -192,8 +192,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
  *
  * @note This function must be called before any image loading operations
  */
-void init_image_buffer()
-{
+void init_image_buffer() {
     if (g_display.isInitialized()) {
         log_w("[main] Display manager already initialized");
         return;
@@ -201,7 +200,7 @@ void init_image_buffer()
 
     log_i("[main] Initializing display manager...");
 
-    if (!g_display.init(true)) {  // true = prefer PSRAM
+    if (!g_display.init(true)) { // true = prefer PSRAM
         log_e("[main] CRITICAL: Failed to initialize display manager!");
         log_e("[main] Cannot continue without display");
     } else {
@@ -219,8 +218,7 @@ void init_image_buffer()
  * The ImageBuffer class automatically handles cleanup through its destructor,
  * but this function can be called explicitly if needed.
  */
-void cleanup_image_buffer()
-{
+void cleanup_image_buffer() {
     if (g_display.isInitialized()) {
         log_i("[main] Releasing display manager");
         g_display.release();
@@ -228,8 +226,7 @@ void cleanup_image_buffer()
     }
 }
 
-void setup()
-{
+void setup() {
     Serial.begin(115200);
     while (!Serial && millis() < 3000)
         delay(10); // Wait for serial or timeout
@@ -242,12 +239,13 @@ void setup()
 
     // Initialize hardware components
     if (!initialize_hardware()) {
+        log_e("Failed to inizialize hardware!");
         return;
     }
 
     // Determine wakeup reason and setup basic state
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
-    bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+    bool is_reset                          = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
     char wakeup_reason_string[32];
     photo_frame::board_utils::get_wakeup_reason_string(
@@ -263,6 +261,7 @@ void setup()
 #if BATTERY_POWER_SAVING
     if (error == photo_frame::error_type::BatteryEmpty) {
         // stop here as battery is empty and we entered deep sleep
+        log_e("Battery is empty!");
         return;
     }
 #endif // BATTERY_POWER_SAVING
@@ -285,20 +284,30 @@ void setup()
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
     String original_filename; // Store original filename for format detection
-    bool file_ready = false; // Track if file is ready (buffer loaded or file open)
+    bool file_ready = false;  // Track if file is ready (buffer loaded or file open)
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         // Choose image source based on configuration
         if (systemConfig.google_drive.enabled) {
             log_i("Using Google Drive as image source");
             RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
-            error = handle_google_drive_operations(
-                is_reset, file, original_filename, image_index, total_files, battery_info, file_ready);
+            error = handle_google_drive_operations(is_reset,
+                                                   file,
+                                                   original_filename,
+                                                   image_index,
+                                                   total_files,
+                                                   battery_info,
+                                                   file_ready);
         } else if (systemConfig.sd_card.enabled) {
             log_i("Using SD Card as image source (Google Drive disabled)");
             RGB_SET_STATE(SD_READING); // Show SD Card operations
-            error = handle_sd_card_operations(
-                is_reset, file, original_filename, image_index, total_files, battery_info, file_ready);
+            error = handle_sd_card_operations(is_reset,
+                                              file,
+                                              original_filename,
+                                              image_index,
+                                              total_files,
+                                              battery_info,
+                                              file_ready);
         } else {
             // This should not happen as config validation ensures at least one source is enabled
             log_e("No image source enabled!");
@@ -337,10 +346,10 @@ void setup()
 
     // If config loading failed, try to get from preferences
     if (!systemConfig.is_valid()) {
-        auto& prefs = photo_frame::PreferencesHelper::getInstance();
+        auto& prefs   = photo_frame::PreferencesHelper::getInstance();
         portrait_mode = prefs.getPortraitMode(); // Default to false (landscape) if not set
         log_w("Config invalid, using portrait_mode from preferences: %s",
-            portrait_mode ? "portrait" : "landscape");
+              portrait_mode ? "portrait" : "landscape");
     }
 
     // Initialize the display manager (handles all display operations)
@@ -357,8 +366,9 @@ void setup()
     log_i("Display initialization complete");
 
     // Prepare display for rendering
-    // Note: fillScreen() removed in v0.11.0 to eliminate race condition causing white vertical stripes
-    // The full-screen image write will overwrite the entire display buffer, making fillScreen() redundant
+    // Note: fillScreen() removed in v0.11.0 to eliminate race condition causing white vertical
+    // stripes The full-screen image write will overwrite the entire display buffer, making
+    // fillScreen() redundant
     log_i("Preparing display for rendering...");
 
     // Check if file is ready (binary image loaded to buffer)
@@ -386,14 +396,14 @@ void setup()
         if (error == photo_frame::error_type::None && file_ready) {
             log_i("Rendering validated binary image from buffer...");
             error = render_image(file,
-                original_filename.c_str(),
-                error,
-                now,
-                refresh_delay,
-                image_index,
-                total_files,
-                drive,
-                battery_info);
+                                 original_filename.c_str(),
+                                 error,
+                                 now,
+                                 refresh_delay,
+                                 image_index,
+                                 total_files,
+                                 drive,
+                                 battery_info);
         }
 
         // Ensure file is closed (should already be closed after buffer load)
@@ -404,25 +414,23 @@ void setup()
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
-    delay(2500); // Allow sleep preparation animation to complete
+    delay(2500);               // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
 }
 
-void loop()
-{
+void loop() {
     delay(1000); // Just to avoid watchdog reset
 }
 
 photo_frame::photo_frame_error_t render_image(fs::File& file,
-    const char* original_filename,
-    photo_frame::photo_frame_error_t current_error,
-    const DateTime& now,
-    const refresh_delay_t& refresh_delay,
-    uint32_t image_index,
-    uint32_t total_files,
-    photo_frame::google_drive& drive,
-    const photo_frame::battery_info_t& battery_info)
-{
+                                              const char* original_filename,
+                                              photo_frame::photo_frame_error_t current_error,
+                                              const DateTime& now,
+                                              const refresh_delay_t& refresh_delay,
+                                              uint32_t image_index,
+                                              uint32_t total_files,
+                                              photo_frame::google_drive& drive,
+                                              const photo_frame::battery_info_t& battery_info) {
     photo_frame::photo_frame_error_t error = current_error;
 
     // Get display capabilities
@@ -435,7 +443,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         log_w("Display does not support partial update!");
 
         bool rendering_failed = false;
-        uint16_t error_code = 0;
+        uint16_t error_code   = 0;
 
 #if defined(DISP_6C)
         // ============================================
@@ -443,13 +451,14 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // ============================================
         // These displays render from PSRAM buffer (binary format only)
         // Binary format - render from PSRAM buffer (already loaded)
-        // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer functions
+        // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer
+        // functions
         log_i("[main] Rendering Mode 1 format from PSRAM buffer with overlays");
 
         // Check portrait mode from config (or preferences fallback)
         bool portrait_mode = systemConfig.board.portrait_mode;
         if (!systemConfig.is_valid()) {
-            auto& prefs = photo_frame::PreferencesHelper::getInstance();
+            auto& prefs   = photo_frame::PreferencesHelper::getInstance();
             portrait_mode = prefs.getPortraitMode();
         }
 
@@ -518,7 +527,8 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
             // Clear display and draw error
             g_display.clear(DISPLAY_COLOR_WHITE);
-            g_display.drawErrorWithDetails(TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
+            g_display.drawErrorWithDetails(
+                TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
 
             // Draw status information
             g_display.drawLastUpdate(now, refresh_delay.refresh_seconds);
@@ -529,7 +539,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             g_display.render();
         }
 
-        file.close(); // Close the file after drawing
+        file.close();              // Close the file after drawing
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
     } else if (error == photo_frame::error_type::None) {
@@ -548,7 +558,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // Render to display
         g_display.render();
 
-        file.close(); // Close the file after drawing
+        file.close();              // Close the file after drawing
         cleanup_temp_image_file(); // Clean up temporary LittleFS file
 
         /* OLD PARTIAL UPDATE CODE - REMOVED
@@ -567,8 +577,7 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
     return error;
 }
 
-bool initialize_hardware()
-{
+bool initialize_hardware() {
     analogReadResolution(12);
     startupTime = millis();
     photo_frame::board_utils::blink_builtin_led(1, 900, 100);
@@ -636,8 +645,7 @@ bool initialize_hardware()
 }
 
 photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
-    esp_sleep_wakeup_cause_t wakeup_reason)
-{
+                                                         esp_sleep_wakeup_cause_t wakeup_reason) {
     log_i("--------------------------------------");
     log_i("- Reading battery level...");
     log_i("--------------------------------------");
@@ -647,7 +655,10 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 
     // print the battery levels
 #ifdef DEBUG_BATTERY_READER
-    log_i("Battery level: %d%%, %d mV, Raw mV: %d", battery_info.percent, battery_info.millivolts, battery_info.raw_millivolts);
+    log_i("Battery level: %d%%, %d mV, Raw mV: %d",
+          battery_info.percent,
+          battery_info.millivolts,
+          battery_info.raw_millivolts);
 #else
     log_i("Battery level: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
 #endif // DEBUG_BATTERY_READER
@@ -661,7 +672,7 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
         log_i("Entering deep sleep to preserve battery...");
         photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
                                                                    // Battery too low to continue
-#endif // BATTERY_POWER_SAVING
+#endif                                                             // BATTERY_POWER_SAVING
 #ifdef RGB_STATUS_ENABLED
         rgbStatus.disable();
         log_i("[RGB] Disabled RGB LED to conserve battery power");
@@ -686,8 +697,9 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 }
 
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, bool is_reset, DateTime& now)
-{
+setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
+                            bool is_reset,
+                            DateTime& now) {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
     log_i("--------------------------------------");
@@ -701,13 +713,14 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
     if (battery_info.is_low()) {
 #ifdef RGB_STATUS_ENABLED
         rgbStatus.setBrightness(32); // Reduce brightness to 50% of normal for low battery
-#endif // RGB_STATUS_ENABLED
+#endif                               // RGB_STATUS_ENABLED
     }
 
     // Load unified configuration from SD card
     if (error == photo_frame::error_type::None) {
         log_i("Loading unified configuration...");
-        error = photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
+        error =
+            photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
 
         if (error != photo_frame::error_type::None) {
             log_w("Failed to load unified configuration: %d", error.code);
@@ -729,7 +742,8 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
         load_fallback_config(systemConfig);
 
         // Enter deep sleep immediately with extended duration
-        // photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED, fallback_sleep_microseconds);
+        // photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+        // fallback_sleep_microseconds);
         return error; // This line won't be reached, but included for completeness
     }
 
@@ -755,7 +769,8 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
                         error = photo_frame::error_type::NTPSyncFailed;
                     }
                 } else {
-                    log_i("Successfully fetched time from NTP: %s", now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+                    log_i("Successfully fetched time from NTP: %s",
+                          now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
                 }
             }
         } else {
@@ -783,17 +798,16 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info, boo
 
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
-    fs::File& file,
-    String& original_filename,
-    uint32_t& image_index,
-    uint32_t& total_files,
-    const photo_frame::battery_info_t& battery_info,
-    bool& file_ready)
-{
-    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
+                               fs::File& file,
+                               String& original_filename,
+                               uint32_t& image_index,
+                               uint32_t& total_files,
+                               const photo_frame::battery_info_t& battery_info,
+                               bool& file_ready) {
+    photo_frame::photo_frame_error_t error    = photo_frame::error_type::None;
     photo_frame::photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
-    file_ready = false; // Initialize to false
-    bool write_toc = is_reset;
+    file_ready                                = false; // Initialize to false
+    bool write_toc                            = is_reset;
 
     log_i("--------------------------------------");
     log_i(" - Find the next image from the SD...");
@@ -826,8 +840,8 @@ handle_google_drive_operations(bool is_reset,
 
             if (!shouldCleanup) {
                 // Check if we need to run cleanup based on time interval
-                auto& prefs = photo_frame::PreferencesHelper::getInstance();
-                time_t now = time(NULL);
+                auto& prefs        = photo_frame::PreferencesHelper::getInstance();
+                time_t now         = time(NULL);
                 time_t lastCleanup = prefs.getLastCleanup();
 
                 if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
@@ -835,7 +849,8 @@ handle_google_drive_operations(bool is_reset,
                     log_i("Time since last cleanup: %ld seconds", now - lastCleanup);
                 } else {
                     log_i("Skipping cleanup, only %ld seconds since last cleanup (need %d seconds)",
-                        now - lastCleanup, CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
+                          now - lastCleanup,
+                          CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
                 }
             }
 
@@ -858,7 +873,8 @@ handle_google_drive_operations(bool is_reset,
             // If battery is critical, use cached TOC even if expired to save power
             bool batteryConservationMode = battery_info.is_critical();
             if (batteryConservationMode) {
-                log_w("Battery critical (%d%%) - using cached TOC to preserve power", battery_info.percent);
+                log_w("Battery critical (%d%%) - using cached TOC to preserve power",
+                      battery_info.percent);
             }
 
             if (error == photo_frame::error_type::None) {
@@ -885,9 +901,10 @@ handle_google_drive_operations(bool is_reset,
                 log_i("Using test file: %s", GOOGLE_DRIVE_TEST_FILE);
                 selectedFile = drive.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
                 if (tocError != photo_frame::error_type::None) {
-                    log_w("Test file not found in TOC, falling back to random selection. Error: %d", tocError.code);
+                    log_w("Test file not found in TOC, falling back to random selection. Error: %d",
+                          tocError.code);
                     // Fallback to random selection
-                    image_index = random(0, drive.get_toc_file_count());
+                    image_index  = random(0, drive.get_toc_file_count());
                     selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
                 }
 #else
@@ -906,15 +923,17 @@ handle_google_drive_operations(bool is_reset,
 
                     // Always download to SD card first for better caching
                     String localFilePath = drive.get_cached_file_path(selectedFile.name);
-                    if (sdCard.file_exists(localFilePath.c_str()) && sdCard.get_file_size(localFilePath.c_str()) > 0) {
+                    if (sdCard.file_exists(localFilePath.c_str()) &&
+                        sdCard.get_file_size(localFilePath.c_str()) > 0) {
                         log_i("File already exists in SD card, using cached version");
                         file = sdCard.open(localFilePath.c_str(), FILE_READ);
                         drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
                     } else {
                         // Check battery level before downloading file
                         if (batteryConservationMode) {
-                            log_w("Skipping file download due to critical battery level (%d%%) - will use cached files if available",
-                                battery_info.percent);
+                            log_w("Skipping file download due to critical battery level (%d%%) - "
+                                  "will use cached files if available",
+                                  battery_info.percent);
                             error = photo_frame::error_type::BatteryLevelCritical;
                         } else {
                             // Download the selected file to SD card
@@ -927,8 +946,9 @@ handle_google_drive_operations(bool is_reset,
                     // Validate and load image file directly to PSRAM buffer
                     if (error == photo_frame::error_type::None && file) {
                         const char* filename = file.name();
-                        String filePath = String(filename);
-                        original_filename = String(filename); // Store original filename for error reporting
+                        String filePath      = String(filename);
+                        original_filename =
+                            String(filename); // Store original filename for error reporting
 
                         log_i("Validating downloaded image file...");
                         auto validationError = photo_frame::io_utils::validate_image_file(
@@ -967,9 +987,16 @@ handle_google_drive_operations(bool is_reset,
                             file.close();
 
                             // Sample first few bytes to verify buffer has data
-                            log_d("Buffer check - First 8 bytes: %02X %02X %02X %02X %02X %02X %02X %02X",
-                                g_display.getBuffer()[0], g_display.getBuffer()[1], g_display.getBuffer()[2], g_display.getBuffer()[3],
-                                g_display.getBuffer()[4], g_display.getBuffer()[5], g_display.getBuffer()[6], g_display.getBuffer()[7]);
+                            log_d("Buffer check - First 8 bytes: %02X %02X %02X %02X %02X %02X "
+                                  "%02X %02X",
+                                  g_display.getBuffer()[0],
+                                  g_display.getBuffer()[1],
+                                  g_display.getBuffer()[2],
+                                  g_display.getBuffer()[3],
+                                  g_display.getBuffer()[4],
+                                  g_display.getBuffer()[5],
+                                  g_display.getBuffer()[6],
+                                  g_display.getBuffer()[7]);
 
                             if (loadError != 0) {
                                 log_e("Failed to load image to buffer, error code: %d", loadError);
@@ -978,7 +1005,7 @@ handle_google_drive_operations(bool is_reset,
                                 log_i("Binary image loaded to PSRAM buffer");
                                 // Mark as successfully processed
                                 fileProcessedSuccessfully = true;
-                                file_ready = true; // Binary image loaded to buffer
+                                file_ready                = true; // Binary image loaded to buffer
                             }
                             sdCard.end();
                         }
@@ -1042,15 +1069,14 @@ handle_google_drive_operations(bool is_reset,
  */
 photo_frame::photo_frame_error_t
 handle_sd_card_operations(bool is_reset,
-    fs::File& file,
-    String& original_filename,
-    uint32_t& image_index,
-    uint32_t& total_files,
-    const photo_frame::battery_info_t& battery_info,
-    bool& file_ready)
-{
+                          fs::File& file,
+                          String& original_filename,
+                          uint32_t& image_index,
+                          uint32_t& total_files,
+                          const photo_frame::battery_info_t& battery_info,
+                          bool& file_ready) {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
-    file_ready = false;
+    file_ready                             = false;
 
     log_i("--------------------------------------");
     log_i(" - SD Card Only Mode - Local Images");
@@ -1083,8 +1109,10 @@ handle_sd_card_operations(bool is_reset,
             if (sdCard.build_directory_toc(images_dir, ".bin", &tocError)) {
                 log_i("SD card TOC built successfully");
             } else {
-                log_w("Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
-                      tocError.message, tocError.code);
+                log_w(
+                    "Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
+                    tocError.message,
+                    tocError.code);
             }
         } else {
             log_i("Using existing SD card TOC cache");
@@ -1093,8 +1121,8 @@ handle_sd_card_operations(bool is_reset,
 
     // Count total files in directory (uses TOC cache if enabled)
     total_files = systemConfig.sd_card.use_toc_cache
-        ? sdCard.count_files_cached(images_dir, ".bin", true)
-        : sdCard.count_files_in_directory(images_dir, ".bin");
+                      ? sdCard.count_files_cached(images_dir, ".bin", true)
+                      : sdCard.count_files_in_directory(images_dir, ".bin");
     if (total_files == 0) {
         log_e("No .bin files found in directory: %s", images_dir);
         sdCard.end();
@@ -1109,8 +1137,8 @@ handle_sd_card_operations(bool is_reset,
 
     // Get the file path at the selected index (uses TOC cache if enabled)
     String file_path = systemConfig.sd_card.use_toc_cache
-        ? sdCard.get_file_at_index_cached(images_dir, image_index, ".bin", true)
-        : sdCard.get_file_at_index(images_dir, image_index, ".bin");
+                           ? sdCard.get_file_at_index_cached(images_dir, image_index, ".bin", true)
+                           : sdCard.get_file_at_index(images_dir, image_index, ".bin");
     if (file_path.isEmpty()) {
         log_e("Failed to get file at index %d", image_index);
         sdCard.end();
@@ -1174,17 +1202,15 @@ handle_sd_card_operations(bool is_reset,
     return error;
 }
 
-
 void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
-    DateTime& now,
-    esp_sleep_wakeup_cause_t wakeup_reason,
-    const refresh_delay_t& refresh_delay)
-{
+                              DateTime& now,
+                              esp_sleep_wakeup_cause_t wakeup_reason,
+                              const refresh_delay_t& refresh_delay) {
 #ifdef RGB_STATUS_ENABLED
     // Shutdown RGB status system to save power during sleep
     log_i("[RGB] Shutting down RGB status system for sleep");
     rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
-#endif // RGB_STATUS_ENABLED
+#endif               // RGB_STATUS_ENABLED
 
     // Power off display and release resources before sleep
     g_display.powerOff();
@@ -1193,10 +1219,11 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     delay(100);
 
     // now go to sleep using the pre-calculated refresh delay
-    if (!battery_info.is_critical() && refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
+    if (!battery_info.is_critical() &&
+        refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
         log_i("Going to sleep for %ld seconds (%lu seconds from microseconds)",
-            refresh_delay.refresh_seconds,
-            (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
+              refresh_delay.refresh_seconds,
+              (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
     } else {
         if (battery_info.is_critical()) {
             log_w("Battery is critical, entering indefinite sleep");
@@ -1207,7 +1234,10 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 
     unsigned long elapsed = millis() - startupTime;
     log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
+
+#ifndef DISABLE_DEEP_SLEEP
     photo_frame::board_utils::enter_deep_sleep(wakeup_reason, refresh_delay.refresh_microseconds);
+#endif // DISABLE_DEEP_SLEEP
 }
 
 /**
@@ -1217,26 +1247,28 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
  * @param now The current time.
  * @return The calculated wakeup delay.
  */
-refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now)
-{
-    refresh_delay_t refresh_delay = { 0, 0 };
+refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now) {
+    refresh_delay_t refresh_delay = {0, 0};
 
     if (battery_info.is_critical()) {
         log_w("Battery is critical, using low battery refresh interval");
         refresh_delay.refresh_seconds = REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY;
-        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        refresh_delay.refresh_microseconds =
+            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         return refresh_delay;
     }
 
     if (!now.isValid()) {
         log_w("Time is invalid, using minimum refresh interval as fallback");
         refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        refresh_delay.refresh_microseconds =
+            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         return refresh_delay;
     }
 
     if (true) { // Changed from the original condition to always execute
-        refresh_delay.refresh_seconds = photo_frame::board_utils::read_refresh_seconds(systemConfig, battery_info.is_low());
+        refresh_delay.refresh_seconds =
+            photo_frame::board_utils::read_refresh_seconds(systemConfig, battery_info.is_low());
 
         log_i("Refresh seconds: %ld", refresh_delay.refresh_seconds);
 
@@ -1256,7 +1288,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
             } else {
                 // We're past DAY_END_HOUR, schedule for DAY_START_HOUR tomorrow
                 DateTime tomorrow = now + TimeSpan(1, 0, 0, 0); // Add 1 day safely
-                nextRefresh = DateTime(
+                nextRefresh       = DateTime(
                     tomorrow.year(), tomorrow.month(), tomorrow.day(), DAY_START_HOUR, 0, 0);
             }
             refresh_delay.refresh_seconds = nextRefresh.unixtime() - now.unixtime();
@@ -1271,13 +1303,17 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
         if (refresh_delay.refresh_seconds <= 0) {
             log_w("Warning: Invalid refresh interval, using minimum interval as fallback");
             refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-            refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+            refresh_delay.refresh_microseconds =
+                (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
-            refresh_delay.refresh_microseconds = (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
-            log_w("Warning: Refresh interval capped to %d seconds to prevent overflow", MAX_DEEP_SLEEP_SECONDS);
+            refresh_delay.refresh_microseconds =
+                (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
+            log_w("Warning: Refresh interval capped to %d seconds to prevent overflow",
+                  MAX_DEEP_SLEEP_SECONDS);
         } else {
             // Safe calculation using 64-bit arithmetic
-            refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+            refresh_delay.refresh_microseconds =
+                (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         }
 
         char humanReadable[64];
@@ -1291,12 +1327,13 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     if (refresh_delay.refresh_microseconds == 0) {
         log_e("CRITICAL: refresh_microseconds is 0, forcing minimum interval");
         refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-        refresh_delay.refresh_microseconds = (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+        refresh_delay.refresh_microseconds =
+            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
     }
 
     log_i("Final refresh delay: %ld seconds (%lu microseconds)",
-        refresh_delay.refresh_seconds,
-        (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
+          refresh_delay.refresh_seconds,
+          (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
 
     return refresh_delay;
 }

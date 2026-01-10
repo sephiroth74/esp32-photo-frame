@@ -128,7 +128,10 @@ battery_info_t battery_reader::read() const {
     float percent     = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
-    log_v("Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA", voltage, percent, charge_rate);
+    log_v("Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA",
+          voltage,
+          percent,
+          charge_rate);
 
     return battery_info(
         voltage /* cell_voltage */, charge_rate /* charge_rate */, percent /* percent */);
@@ -150,7 +153,10 @@ battery_info_t battery_reader::read() const {
 
 #ifdef DEBUG_BATTERY_READER
     log_d("Battery reading: raw: %lu, millivolts: %lu, voltage: %lu, percent: %u",
-          raw, millivolts, voltage, percent);
+          raw,
+          millivolts,
+          voltage,
+          percent);
 #endif // DEBUG_BATTERY_READER
 
     return battery_info(raw /* raw_value */,
