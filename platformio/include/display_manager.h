@@ -86,15 +86,34 @@ public:
     ~DisplayManager();
 
     /**
-     * @brief Initialize the display manager and all components
+     * @brief Initialize buffer only (Phase 1 - for SD card operations)
      * @param preferPsram Try to allocate buffer in PSRAM if available (default: true)
-     * @return true if initialization successful, false otherwise
+     * @return true if buffer allocation successful, false otherwise
      */
-    bool init(bool preferPsram = true);
+    bool initBuffer(bool preferPsram = true);
 
     /**
-     * @brief Check if display manager is initialized
-     * @return true if initialized and ready to use
+     * @brief Initialize display hardware (Phase 2 - after SD card closed)
+     * @return true if display initialization successful, false otherwise
+     * @note Must call initBuffer() first
+     */
+    bool initDisplay();
+
+    /**
+     * @brief Check if buffer is initialized
+     * @return true if buffer is allocated and ready to use
+     */
+    bool isBufferInitialized() const { return imageBuffer_.isInitialized(); }
+
+    /**
+     * @brief Check if display hardware is initialized
+     * @return true if display driver is initialized and ready to use
+     */
+    bool isDisplayInitialized() const { return displayDriver_ != nullptr; }
+
+    /**
+     * @brief Check if display manager is fully initialized (both buffer and hardware)
+     * @return true if fully initialized and ready to use
      */
     bool isInitialized() const { return initialized_; }
 

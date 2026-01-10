@@ -84,7 +84,7 @@
 // Display orientation is now configured dynamically via config.json (board_config.portrait_mode)
 // Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
 
-// #define ACCENT_COLOR GxEPD_RED
+#define ACCENT_COLOR COLOR_DISPLAY_RED
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 

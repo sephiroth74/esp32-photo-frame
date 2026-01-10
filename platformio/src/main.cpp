@@ -185,31 +185,62 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
                                               const photo_frame::battery_info_t& battery_info);
 
 /**
- * @brief Initialize the PSRAM image buffer for Mode 1 format rendering
+ * @brief Initialize the PSRAM image buffer only (Phase 1 - for SD card operations)
  *
- * Uses ImageBuffer class for automatic RAII-based buffer management.
- * The buffer is allocated once in PSRAM (if available) and reused for all images.
+ * Allocates the image buffer in PSRAM (if available) but does NOT initialize
+ * the display hardware. This allows SD card operations to use the buffer
+ * without SPI conflicts.
  *
  * @note This function must be called before any image loading operations
+ * @return true if buffer allocation successful, false if failed
  */
-void init_image_buffer() {
-    if (g_display.isInitialized()) {
-        log_w("[main] Display manager already initialized");
-        return;
+bool init_image_buffer() {
+    if (g_display.isBufferInitialized()) {
+        log_w("[main] Display buffer already initialized");
+        return true;
     }
 
-    log_i("[main] Initializing display manager...");
+    log_i("[main] Initializing display buffer (Phase 1)...");
 
-    if (!g_display.init(true)) { // true = prefer PSRAM
-        log_e("[main] CRITICAL: Failed to initialize display manager!");
+    if (!g_display.initBuffer(true)) { // true = prefer PSRAM
+        log_e("[main] CRITICAL: Failed to initialize display buffer!");
+        log_e("[main] Cannot continue without buffer");
+        return false;
+    }
+
+    log_i("[main] Display buffer initialized successfully");
+    log_i("[main] Buffer size: %u bytes", g_display.getBufferSize());
+
+    // Set rotation based on portrait mode (for buffer operations)
+    g_display.setRotation(portrait_mode ? 1 : 0);
+    return true;
+}
+
+/**
+ * @brief Initialize the display hardware (Phase 2 - after SD card closed)
+ *
+ * Initializes the display hardware and SPI. Must be called after SD card
+ * operations are complete to avoid SPI conflicts.
+ *
+ * @note Must call init_image_buffer() first
+ * @return true if display initialization successful, false if failed
+ */
+bool init_display_hardware() {
+    if (g_display.isDisplayInitialized()) {
+        log_w("[main] Display hardware already initialized");
+        return true;
+    }
+
+    log_i("[main] Initializing display hardware (Phase 2)...");
+
+    if (!g_display.initDisplay()) {
+        log_e("[main] CRITICAL: Failed to initialize display hardware!");
         log_e("[main] Cannot continue without display");
-    } else {
-        log_i("[main] Display manager initialized successfully");
-        log_i("[main] Buffer size: %u bytes", g_display.getBufferSize());
-
-        // Set rotation based on portrait mode
-        g_display.setRotation(portrait_mode ? 1 : 0);
+        return false;
     }
+
+    log_i("[main] Display hardware initialized successfully");
+    return true;
 }
 
 /**
@@ -273,18 +304,42 @@ void setup() {
         error = setup_time_and_connectivity(battery_info, is_reset, now);
     }
 
-    // Initialize PSRAM image buffer BEFORE Google Drive operations
-    // This must be done before load_image_to_buffer() is called
+    // Set portrait_mode from config BEFORE initializing buffer
+    portrait_mode = systemConfig.board.portrait_mode;
+
+    // If config loading failed, try to get from preferences
+    if (!systemConfig.is_valid()) {
+        auto& prefs   = photo_frame::PreferencesHelper::getInstance();
+        portrait_mode = prefs.getPortraitMode(); // Default to false (landscape) if not set
+        log_w("Config invalid, using portrait_mode from preferences: %s",
+              portrait_mode ? "portrait" : "landscape");
+    }
+
+    log_i("Display mode: %s", portrait_mode ? "portrait" : "landscape");
+
+    // Phase 1: Initialize PSRAM image buffer BEFORE SD card operations
+    // This allocates the buffer but does NOT initialize display hardware
     log_i("--------------------------------------");
-    log_i("- Initializing PSRAM image buffer...");
+    log_i("- Phase 1: Initializing image buffer...");
     log_i("--------------------------------------");
-    init_image_buffer();
+    if (!init_image_buffer()) {
+        // Critical failure - cannot continue without buffer
+        log_e("[main] FATAL: Buffer initialization failed!");
+        log_e("[main] Entering deep sleep mode");
+
+        const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
+        photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+                                                   emergency_sleep_duration);
+        return;
+    }
 
     // Handle Google Drive operations
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
     String original_filename; // Store original filename for format detection
     bool file_ready = false;  // Track if file is ready (buffer loaded or file open)
+
+    error           = photo_frame::error_type::BatteryHealthPoor;
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         // Choose image source based on configuration
@@ -333,33 +388,25 @@ void setup() {
     log_i("--------------------------------------");
     refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
 
-    // Initialize E-Paper display
+    // Phase 2: Initialize E-Paper display hardware (after SD card operations are complete)
     log_i("--------------------------------------");
-    log_i("- Initializing E-Paper display...");
+    log_i("- Phase 2: Initializing display hardware...");
     log_i("--------------------------------------");
 
     delay(100);
     RGB_SET_STATE(RENDERING); // Show display rendering
 
-    // Use portrait_mode from config (or from preferences if config failed)
-    portrait_mode = systemConfig.board.portrait_mode; // Set global portrait_mode
+    // Initialize the display hardware now that SD card is closed
+    if (!init_display_hardware()) {
+        // Critical failure - cannot continue without display
+        log_e("[main] FATAL: Display hardware initialization failed!");
+        log_e("[main] Entering deep sleep mode to preserve battery");
 
-    // If config loading failed, try to get from preferences
-    if (!systemConfig.is_valid()) {
-        auto& prefs   = photo_frame::PreferencesHelper::getInstance();
-        portrait_mode = prefs.getPortraitMode(); // Default to false (landscape) if not set
-        log_w("Config invalid, using portrait_mode from preferences: %s",
-              portrait_mode ? "portrait" : "landscape");
+        const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
+        photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+                                                   emergency_sleep_duration);
+        return;
     }
-
-    // Initialize the display manager (handles all display operations)
-    if (!g_display.init()) {
-        log_e("Failed to initialize display manager");
-        // TODO: Handle initialization error properly
-    }
-
-    // Set display rotation based on portrait mode
-    g_display.setRotation(portrait_mode ? 1 : 0);
 
     // Allow time for display SPI bus initialization to complete
     delay(300);

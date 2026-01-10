@@ -18,11 +18,12 @@ static void draw_inverted_bitmap(GFXcanvas8& canvas,
                                  uint16_t color) {
     int16_t byteWidth = (w + 7) / 8;
     uint8_t byte      = 0;
+
     for (int16_t j = 0; j < h; j++) {
         for (int16_t i = 0; i < w; i++) {
-            if (i & 7)
+            if (i & 7) {
                 byte <<= 1;
-            else {
+            } else {
 #if defined(__AVR) || defined(ESP8266) || defined(ESP32)
                 byte = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
 #else
@@ -155,14 +156,93 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
     // Clear canvas
     canvas.fillScreen(DISPLAY_COLOR_WHITE);
 
-    // Draw error message centered
-    const char* errorMsg = "Error";
-    if (error.code != 0) {
-        errorMsg = error.message ? error.message : "Unknown Error";
+    if (error.code == 0) {
+        log_i("drawError: No error to display");
+        return;
     }
 
-    draw_string(
-        canvas, canvas.width() / 2, canvas.height() / 2, errorMsg, CENTER, DISPLAY_COLOR_BLACK);
+    // Select appropriate 196x196 icon based on error type
+    const unsigned char* bitmap_196x196 = nullptr;
+
+    // Compare error codes directly
+    if (error.code == 4) { // NoSdCardAttached error code
+        bitmap_196x196 = getBitmap(icon_name::micro_sd_card_0deg, 196);
+    } else if (error.code == 10) { // BatteryLevelCritical error code
+        bitmap_196x196 = getBitmap(icon_name::battery_alert_0deg, 196);
+    } else {
+        bitmap_196x196 = getBitmap(icon_name::error_icon, 196);
+    }
+
+    // Get display dimensions
+    int16_t disp_w = canvas.width();
+    int16_t disp_h = canvas.height();
+
+    // Check if we're in portrait mode
+    bool is_portrait = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
+
+    // Draw large central icon if we have one
+    if (bitmap_196x196) {
+        // Determine accent color based on display type
+        uint8_t accent_color = DISPLAY_COLOR_BLACK; // Default for B&W displays
+#ifdef DISP_6C
+        accent_color = DISPLAY_COLOR_RED; // Red for 6-color displays
+#endif
+
+        draw_inverted_bitmap(canvas,
+                             disp_w / 2 - 196 / 2,
+                             disp_h / 2 - 196 / 2 - 42,
+                             bitmap_196x196,
+                             196,
+                             196,
+                             accent_color);
+    }
+
+    // Draw error message text below the icon
+    // Use larger font for error message
+    canvas.setFont(&FONT_26pt8b);
+    canvas.setTextColor(DISPLAY_COLOR_BLACK);
+
+    // Position text below icon
+    int16_t baseY = disp_h / 2 + 196 / 2 - 21;
+
+    if (is_portrait)
+        baseY -= 196;
+
+    // Get error message
+    String errorMsg = error.format_for_display();
+
+    // Adjust padding and max lines based on orientation
+    int multiline_error_h_padding;
+    int multiline_error_maxlines;
+
+    if (is_portrait) {
+        // Portrait mode: more vertical space, less horizontal
+        multiline_error_h_padding = 40; // Less horizontal padding in portrait
+        multiline_error_maxlines  = 4;  // More lines available vertically
+    } else {
+        // Landscape mode: more horizontal space, less vertical
+        multiline_error_h_padding = 60; // More horizontal padding in landscape
+        multiline_error_maxlines  = 3;  // Fewer lines in landscape
+    }
+
+    // Draw multi-line error message
+    draw_multiline_string(canvas,
+                          disp_w / 2,
+                          baseY,
+                          errorMsg,
+                          CENTER,
+                          disp_w - multiline_error_h_padding,
+                          multiline_error_maxlines,
+                          55,
+                          DISPLAY_COLOR_BLACK);
+
+    // Draw error code in top-right corner
+    String errorCode = "Error " + String(error.code) + " - " + String(FIRMWARE_VERSION_STRING);
+    canvas.setFont(&FONT_6pt8b);
+    canvas.setTextColor(DISPLAY_COLOR_BLACK);
+
+    int16_t text_width = get_string_width(canvas, errorCode);
+    draw_string(canvas, disp_w - text_width - 10, 10, errorCode.c_str(), LEFT, DISPLAY_COLOR_BLACK);
 }
 
 void draw_error_with_details(GFXcanvas8& canvas,
@@ -348,28 +428,95 @@ void draw_multiline_string(GFXcanvas8& canvas,
                            uint16_t color) {
     canvas.setTextColor(color);
 
-    // Simple implementation - split by newlines
-    String remaining     = text;
-    int16_t current_y    = y;
-    uint16_t lines_drawn = 0;
+    uint16_t current_line = 0;
+    String textRemaining  = text;
+    int16_t current_y     = y;
 
-    while (remaining.length() > 0 && lines_drawn < max_lines) {
-        int newline_pos = remaining.indexOf('\n');
-        String line;
+    // Print until we reach max_lines or no more text remains
+    while (current_line < max_lines && !textRemaining.isEmpty()) {
+        // Get text bounds to check width
+        int16_t x1, y1;
+        uint16_t w, h;
+        canvas.getTextBounds(textRemaining.c_str(), 0, 0, &x1, &y1, &w, &h);
 
-        if (newline_pos >= 0) {
-            line      = remaining.substring(0, newline_pos);
-            remaining = remaining.substring(newline_pos + 1);
-        } else {
-            line      = remaining;
-            remaining = "";
+        int endIndex     = textRemaining.length();
+        String subStr    = textRemaining;
+        int splitAt      = 0;
+        int keepLastChar = 0;
+
+        // Check if remaining text is too wide, if it is then print what we can
+        while (w > max_width && splitAt != -1) {
+            if (keepLastChar) {
+                // Remove last character to avoid infinite loop
+                subStr.remove(subStr.length() - 1);
+            }
+
+            // Find the last place in the string that we can break it
+            if (current_line < max_lines - 1) {
+                // Not the last line - break at space or hyphen
+                int spacePos  = subStr.lastIndexOf(" ");
+                int hyphenPos = subStr.lastIndexOf("-");
+                splitAt       = (spacePos > hyphenPos) ? spacePos : hyphenPos;
+            } else {
+                // This is the last line, only break at spaces so we can add ellipsis
+                splitAt = subStr.lastIndexOf(" ");
+            }
+
+            // If splitAt == -1 then there is an unbroken set of characters longer than max_width
+            if (splitAt != -1) {
+                endIndex      = splitAt;
+                subStr        = subStr.substring(0, endIndex + 1);
+
+                char lastChar = subStr.charAt(endIndex);
+                if (lastChar == ' ') {
+                    keepLastChar = 0;
+                } else {
+                    // Keep hyphen in the printed string
+                    keepLastChar = 1;
+                }
+
+                // Recalculate bounds for the substring
+                canvas.getTextBounds(subStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+            }
         }
 
-        // Draw the line
-        draw_string(canvas, x, current_y, line.c_str(), alignment, color);
+        // Check if this is the last line and we have more text
+        if (current_line == max_lines - 1 && endIndex < textRemaining.length()) {
+            // Add ellipsis if we're truncating
+            if (endIndex > 3) {
+                subStr = textRemaining.substring(0, endIndex - 3) + "...";
+            } else {
+                subStr = "...";
+            }
+        } else if (!keepLastChar && endIndex > 0 && endIndex < textRemaining.length()) {
+            // Remove trailing space if not keeping last character
+            char lastChar = subStr.charAt(endIndex - 1);
+            if (lastChar == ' ') {
+                subStr = textRemaining.substring(0, endIndex - 1);
+                endIndex--;
+            } else {
+                subStr = textRemaining.substring(0, endIndex);
+            }
+        } else {
+            subStr = textRemaining.substring(0, endIndex);
+        }
+
+        // Draw the line with proper alignment
+        draw_string(canvas, x, current_y, subStr.c_str(), alignment, color);
+
+        // Update remaining text
+        if (endIndex < textRemaining.length()) {
+            textRemaining = textRemaining.substring(endIndex);
+            // Skip leading spaces on next line
+            while (textRemaining.length() > 0 && textRemaining.charAt(0) == ' ') {
+                textRemaining.remove(0, 1);
+            }
+        } else {
+            textRemaining = "";
+        }
 
         current_y += line_spacing;
-        lines_drawn++;
+        current_line++;
     }
 }
 

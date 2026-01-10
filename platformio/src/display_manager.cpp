@@ -42,8 +42,8 @@ DisplayManager::~DisplayManager() {
     release();
 }
 
-bool DisplayManager::init(bool preferPsram) {
-    log_i("Initializing DisplayManager...");
+bool DisplayManager::initBuffer(bool preferPsram) {
+    log_i("Initializing DisplayManager buffer (Phase 1)...");
 
     // Release any existing resources
     release();
@@ -60,28 +60,43 @@ bool DisplayManager::init(bool preferPsram) {
           imageBuffer_.getSize(),
           imageBuffer_.isInPsram() ? "PSRAM" : "heap");
 
+    // Set default rotation (landscape) - for buffer operations
+    setRotation(0);
+
+    log_i("DisplayManager buffer initialized successfully (Phase 1 complete)");
+    return true;
+}
+
+bool DisplayManager::initDisplay() {
+    log_i("Initializing DisplayManager display hardware (Phase 2)...");
+
+    if (!imageBuffer_.isInitialized()) {
+        log_e("Buffer not initialized! Call initBuffer() first");
+        return false;
+    }
+
+    if (displayDriver_) {
+        log_w("Display driver already initialized");
+        return true;
+    }
+
     // Create and initialize the display driver
     displayDriver_ = createDisplayDriver();
     if (!displayDriver_) {
         log_e("Failed to create display driver");
-        imageBuffer_.release();
         return false;
     }
 
     if (!displayDriver_->init()) {
         log_e("Failed to initialize display driver");
         displayDriver_.reset(); // Smart pointer automatically deletes
-        imageBuffer_.release();
         return false;
     }
 
     log_i("Display driver initialized");
 
-    // Set default rotation (landscape)
-    setRotation(0);
-
     initialized_ = true;
-    log_i("DisplayManager initialized successfully");
+    log_i("DisplayManager fully initialized (Phase 2 complete)");
 
     return true;
 }
@@ -188,6 +203,7 @@ void DisplayManager::drawImageInfo(uint32_t index,
 }
 
 void DisplayManager::drawError(photo_frame_error_t error) {
+    log_w("draw_error. code=%d, category%d", error.code, error.category);
     if (!initialized_)
         return;
     photo_frame::canvas_renderer::draw_error(imageBuffer_.getCanvas(), error);
