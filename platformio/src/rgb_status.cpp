@@ -29,22 +29,22 @@ RGBStatus rgbStatus;
 
 // Predefined status configurations - optimized for power efficiency (max brightness 64)
 const StatusConfig RGBStatus::STATUS_CONFIGS[] = {
-    {SystemState::IDLE,            RGBColors::DARK_BLUE, RGBEffect::SOLID,      0,    24},
-    {SystemState::STARTING,        RGBColors::WHITE,     RGBEffect::PULSE,      3000, 64},
-    {SystemState::WIFI_CONNECTING, RGBColors::BLUE,      RGBEffect::PULSE,      0,    64},
-    {SystemState::WIFI_FAILED,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    64},
-    {SystemState::SD_READING,      RGBColors::ORANGE,    RGBEffect::PULSE,      0,    48},
-    {SystemState::SD_WRITING,      RGBColors::YELLOW,    RGBEffect::PULSE,      0,    48},
-    {SystemState::GOOGLE_DRIVE,    RGBColors::CYAN,      RGBEffect::PULSE,      0,    64},
-    {SystemState::DOWNLOADING,     RGBColors::PURPLE,    RGBEffect::PULSE,      0,    64},
-    {SystemState::RENDERING,       RGBColors::PINK,      RGBEffect::PULSE,      0,    48},
-    {SystemState::BATTERY_LOW,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    48},
+    {SystemState::IDLE,            RGBColors::DARK_BLUE, RGBEffect::SOLID,      0,    12},
+    {SystemState::STARTING,        RGBColors::WHITE,     RGBEffect::PULSE,      3000, 12},
+    {SystemState::WIFI_CONNECTING, RGBColors::BLUE,      RGBEffect::PULSE,      0,    12},
+    {SystemState::WIFI_FAILED,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    12},
+    {SystemState::SD_READING,      RGBColors::ORANGE,    RGBEffect::PULSE,      0,    12},
+    {SystemState::SD_WRITING,      RGBColors::YELLOW,    RGBEffect::PULSE,      0,    12},
+    {SystemState::GOOGLE_DRIVE,    RGBColors::CYAN,      RGBEffect::PULSE,      0,    12},
+    {SystemState::DOWNLOADING,     RGBColors::PURPLE,    RGBEffect::PULSE,      0,    12},
+    {SystemState::RENDERING,       RGBColors::PINK,      RGBEffect::PULSE,      0,    12},
+    {SystemState::BATTERY_LOW,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    12},
     {SystemState::ERROR,
      RGBColors::RED,
      RGBEffect::BLINK_FAST,
-     0,                                                                               96}, // Keep error reasonably bright for visibility
-    {SystemState::SLEEP_PREP,      RGBColors::DIM_WHITE, RGBEffect::FADE_OUT,   2000, 64},
-    {SystemState::CUSTOM,          RGBColors::WHITE,     RGBEffect::SOLID,      0,    64}
+     0,                                                                               48}, // Keep error reasonably bright for visibility
+    {SystemState::SLEEP_PREP,      RGBColors::DIM_WHITE, RGBEffect::FADE_OUT,   2000, 12},
+    {SystemState::CUSTOM,          RGBColors::WHITE,     RGBEffect::SOLID,      0,    12}
 };
 
 const size_t RGBStatus::NUM_STATUS_CONFIGS = sizeof(STATUS_CONFIGS) / sizeof(StatusConfig);

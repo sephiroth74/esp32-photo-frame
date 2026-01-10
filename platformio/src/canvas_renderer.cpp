@@ -6,16 +6,16 @@
 #include <assets/icons/icons.h>
 
 namespace photo_frame {
-namespace canvas_renderer {
+// Canvas rendering functions
 
 // Helper function to draw inverted bitmap (for icons)
-static void draw_inverted_bitmap(GFXcanvas8& canvas,
-                                 int16_t x,
-                                 int16_t y,
-                                 const uint8_t bitmap[],
-                                 int16_t w,
-                                 int16_t h,
-                                 uint16_t color) {
+static void drawInvertedBitmap(GFXcanvas8& canvas,
+                               int16_t x,
+                               int16_t y,
+                               const uint8_t bitmap[],
+                               int16_t w,
+                               int16_t h,
+                               uint16_t color) {
     int16_t byteWidth = (w + 7) / 8;
     uint8_t byte      = 0;
 
@@ -37,12 +37,12 @@ static void draw_inverted_bitmap(GFXcanvas8& canvas,
     }
 }
 
-void draw_overlay(GFXcanvas8& canvas) {
+void drawOverlay(GFXcanvas8& canvas) {
     // Determine portrait mode from canvas rotation
     // Rotation 1 or 3 = portrait, 0 or 2 = landscape
     bool portrait_mode = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
-    log_i("draw_overlay(rotation=%d)", canvas.getRotation());
+    log_i("drawOverlay(rotation=%d)", canvas.getRotation());
     log_v("canvas size: %dx%d", canvas.width(), canvas.height());
 
     // Draw a simple status bar
@@ -56,7 +56,7 @@ void draw_overlay(GFXcanvas8& canvas) {
     }
 }
 
-void draw_last_update(GFXcanvas8& canvas, const DateTime& lastUpdate, long refresh_seconds) {
+void drawLastUpdate(GFXcanvas8& canvas, const DateTime& lastUpdate, long refresh_seconds) {
     // Determine portrait mode from canvas rotation
     bool portrait_mode      = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
@@ -86,14 +86,14 @@ void draw_last_update(GFXcanvas8& canvas, const DateTime& lastUpdate, long refre
 
     // In landscape mode, show icon; in portrait mode, just text
     if (!portrait_mode) {
-        draw_side_message_with_icon(
+        drawSideMessageWithIcon(
             canvas, gravity::TOP_LEFT, icon_name::wi_time_10, lastUpdateBuffer, 0, -2);
     } else {
-        draw_side_message(canvas, gravity::TOP_LEFT, lastUpdateBuffer, 0, 0);
+        drawSideMessage(canvas, gravity::TOP_LEFT, lastUpdateBuffer, 0, 0);
     }
 }
 
-void draw_battery_status(GFXcanvas8& canvas, battery_info_t battery_info) {
+void drawBatteryStatus(GFXcanvas8& canvas, battery_info_t battery_info) {
     auto battery_voltage    = battery_info.millivolts;
     auto battery_percentage = battery_info.percent;
 
@@ -134,26 +134,26 @@ void draw_battery_status(GFXcanvas8& canvas, battery_info_t battery_info) {
 #endif
 #endif
 
-    draw_side_message_with_icon(canvas, TOP_RIGHT, icon_name, message.c_str(), 0, 0);
+    drawSideMessageWithIcon(canvas, TOP_RIGHT, icon_name, message.c_str(), 0, 0);
 }
 
-void draw_image_info(GFXcanvas8& canvas,
-                     uint32_t index,
-                     uint32_t total_images,
-                     image_source_t image_source) {
+void drawImageInfo(GFXcanvas8& canvas,
+                   uint32_t index,
+                   uint32_t total_images,
+                   image_source_t image_source) {
     String message = String(index + 1) + " / " + String(total_images);
-    draw_side_message_with_icon(canvas,
-                                gravity::TOP_CENTER,
-                                image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
-                                    ? icon_name::cloud_0deg
-                                    : icon_name::micro_sd_card_0deg,
-                                message.c_str(),
-                                -4,
-                                0);
+    drawSideMessageWithIcon(canvas,
+                            gravity::TOP_CENTER,
+                            image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
+                                ? icon_name::cloud_0deg
+                                : icon_name::micro_sd_card_0deg,
+                            message.c_str(),
+                            -4,
+                            0);
 }
 
-void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
-    log_d("draw_error: Starting with error code %d", error.code);
+void drawError(GFXcanvas8& canvas, photo_frame_error_t error) {
+    log_d("drawError: Starting with error code %d", error.code);
 
     // Clear canvas
     canvas.fillScreen(DISPLAY_COLOR_WHITE);
@@ -163,7 +163,7 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
         return;
     }
 
-    log_d("draw_error: Canvas cleared, proceeding with drawing");
+    log_d("drawError: Canvas cleared, proceeding with drawing");
 
     // Select appropriate 196x196 icon based on error type
     const unsigned char* bitmap_196x196 = nullptr;
@@ -199,7 +199,7 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
         int16_t icon_x = disp_w / 2 - 196 / 2;
         int16_t icon_y = disp_h / 2 - 196 / 2 - 42 + vertical_offset;
 
-        draw_inverted_bitmap(canvas, icon_x, icon_y, bitmap_196x196, 196, 196, accent_color);
+        drawInvertedBitmap(canvas, icon_x, icon_y, bitmap_196x196, 196, 196, accent_color);
     }
 
     // Draw error message text below the icon
@@ -212,7 +212,7 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
 
     // Get error message
     String errorMsg = error.format_for_display();
-    log_d("draw_error: Error message: %s", errorMsg.c_str());
+    log_d("drawError: Error message: %s", errorMsg.c_str());
 
     // Adjust padding and max lines based on orientation
     int multiline_error_h_padding;
@@ -231,78 +231,78 @@ void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
     // Calculate actual text width available
     int16_t text_max_width = disp_w - multiline_error_h_padding;
 
-    log_d("draw_error: About to draw multiline string - max_width: %d, total_padding: %d, "
+    log_d("drawError: About to draw multiline string - max_width: %d, total_padding: %d, "
           "max_lines: %d",
           text_max_width,
           multiline_error_h_padding,
           multiline_error_maxlines);
 
     // Draw multi-line error message
-    draw_multiline_string(canvas,
-                          disp_w / 2,
-                          baseY,
-                          errorMsg,
-                          CENTER,
-                          text_max_width, // Use calculated max width
-                          multiline_error_maxlines,
-                          55,
-                          DISPLAY_COLOR_BLACK);
+    drawMultilineString(canvas,
+                        disp_w / 2,
+                        baseY,
+                        errorMsg,
+                        CENTER,
+                        text_max_width, // Use calculated max width
+                        multiline_error_maxlines,
+                        55,
+                        DISPLAY_COLOR_BLACK);
 
-    log_d("draw_error: Multiline string drawn successfully");
+    log_d("drawError: Multiline string drawn successfully");
 
     // Draw error code in top-right corner
     String errorCode = "Error " + String(error.code) + " - " + String(FIRMWARE_VERSION_STRING);
     canvas.setFont(&FONT_6pt8b);
     canvas.setTextColor(DISPLAY_COLOR_BLACK);
 
-    int16_t text_width = get_string_width(canvas, errorCode);
-    draw_string(canvas, disp_w - text_width - 10, 10, errorCode.c_str(), LEFT, DISPLAY_COLOR_BLACK);
+    int16_t text_width = getStringWidth(canvas, errorCode);
+    drawString(canvas, disp_w - text_width - 10, 10, errorCode.c_str(), LEFT, DISPLAY_COLOR_BLACK);
 }
 
-void draw_error_with_details(GFXcanvas8& canvas,
-                             const String& errMsgLn1,
-                             const String& errMsgLn2,
-                             const char* filename,
-                             uint16_t errorCode) {
+void drawErrorWithDetails(GFXcanvas8& canvas,
+                          const String& errMsgLn1,
+                          const String& errMsgLn2,
+                          const char* filename,
+                          uint16_t errorCode) {
     // Clear canvas
     canvas.fillScreen(DISPLAY_COLOR_WHITE);
 
     // Draw main error message
-    draw_string(canvas,
-                canvas.width() / 2,
-                canvas.height() / 2 - 20,
-                errMsgLn1.c_str(),
-                CENTER,
-                DISPLAY_COLOR_BLACK);
+    drawString(canvas,
+               canvas.width() / 2,
+               canvas.height() / 2 - 20,
+               errMsgLn1.c_str(),
+               CENTER,
+               DISPLAY_COLOR_BLACK);
 
     // Draw secondary message if provided
     if (errMsgLn2.length() > 0) {
-        draw_string(canvas,
-                    canvas.width() / 2,
-                    canvas.height() / 2,
-                    errMsgLn2.c_str(),
-                    CENTER,
-                    DISPLAY_COLOR_BLACK);
+        drawString(canvas,
+                   canvas.width() / 2,
+                   canvas.height() / 2,
+                   errMsgLn2.c_str(),
+                   CENTER,
+                   DISPLAY_COLOR_BLACK);
     }
 
     // Draw filename and error code if provided
     if (filename && errorCode > 0) {
         String details = String(filename) + " (Error: " + String(errorCode) + ")";
-        draw_string(canvas,
-                    canvas.width() / 2,
-                    canvas.height() / 2 + 20,
-                    details.c_str(),
-                    CENTER,
-                    DISPLAY_COLOR_BLACK);
+        drawString(canvas,
+                   canvas.width() / 2,
+                   canvas.height() / 2 + 20,
+                   details.c_str(),
+                   CENTER,
+                   DISPLAY_COLOR_BLACK);
     }
 }
 
-void draw_side_message_with_icon(GFXcanvas8& canvas,
-                                 gravity_t gravity,
-                                 icon_name_t icon_name,
-                                 const char* message,
-                                 int32_t x_offset,
-                                 int32_t y_offset) {
+void drawSideMessageWithIcon(GFXcanvas8& canvas,
+                             gravity_t gravity,
+                             icon_name_t icon_name,
+                             const char* message,
+                             int32_t x_offset,
+                             int32_t y_offset) {
     canvas.setFont(&FONT_7pt8b);
     canvas.setTextColor(DISPLAY_COLOR_BLACK);
 
@@ -323,14 +323,14 @@ void draw_side_message_with_icon(GFXcanvas8& canvas,
         text_y = 10 + y_offset;
         break;
     case TOP_RIGHT: {
-        int16_t text_width = get_string_width(canvas, String(message));
+        int16_t text_width = getStringWidth(canvas, String(message));
         icon_x             = canvas.width() - text_width - 20 + x_offset;
         icon_y             = 0 + y_offset;
         text_x             = icon_x + 18;
         text_y             = 10 + y_offset;
     } break;
     case TOP_CENTER: {
-        int16_t text_width = get_string_width(canvas, String(message));
+        int16_t text_width = getStringWidth(canvas, String(message));
         icon_x             = (canvas.width() - text_width - 18) / 2 + x_offset;
         icon_y             = 0 + y_offset;
         text_x             = icon_x + 18;
@@ -340,18 +340,18 @@ void draw_side_message_with_icon(GFXcanvas8& canvas,
     }
 
     // Draw icon
-    draw_inverted_bitmap(canvas, icon_x, icon_y, icon, 16, 16, DISPLAY_COLOR_BLACK);
+    drawInvertedBitmap(canvas, icon_x, icon_y, icon, 16, 16, DISPLAY_COLOR_BLACK);
 
     // Draw text
     canvas.setCursor(text_x, text_y);
     canvas.print(message);
 }
 
-void draw_side_message(GFXcanvas8& canvas,
-                       gravity_t gravity,
-                       const char* message,
-                       int32_t x_offset,
-                       int32_t y_offset) {
+void drawSideMessage(GFXcanvas8& canvas,
+                     gravity_t gravity,
+                     const char* message,
+                     int32_t x_offset,
+                     int32_t y_offset) {
     canvas.setFont(&FONT_7pt8b);
     canvas.setTextColor(DISPLAY_COLOR_BLACK);
 
@@ -366,14 +366,14 @@ void draw_side_message(GFXcanvas8& canvas,
         canvas.print(message);
         break;
     case TOP_RIGHT: {
-        int16_t text_width = get_string_width(canvas, String(message));
+        int16_t text_width = getStringWidth(canvas, String(message));
         x                  = canvas.width() - text_width - 2 + x_offset;
         y                  = 10 + y_offset;
         canvas.setCursor(x, y);
         canvas.print(message);
     } break;
     case TOP_CENTER: {
-        int16_t text_width = get_string_width(canvas, String(message));
+        int16_t text_width = getStringWidth(canvas, String(message));
         x                  = (canvas.width() - text_width) / 2 + x_offset;
         y                  = 10 + y_offset;
         canvas.setCursor(x, y);
@@ -383,7 +383,7 @@ void draw_side_message(GFXcanvas8& canvas,
     }
 }
 
-rect_t get_text_bounds(GFXcanvas8& canvas, const char* text, int16_t x, int16_t y) {
+rect_t getTextBounds(GFXcanvas8& canvas, const char* text, int16_t x, int16_t y) {
     rect_t bounds;
     int16_t x1, y1;
     uint16_t w, h;
@@ -398,28 +398,28 @@ rect_t get_text_bounds(GFXcanvas8& canvas, const char* text, int16_t x, int16_t 
     return bounds;
 }
 
-uint16_t get_string_width(GFXcanvas8& canvas, const String& text) {
-    rect_t bounds = get_text_bounds(canvas, text.c_str(), 0, 0);
+uint16_t getStringWidth(GFXcanvas8& canvas, const String& text) {
+    rect_t bounds = getTextBounds(canvas, text.c_str(), 0, 0);
     return bounds.width;
 }
 
-uint16_t get_string_height(GFXcanvas8& canvas, const String& text) {
-    rect_t bounds = get_text_bounds(canvas, text.c_str(), 0, 0);
+uint16_t getStringHeight(GFXcanvas8& canvas, const String& text) {
+    rect_t bounds = getTextBounds(canvas, text.c_str(), 0, 0);
     return bounds.height;
 }
 
-void draw_string(GFXcanvas8& canvas,
-                 int16_t x,
-                 int16_t y,
-                 const char* text,
-                 alignment_t alignment,
-                 uint16_t color) {
+void drawString(GFXcanvas8& canvas,
+                int16_t x,
+                int16_t y,
+                const char* text,
+                alignment_t alignment,
+                uint16_t color) {
     canvas.setTextColor(color);
 
     // Calculate aligned position
     int16_t draw_x = x;
     if (alignment != LEFT) {
-        int16_t text_width = get_string_width(canvas, String(text));
+        int16_t text_width = getStringWidth(canvas, String(text));
         if (alignment == CENTER) {
             draw_x = x - text_width / 2;
         } else if (alignment == RIGHT) {
@@ -431,15 +431,15 @@ void draw_string(GFXcanvas8& canvas,
     canvas.print(text);
 }
 
-void draw_multiline_string(GFXcanvas8& canvas,
-                           int16_t x,
-                           int16_t y,
-                           const String& text,
-                           alignment_t alignment,
-                           uint16_t max_width,
-                           uint16_t max_lines,
-                           int16_t line_spacing,
-                           uint16_t color) {
+void drawMultilineString(GFXcanvas8& canvas,
+                         int16_t x,
+                         int16_t y,
+                         const String& text,
+                         alignment_t alignment,
+                         uint16_t max_width,
+                         uint16_t max_lines,
+                         int16_t line_spacing,
+                         uint16_t color) {
     canvas.setTextColor(color);
 
     uint16_t current_line = 0;
@@ -553,7 +553,7 @@ void draw_multiline_string(GFXcanvas8& canvas,
         }
 
         // Draw the line with proper alignment
-        draw_string(canvas, x, current_y, subStr.c_str(), alignment, color);
+        drawString(canvas, x, current_y, subStr.c_str(), alignment, color);
 
         // Update remaining text
         if (endIndex < textRemaining.length()) {
@@ -571,14 +571,14 @@ void draw_multiline_string(GFXcanvas8& canvas,
     }
 }
 
-void draw_rounded_rect(GFXcanvas8& canvas,
-                       int16_t x,
-                       int16_t y,
-                       int16_t width,
-                       int16_t height,
-                       uint16_t radius,
-                       uint16_t color,
-                       uint8_t transparency) {
+void drawRoundedRect(GFXcanvas8& canvas,
+                     int16_t x,
+                     int16_t y,
+                     int16_t width,
+                     int16_t height,
+                     uint16_t radius,
+                     uint16_t color,
+                     uint8_t transparency) {
     // Draw filled rounded rectangle
     canvas.fillRoundRect(x, y, width, height, radius, color);
 
@@ -642,5 +642,4 @@ void draw_rounded_rect(GFXcanvas8& canvas,
     }
 }
 
-} // namespace canvas_renderer
 } // namespace photo_frame

@@ -97,7 +97,7 @@ void cleanup() {
 
 // ========== Legacy function wrappers using canvas_renderer ==========
 
-void draw_multiline_string(GFXcanvas8 canvas,
+void drawMultilineString(GFXcanvas8 canvas,
                            int16_t x,
                            int16_t y,
                            const String& text,
@@ -108,11 +108,11 @@ void draw_multiline_string(GFXcanvas8 canvas,
                            uint16_t color) {
 
     // Draw on canvas using canvas_renderer
-    canvas_renderer::draw_multiline_string(
+    drawMultilineString(
         canvas, x, y, text, alignment, max_width, max_lines, line_spacing, color);
 }
 
-void draw_side_message_with_icon(Adafruit_GFX& gfx,
+void drawSideMessageWithIcon(Adafruit_GFX& gfx,
                                  gravity_t gravity,
                                  icon_name_t icon_name,
                                  const char* message,
@@ -121,11 +121,11 @@ void draw_side_message_with_icon(Adafruit_GFX& gfx,
     // This version draws directly on the provided GFX object (could be a canvas)
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
-    canvas_renderer::draw_side_message_with_icon(
+    drawSideMessageWithIcon(
         canvas, gravity, icon_name, message, x_offset, y_offset);
 }
 
-void draw_side_message(Adafruit_GFX& gfx,
+void drawSideMessage(Adafruit_GFX& gfx,
                        gravity_t gravity,
                        const char* message,
                        int32_t x_offset,
@@ -133,31 +133,31 @@ void draw_side_message(Adafruit_GFX& gfx,
     // This version draws directly on the provided GFX object
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
-    canvas_renderer::draw_side_message(canvas, gravity, message, x_offset, y_offset);
+    drawSideMessage(canvas, gravity, message, x_offset, y_offset);
 }
 
-void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds) {
+void drawLastUpdate(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds) {
     // This version draws directly on the provided GFX object
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
-    canvas_renderer::draw_last_update(canvas, lastUpdate, refresh_seconds);
+    drawLastUpdate(canvas, lastUpdate, refresh_seconds);
 }
 
-void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info) {
+void drawBatteryStatus(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info) {
     // This version draws directly on the provided GFX object
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
-    canvas_renderer::draw_battery_status(canvas, battery_info);
+    drawBatteryStatus(canvas, battery_info);
 }
 
-void draw_image_info(Adafruit_GFX& gfx,
+void drawImageInfo(Adafruit_GFX& gfx,
                      uint32_t index,
                      uint32_t total_images,
                      photo_frame::image_source_t image_source) {
     // This version draws directly on the provided GFX object
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
-    canvas_renderer::draw_image_info(canvas, index, total_images, image_source);
+    drawImageInfo(canvas, index, total_images, image_source);
 }
 
 // ========== Display state functions ==========
@@ -184,18 +184,18 @@ bool has_color() { return displayDriver.has_color(); }
 
 // ========== Error display functions ==========
 
-void draw_error(GFXcanvas8& canvas, photo_frame_error_t error) {
+void drawError(GFXcanvas8& canvas, photo_frame_error_t error) {
     // Forward to canvas_renderer
-    photo_frame::canvas_renderer::draw_error(canvas, error);
+    photo_frame::drawError(canvas, error);
 }
 
-void draw_error_with_details(GFXcanvas8& canvas,
+void drawErrorWithDetails(GFXcanvas8& canvas,
                              const String& errMsgLn1,
                              const String& errMsgLn2,
                              const char* filename,
                              uint16_t errorCode) {
     // Forward to canvas_renderer
-    photo_frame::canvas_renderer::draw_error_with_details(
+    photo_frame::drawErrorWithDetails(
         canvas, errMsgLn1, errMsgLn2, filename, errorCode);
 }
 

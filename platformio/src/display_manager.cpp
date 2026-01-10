@@ -178,22 +178,21 @@ void DisplayManager::drawOverlay() {
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
-    photo_frame::canvas_renderer::draw_overlay(imageBuffer_.getCanvas());
+    photo_frame::drawOverlay(imageBuffer_.getCanvas());
 }
 
 void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds) {
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
-    photo_frame::canvas_renderer::draw_last_update(
-        imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
+    photo_frame::drawLastUpdate(imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
 }
 
 void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
-    photo_frame::canvas_renderer::draw_battery_status(imageBuffer_.getCanvas(), battery_info);
+    photo_frame::drawBatteryStatus(imageBuffer_.getCanvas(), battery_info);
 }
 
 void DisplayManager::drawImageInfo(uint32_t index,
@@ -202,8 +201,7 @@ void DisplayManager::drawImageInfo(uint32_t index,
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
-    photo_frame::canvas_renderer::draw_image_info(
-        imageBuffer_.getCanvas(), index, total_images, image_source);
+    photo_frame::drawImageInfo(imageBuffer_.getCanvas(), index, total_images, image_source);
 }
 
 void DisplayManager::drawError(photo_frame_error_t error) {
@@ -213,7 +211,7 @@ void DisplayManager::drawError(photo_frame_error_t error) {
         log_e("Cannot draw error - image buffer not initialized");
         return;
     }
-    photo_frame::canvas_renderer::draw_error(imageBuffer_.getCanvas(), error);
+    photo_frame::drawError(imageBuffer_.getCanvas(), error);
 }
 
 void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,
@@ -223,7 +221,7 @@ void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
-    photo_frame::canvas_renderer::draw_error_with_details(
+    photo_frame::drawErrorWithDetails(
         imageBuffer_.getCanvas(), errMsgLn1, errMsgLn2, filename, errorCode);
 }
 
