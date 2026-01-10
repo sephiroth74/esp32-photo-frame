@@ -145,6 +145,8 @@ struct unified_config {
     struct sd_card_config {
         bool enabled = false; // Enable/disable SD card as image source
         String images_directory = "/images"; // Directory on SD card containing images
+        bool use_toc_cache = true; // Enable TOC caching for performance
+        uint32_t toc_max_age_seconds = 86400; // Max TOC age (24 hours)
 
         bool is_valid() const
         {

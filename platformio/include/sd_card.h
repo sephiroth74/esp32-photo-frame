@@ -96,13 +96,19 @@ class sd_card {
     bool initialized;       ///< Flag indicating if SD card is initialized
     sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
+    // TOC caching system
+    mutable String cached_toc_directory_;  ///< Last directory used for TOC
+    mutable String cached_toc_extension_;  ///< Last extension used for TOC
+    mutable time_t cached_toc_timestamp_;  ///< When TOC was created
+    mutable bool toc_valid_;               ///< Whether TOC is currently valid
+
   public:
     /**
      * @brief Constructor for sd_card using SD_MMC (SDIO interface).
      * SD_MMC uses fixed pins that cannot be configured:
      * - CLK: GPIO14, CMD: GPIO15, D0: GPIO2, D1: GPIO4, D2: GPIO12, D3: GPIO13
      */
-    sd_card() : initialized(false), cardType(CARD_UNKNOWN) {}
+    sd_card() : initialized(false), cardType(CARD_UNKNOWN), toc_valid_(false) {}
 
     // Disable copy constructor and assignment operator
     sd_card(const sd_card&)            = delete;
@@ -330,6 +336,61 @@ class sd_card {
      * @return The card size in bytes, or 0 if the SD card is not initialized.
      */
     uint64_t card_size() const;
+
+    // ========== TOC (Table of Contents) Caching System ==========
+
+    /**
+     * Builds a TOC (Table of Contents) file for a directory.
+     * This creates an index of all files matching the extension, allowing
+     * for fast random access without directory iteration.
+     * @param dir_path The directory path to build TOC for.
+     * @param extension The file extension to include (e.g., ".bin"). Default is ".bin".
+     * @param error Optional pointer to store error details if build fails.
+     * @return true if TOC was built successfully, false otherwise.
+     */
+    bool build_directory_toc(const char* dir_path, const char* extension = ".bin", photo_frame_error_t* error = nullptr);
+
+    /**
+     * Checks if the TOC is valid for the given directory.
+     * Validates that TOC exists, matches the directory, and is up-to-date.
+     * @param dir_path The directory path to check.
+     * @param extension The file extension filter.
+     * @return true if TOC is valid and can be used, false if it needs rebuilding.
+     */
+    bool is_toc_valid(const char* dir_path, const char* extension = ".bin") const;
+
+    /**
+     * Invalidates the cached TOC, forcing a rebuild on next access.
+     * Call this when directory contents may have changed.
+     */
+    void invalidate_toc();
+
+    /**
+     * Gets the number of files using the cached TOC if available.
+     * If TOC is not valid, falls back to directory iteration.
+     * @param dir_path The directory path.
+     * @param extension The file extension filter.
+     * @param use_toc If true, attempts to use TOC cache. Default is true.
+     * @return Number of files matching the extension.
+     */
+    uint32_t count_files_cached(const char* dir_path, const char* extension = ".bin", bool use_toc = true) const;
+
+    /**
+     * Gets a file at index using the cached TOC if available.
+     * If TOC is not valid, falls back to directory iteration.
+     * @param dir_path The directory path.
+     * @param index The file index (0-based).
+     * @param extension The file extension filter.
+     * @param use_toc If true, attempts to use TOC cache. Default is true.
+     * @return Full path to the file, or empty string if not found.
+     */
+    String get_file_at_index_cached(const char* dir_path, uint32_t index, const char* extension = ".bin", bool use_toc = true) const;
+
+private:
+    // Helper methods for TOC operations
+    String get_toc_data_path() const { return "/sd_toc_data.txt"; }
+    String get_toc_meta_path() const { return "/sd_toc_meta.txt"; }
+    bool should_use_toc(const char* dir_path, const char* extension) const;
 };
 
 } // namespace photo_frame

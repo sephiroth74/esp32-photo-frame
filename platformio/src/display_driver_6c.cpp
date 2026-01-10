@@ -29,6 +29,9 @@ DisplayDriver6C::~DisplayDriver6C()
 
 void DisplayDriver6C::configureSPI()
 {
+    log_i("Configuring SPI for display");
+    log_v("pins: BUSY(%d), RST(%d), DC(%d), CS(%d), SCK(%d), MOSI(%d)", _busy_pin, _rst_pin, _dc_pin, _cs_pin, _sck_pin, _mosi_pin);
+
     // Configure pins
     pinMode(_busy_pin, INPUT);
     pinMode(_rst_pin, OUTPUT);
@@ -104,16 +107,30 @@ void DisplayDriver6C::sleep()
     log_d("Display is now in sleep mode");
 }
 
-void DisplayDriver6C::refresh()
+void DisplayDriver6C::refresh(bool partial_update)
 {
     if (!initialized) {
         log_w("Display not initialized");
         return;
     }
 
-    log_w("Not implemented for this display");
+    log_d("Refreshing 6-color display (partial=%d)...", partial_update);
+    // Note: 6-color display doesn't support partial updates
+    log_w("Refresh not fully implemented for this display");
 
     log_d("Refresh complete");
+}
+
+void DisplayDriver6C::power_off()
+{
+    log_d("Powering off 6-color display...");
+    sleep();  // For 6-color display, power_off is same as sleep
+}
+
+void DisplayDriver6C::hibernate()
+{
+    log_d("Putting 6-color display in hibernate mode...");
+    sleep();  // For 6-color display, hibernate is same as sleep
 }
 
 void DisplayDriver6C::clear()

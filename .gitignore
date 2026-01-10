@@ -55,3 +55,7 @@ platformio/.cache/
 platformio/src/renderer.cpp.bak
 platformio/DISPLAY_ABSTRACTION_PLAN.md
 platformio/DISPLAY_RENDERING_ARCHITECTURE.md
+platformio/DISPLAY_INITIALIZATION_FIX.md
+platformio/DISPLAY_MANAGER_USAGE.md
+platformio/DISPLAY_REFACTORING_SUMMARY.md
+platformio/MEMORY_SAFETY_IMPROVEMENTS.md

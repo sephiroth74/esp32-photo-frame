@@ -280,6 +280,19 @@ const photo_frame_error SdCardDirCreateFailed{TXT_SD_CARD_DIR_CREATE_FAILED, 36,
 const photo_frame_error CardTocOpenFileFailed{TXT_CARD_TOC_OPEN_FILE_FAILED, 11, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error FileOpenFailed{TXT_FILE_OPEN_FAILED, 20, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error PreferencesOpenFailed{TXT_PREFERENCES_OPEN_FAILED, 12, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error FileNotFound{"File not found", 37, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error FileReadError{"File read error", 38, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+
+// TOC (Table of Contents) Specific Errors (39-49)
+const photo_frame_error TocBuildFailed{"TOC build failed", 39, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocInvalid{"TOC is invalid or outdated", 40, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocReadFailed{"Failed to read TOC", 41, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocHeaderInvalid{"TOC header is invalid", 42, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocIndexOutOfRange{"TOC index out of range", 43, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocMetadataMissing{"TOC metadata file missing", 44, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocDirectoryMismatch{"TOC directory mismatch", 45, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocWriteFailed{"Failed to write TOC", 46, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error TocCorrupted{"TOC file is corrupted", 47, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 
 // LittleFS errors (110-119)
 const photo_frame_error LittleFSInitFailed{TXT_LITTLEFS_INIT_FAILED, 110, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};

@@ -18,10 +18,12 @@ public:
     bool init() override;
     bool picDisplay(uint8_t* imageBuffer) override;
     void sleep() override;
-    void refresh() override;
+    void refresh(bool partial_update = false) override;
     void clear() override;
+    void power_off() override;
+    void hibernate() override;
     const char* getDisplayType() const override { return "Black & White"; }
-    bool hasColor() const override { return false; }  // B&W display
+    bool has_color() const override { return false; }  // B&W display
 
 protected:
     void configureSPI() override;

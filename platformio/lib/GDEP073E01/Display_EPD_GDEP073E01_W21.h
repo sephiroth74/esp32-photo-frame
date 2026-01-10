@@ -9,23 +9,45 @@ namespace GDEP073E01 {
 void SPI_Write(unsigned char value);
 void EPD_W21_WriteDATA(unsigned char datas);
 void EPD_W21_WriteCMD(unsigned char command);
-// 8bit
-#define Black 0x00
-#define White 0x11
-#define Green 0x66
-#define Blue 0x55
-#define Red 0x33
-#define Yellow 0x22
-#define Clean 0x77
 
-// 4bit
-#define black 0x00
-#define white 0x01
-#define green 0x06
-#define blue 0x05
-#define red 0x03
-#define yellow 0x02
-#define clean 0x07
+// 8-bit color values for the display
+enum Colors_8bit {
+    COLOR_BLACK_8 = 0x00,
+    COLOR_WHITE_8 = 0x11,
+    COLOR_GREEN_8 = 0x66,
+    COLOR_BLUE_8 = 0x55,
+    COLOR_RED_8 = 0x33,
+    COLOR_YELLOW_8 = 0x22,
+    COLOR_CLEAN_8 = 0x77
+};
+
+// 4-bit color values for the display
+enum Colors_4bit {
+    COLOR_BLACK_4 = 0x00,
+    COLOR_WHITE_4 = 0x01,
+    COLOR_GREEN_4 = 0x06,
+    COLOR_BLUE_4 = 0x05,
+    COLOR_RED_4 = 0x03,
+    COLOR_YELLOW_4 = 0x02,
+    COLOR_CLEAN_4 = 0x07
+};
+
+// // Maintain backward compatibility with old names (deprecated)
+// #define Black COLOR_BLACK_8
+// #define White COLOR_WHITE_8
+// #define Green COLOR_GREEN_8
+// #define Blue COLOR_BLUE_8
+// #define Red COLOR_RED_8
+// #define Yellow COLOR_YELLOW_8
+// #define Clean COLOR_CLEAN_8
+
+// #define black COLOR_BLACK_4
+// #define white COLOR_WHITE_4
+// #define green COLOR_GREEN_4
+// #define blue COLOR_BLUE_4
+// #define red COLOR_RED_4
+// #define yellow COLOR_YELLOW_4
+// #define clean COLOR_CLEAN_4
 
 #define PSR 0x00
 #define PWRR 0x01

@@ -101,20 +101,32 @@ void DisplayDriverBW::sleep()
     log_d("Display is now in deep sleep mode");
 }
 
-void DisplayDriverBW::refresh()
+void DisplayDriverBW::refresh(bool partial_update)
 {
     if (!initialized) {
         log_w("Display not initialized");
         return;
     }
 
-    log_d("Refreshing B&W display...");
+    log_d("Refreshing B&W display (partial=%d)...", partial_update);
 
     // The GDEY075T7 library doesn't have a separate refresh function
     // The refresh is handled internally by EPD_WhiteScreen_ALL_Fast
     // This is here for interface compatibility
 
     log_d("Refresh complete");
+}
+
+void DisplayDriverBW::power_off()
+{
+    log_d("Powering off B&W display...");
+    sleep();  // For B&W display, power_off is same as sleep
+}
+
+void DisplayDriverBW::hibernate()
+{
+    log_d("Putting B&W display in hibernate mode...");
+    sleep();  // For B&W display, hibernate is same as sleep
 }
 
 void DisplayDriverBW::clear()

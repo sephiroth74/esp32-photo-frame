@@ -13,8 +13,12 @@ void EPD_W21_Init(void)
 
 void lcd_chkstatus(void)
 {
-    while (!isEPD_W21_BUSY)
-        ;
+    log_i("lcd_chkstatus");
+    while (!isEPD_W21_BUSY) {
+        Serial.print(".");
+        delay(500);
+    }
+    Serial.println();
 }
 // slow
 void EPD_init(void)
@@ -87,6 +91,7 @@ void EPD_init(void)
 // fast
 void EPD_init_fast(void)
 {
+    log_i("EPD_init_fast");
 
     EPD_W21_Init(); // Electronic paper IC reset
 
@@ -252,7 +257,7 @@ void PIC_display_Clear(void)
     EPD_W21_WriteCMD(0x10);
     for (i = 0; i < 480; i++) {
         for (j = 0; j < 800 / 2; j++) {
-            EPD_W21_WriteDATA(White);
+            EPD_W21_WriteDATA(COLOR_WHITE_8);
         }
     }
     // Refresh

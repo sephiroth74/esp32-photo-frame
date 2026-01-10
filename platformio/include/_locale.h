@@ -78,6 +78,15 @@ extern const char TXT_SD_CARD_INSUFFICIENT_SPACE[];
 extern const char TXT_SD_CARD_SLOW_RESPONSE[];
 extern const char TXT_SD_CARD_READ_ONLY[];
 extern const char TXT_SD_CARD_BAD_SECTOR[];
+
+// TOC (Table of Contents) Specific Errors
+extern const char TXT_TOC_BUILD_FAILED[];
+extern const char TXT_TOC_INVALID[];
+extern const char TXT_TOC_READ_FAILED[];
+extern const char TXT_TOC_HEADER_INVALID[];
+extern const char TXT_TOC_INDEX_OUT_OF_RANGE[];
+extern const char TXT_TOC_METADATA_MISSING[];
+extern const char TXT_TOC_DIRECTORY_MISMATCH[];
 extern const char TXT_SD_CARD_SIZE_INVALID[];
 extern const char TXT_SD_CARD_INIT_FAILED[];
 extern const char TXT_SD_CARD_VERSION_UNSUPPORTED[];

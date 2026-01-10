@@ -37,6 +37,9 @@ ImageBuffer::ImageBuffer()
 
 ImageBuffer::~ImageBuffer()
 {
+    if (buffer_ || canvas_) {
+        log_d("ImageBuffer destructor called, releasing resources");
+    }
     release();
 }
 

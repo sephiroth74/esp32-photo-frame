@@ -176,18 +176,18 @@ namespace renderer {
     {
         log_i("Refreshing display (partial=%d)...", partial_update_mode);
         if (displayDriver.isInitialized()) {
-            displayDriver.refresh();
+            displayDriver.refresh(partial_update_mode);
         }
     }
 
     bool has_partial_update()
     {
-        return displayDriver.hasPartialUpdate();
+        return displayDriver.has_partial_update();
     }
 
     bool has_color()
     {
-        return displayDriver.hasColor();
+        return displayDriver.has_color();
     }
 
     // ========== Error display functions ==========

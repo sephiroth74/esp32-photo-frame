@@ -321,15 +321,21 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
 
         config.sd_card.enabled = sd_obj["enabled"] | false;
         config.sd_card.images_directory = sd_obj["images_directory"] | "/images";
+        config.sd_card.use_toc_cache = sd_obj["use_toc_cache"] | true;
+        config.sd_card.toc_max_age_seconds = sd_obj["toc_max_age_seconds"] | 86400;
 
         log_i("SD Card: %s", config.sd_card.enabled ? "enabled" : "disabled");
         if (config.sd_card.enabled) {
             log_i("SD Card images directory: %s", config.sd_card.images_directory.c_str());
+            log_i("SD Card TOC cache: %s", config.sd_card.use_toc_cache ? "enabled" : "disabled");
+            log_i("SD Card TOC max age: %u seconds", config.sd_card.toc_max_age_seconds);
         }
     } else {
         // Default SD card config
         config.sd_card.enabled = false;
         config.sd_card.images_directory = "/images";
+        config.sd_card.use_toc_cache = true;
+        config.sd_card.toc_max_age_seconds = 86400;
         log_d("SD Card configuration not found, using defaults");
     }
 

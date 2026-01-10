@@ -50,14 +50,24 @@ public:
 
     /**
      * Refresh the display (if supported by hardware)
-     * Some displays may not support this operation
+     * @param partial_update Use partial update mode if available
      */
-    virtual void refresh() = 0;
+    virtual void refresh(bool partial_update = false) = 0;
 
     /**
      * Clear the display to white
      */
     virtual void clear() = 0;
+
+    /**
+     * Power off the display completely
+     */
+    virtual void power_off() = 0;
+
+    /**
+     * Put display into hibernate mode (deeper than sleep)
+     */
+    virtual void hibernate() = 0;
 
     /**
      * Get initialization status
@@ -75,19 +85,19 @@ public:
      * Check if display supports partial update
      * @return true if partial update is supported
      */
-    virtual bool hasPartialUpdate() const { return false; }
+    virtual bool has_partial_update() const { return false; }
 
     /**
      * Check if display supports fast partial update
      * @return true if fast partial update is supported
      */
-    virtual bool hasFastPartialUpdate() const { return false; }
+    virtual bool has_fast_partial_update() const { return false; }
 
     /**
      * Check if display supports color
      * @return true if color is supported
      */
-    virtual bool hasColor() const = 0;
+    virtual bool has_color() const = 0;
 
 protected:
     bool initialized;
