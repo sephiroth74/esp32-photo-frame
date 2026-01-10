@@ -105,6 +105,8 @@ private:
     mutable size_t cachedFileCount_;
     mutable String cachedDirectoryPath_;
     mutable String cachedExtension_;
+    mutable time_t cachedDirModTime_;
+    mutable bool metaParsed_;
 
     /**
      * Open and validate TOC file
@@ -137,7 +139,7 @@ private:
      * @param maxLength Maximum line length
      * @return Number of characters read, or -1 on error
      */
-    int read_line(File& file, char* buffer, size_t maxLength);
+    int read_line(File& file, char* buffer, size_t maxLength) const;
 
     /**
      * Parse a key=value line
@@ -146,7 +148,13 @@ private:
      * @param value Output value
      * @return true if key matches and value extracted
      */
-    bool parse_key_value(const String& line, const char* key, String& value);
+    bool parse_key_value(const String& line, const char* key, String& value) const;
+
+    /**
+     * Parse and cache all metadata from meta file
+     * @return true on success
+     */
+    bool parse_and_cache_metadata() const;
 };
 
 } // namespace photo_frame

@@ -38,7 +38,7 @@ namespace canvas_renderer {
         // Rotation 1 or 3 = portrait, 0 or 2 = landscape
         bool portrait_mode = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
-        log_i("draw_overlay(rotation=%d, portrait_mode=%d)", canvas.getRotation(), portrait_mode);
+        log_i("draw_overlay(rotation=%d)", canvas.getRotation());
         log_v("canvas size: %dx%d", canvas.width(), canvas.height());
 
         // Draw a simple status bar
