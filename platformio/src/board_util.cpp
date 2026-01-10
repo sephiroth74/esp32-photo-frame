@@ -146,11 +146,12 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
         log_i("No timer wakeup configured - will sleep indefinitely");
     }
 
+#ifndef DISABLE_DEEP_SLEEP
     log_i("Going to deep sleep now. Good night!");
     Serial.flush(); // Ensure all serial output is sent before sleeping
-
-#ifndef DISABLE_DEEP_SLEEP
     esp_deep_sleep_start();
+#else
+    log_d("Deep sleep disabled");
 #endif // DISABLE_DEEP_SLEEP
 }
 
