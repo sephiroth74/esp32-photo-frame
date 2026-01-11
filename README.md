@@ -2,9 +2,9 @@
 
 ## Introduction
 
-This project implements a battery-powered digital photo frame using an ESP32 microcontroller and e-paper display technology. The system displays images from Google Drive cloud storage with weather information overlay, achieving months of battery life through intelligent power management and the inherent low-power characteristics of e-paper displays.
+This project implements a battery-powered digital photo frame using an ESP32 microcontroller and e-paper display technology. The system displays images from multiple sources (Google Drive cloud storage or local SD card) achieving months of battery life through intelligent power management and the inherent low-power characteristics of e-paper displays.
 
-The photo frame features automatic image synchronization, configurable refresh intervals, and a comprehensive configuration system that allows runtime customization without firmware recompilation. Images are processed through dedicated tools to optimize them for e-paper display characteristics before being uploaded to Google Drive.
+The photo frame features automatic image synchronization, configurable refresh intervals, and a comprehensive configuration system that allows runtime customization without firmware recompilation. Images are processed through dedicated tools (Rust processor, Android app, or Flutter app) to optimize them for e-paper display characteristics before being uploaded to storage.
 
 <img src="assets/PXL_20251019_160143849.jpg" alt="ESP32 Photo Frame - Front View" width="600" />
 <img src="assets/PXL_20251019_160130264.jpg" alt="ESP32 Photo Frame - Side View" width="600" />
@@ -14,9 +14,9 @@ The photo frame features automatic image synchronization, configurable refresh i
 ## Features
 
 ### Core Firmware Features
-- Google Drive integration with automatic file synchronization and local SD card caching
+- Dual image source support: Google Drive cloud storage or local SD card directory (v0.13.0)
+- Native display driver integration replacing GxEPD2 library for better color display support (v0.13.0)
 - Multiple WiFi network support (v0.11.0) with automatic failover between up to 3 configured networks
-- Weather information display with configurable location and update intervals
 - Exponential potentiometer control (v0.9.3) using cubic curve mapping for precise refresh interval adjustment
 - Battery monitoring with power-saving modes and adaptive refresh scheduling
 - Deep sleep operation between updates for extended battery life (2-3 months on 5000mAh)
@@ -26,12 +26,14 @@ The photo frame features automatic image synchronization, configurable refresh i
 - Multi-language support (English and Italian localization)
 - Day/night scheduling to prevent overnight updates
 - Comprehensive debug mode for hardware troubleshooting
+- Portrait mode support for vertical display orientation (v0.13.0)
 
 ### Image Processing Tools
 
 #### Rust Processor (rust/photoframe-processor)
 - High-performance batch processing with 5-10x speed improvement over shell scripts
 - AI-powered person detection using YOLO11 for intelligent cropping
+- Multiple dithering algorithms: Floyd-Steinberg, Ordered (Bayer), Sierra, Atkinson
 - Automatic portrait pairing for landscape displays
 - Multi-format output support (BMP, binary, JPEG, PNG)
 - EXIF metadata extraction for date annotation
@@ -46,6 +48,14 @@ The photo frame features automatic image synchronization, configurable refresh i
 - Direct Google Drive upload integration
 - Person detection and smart cropping
 
+#### Flutter Application (photoframe_flutter)
+- Cross-platform desktop application for Windows, macOS, and Linux
+- Modern Material Design interface
+- Batch image processing with preview
+- Multiple output format support
+- EXIF metadata handling
+- Drag-and-drop file selection
+
 ## Project Structure
 
 ```
@@ -54,6 +64,7 @@ esp32-photo-frame/
 │   ├── src/                   # Source code files
 │   ├── include/               # Header files and board configurations
 │   ├── lib/                   # External libraries
+│   ├── data/                  # SD card files (config.json.template)
 │   └── platformio.ini         # PlatformIO configuration
 ├── rust/                      # Rust-based tools
 │   ├── photoframe-processor/  # Main image processing tool
@@ -61,6 +72,11 @@ esp32-photo-frame/
 │   └── bmp2cpp/              # Bitmap to C++ header converter
 ├── android/                   # Android companion app
 │   └── PhotoFrameProcessor/   # Kotlin-based image processor
+├── photoframe_flutter/        # Flutter desktop application
+│   ├── lib/                  # Dart source code
+│   ├── windows/              # Windows platform files
+│   ├── macos/                # macOS platform files
+│   └── linux/                # Linux platform files
 ├── docs/                      # Technical documentation
 ├── assets/                    # Images and resources
 │   └── 3d model/             # 3D printable enclosure files
@@ -211,7 +227,7 @@ Key connections:
 
 The photo frame uses a unified configuration system with a single `/config.json` file on the SD card root.
 
-#### Basic Configuration Example
+#### Configuration with SD Card Source
 
 ```json
 {
@@ -219,31 +235,30 @@ The photo frame uses a unified configuration system with a single `/config.json`
     {
       "ssid": "YourPrimaryNetwork",
       "password": "YourPassword"
-    },
-    {
-      "ssid": "YourBackupNetwork",
-      "password": "YourBackupPassword"
     }
   ],
-  "google_drive_config": {
-    "authentication": {
-      "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
-      "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-      "client_id": "123456789"
+  "board_config": {
+    "refresh": {
+      "min_seconds": 600,
+      "max_seconds": 14400,
+      "step": 300,
+      "default": 1800,
+      "low_battery_multiplier": 3
     },
-    "drive": {
-      "folder_id": "1ABC...XYZ",
-      "list_page_size": 100,
-      "use_insecure_tls": false
-    }
+    "day_start_hour": 6,
+    "day_end_hour": 23,
+    "portrait_mode": false
   },
-  "weather_config": {
-    "enabled": false
+  "sd_card_config": {
+    "enabled": true,
+    "images_directory": "/images",
+    "use_toc_cache": true,
+    "toc_max_age_seconds": 86400
   }
 }
 ```
 
-#### Complete Configuration with Weather
+#### Configuration with Google Drive Source
 
 ```json
 {
@@ -261,7 +276,20 @@ The photo frame uses a unified configuration system with a single `/config.json`
       "password": "YourHotspotPassword"
     }
   ],
+  "board_config": {
+    "refresh": {
+      "min_seconds": 300,
+      "max_seconds": 14400,
+      "step": 300,
+      "default": 1800,
+      "low_battery_multiplier": 3
+    },
+    "day_start_hour": 6,
+    "day_end_hour": 23,
+    "portrait_mode": true
+  },
   "google_drive_config": {
+    "enabled": true,
     "authentication": {
       "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
@@ -283,50 +311,30 @@ The photo frame uses a unified configuration system with a single `/config.json`
       "min_request_delay_ms": 500
     }
   },
-  "weather_config": {
-    "enabled": true,
-    "latitude": 40.7128,
-    "longitude": -74.0060,
-    "update_interval_minutes": 120,
-    "celsius": true,
-    "battery_threshold": 15,
-    "max_age_hours": 3,
-    "timezone": "America/New_York",
-    "temperature_unit": "celsius",
-    "wind_speed_unit": "kmh",
-    "precipitation_unit": "mm"
-  },
-  "board_config": {
-    "day_start_hour": 6,
-    "day_end_hour": 23,
-    "refresh": {
-      "min_seconds": 300,
-      "max_seconds": 14400,
-      "step": 300,
-      "low_battery_multiplier": 3
-    }
+  "sd_card_config": {
+    "enabled": false
   }
 }
 ```
 
-### Weather Configuration
+### Image Source Configuration
 
-Weather display is controlled entirely through the configuration file without requiring firmware recompilation.
+The photo frame supports two image sources that can be configured via `config.json`:
 
-#### Weather Settings
+#### SD Card Source
+When `sd_card_config.enabled` is `true`, the photo frame reads images directly from the SD card:
+- **images_directory**: Path to the folder containing processed images (e.g., "/images")
+- **use_toc_cache**: Enable caching of file list for faster startup
+- **toc_max_age_seconds**: How long to cache the file list before rebuilding
 
-- **enabled**: Set to `true` to enable weather display
-- **latitude/longitude**: Your location coordinates for accurate weather data
-- **update_interval_minutes**: How often to fetch new weather data (default: 120)
-- **celsius**: Display temperature in Celsius (true) or Fahrenheit (false)
-- **battery_threshold**: Minimum battery percentage for weather updates
-- **timezone**: IANA timezone (e.g., "America/New_York") or "auto" for automatic detection
+#### Google Drive Source
+When `google_drive_config.enabled` is `true`, the photo frame downloads images from Google Drive:
+- Requires service account authentication
+- Automatically caches images locally for offline viewing
+- Supports rate limiting to avoid API quota issues
+- Streaming architecture handles 350+ files efficiently
 
-The weather system automatically:
-- Disables when battery is below threshold
-- Caches data for offline display
-- Shows sunrise/sunset times in local timezone
-- Displays temperature, precipitation, and wind data
+**Note**: Only one source can be enabled at a time. If both are enabled, SD card takes precedence.
 
 ### WiFi Configuration
 
@@ -420,6 +428,32 @@ cargo build --release
 3. Configure processing options (crop, color mode, annotations)
 4. Process batch and upload directly to Google Drive
 
+### Using the Flutter Desktop App
+
+```bash
+cd photoframe_flutter
+
+# Install dependencies
+flutter pub get
+
+# Run the application
+flutter run -d windows  # On Windows
+flutter run -d macos    # On macOS
+flutter run -d linux    # On Linux
+
+# Build for distribution
+flutter build windows   # Creates .exe installer
+flutter build macos     # Creates .app bundle
+flutter build linux     # Creates AppImage/deb package
+```
+
+The Flutter app provides:
+- Drag-and-drop file selection
+- Real-time processing preview
+- Multiple output format support (BMP, binary, JPEG, PNG)
+- Batch processing with progress tracking
+- Cross-platform compatibility
+
 ## Image Processing
 
 ### Technical Overview
@@ -469,14 +503,17 @@ The Android application offers:
 ### Firmware Documentation
 - [Technical Specifications](docs/tech_specs.md) - System architecture and API documentation
 - [Wiring Diagram](docs/wiring-diagram.md) - Detailed hardware connections
-- [Display Rendering Architecture](platformio/DISPLAY_RENDERING_ARCHITECTURE.md) - Display rendering pipeline and format handling
-- [Buffer Management](platformio/BUFFER_MANAGEMENT.md) - Memory allocation and buffer lifecycle (v0.10.0)
-- [Display Troubleshooting](platformio/DISPLAY_TROUBLESHOOTING_COMPLETE_GUIDE.md) - Hardware debugging guide
-- [Weather Integration](docs/weather.md) - Weather API setup and configuration
+- [Google Drive API](docs/google_drive_api.md) - Google Drive integration and setup
+- [Display Rendering Architecture](platformio/DISPLAY_RENDERING_ARCHITECTURE.md) - Display rendering pipeline
+- [Buffer Management](platformio/BUFFER_MANAGEMENT.md) - Memory allocation and buffer lifecycle
 
 ### Image Processing
-- [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing documentation
-- [Image Processing Pipeline](docs/image_processing.md) - Legacy bash script documentation
+- [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing with AI features
+- [Image Processing Pipeline](docs/image_processing.md) - Image format and processing details
+
+### Development
+- [CLAUDE.md](CLAUDE.md) - AI assistant guidance for code contributions
+- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
 
 ## 3D Printable Enclosure
 
