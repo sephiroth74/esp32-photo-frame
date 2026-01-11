@@ -16,6 +16,7 @@
         }
     ],
     "google_drive_config": {
+        "enabled": false,
         "authentication": {
             "service_account_email": "your-service-account@your-project.iam.gserviceaccount.com",
             "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT_HERE\n-----END PRIVATE KEY-----\n",
@@ -40,21 +41,12 @@
             "max_wait_time_ms": 30000
         }
     },
-    "weather_config": {
-        "_location_name": "New York City, USA",
+    "sd_card_config": {
         "enabled": true,
-        "latitude": 40.7128,
-        "longitude": -74.0060,
-        "update_interval_minutes": 120,
-        "celsius": true,
-        "battery_threshold": 15,
-        "max_age_hours": 3,
-        "timezone": "auto",
-        "temperature_unit": "celsius",
-        "wind_speed_unit": "kmh",
-        "precipitation_unit": "mm"
+        "images_directory": "/6c/portrait/bin"
     },
     "board_config": {
+        "portrait_mode": true,
         "day_start_hour": 6,
         "day_end_hour": 23,
         "refresh": {
