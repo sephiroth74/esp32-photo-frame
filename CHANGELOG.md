@@ -5,6 +5,77 @@ All notable changes to the ESP32 Photo Frame project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.13.0] - 2026-01-11
+
+### Added
+- **SD Card as Image Source**: Alternative to Google Drive for completely offline operation
+  - Configure via `sd_card_config.enabled: true` in config.json
+  - Specify image directory with `images_directory` setting
+  - No WiFi required when using SD card source
+  - Automatic TOC caching for fast directory browsing
+- **Portrait Mode Support**: Display images in vertical orientation
+  - Configure via `board_config.portrait_mode: true`
+  - Automatic image rotation and scaling
+- **Display Abstraction Layer**: Replaced GxEPD2 library with direct driver control
+  - Removed GxEPD2 dependency due to color display compatibility issues
+  - Native GDEP073E01 (6-color) and GDEY075T7 (B/W) driver integration
+  - Canvas-based rendering for all overlay operations
+  - Improved separation of hardware control and drawing logic
+  - Better color accuracy for 6-color ACeP displays
+- **Enhanced TOC Validation**: Improved Table of Contents validation after deep sleep
+  - TOC properly persists across deep sleep cycles
+  - Fixed EXT1 wakeup incorrectly triggering TOC rebuild
+  - Added detailed logging for TOC rebuild reasons
+
+### Changed
+- **Rust Processor Dithering**: Enhanced image processing with multiple algorithms
+  - Added Ordered (Bayer), Sierra, and Atkinson dithering options
+  - Improved image quality for different display types
+  - Better handling of color gradients and patterns
+- **Configuration Template**: Added `config.json.template` file
+  - Template file with placeholder values for easy setup
+  - Actual `config.json` now gitignored to prevent credential leaks
+- **Error Display**: Added filename display on error screens
+  - Shows which file failed when image operations fail
+  - Helpful for debugging SD card or download issues
+
+### Fixed
+- **Config Parsing**: Fixed JSON key names broken during refactoring
+  - Corrected `google_drive_config` key (was incorrectly renamed)
+- **SD Card Reading**: Fixed chunked reading for large files
+  - Added retry mechanism for SD card read operations
+  - Prevents partial file reads and corruption
+- **TOC Double Rebuild**: Fixed TOC being rebuilt twice in same session
+  - Proper metadata file parsing order
+
+### Security
+- **Credential Protection**: Removed accidentally committed credentials from Git history
+  - WiFi passwords and Google Drive keys removed from repository
+  - Added proper .gitignore rules for config.json
+
+## [v0.12.0] - 2025-01-09
+
+### Removed
+- **Weather System**: Complete removal of weather functionality (~800 lines)
+  - Removed weather.cpp, weather.h, and all weather-related code
+  - Removed Open-Meteo API integration
+  - Simplified configuration by removing weather settings
+  - Reduced memory usage and code complexity
+- **RTC Hardware Support**: Simplified to NTP-only time synchronization
+  - Removed rtc_util.cpp and rtc_util.h
+  - Removed PCF8523 and DS3231 hardware support
+  - Time now fetched directly via WiFi/NTP
+- **BMP Format Support**: Firmware now binary-only for optimal performance
+  - Removed all BMP validation and rendering code
+  - Exclusive .bin format support
+  - Direct PSRAM buffer loading
+
+### Changed
+- **Code Simplification**: Major architectural cleanup
+  - Reduced codebase by ~1000+ lines
+  - Simplified error handling (RTCInitializationFailed → NTPSyncFailed)
+  - Streamlined configuration JSON schema
+
 ## [v1.0.0] - 2025-01-10
 
 ### Added

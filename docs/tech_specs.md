@@ -4,13 +4,13 @@ This document describes the complete flow and architecture of the ESP32 Photo Fr
 
 ## Project Overview
 
-The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information and weather display. It uses **Google Drive** as the primary image source with comprehensive local SD card caching for improved performance and offline capabilities.
+The ESP32 Photo Frame is a battery-powered digital photo frame that displays images on an e-paper display with comprehensive status information. It supports two image sources: **Google Drive** cloud storage with local caching, or **SD Card** directory for completely offline operation.
 
 ### Key Features
-- **⚙️ Unified Configuration System** (v0.7.1): Single `/config.json` file for all settings (WiFi, Google Drive, Weather, Board)
+- **⚙️ Unified Configuration System**: Single `/config.json` file for all settings (WiFi, Google Drive, SD Card, Board)
 - **🎨 RGB Status System** (v0.5.0): Visual feedback using built-in NeoPixel LED with 14 predefined status states
-- **Google Drive cloud storage**: Primary image source with SD card caching
-- **Runtime weather control**: Weather display configurable without firmware recompilation
+- **Dual Image Sources** (v0.13.0): Google Drive cloud storage OR local SD card directory
+- **Portrait Mode Support** (v0.13.0): Vertical display orientation option
 - **Smart power management**: Battery-aware refresh intervals and features with RGB integration
 - **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup
 - **Status information**: Time, image count, battery level, and charging status
@@ -41,8 +41,7 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 #### Storage & Sensors
 - **MicroSD Card**: Local image storage and configuration
 - **Battery Monitoring**: Analog voltage divider or MAX1704X sensor
-- **RTC Module**: DS3231 Real-Time Clock (optional)
-- **Potentiometer**: Manual refresh rate control
+- **Potentiometer**: Manual refresh rate control with exponential curve mapping
 
 #### RGB Status System (v0.5.0)
 - **Hardware**: Built-in NeoPixel LED on FeatherS3 (GPIO40)
@@ -60,7 +59,7 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **Location**: `platformio/`
 - **Main Entry**: `src/main.cpp`
 - **Framework**: Arduino Framework
-- **Key Libraries**: GxEPD2, ArduinoJson, RTClib, Adafruit MAX1704X, Adafruit NeoPixel
+- **Key Libraries**: ArduinoJson, Adafruit MAX1704X, Adafruit NeoPixel, Native display drivers (GDEP073E01, GDEY075T7)
 
 #### Android Companion App
 - **Location**: `android/PhotoFrameProcessor/`
@@ -68,10 +67,17 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **Purpose**: Image processing and conversion to e-paper format
 - **Features**: Person detection, smart cropping, binary conversion
 
-#### Image Processing Scripts
-- **Location**: `scripts/`
-- **Main Script**: `auto.sh`
-- **Purpose**: Batch image processing for SD card workflow
+#### Flutter Desktop App
+- **Location**: `photoframe_flutter/`
+- **Language**: Dart/Flutter
+- **Platforms**: Windows, macOS, Linux
+- **Features**: Batch processing, drag-and-drop, multiple output formats
+
+#### Rust Image Processor
+- **Location**: `rust/photoframe-processor/`
+- **Language**: Rust
+- **Features**: YOLO11 person detection, high-performance batch processing
+- **Speed**: 5-10x faster than shell scripts
 
 ## ESP32-C6 Hardware-Specific Considerations
 
@@ -83,11 +89,11 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **JSON Parsing Failures**: Google Drive API responses truncated at exactly 32KB
 - **HTTP Corruption**: Character sequences like `�����` in response data
 - **ArduinoJson Errors**: `IncompleteInput`, `InvalidInput`, and parsing failures
-- **Inconsistent WiFi Performance**: Intermittent connection issues when RTC is active
+- **Inconsistent WiFi Performance**: Intermittent connection issues when I2C is active
 
 #### Root Cause Analysis
 1. **Hardware Interference**: ESP32-C6's I2C controller creates electrical interference with WiFi transceiver
-2. **Timing Conflicts**: Concurrent I2C transactions (RTC communication) disrupt WiFi packet reception
+2. **Timing Conflicts**: Concurrent I2C transactions disrupt WiFi packet reception
 3. **Buffer Corruption**: WiFi receive buffers get corrupted during I2C clock transitions
 4. **Critical Impact**: Google Drive API responses >32KB become unreliable
 
@@ -103,14 +109,10 @@ Serial.println(F("Complete I2C shutdown before ALL WiFi operations..."));
 Wire.end();
 delay(100);
 
-// Step 2: Explicitly set I2C pins to input (high impedance)
-pinMode(RTC_SDA_PIN, INPUT);
-pinMode(RTC_SCL_PIN, INPUT);
+// Step 2: Explicitly set I2C pins to input (high impedance) if using I2C devices
+// pinMode(I2C_SDA_PIN, INPUT);
+// pinMode(I2C_SCL_PIN, INPUT);
 delay(100);
-
-// Step 3: Disable internal pull-ups on I2C pins
-digitalWrite(RTC_SDA_PIN, LOW);
-digitalWrite(RTC_SCL_PIN, LOW);
 delay(200);
 
 // All WiFi operations happen here (NTP, Google Drive API)
@@ -134,12 +136,9 @@ delay(200);
 photo_frame::rtc_utils::update_rtc_after_restart(now);
 ```
 
-#### RTC Time Management Solution
+#### Time Management
 
-**Problem**: RTC updates require I2C, but time sync requires WiFi - they cannot operate simultaneously.
-
-**Solution**: Deferred RTC update pattern:
-1. **During WiFi Phase**: Store fetched time in global variable
+**Note**: As of v0.12.0, hardware RTC support has been removed. Time synchronization is now handled exclusively through NTP over WiFi.
 2. **After I2C Restart**: Apply stored time to RTC hardware
 3. **State Management**: Track pending updates with boolean flags
 
