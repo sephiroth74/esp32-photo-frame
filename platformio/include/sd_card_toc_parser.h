@@ -8,7 +8,7 @@
 namespace photo_frame {
 
 // Forward declaration
-class sd_card;
+class SdCard;
 
 /**
  * Parser for SD card Table of Contents (TOC) files.
@@ -26,7 +26,7 @@ class sd_card;
  * - directoryPath = <path>
  * - extension = <ext>
  */
-class sd_card_toc_parser {
+class SdCardTocParser {
 public:
     /**
      * Constructor
@@ -34,7 +34,7 @@ public:
      * @param tocDataPath Path to TOC data file
      * @param tocMetaPath Path to TOC metadata file
      */
-    sd_card_toc_parser(sd_card& sdCard, const char* tocDataPath, const char* tocMetaPath);
+    SdCardTocParser(SdCard& sdCard, const char* tocDataPath, const char* tocMetaPath);
 
     /**
      * Get the timestamp when the TOC was created
@@ -74,12 +74,11 @@ public:
 
     /**
      * Validate TOC integrity
-     * @param dirModTime Expected directory modification time
      * @param expectedPath Expected directory path (optional)
      * @param expectedExt Expected file extension (optional)
      * @return true if TOC is valid and matches expected state
      */
-    bool validate_toc(time_t dirModTime, const char* expectedPath = nullptr, const char* expectedExt = nullptr);
+    bool validate_toc(const char* expectedPath = nullptr, const char* expectedExt = nullptr);
 
     /**
      * Check if TOC files exist
@@ -92,45 +91,21 @@ public:
      * @param error Optional error output
      * @return Modification time, or 0 on error
      */
-    time_t get_directory_mod_time(photo_frame_error_t* error = nullptr);
+    // get_directory_mod_time removed - no longer used for TOC validation
 
 private:
-    sd_card& sdCard_;
+    SdCard& sdCard_;
     String tocDataPath_;  // Changed from const char* to String to avoid dangling pointers
     String tocMetaPath_;  // Changed from const char* to String to avoid dangling pointers
 
-    // Cached header values
-    mutable bool headerParsed_;
-    mutable time_t cachedTimestamp_;
-    mutable size_t cachedFileCount_;
-    mutable String cachedDirectoryPath_;
-    mutable String cachedExtension_;
-    mutable time_t cachedDirModTime_;
+    // Cached metadata values (from meta file)
     mutable bool metaParsed_;
+    mutable String cachedDirectoryPath_;
+    mutable time_t cachedDirModTime_;
+    mutable size_t cachedFileCount_;
+    mutable String cachedExtension_;
+    mutable size_t cachedFileSize_;
 
-    /**
-     * Open and validate TOC file
-     * @param file Output file handle
-     * @param error Optional error output
-     * @return true on success
-     */
-    bool open_and_validate_toc(File& file, photo_frame_error_t* error = nullptr);
-
-    /**
-     * Parse header from TOC file
-     * @param file Open file handle
-     * @param error Optional error output
-     * @return true on success
-     */
-    bool parse_header(File& file, photo_frame_error_t* error = nullptr);
-
-    /**
-     * Skip to the start of file entries (past header)
-     * @param file Open file handle
-     * @param error Optional error output
-     * @return true on success
-     */
-    bool skip_to_entries(File& file, photo_frame_error_t* error = nullptr);
 
     /**
      * Read a line from file

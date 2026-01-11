@@ -62,7 +62,7 @@ typedef struct {
     int maxRetryAttempts;       ///< Maximum retry attempts for failed requests
     int backoffBaseDelayMs;     ///< Base delay for exponential backoff in milliseconds
     int maxWaitTimeMs;          ///< Maximum wait time for rate limiting in milliseconds
-} google_drive_client_config;
+} GoogleDriveClient_config;
 
 typedef struct {
     char accessToken[512];    ///< Access token for Google Drive API
@@ -79,7 +79,7 @@ typedef struct {
         return (now < expiresAt) ? (expiresAt - now) : 0;
     }
 
-} google_drive_access_token;
+} GoogleDrive_access_token;
 
 /**
  * @brief Error codes for Google Drive operations.
@@ -87,7 +87,7 @@ typedef struct {
  * Enumeration of possible error conditions that can occur during
  * Google Drive API interactions.
  */
-enum class google_drive_error {
+enum class GoogleDrive_error {
     None,              ///< No error occurred
     JwtCreationFailed, ///< Failed to create JWT token for authentication
     HttpPostFailed,    ///< HTTP POST request failed
@@ -144,24 +144,24 @@ enum class failure_type {
  * Contains metadata information about a file stored in Google Drive,
  * including its unique identifier and name.
  */
-class google_drive_file {
+class GoogleDriveFile {
   public:
     String id;   ///< Unique file identifier in Google Drive
     String name; ///< Display name of the file
 
     /** Default constructor */
-    google_drive_file() : id(""), name("") {}
+    GoogleDriveFile() : id(""), name("") {}
 
     /**
-     * @brief Constructor for google_drive_file.
+     * @brief Constructor for GoogleDriveFile.
      * @param id Unique file identifier in Google Drive
      * @param name Display name of the file
      */
-    google_drive_file(const String& id, const String& name) : id(id), name(name) {}
+    GoogleDriveFile(const String& id, const String& name) : id(id), name(name) {}
 };
 
 /**
- * @class google_drive_client
+ * @class GoogleDriveClient
  * @brief A client for interacting with Google Drive using a service account.
  *
  * This class provides methods to authenticate with Google Drive via JWT, list files in folders,
@@ -175,25 +175,25 @@ class google_drive_file {
  * @note Requires mbedtls for cryptographic operations and assumes LittleFS is available for file
  * storage.
  */
-class google_drive_client {
+class GoogleDriveClient {
   public:
     /**
-     * @brief Constructor for google_drive_client.
+     * @brief Constructor for GoogleDriveClient.
      * @param config Configuration containing service account credentials
      */
-    google_drive_client(const google_drive_client_config& config);
+    GoogleDriveClient(const GoogleDriveClient_config& config);
 
     /**
-     * @brief Destructor for google_drive_client.
+     * @brief Destructor for GoogleDriveClient.
      * Cleans up cryptographic contexts and resources.
      */
-    ~google_drive_client();
+    ~GoogleDriveClient();
 
     /**
      * @brief Sets the access token for the Google Drive client.
      * @param token The access token to set
      */
-    void set_access_token(const google_drive_access_token& token);
+    void set_access_token(const GoogleDrive_access_token& token);
 
     /**
      * @brief Retrieves an access token for authenticating requests.
@@ -202,7 +202,7 @@ class google_drive_client {
      * for making authorized API calls. The implementation may involve refreshing
      * an expired token or acquiring a new one using stored credentials.
      *
-     * @return google_drive_error indicating the result of the operation.
+     * @return GoogleDrive_error indicating the result of the operation.
      */
     photo_frame_error_t get_access_token();
 
@@ -220,7 +220,7 @@ class google_drive_client {
      * @return Total number of files written to the TOC, or 0 on error
      */
     size_t list_files_streaming(const char* folderId,
-                                sd_card& sdCard,
+                                SdCard& sdCard,
                                 const char* tocFilePath,
                                 int pageSize = 50);
 
@@ -229,7 +229,7 @@ class google_drive_client {
      *
      * @param fileId The unique identifier of the file on Google Drive.
      * @param outFile The file object to write the downloaded content to.
-     * @return google_drive_error indicating the result of the operation.
+     * @return GoogleDrive_error indicating the result of the operation.
      */
     photo_frame_error_t download_file(const String& fileId, fs::File* outFile);
 
@@ -238,7 +238,7 @@ class google_drive_client {
      *
      * @return The access token as a String.
      */
-    const google_drive_access_token* get_access_token_value() const;
+    const GoogleDrive_access_token* get_access_token_value() const;
 
     /**
      * @brief Set the root CA certificate for SSL/TLS connections
@@ -279,7 +279,7 @@ class google_drive_client {
      * @return Number of files written to TOC, or 0 on error
      */
     size_t list_files_in_folder_streaming(const char* folderId,
-                                          sd_card& sdCard,
+                                          SdCard& sdCard,
                                           const char* tocFilePath,
                                           int pageSize          = 10,
                                           char* nextPageToken   = nullptr,
@@ -302,7 +302,7 @@ class google_drive_client {
      * @see ALLOWED_FILE_EXTENSIONS for supported file types
      */
     size_t parse_file_list_to_toc(const String& jsonBody,
-                                  sd_card& sdCard,
+                                  SdCard& sdCard,
                                   const char* tocFilePath,
                                   char* nextPageToken);
 
@@ -333,10 +333,10 @@ class google_drive_client {
     // Member variables
 
     /// Pointer to Google Drive API configuration containing credentials
-    const google_drive_client_config* config;
+    const GoogleDriveClient_config* config;
 
     /// Current OAuth2 access token for API authentication
-    google_drive_access_token g_access_token;
+    GoogleDrive_access_token g_access_token;
 
     /// mbedTLS entropy context for cryptographic operations
     mbedtls_entropy_context entropy;

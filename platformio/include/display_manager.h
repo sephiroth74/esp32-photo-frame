@@ -59,7 +59,7 @@ namespace photo_frame {
  * if (display.init()) {
  *     // Phase 1: Load image from SD card directly into display buffer
  *     File imageFile = sdCard.open(filename, "r");
- *     renderer::load_image_to_buffer(display.getBuffer(), imageFile, filename, DISP_WIDTH, DISP_HEIGHT);
+ *     loadImageToBuffer(display.getBuffer(), imageFile, filename, DISP_WIDTH, DISP_HEIGHT);
  *     imageFile.close();
  *     sdCard.end();  // Close SD card before display operations
  *
@@ -205,8 +205,9 @@ public:
     /**
      * @brief Draw error message
      * @param error Error information
+     * @param filename Optional filename to display (nullptr if not applicable)
      */
-    void drawError(photo_frame_error_t error);
+    void drawError(photo_frame_error_t error, const char* filename = nullptr);
 
     /**
      * @brief Draw error with details

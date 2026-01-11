@@ -24,11 +24,11 @@
 
 namespace photo_frame {
 
-google_drive_toc_parser::google_drive_toc_parser(sd_card& sdCard, const char* tocFilePath) :
+GoogleDriveTocParser::GoogleDriveTocParser(SdCard& sdCard, const char* tocFilePath) :
     sdCard_(sdCard),
     tocFilePath_(tocFilePath) {}
 
-time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
+time_t GoogleDriveTocParser::get_timestamp(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -79,7 +79,7 @@ time_t google_drive_toc_parser::get_timestamp(photo_frame_error_t* error) {
     return timestamp;
 }
 
-size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
+size_t GoogleDriveTocParser::get_file_count(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -131,7 +131,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
 
     size_t fileCount = countStr.toInt();
     if (fileCount == 0 && countStr != "0") {
-        log_e("[google_drive_toc_parser] Invalid fileCount value in TOC");
+        log_e("[GoogleDriveTocParser] Invalid fileCount value in TOC");
         if (error) {
             *error = error_type::JsonParseFailed;
         }
@@ -141,8 +141,7 @@ size_t google_drive_toc_parser::get_file_count(photo_frame_error_t* error) {
     return fileCount;
 }
 
-google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
-                                                             photo_frame_error_t* error) {
+GoogleDriveFile GoogleDriveTocParser::get_file_by_index(size_t index, photo_frame_error_t* error) {
     log_d("Getting TOC file at index: %zu", index);
 
     if (error) {
@@ -151,12 +150,12 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
 
     fs::File file;
     if (!open_and_validate_toc(file, error)) {
-        return google_drive_file();
+        return GoogleDriveFile();
     }
 
     if (!skip_header(file, error)) {
         file.close();
-        return google_drive_file();
+        return GoogleDriveFile();
     }
 
     // Skip to the desired index
@@ -168,7 +167,7 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
             if (error) {
                 *error = error_type::JsonParseFailed;
             }
-            return google_drive_file();
+            return GoogleDriveFile();
         }
     }
 
@@ -181,14 +180,14 @@ google_drive_file google_drive_toc_parser::get_file_by_index(size_t index,
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file();
+        return GoogleDriveFile();
     }
 
     return parse_file_line(targetLine.c_str(), error);
 }
 
-google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename,
-                                                            photo_frame_error_t* error) {
+GoogleDriveFile GoogleDriveTocParser::get_file_by_name(const char* filename,
+                                                       photo_frame_error_t* error) {
     log_d("Getting TOC file by name: %s", filename);
 
     if (error) {
@@ -197,12 +196,12 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
 
     fs::File file;
     if (!open_and_validate_toc(file, error)) {
-        return google_drive_file();
+        return GoogleDriveFile();
     }
 
     if (!skip_header(file, error)) {
         file.close();
-        return google_drive_file();
+        return GoogleDriveFile();
     }
 
     // Search through all file entries
@@ -243,11 +242,11 @@ google_drive_file google_drive_toc_parser::get_file_by_name(const char* filename
         *error = error_type::SdCardFileNotFound;
     }
 
-    return google_drive_file();
+    return GoogleDriveFile();
 }
 
-google_drive_file google_drive_toc_parser::parse_file_line(const char* line,
-                                                           photo_frame_error_t* error) {
+GoogleDriveFile GoogleDriveTocParser::parse_file_line(const char* line,
+                                                      photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -261,16 +260,16 @@ google_drive_file google_drive_toc_parser::parse_file_line(const char* line,
         if (error) {
             *error = error_type::JsonParseFailed;
         }
-        return google_drive_file("", "");
+        return GoogleDriveFile("", "");
     }
 
     String id   = lineStr.substring(0, pos1);
     String name = lineStr.substring(pos1 + 1);
 
-    return google_drive_file(id, name);
+    return GoogleDriveFile(id, name);
 }
 
-bool google_drive_toc_parser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error) {
+bool GoogleDriveTocParser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error) {
     file = sdCard_.open(tocFilePath_, FILE_READ);
     if (!file) {
         log_e("Failed to open TOC file: %s", tocFilePath_);
@@ -283,7 +282,7 @@ bool google_drive_toc_parser::open_and_validate_toc(fs::File& file, photo_frame_
     return true;
 }
 
-bool google_drive_toc_parser::skip_header(fs::File& file, photo_frame_error_t* error) {
+bool GoogleDriveTocParser::skip_header(fs::File& file, photo_frame_error_t* error) {
     log_d("Skipping TOC header lines...");
     // Skip line 1 (timestamp) and line 2 (fileCount)
     String line1 = file.readStringUntil('\n');

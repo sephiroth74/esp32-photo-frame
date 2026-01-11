@@ -61,8 +61,9 @@ namespace photo_frame {
      * Draw error message on the canvas
      * @param canvas Canvas to draw on
      * @param error Error information
+     * @param filename Optional filename to display (nullptr if not applicable)
      */
-    void drawError(GFXcanvas8& canvas, photo_frame_error_t error);
+    void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filename = nullptr);
 
     /**
      * Draw error message with details on the canvas

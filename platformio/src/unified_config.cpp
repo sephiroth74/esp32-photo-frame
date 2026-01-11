@@ -46,27 +46,27 @@ void load_fallback_config(unified_config& config) {
     config.board.day_end_hour                   = DAY_END_HOUR;
 
     // Google Drive - no fallback, must be provided
-    config.google_drive.auth.service_account_email  = "";
-    config.google_drive.auth.private_key_pem        = "";
-    config.google_drive.auth.client_id              = "";
-    config.google_drive.drive.folder_id             = "";
-    config.google_drive.drive.root_ca_path          = "";
-    config.google_drive.drive.list_page_size        = GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE;
-    config.google_drive.drive.use_insecure_tls      = true;
-    config.google_drive.caching.local_path          = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
-    config.google_drive.caching.toc_max_age_seconds = GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
+    config.GoogleDrive.auth.service_account_email  = "";
+    config.GoogleDrive.auth.private_key_pem        = "";
+    config.GoogleDrive.auth.client_id              = "";
+    config.GoogleDrive.drive.folder_id             = "";
+    config.GoogleDrive.drive.root_ca_path          = "";
+    config.GoogleDrive.drive.list_page_size        = GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE;
+    config.GoogleDrive.drive.use_insecure_tls      = true;
+    config.GoogleDrive.caching.local_path          = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
+    config.GoogleDrive.caching.toc_max_age_seconds = GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
 }
 
 photo_frame_error_t
-load_unified_config(sd_card& sdCard, const char* config_path, unified_config& config) {
+load_unified_config(SdCard& sdCard, const char* config_path, unified_config& config) {
     log_i("Loading configuration from: %s", config_path);
 
-    if (!sdCard.is_initialized()) {
+    if (!sdCard.isInitialized()) {
         log_e("SD card not initialized");
         return error_type::CardMountFailed;
     }
 
-    if (!sdCard.file_exists(config_path)) {
+    if (!sdCard.fileExists(config_path)) {
         log_e("Configuration file not found");
         return error_type::SdCardFileNotFound;
     }
@@ -269,52 +269,52 @@ load_unified_config(sd_card& sdCard, const char* config_path, unified_config& co
         JsonObject gd_obj = doc["google_drive_config"];
 
         // Check if Google Drive is enabled
-        config.google_drive.enabled =
+        config.GoogleDrive.enabled =
             gd_obj["enabled"] | true; // Default to true for backward compatibility
-        log_i("Google Drive: %s", config.google_drive.enabled ? "enabled" : "disabled");
+        log_i("Google Drive: %s", config.GoogleDrive.enabled ? "enabled" : "disabled");
 
         if (gd_obj.containsKey("authentication")) {
             JsonObject auth_obj = gd_obj["authentication"];
-            config.google_drive.auth.service_account_email =
+            config.GoogleDrive.auth.service_account_email =
                 auth_obj["service_account_email"].as<String>();
-            config.google_drive.auth.private_key_pem = auth_obj["private_key_pem"].as<String>();
-            config.google_drive.auth.client_id       = auth_obj["client_id"].as<String>();
+            config.GoogleDrive.auth.private_key_pem = auth_obj["private_key_pem"].as<String>();
+            config.GoogleDrive.auth.client_id       = auth_obj["client_id"].as<String>();
 
             log_d("Google Drive authentication - email: %s",
-                  config.google_drive.auth.service_account_email.c_str());
+                  config.GoogleDrive.auth.service_account_email.c_str());
             log_d("Google Drive authentication - client ID: %s",
-                  config.google_drive.auth.client_id.c_str());
+                  config.GoogleDrive.auth.client_id.c_str());
 
         } else {
             log_w("Google Drive configuration missing 'authentication'");
         }
 
         if (gd_obj.containsKey("drive")) {
-            JsonObject drive_obj                   = gd_obj["drive"];
-            config.google_drive.drive.folder_id    = drive_obj["folder_id"].as<String>();
-            config.google_drive.drive.root_ca_path = drive_obj["root_ca_path"].as<String>();
-            config.google_drive.drive.list_page_size =
+            JsonObject drive_obj                  = gd_obj["drive"];
+            config.GoogleDrive.drive.folder_id    = drive_obj["folder_id"].as<String>();
+            config.GoogleDrive.drive.root_ca_path = drive_obj["root_ca_path"].as<String>();
+            config.GoogleDrive.drive.list_page_size =
                 min(drive_obj["list_page_size"] | GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE,
                     GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
-            config.google_drive.drive.use_insecure_tls = drive_obj["use_insecure_tls"] | true;
+            config.GoogleDrive.drive.use_insecure_tls = drive_obj["use_insecure_tls"] | true;
 
             log_d("Google Drive configuration - folder ID: %s",
-                  config.google_drive.drive.folder_id.c_str());
+                  config.GoogleDrive.drive.folder_id.c_str());
             log_d("Google Drive configuration - root CA path: %s",
-                  config.google_drive.drive.root_ca_path.c_str());
+                  config.GoogleDrive.drive.root_ca_path.c_str());
             log_d("Google Drive configuration - list page size: %d",
-                  config.google_drive.drive.list_page_size);
+                  config.GoogleDrive.drive.list_page_size);
             log_d("Google Drive configuration - use insecure TLS: %s",
-                  config.google_drive.drive.use_insecure_tls ? "true" : "false");
+                  config.GoogleDrive.drive.use_insecure_tls ? "true" : "false");
 
         } else {
             log_w("Google Drive configuration missing 'drive'");
         }
 
         if (gd_obj.containsKey("caching")) {
-            JsonObject cache_obj                   = gd_obj["caching"];
-            config.google_drive.caching.local_path = cache_obj["local_path"] | "/gdrive";
-            config.google_drive.caching.toc_max_age_seconds =
+            JsonObject cache_obj                  = gd_obj["caching"];
+            config.GoogleDrive.caching.local_path = cache_obj["local_path"] | "/gdrive";
+            config.GoogleDrive.caching.toc_max_age_seconds =
                 cache_obj["toc_max_age_seconds"] | GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
         } else {
             log_w("Google Drive configuration missing 'caching'");
@@ -322,17 +322,17 @@ load_unified_config(sd_card& sdCard, const char* config_path, unified_config& co
 
         if (gd_obj.containsKey("rate_limiting")) {
             JsonObject rate_obj = gd_obj["rate_limiting"];
-            config.google_drive.rate_limiting.max_requests_per_window =
+            config.GoogleDrive.rate_limiting.max_requests_per_window =
                 rate_obj["max_requests_per_window"] | GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW;
-            config.google_drive.rate_limiting.rate_limit_window_seconds =
+            config.GoogleDrive.rate_limiting.rate_limit_window_seconds =
                 rate_obj["rate_limit_window_seconds"] | GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS;
-            config.google_drive.rate_limiting.min_request_delay_ms =
+            config.GoogleDrive.rate_limiting.min_request_delay_ms =
                 rate_obj["min_request_delay_ms"] | GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS;
-            config.google_drive.rate_limiting.max_retry_attempts =
+            config.GoogleDrive.rate_limiting.max_retry_attempts =
                 rate_obj["max_retry_attempts"] | GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS;
-            config.google_drive.rate_limiting.backoff_base_delay_ms =
+            config.GoogleDrive.rate_limiting.backoff_base_delay_ms =
                 rate_obj["backoff_base_delay_ms"] | GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS;
-            config.google_drive.rate_limiting.max_wait_time_ms =
+            config.GoogleDrive.rate_limiting.max_wait_time_ms =
                 rate_obj["max_wait_time_ms"] | GOOGLE_DRIVE_MAX_WAIT_TIME_MS;
         } else {
             log_w("Google Drive configuration missing 'rate_limiting'");
@@ -379,9 +379,8 @@ load_unified_config(sd_card& sdCard, const char* config_path, unified_config& co
     return error_type::None;
 }
 
-photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
-                                                      const char* config_path,
-                                                      unified_config& config) {
+photo_frame_error_t
+load_unified_config_with_fallback(SdCard& sdCard, const char* config_path, unified_config& config) {
     // First try to load from file
     photo_frame_error_t result = load_unified_config(sdCard, config_path, config);
 
@@ -395,7 +394,7 @@ photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
     }
 
     // Validate configuration: at least one image source must be enabled
-    if (!config.google_drive.enabled && !config.sd_card.enabled) {
+    if (!config.GoogleDrive.enabled && !config.sd_card.enabled) {
         log_e("Configuration error: No image source enabled! At least one of Google Drive or SD "
               "Card must be enabled.");
         return error_type::InvalidConfigNoImageSource;

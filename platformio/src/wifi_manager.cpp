@@ -28,19 +28,19 @@ namespace photo_frame {
 // PROBLEM #1 FIX: Reduced from 30000ms (30s) to 15000ms (15s)
 // ESP32-S3 typically connects in 5-10 seconds; 30s was too long
 // and caused excessive wait times when connection actually failed
-const unsigned long wifi_manager::CONNECTION_TIMEOUT_MS = 15000;
+const unsigned long WifiManager::CONNECTION_TIMEOUT_MS = 15000;
 
-wifi_manager::wifi_manager() : _initialized(false), _connected(false) {}
+WifiManager::WifiManager() : _initialized(false), _connected(false) {}
 
-wifi_manager::~wifi_manager() { disconnect(); }
+WifiManager::~WifiManager() { disconnect(); }
 
-photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard) {
+photo_frame_error_t WifiManager::init(const char* config_file, SdCard& sdCard) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
     }
 
-    if (!sdCard.file_exists(config_file)) {
+    if (!sdCard.fileExists(config_file)) {
         log_e("WiFi config file not found: %s", config_file);
         return error_type::WifiCredentialsNotFound;
     }
@@ -72,7 +72,7 @@ photo_frame_error_t wifi_manager::init(const char* config_file, sd_card& sdCard)
     return error_type::None;
 }
 
-photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const String& password) {
+photo_frame_error_t WifiManager::initWithConfig(const String& ssid, const String& password) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -98,8 +98,7 @@ photo_frame_error_t wifi_manager::init_with_config(const String& ssid, const Str
     return error_type::None;
 }
 
-photo_frame_error_t
-wifi_manager::init_with_networks(const unified_config::wifi_config& wifi_config) {
+photo_frame_error_t WifiManager::initWithNetworks(const unified_config::wifi_config& wifi_config) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -127,13 +126,13 @@ wifi_manager::init_with_networks(const unified_config::wifi_config& wifi_config)
     return error_type::None;
 }
 
-void wifi_manager::set_timezone(const char* timezone) {
+void WifiManager::setTimezone(const char* timezone) {
     log_i("Setting timezone to: %s", timezone);
     setenv("TZ", timezone, 1);
     tzset();
 }
 
-photo_frame_error_t wifi_manager::connect() {
+photo_frame_error_t WifiManager::connect() {
     // Check if the WiFi manager is initialized
     if (!_initialized) {
         log_e("WiFi manager not initialized");
@@ -240,12 +239,12 @@ photo_frame_error_t wifi_manager::connect() {
     return error_type::None;
 }
 
-DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
+DateTime WifiManager::fetchDatetime(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
 
-    if (!is_connected()) {
+    if (!isConnected()) {
         log_e("Not connected to WiFi, cannot fetch time");
         if (error) {
             *error = error_type::WifiConnectionFailed;
@@ -253,7 +252,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
         return DateTime(); // Invalid DateTime
     }
 
-    set_timezone(TIMEZONE);
+    this->setTimezone(TIMEZONE);
     configTime(0, 0, NTP_SERVER1, NTP_SERVER2);
 
     log_i("Waiting for NTP time sync...");
@@ -280,7 +279,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     struct tm timeinfo;
 
     if (getLocalTime(&timeinfo)) {
-        set_timezone(TIMEZONE);
+        this->setTimezone(TIMEZONE);
 
         getLocalTime(&timeinfo);
 
@@ -303,7 +302,7 @@ DateTime wifi_manager::fetch_datetime(photo_frame_error_t* error) {
     return DateTime(); // Invalid DateTime
 }
 
-void wifi_manager::disconnect() {
+void WifiManager::disconnect() {
     if (_connected) {
         log_i("Disconnecting from WiFi...");
 
@@ -321,17 +320,17 @@ void wifi_manager::disconnect() {
     }
 }
 
-void wifi_manager::end() { disconnect(); }
+void WifiManager::end() { disconnect(); }
 
-bool wifi_manager::is_connected() const { return _connected && WiFi.status() == WL_CONNECTED; }
+bool WifiManager::isConnected() const { return _connected && WiFi.status() == WL_CONNECTED; }
 
-String wifi_manager::get_ip_address() const {
-    if (is_connected()) {
+String WifiManager::getIpAddress() const {
+    if (isConnected()) {
         return WiFi.localIP().toString();
     }
     return String("");
 }
 
-String wifi_manager::get_ssid() const { return _ssid; }
+String WifiManager::getSsid() const { return _ssid; }
 
 } // namespace photo_frame

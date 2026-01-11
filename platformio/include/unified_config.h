@@ -94,7 +94,7 @@ struct unified_config {
     } board;
 
     // Google Drive Configuration
-    struct google_drive_config {
+    struct GoogleDrive_config {
         bool enabled = true; // Enable/disable Google Drive image source
 
         struct authentication {
@@ -139,7 +139,7 @@ struct unified_config {
             // Google Drive is valid if disabled OR if enabled with valid settings
             return !enabled || (auth.is_valid() && drive.is_valid());
         }
-    } google_drive;
+    } GoogleDrive;
 
     // SD Card Configuration
     struct sd_card_config {
@@ -167,12 +167,12 @@ struct unified_config {
         }
 
         // At least one image source must be enabled
-        if (!google_drive.enabled && !sd_card.enabled) {
+        if (!GoogleDrive.enabled && !sd_card.enabled) {
             return false;
         }
 
         // Validate enabled sources
-        if (!google_drive.is_valid() || !sd_card.is_valid()) {
+        if (!GoogleDrive.is_valid() || !sd_card.is_valid()) {
             return false;
         }
 
@@ -206,24 +206,24 @@ struct unified_config {
         doc["board_config"]["day_start_hour"] = board.day_start_hour;
         doc["board_config"]["day_end_hour"] = board.day_end_hour;
 
-        doc["google_drive_config"]["authentication"]["service_account_email"] = google_drive.auth.service_account_email;
-        doc["google_drive_config"]["authentication"]["private_key_pem"] = google_drive.auth.private_key_pem;
-        doc["google_drive_config"]["authentication"]["client_id"] = google_drive.auth.client_id;
+        doc["google_drive_config"]["authentication"]["service_account_email"] = GoogleDrive.auth.service_account_email;
+        doc["google_drive_config"]["authentication"]["private_key_pem"] = GoogleDrive.auth.private_key_pem;
+        doc["google_drive_config"]["authentication"]["client_id"] = GoogleDrive.auth.client_id;
 
-        doc["google_drive_config"]["drive"]["folder_id"] = google_drive.drive.folder_id;
-        doc["google_drive_config"]["drive"]["root_ca_path"] = google_drive.drive.root_ca_path;
-        doc["google_drive_config"]["drive"]["list_page_size"] = google_drive.drive.list_page_size;
-        doc["google_drive_config"]["drive"]["use_insecure_tls"] = google_drive.drive.use_insecure_tls;
+        doc["google_drive_config"]["drive"]["folder_id"] = GoogleDrive.drive.folder_id;
+        doc["google_drive_config"]["drive"]["root_ca_path"] = GoogleDrive.drive.root_ca_path;
+        doc["google_drive_config"]["drive"]["list_page_size"] = GoogleDrive.drive.list_page_size;
+        doc["google_drive_config"]["drive"]["use_insecure_tls"] = GoogleDrive.drive.use_insecure_tls;
 
-        doc["google_drive_config"]["caching"]["local_path"] = google_drive.caching.local_path;
-        doc["google_drive_config"]["caching"]["toc_max_age_seconds"] = google_drive.caching.toc_max_age_seconds;
+        doc["google_drive_config"]["caching"]["local_path"] = GoogleDrive.caching.local_path;
+        doc["google_drive_config"]["caching"]["toc_max_age_seconds"] = GoogleDrive.caching.toc_max_age_seconds;
 
-        doc["google_drive_config"]["rate_limiting"]["max_requests_per_window"] = google_drive.rate_limiting.max_requests_per_window;
-        doc["google_drive_config"]["rate_limiting"]["rate_limit_window_seconds"] = google_drive.rate_limiting.rate_limit_window_seconds;
-        doc["google_drive_config"]["rate_limiting"]["min_request_delay_ms"] = google_drive.rate_limiting.min_request_delay_ms;
-        doc["google_drive_config"]["rate_limiting"]["max_retry_attempts"] = google_drive.rate_limiting.max_retry_attempts;
-        doc["google_drive_config"]["rate_limiting"]["backoff_base_delay_ms"] = google_drive.rate_limiting.backoff_base_delay_ms;
-        doc["google_drive_config"]["rate_limiting"]["max_wait_time_ms"] = google_drive.rate_limiting.max_wait_time_ms;
+        doc["google_drive_config"]["rate_limiting"]["max_requests_per_window"] = GoogleDrive.rate_limiting.max_requests_per_window;
+        doc["google_drive_config"]["rate_limiting"]["rate_limit_window_seconds"] = GoogleDrive.rate_limiting.rate_limit_window_seconds;
+        doc["google_drive_config"]["rate_limiting"]["min_request_delay_ms"] = GoogleDrive.rate_limiting.min_request_delay_ms;
+        doc["google_drive_config"]["rate_limiting"]["max_retry_attempts"] = GoogleDrive.rate_limiting.max_retry_attempts;
+        doc["google_drive_config"]["rate_limiting"]["backoff_base_delay_ms"] = GoogleDrive.rate_limiting.backoff_base_delay_ms;
+        doc["google_drive_config"]["rate_limiting"]["max_wait_time_ms"] = GoogleDrive.rate_limiting.max_wait_time_ms;
 
         String output;
         serializeJson(doc, output);
@@ -256,7 +256,7 @@ void load_fallback_config(unified_config& config);
  * @param config Output configuration structure
  * @return photo_frame_error_t Error code
  */
-photo_frame_error_t load_unified_config(sd_card& sdCard,
+photo_frame_error_t load_unified_config(SdCard& sdCard,
     const char* config_path,
     unified_config& config);
 
@@ -271,7 +271,7 @@ photo_frame_error_t load_unified_config(sd_card& sdCard,
  * @param config Output configuration structure (populated with defaults on failure)
  * @return photo_frame_error_t Error code (can return success even if file read failed)
  */
-photo_frame_error_t load_unified_config_with_fallback(sd_card& sdCard,
+photo_frame_error_t load_unified_config_with_fallback(SdCard& sdCard,
     const char* config_path,
     unified_config& config);
 

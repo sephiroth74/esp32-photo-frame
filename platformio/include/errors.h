@@ -453,7 +453,7 @@ photo_frame_error map_http_status_to_error(int statusCode, const char* context =
  * @param context Optional context information
  * @return Corresponding photo_frame_error with Google Drive specific details
  */
-photo_frame_error map_google_drive_error(int statusCode,
+photo_frame_error map_GoogleDrive_error(int statusCode,
                                          const char* responseBody = nullptr,
                                          const char* context      = nullptr);
 

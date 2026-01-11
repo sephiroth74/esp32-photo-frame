@@ -39,23 +39,23 @@ namespace photo_frame {
  * It handles WiFi credentials loading from configuration files and provides
  * robust connection management with timeout handling.
  */
-class wifi_manager {
+class WifiManager {
   public:
     /**
-     * @brief Constructor for wifi_manager.
+     * @brief Constructor for WifiManager.
      *
      * Initializes the WiFi manager with default settings. WiFi credentials
      * and connection must be configured separately using init() and connect().
      */
-    wifi_manager();
+    WifiManager();
 
     /**
-     * @brief Destructor for wifi_manager.
+     * @brief Destructor for WifiManager.
      *
      * Ensures proper cleanup of WiFi resources and disconnects from network
      * if still connected.
      */
-    ~wifi_manager();
+    ~WifiManager();
 
     /**
      * @brief Initialize WiFi manager with configuration from file.
@@ -69,7 +69,7 @@ class wifi_manager {
      * @return photo_frame_error_t Error status (None on success)
      * @note Configuration file must be accessible on the SD card
      */
-    photo_frame_error_t init(const char* config_file, sd_card& sdCard);
+    photo_frame_error_t init(const char* config_file, SdCard& sdCard);
 
     /**
      * @brief Initialize WiFi manager with direct credentials (single network).
@@ -83,7 +83,7 @@ class wifi_manager {
      * @return photo_frame_error_t Error status (None on success)
      * @deprecated Use init_with_networks() for multiple network support
      */
-    photo_frame_error_t init_with_config(const String& ssid, const String& password);
+    photo_frame_error_t initWithConfig(const String& ssid, const String& password);
 
     /**
      * @brief Initialize WiFi manager with multiple network credentials (v0.11.0+).
@@ -109,7 +109,7 @@ class wifi_manager {
      * @note Replaces init_with_config() for multi-network scenarios
      * @see init_with_config() for single-network backward compatibility
      */
-    photo_frame_error_t init_with_networks(const unified_config::wifi_config& wifi_config);
+    photo_frame_error_t initWithNetworks(const unified_config::wifi_config& wifi_config);
 
     /**
      * @brief Connect to WiFi network(s) using stored credentials.
@@ -140,7 +140,7 @@ class wifi_manager {
      * @return DateTime object containing current date and time, or invalid DateTime on error
      * @note WiFi connection must be established before calling this function
      */
-    DateTime fetch_datetime(photo_frame_error_t* error = nullptr);
+    DateTime fetchDatetime(photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Set the timezone for time calculations.
@@ -151,7 +151,7 @@ class wifi_manager {
      * @param timezone Timezone string (e.g., "EST5EDT", "PST8PDT", "GMT0")
      * @note Timezone string format follows POSIX timezone specification
      */
-    void set_timezone(const char* timezone);
+    void setTimezone(const char* timezone);
 
     /**
      * @brief Disconnect from the WiFi network.
@@ -167,7 +167,7 @@ class wifi_manager {
      * @return true if connected to WiFi network, false otherwise
      * @note This reflects the current connection status, not credential validity
      */
-    bool is_connected() const;
+    bool isConnected() const;
 
     /**
      * @brief Get the current IP address assigned by the network.
@@ -175,7 +175,7 @@ class wifi_manager {
      * @return String containing the IP address, or empty string if not connected
      * @note Only valid when connected to a WiFi network
      */
-    String get_ip_address() const;
+    String getIpAddress() const;
 
     /**
      * @brief Get the SSID of the currently connected network.
@@ -183,13 +183,13 @@ class wifi_manager {
      * @return String containing the network SSID, or empty string if not connected
      * @note Returns the SSID from stored credentials, not necessarily the connected network
      */
-    String get_ssid() const;
+    String getSsid() const;
 
     /**
      * @brief Terminate WiFi operations and free resources.
      *
      * Performs complete shutdown of WiFi subsystem including disconnection
-     * and resource cleanup. After calling this method, the wifi_manager
+     * and resource cleanup. After calling this method, the WifiManager
      * instance should be reinitialized before use.
      */
     void end();

@@ -152,8 +152,10 @@ void drawImageInfo(GFXcanvas8& canvas,
                             0);
 }
 
-void drawError(GFXcanvas8& canvas, photo_frame_error_t error) {
-    log_d("drawError: Starting with error code %d", error.code);
+void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filename) {
+    log_d("drawError: Starting with error code %d, filename: %s",
+          error.code,
+          filename ? filename : "N/A");
 
     // Clear canvas
     canvas.fillScreen(DISPLAY_COLOR_WHITE);
@@ -257,6 +259,23 @@ void drawError(GFXcanvas8& canvas, photo_frame_error_t error) {
 
     int16_t text_width = getStringWidth(canvas, errorCode);
     drawString(canvas, disp_w - text_width - 10, 10, errorCode.c_str(), LEFT, DISPLAY_COLOR_BLACK);
+
+    // Draw filename at bottom center if provided
+    if (filename && strlen(filename) > 0) {
+        // Extract just the filename from the path (if it's a full path)
+        const char* lastSlash   = strrchr(filename, '/');
+        const char* displayName = lastSlash ? (lastSlash + 1) : filename;
+
+        // Use small font for filename
+        canvas.setFont(&FONT_6pt8b);
+        canvas.setTextColor(DISPLAY_COLOR_BLACK);
+
+        // Position at bottom center
+        int16_t filename_y = disp_h - 20; // 20 pixels from bottom
+        drawString(canvas, disp_w / 2, filename_y, displayName, CENTER, DISPLAY_COLOR_BLACK);
+
+        log_d("drawError: Filename '%s' drawn at bottom", displayName);
+    }
 }
 
 void drawErrorWithDetails(GFXcanvas8& canvas,

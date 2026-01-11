@@ -86,7 +86,7 @@ bool battery_info_t::is_charging() const { return percent > 100; }
 bool battery_info_t::is_charging() const { return millivolts > BATTERY_CHARGING_MILLIVOLTS; }
 #endif // USE_SENSOR_MAX1704X
 
-void battery_reader::init() const {
+void BatteryReader::init() const {
 #ifdef USE_SENSOR_MAX1704X
     log_i("Initializing MAX1704X Battery Reader on Wire");
 #if defined(MAX1704X_SDA_PIN) && defined(MAX1704X_SCL_PIN)
@@ -94,7 +94,7 @@ void battery_reader::init() const {
 #endif
     TheWire.setTimeOut((uint16_t)SENSOR_MAX1704X_TIMEOUT);
 #else
-    log_i("Initializing battery_reader on pin %d", pin);
+    log_i("Initializing BatteryReader on pin %d", pin);
     pinMode(pin, INPUT);
     // Set the pin to use the ADC with no attenuation
     analogSetPinAttenuation(pin, ADC_11db);
@@ -102,7 +102,7 @@ void battery_reader::init() const {
     delay(200); // Allow some time for the ADC to stabilize
 } // init
 
-battery_info_t battery_reader::read() const {
+battery_info_t BatteryReader::read() const {
 #ifdef USE_SENSOR_MAX1704X
 
     unsigned long ms = millis();

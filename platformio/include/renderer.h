@@ -43,13 +43,12 @@ extern uint16_t DISP_WIDTH;
 extern uint16_t DISP_HEIGHT;
 
 namespace photo_frame {
-namespace renderer {
 
     /**
      * Initialize the renderer and display driver.
      * @return True if initialization successful, false otherwise
      */
-    bool init();
+    bool rendererInit();
 
     /**
      * Render an image from a buffer.
@@ -57,33 +56,33 @@ namespace renderer {
      * @return True if rendering successful, false otherwise
      * @note The buffer should already contain the complete image with any overlays
      */
-    bool render_image(uint8_t* imageBuffer);
+    bool renderImage(uint8_t* imageBuffer);
 
     /**
      * Put the display into sleep mode to save power.
      * Must be called after display operations to preserve screen lifespan.
      */
-    void sleep();
+    void rendererSleep();
 
     /**
      * Clear the display to white.
      */
-    void clear();
+    void rendererClear();
 
     /**
      * Clean up renderer resources and shut down display.
      */
-    void cleanup();
+    void rendererCleanup();
 
     // ========== Display state functions ==========
 
-    void power_off();
-    void hibernate();
-    void end();
-    void refresh(bool partial_update_mode = false);
-    bool has_partial_update();
-    bool has_fast_partial_update();
-    bool has_color();
+    void rendererPowerOff();
+    void rendererHibernate();
+    void rendererEnd();
+    void rendererRefresh(bool partial_update_mode = false);
+    bool rendererHasPartialUpdate();
+    bool rendererHasFastPartialUpdate();
+    bool rendererHasColor();
 
     // ========== Error display functions ==========
 
@@ -92,7 +91,7 @@ namespace renderer {
      * @param canvas Canvas to draw on
      * @param error The error to be displayed
      */
-    void draw_error(GFXcanvas8& canvas, photo_frame_error_t error);
+    void rendererDrawError(GFXcanvas8& canvas, photo_frame_error_t error);
 
     /**
      * Draws an error message with details on the canvas.
@@ -102,7 +101,7 @@ namespace renderer {
      * @param filename The filename that caused the error (optional)
      * @param errorCode The numeric error code
      */
-    void draw_error_with_details(GFXcanvas8& canvas,
+    void rendererDrawErrorWithDetails(GFXcanvas8& canvas,
                                  const String& errMsgLn1,
                                  const String& errMsgLn2,
                                  const char* filename,
@@ -121,7 +120,7 @@ namespace renderer {
      * @param line_spacing The spacing between lines in pixels.
      * @param color The color of the text (default is DISPLAY_COLOR_BLACK).
      */
-    void draw_multiline_string(GFXcanvas8 canvas, int16_t x,
+    void rendererDrawMultilineString(GFXcanvas8 canvas, int16_t x,
         int16_t y,
         const String& text,
         alignment_t alignment,
@@ -139,7 +138,7 @@ namespace renderer {
      * @param x_offset The x-offset from the icon position (default is 0)
      * @param y_offset The y-offset from the icon position (default is 0)
      */
-    void draw_side_message_with_icon(Adafruit_GFX& gfx,
+    void rendererDrawSideMessageWithIcon(Adafruit_GFX& gfx,
         gravity_t gravity,
         icon_name_t icon_name,
         const char* message,
@@ -154,7 +153,7 @@ namespace renderer {
      * @param x_offset The x-offset from the message position (default is 0)
      * @param y_offset The y-offset from the message position (default is 0)
      */
-    void draw_side_message(Adafruit_GFX& gfx,
+    void rendererDrawSideMessage(Adafruit_GFX& gfx,
         gravity_t gravity,
         const char* message,
         int32_t x_offset = 0,
@@ -166,14 +165,14 @@ namespace renderer {
      * @param lastUpdate The DateTime object representing the last update time.
      * @param refresh_seconds The number of seconds since the last update (default is 0).
      */
-    void draw_last_update(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds = 0);
+    void rendererDrawLastUpdate(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_seconds = 0);
 
     /**
      * Draws the battery status on a GFX canvas (for overlay composition).
      * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
      * @param battery_info Battery information structure
      */
-    void draw_battery_status(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info);
+    void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info);
 
     /**
      * Draws image information on a GFX canvas (for overlay composition).
@@ -182,7 +181,7 @@ namespace renderer {
      * @param total_images The total number of images.
      * @param image_source The source of the current image (cloud or local cache).
      */
-    void draw_image_info(Adafruit_GFX& gfx,
+    void rendererDrawImageInfo(Adafruit_GFX& gfx,
         uint32_t index,
         uint32_t total_images,
         photo_frame::image_source_t image_source);
@@ -201,9 +200,7 @@ namespace renderer {
      * @return Error code (0 = success, non-zero = error)
      * @note File can be closed after this function returns
      */
-    uint16_t load_image_to_buffer(uint8_t* buffer, File& file, const char* filename, int width, int height);
-
-} // namespace renderer
+    uint16_t loadImageToBuffer(uint8_t* buffer, File& file, const char* filename, int width, int height);
 
 } // namespace photo_frame
 

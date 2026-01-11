@@ -70,10 +70,10 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
 
     // Build or validate TOC
     if (use_toc) {
-        if (!sdCard.is_toc_valid(images_directory, ".bin")) {
+        if (!sdCard.isTocValid(images_directory, ".bin")) {
             log_i("Building SD card TOC for directory: %s", images_directory);
             photo_frame::photo_frame_error_t tocError;
-            if (sdCard.build_directory_toc(images_directory, ".bin", &tocError)) {
+            if (sdCard.buildDirectoryToc(images_directory, ".bin", &tocError)) {
                 log_i("SD card TOC built successfully");
             } else {
                 log_w(
@@ -89,10 +89,10 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
 
     // Count files using TOC or direct iteration
     if (use_toc) {
-        fileCount = sdCard.count_files_cached(images_directory, ".bin", true);
+        fileCount = sdCard.countFilesCached(images_directory, ".bin", true);
         log_i("Found %lu files using TOC cache", fileCount);
     } else {
-        fileCount = sdCard.count_files_in_directory(images_directory, ".bin");
+        fileCount = sdCard.countFilesInDirectory(images_directory, ".bin");
         log_i("Found %lu files using direct iteration", fileCount);
     }
 
@@ -114,10 +114,10 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
     ts = millis();
 
     if (use_toc) {
-        fullPath = sdCard.get_file_at_index_cached(images_directory, targetIndex, ".bin", true);
+        fullPath = sdCard.getFileAtIndexCached(images_directory, targetIndex, ".bin", true);
         log_i("Selected file from TOC: %s", fullPath.c_str());
     } else {
-        fullPath = sdCard.get_file_at_index(images_directory, targetIndex, ".bin");
+        fullPath = sdCard.getFileAtIndex(images_directory, targetIndex, ".bin");
         log_i("Selected file from iteration: %s", fullPath.c_str());
     }
 

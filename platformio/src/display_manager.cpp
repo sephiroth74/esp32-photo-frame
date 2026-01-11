@@ -204,14 +204,17 @@ void DisplayManager::drawImageInfo(uint32_t index,
     photo_frame::drawImageInfo(imageBuffer_.getCanvas(), index, total_images, image_source);
 }
 
-void DisplayManager::drawError(photo_frame_error_t error) {
-    log_w("draw_error. code=%d, category%d", error.code, error.category);
+void DisplayManager::drawError(photo_frame_error_t error, const char* filename) {
+    log_w("draw_error. code=%d, category%d, filename=%s",
+          error.code,
+          error.category,
+          filename ? filename : "N/A");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized()) {
         log_e("Cannot draw error - image buffer not initialized");
         return;
     }
-    photo_frame::drawError(imageBuffer_.getCanvas(), error);
+    photo_frame::drawError(imageBuffer_.getCanvas(), error, filename);
 }
 
 void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,

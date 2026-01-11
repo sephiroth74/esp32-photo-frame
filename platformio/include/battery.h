@@ -236,7 +236,7 @@ extern const uint8_t total_steps;
  * the MAX1704X sensor or analog voltage divider circuit. It handles initialization,
  * voltage reading, and percentage calculation.
  */
-class battery_reader {
+class BatteryReader {
   public:
 #ifndef USE_SENSOR_MAX1704X
     uint8_t pin;                     ///< Analog pin for battery voltage reading
@@ -251,7 +251,7 @@ class battery_reader {
      * @param num_readings Number of readings to average for stability
      * @param delay Delay between readings in milliseconds
      */
-    constexpr battery_reader(uint8_t pin,
+    constexpr BatteryReader(uint8_t pin,
                              double resistor_ratio,
                              uint8_t num_readings,
                              uint32_t delay) :
@@ -265,7 +265,7 @@ class battery_reader {
      * @brief Constructor for MAX1704X sensor battery reader.
      * No parameters needed as the sensor handles everything internally.
      */
-    constexpr battery_reader() {}
+    constexpr BatteryReader() {}
 
 #endif // USE_SENSOR_MAX1704X
 
@@ -287,7 +287,7 @@ class battery_reader {
      */
     battery_info_t read() const;
 
-}; // battery_reader
+}; // BatteryReader
 
 } // namespace photo_frame
 

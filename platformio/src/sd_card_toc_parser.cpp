@@ -4,45 +4,41 @@
 
 namespace photo_frame {
 
-sd_card_toc_parser::sd_card_toc_parser(sd_card& sdCard,
-                                       const char* tocDataPath,
-                                       const char* tocMetaPath) :
+SdCardTocParser::SdCardTocParser(SdCard& sdCard, const char* tocDataPath, const char* tocMetaPath) :
     sdCard_(sdCard),
     tocDataPath_(tocDataPath),
     tocMetaPath_(tocMetaPath),
-    headerParsed_(false),
-    cachedTimestamp_(0),
-    cachedFileCount_(0),
+    metaParsed_(false),
     cachedDirModTime_(0),
-    metaParsed_(false) {}
+    cachedFileCount_(0),
+    cachedFileSize_(0) {}
 
-bool sd_card_toc_parser::toc_exists() const {
-    return sdCard_.file_exists(tocDataPath_.c_str()) && sdCard_.file_exists(tocMetaPath_.c_str());
+bool SdCardTocParser::toc_exists() const {
+    return sdCard_.fileExists(tocDataPath_.c_str()) && sdCard_.fileExists(tocMetaPath_.c_str());
 }
 
-time_t sd_card_toc_parser::get_timestamp(photo_frame_error_t* error) {
-    if (!headerParsed_) {
-        File file;
-        if (!open_and_validate_toc(file, error)) {
-            return 0;
+time_t SdCardTocParser::get_timestamp(photo_frame_error_t* error) {
+    // Timestamp is the modification time of the directory
+    if (!parse_and_cache_metadata()) {
+        if (error) {
+            *error = error_type::TocMetadataMissing;
         }
-        file.close();
+        return 0;
     }
-    return cachedTimestamp_;
+    return cachedDirModTime_;
 }
 
-size_t sd_card_toc_parser::get_file_count(photo_frame_error_t* error) {
-    if (!headerParsed_) {
-        File file;
-        if (!open_and_validate_toc(file, error)) {
-            return 0;
+size_t SdCardTocParser::get_file_count(photo_frame_error_t* error) {
+    if (!parse_and_cache_metadata()) {
+        if (error) {
+            *error = error_type::TocMetadataMissing;
         }
-        file.close();
+        return 0;
     }
     return cachedFileCount_;
 }
 
-String sd_card_toc_parser::get_directory_path(photo_frame_error_t* error) {
+String SdCardTocParser::get_directory_path(photo_frame_error_t* error) {
     if (!parse_and_cache_metadata()) {
         if (error) {
             *error = error_type::TocMetadataMissing;
@@ -52,7 +48,7 @@ String sd_card_toc_parser::get_directory_path(photo_frame_error_t* error) {
     return cachedDirectoryPath_;
 }
 
-String sd_card_toc_parser::get_extension(photo_frame_error_t* error) {
+String SdCardTocParser::get_extension(photo_frame_error_t* error) {
     if (!parse_and_cache_metadata()) {
         if (error) {
             *error = error_type::TocMetadataMissing;
@@ -62,9 +58,12 @@ String sd_card_toc_parser::get_extension(photo_frame_error_t* error) {
     return cachedExtension_;
 }
 
-String sd_card_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* error) {
-    File file;
-    if (!open_and_validate_toc(file, error)) {
+String SdCardTocParser::get_file_by_index(size_t index, photo_frame_error_t* error) {
+    // First ensure metadata is cached (to get file count)
+    if (!parse_and_cache_metadata()) {
+        if (error) {
+            *error = error_type::TocMetadataMissing;
+        }
         return String();
     }
 
@@ -72,13 +71,15 @@ String sd_card_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* 
         if (error) {
             *error = error_type::TocIndexOutOfRange;
         }
-        file.close();
         return String();
     }
 
-    // Skip to the entries section (past header)
-    if (!skip_to_entries(file, error)) {
-        file.close();
+    // Open data file directly (no header now, just file list)
+    File file = sdCard_.open(tocDataPath_.c_str(), "r");
+    if (!file) {
+        if (error) {
+            *error = error_type::TocMetadataMissing; // Use existing error type
+        }
         return String();
     }
 
@@ -96,7 +97,6 @@ String sd_card_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* 
 
         if (i == index) {
             file.close();
-            // New format: just path (no size for speed)
             String line(lineBuffer);
             line.trim();
             return line;
@@ -107,145 +107,57 @@ String sd_card_toc_parser::get_file_by_index(size_t index, photo_frame_error_t* 
     return String();
 }
 
-bool sd_card_toc_parser::validate_toc(time_t dirModTime,
-                                      const char* expectedPath,
-                                      const char* expectedExt) {
+bool SdCardTocParser::validate_toc(const char* expectedPath, const char* expectedExt) {
     if (!toc_exists()) {
         return false;
     }
 
-    // Check directory modification time from metadata
-    time_t storedModTime = get_directory_mod_time();
-    if (storedModTime == 0 || storedModTime != dirModTime) {
-        log_v("TOC invalid: directory mod time changed (stored: %ld, current: %ld)",
-              storedModTime,
-              dirModTime);
+    // Parse metadata if not already cached
+    if (!parse_and_cache_metadata()) {
         return false;
     }
 
     // Check directory path matches
-    String storedPath = get_directory_path();
-    if (expectedPath && storedPath != String(expectedPath)) {
+    if (expectedPath && cachedDirectoryPath_ != String(expectedPath)) {
         log_v("TOC invalid: directory path mismatch (stored: %s, expected: %s)",
-              storedPath.c_str(),
+              cachedDirectoryPath_.c_str(),
               expectedPath);
         return false;
     }
 
     // Check extension matches
-    String storedExt = get_extension();
-    if (expectedExt && storedExt != String(expectedExt)) {
+    if (expectedExt && cachedExtension_ != String(expectedExt)) {
         log_v("TOC invalid: extension mismatch (stored: %s, expected: %s)",
-              storedExt.c_str(),
+              cachedExtension_.c_str(),
               expectedExt);
         return false;
     }
 
-    // Parse header to validate format
-    File file;
-    if (!open_and_validate_toc(file, nullptr)) {
-        return false;
-    }
-    file.close();
-
-    return true;
-}
-
-time_t sd_card_toc_parser::get_directory_mod_time(photo_frame_error_t* error) {
-    if (!parse_and_cache_metadata()) {
-        if (error) {
-            *error = error_type::TocMetadataMissing;
-        }
-        return 0;
-    }
-    return cachedDirModTime_;
-}
-
-bool sd_card_toc_parser::open_and_validate_toc(File& file, photo_frame_error_t* error) {
-    file = sdCard_.open(tocDataPath_.c_str(), "r");
-    if (!file) {
-        if (error) {
-            *error = error_type::TocMetadataMissing;
-        }
-        return false;
-    }
-
-    if (!parse_header(file, error)) {
-        file.close();
-        return false;
-    }
-
-    return true;
-}
-
-bool sd_card_toc_parser::parse_header(File& file, photo_frame_error_t* error) {
-    char lineBuffer[256];
-
-    // Line 1: timestamp = <value>
-    int len = read_line(file, lineBuffer, sizeof(lineBuffer));
-    if (len <= 0) {
-        if (error) {
-            *error = error_type::TocHeaderInvalid;
-        }
-        return false;
-    }
-    String line(lineBuffer);
-    String value;
-    if (!parse_key_value(line, "timestamp", value)) {
-        if (error) {
-            *error = error_type::TocHeaderInvalid;
-        }
-        return false;
-    }
-    cachedTimestamp_ = value.toInt();
-
-    // Line 2: fileCount = <value>
-    len = read_line(file, lineBuffer, sizeof(lineBuffer));
-    if (len <= 0) {
-        if (error) {
-            *error = error_type::TocHeaderInvalid;
-        }
-        return false;
-    }
-    line = String(lineBuffer);
-    if (!parse_key_value(line, "fileCount", value)) {
-        if (error) {
-            *error = error_type::TocHeaderInvalid;
-        }
-        return false;
-    }
-    cachedFileCount_ = value.toInt();
-
-    // Directory path and extension are now in the meta file, not in data file
-    // We'll load them from meta file when needed
-
-    headerParsed_ = true;
-    return true;
-}
-
-bool sd_card_toc_parser::skip_to_entries(File& file, photo_frame_error_t* error) {
-    // If we haven't parsed the header yet, do it now
-    if (!headerParsed_) {
-        if (!parse_header(file, error)) {
+    // Validate TOC data file size matches what was stored in metadata
+    if (cachedFileSize_ > 0) {
+        File tocDataFile = sdCard_.open(tocDataPath_.c_str(), "r");
+        if (!tocDataFile) {
+            log_v("TOC invalid: cannot open TOC data file for size validation");
             return false;
         }
-    } else {
-        // Header already parsed, just skip the 2 header lines (timestamp and fileCount)
-        file.seek(0);
-        char lineBuffer[256];
-        for (int i = 0; i < 2; i++) {
-            if (read_line(file, lineBuffer, sizeof(lineBuffer)) <= 0) {
-                if (error) {
-                    *error = error_type::TocHeaderInvalid;
-                }
-                return false;
-            }
+
+        size_t actualSize = tocDataFile.size();
+        tocDataFile.close();
+
+        if (actualSize != cachedFileSize_) {
+            log_v("TOC invalid: file size mismatch (stored: %u, actual: %u)",
+                  cachedFileSize_,
+                  actualSize);
+            return false;
         }
     }
+
     return true;
 }
 
-int sd_card_toc_parser::read_line(File& file, char* buffer, size_t maxLength) const {
+// Old functions removed - TOC data file now contains only file list
+
+int SdCardTocParser::read_line(File& file, char* buffer, size_t maxLength) const {
     if (!file || !buffer || maxLength == 0) {
         return -1;
     }
@@ -283,7 +195,7 @@ int sd_card_toc_parser::read_line(File& file, char* buffer, size_t maxLength) co
     return pos;
 }
 
-bool sd_card_toc_parser::parse_key_value(const String& line, const char* key, String& value) const {
+bool SdCardTocParser::parse_key_value(const String& line, const char* key, String& value) const {
     String keyStr = String(key) + " = ";
     if (line.startsWith(keyStr)) {
         value = line.substring(keyStr.length());
@@ -293,7 +205,7 @@ bool sd_card_toc_parser::parse_key_value(const String& line, const char* key, St
     return false;
 }
 
-bool sd_card_toc_parser::parse_and_cache_metadata() const {
+bool SdCardTocParser::parse_and_cache_metadata() const {
     if (metaParsed_) {
         return true; // Already cached
     }
@@ -305,8 +217,15 @@ bool sd_card_toc_parser::parse_and_cache_metadata() const {
 
     char lineBuffer[256];
 
-    // Line 1: directoryModTime
+    // Line 1: directoryPath
     int len = read_line(metaFile, lineBuffer, sizeof(lineBuffer));
+    if (len > 0) {
+        String line(lineBuffer);
+        parse_key_value(line, "directoryPath", cachedDirectoryPath_);
+    }
+
+    // Line 2: directoryModTime
+    len = read_line(metaFile, lineBuffer, sizeof(lineBuffer));
     if (len > 0) {
         String line(lineBuffer);
         String value;
@@ -315,18 +234,31 @@ bool sd_card_toc_parser::parse_and_cache_metadata() const {
         }
     }
 
-    // Line 2: directoryPath
+    // Line 3: fileCount
     len = read_line(metaFile, lineBuffer, sizeof(lineBuffer));
     if (len > 0) {
         String line(lineBuffer);
-        parse_key_value(line, "directoryPath", cachedDirectoryPath_);
+        String value;
+        if (parse_key_value(line, "fileCount", value)) {
+            cachedFileCount_ = value.toInt();
+        }
     }
 
-    // Line 3: extension
+    // Line 4: extension
     len = read_line(metaFile, lineBuffer, sizeof(lineBuffer));
     if (len > 0) {
         String line(lineBuffer);
         parse_key_value(line, "extension", cachedExtension_);
+    }
+
+    // Line 5: fileSize
+    len = read_line(metaFile, lineBuffer, sizeof(lineBuffer));
+    if (len > 0) {
+        String line(lineBuffer);
+        String value;
+        if (parse_key_value(line, "fileSize", value)) {
+            cachedFileSize_ = value.toInt();
+        }
     }
 
     metaFile.close();

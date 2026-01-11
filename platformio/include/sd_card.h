@@ -47,7 +47,7 @@ namespace photo_frame {
  * including its name, full path, and index within a collection. It provides
  * utility methods for string representation and validity checking.
  */
-class sd_card_entry {
+class SdCardEntry {
   public:
     String name;    ///< Name of the file (without path)
     String path;    ///< Full path to the file on the SD card
@@ -56,7 +56,7 @@ class sd_card_entry {
     /**
      * @brief Default constructor creating an empty entry.
      */
-    sd_card_entry() : name(""), path(""), index(0) {}
+    SdCardEntry() : name(""), path(""), index(0) {}
 
     /**
      * @brief Constructor with file information.
@@ -64,7 +64,7 @@ class sd_card_entry {
      * @param path Full path to the file on the SD card
      * @param index Index of this entry within a collection
      */
-    sd_card_entry(const char* name, const char* path, uint32_t index) :
+    SdCardEntry(const char* name, const char* path, uint32_t index) :
         name(name),
         path(path),
         index(index) {}
@@ -73,7 +73,7 @@ class sd_card_entry {
      * @brief Converts the entry to a string representation.
      * @return String in format "name | path | index"
      */
-    String to_string() const { return name + " | " + path + " | " + String(index); }
+    String toString() const { return name + " | " + path + " | " + String(index); }
 
     /**
      * @brief Checks if the entry is valid (has non-empty name and path).
@@ -91,7 +91,7 @@ class sd_card_entry {
  * than SPI mode. Uses custom ESP32 pins: CLK(14), CMD(15), D0(7), D1(4), D2(12), D3(13).
  * Note: D0 moved from GPIO2 to GPIO7 to avoid NeoPixel LED conflict on Feather V2.
  */
-class sd_card {
+class SdCard {
   private:
     bool initialized;       ///< Flag indicating if SD card is initialized
     sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
@@ -104,15 +104,15 @@ class sd_card {
 
   public:
     /**
-     * @brief Constructor for sd_card using SD_MMC (SDIO interface).
+     * @brief Constructor for SdCard using SD_MMC (SDIO interface).
      * SD_MMC uses fixed pins that cannot be configured:
      * - CLK: GPIO14, CMD: GPIO15, D0: GPIO2, D1: GPIO4, D2: GPIO12, D3: GPIO13
      */
-    sd_card() : initialized(false), cardType(CARD_UNKNOWN), toc_valid_(false) {}
+    SdCard() : initialized(false), cardType(CARD_UNKNOWN), toc_valid_(false) {}
 
     // Disable copy constructor and assignment operator
-    sd_card(const sd_card&)            = delete;
-    sd_card& operator=(const sd_card&) = delete;
+    SdCard(const SdCard&)            = delete;
+    SdCard& operator=(const SdCard&) = delete;
 
     /**
      * Initializes the SD card.
@@ -135,14 +135,14 @@ class sd_card {
     /**
      * Checks if the SD card is initialized.
      */
-    bool is_initialized() const { return initialized; }
+    bool isInitialized() const { return initialized; }
 
     /**
      * Returns the type of the SD card.
      * @return sdcard_type_t representing the type of the SD card.
      * If the SD card is not initialized, it returns CARD_NONE.
      */
-    sdcard_type_t get_card_type() const {
+    sdcard_type_t getCardType() const {
         if (!initialized) {
             return CARD_NONE;
         }
@@ -155,7 +155,7 @@ class sd_card {
      * Outputs a human-readable description of the detected SD card type
      * (MMC, SDSC, SDHC, etc.) for debugging and informational purposes.
      */
-    void print_card_type() const {
+    void printCardType() const {
         const char* card_type_str;
         switch (cardType) {
         case CARD_MMC:     card_type_str = "MMC"; break;
@@ -173,42 +173,42 @@ class sd_card {
      * @param path The path to the file.
      * @return The last modified time as a time_t value.
      */
-    time_t get_last_modified(const char* path) const;
+    time_t getLastModified(const char* path) const;
 
     /**
      * Get the age of a file on the SD card.
      * @param path The path to the file.
      * @return The age of the file in seconds.
      */
-    time_t get_file_age(const char* path) const;
+    time_t getFileAge(const char* path) const;
 
     /**
      * Checks if a file exists on the SD card.
      * @param path The path to the file to check.
      * @return true if the file exists, false otherwise.
      */
-    bool file_exists(const char* path) const;
+    bool fileExists(const char* path) const;
 
     /**
      * Checks if a directory exists on the SD card.
      * @param path The path to the directory to check.
      * @return true if the directory exists, false otherwise.
      */
-    bool is_directory(const char* path) const;
+    bool isDirectory(const char* path) const;
 
     /**
      * Checks if a file exists on the SD card.
      * @param path The path to the file to check.
      * @return true if the file exists, false otherwise.
      */
-    bool is_file(const char* path) const;
+    bool isFile(const char* path) const;
 
     /**
      * Lists all files in the root directory of the SD card with allowed extensions (.bin, .bmp).
      * @note This function only lists files in the root directory, not in subdirectories.
      * @note If the SD card is not initialized, it will not list any files.
      */
-    void list_files() const;
+    void listFiles() const;
 
     /**
      * Prints statistics about the SD card, including total space, used space, and free space.
@@ -218,7 +218,7 @@ class sd_card {
      * @note This function is useful for debugging and monitoring the SD card's status.
      * It can help identify issues related to storage capacity or file management.
      */
-    void print_stats() const;
+    void printStats() const;
 
     /**
      * Counts the number of files with allowed extensions (.bin, .bmp) in the root directory of the
@@ -227,7 +227,7 @@ class sd_card {
      * If the SD card is not initialized, it returns 0.
      * @note This function only counts files in the root directory, not in subdirectories.
      */
-    uint32_t count_files() const;
+    uint32_t countFiles() const;
 
     /**
      * Opens a file on the SD card.
@@ -265,7 +265,7 @@ class sd_card {
      * @return true if all contents were removed successfully, false otherwise.
      * @note If the SD card is not initialized or the directory doesn't exist, it will return false.
      */
-    bool cleanup_dir(const char* path);
+    bool cleanupDir(const char* path);
 
     /**
      * Removes a directory from the SD card.
@@ -281,7 +281,7 @@ class sd_card {
      * @return The size of the file in bytes, or 0 if the file doesn't exist or SD card is not
      * initialized.
      */
-    size_t get_file_size(const char* path) const;
+    size_t getFileSize(const char* path) const;
 
     /**
      * Creates directories recursively if they don't exist.
@@ -289,7 +289,7 @@ class sd_card {
      * @return true if directories were created successfully or already exist, false otherwise.
      * @note If the SD card is not initialized, it will return false.
      */
-    bool create_directories(const char* path);
+    bool createDirectories(const char* path);
 
     /**
      * Lists all files in a directory with the specified extension.
@@ -298,7 +298,7 @@ class sd_card {
      * @return Vector of file paths matching the extension.
      * @note If the SD card is not initialized or directory doesn't exist, returns empty vector.
      */
-    std::vector<String> list_files_in_directory(const char* dir_path, const char* extension = ".bin") const;
+    std::vector<String> listFilesInDirectory(const char* dir_path, const char* extension = ".bin") const;
 
     /**
      * Gets a file at a specific index from a directory.
@@ -308,7 +308,7 @@ class sd_card {
      * @return Full path to the file, or empty string if not found.
      * @note Files are sorted alphabetically before indexing.
      */
-    String get_file_at_index(const char* dir_path, uint32_t index, const char* extension = ".bin") const;
+    String getFileAtIndex(const char* dir_path, uint32_t index, const char* extension = ".bin") const;
 
     /**
      * Counts the number of files with specified extension in a directory.
@@ -317,25 +317,25 @@ class sd_card {
      * @return Number of files with the specified extension.
      * @note If the SD card is not initialized or directory doesn't exist, returns 0.
      */
-    uint32_t count_files_in_directory(const char* dir_path, const char* extension = ".bin") const;
+    uint32_t countFilesInDirectory(const char* dir_path, const char* extension = ".bin") const;
 
     /**
      * Gets the amount of used space in bytes on the SD card.
      * @return The amount of used space in bytes, or 0 if the SD card is not initialized.
      */
-    uint64_t used_bytes() const;
+    uint64_t usedBytes() const;
 
     /**
      * Gets the total bytes on the SD card.
      * @return The total space in bytes, or 0 if the SD card is not initialized.
      */
-    uint64_t total_bytes() const;
+    uint64_t totalBytes() const;
 
     /**
      * Gets the card size in bytes.
      * @return The card size in bytes, or 0 if the SD card is not initialized.
      */
-    uint64_t card_size() const;
+    uint64_t cardSize() const;
 
     // ========== TOC (Table of Contents) Caching System ==========
 
@@ -348,7 +348,7 @@ class sd_card {
      * @param error Optional pointer to store error details if build fails.
      * @return true if TOC was built successfully, false otherwise.
      */
-    bool build_directory_toc(const char* dir_path, const char* extension = ".bin", photo_frame_error_t* error = nullptr);
+    bool buildDirectoryToc(const char* dir_path, const char* extension = ".bin", photo_frame_error_t* error = nullptr);
 
     /**
      * Checks if the TOC is valid for the given directory.
@@ -357,13 +357,13 @@ class sd_card {
      * @param extension The file extension filter.
      * @return true if TOC is valid and can be used, false if it needs rebuilding.
      */
-    bool is_toc_valid(const char* dir_path, const char* extension = ".bin") const;
+    bool isTocValid(const char* dir_path, const char* extension = ".bin") const;
 
     /**
      * Invalidates the cached TOC, forcing a rebuild on next access.
      * Call this when directory contents may have changed.
      */
-    void invalidate_toc();
+    void invalidateToc();
 
     /**
      * Gets the number of files using the cached TOC if available.
@@ -373,7 +373,7 @@ class sd_card {
      * @param use_toc If true, attempts to use TOC cache. Default is true.
      * @return Number of files matching the extension.
      */
-    uint32_t count_files_cached(const char* dir_path, const char* extension = ".bin", bool use_toc = true) const;
+    uint32_t countFilesCached(const char* dir_path, const char* extension = ".bin", bool use_toc = true) const;
 
     /**
      * Gets a file at index using the cached TOC if available.
@@ -384,13 +384,13 @@ class sd_card {
      * @param use_toc If true, attempts to use TOC cache. Default is true.
      * @return Full path to the file, or empty string if not found.
      */
-    String get_file_at_index_cached(const char* dir_path, uint32_t index, const char* extension = ".bin", bool use_toc = true) const;
+    String getFileAtIndexCached(const char* dir_path, uint32_t index, const char* extension = ".bin", bool use_toc = true) const;
 
 private:
     // Helper methods for TOC operations
-    String get_toc_data_path() const { return "/sd_toc_data.txt"; }
-    String get_toc_meta_path() const { return "/sd_toc_meta.txt"; }
-    bool should_use_toc(const char* dir_path, const char* extension) const;
+    String getTocDataPath() const { return "/sd_toc_data.txt"; }
+    String getTocMetaPath() const { return "/sd_toc_meta.txt"; }
+    bool shouldUseToc(const char* dir_path, const char* extension) const;
 };
 
 } // namespace photo_frame

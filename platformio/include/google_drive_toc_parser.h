@@ -38,14 +38,14 @@ namespace photo_frame {
  * Line 2: fileCount = <value>
  * Line 3+: id|name
  */
-class google_drive_toc_parser {
+class GoogleDriveTocParser {
   public:
     /**
      * @brief Constructor
      * @param sdCard Reference to the SD card instance
      * @param tocFilePath Path to the TOC file
      */
-    google_drive_toc_parser(sd_card& sdCard, const char* tocFilePath);
+    GoogleDriveTocParser(SdCard& sdCard, const char* tocFilePath);
 
     /**
      * @brief Get the timestamp from the TOC file
@@ -65,29 +65,29 @@ class google_drive_toc_parser {
      * @brief Get a file entry by index
      * @param index Zero-based index of the file to retrieve
      * @param error Pointer to error code (optional)
-     * @return google_drive_file at the specified index, or empty file if error
+     * @return GoogleDriveFile at the specified index, or empty file if error
      */
-    google_drive_file get_file_by_index(size_t index, photo_frame_error_t* error = nullptr);
+    GoogleDriveFile get_file_by_index(size_t index, photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Find a file by name
      * @param filename Name of the file to search for
      * @param error Pointer to error code (optional)
-     * @return google_drive_file with the specified name, or empty file if not found
+     * @return GoogleDriveFile with the specified name, or empty file if not found
      */
-    google_drive_file get_file_by_name(const char* filename, photo_frame_error_t* error = nullptr);
+    GoogleDriveFile get_file_by_name(const char* filename, photo_frame_error_t* error = nullptr);
 
     /**
-     * @brief Parse a single TOC line into a google_drive_file
+     * @brief Parse a single TOC line into a GoogleDriveFile
      * @param line The line to parse in format: id|name
      * @param error Pointer to error code (optional)
-     * @return Parsed google_drive_file, or empty file if parse error
+     * @return Parsed GoogleDriveFile, or empty file if parse error
      */
-    static google_drive_file parse_file_line(const char* line,
+    static GoogleDriveFile parse_file_line(const char* line,
                                              photo_frame_error_t* error = nullptr);
 
   private:
-    sd_card& sdCard_;
+    SdCard& sdCard_;
     const char* tocFilePath_;
 
     /**

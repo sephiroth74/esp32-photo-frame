@@ -51,7 +51,7 @@ photo_frame_error map_http_status_to_error(int statusCode, const char* context) 
 }
 
 photo_frame_error
-map_google_drive_error(int statusCode, const char* responseBody, const char* context) {
+map_GoogleDrive_error(int statusCode, const char* responseBody, const char* context) {
     photo_frame_error error;
 
     // First check for specific Google Drive error patterns
