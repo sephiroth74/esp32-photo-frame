@@ -1,0 +1,52 @@
+{
+  "wifi": [
+    {
+      "ssid": "YOUR_WIFI_SSID",
+      "password": "YOUR_WIFI_PASSWORD"
+    }
+  ],
+  "board_config": {
+    "refresh": {
+      "min_seconds": 600,
+      "max_seconds": 14400,
+      "step": 300,
+      "default": 1800,
+      "low_battery_multiplier": 3
+    },
+    "day_start_hour": 6,
+    "day_end_hour": 23,
+    "portrait_mode": true
+  },
+  "google_drive_config": {
+    "enabled": false,
+    "authentication": {
+      "service_account_email": "YOUR_SERVICE_ACCOUNT_EMAIL",
+      "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----",
+      "client_id": "YOUR_CLIENT_ID"
+    },
+    "drive": {
+      "folder_id": "YOUR_FOLDER_ID",
+      "root_ca_path": "/certs/google_root_ca.pem",
+      "list_page_size": 200,
+      "use_insecure_tls": false
+    },
+    "caching": {
+      "local_path": "/gdrive",
+      "toc_max_age_seconds": 604800
+    },
+    "rate_limiting": {
+      "max_requests_per_window": 100,
+      "rate_limit_window_seconds": 100,
+      "min_request_delay_ms": 500,
+      "max_retry_attempts": 3,
+      "backoff_base_delay_ms": 5000,
+      "max_wait_time_ms": 30000
+    }
+  },
+  "sd_card_config": {
+    "enabled": true,
+    "images_directory": "/images",
+    "use_toc_cache": true,
+    "toc_max_age_seconds": 86400
+  }
+}
