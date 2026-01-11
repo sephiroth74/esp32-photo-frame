@@ -3,3 +3,7 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+# Sensitive configuration files
+data/config.json
+# But keep the template
+!data/config.json.template
