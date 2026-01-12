@@ -92,7 +92,6 @@ impl Args {
                 self.processing_type = match display_type.as_str() {
                     "bw" | "blackWhite" => ColorType::BlackWhite,
                     "6c" | "sixColor" => ColorType::SixColor,
-                    "7c" | "sevenColor" => ColorType::SevenColor,
                     _ => self.processing_type.clone(),
                 };
             }

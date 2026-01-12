@@ -44,7 +44,6 @@ use orientation::get_effective_target_dimensions;
 pub enum ProcessingType {
     BlackWhite,
     SixColor,
-    SevenColor,
 }
 
 impl ProcessingType {
@@ -53,7 +52,6 @@ impl ProcessingType {
         match self {
             ProcessingType::BlackWhite => "bw",
             ProcessingType::SixColor => "6c",
-            ProcessingType::SevenColor => "7c",
         }
     }
 
@@ -62,7 +60,6 @@ impl ProcessingType {
         match prefix {
             "bw" => Some(ProcessingType::BlackWhite),
             "6c" => Some(ProcessingType::SixColor),
-            "7c" => Some(ProcessingType::SevenColor),
             _ => None,
         }
     }
@@ -113,7 +110,7 @@ pub struct ProcessingConfig {
     pub optimization_report: bool,
     // Target display orientation
     pub target_orientation: crate::cli::TargetOrientation,
-    // Pre-rotation flag (true for 6c/7c portrait mode only)
+    // Pre-rotation flag (true for 6c portrait mode only)
     pub needs_pre_rotation: bool,
     // JSON progress output (suppresses all other output)
     pub json_progress: bool,
@@ -1273,14 +1270,14 @@ impl ProcessingEngine {
         progress_bar.set_position(85); // Color processing complete
 
         // Apply 90° CW rotation if needed (85-88%)
-        // Pre-rotation is only needed for 6c/7c portrait mode (writeDemoBitmap doesn't support rotation)
+        // Pre-rotation is only needed for 6c portrait mode (writeDemoBitmap doesn't support rotation)
         // B/W displays use GxEPD2 setRotation() so no pre-rotation needed
         let final_img = if self.config.needs_pre_rotation {
             progress_bar.set_message(format!("{} - Pre-rotating for portrait display", filename));
             progress_bar.set_position(86);
             verbose_println(
                 self.config.verbose,
-                "🔄 Pre-rotating 90° CW for 6c/7c portrait display (writeDemoBitmap requires pre-rotated data)",
+                "🔄 Pre-rotating 90° CW for 6c portrait display (writeDemoBitmap requires pre-rotated data)",
             );
             let rotated = image::imageops::rotate90(&processed_img);
             progress_bar.set_position(88);
@@ -1335,8 +1332,8 @@ impl ProcessingEngine {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
                                 binary::convert_to_esp32_binary(&final_img)?
                             }
-                            ProcessingType::SixColor | ProcessingType::SevenColor => {
-                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                            ProcessingType::SixColor => {
+                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
                                 binary::convert_to_demo_bitmap_mode1(&final_img)?
                             }
                         };
@@ -1581,13 +1578,13 @@ impl ProcessingEngine {
         progress_bar.set_position(85);
 
         // Apply 90° CW rotation if needed (85-88%)
-        // Pre-rotation is only needed for 6c/7c portrait mode
+        // Pre-rotation is only needed for 6c portrait mode
         let final_img = if self.config.needs_pre_rotation {
             progress_bar.set_message(format!("{} - Pre-rotating for portrait display", filename));
             progress_bar.set_position(86);
             verbose_println(
                 self.config.verbose,
-                "🔄 Pre-rotating 90° CW for 6c/7c portrait display (writeDemoBitmap requires pre-rotated data)",
+                "🔄 Pre-rotating 90° CW for 6c portrait display (writeDemoBitmap requires pre-rotated data)",
             );
             let rotated = image::imageops::rotate90(&processed_img);
             progress_bar.set_position(88);
@@ -1643,8 +1640,8 @@ impl ProcessingEngine {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
                                 binary::convert_to_esp32_binary(&final_img)?
                             }
-                            ProcessingType::SixColor | ProcessingType::SevenColor => {
-                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                            ProcessingType::SixColor => {
+                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
                                 binary::convert_to_demo_bitmap_mode1(&final_img)?
                             }
                         };
@@ -2272,7 +2269,7 @@ impl ProcessingEngine {
         progress_bar.set_position(72); // Combining complete
 
         // Apply 90° CW rotation if needed (72-75%)
-        // Pre-rotation is only needed for 6c/7c portrait mode
+        // Pre-rotation is only needed for 6c portrait mode
         let final_combined_img = if self.config.needs_pre_rotation {
             progress_bar.set_message(format!(
                 "Pre-rotating combined for portrait: {} + {}",
@@ -2280,7 +2277,7 @@ impl ProcessingEngine {
             ));
             verbose_println(
                 self.config.verbose,
-                "🔄 Pre-rotating combined 90° CW for 6c/7c portrait display",
+                "🔄 Pre-rotating combined 90° CW for 6c portrait display",
             );
             image::imageops::rotate90(&combined_img)
         } else {
@@ -2343,8 +2340,8 @@ impl ProcessingEngine {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
                                 binary::convert_to_esp32_binary(&final_combined_img)?
                             }
-                            ProcessingType::SixColor | ProcessingType::SevenColor => {
-                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                            ProcessingType::SixColor => {
+                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
                                 binary::convert_to_demo_bitmap_mode1(&final_combined_img)?
                             }
                         };
@@ -2742,7 +2739,7 @@ impl ProcessingEngine {
         progress_bar.set_message(format!("Resizing {} + {}", top_filename, bottom_filename));
         std::thread::yield_now();
 
-        // For pre-rotation mode (6c/7c portrait), we need to:
+        // For pre-rotation mode (6c portrait), we need to:
         // 1. Resize to half-height × target_width (e.g., 240×800 becomes 400×480 after rotation)
         // 2. Rotate 90° CW
         // 3. Combine side-by-side (like portraits)
@@ -2977,7 +2974,7 @@ impl ProcessingEngine {
         progress_bar.set_position(65);
 
         let combined = if self.config.needs_pre_rotation {
-            // Pre-rotation mode (6c/7c portrait): rotate then combine side-by-side
+            // Pre-rotation mode (6c portrait): rotate then combine side-by-side
             progress_bar.set_message(format!(
                 "Rotating {} + {} for portrait",
                 top_filename, bottom_filename
@@ -3071,8 +3068,8 @@ impl ProcessingEngine {
                                 // B/W displays use the original ESP32 compressed format (RRRGGGBB)
                                 binary::convert_to_esp32_binary(&combined)?
                             }
-                            ProcessingType::SixColor | ProcessingType::SevenColor => {
-                                // 6c/7c displays use demo bitmap mode 1 format for drawDemoBitmap()
+                            ProcessingType::SixColor => {
+                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
                                 binary::convert_to_demo_bitmap_mode1(&combined)?
                             }
                         };

@@ -26,12 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--confidence` threshold only available with AI features enabled
   - Help text conditionally shows AI features based on compilation
 
+### Fixed
+- **Test Compilation**
+  - Fixed test compilation errors by removing `individual_detections` field
+  - Tests now compatible with ONNX-based detection struct
+
 ### Removed
 - **Python Dependencies**
   - Removed `--python-script` and `--python-path` CLI arguments
   - Removed `subject_detection.rs` (Python-based implementation)
   - Removed all references to `find_subject.py` script
   - Detection now fully native in Rust using ONNX Runtime
+- **7-Color Support**
+  - Removed `7c` processing type (SevenColor enum variant)
+  - Removed 7-color palette and processing functions
+  - Only `bw` (Black & White) and `6c` (6-Color) modes are now supported
+  - Simplified codebase to focus on actual hardware capabilities
 
 ## [v1.2.0] - 2026-01-06
 

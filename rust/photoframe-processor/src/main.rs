@@ -25,7 +25,6 @@ impl From<ColorType> for ProcessingType {
         match color_type {
             ColorType::BlackWhite => ProcessingType::BlackWhite,
             ColorType::SixColor => ProcessingType::SixColor,
-            ColorType::SevenColor => ProcessingType::SevenColor,
         }
     }
 }
@@ -228,7 +227,6 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
     let processing_type_desc = match ProcessingType::from_prefix(processing_prefix) {
         Some(ProcessingType::BlackWhite) => "Black & White",
         Some(ProcessingType::SixColor) => "6-Color",
-        Some(ProcessingType::SevenColor) => "7-Color",
         None => "Unknown",
     };
 
@@ -371,7 +369,7 @@ fn main() -> Result<()> {
         optimization_report: args.report,
         // Target display orientation
         target_orientation: args.target_orientation.clone(),
-        // Pre-rotation (only for 6c/7c portrait mode)
+        // Pre-rotation (only for 6c portrait mode)
         needs_pre_rotation: args.needs_pre_rotation(),
         // JSON progress output
         json_progress: args.json_progress,

@@ -119,7 +119,7 @@ cargo build --release --features ai
 | `-i, --input <DIR>` | Input directories (can specify multiple) | **Required** |
 | `-o, --output <DIR>` | Output directory for processed images | **Required** |
 | `-s, --size <WIDTHxHEIGHT>` | Target display resolution (e.g., 800x480) | **Required** |
-| `-t, --type <TYPE>` | Processing type: `bw`, `6c`, or `7c` | `bw` |
+| `-t, --type <TYPE>` | Processing type: `bw` or `6c` | `bw` |
 | `--output-format <FORMATS>` | Output formats: comma-separated list of `bmp`, `bin`, `jpg`, `png` | `bmp` |
 | `--extensions <LIST>` | File extensions to process (comma-separated) | `jpg,jpeg,png,heic,webp,tiff` |
 | `--auto` | Enable automatic orientation handling | `false` |
@@ -152,14 +152,12 @@ The processor uses a **prefixed filename system** to organize output files by pr
 |--------|----------------|-------------|
 | `bw` | Black & White | Monochrome dithered images |
 | `6c` | 6-Color | Red, Green, Blue, Yellow, Black, White |
-| `7c` | 7-Color | 6-Color + Orange |
 
 ### Examples
 ```bash
 # Single image examples
 bw_aW1hZ2U=.bin          # "image.jpg" processed as black & white
 6c_dmFjYXRpb24=.bmp       # "vacation.png" processed as 6-color
-7c_c3Vuc2V0.jpg           # "sunset.heic" processed as 7-color
 
 # Combined portrait examples
 combined_bw_cG9ydHJhaXQx_cG9ydHJhaXQy.bin    # Two portraits combined in black & white
@@ -199,8 +197,8 @@ output_directory/
 │   └── ...
 ├── jpg/                    # Compressed JPEG files for sharing
 │   ├── bw_dGVzdF9pbWFnZQ==.jpg           # Black & white single image
-│   ├── 7c_dGVzdF9pbWFnZQ==.jpg           # 7-color single image
-│   ├── combined_7c_ABC123_DEF456.jpg     # 7-color combined portrait
+│   ├── 6c_dGVzdF9pbWFnZQ==.jpg           # 6-color single image
+│   ├── combined_6c_ABC123_DEF456.jpg     # 6-color combined portrait
 │   └── ...
 └── png/                    # Lossless PNG files
     ├── bw_dGVzdF9pbWFnZQ==.png           # Black & white single image
@@ -223,7 +221,7 @@ output_directory/
 **Note**: Filenames use a prefixed format for organization by processing type:
 - **Single images**: `{prefix}_{base64_filename}.{ext}` (e.g., `bw_dGVzdA==.bin`, `6c_aW1hZ2U=.bmp`)
 - **Combined portraits**: `combined_{prefix}_{base64_file1}_{base64_file2}.{ext}` (e.g., `combined_bw_ABC123_DEF456.bin`)
-- **Prefixes**: `bw` (Black & White), `6c` (6-Color), `7c` (7-Color)
+- **Prefixes**: `bw` (Black & White), `6c` (6-Color)
 - **Base64 encoding**: Original filenames are base64-encoded for consistent cross-platform compatibility
 
 ## 🔄 Processing Pipeline
@@ -236,7 +234,7 @@ output_directory/
    - **Stage 2**: Regular crop attempt (center-based expansion from detection)
    - **Stage 3**: Bidirectional expansion with face preservation priority
 5. **Text Annotation**: Adds filename overlays with semi-transparent backgrounds
-6. **Color Processing**: Applies grayscale conversion or 6-color/7-color palette reduction
+6. **Color Processing**: Applies grayscale conversion or 6-color palette reduction
 7. **Dithering**: Floyd-Steinberg error diffusion for optimal e-paper display
 8. **Multi-Format Output**: Generates multiple output formats with organized directory structure:
    - **BMP**: Standard bitmap files for viewing and debugging
@@ -302,11 +300,6 @@ Image: 800×1000, Detection: (300, 750, 500, 950), Target: 400×600
 - Uses Euclidean distance in RGB space for color matching
 - Applies error diffusion for optimal color distribution
 
-### 7-Color Mode (`-t 7c`)
-- Enhanced palette with 7 e-paper colors:
-  - Black, White, Red, Green, Blue, Yellow, Orange
-- Supports displays with orange color capability
-- Advanced dithering for improved color accuracy
 
 ## 🔧 Technical Details
 
@@ -317,7 +310,7 @@ The processor combines two portrait images side-by-side into a landscape layout:
 - **Divider Width**: Customizable via `--divider-width` (default: 3 pixels)
 - **Divider Color**: Customizable via `--divider-color` (default: white #FFFFFF)
 - **Alignment**: Images are placed exactly at half-width boundaries
-- **Format**: Combined images maintain the same processing type (BW, 6C, or 7C)
+- **Format**: Combined images maintain the same processing type (BW or 6C)
 - **No Divider**: Set `--divider-width 0` to disable the divider line completely
 
 ### ESP32 Binary Format

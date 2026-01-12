@@ -88,7 +88,7 @@ The interface uses the following AppKit components:
    - Input and Output directories with native file picker
 
 2. **Display Settings**
-   - Display Type (Black & White, 6-Color, 7-Color)
+   - Display Type (Black & White, 6-Color)
    - Target Orientation (Landscape, Portrait)
 
 3. **Dithering Settings**

@@ -704,7 +704,6 @@ mod tests {
             center: (900, 900),
             offset_from_center: (0, 0), // Not used in this calculation
             bounding_box: Some((700, 800, 1100, 1000)), // Add test bounding box
-            individual_detections: vec![(700, 800, 1100, 1000)], // Add test individual detection
             confidence: 0.9,
             person_count: 1,
         };
@@ -746,7 +745,6 @@ mod tests {
             center: (400, 300), // Center that should work without clamping
             offset_from_center: (0, 0),
             bounding_box: Some((300, 200, 500, 400)), // Add test bounding box
-            individual_detections: vec![(300, 200, 500, 400)], // Add test individual detection
             confidence: 0.9,
             person_count: 1,
         };
@@ -775,7 +773,6 @@ mod tests {
             center: (50, 50), // Very close to top-left corner
             offset_from_center: (0, 0),
             bounding_box: Some((0, 0, 100, 100)), // Add test bounding box
-            individual_detections: vec![(0, 0, 100, 100)], // Add test individual detection
             confidence: 0.9,
             person_count: 1,
         };
@@ -800,7 +797,6 @@ mod tests {
             center: (950, 950), // Close to bottom-right of 1000x1000 image
             offset_from_center: (0, 0),
             bounding_box: Some((850, 850, 1000, 1000)), // Add test bounding box
-            individual_detections: vec![(850, 850, 1000, 1000)], // Add test individual detection
             confidence: 0.9,
             person_count: 1,
         };
@@ -828,7 +824,6 @@ mod tests {
             center: (0, 0), // This should be ignored
             offset_from_center: (0, 0),
             bounding_box: None, // No bounding box when no people detected
-            individual_detections: vec![], // No individual detections
             confidence: 0.0,
             person_count: 0, // No people detected
         };
@@ -853,7 +848,6 @@ mod tests {
             center: (500, 500), // Center of 1000x1000 image
             offset_from_center: (0, 0),
             bounding_box: Some((0, 0, 1000, 1000)), // Add test bounding box (entire image)
-            individual_detections: vec![(0, 0, 1000, 1000)], // Add test individual detection
             confidence: 0.9,
             person_count: 1,
         };
@@ -878,7 +872,6 @@ mod tests {
             center: (400, 300),
             offset_from_center: (0, 0),
             bounding_box: Some((200, 100, 600, 500)), // 400x400 detection box
-            individual_detections: vec![(200, 100, 600, 500)],
             confidence: 0.9,
             person_count: 1,
         };
@@ -913,7 +906,6 @@ mod tests {
             center: (500, 400),
             offset_from_center: (0, 0),
             bounding_box: Some((100, 100, 900, 700)), // 800x600 detection box
-            individual_detections: vec![(100, 100, 900, 700)],
             confidence: 0.9,
             person_count: 1,
         };
@@ -955,7 +947,6 @@ mod tests {
             center: (400, 400),
             offset_from_center: (0, 0),
             bounding_box: Some((350, 300, 450, 500)), // 100x200 detection box (smaller, should not need scaling)
-            individual_detections: vec![(350, 300, 450, 500)],
             confidence: 0.9,
             person_count: 1,
         };
@@ -985,7 +976,6 @@ mod tests {
             center: (0, 0),
             offset_from_center: (0, 0),
             bounding_box: None,
-            individual_detections: vec![],
             confidence: 0.0,
             person_count: 0,
         };
@@ -1014,7 +1004,6 @@ mod tests {
             center: (400, 850),
             offset_from_center: (0, 0),
             bounding_box: Some((300, 750, 500, 950)), // 200x200 detection box near bottom
-            individual_detections: vec![(300, 750, 500, 950)],
             confidence: 0.9,
             person_count: 1,
         };
@@ -1058,7 +1047,6 @@ mod tests {
             center: (520, 634),
             offset_from_center: (0, 0),
             bounding_box: Some((83, 64, 958, 1205)), // 875x1141 detection box
-            individual_detections: vec![(83, 64, 958, 1205)],
             confidence: 0.73,
             person_count: 1,
         };

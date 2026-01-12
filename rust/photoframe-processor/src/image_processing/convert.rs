@@ -9,7 +9,6 @@ use crate::cli::DitherMethod;
 /// This applies the appropriate color processing based on the processing type:
 /// - BlackWhite: Convert to grayscale and apply Floyd-Steinberg dithering
 /// - SixColor: Reduce to 6-color palette and apply dithering
-/// - SevenColor: Reduce to 7-color palette and apply dithering
 ///
 /// The dither_strength parameter (0.0-2.0) controls the strength of error diffusion:
 /// - 1.0 = normal strength (default)
@@ -24,7 +23,6 @@ pub fn process_image(
     match processing_type {
         ProcessingType::BlackWhite => apply_bw_processing(img, dither_strength),
         ProcessingType::SixColor => apply_6c_processing(img, dithering_method, dither_strength),
-        ProcessingType::SevenColor => apply_7c_processing(img, dithering_method, dither_strength),
     }
 }
 
@@ -65,38 +63,6 @@ fn apply_6c_processing(
         DitherMethod::Ordered => {
             // Ordered dithering doesn't use error diffusion, so strength doesn't apply
             super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
-        }
-    }
-}
-
-/// Apply 7-color processing with selectable dithering method
-fn apply_7c_processing(
-    img: &RgbImage,
-    dithering_method: &DitherMethod,
-    dither_strength: f32,
-) -> Result<RgbImage> {
-    match dithering_method {
-        DitherMethod::FloydSteinberg => {
-            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(
-                img,
-                &SEVEN_COLOR_PALETTE,
-                dither_strength,
-            )
-        }
-        DitherMethod::Atkinson => {
-            super::dithering::apply_atkinson_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
-        }
-        DitherMethod::Stucki => {
-            super::dithering::apply_stucki_dithering(img, &SEVEN_COLOR_PALETTE, dither_strength)
-        }
-        DitherMethod::JarvisJudiceNinke => super::dithering::apply_jarvis_judice_ninke_dithering(
-            img,
-            &SEVEN_COLOR_PALETTE,
-            dither_strength,
-        ),
-        DitherMethod::Ordered => {
-            // Ordered dithering doesn't use error diffusion, so strength doesn't apply
-            super::convert_improved::apply_ordered_dithering(img, &SEVEN_COLOR_PALETTE)
         }
     }
 }
@@ -373,19 +339,6 @@ const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
     (252, 252, 0),   // Yellow  (ESP32: 0xFC)
 ];
 
-/// 7-color palette for e-paper displays
-/// These are the ESP32-representable colors based on the RRRGGGBB format
-#[allow(dead_code)]
-const SEVEN_COLOR_PALETTE: [(u8, u8, u8); 7] = [
-    (0, 0, 0),       // Black   (ESP32: 0x00)
-    (255, 255, 255), // White   (ESP32: 0xFF)
-    (252, 0, 0),     // Red     (ESP32: 0xE0)
-    (0, 252, 0),     // Green   (ESP32: 0x1C)
-    (0, 0, 255),     // Blue    (ESP32: 0x03)
-    (252, 252, 0),   // Yellow  (ESP32: 0xFC)
-    (252, 108, 0),   // Orange  (ESP32: 0xE3)
-];
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -422,7 +375,7 @@ mod tests {
     #[test]
     fn test_floyd_steinberg_dithering() {
         let img = create_gradient_image(10, 10);
-        let dithered = apply_floyd_steinberg_dithering(&img).unwrap();
+        let dithered = apply_floyd_steinberg_dithering(&img, 1.0).unwrap();
 
         // Check that output only contains black (0) or white (255)
         for pixel in dithered.pixels() {
@@ -452,7 +405,13 @@ mod tests {
     #[test]
     fn test_process_image_bw() {
         let img = create_gradient_image(10, 10);
-        let result = process_image(&img, &ProcessingType::BlackWhite).unwrap();
+        let result = process_image(
+            &img,
+            &ProcessingType::BlackWhite,
+            &DitherMethod::FloydSteinberg,
+            1.0,
+        )
+        .unwrap();
 
         // Should be dithered black and white
         for pixel in result.pixels() {
@@ -472,7 +431,13 @@ mod tests {
             }
         });
 
-        let result = process_image(&img, &ProcessingType::SixColor).unwrap();
+        let result = process_image(
+            &img,
+            &ProcessingType::SixColor,
+            &DitherMethod::FloydSteinberg,
+            1.0,
+        )
+        .unwrap();
 
         // Should only contain colors from the 6-color palette
         for pixel in result.pixels() {
@@ -501,74 +466,6 @@ mod tests {
             let color = (pixel[0], pixel[1], pixel[2]);
             assert!(
                 SIX_COLOR_PALETTE.contains(&color),
-                "Found non-palette color: {:?}",
-                color
-            );
-        }
-    }
-
-    #[test]
-    fn test_find_closest_7_color() {
-        assert_eq!(find_closest_color(0, 0, 0, &SEVEN_COLOR_PALETTE), (0, 0, 0)); // Black
-        assert_eq!(
-            find_closest_color(255, 255, 255, &SEVEN_COLOR_PALETTE),
-            (255, 255, 255)
-        ); // White
-        assert_eq!(
-            find_closest_color(200, 0, 0, &SEVEN_COLOR_PALETTE),
-            (252, 0, 0)
-        ); // Close to red
-        assert_eq!(
-            find_closest_color(200, 240, 0, &SEVEN_COLOR_PALETTE),
-            (252, 252, 0)
-        ); // Close to yellow (more green-biased)
-        assert_eq!(
-            find_closest_color(200, 100, 0, &SEVEN_COLOR_PALETTE),
-            (252, 108, 0)
-        ); // Close to orange
-    }
-
-    #[test]
-    fn test_process_image_7c() {
-        let img = ImageBuffer::from_fn(4, 4, |x, y| {
-            match (x % 2, y % 2) {
-                (0, 0) => Rgb([252, 0, 0]),   // Red
-                (1, 0) => Rgb([0, 252, 0]),   // Green
-                (0, 1) => Rgb([0, 0, 255]),   // Blue
-                (1, 1) => Rgb([252, 108, 0]), // Orange
-                _ => unreachable!(),
-            }
-        });
-
-        let result = process_image(&img, &ProcessingType::SevenColor).unwrap();
-
-        // Should only contain colors from the 7-color palette
-        for pixel in result.pixels() {
-            let color = (pixel[0], pixel[1], pixel[2]);
-            assert!(
-                SEVEN_COLOR_PALETTE.contains(&color),
-                "Found non-palette color: {:?}",
-                color
-            );
-        }
-    }
-
-    #[test]
-    fn test_7_color_dithering() {
-        // Create a simple gradient that should be dithered
-        let img = ImageBuffer::from_fn(8, 8, |x, _| {
-            let intensity = (x * 255 / 8) as u8;
-            Rgb([intensity, intensity / 2, 0]) // Orange-ish gradient
-        });
-
-        let result =
-            apply_floyd_steinberg_dithering_with_palette(&img, &SEVEN_COLOR_PALETTE).unwrap();
-
-        // Verify all pixels are from the 7-color palette
-        for pixel in result.pixels() {
-            let color = (pixel[0], pixel[1], pixel[2]);
-            assert!(
-                SEVEN_COLOR_PALETTE.contains(&color),
                 "Found non-palette color: {:?}",
                 color
             );

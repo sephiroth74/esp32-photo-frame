@@ -237,7 +237,6 @@ class _DisplaySettingsSection extends StatelessWidget {
                           items: const [
                             AppKitContextMenuItem(value: DisplayType.blackWhite, child: Text('Black & White')),
                             AppKitContextMenuItem(value: DisplayType.sixColor, child: Text('6-Color')),
-                            AppKitContextMenuItem(value: DisplayType.sevenColor, child: Text('7-Color')),
                           ],
                         ),
                       ],

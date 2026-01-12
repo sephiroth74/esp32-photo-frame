@@ -7,8 +7,6 @@ enum DisplayType {
   blackWhite,
   @JsonValue('6c')
   sixColor,
-  @JsonValue('7c')
-  sevenColor,
 }
 
 enum TargetOrientation {

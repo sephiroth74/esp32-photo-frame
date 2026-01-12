@@ -387,15 +387,3 @@ pub const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
     (0, 0, 255),     // Blue
     (252, 252, 0),   // Yellow
 ];
-
-/// 7-color palette for e-paper displays
-#[allow(dead_code)]
-pub const SEVEN_COLOR_PALETTE: [(u8, u8, u8); 7] = [
-    (0, 0, 0),       // Black
-    (255, 255, 255), // White
-    (252, 0, 0),     // Red
-    (0, 252, 0),     // Green
-    (0, 0, 255),     // Blue
-    (252, 252, 0),   // Yellow
-    (252, 108, 0),   // Orange
-];

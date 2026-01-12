@@ -9,9 +9,6 @@ pub enum ColorType {
     /// 6-color processing (matches auto.sh -t 6c)
     #[value(name = "6c")]
     SixColor,
-    /// 7-color processing (matches auto.sh -t 7c)
-    #[value(name = "7c")]
-    SevenColor,
 }
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Hash)]
@@ -143,7 +140,7 @@ pub struct Args {
     )]
     pub output_dir: PathBuf,
 
-    /// Display type: bw (black & white), 6c (6-color), or 7c (7-color)
+    /// Display type: bw (black & white) or 6c (6-color)
     /// This determines both the processing type and output dimensions
     #[arg(short = 't', long = "type", default_value = "bw")]
     pub processing_type: ColorType,
@@ -154,7 +151,7 @@ pub struct Args {
 
     /// Display orientation (how the physical display is mounted)
     /// - landscape: Display mounted horizontally (800×480 visual)
-    /// - portrait: Display mounted vertically (480×800 visual, images pre-rotated for 6c/7c)
+    /// - portrait: Display mounted vertically (480×800 visual, images pre-rotated for 6c)
     #[arg(
         long = "orientation",
         default_value = "landscape",
@@ -325,7 +322,7 @@ impl Args {
     ///   - Landscape: 800×480
     ///   - Portrait: 480×800
     ///
-    /// - 6C/7C displays: Always hardware dimensions (writeDemoBitmap requires pre-rotation)
+    /// - 6C displays: Always hardware dimensions (writeDemoBitmap requires pre-rotation)
     ///   - Landscape: 800×480 (no pre-rotation)
     ///   - Portrait: 800×480 (with pre-rotation)
     pub fn get_dimensions(&self) -> (u32, u32) {
@@ -334,16 +331,16 @@ impl Args {
             (ColorType::BlackWhite, TargetOrientation::Landscape) => (800, 480),
             (ColorType::BlackWhite, TargetOrientation::Portrait) => (480, 800),
 
-            // 6C/7C displays: always hardware dimensions 800×480
-            (ColorType::SixColor | ColorType::SevenColor, _) => (800, 480),
+            // 6C displays: always hardware dimensions 800×480
+            (ColorType::SixColor, _) => (800, 480),
         }
     }
 
     /// Check if pre-rotation is needed for the current configuration
     pub fn needs_pre_rotation(&self) -> bool {
         match (&self.processing_type, &self.target_orientation) {
-            // Only 6C/7C in portrait mode need pre-rotation
-            (ColorType::SixColor | ColorType::SevenColor, TargetOrientation::Portrait) => true,
+            // Only 6C in portrait mode needs pre-rotation
+            (ColorType::SixColor, TargetOrientation::Portrait) => true,
             _ => false,
         }
     }

@@ -338,8 +338,6 @@ class ProcessingProvider with ChangeNotifier {
         return 'bw';
       case DisplayType.sixColor:
         return '6c';
-      case DisplayType.sevenColor:
-        return '7c';
     }
   }
 

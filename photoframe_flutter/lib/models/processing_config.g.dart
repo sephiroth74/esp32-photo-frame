@@ -84,7 +84,6 @@ Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) =>
 const _$DisplayTypeEnumMap = {
   DisplayType.blackWhite: 'bw',
   DisplayType.sixColor: '6c',
-  DisplayType.sevenColor: '7c',
 };
 
 const _$TargetOrientationEnumMap = {
