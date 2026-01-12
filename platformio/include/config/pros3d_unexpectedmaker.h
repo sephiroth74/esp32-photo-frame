@@ -21,7 +21,7 @@
 // Enable separate SPI bus for SD card
 // Disabled: Using default SPI bus (VSPI) for better stability
 // SD card and display are never used simultaneously, so sharing the bus is safe
-#define USE_HSPI_FOR_SD
+// #define USE_HSPI_FOR_SD
 
 // #define SD_MMC_CLK_PIN  12   // SDIO CLK
 // #define SD_MMC_D0_PIN   13   // SDIO D0

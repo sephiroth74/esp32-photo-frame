@@ -65,7 +65,7 @@ bool DisplayDriver6C::init() {
     delay(100);
 
     // Initialize the display using the library's fast init
-    EPD_init_fast();
+    EPD_init();
 
     initialized = true;
     log_i("6-color display initialized successfully");

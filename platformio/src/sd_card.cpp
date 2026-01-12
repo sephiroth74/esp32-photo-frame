@@ -868,9 +868,10 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     bool isDir         = false;
     String fileName    = dir.getNextFileName(&isDir);
 
-    while (!fileName.isEmpty()) {
-        log_v("Processing entry: %s (isDir: %d)", fileName.c_str(), isDir);
+    int errorCount = 0;
+    const int MAX_ERRORS = 3;
 
+    while (!fileName.isEmpty()) {
         if (!isDir && fileName.endsWith(extension)) {
             // Extract just the filename from the full path to check for hidden files
             int lastSlash   = fileName.lastIndexOf('/');
@@ -880,10 +881,35 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
                 // Write path directly to TOC file (no size check for speed)
                 tocDataFile.println(fileName);
                 fileCount++;
-                log_v("Added file #%u: %s", fileCount, fileName.c_str());
+
+                // Log progress and add delay every 10 files
+                if (fileCount % 10 == 0) {
+                    log_i("Building TOC: processed %u files...", fileCount);
+                    tocDataFile.flush();  // Flush buffer to SD
+                    delay(10);  // Give SD card time to recover
+                    yield();    // Allow other tasks to run
+                }
             }
         }
-        fileName = dir.getNextFileName(&isDir);
+
+        // Get next file with error recovery
+        String nextFile = dir.getNextFileName(&isDir);
+        if (nextFile.isEmpty() && fileName != nextFile) {
+            // Possible SD card error, try to recover
+            errorCount++;
+            log_w("SD card read error during iteration, attempt %d/%d", errorCount, MAX_ERRORS);
+
+            if (errorCount >= MAX_ERRORS) {
+                log_e("SD card failed after %d attempts, aborting iteration", MAX_ERRORS);
+                break;
+            }
+
+            delay(100);  // Wait before retry
+            continue;    // Try again
+        }
+
+        errorCount = 0;  // Reset error count on successful read
+        fileName = nextFile;
     }
     dir.close();
     log_d("Directory iteration complete, found %u files", fileCount);
