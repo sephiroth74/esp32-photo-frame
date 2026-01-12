@@ -46,6 +46,7 @@ void DisplayDriver6C::configureSPI() {
     pinMode(_cs_pin, OUTPUT);
 
     // Initialize SPI
+    SPI.end();
     SPI.beginTransaction(SPISettings(SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
     SPI.begin(_sck_pin, -1, _mosi_pin, _cs_pin);
 }
@@ -65,7 +66,7 @@ bool DisplayDriver6C::init() {
     delay(100);
 
     // Initialize the display using the library's fast init
-    EPD_init();
+    EPD_init_fast();
 
     initialized = true;
     log_i("6-color display initialized successfully");
@@ -106,6 +107,7 @@ void DisplayDriver6C::sleep() {
 
     // Enter sleep mode - IMPORTANT: Do not skip this to preserve display lifespan
     EPD_sleep();
+    delay(2000);
 
     initialized = false;
     log_d("Display is now in sleep mode");

@@ -166,6 +166,11 @@ void SdCard::end() {
         // Also end the HSPI bus to fully release SPI resources
         log_i("Ending HSPI bus");
         hspi.end();
+        delay(1);
+#elif defined(SD_USE_SPI)
+        log_i("Ending SPI bus");
+        SPI.end();
+        delay(1);
 #endif
 
         initialized = false;
@@ -886,18 +891,32 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
                 if (fileCount % 10 == 0) {
                     log_i("Building TOC: processed %u files...", fileCount);
                     tocDataFile.flush();  // Flush buffer to SD
-                    delay(10);  // Give SD card time to recover
+                    delay(20);  // Increased delay for better stability with many files
                     yield();    // Allow other tasks to run
+
+                    // Extra delay every 100 files for large directories
+                    if (fileCount % 100 == 0) {
+                        log_i("Large directory: extra delay at %u files", fileCount);
+                        delay(100);
+                    }
                 }
             }
         }
 
         // Get next file with error recovery
         String nextFile = dir.getNextFileName(&isDir);
-        if (nextFile.isEmpty() && fileName != nextFile) {
-            // Possible SD card error, try to recover
+
+        // Check if we've reached the end of directory normally
+        if (nextFile.isEmpty()) {
+            // If we have processed files and get empty, it's likely end of directory
+            if (fileCount > 0) {
+                log_i("Reached end of directory after %u files", fileCount);
+                break;  // Normal end of directory
+            }
+
+            // If no files processed and empty, might be an error
             errorCount++;
-            log_w("SD card read error during iteration, attempt %d/%d", errorCount, MAX_ERRORS);
+            log_w("SD card may have failed during iteration, attempt %d/%d", errorCount, MAX_ERRORS);
 
             if (errorCount >= MAX_ERRORS) {
                 log_e("SD card failed after %d attempts, aborting iteration", MAX_ERRORS);
@@ -905,7 +924,12 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
             }
 
             delay(100);  // Wait before retry
-            continue;    // Try again
+
+            // Try to re-read current position
+            nextFile = dir.getNextFileName(&isDir);
+            if (nextFile.isEmpty()) {
+                continue;  // Still empty, try again
+            }
         }
 
         errorCount = 0;  // Reset error count on successful read

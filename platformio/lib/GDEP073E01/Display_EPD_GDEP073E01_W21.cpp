@@ -1,8 +1,6 @@
 #include "Display_EPD_GDEP073E01_W21_spi.h"
 #include "Display_EPD_GDEP073E01_W21.h"
 
-static constexpr unsigned long BUSY_TIMEOUT = 30000;
-
 namespace GDEP073E01 {
 
 void EPD_W21_Init(void)
@@ -16,14 +14,19 @@ void EPD_W21_Init(void)
 void lcd_chkstatus(void)
 {
     log_i("lcd_chkstatus");
-    auto ms = millis();
+    unsigned long startTime = millis();
+    const unsigned long timeout = 30000; // 30 seconds timeout
+
     while (!isEPD_W21_BUSY) {
+        // Check for timeout
+        if (millis() - startTime > timeout) {
+            log_e("ERROR: Display timeout after 30 seconds - display not responding!");
+            Serial.println("\n[TIMEOUT] Display failed to respond within 30 seconds");
+            break; // Exit the loop to prevent permanent hang
+        }
+
         Serial.print(".");
         delay(500);
-        if ((millis() - ms) > BUSY_TIMEOUT) {
-            Serial.println("Busy Timeout!");
-            break;
-        }
     }
     Serial.println();
 }
