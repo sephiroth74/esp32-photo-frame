@@ -55,7 +55,7 @@ Based on the configuration in `platformio/include/config/feathers3_unexpectedmak
 
 ### 1. E-Paper Display Connection
 
-**Display Type**: 7.5" Black & White, 6-Color, or 7-Color E-Paper (800x480)
+**Display Type**: 7.5" Black & White or 6-Color E-Paper (800x480)
 
 ```
 FeatherS3         E-Paper Display

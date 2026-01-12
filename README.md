@@ -162,7 +162,6 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 | Waveshare 7.5" | 800×480 | Black/White/Red | Fully Supported |
 | Good Display 7.5" | 800×480 | 6-Color ACeP | Fully Supported |
 | Waveshare 7.5" HD | 880×528 | Black/White | Configuration required |
-| Waveshare 5.65" | 600×448 | 7-Color | Configuration required |
 
 ### Limitations by Platform
 
@@ -464,7 +463,7 @@ The e-paper display requires images in specific formats optimized for its unique
 
 1. **Input Analysis**: Images are loaded and analyzed for composition, detecting faces and subjects using AI models
 2. **Intelligent Cropping**: Based on detected subjects, images are cropped to the target aspect ratio
-3. **Color Quantization**: Images are converted to the target color palette (B/W, 6-color, or 7-color)
+3. **Color Quantization**: Images are converted to the target color palette (B/W or 6-color)
 4. **Dithering**: Floyd-Steinberg or ordered dithering is applied for better perceived quality
 5. **Binary Encoding**: Final image is encoded in a compact binary format for efficient storage
 

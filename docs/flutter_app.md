@@ -9,7 +9,7 @@ The PhotoFrame Flutter application is a cross-platform desktop tool for processi
 - **Cross-Platform**: Runs on Windows, macOS, and Linux
 - **Batch Processing**: Process multiple images at once
 - **Multiple Formats**: Output to BMP, Binary, JPEG, and PNG
-- **Color Modes**: Support for Black/White, 6-color, and 7-color displays
+- **Color Modes**: Support for Black/White and 6-color displays
 - **Drag and Drop**: Easy file selection with drag-and-drop support
 - **Real-time Preview**: See processing results before saving
 - **Progress Tracking**: Visual progress bars for batch operations
@@ -60,7 +60,7 @@ flutter build linux     # Creates executable in build/linux/x64/release
 
 3. **Configure Processing Options**
    - **Display Size**: Set your e-paper display resolution (e.g., 800x480)
-   - **Color Mode**: Choose Black/White, 6-color, or 7-color
+   - **Color Mode**: Choose Black/White or 6-color
    - **Output Format**: Select one or more formats (BMP, Binary, JPEG, PNG)
    - **Crop Mode**: Auto, Center, or Manual selection
 
@@ -172,13 +172,6 @@ Lossless compression:
 - Natural color reproduction
 - Advanced color quantization
 
-### 7-Color
-
-- Colors: Black, White, Red, Yellow, Blue, Green, Orange
-- Waveshare 5.65" compatibility
-- Extended color gamut
-- Optimized palette mapping
-
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -248,7 +241,7 @@ photoframe_flutter --input photo.jpg --output photo.bin \
 | `--input-dir` | Input directory for batch | - |
 | `--output` | Output file path | Required |
 | `--output-dir` | Output directory | - |
-| `--mode` | Color mode (bw, 6c, 7c) | bw |
+| `--mode` | Color mode (bw, 6c) | bw |
 | `--size` | Display size (WIDTHxHEIGHT) | 800x480 |
 | `--format` | Output formats (comma-separated) | bin |
 | `--crop` | Crop mode (auto, center, none) | auto |

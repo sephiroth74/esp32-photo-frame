@@ -66,6 +66,14 @@
 #error "Only one display type can be defined: DISP_BW or DISP_6C"
 #endif
 
+/// Ensure DISPLAY_POWER_ACTIVE_LOW is defined when DISPLAY_POWER_PIN is also defined
+#ifdef DISPLAY_POWER_PIN
+#ifndef DISPLAY_POWER_ACTIVE_LOW
+#error                                                                                             \
+    "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
+#endif
+#endif
+
 // ----------------------------------------------------------------------------
 // RGB Status LED Validation
 // ----------------------------------------------------------------------------

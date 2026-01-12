@@ -80,11 +80,6 @@ Features:
 - Euclidean distance color matching
 - Error diffusion for optimal color distribution
 
-### 7-Color (`7c`)
-- Palette: 6-color + Orange
-- Enhanced color accuracy
-- Advanced dithering algorithms
-
 ## Portrait Combination
 
 Portrait images are automatically paired and combined side-by-side:

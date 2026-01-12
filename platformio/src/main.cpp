@@ -261,6 +261,9 @@ void setup() {
     Serial.begin(115200);
     delay(5000);
 
+    // Initialize display power control (if configured)
+    photo_frame::board_utils::init_display_power();
+
     // Immediate diagnostic check
 
     log_i("\n==================================");
@@ -395,6 +398,9 @@ void setup() {
     log_i("--------------------------------------");
     log_i("- Phase 2: Initializing display hardware...");
     log_i("--------------------------------------");
+
+    // PHASE 2: Display Operations - Power ON display now that SD card is closed
+    photo_frame::board_utils::display_power_on();
 
     delay(100);
     RGB_SET_STATE(RENDERING); // Show display rendering
@@ -757,6 +763,9 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
     log_i("- Initialize SD card and load configuration...");
     log_i("--------------------------------------");
 
+    // PHASE 1: SD Card Operations - Display OFF to avoid SPI conflicts
+    photo_frame::board_utils::display_power_off();
+
     RGB_SET_STATE(SD_READING); // Show SD card operations
     error = sdCard.begin();
 
@@ -863,6 +872,9 @@ handle_GoogleDrive_operations(bool is_reset,
     log_i("--------------------------------------");
     log_i(" - Find the next image from the SD...");
     log_i("--------------------------------------");
+
+    // Ensure display is OFF for SD card operations
+    photo_frame::board_utils::display_power_off();
 
     error = sdCard.begin(); // Initialize the SD card
 
@@ -1132,6 +1144,9 @@ handle_sd_card_operations(bool is_reset,
     log_i("--------------------------------------");
     log_i(" - SD Card Only Mode - Local Images");
     log_i("--------------------------------------");
+
+    // Ensure display is OFF for SD card operations
+    photo_frame::board_utils::display_power_off();
 
     // Initialize SD card
     error = sdCard.begin();

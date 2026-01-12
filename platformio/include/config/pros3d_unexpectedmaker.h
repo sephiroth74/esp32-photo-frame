@@ -68,7 +68,6 @@
 // RGB NeoPixel LED configuration - ProS3 built-in
 #define RGB_LED_PIN     18  // GPIO18 - Built-in RGB NeoPixel on ProS3
 #define RGB_LED_COUNT   1   // Single RGB LED
-#define LED_PWR_PIN     17  // GPIO17 - RGB LED power control pin
 
 
 // External wakeup configuration
@@ -78,6 +77,12 @@
 #define WAKEUP_LEVEL    LOW            // Button press pulls pin LOW
 
 #define DELAY_BEFORE_SLEEP 8000 // Reduced since no I2C/WiFi conflicts
+
+// Display power control using ProS3 LDO2 feature
+// GPIO17 controls the LDO2 output (3.3V controllable power rail)
+// HIGH = LDO2 ON (display powered), LOW = LDO2 OFF (display unpowered)
+#define DISPLAY_POWER_PIN 17
+#define DISPLAY_POWER_ACTIVE_LOW 0  // ProS3 LDO2: HIGH = ON, LOW = OFF
 
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
 

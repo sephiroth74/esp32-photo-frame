@@ -33,9 +33,69 @@ namespace photo_frame {
 
 namespace board_utils {
 
+void init_display_power() {
+#ifdef DISPLAY_POWER_PIN
+    log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
+    pinMode(DISPLAY_POWER_PIN, OUTPUT);
+
+    // Start with display OFF
+    display_power_off();
+    delay(100);
+#else
+    log_d("[POWER] Display power control not configured (DISPLAY_POWER_PIN not defined)");
+#endif
+}
+
+void display_power_on() {
+#ifdef DISPLAY_POWER_PIN
+#ifndef DISPLAY_POWER_ACTIVE_LOW
+#error                                                                                             \
+    "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
+#endif
+
+    log_i("[POWER] Turning display ON (GPIO %d -> %s)",
+          DISPLAY_POWER_PIN,
+          DISPLAY_POWER_ACTIVE_LOW ? "LOW" : "HIGH");
+
+#if DISPLAY_POWER_ACTIVE_LOW == 1
+    digitalWrite(DISPLAY_POWER_PIN, LOW); // P-MOSFET: LOW = ON
+#else
+    digitalWrite(DISPLAY_POWER_PIN, HIGH); // ProS3 LDO2 or N-MOSFET: HIGH = ON
+#endif
+
+    delay(200); // Allow power to stabilize (GDEP073E01 needs time)
+    log_i("[POWER] Display power stabilized");
+#endif
+}
+
+void display_power_off() {
+#ifdef DISPLAY_POWER_PIN
+#ifndef DISPLAY_POWER_ACTIVE_LOW
+#error                                                                                             \
+    "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
+#endif
+
+    log_i("[POWER] Turning display OFF (GPIO %d -> %s)",
+          DISPLAY_POWER_PIN,
+          DISPLAY_POWER_ACTIVE_LOW ? "HIGH" : "LOW");
+
+#if DISPLAY_POWER_ACTIVE_LOW == 1
+    digitalWrite(DISPLAY_POWER_PIN, HIGH); // P-MOSFET: HIGH = OFF
+#else
+    digitalWrite(DISPLAY_POWER_PIN, LOW); // ProS3 LDO2 or N-MOSFET: LOW = OFF
+#endif
+
+    delay(50); // Short delay for clean shutdown
+    log_i("[POWER] Display powered off");
+#endif
+}
+
 void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds) {
     log_i("Entering deep sleep...");
     disable_built_in_led(); // Disable built-in LED before going to sleep
+
+    // Power off display if power control is configured
+    display_power_off();
 
     log_i("Disabling peripherals...");
     // btStop(); // Stop Bluetooth to save power

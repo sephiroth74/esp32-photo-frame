@@ -165,7 +165,6 @@ photoframe-processor -i ~/Photos -o ~/processed --detect-people \
 ### Processing Types
 - `bw` - Black & white processing (default)
 - `6c` - 6-color processing for color e-paper displays
-- `7c` - 7-color processing for advanced color e-paper displays
 
 ### Output Formats
 - `bmp` - Generate only BMP files

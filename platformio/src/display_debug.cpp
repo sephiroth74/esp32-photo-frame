@@ -19,10 +19,145 @@
 #define COLOR_BLUE   0x03
 #define COLOR_YELLOW 0xFC
 
+// Define display power control pin (adjust for your board)
+#define DISPLAY_POWER_PIN        17 // ProS3: GPIO17 controls LDO2 output
+#define DISPLAY_POWER_ACTIVE_LOW 0  // ProS3 LDO2: HIGH = ON, LOW = OFF
+
 const char images_directory[]      = "/6c/portrait/bin";
 static const char image_filename[] = "/6c/bin/6c_MjAyMjA3MjBfMTk1NjEz__portrait.bin";
 static photo_frame::DisplayManager g_display; // Use DisplayManager for all display operations
-static photo_frame::sd_card sdCard;           // Use same SD card class as main.cpp
+static photo_frame::SdCard sdCard;            // Use same SD card class as main.cpp
+
+// Forward declarations
+bool init_display_manager();
+void cleanup_display_manager();
+
+// Power control functions
+void display_power_on() {
+#ifdef DISPLAY_POWER_PIN
+    log_i("[POWER] Turning display ON (GPIO %d -> %s)",
+          DISPLAY_POWER_PIN,
+          DISPLAY_POWER_ACTIVE_LOW ? "LOW" : "HIGH");
+
+#ifdef DISPLAY_POWER_ACTIVE_LOW
+    digitalWrite(DISPLAY_POWER_PIN, LOW); // P-MOSFET: LOW = ON
+#else
+    digitalWrite(DISPLAY_POWER_PIN, HIGH); // ProS3 LDO2 or N-MOSFET: HIGH = ON
+#endif
+
+    delay(200); // Allow power to stabilize (GDEP073E01 needs time)
+    log_i("[POWER] Display power stabilized");
+#endif
+}
+
+void display_power_off() {
+#ifdef DISPLAY_POWER_PIN
+    log_i("[POWER] Turning display OFF (GPIO %d -> %s)",
+          DISPLAY_POWER_PIN,
+          DISPLAY_POWER_ACTIVE_LOW ? "HIGH" : "LOW");
+
+#ifdef DISPLAY_POWER_ACTIVE_LOW
+    digitalWrite(DISPLAY_POWER_PIN, HIGH); // P-MOSFET: HIGH = OFF
+#else
+    digitalWrite(DISPLAY_POWER_PIN, LOW); // ProS3 LDO2 or N-MOSFET: LOW = OFF
+#endif
+
+    delay(50); // Short delay for clean shutdown
+    log_i("[POWER] Display powered off");
+#endif
+}
+
+void init_display_power() {
+#ifdef DISPLAY_POWER_PIN
+    log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
+    pinMode(DISPLAY_POWER_PIN, OUTPUT);
+
+    // Start with display OFF
+    display_power_off();
+    delay(100);
+#else
+    log_i("[POWER] Display power control not configured (DISPLAY_POWER_PIN not defined)");
+#endif
+}
+
+// Test function for power cycling
+void test_display_power_cycle() {
+    log_i("========================================");
+    log_i("Display Power Control Test");
+    log_i("========================================");
+
+#ifdef DISPLAY_POWER_PIN
+    log_i("Testing display power cycling...");
+
+    // Test 1: Basic ON/OFF cycle
+    log_i("\n[TEST 1] Basic power cycle");
+    display_power_on();
+    delay(2000);
+    display_power_off();
+    delay(2000);
+
+    // Test 2: Multiple rapid cycles
+    log_i("\n[TEST 2] Rapid power cycling (5 cycles)");
+    for (int i = 0; i < 5; i++) {
+        log_i("Cycle %d/5", i + 1);
+        display_power_on();
+        delay(500);
+        display_power_off();
+        delay(500);
+    }
+
+    // Test 3: Power on, initialize display, power off
+    log_i("\n[TEST 3] Power + Display init test");
+    display_power_on();
+
+    if (init_display_manager()) {
+        log_i("Display initialized successfully with power control");
+
+        // Try to draw something simple
+        GFXcanvas8& canvas = g_display.getCanvas();
+        canvas.fillScreen(COLOR_WHITE);
+        canvas.fillRect(100, 100, 200, 200, COLOR_BLACK);
+        canvas.fillRect(150, 150, 100, 100, COLOR_RED);
+        log_i("Drew test pattern");
+
+        // Render to display
+        if (g_display.render()) {
+            log_i("Test pattern rendered successfully");
+        } else {
+            log_e("Failed to render test pattern");
+        }
+
+        // Sleep display before power off
+        g_display.sleep();
+        delay(1000);
+    }
+
+    display_power_off();
+    delay(2000);
+
+    // Test 4: Power measurements simulation
+    log_i("\n[TEST 4] Power consumption simulation");
+    log_i("Display OFF - Simulated consumption: ~0mA");
+    delay(1000);
+
+    display_power_on();
+    log_i("Display ON (idle) - Simulated consumption: ~5mA");
+    delay(2000);
+
+    log_i("Display ON (refresh) - Simulated consumption: ~35-50mA (peaks to 80mA)");
+    delay(3000);
+
+    display_power_off();
+    log_i("Display OFF again - Simulated consumption: ~0mA");
+
+    log_i("\n[POWER TEST] Complete!");
+    log_i("Note: Connect multimeter to measure actual current consumption");
+
+#else
+    log_w("Display power control not available (DISPLAY_POWER_PIN not defined)");
+    log_w("To enable: Define DISPLAY_POWER_PIN in your board config");
+#endif
+}
 
 bool init_display_manager() {
     if (g_display.isInitialized()) {
@@ -32,15 +167,23 @@ bool init_display_manager() {
 
     log_i("Initializing display manager...");
 
-    if (!g_display.init(true)) { // true = prefer PSRAM
-        log_e("[display_debug] CRITICAL: Failed to initialize display manager!");
+    // First initialize the buffer
+    if (!g_display.initBuffer(true)) { // true = prefer PSRAM
+        log_e("[display_debug] CRITICAL: Failed to initialize display buffer!");
+        log_e("[display_debug] Cannot continue without buffer");
+        return false;
+    }
+
+    // Then initialize the display hardware
+    if (!g_display.initDisplay()) {
+        log_e("[display_debug] CRITICAL: Failed to initialize display hardware!");
         log_e("[display_debug] Cannot continue without display");
         return false;
-    } else {
-        log_i("[display_debug] Display manager initialized successfully");
-        log_i("[display_debug] Buffer size: %u bytes", g_display.getBufferSize());
-        return true;
     }
+
+    log_i("[display_debug] Display manager initialized successfully");
+    log_i("[display_debug] Buffer size: %u bytes", g_display.getBufferSize());
+    return true;
 }
 
 void cleanup_display_manager() {
@@ -167,14 +310,38 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
     return true;
 }
 
-void setup() {
-    Serial.begin(115200);
-    delay(2000);
+void run_display_tests() {
+    log_i("\n========================================");
+    log_i("Display Debug Menu");
+    log_i("========================================");
+    log_i("1. Power Control Test");
+    log_i("2. SD Card Image Test (with power control)");
+    log_i("3. Full Test (Power + Image + Overlays)");
+    log_i("========================================");
+    log_i("Running test 1: Power Control Test");
+    log_i("========================================\n");
 
-    log_i("Display Debug - Using DisplayManager with two-phase operation");
+    // Run power control test
+    test_display_power_cycle();
 
-    // ========== PHASE 1: SD Card Operations ==========
-    // First, allocate a temporary buffer for loading the image
+    log_i("\nPress any key to continue to SD Card Image Test...");
+    while (!Serial.available()) {
+        delay(100);
+    }
+    while (Serial.available()) {
+        Serial.read();
+    }
+
+    log_i("\n========================================");
+    log_i("Running test 2: SD Card Image Test");
+    log_i("========================================\n");
+
+    // Initialize power control
+    init_display_power();
+
+    // ========== PHASE 1: SD Card Operations (Display OFF) ==========
+    // Display is OFF during SD card operations to avoid SPI conflicts
+
     size_t bufferSize = photo_frame::DisplayManager::getNativeWidth() *
                         photo_frame::DisplayManager::getNativeHeight();
     uint8_t* tempBuffer = (uint8_t*)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM);
@@ -182,10 +349,15 @@ void setup() {
         tempBuffer = (uint8_t*)malloc(bufferSize);
         if (!tempBuffer) {
             log_e("Failed to allocate temporary buffer!");
+            display_power_off();
             return;
         }
     }
     log_i("Temporary buffer allocated: %u bytes", bufferSize);
+
+    // Turn OFF display during SD card operations
+    display_power_off();
+    log_i("[PHASE 1] Display powered OFF for SD card operations");
 
     // Initialize SD card using photo_frame::sd_card class
     photo_frame::photo_frame_error_t sdError = sdCard.begin();
@@ -205,16 +377,21 @@ void setup() {
     if (!success) {
         log_w("Failed to pick image from SD Card");
         free(tempBuffer);
+        display_power_off();
         return;
     }
 
-    // ========== PHASE 2: Display Operations ==========
-    // Now that SD card is closed, we can initialize the display
+    // ========== PHASE 2: Display Operations (Display ON) ==========
+    // Now that SD card is closed, we can power on and initialize the display
+
+    log_i("[PHASE 2] Powering ON display for rendering");
+    display_power_on();
 
     // Initialize display manager (this handles all display initialization)
     if (!init_display_manager()) {
         log_e("Failed to initialize display manager");
         free(tempBuffer);
+        display_power_off();
         return;
     }
 
@@ -267,9 +444,35 @@ void setup() {
     // Put display to sleep to preserve lifespan
     g_display.sleep();
 
+    log_i("Display rendered and put to sleep mode");
     delay(5000); // Delay for 5s to view the result
 
+    // Power off display completely
+    log_i("[PHASE 3] Powering OFF display for deep sleep");
+    display_power_off();
+
     cleanup_display_manager();
+
+    log_i("\n========================================");
+    log_i("Test Complete!");
+    log_i("Display is now powered OFF");
+    log_i("Power consumption should be ~0mA");
+    log_i("========================================");
+}
+
+void setup() {
+    Serial.begin(115200);
+    delay(2000);
+
+    log_i("========================================");
+    log_i("Display Power Control Test Suite");
+    log_i("========================================");
+    log_i("This test will demonstrate display power control");
+    log_i("using GPIO pin for GDEP073E01 display");
+    log_i("========================================\n");
+
+    // Run all display tests
+    run_display_tests();
 }
 
 void loop() {

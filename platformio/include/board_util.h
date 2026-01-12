@@ -62,6 +62,32 @@ void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
                               size_t buffer_size);
 
 /**
+ * @brief Initialize display power control if configured for the board.
+ *
+ * This function sets up the GPIO pin for display power control if DISPLAY_POWER_PIN
+ * is defined in the board configuration. For ProS3, this controls the LDO2 output.
+ */
+void init_display_power();
+
+/**
+ * @brief Turn on the display power.
+ *
+ * This function turns on the display power using the configured method:
+ * - For ProS3: Enables LDO2 via GPIO17
+ * - For other boards with P-MOSFET: Sets the control pin appropriately
+ */
+void display_power_on();
+
+/**
+ * @brief Turn off the display power.
+ *
+ * This function turns off the display power to save energy and avoid SPI conflicts:
+ * - For ProS3: Disables LDO2 via GPIO17
+ * - For other boards with P-MOSFET: Sets the control pin appropriately
+ */
+void display_power_off();
+
+/**
  * @brief Enters deep sleep mode, disabling peripherals and LEDs to save power.
  *
  * This function prepares the ESP32 for deep sleep by disabling various peripherals,

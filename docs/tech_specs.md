@@ -14,7 +14,7 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **Smart power management**: Battery-aware refresh intervals and features with RGB integration
 - **Enhanced FeatherS3 Support**: Optimized pin configuration and deep sleep wakeup
 - **Status information**: Time, image count, battery level, and charging status
-- **Multiple display formats**: Black & white, 6-color, and 7-color e-paper support
+- **Multiple display formats**: Black & white and 6-color e-paper support
 
 ## Architecture Components
 
@@ -35,7 +35,7 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 #### Display
 - **7.5" E-Paper Display** (Waveshare or Good Display DESPI-C02)
 - **Resolution**: 800x480 pixels
-- **Colors**: Black & White (BW_V2), 6-color (6C), or 7-color (7C_F)
+- **Colors**: Black & White (BW_V2) or 6-color (6C)
 - **Interface**: SPI connection
 
 #### Storage & Sensors
@@ -469,7 +469,7 @@ This enhanced Google Drive API provides **significantly improved reliability** w
 
 2. **Configure Hardware Settings** in `platformio/include/config/{board}.h`:
    - Pin assignments
-   - Display type (DISP_BW_V2, DISP_6C, DISP_7C_F)
+   - Display type (DISP_BW_V2, DISP_6C)
    - Driver selection (USE_DESPI_DRIVER or USE_WAVESHARE_DRIVER)
    - Battery monitoring settings
    - Timezone and locale settings
@@ -795,7 +795,7 @@ The SD card is used for the unified configuration file, certificates, and Google
 
 #### 7.1 Hardware Variations
 - **Board Selection**: Multiple ESP32 variants supported
-- **Display Types**: BW, 6-color, 7-color e-paper displays
+- **Display Types**: BW and 6-color e-paper displays
 - **Drivers**: Waveshare or DESPI driver selection
 - **Sensors**: Optional RTC, battery sensor configurations
 

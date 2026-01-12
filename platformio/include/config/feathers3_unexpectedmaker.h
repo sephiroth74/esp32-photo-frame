@@ -73,6 +73,11 @@
 // #define DISPLAY_TIMEOUT_MS 15000  // 15 seconds for faster displays
 #define DISPLAY_TIMEOUT_MS 60000
 
+// Display power control (optional - uncomment to enable)
+// For FeatherS3, you'll need an external P-MOSFET circuit
+// #define DISPLAY_POWER_PIN 13  // Choose appropriate GPIO
+// #define DISPLAY_POWER_ACTIVE_LOW 1  // 1 for P-MOSFET (LOW=ON), 0 for N-MOSFET (HIGH=ON)
+
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
 #define LOCALE it_IT
