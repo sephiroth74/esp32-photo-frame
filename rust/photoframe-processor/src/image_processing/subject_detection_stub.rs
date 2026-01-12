@@ -20,11 +20,13 @@ pub struct SubjectDetectionResult {
 
 /// Stub subject detector when AI is disabled
 pub struct SubjectDetector {
+    #[allow(dead_code)]
     verbose: bool,
 }
 
 impl SubjectDetector {
     /// Create a new stub detector
+    #[allow(dead_code)]
     pub fn new(verbose: bool) -> Result<Self> {
         Ok(Self { verbose })
     }
@@ -50,6 +52,7 @@ impl SubjectDetector {
 }
 
 /// Create a stub detector
+#[allow(dead_code)]
 pub fn create_default_detector(verbose: bool) -> Result<SubjectDetector> {
     SubjectDetector::new(verbose)
 }

@@ -75,6 +75,7 @@ struct Detection {
 /// ONNX-based subject detector using embedded YOLO11 model
 pub struct SubjectDetector {
     session: Arc<Mutex<Session>>,
+    #[allow(dead_code)]
     verbose: bool,
 }
 

@@ -60,12 +60,6 @@ pub enum DitherMethod {
 }
 
 fn get_long_about() -> String {
-    let ai_examples = if cfg!(feature = "ai") {
-        "\n  # With AI people detection for smart cropping (embedded YOLO11 model)\n  photoframe-processor -i ~/Photos -o ~/processed --detect-people --auto --verbose\n"
-    } else {
-        ""
-    };
-
     let features_str = if cfg!(feature = "ai") {
         "✓ AI people detection (YOLO11)"
     } else {
@@ -119,7 +113,6 @@ Example Usage:
   photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose",
         features_str,
         ai_feature_desc,
-        ai_examples
     )
 }
 
