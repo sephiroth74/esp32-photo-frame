@@ -29,12 +29,14 @@ void lcd_chkstatus(void)
 {
     log_i("lcd_chkstatus (timeout: %lu ms)", display_timeout_ms);
     unsigned long startTime = millis();
+    bool timedOut = false;
 
     while (!isEPD_W21_BUSY) {
         // Check for timeout
         if (millis() - startTime > display_timeout_ms) {
             log_e("ERROR: Display timeout after %lu ms - display not responding!", display_timeout_ms);
             Serial.printf("\n[TIMEOUT] Display failed to respond within %lu ms\n", display_timeout_ms);
+            timedOut = true;
             break; // Exit the loop to prevent permanent hang
         }
 
@@ -42,6 +44,21 @@ void lcd_chkstatus(void)
         delay(500);
     }
     Serial.println();
+
+    // Log the total time taken
+    unsigned long totalTime = millis() - startTime;
+
+    if (!timedOut) {
+        if (totalTime < 1000) {
+            log_i("Display ready in %lu ms", totalTime);
+        } else if (totalTime < 5000) {
+            log_i("Display ready in %.1f seconds", totalTime / 1000.0);
+        } else {
+            log_w("Display took %.1f seconds to become ready (slow response)", totalTime / 1000.0);
+        }
+    } else {
+        log_e("Display check failed after %.1f seconds", totalTime / 1000.0);
+    }
 }
 // slow
 void EPD_init(void)
