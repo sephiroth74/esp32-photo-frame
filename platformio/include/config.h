@@ -65,6 +65,11 @@
 // #define DISP_BW    // Black and White e-Paper display (GDEH0154D67)
 // #define DISP_6C       // 6-color e-Paper display (GDEP073E01)
 
+/// Display timeout configuration (in milliseconds)
+/// Time to wait for display to become ready before timing out
+/// Default: 30000ms (30 seconds) - can be adjusted for specific displays
+// #define DISPLAY_TIMEOUT_MS 30000
+
 // ----------------------------------------------------------------------------
 // SD Card Configuration (SDIO Interface)
 // ----------------------------------------------------------------------------

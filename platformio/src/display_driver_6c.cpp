@@ -59,6 +59,15 @@ bool DisplayDriver6C::init() {
 
     log_i("Initializing 6-color display (GDEP073E01)...");
 
+    // Set display timeout (configurable, default 30 seconds)
+    // Can be adjusted based on display performance or requirements
+    #ifdef DISPLAY_TIMEOUT_MS
+        set_display_timeout(DISPLAY_TIMEOUT_MS);
+    #else
+        set_display_timeout(30000); // Default 30 seconds
+    #endif
+    log_v("Display timeout configured to %lu ms", get_display_timeout());
+
     // Configure SPI and pins
     configureSPI();
 

@@ -45,6 +45,8 @@
 #define EPD_SCK_PIN  36  // IO36 - SPI Clock for e-paper (VSPI)
 #define EPD_MOSI_PIN 35  // IO35 - SPI MOSI for e-paper (VSPI)
 
+#define DISPLAY_TIMEOUT_MS 60000
+
 // Battery monitoring - ProS3 has MAX1704X fuel gauge over I2C
 #define BATTERY_NUM_READINGS           100
 #define BATTERY_DELAY_BETWEEN_READINGS 10
@@ -57,9 +59,9 @@
 #define MAX1704X_SCL_PIN   9  // IO9 - I2C SCL
 
 // Built-in LED - ProS3 uses RGB NeoPixel on GPIO18
-#ifdef LED_BUILTIN
-#undef LED_BUILTIN
-#endif // LED_BUILTIN
+// #ifdef LED_BUILTIN
+// #undef LED_BUILTIN
+// #endif // LED_BUILTIN
 
 // #define LED_BUILTIN 21 // ProS3 LED pin
 

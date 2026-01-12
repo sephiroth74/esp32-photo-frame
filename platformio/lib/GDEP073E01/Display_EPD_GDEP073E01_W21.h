@@ -75,6 +75,8 @@ void PIC_display(const unsigned char* picData);
 void EPD_sleep(void);
 void EPD_refresh(void);
 void lcd_chkstatus(void);
+void set_display_timeout(unsigned long timeout_ms);
+unsigned long get_display_timeout(void);
 void PIC_display_Clear(void);
 void EPD_horizontal(void);
 void EPD_vertical(void);

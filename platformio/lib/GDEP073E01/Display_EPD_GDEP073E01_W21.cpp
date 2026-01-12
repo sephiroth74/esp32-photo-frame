@@ -3,6 +3,9 @@
 
 namespace GDEP073E01 {
 
+// Static variable to store the timeout value (default 30 seconds)
+static unsigned long display_timeout_ms = 30000;
+
 void EPD_W21_Init(void)
 {
     EPD_W21_RST_0; // Module reset
@@ -11,17 +14,27 @@ void EPD_W21_Init(void)
     delay(10); // At least 10ms delay
 }
 
+void set_display_timeout(unsigned long timeout_ms)
+{
+    display_timeout_ms = timeout_ms;
+    log_i("Display timeout set to %lu ms", display_timeout_ms);
+}
+
+unsigned long get_display_timeout(void)
+{
+    return display_timeout_ms;
+}
+
 void lcd_chkstatus(void)
 {
-    log_i("lcd_chkstatus");
+    log_i("lcd_chkstatus (timeout: %lu ms)", display_timeout_ms);
     unsigned long startTime = millis();
-    const unsigned long timeout = 30000; // 30 seconds timeout
 
     while (!isEPD_W21_BUSY) {
         // Check for timeout
-        if (millis() - startTime > timeout) {
-            log_e("ERROR: Display timeout after 30 seconds - display not responding!");
-            Serial.println("\n[TIMEOUT] Display failed to respond within 30 seconds");
+        if (millis() - startTime > display_timeout_ms) {
+            log_e("ERROR: Display timeout after %lu ms - display not responding!", display_timeout_ms);
+            Serial.printf("\n[TIMEOUT] Display failed to respond within %lu ms\n", display_timeout_ms);
             break; // Exit the loop to prevent permanent hang
         }
 

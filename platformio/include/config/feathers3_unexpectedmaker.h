@@ -63,9 +63,15 @@
 
 #define TIMEZONE             "CET-1CEST,M3.5.0,M10.5.0"
 
-#define DISP_BW              
+#define DISP_BW
 
 // #define ACCENT_COLOR GxEPD_RED
+
+// Display timeout configuration (optional)
+// Uncomment and adjust if your display needs more/less time
+// #define DISPLAY_TIMEOUT_MS 45000  // 45 seconds for slower displays
+// #define DISPLAY_TIMEOUT_MS 15000  // 15 seconds for faster displays
+#define DISPLAY_TIMEOUT_MS 60000
 
 #define FONT_HEADER                          "assets/fonts/Ubuntu_R.h"
 
