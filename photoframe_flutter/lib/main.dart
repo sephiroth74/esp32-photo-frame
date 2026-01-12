@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'providers/processing_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/window_preferences.dart';
+import 'widgets/menu_bar.dart';
 
 Future<void> _configureMacosWindowUtils() async {
   const config = AppKitWindowUtilsConfig(
@@ -82,12 +83,14 @@ class _MyAppState extends State<MyApp> with WindowListener {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ProcessingProvider(),
-      child: AppKitMacosApp(
-        debugShowCheckedModeBanner: false,
-        theme: AppKitThemeData.light(),
-        darkTheme: AppKitThemeData.dark(),
-        themeMode: ThemeMode.system,
-        home: const HomeScreen(),
+      child: AppMenuBar(
+        child: AppKitMacosApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppKitThemeData.light(),
+          darkTheme: AppKitThemeData.dark(),
+          themeMode: ThemeMode.system,
+          home: const HomeScreen(),
+        ),
       ),
     );
   }

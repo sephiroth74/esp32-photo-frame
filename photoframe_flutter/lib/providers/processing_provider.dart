@@ -3,9 +3,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/processing_config.dart';
+import '../models/config_profile.dart';
+import '../services/config_profile_service.dart';
 
 class ProcessingProvider with ChangeNotifier {
   ProcessingConfig _config = const ProcessingConfig(inputPath: '', outputPath: '');
+  String? _currentProfilePath;
+  String? _currentProfileName;
+  bool _hasUnsavedChanges = false;
+  List<RecentFile> _recentFiles = [];
 
   bool _isProcessing = false;
   double _progress = 0.0;
@@ -16,6 +22,10 @@ class ProcessingProvider with ChangeNotifier {
   String _errorMessage = '';
 
   ProcessingConfig get config => _config;
+  String? get currentProfilePath => _currentProfilePath;
+  String? get currentProfileName => _currentProfileName;
+  bool get hasUnsavedChanges => _hasUnsavedChanges;
+  List<RecentFile> get recentFiles => _recentFiles;
   bool get isProcessing => _isProcessing;
   double get progress => _progress;
   int get processedCount => _processedCount;
@@ -26,12 +36,73 @@ class ProcessingProvider with ChangeNotifier {
 
   ProcessingProvider() {
     _loadConfig();
+    _loadRecentFiles();
   }
 
   void updateConfig(ProcessingConfig newConfig) {
     _config = newConfig;
+    _hasUnsavedChanges = true;
     notifyListeners();
     _saveConfig();
+  }
+
+  Future<void> _loadRecentFiles() async {
+    final prefs = await ConfigProfileService.loadPreferences();
+    _recentFiles = prefs.recentFiles;
+    notifyListeners();
+  }
+
+  Future<void> clearRecentFiles() async {
+    await ConfigProfileService.clearRecentFiles();
+    _recentFiles = [];
+    notifyListeners();
+  }
+
+  Future<void> saveProfile({String? filePath, String? name}) async {
+    try {
+      final savedPath = await ConfigProfileService.saveProfile(
+        _config,
+        filePath: filePath,
+        name: name,
+      );
+      _currentProfilePath = savedPath;
+      _currentProfileName = name ??
+          filePath?.split('/').last.replaceAll('.pfconfig', '') ??
+          'Untitled';
+      _hasUnsavedChanges = false;
+      await _loadRecentFiles();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to save profile: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadProfile(String filePath) async {
+    try {
+      final profile = await ConfigProfileService.loadProfile(filePath);
+      _config = profile.config;
+      _currentProfilePath = filePath;
+      _currentProfileName = profile.name;
+      _hasUnsavedChanges = false;
+      await _loadRecentFiles();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to load profile: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadRecentFile(RecentFile recentFile) async {
+    await loadProfile(recentFile.path);
+  }
+
+  void newProfile() {
+    _config = const ProcessingConfig(inputPath: '', outputPath: '');
+    _currentProfilePath = null;
+    _currentProfileName = null;
+    _hasUnsavedChanges = false;
+    notifyListeners();
   }
 
   Future<void> _loadConfig() async {
@@ -193,12 +264,6 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.autoColorCorrect) args.add('--auto-color');
     if (_config.detectPeople) {
       args.add('--detect-people');
-      if (_config.pythonScriptPath != null) {
-        args.addAll(['--python-script', _config.pythonScriptPath!]);
-      }
-      if (_config.pythonPath != null) {
-        args.addAll(['--python-path', _config.pythonPath!]);
-      }
       args.add('--confidence=${_config.confidenceThreshold}');
     }
     if (_config.annotate) {

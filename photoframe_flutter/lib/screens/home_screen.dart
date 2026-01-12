@@ -11,8 +11,16 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ProcessingProvider>();
+    final profileTitle = provider.currentProfileName != null
+        ? 'ESP32 Photo Frame Processor - ${provider.currentProfileName}${provider.hasUnsavedChanges ? '*' : ''}'
+        : 'ESP32 Photo Frame Processor';
+
     return AppKitScaffold(
-      toolBar: AppKitToolBar(title: const Text('ESP32 Photo Frame Processor'), titleWidth: 250),
+      toolBar: AppKitToolBar(
+        title: Text(profileTitle),
+        titleWidth: 400,
+      ),
       children: [
         AppKitContentArea(
           builder: (context, scrollController) {
@@ -329,61 +337,7 @@ class _PeopleDetectionSection extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Python Script Path
-                Row(
-                  children: [
-                    const SizedBox(width: 120, child: Text('Python Script:')),
-                    Expanded(
-                      child: AppKitTextField(
-                        maxLines: 1,
-                        controller: TextEditingController(text: config.pythonScriptPath ?? ''),
-                        placeholder: 'Path to find_subject.py (optional)',
-                        onChanged: (value) {
-                          provider.updateConfig(config.copyWith(pythonScriptPath: value.isEmpty ? null : value));
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    AppKitButton(
-                      size: AppKitControlSize.regular,
-                      onTap: () async {
-                        final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['py']);
-                        if (result != null && result.files.single.path != null) {
-                          provider.updateConfig(config.copyWith(pythonScriptPath: result.files.single.path));
-                        }
-                      },
-                      child: const Text('Browse...'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Python Path
-                Row(
-                  children: [
-                    const SizedBox(width: 120, child: Text('Python Binary:')),
-                    Expanded(
-                      child: AppKitTextField(
-                        maxLines: 1,
-                        controller: TextEditingController(text: config.pythonPath ?? ''),
-                        placeholder: 'Path to python3 binary (optional)',
-                        onChanged: (value) {
-                          provider.updateConfig(config.copyWith(pythonPath: value.isEmpty ? null : value));
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    AppKitButton(
-                      size: AppKitControlSize.regular,
-                      onTap: () async {
-                        final result = await FilePicker.platform.pickFiles();
-                        if (result != null && result.files.single.path != null) {
-                          provider.updateConfig(config.copyWith(pythonPath: result.files.single.path));
-                        }
-                      },
-                      child: const Text('Browse...'),
-                    ),
-                  ],
-                ),
+                // Note: AI detection is now built into Rust binary, no Python needed
               ],
             ],
           ),

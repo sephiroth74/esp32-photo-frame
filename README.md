@@ -32,7 +32,7 @@ The photo frame features automatic image synchronization, configurable refresh i
 
 #### Rust Processor (rust/photoframe-processor)
 - High-performance batch processing with 5-10x speed improvement over shell scripts
-- AI-powered person detection using YOLO11 for intelligent cropping
+- AI-powered person detection using YOLO11 built directly into the binary (no Python required!)
 - Multiple dithering algorithms: Floyd-Steinberg, Ordered (Bayer), Sierra, Atkinson
 - Automatic portrait pairing for landscape displays
 - Multi-format output support (BMP, binary, JPEG, PNG)

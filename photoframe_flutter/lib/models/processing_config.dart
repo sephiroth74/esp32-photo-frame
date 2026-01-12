@@ -49,8 +49,6 @@ class ProcessingConfig {
   final bool outputJpg;
   final bool outputPng;
   final bool detectPeople;
-  final String? pythonScriptPath;
-  final String? pythonPath;
   final double confidenceThreshold;
   final bool annotate;
   final String font;
@@ -83,8 +81,6 @@ class ProcessingConfig {
     this.outputJpg = true,
     this.outputPng = false,
     this.detectPeople = false,
-    this.pythonScriptPath,
-    this.pythonPath,
     this.confidenceThreshold = 0.6,
     this.annotate = false,
     this.font = 'Arial',
@@ -123,8 +119,6 @@ class ProcessingConfig {
     bool? outputJpg,
     bool? outputPng,
     bool? detectPeople,
-    String? pythonScriptPath,
-    String? pythonPath,
     double? confidenceThreshold,
     bool? annotate,
     String? font,
@@ -157,8 +151,6 @@ class ProcessingConfig {
       outputJpg: outputJpg ?? this.outputJpg,
       outputPng: outputPng ?? this.outputPng,
       detectPeople: detectPeople ?? this.detectPeople,
-      pythonScriptPath: pythonScriptPath ?? this.pythonScriptPath,
-      pythonPath: pythonPath ?? this.pythonPath,
       confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
       annotate: annotate ?? this.annotate,
       font: font ?? this.font,

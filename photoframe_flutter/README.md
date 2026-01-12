@@ -8,14 +8,15 @@ Native macOS GUI for ESP32 Photo Frame image processor, built with Flutter and [
 - **Theme System**: Full support for automatic light/dark mode
 - **Real-time Progress**: Progress monitoring via JSON output
 - **Configuration Persistence**: Automatic settings save
-- **Rust Integration**: Direct execution of `photoframe-processor` binary
+- **Rust Integration**: Direct execution of `photoframe-processor` binary with embedded AI
+- **AI People Detection**: YOLO11 model integrated directly in Rust (no Python required)
 
 ## 📋 Requirements
 
 - Flutter SDK 3.10.3 or higher
 - macOS 11.0 (Big Sur) or higher
 - Xcode 13 or higher
-- Rust photoframe-processor compiled (v1.1.0+)
+- Rust photoframe-processor compiled with AI features (v1.1.0+)
 
 ## 🚀 Installation
 
@@ -100,8 +101,8 @@ The interface uses the following AppKit components:
 
 5. **People Detection** (AI)
    - Enable/disable people detection
-   - Python script and interpreter paths
    - Confidence threshold slider
+   - AI detection now built directly into Rust binary (no Python required)
 
 6. **Annotation Settings**
    - Enable/disable annotation

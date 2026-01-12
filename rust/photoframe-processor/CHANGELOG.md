@@ -5,7 +5,35 @@ All notable changes to the Photoframe Processor Rust tools will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-01-06
+## [Unreleased] - 2026-01-12
+
+### Added
+- **Native ONNX People Detection** (replaces Python dependency)
+  - Embedded YOLO11n model directly in binary (10.24MB)
+  - No external files or Python runtime required
+  - 82ms average processing time per image
+  - 95% detection accuracy matching Python implementation
+  - Global session reuse for optimal performance
+  - Feature-gated with `--features ai` flag
+- **Version Command**
+  - Added `--version` flag to display application version
+- **Feature Display**
+  - Help text now shows compiled features (e.g., "✓ AI people detection (YOLO11)")
+
+### Changed
+- **CLI Arguments**
+  - `--detect-people` now requires `--features ai` compile flag
+  - `--confidence` threshold only available with AI features enabled
+  - Help text conditionally shows AI features based on compilation
+
+### Removed
+- **Python Dependencies**
+  - Removed `--python-script` and `--python-path` CLI arguments
+  - Removed `subject_detection.rs` (Python-based implementation)
+  - Removed all references to `find_subject.py` script
+  - Detection now fully native in Rust using ONNX Runtime
+
+## [v1.2.0] - 2026-01-06
 
 ### Removed
 - **Rust GUI Application** (`photoframe-processor-gui`)

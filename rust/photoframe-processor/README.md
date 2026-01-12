@@ -50,13 +50,11 @@ The compiled binary will be available at `target/release/photoframe-processor`.
 ### Optional Features
 
 ```bash
-# Build with AI-powered people detection using YOLO11
+# Build with AI-powered people detection using embedded YOLO11
 cargo build --release --features ai
 
-# The AI feature requires YOLO11 model files:
-# - yolo11n.onnx (YOLO11 nano model for optimal performance)
-# - coco.names (class labels)
-# These should be placed in: scripts/private/assets/
+# The AI feature embeds the YOLO11n model directly in the binary
+# No external files required - the model is included at compile time
 ```
 
 ## 🔧 Usage
@@ -89,20 +87,20 @@ cargo build --release --features ai
   --jobs 8 \
   --auto --verbose
 
-# With AI people detection and auto color correction
+# With AI people detection and auto color correction (requires --features ai)
 ./photoframe-processor \
   -i ~/Photos -o ~/processed \
   -t 6c -s 800x480 \
   --output-format bmp,bin,jpg \
-  --detect-people --python-script ./scripts/private/find_subject.py \
+  --detect-people \
   --auto-color --annotate --force
 
 # Validate files without processing
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --validate-only
 
-# Debug mode with detection visualization
+# Debug mode with detection visualization (requires --features ai)
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --debug \
-  --detect-people --python-script ./scripts/private/find_subject.py --output-format png
+  --detect-people --output-format png
 
 # Decode combined portrait filenames to find original images
 ./photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
@@ -132,8 +130,7 @@ cargo build --release --features ai
 | `--divider-width <WIDTH>` | Width of divider line between combined portraits (pixels) | `3` |
 | `--divider-color <COLOR>` | Color of divider line (hex RGB, e.g., #FFFFFF) | `#FFFFFF` |
 | `--auto-color` | Enable automatic color correction | `false` |
-| `--detect-people` | Enable AI people detection for smart cropping | `false` |
-| `--python-script <PATH>` | Path to find_subject.py script for people detection | None |
+| `--detect-people` | Enable AI people detection for smart cropping (requires --features ai) | `false` |
 | `--debug` | Debug mode: visualize detection boxes | `false` |
 | `--force` | Process all files, bypassing duplicate checks | `false` |
 | `--find-hash <HASH>` | Find original filename for given hash | None |

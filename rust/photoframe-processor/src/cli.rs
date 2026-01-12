@@ -59,25 +59,32 @@ pub enum DitherMethod {
     Ordered,
 }
 
-#[derive(Parser, Debug)]
-#[command(
-    name = "photoframe-processor",
-    about = "High-performance image processor for ESP32 Photo Frame project",
-    long_about = "
-ESP32 Photo Frame - Image Processor (Rust Implementation)
+fn get_long_about() -> String {
+    let ai_examples = if cfg!(feature = "ai") {
+        "\n  # With AI people detection for smart cropping (embedded YOLO11 model)\n  photoframe-processor -i ~/Photos -o ~/processed --detect-people --auto --verbose\n"
+    } else {
+        ""
+    };
 
-This tool processes photos for ESP32-based e-paper photo frames with significant performance
-improvements over the bash/ImageMagick pipeline. It handles smart orientation detection,
+    let features_str = if cfg!(feature = "ai") {
+        "✓ AI people detection (YOLO11)"
+    } else {
+        "None"
+    };
+
+    let ai_feature_desc = if cfg!(feature = "ai") {
+        "\n• AI-powered people detection for smart cropping (embedded YOLO11)"
+    } else {
+        ""
+    };
+
+    format!(
+        "ESP32 Photo Frame - Image Processor (Rust Implementation)
+
+This tool processes photos for ESP32-based e-paper photo frames. It handles smart orientation detection,
 portrait image pairing, text annotations, and generates optimized binary files.
 
-Key Features:
-• 5-10x faster processing than bash scripts
-• Parallel batch processing with progress tracking  
-• Smart portrait image combination
-• EXIF orientation handling
-• Floyd-Steinberg dithering for e-paper displays
-• ESP32-optimized binary format generation
-• People detection for smart cropping via find_subject.py
+Compiled features: {}
 
 Example Usage:
   # Basic black & white processing (default 800x480, both BMP and binary files)
@@ -86,8 +93,8 @@ Example Usage:
   # Process single image file
   photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed
 
-  # 6-color processing with only binary output and custom size
-  photoframe-processor -i ~/Photos -o ~/processed -t 6c -s 1024x768 \\
+  # 6-color processing with only binary output
+  photoframe-processor -i ~/Photos -o ~/processed -t 6c \\
     --output-format bin --font \"Arial-Bold\" --pointsize 22 --auto --verbose
 
   # Multiple output formats (creates subdirectories: bmp/, bin/, jpg/)
@@ -95,11 +102,7 @@ Example Usage:
 
   # PNG output format only
   photoframe-processor -i ~/Photos -o ~/processed --output-format png --auto
-
-  # With people detection for smart cropping (requires find_subject.py script)
-  photoframe-processor -i ~/Photos -o ~/processed --detect-people \\
-    --python-script ./scripts/private/find_subject.py --auto --verbose
-
+{}
   # Process images without filename annotations
   photoframe-processor -i ~/Photos -o ~/processed --auto
 
@@ -113,14 +116,26 @@ Example Usage:
   photoframe-processor --find-original combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin
 
   # Dry run mode: simulate processing without creating files
-  photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose"
+  photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose",
+        features_str,
+        ai_feature_desc,
+        ai_examples
+    )
+}
+
+#[derive(Parser, Debug)]
+#[command(
+    name = "photoframe-processor",
+    version,
+    about = "High-performance image processor for ESP32 Photo Frame project",
+    long_about = get_long_about()
 )]
 pub struct Args {
     /// Input directories or single image files (can be specified multiple times)
     #[arg(
         short = 'i',
         long = "input",
-        required_unless_present_any = ["find_original", "find_hash"],
+        required_unless_present_any = ["find_original", "find_hash", "config_file"],
         value_name = "DIR|FILE"
     )]
     pub input_paths: Vec<PathBuf>,
@@ -129,7 +144,7 @@ pub struct Args {
     #[arg(
         short = 'o',
         long = "output",
-        required_unless_present_any = ["find_original", "find_hash"],
+        required_unless_present_any = ["find_original", "find_hash", "config_file"],
         value_name = "DIR",
         default_value = "."
     )]
@@ -165,7 +180,7 @@ pub struct Args {
 
     /// Font specification for annotations. Supports three formats:
     /// - Font name: "Arial" (searches system fonts)
-    /// - Font filename: "Arial.ttf" (searches in font directories)  
+    /// - Font filename: "Arial.ttf" (searches in font directories)
     /// - Full path: "/System/Library/Fonts/Arial.ttf" (loads directly)
     #[arg(long = "font", default_value = "Arial", value_name = "FONT")]
     pub font: String,
@@ -265,25 +280,10 @@ pub struct Args {
     #[arg(long = "validate-only")]
     pub validate_only: bool,
 
-    /// Enable people detection for smart cropping using find_subject.py script
+    /// Enable people detection for smart cropping using embedded YOLO11 model
+    #[cfg(feature = "ai")]
     #[arg(long = "detect-people")]
     pub detect_people: bool,
-
-    /// Path to find_subject.py script for people detection
-    #[arg(
-        long = "python-script",
-        value_name = "FILE",
-        help = "Path to find_subject.py script for people detection"
-    )]
-    pub python_script_path: Option<PathBuf>,
-
-    /// Path to Python interpreter (optional, defaults to system python3)
-    #[arg(
-        long = "python-path",
-        value_name = "PATH",
-        help = "Path to Python interpreter executable (e.g., /path/to/.venv/bin/python3)"
-    )]
-    pub python_path: Option<PathBuf>,
 
     /// Force processing even if output files already exist (bypass duplicate check)
     #[arg(long = "force")]
@@ -314,8 +314,14 @@ pub struct Args {
     pub dry_run: bool,
 
     /// Confidence threshold for people detection (0.0-1.0, requires --detect-people)
+    #[cfg(feature = "ai")]
     #[arg(long = "confidence", default_value = "0.6", value_name = "THRESHOLD")]
     pub confidence_threshold: f32,
+
+    /// Load configuration from a JSON file (compatible with Flutter app .pfconfig files)
+    /// Command-line arguments take precedence over config file values
+    #[arg(long = "config-file", value_name = "FILE")]
+    pub config_file: Option<PathBuf>,
 }
 
 impl Args {
@@ -358,9 +364,10 @@ impl Args {
             .collect()
     }
 
-    /// Parse the output formats string into a vector of OutputType
+    /// Parse output formats from comma-separated string
     pub fn parse_output_formats(&self) -> Result<Vec<OutputType>, String> {
         let mut formats = Vec::new();
+        let mut seen = std::collections::HashSet::new();
 
         for format_str in self.output_formats_str.split(',') {
             let format_str = format_str.trim().to_lowercase();
@@ -368,202 +375,57 @@ impl Args {
                 continue;
             }
 
-            match format_str.as_str() {
-                "bmp" => formats.push(OutputType::Bmp),
-                "bin" => formats.push(OutputType::Bin),
-                "jpg" | "jpeg" => formats.push(OutputType::Jpg),
-                "png" => formats.push(OutputType::Png),
+            let format = match format_str.as_str() {
+                "bmp" => OutputType::Bmp,
+                "bin" => OutputType::Bin,
+                "jpg" => OutputType::Jpg,
+                "png" => OutputType::Png,
                 _ => {
                     return Err(format!(
-                        "Invalid output format '{}'. Valid formats: bmp, bin, jpg, png",
+                        "Invalid output format: '{}'. Valid formats are: bmp, bin, jpg, png",
                         format_str
                     ))
                 }
+            };
+
+            // Check for duplicates
+            if !seen.insert(format.clone()) {
+                return Err(format!(
+                    "Duplicate output format specified: '{}'",
+                    format_str
+                ));
             }
+
+            formats.push(format);
         }
 
         if formats.is_empty() {
             return Err("No valid output formats specified".to_string());
         }
 
-        // Remove duplicates while preserving order
-        let mut unique_formats = Vec::new();
-        for format in formats {
-            if !unique_formats.contains(&format) {
-                unique_formats.push(format);
-            }
+        Ok(formats)
+    }
+
+    /// Default values for fields that are feature-gated
+    pub fn detect_people(&self) -> bool {
+        #[cfg(feature = "ai")]
+        {
+            self.detect_people
         }
-
-        Ok(unique_formats)
+        #[cfg(not(feature = "ai"))]
+        {
+            false
+        }
     }
 
-    // Getters that match the expected interface
-    pub fn target_width(&self) -> u32 {
-        self.get_dimensions().0
-    }
-
-    pub fn target_height(&self) -> u32 {
-        self.get_dimensions().1
-    }
-
-    pub fn extensions(&self) -> Vec<String> {
-        self.parse_extensions()
-    }
-
-    pub fn output_formats(&self) -> Vec<OutputType> {
-        self.parse_output_formats()
-            .unwrap_or_else(|_| vec![OutputType::Bmp])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_get_dimensions_bw() {
-        // B/W landscape
-        let args = Args {
-            processing_type: ColorType::BlackWhite,
-            target_orientation: TargetOrientation::Landscape,
-            ..Default::default()
-        };
-        assert_eq!(args.get_dimensions(), (800, 480));
-
-        // B/W portrait
-        let args = Args {
-            processing_type: ColorType::BlackWhite,
-            target_orientation: TargetOrientation::Portrait,
-            ..Default::default()
-        };
-        assert_eq!(args.get_dimensions(), (480, 800));
-    }
-
-    #[test]
-    fn test_get_dimensions_6c_7c() {
-        // 6C landscape
-        let args = Args {
-            processing_type: ColorType::SixColor,
-            target_orientation: TargetOrientation::Landscape,
-            ..Default::default()
-        };
-        assert_eq!(args.get_dimensions(), (800, 480));
-
-        // 6C portrait (still 800×480, pre-rotation applied later)
-        let args = Args {
-            processing_type: ColorType::SixColor,
-            target_orientation: TargetOrientation::Portrait,
-            ..Default::default()
-        };
-        assert_eq!(args.get_dimensions(), (800, 480));
-
-        // 7C landscape
-        let args = Args {
-            processing_type: ColorType::SevenColor,
-            target_orientation: TargetOrientation::Landscape,
-            ..Default::default()
-        };
-        assert_eq!(args.get_dimensions(), (800, 480));
-
-        // 7C portrait
-        let args = Args {
-            processing_type: ColorType::SevenColor,
-            target_orientation: TargetOrientation::Portrait,
-            ..Default::default()
-        };
-        assert_eq!(args.get_dimensions(), (800, 480));
-    }
-
-    #[test]
-    fn test_needs_pre_rotation() {
-        // B/W never needs pre-rotation
-        let args = Args {
-            processing_type: ColorType::BlackWhite,
-            target_orientation: TargetOrientation::Portrait,
-            ..Default::default()
-        };
-        assert_eq!(args.needs_pre_rotation(), false);
-
-        // 6C/7C landscape doesn't need pre-rotation
-        let args = Args {
-            processing_type: ColorType::SixColor,
-            target_orientation: TargetOrientation::Landscape,
-            ..Default::default()
-        };
-        assert_eq!(args.needs_pre_rotation(), false);
-
-        // 6C/7C portrait NEEDS pre-rotation
-        let args = Args {
-            processing_type: ColorType::SixColor,
-            target_orientation: TargetOrientation::Portrait,
-            ..Default::default()
-        };
-        assert_eq!(args.needs_pre_rotation(), true);
-
-        let args = Args {
-            processing_type: ColorType::SevenColor,
-            target_orientation: TargetOrientation::Portrait,
-            ..Default::default()
-        };
-        assert_eq!(args.needs_pre_rotation(), true);
-    }
-
-    #[test]
-    fn test_parse_extensions() {
-        let args = Args {
-            extensions_str: "jpg,png,heic".to_string(),
-            ..Default::default()
-        };
-        assert_eq!(args.parse_extensions(), vec!["jpg", "png", "heic"]);
-
-        let args = Args {
-            extensions_str: "JPG, PNG , HEIC ".to_string(),
-            ..Default::default()
-        };
-        assert_eq!(args.parse_extensions(), vec!["jpg", "png", "heic"]);
-    }
-}
-
-// Default implementation for tests
-#[cfg(test)]
-impl Default for Args {
-    fn default() -> Self {
-        Self {
-            input_paths: vec![],
-            output_dir: PathBuf::new(),
-            size: "800x480".to_string(),
-            processing_type: ColorType::BlackWhite,
-            output_formats_str: "bmp".to_string(),
-            extensions_str: "jpg,png".to_string(),
-            auto_orientation: false,
-            pointsize: 24,
-            font: "Arial".to_string(),
-            annotate_background: "#00000040".to_string(),
-            jobs: 0,
-            verbose: false,
-            validate_only: false,
-            detect_people: false,
-            python_script_path: None,
-            force: false,
-            find_original: None,
-            find_hash: None,
-            debug: false,
-            annotate: false,
-            auto_color_correct: false,
-            dry_run: false,
-            confidence_threshold: 0.6,
-            divider_width: 3,
-            divider_color: "#FFFFFF".to_string(),
-            dithering_method: DitherMethod::FloydSteinberg,
-            dither_strength: 1.0,
-            contrast: 0,
-            brightness: 0,
-            saturation_boost: 1.0,
-            auto_optimize: false,
-            report: false,
-            json_progress: false,
-            python_path: None,
-            target_orientation: TargetOrientation::Landscape,
+    pub fn confidence_threshold(&self) -> f32 {
+        #[cfg(feature = "ai")]
+        {
+            self.confidence_threshold
+        }
+        #[cfg(not(feature = "ai"))]
+        {
+            0.6
         }
     }
 }

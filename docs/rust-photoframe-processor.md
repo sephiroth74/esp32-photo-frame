@@ -78,7 +78,7 @@ To enable YOLO people detection:
 ### YOLO11 Model Setup (for AI features)
 
 1. **Download YOLO11 model**:
-   The YOLO11 nano model (`yolo11n.onnx`) needs to be obtained separately and placed in your preferred location. You can then specify the path using the `--python-script` parameter.
+   The YOLO11 nano model (`yolo11n.onnx`) is now integrated directly into the Rust binary. AI detection works out of the box with the `--detect-people` flag, no Python required!
 
 2. **Verify installation**:
    ```bash
@@ -122,19 +122,22 @@ photoframe-processor \
 ### AI-Powered People Detection (YOLO11)
 
 ```bash
-# Enable YOLO11 people detection (requires custom detection script)
-# Note: You need to provide your own find_subject.py script that outputs JSON
+# Enable YOLO11 people detection (built-in, no Python required!)
 photoframe-processor -i ~/Photos -o ~/processed \
   --detect-people \
-  --python-script ~/path/to/your/find_subject.py \
   --auto --verbose
 
 # People detection with detailed statistics and multiple formats
 photoframe-processor -i ~/family-photos -o ~/processed \
   --detect-people \
-  --python-script ~/path/to/your/find_subject.py \
   --output-format bmp,bin,png \
   --verbose  # Shows detection statistics
+
+# Adjust confidence threshold for detection
+photoframe-processor -i ~/Photos -o ~/processed \
+  --detect-people \
+  --confidence 0.7 \
+  --auto
 ```
 
 ### Utility Commands
@@ -154,7 +157,7 @@ photoframe-processor -i ~/Photos --validate-only --verbose
 
 # Debug mode: visualize detection boxes and crop areas
 photoframe-processor -i ~/Photos -o ~/processed --detect-people \
-  --python-script ~/path/to/your/find_subject.py --debug --verbose
+  --debug --verbose
 ```
 
 ## ⚙️ Configuration Options
@@ -177,9 +180,8 @@ photoframe-processor -i ~/Photos -o ~/processed --detect-people \
 - `--annotate_background` - Hex color with alpha (e.g., "#00000040")
 
 ### AI Detection Options
-- `--detect-people` - Enable YOLO11 people detection
-- `--python-script` - Path to find_subject.py script for people detection
-- `--python-path` - Path to Python interpreter (if not in system PATH)
+- `--detect-people` - Enable YOLO11 people detection (built-in)
+- `--confidence` - Confidence threshold for detection (0.0-1.0, default: 0.6)
 
 ### Utility Options
 - `--find-hash` - Find original filename from an 8-character hash
@@ -343,16 +345,16 @@ ls /System/Library/Fonts/  # macOS
 photoframe-processor --font "Arial" ...  # Try common fonts
 ```
 
-**YOLO11 model errors**:
+**AI detection not working**:
 ```bash
-# Verify your custom detection script exists and is executable
-ls -la ~/path/to/your/find_subject.py
+# Verify the binary was compiled with AI features
+photoframe-processor --help | grep detect-people
 
-# Check file permissions
-chmod +x ~/path/to/your/find_subject.py
+# Test with verbose output to see detection results
+photoframe-processor -i test.jpg -o output --detect-people --verbose
 
-# Test with Python script directly
-python ~/path/to/your/find_subject.py --image test.jpg --model ~/path/to/your/yolo11n.onnx
+# Adjust confidence threshold if needed
+photoframe-processor -i test.jpg -o output --detect-people --confidence 0.5
 ```
 
 **Memory issues with large batches**:

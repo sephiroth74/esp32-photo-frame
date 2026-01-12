@@ -14,7 +14,10 @@ pub fn apply_auto_color_correction(img: &RgbImage) -> Result<RgbImage> {
 }
 
 /// Apply automatic color correction with configurable saturation boost
-pub fn apply_auto_color_correction_with_saturation(img: &RgbImage, saturation_boost: f32) -> Result<RgbImage> {
+pub fn apply_auto_color_correction_with_saturation(
+    img: &RgbImage,
+    saturation_boost: f32,
+) -> Result<RgbImage> {
     // Try ImageMagick first for superior color correction (uses saturation_boost)
     if let Ok(corrected) = apply_imagemagick_auto_color_with_saturation(img, saturation_boost) {
         return Ok(corrected);
@@ -70,7 +73,10 @@ fn apply_imagemagick_auto_color(img: &RgbImage) -> Result<RgbImage> {
 }
 
 /// Apply automatic color correction using ImageMagick with configurable saturation
-fn apply_imagemagick_auto_color_with_saturation(img: &RgbImage, saturation_boost: f32) -> Result<RgbImage> {
+fn apply_imagemagick_auto_color_with_saturation(
+    img: &RgbImage,
+    saturation_boost: f32,
+) -> Result<RgbImage> {
     // Create unique temporary files to avoid conflicts in multi-threaded environments
     let temp_dir = std::env::temp_dir();
     let timestamp = std::time::SystemTime::now()
@@ -390,7 +396,10 @@ pub fn apply_imagemagick_brightness_contrast_public(
 ///   - Negative values decrease contrast (flattens the image)
 ///   - 0 = no change
 pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Result<RgbImage> {
-    eprintln!("[Contrast] apply_contrast_adjustment called with value={}", contrast_adjustment);
+    eprintln!(
+        "[Contrast] apply_contrast_adjustment called with value={}",
+        contrast_adjustment
+    );
 
     if contrast_adjustment == 0 {
         // No adjustment needed
@@ -401,7 +410,9 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Re
     // Try ImageMagick first for superior contrast adjustment
     if is_imagemagick_available() {
         eprintln!("[Contrast] Using ImageMagick");
-        if let Ok(adjusted) = apply_imagemagick_brightness_contrast_public(img, 0, contrast_adjustment) {
+        if let Ok(adjusted) =
+            apply_imagemagick_brightness_contrast_public(img, 0, contrast_adjustment)
+        {
             return Ok(adjusted);
         }
     }
@@ -432,7 +443,10 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Re
 ///   - Negative values decrease brightness (makes image darker)
 ///   - 0 = no change
 pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: i32) -> Result<RgbImage> {
-    eprintln!("[Brightness] apply_brightness_adjustment called with value={}", brightness_adjustment);
+    eprintln!(
+        "[Brightness] apply_brightness_adjustment called with value={}",
+        brightness_adjustment
+    );
 
     if brightness_adjustment == 0 {
         // No adjustment needed
@@ -443,7 +457,9 @@ pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: i32) -
     // Try ImageMagick first for superior brightness adjustment
     if is_imagemagick_available() {
         eprintln!("[Brightness] Using ImageMagick");
-        if let Ok(adjusted) = apply_imagemagick_brightness_contrast_public(img, brightness_adjustment, 0) {
+        if let Ok(adjusted) =
+            apply_imagemagick_brightness_contrast_public(img, brightness_adjustment, 0)
+        {
             return Ok(adjusted);
         }
     }

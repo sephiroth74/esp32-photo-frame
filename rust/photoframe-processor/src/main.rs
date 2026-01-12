@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 mod cli;
+mod config_file;
 mod image_processing;
 mod json_output;
 mod utils;
@@ -280,7 +281,10 @@ fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
 
 fn main() -> Result<()> {
     let start_time = Instant::now();
-    let args = Args::parse();
+    let mut args = Args::parse();
+
+    // Load config file if specified
+    args.load_and_merge_config()?;
 
     // Print banner
     println!(
@@ -315,26 +319,28 @@ fn main() -> Result<()> {
     ]);
 
     // Create processing configuration
+    let (target_width, target_height) = args.get_dimensions();
+
     let config = ProcessingConfig {
         processing_type: args.processing_type.clone().into(),
-        target_width: args.target_width(),
-        target_height: args.target_height(),
+        target_width,
+        target_height,
         auto_orientation: true, // Always enabled for smart orientation detection
         font_name: args.font.clone(),
         font_size: args.pointsize as f32,
         annotation_background: args.annotate_background.clone(),
-        extensions: args.extensions(),
+        extensions: args.parse_extensions(),
         verbose: args.verbose,
         parallel_jobs: if args.jobs == 0 {
             num_cpus::get()
         } else {
             args.jobs
         },
-        output_formats: args.output_formats(),
-        // Python people detection configuration
-        detect_people: args.detect_people,
-        python_script_path: args.python_script_path.clone(),
-        python_path: args.python_path.clone(),
+        output_formats: args
+            .parse_output_formats()
+            .map_err(|e| anyhow::anyhow!(e))?,
+        // AI people detection configuration
+        detect_people: args.detect_people(),
         // Duplicate handling
         force: args.force,
         // Debug mode
@@ -346,7 +352,7 @@ fn main() -> Result<()> {
         // Dry run mode
         dry_run: args.dry_run,
         // Confidence threshold for people detection
-        confidence_threshold: args.confidence_threshold,
+        confidence_threshold: args.confidence_threshold(),
         // Portrait combination divider settings
         divider_width: args.divider_width,
         divider_color,
@@ -393,11 +399,7 @@ fn main() -> Result<()> {
         // People detection status
         println!("  People detection: {}", config.detect_people);
         if config.detect_people {
-            if let Some(ref path) = config.python_script_path {
-                println!("    Python script: {}", path.display());
-            } else {
-                println!("    Python script: not specified");
-            }
+            println!("    Using embedded YOLO11 model");
             println!(
                 "    Confidence threshold: {:.2}",
                 config.confidence_threshold
@@ -481,9 +483,9 @@ fn main() -> Result<()> {
 
     // Validate debug mode requirements
     if config.debug {
-        if !config.detect_people || config.python_script_path.is_none() {
+        if !config.detect_people {
             return Err(anyhow::anyhow!(
-                "Debug mode requires people detection to be enabled with --detect-people and --python-script <PATH>"
+                "Debug mode requires people detection to be enabled with --detect-people"
             ));
         }
     }

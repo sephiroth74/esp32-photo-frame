@@ -10,7 +10,17 @@ pub mod dithering;
 pub mod optimization_report;
 pub mod orientation;
 pub mod resize;
-pub mod subject_detection;
+
+// Use ONNX detector when AI feature is enabled
+#[cfg(feature = "ai")]
+pub mod onnx_detection;
+#[cfg(feature = "ai")]
+pub use onnx_detection as subject_detection;
+
+#[cfg(not(feature = "ai"))]
+pub mod subject_detection_stub;
+#[cfg(not(feature = "ai"))]
+pub use subject_detection_stub as subject_detection;
 
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
@@ -73,8 +83,6 @@ pub struct ProcessingConfig {
     pub output_formats: Vec<crate::cli::OutputType>,
     // Python people detection configuration
     pub detect_people: bool,
-    pub python_script_path: Option<PathBuf>,
-    pub python_path: Option<PathBuf>,
     // Duplicate handling
     pub force: bool,
     // Debug mode
@@ -222,51 +230,47 @@ impl ProcessingEngine {
             .build_global();
 
         let subject_detector = if config.detect_people {
-            if let Some(ref script_path) = config.python_script_path {
-                verbose_println(config.verbose, "Initializing Python people detection...");
+            #[cfg(feature = "ai")]
+            {
+                // Use native ONNX detector when AI feature is enabled
                 verbose_println(
                     config.verbose,
-                    &format!("Using script: {}", script_path.display()),
+                    "Initializing native ONNX people detection...",
                 );
-                if let Some(ref py_path) = config.python_path {
-                    verbose_println(
-                        config.verbose,
-                        &format!("Using custom Python interpreter: {}", py_path.display()),
-                    );
-                } else {
-                    verbose_println(
-                        config.verbose,
-                        "Using system Python interpreter (auto-detected)",
-                    );
-                }
-                match subject_detection::create_default_detector(
-                    script_path,
-                    config.python_path.clone(),
-                ) {
+                verbose_println(
+                    config.verbose,
+                    "Using embedded YOLO11 model (no external files required)",
+                );
+
+                match subject_detection::create_default_detector(config.verbose) {
                     Ok(detector) => {
                         verbose_println(
                             config.verbose,
-                            "✓ Python people detection initialized successfully",
+                            "✓ ONNX people detection initialized successfully",
                         );
                         Some(detector)
                     }
                     Err(e) => {
                         verbose_println(
                             config.verbose,
-                            &format!("⚠ Failed to initialize Python detection: {}", e),
+                            &format!("⚠ Failed to initialize ONNX detection: {}", e),
                         );
                         verbose_println(config.verbose, "  Continuing without people detection");
                         None
                     }
                 }
-            } else {
+            }
+
+            #[cfg(not(feature = "ai"))]
+            {
+                // When AI feature is not enabled, people detection is not available
                 verbose_println(
                     config.verbose,
-                    "⚠ People detection requested but no Python script path provided",
+                    "⚠ People detection requested but not available",
                 );
                 verbose_println(
                     config.verbose,
-                    "  Use --python-script to specify the path to find_subject.py",
+                    "  Rebuild with --features ai to enable native ONNX people detection",
                 );
                 None
             }
@@ -1198,7 +1202,10 @@ impl ProcessingEngine {
         let color_corrected_img = if optimized_auto_color {
             progress_bar.set_message(format!("{} - Auto color correction", filename));
             std::thread::yield_now();
-            let corrected = color_correction::apply_auto_color_correction_with_saturation(&annotated_img, self.config.saturation_boost)?;
+            let corrected = color_correction::apply_auto_color_correction_with_saturation(
+                &annotated_img,
+                self.config.saturation_boost,
+            )?;
             progress_bar.set_position(76);
             corrected
         } else {
@@ -1208,43 +1215,50 @@ impl ProcessingEngine {
 
         // Apply brightness and contrast adjustments (76-78%) - combined for efficiency
         progress_bar.set_position(76);
-        let brightness_contrast_adjusted_img = if optimized_brightness != 0 || optimized_contrast != 0 {
-            eprintln!(
-                "[Pipeline] Applying brightness={} contrast={}",
-                optimized_brightness, optimized_contrast
-            );
+        let brightness_contrast_adjusted_img =
+            if optimized_brightness != 0 || optimized_contrast != 0 {
+                eprintln!(
+                    "[Pipeline] Applying brightness={} contrast={}",
+                    optimized_brightness, optimized_contrast
+                );
 
-            if optimized_brightness != 0 && optimized_contrast != 0 {
-                progress_bar.set_message(format!("{} - Adjusting brightness and contrast", filename));
-            } else if optimized_brightness != 0 {
-                progress_bar.set_message(format!("{} - Adjusting brightness", filename));
-            } else {
-                progress_bar.set_message(format!("{} - Adjusting contrast", filename));
-            }
-            std::thread::yield_now();
+                if optimized_brightness != 0 && optimized_contrast != 0 {
+                    progress_bar
+                        .set_message(format!("{} - Adjusting brightness and contrast", filename));
+                } else if optimized_brightness != 0 {
+                    progress_bar.set_message(format!("{} - Adjusting brightness", filename));
+                } else {
+                    progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+                }
+                std::thread::yield_now();
 
-            // Apply both together using ImageMagick when available
-            let adjusted = if color_correction::is_imagemagick_available() {
-                eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
-                color_correction::apply_imagemagick_brightness_contrast_public(
-                    &color_corrected_img,
-                    optimized_brightness,
-                    optimized_contrast,
-                )?
+                // Apply both together using ImageMagick when available
+                let adjusted = if color_correction::is_imagemagick_available() {
+                    eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
+                    color_correction::apply_imagemagick_brightness_contrast_public(
+                        &color_corrected_img,
+                        optimized_brightness,
+                        optimized_contrast,
+                    )?
+                } else {
+                    // Fall back to separate operations
+                    eprintln!(
+                        "[Pipeline] ImageMagick not available, using fallback Rust implementation"
+                    );
+                    let temp = color_correction::apply_brightness_adjustment(
+                        &color_corrected_img,
+                        optimized_brightness,
+                    )?;
+                    color_correction::apply_contrast_adjustment(&temp, optimized_contrast)?
+                };
+
+                progress_bar.set_position(78);
+                adjusted
             } else {
-                // Fall back to separate operations
-                eprintln!("[Pipeline] ImageMagick not available, using fallback Rust implementation");
-                let temp = color_correction::apply_brightness_adjustment(&color_corrected_img, optimized_brightness)?;
-                color_correction::apply_contrast_adjustment(&temp, optimized_contrast)?
+                eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
+                progress_bar.set_position(78);
+                color_corrected_img
             };
-
-            progress_bar.set_position(78);
-            adjusted
-        } else {
-            eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
-            progress_bar.set_position(78);
-            color_corrected_img
-        };
 
         // Apply color conversion and dithering (78-85%) - use optimized parameters
         progress_bar.set_message(format!("{} - Color processing", filename));
@@ -1497,7 +1511,10 @@ impl ProcessingEngine {
         let color_corrected_img = if optimized_auto_color {
             progress_bar.set_message(format!("{} - Auto color correction", filename));
             std::thread::yield_now();
-            let corrected = color_correction::apply_auto_color_correction_with_saturation(&annotated_img, self.config.saturation_boost)?;
+            let corrected = color_correction::apply_auto_color_correction_with_saturation(
+                &annotated_img,
+                self.config.saturation_boost,
+            )?;
             progress_bar.set_position(81);
             corrected
         } else {
@@ -1507,43 +1524,50 @@ impl ProcessingEngine {
 
         // Apply brightness and contrast adjustments (81-82%) - combined for efficiency
         progress_bar.set_position(81);
-        let brightness_contrast_adjusted_img = if optimized_brightness != 0 || optimized_contrast != 0 {
-            eprintln!(
-                "[Pipeline] Applying brightness={} contrast={} to portrait",
-                optimized_brightness, optimized_contrast
-            );
+        let brightness_contrast_adjusted_img =
+            if optimized_brightness != 0 || optimized_contrast != 0 {
+                eprintln!(
+                    "[Pipeline] Applying brightness={} contrast={} to portrait",
+                    optimized_brightness, optimized_contrast
+                );
 
-            if optimized_brightness != 0 && optimized_contrast != 0 {
-                progress_bar.set_message(format!("{} - Adjusting brightness and contrast", filename));
-            } else if optimized_brightness != 0 {
-                progress_bar.set_message(format!("{} - Adjusting brightness", filename));
-            } else {
-                progress_bar.set_message(format!("{} - Adjusting contrast", filename));
-            }
-            std::thread::yield_now();
+                if optimized_brightness != 0 && optimized_contrast != 0 {
+                    progress_bar
+                        .set_message(format!("{} - Adjusting brightness and contrast", filename));
+                } else if optimized_brightness != 0 {
+                    progress_bar.set_message(format!("{} - Adjusting brightness", filename));
+                } else {
+                    progress_bar.set_message(format!("{} - Adjusting contrast", filename));
+                }
+                std::thread::yield_now();
 
-            // Apply both together using ImageMagick when available
-            let adjusted = if color_correction::is_imagemagick_available() {
-                eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
-                color_correction::apply_imagemagick_brightness_contrast_public(
-                    &color_corrected_img,
-                    optimized_brightness,
-                    optimized_contrast,
-                )?
+                // Apply both together using ImageMagick when available
+                let adjusted = if color_correction::is_imagemagick_available() {
+                    eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
+                    color_correction::apply_imagemagick_brightness_contrast_public(
+                        &color_corrected_img,
+                        optimized_brightness,
+                        optimized_contrast,
+                    )?
+                } else {
+                    // Fall back to separate operations
+                    eprintln!(
+                        "[Pipeline] ImageMagick not available, using fallback Rust implementation"
+                    );
+                    let temp = color_correction::apply_brightness_adjustment(
+                        &color_corrected_img,
+                        optimized_brightness,
+                    )?;
+                    color_correction::apply_contrast_adjustment(&temp, optimized_contrast)?
+                };
+
+                progress_bar.set_position(82);
+                adjusted
             } else {
-                // Fall back to separate operations
-                eprintln!("[Pipeline] ImageMagick not available, using fallback Rust implementation");
-                let temp = color_correction::apply_brightness_adjustment(&color_corrected_img, optimized_brightness)?;
-                color_correction::apply_contrast_adjustment(&temp, optimized_contrast)?
+                eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
+                progress_bar.set_position(82);
+                color_corrected_img
             };
-
-            progress_bar.set_position(82);
-            adjusted
-        } else {
-            eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
-            progress_bar.set_position(82);
-            color_corrected_img
-        };
 
         // Apply color conversion and dithering (82-85%) - use optimized parameters
         progress_bar.set_message(format!("{} - Color processing", filename));
@@ -2112,13 +2136,19 @@ impl ProcessingEngine {
         progress_bar.set_position(45);
         progress_bar.set_position(46); // Processing left image correction
         let left_color_corrected = if left_optimized_auto_color {
-            color_correction::apply_auto_color_correction_with_saturation(&left_resized, self.config.saturation_boost)?
+            color_correction::apply_auto_color_correction_with_saturation(
+                &left_resized,
+                self.config.saturation_boost,
+            )?
         } else {
             left_resized
         };
         progress_bar.set_position(47); // Processing right image correction
         let right_color_corrected = if right_optimized_auto_color {
-            color_correction::apply_auto_color_correction_with_saturation(&right_resized, self.config.saturation_boost)?
+            color_correction::apply_auto_color_correction_with_saturation(
+                &right_resized,
+                self.config.saturation_boost,
+            )?
         } else {
             right_resized
         };
@@ -2826,13 +2856,19 @@ impl ProcessingEngine {
         progress_bar.set_position(45);
         progress_bar.set_position(46);
         let top_color_corrected = if top_optimized_auto_color {
-            color_correction::apply_auto_color_correction_with_saturation(&top_resized, self.config.saturation_boost)?
+            color_correction::apply_auto_color_correction_with_saturation(
+                &top_resized,
+                self.config.saturation_boost,
+            )?
         } else {
             top_resized
         };
         progress_bar.set_position(47);
         let bottom_color_corrected = if bottom_optimized_auto_color {
-            color_correction::apply_auto_color_correction_with_saturation(&bottom_resized, self.config.saturation_boost)?
+            color_correction::apply_auto_color_correction_with_saturation(
+                &bottom_resized,
+                self.config.saturation_boost,
+            )?
         } else {
             bottom_resized
         };
@@ -3333,8 +3369,14 @@ impl ProcessingEngine {
 
         // Run Python script directly to get raw JSON
 
+        // Debug mode with ONNX is not yet implemented
+        return Err(anyhow::anyhow!(
+            "Debug mode is not yet implemented for ONNX detection"
+        ));
+
+        #[allow(unreachable_code)]
         let output = std::process::Command::new("python3")
-            .arg(self.config.python_script_path.as_ref().unwrap())
+            .arg("find_subject.py") // Placeholder
             .arg("--image")
             .arg(&temp_path)
             .arg("--output-format")

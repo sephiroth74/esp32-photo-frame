@@ -92,27 +92,14 @@ pub fn validate_inputs(args: &Args) -> Result<()> {
         ));
     }
 
-    // Validate Python script configuration
+    // Validate people detection is available
     {
-        if args.detect_people {
-            // Validate Python script path
-            if let Some(script_path) = &args.python_script_path {
-                if !script_path.exists() {
-                    return Err(anyhow::anyhow!(
-                        "Python script does not exist: {}",
-                        script_path.display()
-                    ));
-                }
-                if !script_path.is_file() {
-                    return Err(anyhow::anyhow!(
-                        "Python script path is not a file: {}",
-                        script_path.display()
-                    ));
-                }
-            } else {
+        if args.detect_people() {
+            #[cfg(not(feature = "ai"))]
+            {
                 return Err(anyhow::anyhow!(
-                    "Python script path is required when people detection is enabled. \
-                     Use --python-script <FILE> to specify the path to find_subject.py"
+                    "People detection is not available. \
+                     Rebuild with --features ai to enable native ONNX people detection"
                 ));
             }
         }
