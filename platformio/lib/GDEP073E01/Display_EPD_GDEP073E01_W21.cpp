@@ -51,10 +51,8 @@ void lcd_chkstatus(void)
     if (!timedOut) {
         if (totalTime < 1000) {
             log_i("Display ready in %lu ms", totalTime);
-        } else if (totalTime < 5000) {
-            log_i("Display ready in %.1f seconds", totalTime / 1000.0);
         } else {
-            log_w("Display took %.1f seconds to become ready (slow response)", totalTime / 1000.0);
+            log_i("Display ready in %.1f seconds", totalTime / 1000.0);
         }
     } else {
         log_e("Display check failed after %.1f seconds", totalTime / 1000.0);
