@@ -120,7 +120,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
  * @return Error state after Google Drive operations
  */
 photo_frame::photo_frame_error_t
-handle_GoogleDrive_operations(bool is_reset,
+handle_google_drive_operations(bool is_reset,
                               fs::File& file,
                               String& original_filename,
                               uint32_t& image_index,
@@ -352,7 +352,7 @@ void setup() {
         if (systemConfig.GoogleDrive.enabled) {
             log_i("Using Google Drive as image source");
             RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
-            error = handle_GoogleDrive_operations(is_reset,
+            error = handle_google_drive_operations(is_reset,
                                                   file,
                                                   original_filename,
                                                   image_index,
@@ -857,7 +857,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 }
 
 photo_frame::photo_frame_error_t
-handle_GoogleDrive_operations(bool is_reset,
+handle_google_drive_operations(bool is_reset,
                               fs::File& file,
                               String& original_filename,
                               uint32_t& image_index,

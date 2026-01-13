@@ -15,26 +15,37 @@ The configuration file must be placed at the root of your SD card:
 
 The configuration file uses the following top-level keys:
 
-- `wifi` - WiFi network credentials
+- `wifi` - WiFi network credentials (supports up to 3 networks)
 - `google_drive_config` - Google Drive integration settings
-- `weather_config` - Weather display configuration
-- `board_config` - Board-specific settings
+- `sd_card_config` - SD card image source settings
+- `board_config` - Board-specific settings including display orientation
 
-**Important**: The configuration keys must match exactly as shown below. Previous versions used different key names (`google_drive`, `weather`, `board`) which are **not compatible** with the current firmware.
+**Important**: The weather system has been removed as of v0.12.0. The `weather_config` section is no longer supported.
 
 ## Complete Configuration Example
 
 ```json
 {
-  "_comment": "ESP32 Photo Frame Unified Configuration (v0.7.1)",
+  "_comment": "ESP32 Photo Frame Unified Configuration (v0.13.0)",
   "_instructions": "Replace placeholder values with your actual configuration",
 
-  "wifi": {
-    "ssid": "YourWiFiNetwork",
-    "password": "YourWiFiPassword"
-  },
+  "wifi": [
+    {
+      "ssid": "YourHomeNetwork",
+      "password": "YourHomePassword"
+    },
+    {
+      "ssid": "YourOfficeNetwork",
+      "password": "YourOfficePassword"
+    },
+    {
+      "ssid": "YourMobileHotspot",
+      "password": "YourHotspotPassword"
+    }
+  ],
 
   "google_drive_config": {
+    "enabled": true,
     "authentication": {
       "service_account_email": "your-service-account@your-project.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT_HERE\n-----END PRIVATE KEY-----\n",
@@ -60,29 +71,23 @@ The configuration file uses the following top-level keys:
     }
   },
 
-  "weather_config": {
-    "_location_name": "New York City, USA",
-    "enabled": true,
-    "latitude": 40.7128,
-    "longitude": -74.0060,
-    "update_interval_minutes": 120,
-    "celsius": true,
-    "battery_threshold": 15,
-    "max_age_hours": 3,
-    "timezone": "auto",
-    "temperature_unit": "celsius",
-    "wind_speed_unit": "kmh",
-    "precipitation_unit": "mm"
+  "sd_card_config": {
+    "enabled": false,
+    "images_directory": "/images",
+    "use_toc_cache": true,
+    "toc_max_age_seconds": 86400
   },
 
   "board_config": {
+    "portrait_mode": false,
     "day_start_hour": 6,
     "day_end_hour": 23,
     "refresh": {
-      "_comment": "Refresh interval settings (in seconds) controlled by potentiometer",
+      "_comment": "Refresh interval settings (in seconds)",
       "min_seconds": 600,
       "max_seconds": 14400,
       "step": 300,
+      "default": 1800,
       "low_battery_multiplier": 3
     }
   }
@@ -96,6 +101,20 @@ The configuration file uses the following top-level keys:
 **Required**: Yes
 **Top-level key**: `wifi`
 
+The WiFi configuration supports up to 3 networks. The system will attempt to connect to each network in order until a successful connection is made.
+
+#### Array Format (v0.11.0+)
+```json
+{
+  "wifi": [
+    {"ssid": "Network1", "password": "password1"},
+    {"ssid": "Network2", "password": "password2"},
+    {"ssid": "Network3", "password": "password3"}
+  ]
+}
+```
+
+#### Legacy Format (v0.10.0 and earlier - still supported)
 ```json
 {
   "wifi": {
@@ -112,8 +131,24 @@ The configuration file uses the following top-level keys:
 
 ### Google Drive Configuration
 
-**Required**: Yes
+**Required**: No (can be disabled if using SD Card as image source)
 **Top-level key**: `google_drive_config`
+
+The Google Drive configuration allows using Google Drive as an image source. It can be enabled or disabled based on your needs.
+
+#### Enable/Disable
+
+```json
+{
+  "google_drive_config": {
+    "enabled": true
+  }
+}
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `enabled` | boolean | true | Enable or disable Google Drive as image source |
 
 #### Authentication Section
 
@@ -131,9 +166,11 @@ The configuration file uses the following top-level keys:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `service_account_email` | string | Yes | Google service account email |
-| `private_key_pem` | string | Yes | Private key in PEM format (include BEGIN/END markers) |
-| `client_id` | string | Yes | Client ID from service account |
+| `service_account_email` | string | Yes* | Google service account email |
+| `private_key_pem` | string | Yes* | Private key in PEM format (include BEGIN/END markers) |
+| `client_id` | string | Yes* | Client ID from service account |
+
+*Required only if Google Drive is enabled
 
 #### Drive Section
 
@@ -201,42 +238,32 @@ The configuration file uses the following top-level keys:
 | `backoff_base_delay_ms` | integer | 5000 | Base delay for exponential backoff (ms) |
 | `max_wait_time_ms` | integer | 30000 | Maximum wait time before giving up (ms) |
 
-### Weather Configuration
+### SD Card Configuration
 
-**Required**: No (can be disabled)
-**Top-level key**: `weather_config`
+**Required**: No (can be disabled if using Google Drive as image source)
+**Top-level key**: `sd_card_config`
+
+The SD Card configuration allows using local SD card directory as an image source instead of or in addition to Google Drive.
 
 ```json
 {
-  "weather_config": {
-    "enabled": true,
-    "latitude": 40.7128,
-    "longitude": -74.0060,
-    "update_interval_minutes": 120,
-    "celsius": true,
-    "battery_threshold": 15,
-    "max_age_hours": 3,
-    "timezone": "auto",
-    "temperature_unit": "celsius",
-    "wind_speed_unit": "kmh",
-    "precipitation_unit": "mm"
+  "sd_card_config": {
+    "enabled": false,
+    "images_directory": "/images",
+    "use_toc_cache": true,
+    "toc_max_age_seconds": 86400
   }
 }
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `enabled` | boolean | false | Enable/disable weather display |
-| `latitude` | float | 0.0 | Location latitude (-90 to 90) |
-| `longitude` | float | 0.0 | Location longitude (-180 to 180) |
-| `update_interval_minutes` | integer | 120 | Weather update frequency (minutes) |
-| `celsius` | boolean | true | Use Celsius (true) or Fahrenheit (false) |
-| `battery_threshold` | integer | 15 | Disable weather below this battery % |
-| `max_age_hours` | integer | 3 | Maximum data age before considered stale |
-| `timezone` | string | "auto" | IANA timezone or "auto" for automatic |
-| `temperature_unit` | string | "celsius" | API temperature unit ("celsius", "fahrenheit") |
-| `wind_speed_unit` | string | "kmh" | API wind speed unit ("kmh", "mph", "ms", "kn") |
-| `precipitation_unit` | string | "mm" | API precipitation unit ("mm", "inch") |
+| `enabled` | boolean | false | Enable/disable SD card as image source |
+| `images_directory` | string | "/images" | Directory path containing image files |
+| `use_toc_cache` | boolean | true | Enable TOC caching for performance |
+| `toc_max_age_seconds` | integer | 86400 | Maximum TOC cache age (24 hours default) |
+
+**Note**: At least one image source (Google Drive or SD Card) must be enabled. If both are enabled, SD Card takes precedence.
 
 ### Board Configuration
 
@@ -246,12 +273,14 @@ The configuration file uses the following top-level keys:
 ```json
 {
   "board_config": {
+    "portrait_mode": false,
     "day_start_hour": 6,
     "day_end_hour": 23,
     "refresh": {
       "min_seconds": 600,
       "max_seconds": 14400,
       "step": 300,
+      "default": 1800,
       "low_battery_multiplier": 3
     }
   }
@@ -260,6 +289,7 @@ The configuration file uses the following top-level keys:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `portrait_mode` | boolean | false | Enable portrait (vertical) display orientation |
 | `day_start_hour` | integer | 6 | Hour when display updates start (0-23) |
 | `day_end_hour` | integer | 23 | Hour when display updates stop (0-23) |
 
@@ -267,34 +297,52 @@ The configuration file uses the following top-level keys:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `min_seconds` | integer | 300 | Minimum refresh interval (seconds) |
+| `min_seconds` | integer | 600 | Minimum refresh interval (seconds) |
 | `max_seconds` | integer | 14400 | Maximum refresh interval (seconds) |
 | `step` | integer | 300 | Step size for potentiometer adjustment (seconds) |
+| `default` | integer | 1800 | Default interval when potentiometer is not used |
 | `low_battery_multiplier` | integer | 3 | Multiplier for refresh interval when battery is low |
 
-## Migration from Old Configuration
+**Note**: The `default` value is used when `USE_POTENTIOMETER` is not defined in the firmware. When using a potentiometer, the `min_seconds`, `max_seconds`, and `step` values control the potentiometer range.
 
-If you have an existing configuration file using the old key names, you must update it to use the new keys:
+## Migration Notes
+
+### Version Changes
+
+#### v0.13.0
+- Added `portrait_mode` to `board_config` for dynamic display orientation
+- Added `sd_card_config` section for local image source support
+
+#### v0.12.0
+- **Removed** `weather_config` section entirely (weather system removed)
+
+#### v0.11.0
+- WiFi configuration now supports array format for multiple networks (up to 3)
+- Legacy single network format still supported for backward compatibility
+
+#### v0.7.0
+If you have an existing configuration file using the old key names, you must update them:
 
 | Old Key (v0.6.x and earlier) | New Key (v0.7.0+) |
 |------------------------------|-------------------|
 | `"google_drive"` | `"google_drive_config"` |
-| `"weather"` | `"weather_config"` |
+| `"weather"` | `"weather_config"` (removed in v0.12.0) |
 | `"board"` | `"board_config"` |
 
-The `wifi` section remains unchanged.
+## Minimal Configuration Examples
 
-## Minimal Configuration Example
-
-The minimal configuration requires only WiFi and Google Drive authentication:
+### Using Google Drive as Image Source
 
 ```json
 {
-  "wifi": {
-    "ssid": "YourWiFiNetwork",
-    "password": "YourWiFiPassword"
-  },
+  "wifi": [
+    {
+      "ssid": "YourWiFiNetwork",
+      "password": "YourWiFiPassword"
+    }
+  ],
   "google_drive_config": {
+    "enabled": true,
     "authentication": {
       "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
@@ -304,9 +352,46 @@ The minimal configuration requires only WiFi and Google Drive authentication:
       "folder_id": "1ABC...XYZ",
       "use_insecure_tls": true
     }
+  }
+}
+```
+
+### Using SD Card as Image Source
+
+```json
+{
+  "wifi": [
+    {
+      "ssid": "YourWiFiNetwork",
+      "password": "YourWiFiPassword"
+    }
+  ],
+  "sd_card_config": {
+    "enabled": true,
+    "images_directory": "/images"
   },
-  "weather_config": {
+  "google_drive_config": {
     "enabled": false
+  }
+}
+```
+
+### Portrait Mode Configuration
+
+```json
+{
+  "wifi": [
+    {
+      "ssid": "YourWiFiNetwork",
+      "password": "YourWiFiPassword"
+    }
+  ],
+  "board_config": {
+    "portrait_mode": true
+  },
+  "sd_card_config": {
+    "enabled": true,
+    "images_directory": "/6c/portrait/bin"
   }
 }
 ```
@@ -337,12 +422,12 @@ Check the serial console output for configuration validation messages:
 3. Ensure key names match exactly (case-sensitive)
 4. Check serial console for error messages
 
-### Weather Not Working
+### No Images Displaying
 
-1. Verify `"weather_config"` key (not `"weather"`)
-2. Check `"enabled": true` is set
-3. Verify latitude/longitude are valid coordinates
-4. Check battery level is above threshold
+1. Verify at least one image source is enabled (`google_drive_config.enabled` or `sd_card_config.enabled`)
+2. For SD Card: Check that images exist in the configured `images_directory`
+3. For Google Drive: Verify authentication credentials and folder_id
+4. Check that image files are in binary format (`.bin` extension)
 
 ### Google Drive Authentication Failing
 
@@ -350,10 +435,31 @@ Check the serial console output for configuration validation messages:
 2. Check service account email is correct
 3. Ensure private key includes BEGIN/END markers
 4. Verify folder_id is accessible by service account
+5. Check system time is correct (required for JWT authentication)
+
+### WiFi Connection Issues
+
+1. If using array format, verify all network entries are valid
+2. Check that at least one configured network is available
+3. Monitor serial console for connection attempts
+4. Ensure passwords don't contain special JSON characters without proper escaping
+
+### Display Orientation Wrong
+
+1. Check `board_config.portrait_mode` setting matches your display mounting
+2. Portrait mode requires images processed for vertical orientation
+3. Verify image directory contains appropriately oriented images
+
+## Important Notes
+
+- **Image Source Priority**: If both Google Drive and SD Card are enabled, SD Card takes precedence
+- **Portrait Mode**: This is a runtime configuration - no firmware recompilation needed
+- **WiFi Networks**: System tries networks in order until successful connection
+- **Binary Format Only**: ESP32 firmware only supports `.bin` image format (v0.12.0+)
+- **Configuration Validation**: At least one image source must be enabled for valid configuration
 
 ## See Also
 
 - [example_config.json](example_config.json) - Complete example configuration
 - [Google Drive API Documentation](../docs/google_drive_api.md)
-- [Weather Feature Documentation](../docs/weather.md)
 - [README.md](../README.md) - Project overview

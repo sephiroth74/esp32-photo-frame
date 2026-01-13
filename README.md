@@ -96,10 +96,9 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 |-----------|--------------|---------------|
 | Microcontroller | Unexpected Maker FeatherS3(D) (ESP32-S3, 8MB PSRAM, 16MB Flash) | [Unexpected Maker](https://unexpectedmaker.com/shop/feathers3) |
 | E-Paper Display | Waveshare 7.5" (800×480 pixels, B/W or color) | [Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm) |
-| Display Connector | Good Display DESPI-C02 | [Good Display](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) |
+| Display Connector | Good Display DESPI-C02 (DESPI-C73) | [Good Display](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) |
 | SD Card Module | Adafruit MicroSD Breakout Board | [Adafruit #4682](https://www.adafruit.com/product/4682) |
 | Battery | 3.7V 5000mAh LiPo with JST connector | Various suppliers |
-| Potentiometer | 50kΩ linear potentiometer | Various suppliers |
 | Push Buttons | Momentary switch (normally open) | Various suppliers |
 | MicroSD Card | 8GB or larger, FAT32 formatted | Various suppliers |
 
@@ -109,6 +108,7 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 |-----------|---------|-------|
 | RTC Module | Accurate timekeeping without NTP | PCF8523 or DS3231 compatible |
 | Battery Monitor | Precise battery level tracking | MAX1704X I2C fuel gauge |
+| Potentiometer | 50kΩ linear potentiometer | Various suppliers |
 
 ### Wiring Components
 
@@ -147,21 +147,17 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 
 | Board | Support Level | Notes |
 |-------|--------------|-------|
-| Unexpected Maker FeatherS3 | Primary | Default configuration, full feature support |
+| Unexpected Maker FeatherS3 | Full | Default configuration, full feature support |
 | Unexpected Maker ProS3 | Full | Extended GPIO, MAX1704X battery monitor |
-| Adafruit Huzzah32 Feather V2 | Good | 2MB PSRAM, reduced buffer sizes |
-| DFRobot FireBeetle 2 ESP32-C6 | Limited | I2C/WiFi interference, requires isolation |
-| Arduino Nano ESP32 | Limited | Requires pin remapping |
 | Generic ESP32-S3 (8MB PSRAM) | Good | May require configuration adjustments |
 
 ### Display Support
 
 | Display Type | Resolution | Color Support | Status |
 |-------------|------------|---------------|--------|
-| Waveshare 7.5" V2 | 800×480 | Black/White | Fully Supported |
-| Waveshare 7.5" | 800×480 | Black/White/Red | Fully Supported |
-| Good Display 7.5" | 800×480 | 6-Color ACeP | Fully Supported |
-| Waveshare 7.5" HD | 880×528 | Black/White | Configuration required |
+| Good Display 7.5" GDEY075T7 | 800×480 | Black/White | Fully Supported |
+| Good Display 7.3" GDEP073E01 | 800×480 | 6-Color ACeP | Fully Supported |
+| Waveshare 7.5" BW | 800x480 | Black/White | Fully supported |
 
 ### Limitations by Platform
 
