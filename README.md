@@ -32,7 +32,7 @@ The photo frame features automatic image synchronization, configurable refresh i
 
 #### Rust Processor (rust/photoframe-processor)
 - High-performance batch processing with 5-10x speed improvement over shell scripts
-- AI-powered person detection using YOLO11 built directly into the binary (no Python required!)
+- AI-powered person detection with YOLO11 built directly into the binary
 - Multiple dithering algorithms: Floyd-Steinberg, Ordered (Bayer), Sierra, Atkinson
 - Automatic portrait pairing for landscape displays
 - Multi-format output support (BMP, binary, JPEG, PNG)
@@ -171,10 +171,6 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 - May experience slower Google Drive synchronization
 - Limited to ~200 files without streaming optimizations
 
-#### Non-ESP32-S3 Boards
-- No native USB support
-- Reduced processing performance
-- May require external programmer
 
 ## Wiring
 
@@ -218,280 +214,96 @@ Key connections:
    ```
    - This ensures compatibility with PlatformIO's build system
 
-### Configuration System
+### Configuration
 
-The photo frame uses a unified configuration system with a single `/config.json` file on the SD card root.
+The photo frame uses a JSON configuration file (`/config.json`) on the SD card root. The configuration supports:
 
-#### Configuration with SD Card Source
+- **Multiple WiFi networks** - Up to 3 networks with automatic failover
+- **Dual image sources** - Google Drive cloud storage or local SD card directory
+- **Display settings** - Portrait/landscape mode, refresh intervals, day/night scheduling
+- **Power management** - Battery-aware refresh adjustments
 
+#### Quick Configuration Examples
+
+**Using SD Card as image source:**
 ```json
 {
-  "wifi": [
-    {
-      "ssid": "YourPrimaryNetwork",
-      "password": "YourPassword"
-    }
-  ],
-  "board_config": {
-    "refresh": {
-      "min_seconds": 600,
-      "max_seconds": 14400,
-      "step": 300,
-      "default": 1800,
-      "low_battery_multiplier": 3
-    },
-    "day_start_hour": 6,
-    "day_end_hour": 23,
-    "portrait_mode": false
-  },
+  "wifi": [{"ssid": "YourNetwork", "password": "YourPassword"}],
   "sd_card_config": {
     "enabled": true,
-    "images_directory": "/images",
-    "use_toc_cache": true,
-    "toc_max_age_seconds": 86400
+    "images_directory": "/images"
   }
 }
 ```
 
-#### Configuration with Google Drive Source
-
+**Using Google Drive as image source:**
 ```json
 {
-  "wifi": [
-    {
-      "ssid": "YourHomeNetwork",
-      "password": "YourHomePassword"
-    },
-    {
-      "ssid": "YourOfficeNetwork",
-      "password": "YourOfficePassword"
-    },
-    {
-      "ssid": "YourMobileHotspot",
-      "password": "YourHotspotPassword"
-    }
-  ],
-  "board_config": {
-    "refresh": {
-      "min_seconds": 300,
-      "max_seconds": 14400,
-      "step": 300,
-      "default": 1800,
-      "low_battery_multiplier": 3
-    },
-    "day_start_hour": 6,
-    "day_end_hour": 23,
-    "portrait_mode": true
-  },
+  "wifi": [{"ssid": "YourNetwork", "password": "YourPassword"}],
   "google_drive_config": {
     "enabled": true,
     "authentication": {
-      "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
+      "service_account_email": "photoframe@project.iam.gserviceaccount.com",
       "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
       "client_id": "123456789"
     },
     "drive": {
-      "folder_id": "1ABC...XYZ",
-      "root_ca_path": "/certs/google_root_ca.pem",
-      "list_page_size": 100,
-      "use_insecure_tls": false
-    },
-    "caching": {
-      "local_path": "/gdrive",
-      "toc_max_age_seconds": 604800
-    },
-    "rate_limiting": {
-      "max_requests_per_window": 100,
-      "rate_limit_window_seconds": 100,
-      "min_request_delay_ms": 500
+      "folder_id": "YOUR_FOLDER_ID",
+      "use_insecure_tls": true
     }
-  },
-  "sd_card_config": {
-    "enabled": false
   }
 }
 ```
 
-### Image Source Configuration
+📖 **[Complete Configuration Reference →](docs/config_reference.md)**
 
-The photo frame supports two image sources that can be configured via `config.json`:
+Details on all configuration options including WiFi failover, portrait mode, refresh intervals, and advanced Google Drive settings.
 
-#### SD Card Source
-When `sd_card_config.enabled` is `true`, the photo frame reads images directly from the SD card:
-- **images_directory**: Path to the folder containing processed images (e.g., "/images")
-- **use_toc_cache**: Enable caching of file list for faster startup
-- **toc_max_age_seconds**: How long to cache the file list before rebuilding
+## Image Processing
 
-#### Google Drive Source
-When `google_drive_config.enabled` is `true`, the photo frame downloads images from Google Drive:
-- Requires service account authentication
-- Automatically caches images locally for offline viewing
-- Supports rate limiting to avoid API quota issues
-- Streaming architecture handles 350+ files efficiently
+Images must be processed into a specific binary format optimized for e-paper displays. The firmware supports only `.bin` files that match your display's resolution and color mode.
 
-**Note**: Only one source can be enabled at a time. If both are enabled, SD card takes precedence.
+### Processing Tools
 
-### WiFi Configuration
+Two main tools are available for image processing:
 
-The photo frame supports multiple WiFi networks with automatic failover (added in v0.11.0).
-
-#### Multiple Network Setup
-
-Configure up to 3 WiFi networks in your `config.json` file. The photo frame will:
-1. Try connecting to the first network (up to 3 attempts with exponential backoff)
-2. If the first network fails, try the second network
-3. If the second network fails, try the third network
-4. Continue until a successful connection is established
-
-#### WiFi Settings
-
-```json
-"wifi": [
-  {
-    "ssid": "YourPrimaryNetwork",
-    "password": "YourPrimaryPassword"
-  },
-  {
-    "ssid": "YourBackupNetwork",
-    "password": "YourBackupPassword"
-  }
-]
-```
-
-**Configuration Options:**
-- **ssid**: Network name (SSID) - required for each network
-- **password**: Network password - required for each network
-
-**Failover Behavior:**
-- Each network is tried sequentially with up to 3 connection attempts
-- Connection timeout: 10 seconds per attempt
-- Exponential backoff with jitter between retries on the same network
-- 1-second delay between switching to different networks
-- Detailed logging shows which network is being attempted
-
-**Use Cases:**
-- Primary home network + backup mobile hotspot
-- Home network + office network + travel hotspot
-- Multiple networks at different locations
-
-## Images Pipeline
-
-### Google Drive Setup
-
-1. **Create a Google Cloud Project**
-   - Visit [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing
-   - Enable the Google Drive API
-
-2. **Create Service Account**
-   - Navigate to IAM & Admin → Service Accounts
-   - Create a new service account
-   - Download the JSON key file
-   - Extract credentials for config.json
-
-3. **Prepare Google Drive Folder**
-   - Create a folder in Google Drive for your photos
-   - Share the folder with the service account email
-   - Copy the folder ID from the URL
-
-4. **Process Images**
-   - Use either the Rust processor or Android app (see below)
-   - Upload processed files to the Google Drive folder
-
-### Using the Rust Processor
-
+#### 🦀 Rust Processor (Command Line)
+High-performance batch processing with AI features:
 ```bash
 cd rust/photoframe-processor
 cargo build --release
 
-# Process images for black & white display
-./target/release/photoframe-processor \
-  -i ~/photos -o ~/processed \
-  -t bw -s 800x480 --auto
+# Process for black & white display
+./target/release/photoframe-processor -i ~/photos -o ~/processed -t bw -s 800x480 --auto
 
-# Process with person detection and 6-color output
-./target/release/photoframe-processor \
-  -i ~/photos -o ~/processed \
-  -t 6c -s 800x480 \
-  --detect-people --auto-color --force
+# Process with AI person detection for 6-color display
+./target/release/photoframe-processor -i ~/photos -o ~/processed -t 6c -s 800x480 --detect-people --auto
 ```
 
-### Using the Android App
-
-1. Install the PhotoFrameProcessor app from `android/PhotoFrameProcessor/`
-2. Select images from your gallery
-3. Configure processing options (crop, color mode, annotations)
-4. Process batch and upload directly to Google Drive
-
-### Using the Flutter Desktop App
-
+#### 🎨 Flutter App (Desktop GUI)
+Cross-platform desktop application with graphical interface:
 ```bash
 cd photoframe_flutter
-
-# Install dependencies
 flutter pub get
-
-# Run the application
-flutter run -d windows  # On Windows
-flutter run -d macos    # On macOS
-flutter run -d linux    # On Linux
-
-# Build for distribution
-flutter build windows   # Creates .exe installer
-flutter build macos     # Creates .app bundle
-flutter build linux     # Creates AppImage/deb package
+flutter run -d [windows/macos/linux]
 ```
 
-The Flutter app provides:
-- Drag-and-drop file selection
-- Real-time processing preview
-- Multiple output format support (BMP, binary, JPEG, PNG)
-- Batch processing with progress tracking
-- Cross-platform compatibility
+📖 **[Complete Image Processing Guide →](docs/image_processing.md)**
 
-## Image Processing
+Details on color modes, dithering algorithms, portrait pairing, and batch processing.
 
-### Technical Overview
+## Setup Guide
 
-The e-paper display requires images in specific formats optimized for its unique characteristics. Unlike traditional LCD screens, e-paper displays have limited color palettes and refresh rates, necessitating specialized image processing.
+### Google Drive Setup (Optional)
 
-#### Processing Pipeline
+If using Google Drive as your image source:
 
-1. **Input Analysis**: Images are loaded and analyzed for composition, detecting faces and subjects using AI models
-2. **Intelligent Cropping**: Based on detected subjects, images are cropped to the target aspect ratio
-3. **Color Quantization**: Images are converted to the target color palette (B/W or 6-color)
-4. **Dithering**: Floyd-Steinberg or ordered dithering is applied for better perceived quality
-5. **Binary Encoding**: Final image is encoded in a compact binary format for efficient storage
+1. **Create Service Account** - Set up authentication in [Google Cloud Console](https://console.cloud.google.com/)
+2. **Share Folder** - Grant access to the service account email
+3. **Process Images** - Use the tools above to prepare your photos
+4. **Configure** - Add credentials to `config.json`
 
-#### Binary Format Structure
-
-The custom binary format consists of:
-- 4-byte header with version and flags
-- Image dimensions and color mode
-- Compressed pixel data using run-length encoding
-- Optional metadata (date, annotations)
-
-This format achieves 50-70% size reduction compared to BMP while maintaining fast decoding on the ESP32.
-
-### Rust Processor Details
-
-The Rust-based processor (`rust/photoframe-processor`) provides:
-- Parallel processing utilizing all CPU cores
-- YOLO11 neural network for person detection
-- Automatic portrait pairing for combined displays
-- EXIF metadata extraction for date annotations
-- Multiple output formats with organized directory structure
-
-For detailed documentation, see [Rust Processor Documentation](docs/rust-photoframe-processor.md).
-
-### Android App Details
-
-The Android application offers:
-- Intuitive touch interface for image selection
-- Real-time preview of processing effects
-- Batch operations with progress tracking
-- Direct Google Drive integration
-- Settings persistence for repeated use
+📖 **[Google Drive Setup Guide →](docs/google_drive_api.md)**
 
 ## Documentation Index
 
@@ -507,7 +319,6 @@ The Android application offers:
 - [Image Processing Pipeline](docs/image_processing.md) - Image format and processing details
 
 ### Development
-- [CLAUDE.md](CLAUDE.md) - AI assistant guidance for code contributions
 - [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
 
 ## 3D Printable Enclosure
