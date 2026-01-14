@@ -54,7 +54,6 @@ class ProcessingConfig {
   final String annotateBackground;
   final int dividerWidth;
   final String dividerColor;
-  final bool force;
   final bool dryRun;
   final bool debug;
   final bool report;
@@ -86,7 +85,6 @@ class ProcessingConfig {
     this.annotateBackground = '#00000040',
     this.dividerWidth = 3,
     this.dividerColor = '#FFFFFF',
-    this.force = false,
     this.dryRun = false,
     this.debug = false,
     this.report = false,
@@ -124,7 +122,6 @@ class ProcessingConfig {
     String? annotateBackground,
     int? dividerWidth,
     String? dividerColor,
-    bool? force,
     bool? dryRun,
     bool? debug,
     bool? report,
@@ -156,7 +153,6 @@ class ProcessingConfig {
       annotateBackground: annotateBackground ?? this.annotateBackground,
       dividerWidth: dividerWidth ?? this.dividerWidth,
       dividerColor: dividerColor ?? this.dividerColor,
-      force: force ?? this.force,
       dryRun: dryRun ?? this.dryRun,
       debug: debug ?? this.debug,
       report: report ?? this.report,

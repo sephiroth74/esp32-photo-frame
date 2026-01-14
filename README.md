@@ -311,8 +311,6 @@ If using Google Drive as your image source:
 - [Technical Specifications](docs/tech_specs.md) - System architecture and API documentation
 - [Wiring Diagram](docs/wiring-diagram.md) - Detailed hardware connections
 - [Google Drive API](docs/google_drive_api.md) - Google Drive integration and setup
-- [Display Rendering Architecture](platformio/DISPLAY_RENDERING_ARCHITECTURE.md) - Display rendering pipeline
-- [Buffer Management](platformio/BUFFER_MANAGEMENT.md) - Memory allocation and buffer lifecycle
 
 ### Image Processing
 - [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing with AI features

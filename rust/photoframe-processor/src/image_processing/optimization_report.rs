@@ -1,5 +1,6 @@
-use crate::cli::DitherMethod;
+use crate::cli::{DitherMethod, ReportFormat};
 use prettytable::{format, Cell, Row, Table};
+use serde::{Deserialize, Serialize};
 /// Optimization report generation for auto-optimize feature
 ///
 /// This module generates formatted tables showing optimization decisions and results
@@ -7,7 +8,7 @@ use prettytable::{format, Cell, Row, Table};
 use std::path::Path;
 
 /// Single image optimization entry for the report
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizationEntry {
     pub input_filename: String,
     pub output_filename: String,
@@ -23,7 +24,7 @@ pub struct OptimizationEntry {
 }
 
 /// Portrait pair optimization entry (two images combined side-by-side)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortraitPairEntry {
     pub left: OptimizationEntry,
     pub right: OptimizationEntry,
@@ -31,7 +32,7 @@ pub struct PortraitPairEntry {
 }
 
 /// Landscape pair optimization entry (two images combined top-bottom)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LandscapePairEntry {
     pub top: OptimizationEntry,
     pub bottom: OptimizationEntry,
@@ -39,7 +40,7 @@ pub struct LandscapePairEntry {
 }
 
 /// Complete optimization report
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OptimizationReport {
     pub landscape_entries: Vec<OptimizationEntry>,
     pub portrait_entries: Vec<OptimizationEntry>,
@@ -77,8 +78,174 @@ impl OptimizationReport {
         self.landscape_pairs.push(pair);
     }
 
-    /// Print the complete report as a formatted table
-    pub fn print(&self) {
+    /// Print the report in the specified format
+    pub fn print_formatted(&self, format: &ReportFormat) {
+        match format {
+            ReportFormat::Rich => self.print_rich(),
+            ReportFormat::Plain => self.print_plain(),
+            ReportFormat::Json => self.print_json(),
+        }
+    }
+
+    /// Print the complete report as JSON
+    pub fn print_json(&self) {
+        let summary = self.get_summary();
+        let output = serde_json::json!({
+            "report": self,
+            "summary": summary
+        });
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    }
+
+    /// Get summary statistics
+    pub fn get_summary(&self) -> serde_json::Value {
+        let total_images = self.landscape_entries.len()
+            + self.portrait_entries.len()
+            + (self.portrait_pairs.len() * 2)
+            + (self.landscape_pairs.len() * 2);
+
+        let total_with_people = self
+            .landscape_entries
+            .iter()
+            .filter(|e| e.people_detected)
+            .count()
+            + self
+                .portrait_entries
+                .iter()
+                .filter(|e| e.people_detected)
+                .count()
+            + self
+                .portrait_pairs
+                .iter()
+                .filter(|p| p.left.people_detected || p.right.people_detected)
+                .count()
+                * 2
+            + self
+                .landscape_pairs
+                .iter()
+                .filter(|p| p.top.people_detected || p.bottom.people_detected)
+                .count()
+                * 2;
+
+        let total_pastel = self
+            .landscape_entries
+            .iter()
+            .filter(|e| e.is_pastel)
+            .count()
+            + self.portrait_entries.iter().filter(|e| e.is_pastel).count()
+            + self
+                .portrait_pairs
+                .iter()
+                .filter(|p| p.left.is_pastel || p.right.is_pastel)
+                .count()
+            + self
+                .landscape_pairs
+                .iter()
+                .filter(|p| p.top.is_pastel || p.bottom.is_pastel)
+                .count();
+
+        serde_json::json!({
+            "total_images": total_images,
+            "images_with_people": total_with_people,
+            "people_detection_rate": if total_images > 0 {
+                (total_with_people as f32 / total_images as f32) * 100.0
+            } else { 0.0 },
+            "images_with_pastel": total_pastel,
+            "pastel_rate": if total_images > 0 {
+                (total_pastel as f32 / total_images as f32) * 100.0
+            } else { 0.0 },
+            "landscape_images": self.landscape_entries.len(),
+            "portrait_pairs": self.portrait_pairs.len(),
+            "landscape_pairs": self.landscape_pairs.len(),
+            "individual_portraits": self.portrait_entries.len()
+        })
+    }
+
+    /// Print the complete report as a plain text table
+    pub fn print_plain(&self) {
+        println!("\n=== REPORT ===\n");
+
+        // Print landscape images
+        if !self.landscape_entries.is_empty() {
+            println!("LANDSCAPE IMAGES ({} total)", self.landscape_entries.len());
+            println!(
+                "Input | Output | Dithering | Strength | Contrast | Color | Rot. | Skip | People"
+            );
+            println!(
+                "------|--------|-----------|----------|----------|-------|------|------|-------"
+            );
+            for entry in &self.landscape_entries {
+                self.print_plain_entry(entry);
+            }
+            println!();
+        }
+
+        // Print portrait pairs
+        if !self.portrait_pairs.is_empty() {
+            println!("COMBINED PORTRAITS ({} pairs)", self.portrait_pairs.len());
+            println!(
+                "Input | Output | Dithering | Strength | Contrast | Color | Rot. | Skip | People"
+            );
+            println!(
+                "------|--------|-----------|----------|----------|-------|------|------|-------"
+            );
+            for pair in &self.portrait_pairs {
+                self.print_plain_entry(&pair.left);
+                self.print_plain_entry(&pair.right);
+                println!("--> Combined: {}", truncate(&pair.combined_output, 40));
+            }
+            println!();
+        }
+
+        // Print summary
+        let summary = self.get_summary();
+        println!("Summary:");
+        println!("  Total images processed: {}", summary["total_images"]);
+        println!(
+            "  Images with people: {} ({:.1}%)",
+            summary["images_with_people"], summary["people_detection_rate"]
+        );
+        println!(
+            "  Images with pastel tones: {} ({:.1}%)",
+            summary["images_with_pastel"], summary["pastel_rate"]
+        );
+        println!("  Landscape images: {}", summary["landscape_images"]);
+        println!("  Portrait pairs: {}", summary["portrait_pairs"]);
+        println!(
+            "  Individual portraits: {}",
+            summary["individual_portraits"]
+        );
+        println!();
+    }
+
+    /// Print a single entry in plain format
+    fn print_plain_entry(&self, entry: &OptimizationEntry) {
+        let dither_name = format_dither_method(&entry.dither_method);
+        let color_check = if entry.auto_color { "Y" } else { "N" };
+        let rotation_check = if entry.was_rotated { "Y" } else { "N" };
+        let skip_check = if entry.color_skipped { "Y" } else { "N" };
+        let people_info = if entry.people_detected {
+            format!("Y({})", entry.people_count)
+        } else {
+            "N".to_string()
+        };
+
+        println!(
+            "{} | {} | {} | {:.1} | {:+.2} | {} | {} | {} | {}",
+            truncate(&entry.input_filename, 20),
+            truncate(&entry.output_filename, 20),
+            dither_name,
+            entry.dither_strength,
+            entry.contrast,
+            color_check,
+            rotation_check,
+            skip_check,
+            people_info
+        );
+    }
+
+    /// Print the complete report as a formatted table (rich format)
+    pub fn print_rich(&self) {
         println!("\n╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗");
         println!("║                                                    REPORT                                                ║");
         println!("╚══════════════════════════════════════════════════════════════════════════════════════════════════════════╝\n");

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import '../providers/processing_provider.dart';
 import '../models/processing_config.dart';
 import '../services/font_service.dart';
+import '../widgets/report_summary_widget.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -806,19 +807,6 @@ class _AdvancedOptionsSection extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       AppKitCheckbox(
-                        value: config.force,
-                        onChanged: (value) {
-                          provider.updateConfig(config.copyWith(force: value));
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Force re-process'),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppKitCheckbox(
                         value: config.dryRun,
                         onChanged: (value) {
                           provider.updateConfig(config.copyWith(dryRun: value));
@@ -839,19 +827,6 @@ class _AdvancedOptionsSection extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       const Text('Debug mode'),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppKitCheckbox(
-                        value: config.report,
-                        onChanged: (value) {
-                          provider.updateConfig(config.copyWith(report: value));
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Generate report'),
                     ],
                   ),
                 ],
@@ -956,10 +931,168 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
   }
 }
 
+
 class _ProcessingDialog extends StatelessWidget {
   final ProcessingProvider provider;
 
   const _ProcessingDialog({required this.provider});
+
+  String _getProcessingCompleteSummary(ProcessingProvider provider) {
+    final total = provider.totalCount;
+    final processed = provider.processedCount;
+    final failed = total - processed;
+
+    if (failed == 0) {
+      return 'Processing complete ($processed images processed)';
+    } else if (failed == 1) {
+      return 'Processing complete ($processed images processed, 1 failed)';
+    } else {
+      return 'Processing complete ($processed images processed, $failed failed)';
+    }
+  }
+
+  void _showReportDialog(BuildContext context, ProcessingProvider provider) {
+    final bool hasReport = provider.lastReport != null;
+    final bool hasSummary = provider.lastSummary != null;
+
+    showAppKitDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AppKitDialog(
+          constraints: const BoxConstraints(
+            minWidth: 800,
+            maxWidth: 800,
+            maxHeight: 600,
+          ),
+          title: const Text('Processing Report'),
+          message: (context) => SizedBox(
+            height: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Show summary
+                  if (hasSummary) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withAlpha(13),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.withAlpha(51)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Processing Complete',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildReportRow('Total images processed',
+                            provider.lastSummary!['total_images']?.toString() ?? '0'),
+                          _buildReportRow('Images with people',
+                            '${provider.lastSummary!['images_with_people'] ?? 0} (${(provider.lastSummary!['people_detection_rate'] ?? 0).toStringAsFixed(1)}%)'),
+                          _buildReportRow('Images with pastel tones',
+                            '${provider.lastSummary!['images_with_pastel'] ?? 0} (${(provider.lastSummary!['pastel_rate'] ?? 0).toStringAsFixed(1)}%)'),
+                          _buildReportRow('Landscape images',
+                            provider.lastSummary!['landscape_images']?.toString() ?? '0'),
+                          _buildReportRow('Portrait pairs',
+                            provider.lastSummary!['portrait_pairs']?.toString() ?? '0'),
+                          _buildReportRow('Individual portraits',
+                            provider.lastSummary!['individual_portraits']?.toString() ?? '0'),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Show detailed report
+                  if (hasReport && provider.lastReport != null) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Processing Details',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    ReportSummaryWidget(
+                      summary: provider.lastSummary,
+                      report: provider.lastReport,
+                    ),
+                  ] else if (!hasReport) ...[
+                    // No summary available - show basic message
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withAlpha(13),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.withAlpha(51)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Processing Complete',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            provider.resultsMessage.isNotEmpty
+                              ? provider.resultsMessage
+                              : 'Image processing completed successfully',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          if (provider.processedCount > 0) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Processed: ${provider.processedCount} images',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          primaryButton: AppKitButton(
+            size: AppKitControlSize.large,
+            type: AppKitButtonType.primary,
+            onTap: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Close'),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReportRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13)),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1000,6 +1133,52 @@ class _ProcessingDialog extends StatelessWidget {
                   style: const TextStyle(color: Colors.green, fontSize: 12),
                 ),
               ],
+              // Processing complete - show summary and link to report
+              if (!provider.isProcessing && provider.resultsMessage.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withAlpha(13),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withAlpha(51)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _getProcessingCompleteSummary(provider),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      AppKitButton(
+                        type: AppKitButtonType.secondary,
+                        size: AppKitControlSize.regular,
+                        onTap: () {
+                          _showReportDialog(context, provider);
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.assessment, size: 14),
+                            SizedBox(width: 6),
+                            Text('View Full Report', style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           primaryButton: AppKitButton(
@@ -1017,4 +1196,5 @@ class _ProcessingDialog extends StatelessWidget {
     );
   }
 }
+
 

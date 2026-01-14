@@ -61,12 +61,6 @@ The ESP32 Photo Frame is a battery-powered digital photo frame that displays ima
 - **Framework**: Arduino Framework
 - **Key Libraries**: ArduinoJson, Adafruit MAX1704X, Adafruit NeoPixel, Native display drivers (GDEP073E01, GDEY075T7)
 
-#### Android Companion App
-- **Location**: `android/PhotoFrameProcessor/`
-- **Language**: Kotlin
-- **Purpose**: Image processing and conversion to e-paper format
-- **Features**: Person detection, smart cropping, binary conversion
-
 #### Flutter Desktop App
 - **Location**: `photoframe_flutter/`
 - **Language**: Dart/Flutter
@@ -132,36 +126,12 @@ Wire.begin();
 Wire.setClock(100000);  // Reduced clock speed (100kHz vs 400kHz)
 delay(200);
 
-// Deferred RTC update after I2C restart (no double initialization)
-photo_frame::rtc_utils::update_rtc_after_restart(now);
+// Time is now synchronized via NTP only
 ```
 
 #### Time Management
 
-**Note**: As of v0.12.0, hardware RTC support has been removed. Time synchronization is now handled exclusively through NTP over WiFi.
-2. **After I2C Restart**: Apply stored time to RTC hardware
-3. **State Management**: Track pending updates with boolean flags
-
-```cpp
-// In rtc_util.cpp - store time during WiFi operations
-static DateTime pendingRtcUpdate = DateTime((uint32_t)0);
-static bool needsRtcUpdate = false;
-
-// Later, after I2C restart - apply to RTC
-bool update_rtc_after_restart(const DateTime& dateTime) {
-    if (needsRtcUpdate && pendingRtcUpdate.isValid()) {
-        RTC_DS3231 rtc;
-        Wire.setPins(RTC_SDA_PIN, RTC_SCL_PIN);
-        Wire.setClock(100000);
-        if (rtc.begin(&Wire)) {
-            rtc.adjust(pendingRtcUpdate);
-            needsRtcUpdate = false;
-            return true;
-        }
-    }
-    return false;
-}
-```
+**Note**: As of v0.12.0, hardware RTC support has been removed. Time synchronization is now handled exclusively through NTP over WiFi. The I2C bus is now primarily used for battery monitoring sensors (MAX1704X) on boards that have them.
 
 #### Performance Impact
 - **Boot Time**: +3-4 seconds due to aggressive I2C shutdown and sequential operations
@@ -448,7 +418,6 @@ This enhanced Google Drive API provides **significantly improved reliability** w
 
 2. **Connect Additional Components**
    - SD card module (SPI interface)
-   - RTC module (I2C interface) - optional
    - Battery monitoring circuit
    - Potentiometer for refresh control
 
@@ -457,7 +426,7 @@ This enhanced Google Drive API provides **significantly improved reliability** w
      ```
      SD Card: CS=9, MISO=21, MOSI=22, SCK=23
      E-Paper: CS=1, DC=3, RST=4, BUSY=5
-     RTC: SDA=6, SCL=7
+     I2C (Battery sensor): SDA=6, SCL=7
      Battery: Pin=0, Potentiometer: Pin=2
      ```
 
@@ -474,7 +443,7 @@ This enhanced Google Drive API provides **significantly improved reliability** w
    - Battery monitoring settings
    - Timezone and locale settings
 
-**Note**: Weather functionality and other runtime settings are now configured via the unified `/config.json` file instead of compile-time flags.
+**Note**: Runtime settings are now configured via the unified `/config.json` file instead of compile-time flags.
 
 ### Phase 2: Google Drive Configuration (Required)
 
@@ -524,19 +493,6 @@ This enhanced Google Drive API provides **significantly improved reliability** w
          "max_wait_time_ms": 30000
        }
      },
-     "weather": {
-       "enabled": true,
-       "latitude": 40.7128,
-       "longitude": -74.0060,
-       "update_interval_minutes": 120,
-       "celsius": true,
-       "battery_threshold": 15,
-       "max_age_hours": 3,
-       "timezone": "auto",
-       "temperature_unit": "celsius",
-       "wind_speed_unit": "kmh",
-       "precipitation_unit": "mm"
-     },
      "board": {
        "day_start_hour": 6,
        "day_end_hour": 23,
@@ -550,7 +506,7 @@ This enhanced Google Drive API provides **significantly improved reliability** w
    }
    ```
 
-**Note**: All images must be processed before uploading to Google Drive using either the provided scripts, Android app, or Rust tools to convert them to the ESP32-compatible binary format.
+**Note**: All images must be processed before uploading to Google Drive using either the Rust processor or Flutter app to convert them to the ESP32-compatible binary format.
 
 ### Phase 3: Device Configuration
 
@@ -559,18 +515,17 @@ The SD card is used for the unified configuration file, certificates, and Google
 
 1. **Required Files**:
    ```
-   /config.json              # Unified configuration file (WiFi, Google Drive, Weather, Board)
+   /config.json              # Unified configuration file (WiFi, Google Drive, SD Card, Board)
    /certs/google_root_ca.pem # SSL certificate (if using secure TLS)
    /gdrive/cache/            # Google Drive cache directory (auto-created)
    /gdrive/temp/             # Google Drive temporary files (auto-created)
-   /weather_cache.json       # Weather data cache (auto-created)
    ```
 
 2. **Unified Configuration Benefits**:
    - **Single file**: All settings in one place
    - **Faster startup**: Single SD card read instead of 3 separate reads
    - **Enhanced validation**: Automatic value capping and fallback handling
-   - **Runtime control**: Weather functionality controlled without recompilation
+   - **Runtime control**: All features controlled without recompilation
    - **Better error handling**: Extended sleep on SD card failure
 
 #### 3.2 Firmware Upload
@@ -590,7 +545,7 @@ The SD card is used for the unified configuration file, certificates, and Google
 1. **Hardware Initialization** (Lines 71-100):
    ```cpp
    Serial.begin(115200);
-   Wire.begin();  // I2C for RTC and battery sensor
+   Wire.begin();  // I2C for battery sensor (if present)
    pinMode(LED_BUILTIN, OUTPUT);  // Status LED
    ```
 
@@ -615,7 +570,6 @@ The SD card is used for the unified configuration file, certificates, and Google
    - Initialize WiFi manager
    - Connect to configured network
    - Fetch current time from NTP servers
-   - **ESP32-C6 Specific**: Store time for deferred RTC update
    - Handle timezone conversion
    - **ESP32-C6 Specific**: I2C restart after WiFi disconnect
 
@@ -684,7 +638,7 @@ The SD card is used for the unified configuration file, certificates, and Google
      draw_last_update(now, refresh_delay.refresh_seconds);
      draw_image_info(image_index, total_files, image_source);
      draw_battery_status(battery_info);
-     draw_weather_info(weather_data, gravity);
+     draw_time_info(current_time);
      page_index++;
    } while (display.nextPage());
    ```
@@ -717,7 +671,7 @@ The SD card is used for the unified configuration file, certificates, and Google
    - Image index and total count
    - Image source indicator (local/cloud)
    - Battery level and charging status
-   - Weather information overlay (temperature, min/max, sunrise/sunset, date)
+   - Time and date information overlay
 
 #### 4.4 Power Management (Lines 588-607)
 
@@ -771,7 +725,7 @@ The SD card is used for the unified configuration file, certificates, and Google
 - **ESP32-C6 Isolation**: Complete I2C shutdown during all WiFi operations
 - **Timeout**: 10 seconds for WiFi, 15-30 seconds for HTTP
 - **Disconnect**: Immediate after use to save power
-- **ESP32-C6 Recovery**: I2C restart and RTC update after WiFi disconnect
+- **ESP32-C6 Recovery**: I2C restart after WiFi disconnect
 - **Error Handling**: Graceful fallback to cached content
 
 ### Phase 6: Error Handling & Recovery
@@ -797,7 +751,7 @@ The SD card is used for the unified configuration file, certificates, and Google
 - **Board Selection**: Multiple ESP32 variants supported
 - **Display Types**: BW and 6-color e-paper displays
 - **Drivers**: Waveshare or DESPI driver selection
-- **Sensors**: Optional RTC, battery sensor configurations
+- **Sensors**: Battery sensor configurations (MAX1704X or analog)
 
 #### 7.2 Software Customization
 - **Localization**: Multi-language support (English, Italian)
@@ -999,13 +953,11 @@ esp32-photo-frame/
 ├── platformio/                    # ESP32/Arduino firmware
 │   ├── src/main.cpp               # Main application logic
 │   ├── src/unified_config.cpp     # Unified configuration system
-│   ├── src/                       # Core modules (battery, wifi, display, weather, etc.)
+│   ├── src/                       # Core modules (battery, wifi, display, sd_card, etc.)
 │   ├── include/config/            # Board-specific configurations
 │   ├── include/unified_config.h   # Unified configuration structures
 │   ├── example_config.json        # Unified configuration template
 │   └── platformio.ini             # Build configuration
-├── android/PhotoFrameProcessor/   # Android companion app
-│   └── app/src/main/             # Kotlin source code
 ├── scripts/                       # Image processing scripts
 │   └── auto.sh                   # Main batch processing script
 ├── README.md                     # Project documentation
@@ -1013,8 +965,7 @@ esp32-photo-frame/
 
 # SD Card Structure (v0.7.1)
 SD Card Root:
-├── config.json                   # Unified configuration (NEW)
-├── weather_cache.json            # Weather data cache (auto-created)
+├── config.json                   # Unified configuration
 ├── certs/
 │   └── google_root_ca.pem        # SSL certificate
 └── gdrive/
@@ -1027,7 +978,7 @@ SD Card Root:
 ## Power Consumption Estimates
 
 - **Active Operation**: ~150-200mA (WiFi, processing, display update)
-- **Deep Sleep**: ~10-50µA (RTC running, external wakeup enabled)
+- **Deep Sleep**: ~10-50µA (external wakeup enabled)
 - **Display Update**: ~20-40mA for 2-10 seconds
 - **Battery Life**: 2-6 months with 5000mAh battery (depending on refresh rate)
 
@@ -1035,7 +986,7 @@ SD Card Root:
 
 ### Boot & Operation Times
 - **Boot Time**: 2-5 seconds from deep sleep (ESP32-S3), 4-8 seconds (ESP32-C6 with I2C/WiFi isolation)  
-- **Image Processing**: 10-30 seconds per image (Android app)
+- **Image Processing**: 0.5-2 seconds per image (Rust processor)
 - **Display Update**: 5-15 seconds (depending on display type)
 - **Network Connection**: 5-10 seconds (WiFi + NTP on ESP32-S3), 8-15 seconds (ESP32-C6 sequential I2C/WiFi)
 

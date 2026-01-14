@@ -28,15 +28,12 @@ use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
 
 use crate::cli::DitherMethod;
-use crate::utils::{
-    create_combined_portrait_filename, encode_filename_base64, has_valid_extension, verbose_println,
-};
+use crate::utils::{create_readable_combined_filename, has_valid_extension, verbose_println};
 use combine::combine_processed_portraits;
 use orientation::get_effective_target_dimensions;
 
@@ -56,6 +53,7 @@ impl ProcessingType {
     }
 
     /// Parse prefix back to ProcessingType
+    #[allow(dead_code)]
     pub fn from_prefix(prefix: &str) -> Option<Self> {
         match prefix {
             "bw" => Some(ProcessingType::BlackWhite),
@@ -80,8 +78,6 @@ pub struct ProcessingConfig {
     pub output_formats: Vec<crate::cli::OutputType>,
     // Python people detection configuration
     pub detect_people: bool,
-    // Duplicate handling
-    pub force: bool,
     // Debug mode
     pub debug: bool,
     // Annotation control
@@ -178,12 +174,46 @@ impl ProcessingEngine {
             crate::cli::OutputType::Png => "png",
         };
 
-        let filename = crate::utils::create_output_filename(
+        // Use readable filename generation
+        let filename = match crate::utils::create_readable_filename(
             input_path,
-            suffix,
-            extension,
             self.config.processing_type.get_prefix(),
-        );
+            extension,
+        ) {
+            Ok(name) => {
+                // If suffix is provided, insert it before the extension
+                if let Some(suffix) = suffix {
+                    if let Some(dot_pos) = name.rfind('.') {
+                        let mut result = name[..dot_pos].to_string();
+                        result.push_str("__");
+                        result.push_str(suffix);
+                        result.push_str(&name[dot_pos..]);
+                        result
+                    } else {
+                        name
+                    }
+                } else {
+                    name
+                }
+            }
+            Err(e) => {
+                // If we can't generate a readable filename, use a fallback
+                let fallback_name = format!(
+                    "{}_unknown_{:08x}.{}",
+                    self.config.processing_type.get_prefix(),
+                    rand::random::<u32>(),
+                    extension
+                );
+                verbose_println(
+                    self.config.verbose,
+                    &format!(
+                        "Failed to generate readable filename: {}, using fallback: {}",
+                        e, fallback_name
+                    ),
+                );
+                fallback_name
+            }
+        };
         format_dir.join(filename)
     }
 
@@ -209,12 +239,32 @@ impl ProcessingEngine {
             crate::cli::OutputType::Png => "png",
         };
 
-        let filename = create_combined_portrait_filename(
+        // Use readable filename generation for combined portraits
+        let filename = match create_readable_combined_filename(
             left_path,
             right_path,
-            extension,
             self.config.processing_type.get_prefix(),
-        );
+            extension,
+        ) {
+            Ok(name) => name,
+            Err(e) => {
+                // If we can't generate a readable filename, use a fallback
+                let fallback_name = format!(
+                    "combined_{}_{:08x}.{}",
+                    self.config.processing_type.get_prefix(),
+                    rand::random::<u32>(),
+                    extension
+                );
+                verbose_println(
+                    self.config.verbose,
+                    &format!(
+                        "Failed to generate readable combined filename: {}, using fallback: {}",
+                        e, fallback_name
+                    ),
+                );
+                fallback_name
+            }
+        };
         format_dir.join(filename)
     }
 
@@ -289,320 +339,7 @@ impl ProcessingEngine {
         Arc::clone(&self.optimization_report)
     }
 
-    /// Scan destination folder for existing files and create skip mapping
-    fn scan_existing_outputs(
-        &self,
-        output_dir: &Path,
-    ) -> Result<(HashSet<String>, HashSet<String>)> {
-        let mut existing_landscape_hashes = HashSet::new();
-        let mut existing_portrait_hashes = HashSet::new();
-
-        if !output_dir.exists() {
-            verbose_println(
-                self.config.verbose,
-                &format!("Output directory does not exist: {}", output_dir.display()),
-            );
-            return Ok((existing_landscape_hashes, existing_portrait_hashes));
-        }
-
-        verbose_println(
-            self.config.verbose,
-            &format!("Scanning for existing files in: {}", output_dir.display()),
-        );
-
-        // Scan both the main output directory and format subdirectories
-        // Always scan format subdirectories since the files are created there
-        let mut dirs_to_scan = vec![output_dir.to_path_buf()];
-        for format in &self.config.output_formats {
-            let subdir = match format {
-                crate::cli::OutputType::Bmp => output_dir.join("bmp"),
-                crate::cli::OutputType::Bin => output_dir.join("bin"),
-                crate::cli::OutputType::Jpg => output_dir.join("jpg"),
-                crate::cli::OutputType::Png => output_dir.join("png"),
-            };
-            if subdir.exists() {
-                dirs_to_scan.push(subdir);
-            }
-        }
-
-        for scan_dir in dirs_to_scan {
-            verbose_println(
-                self.config.verbose,
-                &format!("  Scanning directory: {}", scan_dir.display()),
-            );
-
-            if let Ok(entries) = std::fs::read_dir(&scan_dir) {
-                for entry in entries {
-                    let entry = entry?;
-                    let path = entry.path();
-
-                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-                        // Check for BMP or BIN files
-                        if filename.ends_with(".bmp") || filename.ends_with(".bin") {
-                            let stem = filename
-                                .rsplit_once('.')
-                                .map(|(s, _)| s)
-                                .unwrap_or(filename);
-
-                            if stem.starts_with("combined_") {
-                                // Parse combined portrait filenames: "combined_prefix_base64_base64"
-                                if let Some(combined_part) = stem.strip_prefix("combined_") {
-                                    // Split by underscore to get prefix and base64 parts
-                                    let parts: Vec<&str> = combined_part.split('_').collect();
-                                    if parts.len() == 3 {
-                                        let prefix = parts[0];
-                                        let part1 = parts[1];
-                                        let part2 = parts[2];
-
-                                        // Validate processing type prefix
-                                        let is_valid_prefix =
-                                            ProcessingType::from_prefix(prefix).is_some();
-
-                                        // Check if these are 8-character hex hashes (old system) or base64 (new system)
-                                        let is_hex_system = part1.len() == 8
-                                            && part2.len() == 8
-                                            && part1.chars().all(|c| c.is_ascii_hexdigit())
-                                            && part2.chars().all(|c| c.is_ascii_hexdigit());
-
-                                        let is_base64_system = Self::looks_like_base64(part1)
-                                            && Self::looks_like_base64(part2);
-
-                                        if is_valid_prefix && (is_hex_system || is_base64_system) {
-                                            existing_portrait_hashes.insert(part1.to_string());
-                                            existing_portrait_hashes.insert(part2.to_string());
-
-                                            let system_type = if is_hex_system {
-                                                "hex hashes"
-                                            } else {
-                                                "base64"
-                                            };
-                                            verbose_println(self.config.verbose, &format!(
-                                                "Found existing combined portrait: {} (prefix: {}, contains {} {} and {})",
-                                                filename, prefix, system_type, part1, part2
-                                            ));
-                                        } else {
-                                            verbose_println(self.config.verbose, &format!(
-                                                "Skipping combined file with unrecognized format: {} (prefix: '{}', parts: '{}', '{}')",
-                                                filename, prefix, part1, part2
-                                            ));
-                                        }
-                                    } else {
-                                        verbose_println(self.config.verbose, &format!(
-                                            "Skipping malformed combined filename: {} (expected format: combined_prefix_base64_base64)", filename
-                                        ));
-                                    }
-                                }
-                            } else {
-                                // Regular landscape image - check for prefixed filename format: "prefix_base64" or "prefix_hexhash"
-                                if let Some(underscore_pos) = stem.find('_') {
-                                    let (prefix, hash_part) = stem.split_at(underscore_pos);
-                                    let hash_part = &hash_part[1..]; // Remove the underscore
-
-                                    // Validate processing type prefix
-                                    let is_valid_prefix =
-                                        ProcessingType::from_prefix(prefix).is_some();
-
-                                    if is_valid_prefix {
-                                        if hash_part.len() == 8
-                                            && hash_part.chars().all(|c| c.is_ascii_hexdigit())
-                                        {
-                                            // Prefixed 8-character hex hash (e.g., "bw_a1b2c3d4")
-                                            existing_landscape_hashes.insert(hash_part.to_string());
-                                            verbose_println(
-                                                self.config.verbose,
-                                                &format!("Found existing landscape: {} (prefix: {}, hex hash: {})", filename, prefix, hash_part),
-                                            );
-                                        } else if Self::looks_like_base64(hash_part) {
-                                            // Prefixed base64-encoded filename (e.g., "bw_aW1hZ2U=")
-                                            existing_landscape_hashes.insert(hash_part.to_string());
-                                            verbose_println(
-                                                self.config.verbose,
-                                                &format!("Found existing landscape: {} (prefix: {}, base64: {})", filename, prefix, hash_part),
-                                            );
-                                        } else {
-                                            verbose_println(
-                                                self.config.verbose,
-                                                &format!("Skipping file with unrecognized hash format: {} (prefix: {}, hash: {})", filename, prefix, hash_part),
-                                            );
-                                        }
-                                    } else {
-                                        verbose_println(
-                                            self.config.verbose,
-                                            &format!("Skipping file with invalid prefix: {} (prefix: {})", filename, prefix),
-                                        );
-                                    }
-                                } else {
-                                    // Legacy format without prefix - check if it looks like a base64-encoded filename or 8-char hex hash
-                                    if stem.len() == 8
-                                        && stem.chars().all(|c| c.is_ascii_hexdigit())
-                                    {
-                                        // Old-style 8-character hex hash
-                                        existing_landscape_hashes.insert(stem.to_string());
-                                        verbose_println(
-                                            self.config.verbose,
-                                            &format!("Found existing landscape (legacy): {} (hex hash: {})", filename, stem),
-                                        );
-                                    } else if Self::looks_like_base64(stem) {
-                                        // Base64-encoded filename (legacy system)
-                                        existing_landscape_hashes.insert(stem.to_string());
-                                        verbose_println(
-                                            self.config.verbose,
-                                            &format!("Found existing landscape (legacy): {} (base64: {})", filename, stem),
-                                        );
-                                    } else {
-                                        verbose_println(
-                                            self.config.verbose,
-                                            &format!("Skipping file with non-recognized filename format: {}", filename),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        verbose_println(
-            self.config.verbose,
-            &format!(
-                "Scan complete: {} landscape files, {} portrait parts found",
-                existing_landscape_hashes.len(),
-                existing_portrait_hashes.len()
-            ),
-        );
-
-        Ok((existing_landscape_hashes, existing_portrait_hashes))
-    }
-
-    /// Find the separator underscore in a combined filename part
-    /// For base64 encoded names, we need to be careful since base64 can contain underscores
-    fn find_combined_separator(combined_part: &str) -> Option<usize> {
-        // Look for underscores and try to determine which one separates the two parts
-        let underscores: Vec<usize> = combined_part.match_indices('_').map(|(i, _)| i).collect();
-
-        if underscores.is_empty() {
-            return None;
-        }
-
-        // For base64 names, try each underscore position and see if both parts look like base64
-        for &pos in &underscores {
-            let part1 = &combined_part[..pos];
-            let part2 = &combined_part[pos + 1..];
-
-            // Check if both parts look like valid base64 or hex hashes
-            let part1_valid = Self::looks_like_base64(part1)
-                || (part1.len() == 8 && part1.chars().all(|c| c.is_ascii_hexdigit()));
-            let part2_valid = Self::looks_like_base64(part2)
-                || (part2.len() == 8 && part2.chars().all(|c| c.is_ascii_hexdigit()));
-
-            if part1_valid && part2_valid {
-                return Some(pos);
-            }
-        }
-
-        // Fallback: use the last underscore (for cases where we can't determine)
-        underscores.last().copied()
-    }
-
-    /// Check if a string looks like a base64 encoded filename
-    fn looks_like_base64(s: &str) -> bool {
-        // Base64 characteristics:
-        // - Length > 8 (longer than hex hashes)
-        // - Contains only base64 characters: A-Z, a-z, 0-9, +, /, =, - (our system uses - instead of /)
-        // - May end with = or == for padding
-        s.len() > 8
-            && s.chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-')
-            && (s.ends_with("==") || s.ends_with('=') || s.chars().all(|c| c != '='))
-    }
-
-    /// Find a combined file that contains the given portrait base64 filename
-    fn find_combined_file_containing_portrait(
-        &self,
-        output_dir: &Path,
-        portrait_base64: &str,
-    ) -> Result<Option<PathBuf>> {
-        // Search through all format directories
-        let mut dirs_to_search = vec![output_dir.to_path_buf()];
-        for format in &self.config.output_formats {
-            let subdir = match format {
-                crate::cli::OutputType::Bmp => output_dir.join("bmp"),
-                crate::cli::OutputType::Bin => output_dir.join("bin"),
-                crate::cli::OutputType::Jpg => output_dir.join("jpg"),
-                crate::cli::OutputType::Png => output_dir.join("png"),
-            };
-            if subdir.exists() {
-                dirs_to_search.push(subdir);
-            }
-        }
-
-        for search_dir in dirs_to_search {
-            if let Ok(entries) = std::fs::read_dir(&search_dir) {
-                for entry in entries {
-                    let entry = entry?;
-                    let path = entry.path();
-
-                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-                        if (filename.ends_with(".bmp") || filename.ends_with(".bin"))
-                            && filename.starts_with("combined_")
-                        {
-                            // Parse the combined filename to see if it contains our portrait
-                            let stem = filename
-                                .rsplit_once('.')
-                                .map(|(s, _)| s)
-                                .unwrap_or(filename);
-
-                            if let Some(combined_part) = stem.strip_prefix("combined_") {
-                                // Parse new prefixed format: "prefix_base64_base64"
-                                let parts: Vec<&str> = combined_part.split('_').collect();
-                                if parts.len() == 3 {
-                                    let _prefix = parts[0];
-                                    let part1 = parts[1];
-                                    let part2 = parts[2];
-
-                                    if part1 == portrait_base64 || part2 == portrait_base64 {
-                                        verbose_println(
-                                            self.config.verbose,
-                                            &format!(
-                                                "Found portrait '{}' in combined file: {}",
-                                                portrait_base64, filename
-                                            ),
-                                        );
-                                        return Ok(Some(path));
-                                    }
-                                } else {
-                                    // Try legacy format for backwards compatibility
-                                    if let Some(underscore_pos) =
-                                        Self::find_combined_separator(combined_part)
-                                    {
-                                        let (part1, part2_with_underscore) =
-                                            combined_part.split_at(underscore_pos);
-                                        let part2 = &part2_with_underscore[1..];
-
-                                        if part1 == portrait_base64 || part2 == portrait_base64 {
-                                            verbose_println(
-                                                self.config.verbose,
-                                                &format!(
-                                                "Found portrait '{}' in combined file (legacy): {}",
-                                                portrait_base64, filename
-                                            ),
-                                            );
-                                            return Ok(Some(path));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Discover all image files in the input paths (directories or individual files)
+    /// Discover images in the specified paths
     pub fn discover_images(&self, input_paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
         let mut image_files = Vec::new();
 
@@ -622,21 +359,53 @@ impl ProcessingEngine {
                     );
                 }
             } else if input_path.is_dir() {
-                // Handle directory
+                // Handle directory - recursively scan all subdirectories
                 verbose_println(
                     self.config.verbose,
-                    &format!("Scanning directory: {}", input_path.display()),
+                    &format!("Scanning directory recursively: {}", input_path.display()),
                 );
 
-                let walker = WalkDir::new(input_path).follow_links(false).max_depth(10); // Reasonable depth limit
+                // No depth limit - traverse all subdirectories
+                let walker = WalkDir::new(input_path)
+                    .follow_links(false)
+                    .sort_by_file_name(); // Sort entries for consistent order
+
+                let mut dir_count = 0;
+                let mut current_dir = input_path.clone();
 
                 for entry in walker {
                     let entry = entry.context("Failed to read directory entry")?;
                     let path = entry.path();
 
+                    // Track directory changes for verbose output
+                    if let Some(parent) = path.parent() {
+                        if parent != current_dir {
+                            current_dir = parent.to_path_buf();
+                            dir_count += 1;
+                            verbose_println(
+                                self.config.verbose,
+                                &format!("  Scanning subdirectory: {}", parent.display()),
+                            );
+                        }
+                    }
+
                     if path.is_file() && has_valid_extension(path, &self.config.extensions) {
+                        verbose_println(
+                            self.config.verbose,
+                            &format!(
+                                "    Found image: {}",
+                                path.file_name().unwrap_or_default().to_string_lossy()
+                            ),
+                        );
                         image_files.push(path.to_path_buf());
                     }
+                }
+
+                if dir_count > 0 {
+                    verbose_println(
+                        self.config.verbose,
+                        &format!("  Scanned {} subdirectories", dir_count),
+                    );
                 }
             } else {
                 return Err(anyhow::anyhow!(
@@ -656,103 +425,7 @@ impl ProcessingEngine {
         Ok(image_files)
     }
 
-    /// Filter out images that already exist in the output directory (unless --force is used)
-    /// Returns (images_to_process, skipped_results)
-    pub fn filter_existing_images(
-        &self,
-        image_files: &[PathBuf],
-        output_dir: &Path,
-    ) -> Result<(Vec<PathBuf>, Vec<SkippedResult>)> {
-        if self.config.force {
-            verbose_println(
-                self.config.verbose,
-                "Force mode enabled - processing all images regardless of existing files",
-            );
-            return Ok((image_files.to_vec(), vec![]));
-        }
-
-        let (existing_landscape_hashes, existing_portrait_hashes) =
-            self.scan_existing_outputs(output_dir)?;
-        let mut images_to_process = Vec::new();
-        let mut skipped_results = Vec::new();
-
-        for image_path in image_files {
-            let stem = image_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("unknown");
-
-            // Use base64-encoded filename to match actual output filename generation
-            let filename_base64 = encode_filename_base64(stem);
-
-            // Check if this image should be skipped
-            let should_skip = if existing_landscape_hashes.contains(&filename_base64) {
-                // Landscape image already exists
-                let existing_bmp = output_dir.join(format!("{}.bmp", filename_base64));
-                let existing_bin = output_dir.join(format!("{}.bin", filename_base64));
-                let existing_path = if existing_bmp.exists() {
-                    existing_bmp
-                } else {
-                    existing_bin
-                };
-
-                skipped_results.push(SkippedResult {
-                    input_path: image_path.clone(),
-                    reason: SkipReason::LandscapeExists,
-                    existing_output_path: existing_path,
-                });
-                true
-            } else if existing_portrait_hashes.contains(&filename_base64) {
-                // Portrait image is already part of a combined image
-                // Find the combined file that contains this portrait base64 filename
-                let combined_path =
-                    self.find_combined_file_containing_portrait(output_dir, &filename_base64)?;
-
-                if let Some(path) = combined_path {
-                    skipped_results.push(SkippedResult {
-                        input_path: image_path.clone(),
-                        reason: SkipReason::PortraitInCombined,
-                        existing_output_path: path,
-                    });
-                    true
-                } else {
-                    false // Shouldn't happen, but be safe
-                }
-            } else {
-                false
-            };
-
-            if !should_skip {
-                images_to_process.push(image_path.clone());
-            }
-        }
-
-        let skipped_count = skipped_results.len();
-        let processing_count = images_to_process.len();
-
-        if skipped_count > 0 {
-            verbose_println(
-                self.config.verbose,
-                &format!(
-                    "Duplicate check: {} images to process, {} skipped (already exist)",
-                    processing_count, skipped_count
-                ),
-            );
-        } else {
-            verbose_println(
-                self.config.verbose,
-                &format!(
-                    "Duplicate check: {} images to process, no duplicates found",
-                    processing_count
-                ),
-            );
-        }
-
-        Ok((images_to_process, skipped_results))
-    }
-
     /// Process a batch of images with smart portrait pairing and multi-progress support
-    /// Returns (processing_outcomes, skipped_results)
     pub fn process_batch_with_smart_pairing(
         &self,
         image_files: &[PathBuf],
@@ -760,22 +433,14 @@ impl ProcessingEngine {
         main_progress: &ProgressBar,
         thread_progress_bars: &[ProgressBar],
         completion_progress: &ProgressBar,
-    ) -> Result<(Vec<Result<ProcessingResult>>, Vec<SkippedResult>)> {
+    ) -> Result<Vec<Result<ProcessingResult>>> {
         completion_progress.set_message("Creating output directories...");
 
         // Create subdirectories for each output format
         self.create_format_directories(output_dir)?;
 
-        completion_progress.set_message("Checking for duplicate files...");
-
-        // Filter out images that already exist (unless --force is used)
-        let (images_to_process, skipped_results) =
-            self.filter_existing_images(image_files, output_dir)?;
-
-        if images_to_process.is_empty() {
-            completion_progress.set_message("No images to process");
-            return Ok((vec![], skipped_results));
-        }
+        // Process all images without duplicate checking
+        let images_to_process = image_files.to_vec();
 
         completion_progress.set_message("Analyzing image orientations...");
 
@@ -831,8 +496,16 @@ impl ProcessingEngine {
             }
         };
 
-        // Update main progress bar with correct total
-        main_progress.set_length(actual_output_count as u64);
+        // Calculate images that will be skipped (unpaired)
+        let skipped_count = match self.config.target_orientation {
+            crate::cli::TargetOrientation::Landscape => portrait_files.len() % 2,
+            crate::cli::TargetOrientation::Portrait => landscape_files.len() % 2,
+        };
+
+        // Progress bar should track total images being processed, not output count
+        // This includes all images, even those that will be combined
+        let total_images_to_process = images_to_process.len();
+        main_progress.set_length(total_images_to_process as u64);
 
         verbose_println(
             self.config.verbose,
@@ -842,6 +515,20 @@ impl ProcessingEngine {
                 images_to_process.len()
             ),
         );
+
+        // Warn about skipped images
+        if skipped_count > 0 {
+            let skipped_type = match self.config.target_orientation {
+                crate::cli::TargetOrientation::Landscape => "portrait",
+                crate::cli::TargetOrientation::Portrait => "landscape",
+            };
+            println!(
+                "⚠️  {} {} image{} will be skipped (unpaired)",
+                skipped_count,
+                skipped_type,
+                if skipped_count > 1 { "s" } else { "" }
+            );
+        }
 
         let mut all_results = Vec::new();
 
@@ -918,7 +605,7 @@ impl ProcessingEngine {
         // Main progress should already be at 100% from incremental updates
         completion_progress.set_message("Batch processing complete");
 
-        Ok((all_results, skipped_results))
+        Ok(all_results)
     }
 
     /// Process a batch of images with multi-progress support (original method for landscapes)
@@ -1383,7 +1070,7 @@ impl ProcessingEngine {
 
             self.optimization_report
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .add_landscape(entry);
         }
 
@@ -1689,7 +1376,10 @@ impl ProcessingEngine {
                 color_skipped,
             };
 
-            self.optimization_report.lock().unwrap().add_portrait(entry);
+            self.optimization_report
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .add_portrait(entry);
         }
 
         verbose_println(self.config.verbose, &"ℹ️ Portrait processed as individual half-width image. Future enhancement will combine portraits in pairs.".to_string());
@@ -1902,9 +1592,9 @@ impl ProcessingEngine {
                     left_path, right_path, output_dir, index, thread_pb,
                 );
 
-                // Update main progress - increment by 1 since we generate 1 output (combined image)
+                // Update main progress - increment by 2 since we're processing 2 images
                 let pairs_processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
-                main_progress.inc(1); // Each pair generates 1 combined output
+                main_progress.inc(2); // Processing 2 images even though they create 1 output
                 main_progress.set_message(format!("Completed: {} portrait pairs", pairs_processed));
 
                 // Update completion progress
@@ -2461,7 +2151,7 @@ impl ProcessingEngine {
 
             self.optimization_report
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .add_portrait_pair(pair_entry);
         }
 
@@ -2605,9 +2295,9 @@ impl ProcessingEngine {
                     thread_pb,
                 );
 
-                // Update main progress - increment by 1 since we generate 1 output (combined image)
+                // Update main progress - increment by 2 since we're processing 2 images
                 let pairs_processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
-                main_progress.inc(1); // Each pair generates 1 combined output
+                main_progress.inc(2); // Processing 2 images even though they create 1 output
                 main_progress
                     .set_message(format!("Completed: {} landscape pairs", pairs_processed));
 
@@ -2992,7 +2682,7 @@ impl ProcessingEngine {
                 "Combining {} + {} (side-by-side rotated)",
                 top_filename, bottom_filename
             ));
-            combine::combine_processed_portraits(
+            combine_processed_portraits(
                 &top_rotated,
                 &bottom_rotated,
                 self.config.target_width,
@@ -3155,7 +2845,7 @@ impl ProcessingEngine {
 
             self.optimization_report
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .add_landscape_pair(pair_entry);
         }
         progress_bar.set_position(100);
@@ -3350,57 +3040,59 @@ impl ProcessingEngine {
         })
     }
 
-    /// Get raw detection data from find_subject.py for debug visualization
+    /// Get raw detection data from ONNX detector for debug visualization
     fn get_raw_detection_data(
         &self,
         img: &RgbImage,
-        _subject_detector: &subject_detection::SubjectDetector,
+        subject_detector: &subject_detection::SubjectDetector,
     ) -> Result<subject_detection::python_yolo_integration::FindSubjectResult> {
-        // Save image to temporary file for Python script
-        let temp_dir = std::env::temp_dir();
-        let temp_filename = format!("debug_input_{}.jpg", std::process::id());
-        let temp_path = temp_dir.join(temp_filename);
+        // Use ONNX detection to get results
+        let detection_result =
+            subject_detector.detect_people(img, self.config.confidence_threshold)?;
 
-        // Save image as JPEG
-        img.save(&temp_path)?;
+        // Convert ONNX detection result to FindSubjectResult for compatibility with debug rendering
+        let image_dimensions = img.dimensions();
 
-        // Run Python script directly to get raw JSON
+        // Convert individual detections to Detection format
+        let detections: Vec<subject_detection::python_yolo_integration::Detection> =
+            detection_result
+                .individual_detections
+                .iter()
+                .map(|(x_min, y_min, x_max, y_max, confidence)| {
+                    subject_detection::python_yolo_integration::Detection {
+                        bounding_box: [*x_min as i32, *y_min as i32, *x_max as i32, *y_max as i32],
+                        confidence: *confidence,
+                        class: "person".to_string(),
+                        class_id: 0,
+                    }
+                })
+                .collect();
 
-        // Debug mode with ONNX is not yet implemented
-        return Err(anyhow::anyhow!(
-            "Debug mode is not yet implemented for ONNX detection"
-        ));
+        // Create combined bounding box
+        let combined_box = if let Some((x_min, y_min, x_max, y_max)) = detection_result.bounding_box
+        {
+            [x_min as i32, y_min as i32, x_max as i32, y_max as i32]
+        } else {
+            [0, 0, image_dimensions.0 as i32, image_dimensions.1 as i32]
+        };
 
-        #[allow(unreachable_code)]
-        let output = std::process::Command::new("python3")
-            .arg("find_subject.py") // Placeholder
-            .arg("--image")
-            .arg(&temp_path)
-            .arg("--output-format")
-            .arg("json")
-            .arg("--filter")
-            .arg("person")
-            .arg("--confidence")
-            .arg(self.config.confidence_threshold.to_string())
-            .output()
-            .map_err(|e| anyhow::anyhow!("Failed to execute find_subject.py: {}", e))?;
-
-        // Clean up temporary file
-        let _ = std::fs::remove_file(&temp_path);
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("find_subject.py failed: {}", stderr));
-        }
-
-        // Parse JSON output
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: subject_detection::python_yolo_integration::FindSubjectResult =
-            serde_json::from_str(&stdout).map_err(|e| {
-                anyhow::anyhow!("Failed to parse JSON output: {} | Raw: {}", e, stdout)
-            })?;
-
-        Ok(result)
+        Ok(
+            subject_detection::python_yolo_integration::FindSubjectResult {
+                image: "onnx_detection".to_string(),
+                imagesize: subject_detection::python_yolo_integration::ImageSize {
+                    width: image_dimensions.0,
+                    height: image_dimensions.1,
+                },
+                bounding_box: combined_box,
+                center: [detection_result.center.0, detection_result.center.1],
+                offset: [
+                    detection_result.offset_from_center.0,
+                    detection_result.offset_from_center.1,
+                ],
+                detections,
+                error: None,
+            },
+        )
     }
 
     /// Draw debug annotations on the image
@@ -3548,7 +3240,7 @@ impl ProcessingEngine {
         // Determine if image is portrait for auto-process consideration
         let image_is_portrait = src_height > src_width;
 
-        // Get effective target dimensions (may be swapped in auto mode)
+        // Get effective target dimensions (maybe swapped in auto mode)
         let (eff_width, eff_height) = get_effective_target_dimensions(
             image_is_portrait,
             self.config.target_width,
@@ -3710,13 +3402,6 @@ impl ProcessingEngine {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
-pub enum ProcessingOutcome {
-    Success(ProcessingResult),
-    Skipped(SkippedResult),
-}
-
-#[derive(Debug)]
 pub struct ProcessingResult {
     #[allow(dead_code)]
     pub input_path: PathBuf,
@@ -3733,22 +3418,6 @@ pub struct ProcessingResult {
     // For combined portraits, store individual results
     #[allow(dead_code)]
     pub individual_portraits: Option<Vec<IndividualPortraitResult>>,
-}
-
-#[derive(Debug)]
-pub struct SkippedResult {
-    #[allow(dead_code)]
-    pub input_path: PathBuf,
-    #[allow(dead_code)]
-    pub reason: SkipReason,
-    #[allow(dead_code)]
-    pub existing_output_path: PathBuf,
-}
-
-#[derive(Debug)]
-pub enum SkipReason {
-    LandscapeExists,
-    PortraitInCombined,
 }
 
 #[derive(Debug)]

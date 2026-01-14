@@ -36,6 +36,15 @@ pub enum JsonMessage {
         failed: usize,
         duration_secs: f64,
     },
+    /// Complete processing summary with report data
+    Complete {
+        total_files: usize,
+        processed: usize,
+        failed: usize,
+        duration_secs: f64,
+        report: Option<serde_json::Value>,
+        summary: serde_json::Value,
+    },
 }
 
 impl JsonMessage {
@@ -102,12 +111,33 @@ impl JsonMessage {
     }
 
     /// Create and emit summary message
+    #[allow(dead_code)]
     pub fn summary(total_files: usize, processed: usize, failed: usize, duration_secs: f64) {
         Self::Summary {
             total_files,
             processed,
             failed,
             duration_secs,
+        }
+        .emit();
+    }
+
+    /// Create and emit complete message with report data
+    pub fn complete(
+        total_files: usize,
+        processed: usize,
+        failed: usize,
+        duration_secs: f64,
+        report: Option<serde_json::Value>,
+        summary: serde_json::Value,
+    ) {
+        Self::Complete {
+            total_files,
+            processed,
+            failed,
+            duration_secs,
+            report,
+            summary,
         }
         .emit();
     }

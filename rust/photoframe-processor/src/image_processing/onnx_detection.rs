@@ -59,6 +59,8 @@ pub struct SubjectDetectionResult {
     pub confidence: f32,
     /// Number of people detected
     pub person_count: usize,
+    /// Individual detections for debug visualization (only populated in debug mode)
+    pub individual_detections: Vec<(u32, u32, u32, u32, f32)>, // (x_min, y_min, x_max, y_max, confidence)
 }
 
 /// Internal detection structure
@@ -171,7 +173,7 @@ impl SubjectDetector {
                 let x_max = ((det.x + det.width / 2.0) * scale_x) as u32;
                 let y_max = ((det.y + det.height / 2.0) * scale_y) as u32;
 
-                individual_boxes.push((x_min, y_min, x_max, y_max));
+                individual_boxes.push((x_min, y_min, x_max, y_max, det.confidence));
 
                 min_x = min_x.min(x_min as f32);
                 min_y = min_y.min(y_min as f32);
@@ -193,6 +195,7 @@ impl SubjectDetector {
                 bounding_box: Some((min_x as u32, min_y as u32, max_x as u32, max_y as u32)),
                 confidence: highest_confidence,
                 person_count: person_detections.len(),
+                individual_detections: individual_boxes,
             })
         } else {
             // No people detected - return center of image
@@ -205,6 +208,7 @@ impl SubjectDetector {
                 bounding_box: None,
                 confidence: 0.0,
                 person_count: 0,
+                individual_detections: Vec::new(),
             })
         }
     }

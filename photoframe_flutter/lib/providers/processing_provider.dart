@@ -20,6 +20,8 @@ class ProcessingProvider with ChangeNotifier {
   String _currentFile = '';
   String _resultsMessage = '';
   String _errorMessage = '';
+  Map<String, dynamic>? _lastSummary;
+  Map<String, dynamic>? _lastReport;
 
   ProcessingConfig get config => _config;
   String? get currentProfilePath => _currentProfilePath;
@@ -33,6 +35,8 @@ class ProcessingProvider with ChangeNotifier {
   String get currentFile => _currentFile;
   String get resultsMessage => _resultsMessage;
   String get errorMessage => _errorMessage;
+  Map<String, dynamic>? get lastSummary => _lastSummary;
+  Map<String, dynamic>? get lastReport => _lastReport;
 
   ProcessingProvider() {
     _loadConfig();
@@ -151,6 +155,8 @@ class ProcessingProvider with ChangeNotifier {
     _errorMessage = '';
     _resultsMessage = '';
     _currentFile = '';
+    _lastSummary = null;
+    _lastReport = null;
     notifyListeners();
 
     try {
@@ -174,9 +180,11 @@ class ProcessingProvider with ChangeNotifier {
 
       // Listen to stdout for JSON progress
       process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+        debugPrint('STDOUT: $line'); // Debug all output
         try {
           final json = jsonDecode(line);
           final type = json['type'];
+          debugPrint('Parsed JSON type: $type');
 
           if (type == 'progress') {
             _processedCount = json['current'] ?? 0;
@@ -187,36 +195,111 @@ class ProcessingProvider with ChangeNotifier {
             }
             notifyListeners();
           } else if (type == 'complete') {
-            final success = json['success'] ?? 0;
-            final failed = json['failed'] ?? 0;
-            final skipped = json['skipped'] ?? 0;
+            // New complete message format with report data
+            debugPrint('=== COMPLETE MESSAGE RECEIVED ===');
+            debugPrint('JSON: $json');
 
-            if (failed == 0 && skipped == 0) {
-              _resultsMessage = '✓ Successfully processed $success images';
-            } else if (failed == 0) {
-              _resultsMessage = '✓ Processed $success images ($skipped skipped)';
+            final processed = json['processed'] ?? 0;
+            final failed = json['failed'] ?? 0;
+            final totalFiles = json['total_files'] ?? 0;
+
+            _lastSummary = json['summary'];
+            _lastReport = json['report'];
+
+            debugPrint('Summary: $_lastSummary');
+            debugPrint('Report available: ${_lastReport != null}');
+
+            if (failed == 0) {
+              _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
             } else {
-              _resultsMessage = 'Processed ${success + failed} images ($success succeeded, $failed failed, $skipped skipped)';
+              _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
+            }
+          } else if (type == 'summary') {
+            // Legacy summary format (backwards compatibility)
+            debugPrint('=== LEGACY SUMMARY MESSAGE RECEIVED ===');
+            debugPrint('JSON: $json');
+
+            final processed = json['processed'] ?? 0;
+            final failed = json['failed'] ?? 0;
+            final totalFiles = json['total_files'] ?? 0;
+
+            // Create a basic summary from legacy format
+            _lastSummary = {
+              'total_images': totalFiles,
+              'images_with_people': 0,
+              'people_detection_rate': 0.0,
+              'images_with_pastel': 0,
+              'pastel_rate': 0.0,
+              'landscape_images': 0,
+              'portrait_pairs': 0,
+              'individual_portraits': 0,
+            };
+
+            debugPrint('Created basic summary from legacy format');
+
+            if (failed == 0) {
+              _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
+            } else {
+              _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
             }
           }
         } catch (e) {
           debugPrint('Failed to parse JSON: $line');
+          debugPrint('Error: $e');
         }
       });
 
       // Listen to stderr for errors
       process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        debugPrint('stderr: $line');
+        debugPrint('STDERR: $line');
       });
 
       final exitCode = await process.exitCode;
+      debugPrint('Process exit code: $exitCode');
+
+      // If we don't have a summary yet, create a basic one
+      if (_lastSummary == null && _processedCount > 0) {
+        debugPrint('Creating fallback summary');
+        _lastSummary = {
+          'total_images': _totalCount,
+          'processed': _processedCount,
+          'images_with_people': 0,
+          'people_detection_rate': 0.0,
+          'images_with_pastel': 0,
+          'pastel_rate': 0.0,
+          'landscape_images': 0,
+          'portrait_pairs': 0,
+          'individual_portraits': 0,
+        };
+      }
 
       if (exitCode != 0) {
         _errorMessage = 'Processing failed with exit code $exitCode';
       }
     } catch (e) {
       _errorMessage = 'Processing failed: $e';
+      debugPrint('Processing error: $e');
     } finally {
+      // Ensure we always have some summary when processing completes
+      if (_lastSummary == null) {
+        debugPrint('=== NO SUMMARY RECEIVED - CREATING FALLBACK ===');
+        _lastSummary = {
+          'total_images': _totalCount > 0 ? _totalCount : 1,
+          'processed': _processedCount > 0 ? _processedCount : 1,
+          'images_with_people': 0,
+          'people_detection_rate': 0.0,
+          'images_with_pastel': 0,
+          'pastel_rate': 0.0,
+          'landscape_images': 0,
+          'portrait_pairs': 0,
+          'individual_portraits': 0,
+        };
+      }
+
+      debugPrint('=== PROCESSING COMPLETE ===');
+      debugPrint('Final summary: $_lastSummary');
+      debugPrint('Final report: $_lastReport');
+
       _isProcessing = false;
       notifyListeners();
     }
@@ -276,10 +359,9 @@ class ProcessingProvider with ChangeNotifier {
         _config.annotateBackground,
       ]);
     }
-    if (_config.force) args.add('--force');
     if (_config.dryRun) args.add('--dry-run');
     if (_config.debug) args.add('--debug');
-    if (_config.report) args.add('--report');
+    // Report is now always generated in JSON mode, no need for --report flag
     if (_config.jobs > 0) args.add('--jobs=${_config.jobs}');
 
     args.addAll([

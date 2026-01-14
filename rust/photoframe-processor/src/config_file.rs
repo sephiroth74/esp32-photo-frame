@@ -40,7 +40,6 @@ pub struct ProcessingConfigJson {
     pub annotate_background: Option<String>,
     pub divider_width: Option<u32>,
     pub divider_color: Option<String>,
-    pub force: Option<bool>,
     pub dry_run: Option<bool>,
     pub debug: Option<bool>,
     pub report: Option<bool>,
@@ -187,10 +186,6 @@ impl Args {
 
         if !self.annotate {
             self.annotate = config.annotate.unwrap_or(false);
-        }
-
-        if !self.force {
-            self.force = config.force.unwrap_or(false);
         }
 
         if !self.dry_run {

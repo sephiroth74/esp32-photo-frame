@@ -7,6 +7,6 @@ pub mod utils;
 // Re-export commonly used types
 pub use cli::{ColorType, DitherMethod, OutputType, TargetOrientation};
 pub use image_processing::{
-    ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult, ProcessingType, SkipReason,
+    ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult, ProcessingType,
 };
 pub use json_output::JsonMessage;

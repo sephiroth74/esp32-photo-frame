@@ -5,9 +5,23 @@ All notable changes to the Photoframe Processor Rust tools will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-01-12
+## [3.0.0] - 2026-01-14
+
+### ⚠️ BREAKING CHANGES
+- Removed `--force` flag - duplicate detection has been completely removed
+- Changed output filename format from base64 to readable names with hash suffix
 
 ### Added
+- **Readable Filename System**
+  - Output files now use readable names: `{type}_{sanitized_name}_{hash8}.{ext}`
+  - Example: `bw_vacation_photo_2024_a1b2c3d4.bin` instead of `bw_aW1hZ2U=.bin`
+  - FAT32-compatible sanitization for cross-platform support
+  - SHA256-based 8-character hash for uniqueness
+  - Combined portraits use format: `combined_{type}_{name1}_{name2}_{hash8}.{ext}`
+- **Recursive Directory Processing**
+  - Now processes all images in subdirectories recursively
+  - No depth limit on directory traversal
+  - Maintains full directory structure awareness
 - **Native ONNX People Detection** (replaces Python dependency)
   - Embedded YOLO11n model directly in binary (10.24MB)
   - No external files or Python runtime required
@@ -32,6 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests now compatible with ONNX-based detection struct
 
 ### Removed
+- **Duplicate Detection System**
+  - Completely removed all duplicate detection logic
+  - Removed `--force` flag (no longer needed)
+  - Removed `SkippedResult` and `SkipReason` structures
+  - Removed `filter_existing_images()` function
+  - Removed base64 filename encoding functions
+  - Processing now always handles all input images
 - **Python Dependencies**
   - Removed `--python-script` and `--python-path` CLI arguments
   - Removed `subject_detection.rs` (Python-based implementation)

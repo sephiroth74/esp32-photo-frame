@@ -16,6 +16,8 @@ pub struct SubjectDetectionResult {
     pub confidence: f32,
     /// Number of people detected
     pub person_count: usize,
+    /// Individual detections for debug visualization (empty in stub)
+    pub individual_detections: Vec<(u32, u32, u32, u32, f32)>,
 }
 
 /// Stub subject detector when AI is disabled
@@ -47,6 +49,7 @@ impl SubjectDetector {
             bounding_box: None,
             confidence: 0.0,
             person_count: 0,
+            individual_detections: Vec::new(),
         })
     }
 }

@@ -1,7 +1,9 @@
 use anyhow::Result;
-use base64::{engine::general_purpose, Engine as _};
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 
@@ -157,48 +159,138 @@ pub fn sanitize_filename(filename: &str) -> String {
         .to_string()
 }
 
-/// Encode filename to base64 and replace '/' with '-' to match auto.sh convention
-/// This matches: echo -n "$basename" | base64 -w0 | tr '/' '-'
-pub fn encode_filename_base64(filename: &str) -> String {
-    let encoded = general_purpose::STANDARD.encode(filename.as_bytes());
-    encoded.replace('/', "-")
+/// Sanitize filename for FAT32 filesystem compatibility
+/// Replaces invalid characters and ensures the filename is safe for FAT32
+pub fn sanitize_filename_for_fat32(filename: &str) -> String {
+    // FAT32 invalid characters: < > : " / \ | ? *
+    // Also control characters (0-31) and character 127
+    let mut sanitized = String::with_capacity(filename.len());
+
+    for ch in filename.chars() {
+        let replacement = match ch {
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            c if c.is_control() => '_',
+            c if (c as u32) == 127 => '_',
+            // Replace other problematic characters
+            '\t' | '\n' | '\r' => '_',
+            // Keep the character if it's valid
+            c => c,
+        };
+        sanitized.push(replacement);
+    }
+
+    // Replace consecutive underscores with a single underscore
+    let mut result = String::new();
+    let mut prev_was_underscore = false;
+
+    for ch in sanitized.chars() {
+        if ch == '_' {
+            if !prev_was_underscore {
+                result.push(ch);
+                prev_was_underscore = true;
+            }
+        } else {
+            result.push(ch);
+            prev_was_underscore = false;
+        }
+    }
+
+    // Trim underscores from start and end
+    let trimmed = result.trim_matches('_');
+
+    // If the filename ends with an underscore followed by a file extension, remove the underscore
+    let cleaned = if let Some(dot_pos) = trimmed.rfind('.') {
+        if dot_pos > 0 && trimmed.chars().nth(dot_pos - 1) == Some('_') {
+            let mut s = trimmed.to_string();
+            s.remove(dot_pos - 1);
+            s
+        } else {
+            trimmed.to_string()
+        }
+    } else {
+        trimmed.to_string()
+    };
+
+    // Truncate to a reasonable length (100 chars) to leave room for prefix and hash
+    const MAX_NAME_LENGTH: usize = 100;
+    if cleaned.len() > MAX_NAME_LENGTH {
+        // Try to cut at a word boundary if possible
+        let truncated = &cleaned[..MAX_NAME_LENGTH];
+        if let Some(last_underscore) = truncated.rfind('_') {
+            if last_underscore >= 80 {
+                // Keep at least 80 chars
+                &truncated[..last_underscore]
+            } else {
+                truncated
+            }
+        } else {
+            truncated
+        }
+        .to_string()
+    } else {
+        cleaned
+    }
 }
 
-/// Create output filename based on input filename base64 encoding with processing type prefix
-/// Format: prefix_base64(basename).extension or prefix_base64(basename)_suffix.extension
-pub fn create_output_filename(
+/// Generate an 8-character hash from file content for uniqueness
+/// Uses SHA256 and takes the first 8 hex characters
+pub fn generate_content_hash(file_path: &Path) -> Result<String> {
+    // Read first 4KB of file for hash (faster for large files)
+    let mut file = File::open(file_path)?;
+    let mut buffer = vec![0; 4096];
+    let bytes_read = file.read(&mut buffer)?;
+    buffer.truncate(bytes_read);
+
+    // Also include file size and name for better uniqueness
+    let metadata = std::fs::metadata(file_path)?;
+    let file_size = metadata.len();
+    let file_name = file_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+
+    // Create hash from content + size + name
+    let mut hasher = Sha256::new();
+    hasher.update(&buffer);
+    hasher.update(file_size.to_le_bytes());
+    hasher.update(file_name.as_bytes());
+
+    let result = hasher.finalize();
+    let hex_hash = format!("{:x}", result);
+
+    // Return first 8 characters of hash
+    Ok(hex_hash[..8].to_string())
+}
+
+/// Create a readable filename with hash for uniqueness
+/// Format: {prefix}_{sanitized_name}_{hash8}.{ext}
+pub fn create_readable_filename(
     input_path: &Path,
-    suffix: Option<&str>,
-    extension: &str,
     processing_type_prefix: &str,
-) -> String {
+    extension: &str,
+) -> Result<String> {
     let stem = input_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image");
 
-    let base64_filename = encode_filename_base64(stem);
+    let sanitized = sanitize_filename_for_fat32(stem);
+    let hash = generate_content_hash(input_path)?;
 
-    match suffix {
-        Some(suffix) => format!(
-            "{}_{}__{}.{}",
-            processing_type_prefix, base64_filename, suffix, extension
-        ),
-        None => format!(
-            "{}_{}.{}",
-            processing_type_prefix, base64_filename, extension
-        ),
-    }
+    Ok(format!(
+        "{}_{}_{}.{}",
+        processing_type_prefix, sanitized, hash, extension
+    ))
 }
 
-/// Create combined portrait filename using base64 encoding to match auto.sh convention
-/// Format: combined_prefix_base64(basename1)_base64(basename2).extension
-pub fn create_combined_portrait_filename(
+/// Create readable combined portrait filename
+/// Format: combined_{prefix}_{name1}_{name2}_{hash8}.{ext}
+pub fn create_readable_combined_filename(
     left_path: &Path,
     right_path: &Path,
-    extension: &str,
     processing_type_prefix: &str,
-) -> String {
+    extension: &str,
+) -> Result<String> {
     let left_stem = left_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -208,13 +300,36 @@ pub fn create_combined_portrait_filename(
         .and_then(|s| s.to_str())
         .unwrap_or("image2");
 
-    let base64_file1 = encode_filename_base64(left_stem);
-    let base64_file2 = encode_filename_base64(right_stem);
+    let left_sanitized = sanitize_filename_for_fat32(left_stem);
+    let right_sanitized = sanitize_filename_for_fat32(right_stem);
 
-    format!(
-        "combined_{}_{}_{}.{}",
-        processing_type_prefix, base64_file1, base64_file2, extension
-    )
+    // Truncate names if combined would be too long
+    const MAX_COMBINED_LENGTH: usize = 40; // 40 chars each for two names
+    let left_truncated = if left_sanitized.len() > MAX_COMBINED_LENGTH {
+        &left_sanitized[..MAX_COMBINED_LENGTH]
+    } else {
+        &left_sanitized
+    };
+
+    let right_truncated = if right_sanitized.len() > MAX_COMBINED_LENGTH {
+        &right_sanitized[..MAX_COMBINED_LENGTH]
+    } else {
+        &right_sanitized
+    };
+
+    // Generate combined hash from both files
+    let left_hash = generate_content_hash(left_path)?;
+    let right_hash = generate_content_hash(right_path)?;
+    let mut hasher = Sha256::new();
+    hasher.update(left_hash.as_bytes());
+    hasher.update(right_hash.as_bytes());
+    let combined_result = hasher.finalize();
+    let combined_hash = format!("{:x}", combined_result)[..8].to_string();
+
+    Ok(format!(
+        "combined_{}_{}_{}_{}.{}",
+        processing_type_prefix, left_truncated, right_truncated, combined_hash, extension
+    ))
 }
 
 /// Print verbose information if verbose mode is enabled
@@ -329,20 +444,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_output_filename() {
-        let path = Path::new("/path/to/image.jpg");
-        let result = create_output_filename(path, None, "bmp", "bw");
-        assert!(result.ends_with(".bmp"));
-        // Base64 encoding of "image" should be "aW1hZ2U="
-        assert_eq!(result, "bw_aW1hZ2U=.bmp");
-
-        let result_with_suffix = create_output_filename(path, Some("portrait"), "bin", "6c");
-        assert!(result_with_suffix.ends_with(".bin"));
-        assert!(result_with_suffix.contains("_portrait"));
-        assert_eq!(result_with_suffix, "6c_aW1hZ2U=__portrait.bin");
-    }
-
-    #[test]
     fn test_generate_filename_hash() {
         let hash1 = generate_filename_hash("test.jpg");
         let hash2 = generate_filename_hash("test.jpg");
@@ -354,17 +455,68 @@ mod tests {
     }
 
     #[test]
-    fn test_create_combined_portrait_filename() {
-        let left_path = Path::new("/path/to/image1.jpg");
-        let right_path = Path::new("/path/to/image2.jpg");
-        let result = create_combined_portrait_filename(left_path, right_path, "bmp", "bw");
+    fn test_sanitize_filename_for_fat32() {
+        // Test normal filenames
+        assert_eq!(sanitize_filename_for_fat32("normal_file"), "normal_file");
+        assert_eq!(
+            sanitize_filename_for_fat32("file-with-dashes"),
+            "file-with-dashes"
+        );
 
-        assert!(result.starts_with("combined_"));
-        assert!(result.ends_with(".bmp"));
-        assert!(result.matches('_').count() == 3); // Should have exactly 3 underscores now (prefix adds one)
+        // Test FAT32 invalid characters
+        assert_eq!(sanitize_filename_for_fat32("file<>test"), "file_test");
+        assert_eq!(
+            sanitize_filename_for_fat32("file:with:colons"),
+            "file_with_colons"
+        );
+        assert_eq!(
+            sanitize_filename_for_fat32("file/with\\slashes"),
+            "file_with_slashes"
+        );
+        assert_eq!(
+            sanitize_filename_for_fat32("file|pipe?question*star"),
+            "file_pipe_question_star"
+        );
+        assert_eq!(sanitize_filename_for_fat32("\"quoted\""), "quoted");
 
-        // Base64 encoding of "image1" = "aW1hZ2Ux", "image2" = "aW1hZ2Uy"
-        assert_eq!(result, "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bmp");
+        // Test control characters
+        assert_eq!(
+            sanitize_filename_for_fat32("file\twith\ttabs"),
+            "file_with_tabs"
+        );
+        assert_eq!(
+            sanitize_filename_for_fat32("file\nwith\nnewlines"),
+            "file_with_newlines"
+        );
+        assert_eq!(
+            sanitize_filename_for_fat32("file\rwith\rreturns"),
+            "file_with_returns"
+        );
+
+        // Test consecutive underscores
+        assert_eq!(
+            sanitize_filename_for_fat32("file___multiple___underscores"),
+            "file_multiple_underscores"
+        );
+        assert_eq!(sanitize_filename_for_fat32("___leading"), "leading");
+        assert_eq!(sanitize_filename_for_fat32("trailing___"), "trailing");
+
+        // Test length truncation (create a 110 char filename)
+        let long_name = "a".repeat(110);
+        let sanitized = sanitize_filename_for_fat32(&long_name);
+        assert!(sanitized.len() <= 100);
+        assert_eq!(sanitized.len(), 100);
+
+        // Test Unicode characters (should be preserved if valid)
+        assert_eq!(sanitize_filename_for_fat32("日本語"), "日本語");
+        assert_eq!(sanitize_filename_for_fat32("фото"), "фото");
+        assert_eq!(sanitize_filename_for_fat32("café"), "café");
+
+        // Test mixed problematic cases
+        assert_eq!(
+            sanitize_filename_for_fat32("My:Photo<2024>|vacation*.jpg"),
+            "My_Photo_2024_vacation.jpg"
+        );
     }
 
     #[test]

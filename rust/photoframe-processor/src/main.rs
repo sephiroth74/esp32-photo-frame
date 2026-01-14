@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use serde_json;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -15,7 +16,7 @@ mod utils;
 use cli::{Args, ColorType, DitherMethod};
 use image_processing::{
     color_correction, ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult,
-    ProcessingType, SkipReason,
+    ProcessingType,
 };
 use json_output::JsonMessage;
 use utils::{create_progress_bar, format_duration, validate_inputs, verbose_println};
@@ -27,254 +28,6 @@ impl From<ColorType> for ProcessingType {
             ColorType::SixColor => ProcessingType::SixColor,
         }
     }
-}
-
-/// Handle find hash functionality - find original filename from hash
-fn handle_find_hash(hash: &str, _args: &Args) -> Result<()> {
-    use std::collections::HashMap;
-
-    println!(
-        "{}",
-        style(format!("Finding original filename for hash: {}", hash))
-            .bold()
-            .cyan()
-    );
-    println!();
-
-    // Validate hash format (should be 8 hex characters)
-    if hash.len() != 8 {
-        return Err(anyhow::anyhow!(
-            "Invalid hash length '{}'. Expected 8 characters, got {}",
-            hash,
-            hash.len()
-        ));
-    }
-
-    if !hash.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(anyhow::anyhow!(
-            "Invalid hash format '{}'. Hash must contain only hexadecimal characters (0-9, a-f)",
-            hash
-        ));
-    }
-
-    println!("{}", style("Searching for matching filenames...").dim());
-    println!();
-
-    // This is a demonstration - in a real implementation, you would:
-    // 1. Search through common directories for image files
-    // 2. Generate hashes for each filename found
-    // 3. Compare with the target hash
-    // 4. Return matching original filename(s)
-
-    // For now, show the concept with some example mappings
-    let mut example_mappings = HashMap::new();
-    example_mappings.insert("a1b2c3d4", "vacation_2023.jpg");
-    example_mappings.insert("e5f6g7h8", "birthday_party.png");
-    example_mappings.insert("12345678", "sunset_beach.heic");
-    example_mappings.insert("abcdef01", "family_photo.jpg");
-
-    if let Some(original_filename) = example_mappings.get(hash) {
-        println!(
-            "{}",
-            style("✓ Found matching original filename!").green().bold()
-        );
-        println!();
-        println!(
-            "  {}: {}",
-            style("Hash").bold().cyan(),
-            style(hash).bold().yellow()
-        );
-        println!(
-            "  {}: {}",
-            style("Original").bold().cyan(),
-            style(original_filename).bold().green()
-        );
-        println!();
-        println!(
-            "{}",
-            style("Note: This is a demonstration with sample data.").dim()
-        );
-        println!(
-            "{}",
-            style("In a full implementation, this would search your actual image directories.")
-                .dim()
-        );
-    } else {
-        println!(
-            "{}",
-            style("No matching filename found for this hash.")
-                .yellow()
-                .bold()
-        );
-        println!();
-        println!("{}", style("The hash lookup feature would:").dim());
-        println!(
-            "{}",
-            style("1. Scan specified directories for image files").dim()
-        );
-        println!(
-            "{}",
-            style("2. Generate 8-character hashes for each filename").dim()
-        );
-        println!(
-            "{}",
-            style("3. Return the original filename if hash matches").dim()
-        );
-        println!();
-        println!(
-            "{}",
-            style("Usage: photoframe-processor --find-hash <8-char-hex>").dim()
-        );
-    }
-
-    Ok(())
-}
-
-/// Handle find original functionality - decode combined filenames
-fn handle_find_original(combined_filename: &str, _args: &Args) -> Result<()> {
-    use base64::{engine::general_purpose, Engine as _};
-
-    println!(
-        "{}",
-        style(format!("Decoding combined filename: {}", combined_filename))
-            .bold()
-            .cyan()
-    );
-    println!();
-
-    // Parse the combined filename format: combined_PREFIX_BASE64_BASE64.bin
-    if !combined_filename.starts_with("combined_") {
-        return Err(anyhow::anyhow!(
-            "Invalid combined filename '{}'. Expected format: 'combined_PREFIX_BASE64_BASE64.bin'",
-            combined_filename
-        ));
-    }
-
-    // Remove the "combined_" prefix and ".bin" suffix
-    let without_prefix = &combined_filename[9..]; // Skip "combined_"
-    let without_suffix = if without_prefix.ends_with(".bin") {
-        &without_prefix[..without_prefix.len() - 4] // Remove ".bin"
-    } else if without_prefix.ends_with(".bmp") {
-        &without_prefix[..without_prefix.len() - 4] // Remove ".bmp"
-    } else if without_prefix.ends_with(".jpg") {
-        &without_prefix[..without_prefix.len() - 4] // Remove ".jpg"
-    } else if without_prefix.ends_with(".png") {
-        &without_prefix[..without_prefix.len() - 4] // Remove ".png"
-    } else {
-        without_prefix
-    };
-
-    // Split by underscore to get the prefix and two base64 parts
-    let parts: Vec<&str> = without_suffix.split('_').collect();
-    if parts.len() != 3 {
-        return Err(anyhow::anyhow!(
-            "Invalid combined filename format '{}'. Expected exactly 3 parts: PREFIX_BASE64_BASE64",
-            combined_filename
-        ));
-    }
-
-    // Extract processing type prefix and base64 parts
-    let processing_prefix = parts[0];
-    let first_encoded = parts[1];
-    let second_encoded = parts[2];
-
-    println!("Processing type: {}", style(processing_prefix).cyan());
-    println!("Encoded parts:");
-    println!("  First:  {}", style(first_encoded).yellow());
-    println!("  Second: {}", style(second_encoded).yellow());
-    println!();
-
-    // Decode first filename
-    let first_decoded = match general_purpose::STANDARD.decode(first_encoded) {
-        Ok(bytes) => match String::from_utf8(bytes) {
-            Ok(s) => s,
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "First base64 part '{}' does not decode to valid UTF-8",
-                    first_encoded
-                ));
-            }
-        },
-        Err(_) => {
-            return Err(anyhow::anyhow!(
-                "First base64 part '{}' is not valid base64",
-                first_encoded
-            ));
-        }
-    };
-
-    // Decode second filename
-    let second_decoded = match general_purpose::STANDARD.decode(second_encoded) {
-        Ok(bytes) => match String::from_utf8(bytes) {
-            Ok(s) => s,
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "Second base64 part '{}' does not decode to valid UTF-8",
-                    second_encoded
-                ));
-            }
-        },
-        Err(_) => {
-            return Err(anyhow::anyhow!(
-                "Second base64 part '{}' is not valid base64",
-                second_encoded
-            ));
-        }
-    };
-
-    // Validate and display processing type
-    use image_processing::ProcessingType;
-    let processing_type_desc = match ProcessingType::from_prefix(processing_prefix) {
-        Some(ProcessingType::BlackWhite) => "Black & White",
-        Some(ProcessingType::SixColor) => "6-Color",
-        None => "Unknown",
-    };
-
-    // Display results
-    println!(
-        "{}",
-        style("✓ Successfully decoded combined filename:")
-            .green()
-            .bold()
-    );
-    println!();
-    println!(
-        "  {}: {} ({})",
-        style("Processing Type").bold().cyan(),
-        style(processing_type_desc).bold().magenta(),
-        style(processing_prefix).dim()
-    );
-    println!(
-        "  {}: {}",
-        style("Original 1").bold().cyan(),
-        style(&first_decoded).bold().green()
-    );
-    println!(
-        "  {}: {}",
-        style("Original 2").bold().cyan(),
-        style(&second_decoded).bold().green()
-    );
-    println!();
-
-    // Show the decoding process
-    println!("{}", style("Decoding process:").dim());
-    println!(
-        "  {} → {} (processing type)",
-        style(processing_prefix).dim(),
-        style(processing_type_desc).dim()
-    );
-    println!(
-        "  {} → {}",
-        style(first_encoded).dim(),
-        style(&first_decoded).dim()
-    );
-    println!(
-        "  {} → {}",
-        style(second_encoded).dim(),
-        style(&second_decoded).dim()
-    );
-
-    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -292,19 +45,7 @@ fn main() -> Result<()> {
     println!("{}", style("High-performance Rust implementation").dim());
     println!();
 
-    // Handle find hash mode (dry-run doesn't apply here)
-    if let Some(hash) = &args.find_hash {
-        handle_find_hash(hash, &args)?;
-        return Ok(());
-    }
-
-    // Handle find original mode (dry-run doesn't apply here)
-    if let Some(combined_filename) = &args.find_original {
-        handle_find_original(combined_filename, &args)?;
-        return Ok(());
-    }
-
-    // Validate inputs (skip for hash lookup mode)
+    // Validate inputs
     validate_inputs(&args)?;
 
     // Parse divider color
@@ -339,8 +80,6 @@ fn main() -> Result<()> {
             .map_err(|e| anyhow::anyhow!(e))?,
         // AI people detection configuration
         detect_people: args.detect_people(),
-        // Duplicate handling
-        force: args.force,
         // Debug mode
         debug: args.debug,
         // Annotation control
@@ -366,7 +105,8 @@ fn main() -> Result<()> {
         saturation_boost: args.saturation_boost,
         // Auto-optimization
         auto_optimize: args.auto_optimize,
-        optimization_report: args.report,
+        // Always collect report data in JSON mode, otherwise use --report flag
+        optimization_report: args.json_progress || args.report,
         // Target display orientation
         target_orientation: args.target_orientation.clone(),
         // Pre-rotation (only for 6c portrait mode)
@@ -658,17 +398,17 @@ fn main() -> Result<()> {
     };
 
     // Process images based on mode
-    let (results, skipped_results) = if debug_mode {
+    let results = if debug_mode {
         verbose_println(true, "Debug mode: visualizing detection boxes...");
 
         // In debug mode, process all images as a flat list (no pairing)
         let debug_results = engine.process_debug_batch(image_files.clone(), &args.output_dir)?;
 
-        // Convert to the expected format (no skipped results in debug mode)
+        // Convert to the expected format
         let ok_results: Vec<Result<ProcessingResult, anyhow::Error>> =
             debug_results.into_iter().map(|r| Ok(r)).collect();
 
-        (ok_results, Vec::new())
+        ok_results
     } else {
         // Normal processing with smart portrait pairing
         engine.process_batch_with_smart_pairing(
@@ -688,10 +428,8 @@ fn main() -> Result<()> {
 
     // Finish all progress bars (only if not in debug mode)
     if json_progress {
-        // JSON mode: emit final progress with actual processed count
-        // Some images may not be processed (e.g., unpaired portraits in landscape mode)
-        let actual_processed = results.len();
-        JsonMessage::progress(actual_processed, image_files.len(), "Processing complete");
+        // JSON mode: Don't emit any more progress messages here
+        // The complete message will be sent later with full report
     } else if debug_mode {
         verbose_println(true, "✓ Processing complete!");
     } else {
@@ -711,7 +449,6 @@ fn main() -> Result<()> {
     // Print results summary
     let successful = results.iter().filter(|r| r.is_ok()).count();
     let failed = results.len() - successful;
-    let skipped = skipped_results.len();
     let total_time = start_time.elapsed();
 
     // Calculate processing statistics
@@ -730,18 +467,63 @@ fn main() -> Result<()> {
                 people_misses += 1;
             }
 
-            // Count image types
+            // Count image types - count the ORIGINAL images that were processed
             match processing_result.image_type {
                 ImageType::Portrait => portraits_processed += 1,
                 ImageType::Landscape => landscapes_processed += 1,
-                ImageType::CombinedPortrait => landscapes_processed += 1, // Combined portraits (side-by-side) count as landscapes
-                ImageType::CombinedLandscape => portraits_processed += 1, // Combined landscapes (top-bottom) count as portraits
+                ImageType::CombinedPortrait => {
+                    // Two portrait images were combined side-by-side
+                    portraits_processed += 2;
+                }
+                ImageType::CombinedLandscape => {
+                    // Two landscape images were combined top-bottom
+                    landscapes_processed += 2;
+                }
             }
         }
     }
 
+    // Calculate skipped images (discovered but not processed - e.g., unpaired images)
+    let total_images_processed = portraits_processed + landscapes_processed;
+    let skipped = if image_files.len() > total_images_processed {
+        image_files.len() - total_images_processed
+    } else {
+        0
+    };
+
+    // Handle JSON complete message first if in JSON mode
+    if json_progress {
+        // JSON mode: emit final summary with report data
+        let report = engine.get_optimization_report();
+        let report_guard = report.lock().unwrap();
+
+        // Always generate summary
+        let mut summary_json = report_guard.get_summary();
+
+        // Add skipped count to the summary
+        if let Some(obj) = summary_json.as_object_mut() {
+            obj.insert(
+                "skipped_images".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(skipped)),
+            );
+        }
+
+        // In JSON mode, ALWAYS include the full report (regardless of --report flag)
+        // The GUI can choose whether to show it or not
+        let report_json =
+            Some(serde_json::to_value(&*report_guard).unwrap_or(serde_json::Value::Null));
+
+        JsonMessage::complete(
+            image_files.len(),
+            successful,
+            failed,
+            total_time.as_secs_f64(),
+            report_json,
+            summary_json,
+        );
+    }
     // Skip all console output in JSON mode (only JSON events are emitted)
-    if !json_progress {
+    else {
         let header = if dry_run_mode {
             style("Dry Run Results Summary:").bold().cyan()
         } else {
@@ -754,36 +536,63 @@ fn main() -> Result<()> {
         } else {
             "Successfully processed:"
         };
+        // Show total images processed, not output count
         println!(
-            "  {}: {}",
+            "  {}: {} images",
             processed_label,
-            style(successful).bold().green()
+            style(total_images_processed).bold().green()
         );
+        // Show output count if different from processed count
+        if successful != total_images_processed && successful > 0 {
+            println!(
+                "  Output files generated: {}",
+                style(successful).bold().cyan()
+            );
+        }
         if failed > 0 {
             println!("  Failed: {}", style(failed).bold().red());
         }
         if skipped > 0 {
-            println!(
-                "  Skipped (already exist): {}",
-                style(skipped).bold().yellow()
-            );
+            println!("  Skipped (unpaired): {}", style(skipped).bold().yellow());
         }
 
         // Image type statistics
         if portraits_processed > 0 || landscapes_processed > 0 {
             println!();
             println!("{}", style("Image Types:").bold().blue());
-            if landscapes_processed > 0 {
-                println!(
-                    "  Landscape images: {}",
-                    style(landscapes_processed).bold().cyan()
-                );
-            }
+
+            // Show portrait images
             if portraits_processed > 0 {
-                println!(
-                    "  Portrait images: {} (combined into landscape pairs)",
-                    style(portraits_processed).bold().magenta()
-                );
+                let portrait_msg =
+                    if args.target_orientation == crate::cli::TargetOrientation::Landscape {
+                        format!(
+                            "  Portrait images: {} (combined side-by-side into landscape pairs)",
+                            style(portraits_processed).bold().magenta()
+                        )
+                    } else {
+                        format!(
+                            "  Portrait images: {} (processed individually)",
+                            style(portraits_processed).bold().magenta()
+                        )
+                    };
+                println!("{}", portrait_msg);
+            }
+
+            // Show landscape images
+            if landscapes_processed > 0 {
+                let landscape_msg =
+                    if args.target_orientation == crate::cli::TargetOrientation::Portrait {
+                        format!(
+                            "  Landscape images: {} (combined top-bottom into portrait pairs)",
+                            style(landscapes_processed).bold().cyan()
+                        )
+                    } else {
+                        format!(
+                            "  Landscape images: {} (processed individually)",
+                            style(landscapes_processed).bold().cyan()
+                        )
+                    };
+                println!("{}", landscape_msg);
             }
         }
 
@@ -819,7 +628,7 @@ fn main() -> Result<()> {
                 0.0
             };
             println!(
-                "  People detection rate: {:.1}%",
+                "  People detection rate: {}",
                 style(format!("{:.1}%", detection_rate)).bold()
             );
         }
@@ -829,7 +638,7 @@ fn main() -> Result<()> {
             println!();
             let report = engine.get_optimization_report();
             let report_guard = report.lock().unwrap();
-            report_guard.print();
+            report_guard.print_formatted(&args.report_format);
         } else if successful > 0 {
             // Show simple detailed results only if report is not enabled
             println!();
@@ -940,16 +749,8 @@ fn main() -> Result<()> {
             }
         }
 
-        // Emit JSON summary or print normal output
-        if json_progress {
-            // JSON mode: emit final summary
-            JsonMessage::summary(
-                image_files.len(),
-                successful,
-                failed,
-                total_time.as_secs_f64(),
-            );
-        } else {
+        // Print performance stats only in normal mode (not JSON)
+        if !json_progress {
             // Normal mode: print performance stats
             println!();
             println!("{}", style("Performance:").bold().blue());
@@ -1023,53 +824,6 @@ fn main() -> Result<()> {
                 );
                 println!("  Check image files and try again with --verbose for more details");
             }
-        }
-
-        // Show skipped files if any
-        if !skipped_results.is_empty() {
-            println!();
-            println!(
-                "{}",
-                style("Skipped files (already exist):").bold().yellow()
-            );
-            for (i, skipped) in skipped_results.iter().enumerate() {
-                let filename = skipped
-                    .input_path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("unknown");
-
-                let reason_desc = match skipped.reason {
-                    SkipReason::LandscapeExists => "skipped",
-                    SkipReason::PortraitInCombined => "skipped",
-                };
-
-                let existing_filename = skipped
-                    .existing_output_path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("unknown");
-
-                println!(
-                    "  {}: {} - {} (existing: {})",
-                    style(format!("#{}", i + 1)).dim(),
-                    style(filename).bold().yellow(),
-                    reason_desc,
-                    style(existing_filename).dim()
-                );
-            }
-
-            println!();
-            println!(
-                "{}",
-                style(format!(
-                    "ℹ {} files skipped to avoid duplicates",
-                    skipped_results.len()
-                ))
-                .bold()
-                .blue()
-            );
-            println!("  Use --force to process all files regardless of existing outputs");
         }
     } // End of !json_progress block
 

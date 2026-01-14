@@ -37,7 +37,18 @@ pub enum TargetOrientation {
     Portrait,
 }
 
+/// Report output format options
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+pub enum ReportFormat {
+    #[value(name = "plain")]
+    Plain,
+    #[value(name = "rich")]
+    Rich,
+    #[value(name = "json")]
+    Json,
+}
+
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DitherMethod {
     /// Floyd-Steinberg with perceptual color weighting (best for gradients)
     #[value(name = "floyd-steinberg")]
@@ -99,12 +110,6 @@ Example Usage:
 
   # Process images with filename annotations enabled
   photoframe-processor -i ~/Photos -o ~/processed --auto --annotate
-
-  # Find original filename from an 8-character hash
-  photoframe-processor --find-hash a1b2c3d4
-
-  # Decode combined portrait filename to show original filenames
-  photoframe-processor --find-original combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin
 
   # Dry run mode: simulate processing without creating files
   photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose",
@@ -254,6 +259,16 @@ pub struct Args {
     )]
     pub report: bool,
 
+    /// Output format for the report
+    #[arg(
+        long = "report-output-format",
+        default_value = "rich",
+        value_name = "FORMAT",
+        requires = "report",
+        help = "Report output format: 'plain' (simple text), 'rich' (formatted table), 'json' (structured data)"
+    )]
+    pub report_format: ReportFormat,
+
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
     #[arg(short = 'j', long = "jobs", default_value = "0", value_name = "N")]
     pub jobs: usize,
@@ -274,18 +289,6 @@ pub struct Args {
     #[cfg(feature = "ai")]
     #[arg(long = "detect-people")]
     pub detect_people: bool,
-
-    /// Force processing even if output files already exist (bypass duplicate check)
-    #[arg(long = "force")]
-    pub force: bool,
-
-    /// Find original filenames from a combined filename (e.g., 'combined_bw_BASE64_BASE64.bin')
-    #[arg(long = "find-original", value_name = "FILENAME")]
-    pub find_original: Option<String>,
-
-    /// Find original filename for given hash (8-character hex hash)
-    #[arg(long = "find-hash", value_name = "HASH")]
-    pub find_hash: Option<String>,
 
     /// Enable debug mode: visualize detection boxes and crop area with correct orientation
     #[arg(long = "debug")]
