@@ -603,35 +603,33 @@ fn main() -> Result<()> {
 
             // Show portrait images
             if portraits_processed > 0 {
-                let portrait_msg =
-                    if args.target_orientation == cli::TargetOrientation::Landscape {
-                        format!(
-                            "  Portrait images: {} (combined side-by-side into landscape pairs)",
-                            style(portraits_processed).bold().magenta()
-                        )
-                    } else {
-                        format!(
-                            "  Portrait images: {} (processed individually)",
-                            style(portraits_processed).bold().magenta()
-                        )
-                    };
+                let portrait_msg = if args.target_orientation == cli::TargetOrientation::Landscape {
+                    format!(
+                        "  Portrait images: {} (combined side-by-side into landscape pairs)",
+                        style(portraits_processed).bold().magenta()
+                    )
+                } else {
+                    format!(
+                        "  Portrait images: {} (processed individually)",
+                        style(portraits_processed).bold().magenta()
+                    )
+                };
                 println!("{}", portrait_msg);
             }
 
             // Show landscape images
             if landscapes_processed > 0 {
-                let landscape_msg =
-                    if args.target_orientation == cli::TargetOrientation::Portrait {
-                        format!(
-                            "  Landscape images: {} (combined top-bottom into portrait pairs)",
-                            style(landscapes_processed).bold().cyan()
-                        )
-                    } else {
-                        format!(
-                            "  Landscape images: {} (processed individually)",
-                            style(landscapes_processed).bold().cyan()
-                        )
-                    };
+                let landscape_msg = if args.target_orientation == cli::TargetOrientation::Portrait {
+                    format!(
+                        "  Landscape images: {} (combined top-bottom into portrait pairs)",
+                        style(landscapes_processed).bold().cyan()
+                    )
+                } else {
+                    format!(
+                        "  Landscape images: {} (processed individually)",
+                        style(landscapes_processed).bold().cyan()
+                    )
+                };
                 println!("{}", landscape_msg);
             }
         }
