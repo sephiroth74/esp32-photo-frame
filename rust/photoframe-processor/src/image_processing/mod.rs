@@ -901,9 +901,12 @@ impl ProcessingEngine {
         progress_bar.set_position(76);
         let brightness_contrast_adjusted_img =
             if optimized_brightness != 0 || optimized_contrast != 0 {
-                eprintln!(
-                    "[Pipeline] Applying brightness={} contrast={}",
-                    optimized_brightness, optimized_contrast
+                verbose_println(
+                    self.config.verbose,
+                    &format!(
+                        "[Pipeline] Applying brightness={} contrast={}",
+                        optimized_brightness, optimized_contrast
+                    ),
                 );
 
                 if optimized_brightness != 0 && optimized_contrast != 0 {
@@ -918,7 +921,10 @@ impl ProcessingEngine {
 
                 // Apply both together using ImageMagick when available
                 let adjusted = if color_correction::is_imagemagick_available() {
-                    eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
+                    verbose_println(
+                        self.config.verbose,
+                        "[Pipeline] Using ImageMagick for brightness+contrast",
+                    );
                     color_correction::apply_imagemagick_brightness_contrast_public(
                         &color_corrected_img,
                         optimized_brightness,
@@ -926,8 +932,9 @@ impl ProcessingEngine {
                     )?
                 } else {
                     // Fall back to separate operations
-                    eprintln!(
-                        "[Pipeline] ImageMagick not available, using fallback Rust implementation"
+                    verbose_println(
+                        self.config.verbose,
+                        "[Pipeline] ImageMagick not available, using fallback Rust implementation",
                     );
                     let temp = color_correction::apply_brightness_adjustment(
                         &color_corrected_img,
@@ -939,7 +946,10 @@ impl ProcessingEngine {
                 progress_bar.set_position(78);
                 adjusted
             } else {
-                eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
+                verbose_println(
+                    self.config.verbose,
+                    "[Pipeline] Skipping brightness and contrast (both are 0)",
+                );
                 progress_bar.set_position(78);
                 color_corrected_img
             };
@@ -1210,9 +1220,12 @@ impl ProcessingEngine {
         progress_bar.set_position(81);
         let brightness_contrast_adjusted_img =
             if optimized_brightness != 0 || optimized_contrast != 0 {
-                eprintln!(
-                    "[Pipeline] Applying brightness={} contrast={} to portrait",
-                    optimized_brightness, optimized_contrast
+                verbose_println(
+                    self.config.verbose,
+                    &format!(
+                        "[Pipeline] Applying brightness={} contrast={} to portrait",
+                        optimized_brightness, optimized_contrast
+                    ),
                 );
 
                 if optimized_brightness != 0 && optimized_contrast != 0 {
@@ -1227,7 +1240,10 @@ impl ProcessingEngine {
 
                 // Apply both together using ImageMagick when available
                 let adjusted = if color_correction::is_imagemagick_available() {
-                    eprintln!("[Pipeline] Using ImageMagick for brightness+contrast");
+                    verbose_println(
+                        self.config.verbose,
+                        "[Pipeline] Using ImageMagick for brightness+contrast",
+                    );
                     color_correction::apply_imagemagick_brightness_contrast_public(
                         &color_corrected_img,
                         optimized_brightness,
@@ -1235,8 +1251,9 @@ impl ProcessingEngine {
                     )?
                 } else {
                     // Fall back to separate operations
-                    eprintln!(
-                        "[Pipeline] ImageMagick not available, using fallback Rust implementation"
+                    verbose_println(
+                        self.config.verbose,
+                        "[Pipeline] ImageMagick not available, using fallback Rust implementation",
                     );
                     let temp = color_correction::apply_brightness_adjustment(
                         &color_corrected_img,
@@ -1248,7 +1265,10 @@ impl ProcessingEngine {
                 progress_bar.set_position(82);
                 adjusted
             } else {
-                eprintln!("[Pipeline] Skipping brightness and contrast (both are 0)");
+                verbose_println(
+                    self.config.verbose,
+                    "[Pipeline] Skipping brightness and contrast (both are 0)",
+                );
                 progress_bar.set_position(82);
                 color_corrected_img
             };

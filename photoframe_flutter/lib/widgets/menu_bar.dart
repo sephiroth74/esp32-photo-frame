@@ -36,12 +36,14 @@ class AppMenuBar extends StatelessWidget {
               PlatformMenu(
                 label: 'Open Recent',
                 menus: [
-                  ...provider.recentFiles.map((recentFile) => PlatformMenuItem(
-                        label: recentFile.name,
-                        onSelected: () {
-                          provider.loadRecentFile(recentFile);
-                        },
-                      )),
+                  ...provider.recentFiles.map(
+                    (recentFile) => PlatformMenuItem(
+                      label: recentFile.name,
+                      onSelected: () {
+                        provider.loadRecentFile(recentFile);
+                      },
+                    ),
+                  ),
                   PlatformMenuItem(
                     label: 'Clear Recent',
                     onSelected: () {
@@ -62,8 +64,7 @@ class AppMenuBar extends StatelessWidget {
             ),
             PlatformMenuItem(
               label: 'Save Configuration As...',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyS,
-                  meta: true, shift: true),
+              shortcut: const SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true),
               onSelected: () {
                 _handleSaveConfigurationAs(context);
               },
@@ -109,11 +110,7 @@ class AppMenuBar extends StatelessWidget {
                   dialogTitle: 'Select photoframe-processor binary',
                 );
                 if (result != null && result.files.single.path != null) {
-                  provider.updateConfig(
-                    provider.config.copyWith(
-                      processorBinaryPath: result.files.single.path,
-                    ),
-                  );
+                  provider.updateConfig(provider.config.copyWith(processorBinaryPath: result.files.single.path));
                 }
               },
             ),
@@ -174,9 +171,7 @@ class AppMenuBar extends StatelessWidget {
     if (provider.currentProfilePath != null) {
       await provider.saveProfile(filePath: provider.currentProfilePath);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Configuration saved')),
-        );
+        // show confirmation dialog
       }
     }
   }
@@ -194,9 +189,7 @@ class AppMenuBar extends StatelessWidget {
     if (result != null) {
       await provider.saveProfile(filePath: result);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Configuration saved')),
-        );
+        // show confirmation dialog
       }
     }
   }
@@ -214,9 +207,7 @@ class AppMenuBar extends StatelessWidget {
     if (result != null) {
       await provider.saveProfile(filePath: result);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Configuration exported')),
-        );
+        // show confirmation dialog
       }
     }
   }
@@ -226,18 +217,10 @@ class AppMenuBar extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved Changes'),
-        content: const Text(
-          'You have unsaved changes. Do you want to discard them?',
-        ),
+        content: const Text('You have unsaved changes. Do you want to discard them?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Discard'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Discard')),
         ],
       ),
     );

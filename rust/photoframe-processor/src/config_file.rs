@@ -1,4 +1,4 @@
-use crate::cli::{Args, ColorType, DitherMethod, TargetOrientation};
+use crate::cli::{Args, ColorType, DitherMethod, ReportFormat, TargetOrientation};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -46,6 +46,7 @@ pub struct ProcessingConfigJson {
     pub jobs: Option<usize>,
     pub extensions: Option<String>,
     pub processor_binary_path: Option<String>,
+    pub report_output_format: Option<String>,
 }
 
 impl Args {
@@ -198,6 +199,20 @@ impl Args {
 
         if !self.report {
             self.report = config.report.unwrap_or(false);
+        }
+
+        if self.report {
+            // Orientation
+            if !args_from_cli.iter().any(|a| a == "--report-output-format") {
+                if let Some(output_format) = config.report_output_format {
+                    self.report_format = match output_format.as_str() {
+                        "pain" => ReportFormat::Plain,
+                        "rich" => ReportFormat::Rich,
+                        "json" => ReportFormat::Json,
+                        _ => self.report_format.clone(),
+                    };
+                }
+            }
         }
 
         // String parameters - only apply if using defaults

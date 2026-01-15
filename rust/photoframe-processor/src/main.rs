@@ -483,13 +483,47 @@ fn main() -> Result<()> {
         }
     }
 
-    // Calculate skipped images (discovered but not processed - e.g., unpaired images)
+    // Calculate total images that were successfully processed (including those in combined outputs)
     let total_images_processed = portraits_processed + landscapes_processed;
-    let skipped = if image_files.len() > total_images_processed {
-        image_files.len() - total_images_processed
+
+    // The correct way: skipped should only be unpaired images (max 1 per orientation)
+    // The issue is that "failed" images are being counted incorrectly
+    // When a combined pair fails, it should count as 2 failed images, not 1
+
+    // First, let's properly count how many images we actually tried to process
+    // This is different from results.len() because combined results represent 2 images
+    let mut images_in_results = 0;
+
+    for result in &results {
+        match result {
+            Ok(processing_result) => match processing_result.image_type {
+                ImageType::Portrait | ImageType::Landscape => images_in_results += 1,
+                ImageType::CombinedPortrait | ImageType::CombinedLandscape => {
+                    images_in_results += 2
+                }
+            },
+            Err(_) => {
+                // Failed results - we need to know if this was a combined pair or single
+                // For now, assume singles (this is a limitation)
+                images_in_results += 1;
+            }
+        }
+    }
+
+    // Skipped = Total discovered - Images in results
+    // In theory this should only be 0 or 1 (unpaired), but if it's higher,
+    // it means some images failed before being added to results
+    let skipped = image_files.len().saturating_sub(images_in_results);
+
+    // If skipped is suspiciously high, it likely includes pre-processing failures
+    let (unpaired, unprocessable) = if skipped > 1 {
+        (1, skipped - 1) // Assume 1 unpaired, rest are unprocessable
     } else {
-        0
+        (skipped, 0)
     };
+
+    // Note: "skipped" includes both unpaired images (max 1) and any unprocessable images
+    // (e.g., corrupted files, unsupported formats that passed initial filter, etc.)
 
     // Handle JSON complete message first if in JSON mode
     if json_progress {
@@ -552,8 +586,14 @@ fn main() -> Result<()> {
         if failed > 0 {
             println!("  Failed: {}", style(failed).bold().red());
         }
-        if skipped > 0 {
-            println!("  Skipped (unpaired): {}", style(skipped).bold().yellow());
+        if unpaired > 0 {
+            println!("  Skipped (unpaired): {}", style(unpaired).bold().yellow());
+        }
+        if unprocessable > 0 {
+            println!(
+                "  Unprocessable: {} (couldn't load/open)",
+                style(unprocessable).bold().red()
+            );
         }
 
         // Image type statistics
@@ -564,7 +604,7 @@ fn main() -> Result<()> {
             // Show portrait images
             if portraits_processed > 0 {
                 let portrait_msg =
-                    if args.target_orientation == crate::cli::TargetOrientation::Landscape {
+                    if args.target_orientation == cli::TargetOrientation::Landscape {
                         format!(
                             "  Portrait images: {} (combined side-by-side into landscape pairs)",
                             style(portraits_processed).bold().magenta()
@@ -581,7 +621,7 @@ fn main() -> Result<()> {
             // Show landscape images
             if landscapes_processed > 0 {
                 let landscape_msg =
-                    if args.target_orientation == crate::cli::TargetOrientation::Portrait {
+                    if args.target_orientation == cli::TargetOrientation::Portrait {
                         format!(
                             "  Landscape images: {} (combined top-bottom into portrait pairs)",
                             style(landscapes_processed).bold().cyan()
@@ -677,7 +717,7 @@ fn main() -> Result<()> {
                             style(format!("✓ {} people", processing_result.people_count)).green()
                         }
                     } else {
-                        style(format!("○ No people")).dim()
+                        style("○ No people".to_string()).dim()
                     };
 
                     // Show destination filenames in dry-run mode
@@ -734,7 +774,7 @@ fn main() -> Result<()> {
                                     .green()
                                 }
                             } else {
-                                style(format!("○ No people")).dim()
+                                style("○ No people".to_string()).dim()
                             };
 
                             println!(

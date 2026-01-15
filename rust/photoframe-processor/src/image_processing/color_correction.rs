@@ -323,10 +323,7 @@ pub fn apply_imagemagick_brightness_contrast_public(
     brightness_adjustment: i32,
     contrast_adjustment: i32,
 ) -> Result<RgbImage> {
-    eprintln!(
-        "[ImageMagick] Applying brightness={} contrast={} using ImageMagick",
-        brightness_adjustment, contrast_adjustment
-    );
+    // Applying brightness and contrast using ImageMagick
 
     // Create unique temporary files
     let temp_dir = std::env::temp_dir();
@@ -355,14 +352,7 @@ pub fn apply_imagemagick_brightness_contrast_public(
     let brightness_percent = brightness_adjustment;
     let contrast_percent = contrast_adjustment;
 
-    eprintln!(
-        "[ImageMagick] Command: {} {} -brightness-contrast {}x{} {}",
-        magick_cmd,
-        input_path.display(),
-        brightness_percent,
-        contrast_percent,
-        output_path.display()
-    );
+    // Running ImageMagick command
 
     // Run ImageMagick with brightness-contrast adjustment
     let output = Command::new(magick_cmd)
@@ -396,20 +386,13 @@ pub fn apply_imagemagick_brightness_contrast_public(
 ///   - Negative values decrease contrast (flattens the image)
 ///   - 0 = no change
 pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Result<RgbImage> {
-    eprintln!(
-        "[Contrast] apply_contrast_adjustment called with value={}",
-        contrast_adjustment
-    );
-
     if contrast_adjustment == 0 {
         // No adjustment needed
-        eprintln!("[Contrast] Skipping (value is 0)");
         return Ok(img.clone());
     }
 
     // Try ImageMagick first for superior contrast adjustment
     if is_imagemagick_available() {
-        eprintln!("[Contrast] Using ImageMagick");
         if let Ok(adjusted) =
             apply_imagemagick_brightness_contrast_public(img, 0, contrast_adjustment)
         {
@@ -443,20 +426,13 @@ pub fn apply_contrast_adjustment(img: &RgbImage, contrast_adjustment: i32) -> Re
 ///   - Negative values decrease brightness (makes image darker)
 ///   - 0 = no change
 pub fn apply_brightness_adjustment(img: &RgbImage, brightness_adjustment: i32) -> Result<RgbImage> {
-    eprintln!(
-        "[Brightness] apply_brightness_adjustment called with value={}",
-        brightness_adjustment
-    );
-
     if brightness_adjustment == 0 {
         // No adjustment needed
-        eprintln!("[Brightness] Skipping (value is 0)");
         return Ok(img.clone());
     }
 
     // Try ImageMagick first for superior brightness adjustment
     if is_imagemagick_available() {
-        eprintln!("[Brightness] Using ImageMagick");
         if let Ok(adjusted) =
             apply_imagemagick_brightness_contrast_public(img, brightness_adjustment, 0)
         {
