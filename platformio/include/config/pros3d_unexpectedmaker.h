@@ -32,10 +32,10 @@
 
 // SD Card - sharing default SPI bus (VSPI) with display
 #define SD_USE_SPI          // Use SPI instead of SDIO for SD card
-#define SD_CS_PIN      15   // SD Card Chip Select (CS)
 #define SD_SCK_PIN     12   // SD SPI Clock - IO36 (VSPI, shared with display)
-#define SD_MOSI_PIN    14   // SD SPI MOSI - IO35 (VSPI, shared with display)
 #define SD_MISO_PIN    13   // SD SPI MISO - IO37 (VSPI)
+#define SD_MOSI_PIN    14   // SD SPI MOSI - IO35 (VSPI, shared with display)
+#define SD_CS_PIN      15   // SD Card Chip Select (CS)
 
 // e-Paper Display - using default SPI (VSPI)
 #define EPD_BUSY_PIN 6   // IO6 - available digital pin
