@@ -252,9 +252,9 @@ class BatteryReader {
      * @param delay Delay between readings in milliseconds
      */
     constexpr BatteryReader(uint8_t pin,
-                             double resistor_ratio,
-                             uint8_t num_readings,
-                             uint32_t delay) :
+                            double resistor_ratio,
+                            uint8_t num_readings,
+                            uint32_t delay) :
         pin(pin),
         resistor_ratio(resistor_ratio),
         num_readings(num_readings),

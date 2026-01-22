@@ -51,8 +51,6 @@ const char TXT_LITTLEFS_FILE_CREATE_FAILED[] PROGMEM = "Creazione file LittleFS 
 const char TXT_LITTLEFS_FILE_OPEN_FAILED[] PROGMEM = "Apertura file LittleFS fallita";
 const char TXT_FILE_COPY_FAILED[] PROGMEM = "Copia del file fallita";
 
-
-
 // OAuth/Authentication Specific Errors (40-49)
 const char TXT_OAUTH_TOKEN_EXPIRED[] PROGMEM = "Token di accesso OAuth scaduto";
 const char TXT_OAUTH_TOKEN_INVALID[] PROGMEM = "Token di accesso OAuth non valido o malformato";
@@ -125,3 +123,21 @@ const char TXT_CHARGING_CIRCUIT_FAULT[] PROGMEM = "Guasto circuito carica";
 const char TXT_BATTERY_NOT_DETECTED[] PROGMEM = "Batteria non rilevata dal sistema";
 const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Autenticazione batteria fallita";
 
+#ifdef ENABLE_BT_IMAGE
+// ========================================
+// BLUETOOTH/BLE MODE STRINGS - ITALIANO
+// ========================================
+const char TXT_BT_FIRST_BOOT[] PROGMEM = "Primo Avvio";
+const char TXT_BT_SEARCHING_DEVICE[] PROGMEM = "Cerca: ";
+const char TXT_BT_WAITING_IMAGE[] PROGMEM = "In attesa di una nuova immagine...";
+const char TXT_BT_TIMEOUT_30MIN[] PROGMEM = "Timeout: 30 minuti";
+const char TXT_BT_WAITING_IMAGE_TIMEOUT[] PROGMEM = "In Attesa di Immagine";
+const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout: 30 minuti scaduti";
+const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Premere GPIO1 per riprovare";
+const char TXT_BT_FACTORY_RESET[] PROGMEM = "Factory Reset";
+const char TXT_BT_RESET_COMPLETE[] PROGMEM = "Completato!";
+const char TXT_BT_SETTINGS_RESTORED[] PROGMEM = "Tutte le impostazioni sono";
+const char TXT_BT_SETTINGS_RESTORED_STATE[] PROGMEM = "state ripristinate";
+const char TXT_BT_RESTARTING[] PROGMEM = "Riavvio...";
+const char TXT_BT_BATTERY_PERCENT[] PROGMEM = "Batteria: %.1f%%";
+#endif // ENABLE_BT_IMAGE

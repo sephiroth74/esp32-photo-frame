@@ -1,16 +1,16 @@
 #ifndef _DISPLAY_DRIVER_H_
 #define _DISPLAY_DRIVER_H_
 
-#include <Arduino.h>
 #include <Adafruit_GFX.h>
+#include <Arduino.h>
 
 // Display color definitions for AdafruitGFX (from display_debug.cpp)
-#define DISPLAY_COLOR_WHITE   0xFF
-#define DISPLAY_COLOR_BLACK   0x00
-#define DISPLAY_COLOR_RED     0xE0
-#define DISPLAY_COLOR_GREEN   0x1C
-#define DISPLAY_COLOR_BLUE    0x03
-#define DISPLAY_COLOR_YELLOW  0xFC
+#define DISPLAY_COLOR_WHITE  0xFF
+#define DISPLAY_COLOR_BLACK  0x00
+#define DISPLAY_COLOR_RED    0xE0
+#define DISPLAY_COLOR_GREEN  0x1C
+#define DISPLAY_COLOR_BLUE   0x03
+#define DISPLAY_COLOR_YELLOW 0xFC
 
 // Note: EPD_WIDTH and EPD_HEIGHT are defined in the display libraries
 // GDEP073E01/Display_EPD_W21.h and GDEY075T7/Display_EPD_W21.h
@@ -24,7 +24,7 @@
  * Images are pre-rotated by the Rust photo-processor when needed.
  */
 class DisplayDriver {
-public:
+  public:
     DisplayDriver() : initialized(false) {}
     virtual ~DisplayDriver() {}
 
@@ -99,7 +99,7 @@ public:
      */
     virtual bool has_color() const = 0;
 
-protected:
+  protected:
     bool initialized;
 
     /**

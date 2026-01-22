@@ -49,6 +49,37 @@
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Operation Mode Configuration
+// ----------------------------------------------------------------------------
+
+/// Bluetooth Image Mode
+/// Uncomment to enable Bluetooth image transfer mode
+/// When enabled:
+/// - WiFi, Google Drive, and SD card image sources are disabled
+/// - config.json is not loaded
+/// - Device waits for BLE connection to receive images
+/// - Images and configuration are sent via Bluetooth
+/// - Wake from deep sleep via GPIO button only
+// #define ENABLE_BT_IMAGE
+
+/// Bluetooth Diagnostic Mode
+/// Uncomment to enable BT diagnostic test suite
+/// Requires ENABLE_BT_IMAGE to be defined
+/// When enabled:
+/// - Runs comprehensive tests for all BT components
+/// - Tests protocol, preferences, battery, SD card, display, BLE
+/// - Does NOT start actual BLE advertising (safe to run)
+/// - Similar to ENABLE_DISPLAY_DIAGNOSTIC for display tests
+// #define ENABLE_BT_DIAGNOSTIC
+
+#ifdef ENABLE_BT_IMAGE
+/// Bluetooth mode constants
+#define BT_FIRST_BOOT_TIMEOUT_MS     (30 * 60 * 1000) // 30 minutes timeout for first boot
+#define BT_LISTEN_TIMEOUT_MS         (5 * 60 * 1000)  // 5 minutes timeout for subsequent boots
+#define BT_BATTERY_CHECK_INTERVAL_MS 60000            // Check battery every 60 seconds
+#endif                                                // ENABLE_BT_IMAGE
+
+// ----------------------------------------------------------------------------
 // E-Paper Display Configuration
 // ----------------------------------------------------------------------------
 
@@ -150,16 +181,19 @@
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY // Maximum sleep duration (24 hours)
 
 /// Display refresh timing configuration
-#define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE)   // Minimum refresh interval (5 minutes)
-#define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR)     // Maximum refresh interval (4 hours)
-#define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE)   // Step size for refresh adjustment
-#define REFRESH_DEFAULT_INTERVAL_SECONDS (30 * SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
-#define REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY (6 * SECONDS_IN_HOUR)  // Critical battery refresh interval
+#define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE) // Minimum refresh interval (5 minutes)
+#define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR)   // Maximum refresh interval (4 hours)
+#define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE) // Step size for refresh adjustment
+#define REFRESH_DEFAULT_INTERVAL_SECONDS                                                           \
+    (30 *                                                                                          \
+     SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
+#define REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY                                                  \
+    (6 * SECONDS_IN_HOUR)                         // Critical battery refresh interval
 #define REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER 3 // Multiplier for low battery refresh interval
 
 /// Daily operation schedule
-#define DAY_START_HOUR 5   // Hour when device becomes active (5 AM)
-#define DAY_END_HOUR   23  // Hour when device enters night mode (11 PM)
+#define DAY_START_HOUR 5  // Hour when device becomes active (5 AM)
+#define DAY_END_HOUR   23 // Hour when device enters night mode (11 PM)
 
 /// Sleep and startup delays
 // #define DELAY_BEFORE_SLEEP 20000  // Delay before sleep in milliseconds (debug/fallback)
@@ -177,10 +211,10 @@
 /// WiFi configuration (now handled by unified config system)
 
 /// Network timeouts and limits (configured in board-specific config or system defaults section)
-#define WIFI_MAX_NETWORKS 3        // Maximum number of WiFi networks that can be configured
+#define WIFI_MAX_NETWORKS    3     // Maximum number of WiFi networks that can be configured
 #define WIFI_CONNECT_TIMEOUT 8000  // WiFi connection timeout in milliseconds
-#define HTTP_CONNECT_TIMEOUT 15000  // HTTP connection timeout (15 seconds)
-#define HTTP_REQUEST_TIMEOUT 30000  // HTTP request timeout (30 seconds)
+#define HTTP_CONNECT_TIMEOUT 15000 // HTTP connection timeout (15 seconds)
+#define HTTP_REQUEST_TIMEOUT 30000 // HTTP request timeout (30 seconds)
 
 /// NTP (Network Time Protocol) configuration (configured in board-specific config or system
 /// defaults section)
@@ -208,8 +242,8 @@
 #define LITTLEFS_TEMP_IMAGE_FILE "/temp_image.tmp"   // Temporary image file in LittleFS
 
 /// Storage cleanup settings
-#define SD_CARD_FREE_SPACE_THRESHOLD        (1024 * 1024 * 16) // 16 MB threshold for cleanup
-#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * SECONDS_IN_HOUR)     // Cleanup interval (24 hours)
+#define SD_CARD_FREE_SPACE_THRESHOLD        (1024 * 1024 * 16)     // 16 MB threshold for cleanup
+#define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * SECONDS_IN_HOUR) // Cleanup interval (24 hours)
 
 /// Supported file formats for runtime detection
 extern const char* ALLOWED_FILE_EXTENSIONS[];
@@ -218,31 +252,52 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // ===========================================================================
 // GLOBAL CONFIGURATION
 // ============================================================================
-#define CONFIG_FILEPATH "/config.json"  // Global configuration file
+#define CONFIG_FILEPATH "/config.json" // Global configuration file
 
+// ============================================================================
+// IMAGE VALIDATION CONFIGURATION
+// ============================================================================
+
+/// Binary image size validation (calculated from EPD dimensions)
+/// All binary images (.bin) must be exactly EPD_WIDTH * EPD_HEIGHT bytes
+/// For 800x480 displays: 800 * 480 = 384,000 bytes (384 KB)
+/// This must be validated for:
+/// - Google Drive images: after download from cloud
+/// - SD Card images: before display
+/// - Bluetooth images: during and after transfer
+/// The size is calculated at runtime using EPD_WIDTH and EPD_HEIGHT from the display library
+#define EXPECTED_IMAGE_SIZE_BYTES (EPD_WIDTH * EPD_HEIGHT)
+
+/// Minimum image file size (sanity check - must be > 0)
+#define MIN_IMAGE_SIZE_BYTES 100
+
+/// Maximum image file size (sanity check - typically 2MB to allow for overhead)
+#define MAX_IMAGE_SIZE_BYTES (2 * 1024 * 1024) // 2 MB
 
 // ============================================================================
 // GOOGLE DRIVE CONFIGURATION
 // ============================================================================
 
-/// Google Drive integration settings (configured in board-specific config or system defaults section)
-#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)           // TOC cache expiry (30 days) 
-#define GOOGLE_DRIVE_TEMP_DIR            "temp"                          // Temporary files directory
-#define GOOGLE_DRIVE_CACHE_DIR           "cache"                         // Cache directory
-#define GOOGLE_DRIVE_CACHING_LOCAL_PATH  "/gdrive"                       // Local cache path on SD card
+/// Google Drive integration settings (configured in board-specific config or system defaults
+/// section)
+#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY) // TOC cache expiry (30 days)
+#define GOOGLE_DRIVE_TEMP_DIR            "temp"                // Temporary files directory
+#define GOOGLE_DRIVE_CACHE_DIR           "cache"               // Cache directory
+#define GOOGLE_DRIVE_CACHING_LOCAL_PATH  "/gdrive"             // Local cache path on SD card
 
 /// API rate limiting and request management (configured in board-specific config or system defaults
 /// section)
-#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW     200      // Conservative API request limit
-#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS   3600     // Rate limiting time window (1 hour)
-#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS        10000    // Minimum delay between requests
-#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS          10       // Maximum retry attempts for failed requests
-#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS       60000    // Base delay for exponential backoff 
-#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS        120000UL // Maximum backoff delay
-#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS            1200000  // Maximum wait time for rate limiting
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE          500      // Files per API request
+#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW   200   // Conservative API request limit
+#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600  // Rate limiting time window (1 hour)
+#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS      10000 // Minimum delay between requests
+#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS        10    // Maximum retry attempts for failed requests
+#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS     60000 // Base delay for exponential backoff
+#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS      120000UL // Maximum backoff delay
+#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS          1200000  // Maximum wait time for rate limiting
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE        500      // Files per API request
 
-/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults section)
+/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults
+/// section)
 // Memory limits are automatically set based on BOARD_HAS_PSRAM in the system defaults section
 // ESP32-S3 with PSRAM: 4MB JSON buffer, 6MB body reserve, 10MB safety limit
 // Standard ESP32: 40KB JSON buffer, 64KB body reserve, 100KB safety limit
@@ -308,7 +363,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 /// Debug-specific settings
 // #define DEBUG_IMAGE_INDEX 381     // Force specific image for testing
-#define RESET_INVALIDATES_DATE_TIME 1  // Reset RTC time on device reset
+#define RESET_INVALIDATES_DATE_TIME 1 // Reset RTC time on device reset
 
 // ============================================================================
 // SYSTEM DEFAULTS AND VALIDATION
@@ -371,59 +426,57 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 /// Flash memory size detection for optimal buffer sizing
 #ifndef FLASH_SIZE_MB
-    // Detect flash size based on build configuration or board type
-    #if defined(ARDUINO_ESP32S3_DEV) || defined(ESP32S3)
-        // ESP32-S3 boards typically have 8MB+ flash
-        #define FLASH_SIZE_MB 16
-    #elif defined(ARDUINO_ESP32_DEV) || defined(ESP32)
-        // ESP32 boards typically have 4MB flash
-        #define FLASH_SIZE_MB 4
-    #else
-        // Default assumption
-        #define FLASH_SIZE_MB 8
-    #endif
+// Detect flash size based on build configuration or board type
+#if defined(ARDUINO_ESP32S3_DEV) || defined(ESP32S3)
+// ESP32-S3 boards typically have 8MB+ flash
+#define FLASH_SIZE_MB 16
+#elif defined(ARDUINO_ESP32_DEV) || defined(ESP32)
+// ESP32 boards typically have 4MB flash
+#define FLASH_SIZE_MB 4
+#else
+// Default assumption
+#define FLASH_SIZE_MB 8
+#endif
 #endif
 
 /// Google Drive memory management - scaled based on flash memory and PSRAM availability
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
-    #if FLASH_SIZE_MB >= 16
-        #define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer for 16MB+ flash
-    #elif FLASH_SIZE_MB >= 8
-        #define GOOGLE_DRIVE_JSON_DOC_SIZE 2097152 // 2MB JSON document buffer for 8MB+ flash
-    #else
-        #define GOOGLE_DRIVE_JSON_DOC_SIZE 1048576 // 1MB JSON document buffer for smaller flash
-    #endif
+#if FLASH_SIZE_MB >= 16
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer for 16MB+ flash
+#elif FLASH_SIZE_MB >= 8
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 2097152 // 2MB JSON document buffer for 8MB+ flash
+#else
+#define GOOGLE_DRIVE_JSON_DOC_SIZE 1048576 // 1MB JSON document buffer for smaller flash
+#endif
 #endif
 
 #ifndef GOOGLE_DRIVE_BODY_RESERVE_SIZE
-    #if FLASH_SIZE_MB >= 16
-        #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 4194304 // 4MB response body reserve for 16MB+ flash
-    #elif FLASH_SIZE_MB >= 8
-        #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 2097152 // 2MB response body reserve for 8MB+ flash
-    #else
-        #define GOOGLE_DRIVE_BODY_RESERVE_SIZE 1048576 // 1MB response body reserve for smaller flash
-    #endif
+#if FLASH_SIZE_MB >= 16
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 4194304 // 4MB response body reserve for 16MB+ flash
+#elif FLASH_SIZE_MB >= 8
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 2097152 // 2MB response body reserve for 8MB+ flash
+#else
+#define GOOGLE_DRIVE_BODY_RESERVE_SIZE 1048576 // 1MB response body reserve for smaller flash
+#endif
 #endif
 
 #ifndef GOOGLE_DRIVE_SAFETY_LIMIT
-    #if FLASH_SIZE_MB >= 16
-        #define GOOGLE_DRIVE_SAFETY_LIMIT 12582912 // 12MB safety limit for 16MB+ flash
-    #elif FLASH_SIZE_MB >= 8
-        #define GOOGLE_DRIVE_SAFETY_LIMIT 6291456  // 6MB safety limit for 8MB+ flash
-    #else
-        #define GOOGLE_DRIVE_SAFETY_LIMIT 3145728  // 3MB safety limit for smaller flash
-    #endif
+#if FLASH_SIZE_MB >= 16
+#define GOOGLE_DRIVE_SAFETY_LIMIT 12582912 // 12MB safety limit for 16MB+ flash
+#elif FLASH_SIZE_MB >= 8
+#define GOOGLE_DRIVE_SAFETY_LIMIT 6291456 // 6MB safety limit for 8MB+ flash
+#else
+#define GOOGLE_DRIVE_SAFETY_LIMIT 3145728 // 3MB safety limit for smaller flash
+#endif
 #endif
 
 #if defined(DISP_BW)
-    #if defined(DISP_COLORED)
-        #undef DISP_COLORED
-    #endif
-#elif defined(DISP_6C)
-    #define DISP_COLORED
+#if defined(DISP_COLORED)
+#undef DISP_COLORED
 #endif
-
-
+#elif defined(DISP_6C)
+#define DISP_COLORED
+#endif
 
 /// Display accent color determination (based on display type)
 #ifndef ACCENT_COLOR

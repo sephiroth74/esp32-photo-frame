@@ -23,8 +23,8 @@
 #ifndef __IMAGE_BUFFER_H__
 #define __IMAGE_BUFFER_H__
 
-#include <Arduino.h>
 #include <Adafruit_GFX.h>
+#include <Arduino.h>
 
 // Forward declare to avoid circular dependency
 extern uint16_t DISP_WIDTH;
@@ -51,7 +51,7 @@ namespace photo_frame {
  * ```
  */
 class ImageBuffer {
-public:
+  public:
     /**
      * @brief Constructor - does not allocate memory yet
      */
@@ -145,20 +145,20 @@ public:
     void release();
 
     // Disable copy constructor and assignment operator
-    ImageBuffer(const ImageBuffer&) = delete;
+    ImageBuffer(const ImageBuffer&)            = delete;
     ImageBuffer& operator=(const ImageBuffer&) = delete;
 
     // Enable move semantics (C++11)
     ImageBuffer(ImageBuffer&& other) noexcept;
     ImageBuffer& operator=(ImageBuffer&& other) noexcept;
 
-private:
-    uint8_t* buffer_;       ///< Raw image buffer
-    GFXcanvas8* canvas_;    ///< Canvas pointing to buffer
-    size_t bufferSize_;     ///< Size of buffer in bytes
-    uint16_t width_;        ///< Width in pixels
-    uint16_t height_;       ///< Height in pixels
-    bool inPsram_;          ///< Whether buffer is in PSRAM
+  private:
+    uint8_t* buffer_;    ///< Raw image buffer
+    GFXcanvas8* canvas_; ///< Canvas pointing to buffer
+    size_t bufferSize_;  ///< Size of buffer in bytes
+    uint16_t width_;     ///< Width in pixels
+    uint16_t height_;    ///< Height in pixels
+    bool inPsram_;       ///< Whether buffer is in PSRAM
 
     /**
      * @brief Internal method to make canvas point to our buffer

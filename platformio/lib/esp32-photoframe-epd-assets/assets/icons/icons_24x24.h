@@ -40,6 +40,7 @@
 #include "24x24/battery_full_180deg_24x24.h"
 #include "24x24/battery_full_270deg_24x24.h"
 #include "24x24/battery_full_90deg_24x24.h"
+#include "24x24/bluetooth_0deg_24x24.h"
 #include "24x24/clear_sky_day_0deg_24x24.h"
 #include "24x24/clear_sky_night_0deg_24x24.h"
 #include "24x24/cloud_0deg_24x24.h"

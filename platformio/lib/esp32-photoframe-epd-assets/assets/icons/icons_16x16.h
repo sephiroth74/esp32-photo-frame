@@ -40,6 +40,7 @@
 #include "16x16/battery_full_180deg_16x16.h"
 #include "16x16/battery_full_270deg_16x16.h"
 #include "16x16/battery_full_90deg_16x16.h"
+#include "16x16/bluetooth_0deg_16x16.h"
 #include "16x16/clear_sky_day_0deg_16x16.h"
 #include "16x16/clear_sky_night_0deg_16x16.h"
 #include "16x16/cloud_0deg_16x16.h"

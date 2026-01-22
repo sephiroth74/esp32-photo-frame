@@ -141,6 +141,109 @@ class PreferencesHelper {
      */
     bool setImageIndex(uint32_t index);
 
+#ifdef ENABLE_BT_IMAGE
+    // ========================================
+    // BLUETOOTH MODE PREFERENCES
+    // ========================================
+
+    /**
+     * @brief Get display rotation for Bluetooth mode
+     *
+     * Returns the saved rotation value (0-3) for the display.
+     * 0=0° (landscape), 1=90° (portrait), 2=180° (inverted landscape), 3=270° (inverted portrait)
+     *
+     * @return Rotation value (0-3), defaults to 0
+     */
+    uint8_t getBtRotation();
+
+    /**
+     * @brief Set display rotation for Bluetooth mode
+     *
+     * Stores the rotation value for the display.
+     *
+     * @param rotation Rotation value (0-3)
+     * @return true if successfully stored, false on error
+     */
+    bool setBtRotation(uint8_t rotation);
+
+    /**
+     * @brief Check if this is the first boot in BT mode
+     *
+     * Returns true if no BT image has been received yet.
+     *
+     * @return true if first boot, false otherwise
+     */
+    bool getBtFirstBoot();
+
+    /**
+     * @brief Set first boot flag for BT mode
+     *
+     * @param is_first true if this is first boot
+     * @return true if successfully stored, false on error
+     */
+    bool setBtFirstBoot(bool is_first);
+
+    /**
+     * @brief Check if a valid BT image is available
+     *
+     * Returns true if a fallback image exists on SD card.
+     *
+     * @return true if image available, false otherwise
+     */
+    bool getBtImageAvailable();
+
+    /**
+     * @brief Set image available flag for BT mode
+     *
+     * @param available true if image is available
+     * @return true if successfully stored, false on error
+     */
+    bool setBtImageAvailable(bool available);
+
+    /**
+     * @brief Get last BT error code
+     *
+     * Returns the error code from the last BT operation.
+     *
+     * @return Error code, or 0 if no error
+     */
+    uint16_t getBtLastError();
+
+    /**
+     * @brief Set last BT error code
+     *
+     * @param error_code Error code to store
+     * @return true if successfully stored, false on error
+     */
+    bool setBtLastError(uint16_t error_code);
+
+    /**
+     * @brief Get BT retry count
+     *
+     * Returns the number of retries attempted for current operation.
+     *
+     * @return Retry count, or 0 if none
+     */
+    uint8_t getBtRetryCount();
+
+    /**
+     * @brief Set BT retry count
+     *
+     * @param count Retry count to store
+     * @return true if successfully stored, false on error
+     */
+    bool setBtRetryCount(uint8_t count);
+
+    /**
+     * @brief Clear all Bluetooth mode preferences
+     *
+     * Resets all BT-related preferences to defaults.
+     * Used during reset/initialization.
+     *
+     * @return true if successfully cleared, false on error
+     */
+    bool clearBtPreferences();
+#endif // ENABLE_BT_IMAGE
 
   private:
     /**

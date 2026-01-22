@@ -1,9 +1,8 @@
 #include "canvas_renderer.h"
 #include "config.h"
 #include "datetime_utils.h"
-#include <Fonts/FreeMonoBold9pt7b.h>
-#include <assets/fonts/Ubuntu_R.h>
 #include <assets/icons/icons.h>
+#include FONT_HEADER
 
 namespace photo_frame {
 // Canvas rendering functions
@@ -142,14 +141,17 @@ void drawImageInfo(GFXcanvas8& canvas,
                    uint32_t total_images,
                    image_source_t image_source) {
     String message = String(index + 1) + " / " + String(total_images);
-    drawSideMessageWithIcon(canvas,
-                            gravity::TOP_CENTER,
-                            image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
-                                ? icon_name::cloud_0deg
-                                : icon_name::micro_sd_card_0deg,
-                            message.c_str(),
-                            -4,
-                            0);
+    drawSideMessageWithIcon(
+        canvas,
+        gravity::TOP_CENTER,
+        image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
+            ? icon_name::cloud_0deg
+            : (image_source == photo_frame::image_source_t::IMAGE_SOURCE_BLUETOOTH
+                   ? icon_name::bluetooth_0deg
+                   : icon_name::micro_sd_card_0deg),
+        message.c_str(),
+        -4,
+        0);
 }
 
 void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filename) {

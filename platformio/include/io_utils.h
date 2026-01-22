@@ -52,6 +52,33 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
                                         int expectedHeight = 0);
 
 /**
+ * @brief Validate binary image file size is exactly correct
+ *
+ * Binary images (.bin files) must be exactly EPD_WIDTH * EPD_HEIGHT bytes.
+ * For an 800x480 display, this is exactly 384,000 bytes.
+ * Any deviation means the file is incomplete or corrupted.
+ *
+ * @param fileSize The actual file size in bytes
+ * @param expectedWidth The display width in pixels
+ * @param expectedHeight The display height in pixels
+ * @return photo_frame_error_t Error code (None if exact match)
+ *                             ImageFileTruncated if size mismatch
+ *
+ * @note This is a strict validation - file size must match exactly
+ * @example
+ * ```cpp
+ * size_t actualSize = file.size();
+ * auto error = validate_image_size_exact(actualSize, DISP_WIDTH, DISP_HEIGHT);
+ * if (error != error_type::None) {
+ *     log_e("Image size mismatch: %s", error.message);
+ *     return error;
+ * }
+ * ```
+ */
+photo_frame_error_t
+validate_image_size_exact(size_t fileSize, int expectedWidth, int expectedHeight);
+
+/**
  * @brief Detect binary format based on filename extension for runtime rendering selection
  *
  * This function checks if a file is in binary format (.bin extension) used by the
@@ -75,7 +102,6 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
  * ```
  */
 bool is_binary_format(const char* filename);
-
 
 } // namespace io_utils
 } // namespace photo_frame

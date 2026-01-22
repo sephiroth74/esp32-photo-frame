@@ -30,12 +30,12 @@
 
 // Support both SDIO (SD_MMC) and SPI (SD) interfaces
 #ifdef SD_USE_SPI
-    #include <SD.h>
-    #include <SPI.h>
-    #define SD_CARD_LIB SD  // Use SPI SD library
+#include <SD.h>
+#include <SPI.h>
+#define SD_CARD_LIB SD // Use SPI SD library
 #else
-    #include <SD_MMC.h>
-    #define SD_CARD_LIB SD_MMC  // Use SDIO SD_MMC library
+#include <SD_MMC.h>
+#define SD_CARD_LIB SD_MMC // Use SDIO SD_MMC library
 #endif
 
 namespace photo_frame {
@@ -97,10 +97,10 @@ class SdCard {
     sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
     // TOC caching system
-    mutable String cached_toc_directory_;  ///< Last directory used for TOC
-    mutable String cached_toc_extension_;  ///< Last extension used for TOC
-    mutable time_t cached_toc_timestamp_;  ///< When TOC was created
-    mutable bool toc_valid_;               ///< Whether TOC is currently valid
+    mutable String cached_toc_directory_; ///< Last directory used for TOC
+    mutable String cached_toc_extension_; ///< Last extension used for TOC
+    mutable time_t cached_toc_timestamp_; ///< When TOC was created
+    mutable bool toc_valid_;              ///< Whether TOC is currently valid
 
   public:
     /**
@@ -298,7 +298,8 @@ class SdCard {
      * @return Vector of file paths matching the extension.
      * @note If the SD card is not initialized or directory doesn't exist, returns empty vector.
      */
-    std::vector<String> listFilesInDirectory(const char* dir_path, const char* extension = ".bin") const;
+    std::vector<String> listFilesInDirectory(const char* dir_path,
+                                             const char* extension = ".bin") const;
 
     /**
      * Gets a file at a specific index from a directory.
@@ -308,7 +309,8 @@ class SdCard {
      * @return Full path to the file, or empty string if not found.
      * @note Files are sorted alphabetically before indexing.
      */
-    String getFileAtIndex(const char* dir_path, uint32_t index, const char* extension = ".bin") const;
+    String
+    getFileAtIndex(const char* dir_path, uint32_t index, const char* extension = ".bin") const;
 
     /**
      * Counts the number of files with specified extension in a directory.
@@ -348,7 +350,9 @@ class SdCard {
      * @param error Optional pointer to store error details if build fails.
      * @return true if TOC was built successfully, false otherwise.
      */
-    bool buildDirectoryToc(const char* dir_path, const char* extension = ".bin", photo_frame_error_t* error = nullptr);
+    bool buildDirectoryToc(const char* dir_path,
+                           const char* extension      = ".bin",
+                           photo_frame_error_t* error = nullptr);
 
     /**
      * Checks if the TOC is valid for the given directory.
@@ -373,7 +377,9 @@ class SdCard {
      * @param use_toc If true, attempts to use TOC cache. Default is true.
      * @return Number of files matching the extension.
      */
-    uint32_t countFilesCached(const char* dir_path, const char* extension = ".bin", bool use_toc = true) const;
+    uint32_t countFilesCached(const char* dir_path,
+                              const char* extension = ".bin",
+                              bool use_toc          = true) const;
 
     /**
      * Gets a file at index using the cached TOC if available.
@@ -384,9 +390,12 @@ class SdCard {
      * @param use_toc If true, attempts to use TOC cache. Default is true.
      * @return Full path to the file, or empty string if not found.
      */
-    String getFileAtIndexCached(const char* dir_path, uint32_t index, const char* extension = ".bin", bool use_toc = true) const;
+    String getFileAtIndexCached(const char* dir_path,
+                                uint32_t index,
+                                const char* extension = ".bin",
+                                bool use_toc          = true) const;
 
-private:
+  private:
     // Helper methods for TOC operations
     String getTocDataPath() const { return "/sd_toc_data.txt"; }
     String getTocMetaPath() const { return "/sd_toc_meta.txt"; }

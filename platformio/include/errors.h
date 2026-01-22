@@ -156,7 +156,11 @@ typedef class photo_frame_error {
         // Select appropriate log function based on severity
         switch (severity) {
         case ERROR_SEVERITY_INFO:
-            log_i("[%s] Error %d (%s): %s", severity_to_string(), code, category_to_string(), message);
+            log_i("[%s] Error %d (%s): %s",
+                  severity_to_string(),
+                  code,
+                  category_to_string(),
+                  message);
             if (context) {
                 log_i("  Context: %s", context);
             }
@@ -168,7 +172,11 @@ typedef class photo_frame_error {
             }
             break;
         case ERROR_SEVERITY_WARNING:
-            log_w("[%s] Error %d (%s): %s", severity_to_string(), code, category_to_string(), message);
+            log_w("[%s] Error %d (%s): %s",
+                  severity_to_string(),
+                  code,
+                  category_to_string(),
+                  message);
             if (context) {
                 log_w("  Context: %s", context);
             }
@@ -182,7 +190,11 @@ typedef class photo_frame_error {
         case ERROR_SEVERITY_ERROR:
         case ERROR_SEVERITY_CRITICAL:
         default:
-            log_e("[%s] Error %d (%s): %s", severity_to_string(), code, category_to_string(), message);
+            log_e("[%s] Error %d (%s): %s",
+                  severity_to_string(),
+                  code,
+                  category_to_string(),
+                  message);
             if (context) {
                 log_e("  Context: %s", context);
             }
@@ -244,7 +256,7 @@ typedef class photo_frame_error {
         case ERROR_CATEGORY_AUTHENTICATION: return "Auth";
         case ERROR_CATEGORY_BATTERY:        return "Battery";
         case ERROR_CATEGORY_DISPLAY:        return "Display";
-        default: return "Unknown";
+        default:                            return "Unknown";
         }
     }
 } photo_frame_error_t;
@@ -277,6 +289,8 @@ const photo_frame_error SdCardFileNotFound{TXT_SD_CARD_FILE_NOT_FOUND, 7, ERROR_
 const photo_frame_error SdCardFileOpenFailed{TXT_SD_CARD_FILE_OPEN_FAILED, 8, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error SdCardFileCreateFailed{TXT_SD_CARD_FILE_CREATE_FAILED, 24, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error SdCardDirCreateFailed{TXT_SD_CARD_DIR_CREATE_FAILED, 36, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardInitFailed{"SD card initialization failed", 150, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error SdCardFileOperationFailed{"SD card file operation failed", 151, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error CardTocOpenFileFailed{TXT_CARD_TOC_OPEN_FILE_FAILED, 11, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error FileOpenFailed{TXT_FILE_OPEN_FAILED, 20, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_STORAGE};
 const photo_frame_error PreferencesOpenFailed{TXT_PREFERENCES_OPEN_FAILED, 12, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_STORAGE};
@@ -338,6 +352,31 @@ const photo_frame_error ConfigInvalidPath{TXT_CONFIG_INVALID_PATH, 33, ERROR_SEV
 const photo_frame_error ConfigInvalidFilename{TXT_CONFIG_INVALID_FILENAME, 34, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
 const photo_frame_error ConfigValueOutOfRange{TXT_CONFIG_VALUE_OUT_OF_RANGE, 35, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_CONFIG};
 const photo_frame_error InvalidConfigNoImageSource{TXT_CONFIG_NO_IMAGE_SOURCE, 37, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+
+// Bluetooth errors (300-399) - Only compiled when ENABLE_BT_IMAGE is defined
+#ifdef ENABLE_BT_IMAGE
+// Critical Bluetooth errors (301-310) - Must be displayed on screen
+const photo_frame_error BtInitFailed{"BT initialization failed", 301, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error BtInvalidConfig{"Invalid BT configuration", 302, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+const photo_frame_error BtImageTooLarge{"Image size exceeds limit", 303, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error BtInvalidRotation{"Invalid display rotation", 304, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+const photo_frame_error BtTransferCorrupted{"Image data corrupted", 305, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtSdWriteFailed{"Failed to save image to SD", 306, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error BtNoFallbackImage{"No fallback image available", 307, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error BtImageValidationFailed{"Image format invalid", 308, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+
+// Non-critical Bluetooth errors (350-359) - Only logged, not displayed
+const photo_frame_error BtConnectionTimeout{"BT connection timeout", 350, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtClientDisconnected{"Client disconnected", 351, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtChunkTimeout{"Chunk receive timeout", 352, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtChunkRetry{"Chunk retry", 353, ERROR_SEVERITY_INFO, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtAdvertisingFailed{"BT advertising failed", 354, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error BtNoImageData{"No image data received", 355, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+
+// Warning Bluetooth errors (360-369) - Show warning icon, use fallback
+const photo_frame_error BtPartialTransfer{"Transfer incomplete", 360, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtLowBatterySkip{"Low battery - using fallback", 361, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+#endif // ENABLE_BT_IMAGE
 
 
 // OAuth/Authentication specific errors (40-49) - Keep only the ones actually used
@@ -454,8 +493,8 @@ photo_frame_error map_http_status_to_error(int statusCode, const char* context =
  * @return Corresponding photo_frame_error with Google Drive specific details
  */
 photo_frame_error map_GoogleDrive_error(int statusCode,
-                                         const char* responseBody = nullptr,
-                                         const char* context      = nullptr);
+                                        const char* responseBody = nullptr,
+                                        const char* context      = nullptr);
 
 /**
  * @brief Create OAuth-specific error from error type string

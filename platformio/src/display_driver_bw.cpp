@@ -55,6 +55,16 @@ bool DisplayDriverBW::init() {
     // Add small delay for hardware stabilization
     delay(100);
 
+    // Pre-wait: ensure BUSY pin is ready before fast init
+    {
+        const unsigned long prewait_timeout_ms = 5000; // 5s maximum pre-wait
+        unsigned long start_ms                 = millis();
+        pinMode(_busy_pin, INPUT);
+        while (digitalRead(_busy_pin) == HIGH && (millis() - start_ms) < prewait_timeout_ms) {
+            delay(50);
+        }
+    }
+
     // Initialize the display using the library's fast init
     EPD_Init_Fast();
 

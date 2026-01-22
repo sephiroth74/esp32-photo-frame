@@ -203,4 +203,20 @@ extern const char TXT_CHARGING_CIRCUIT_FAULT[];
 extern const char TXT_BATTERY_NOT_DETECTED[];
 extern const char TXT_BATTERY_AUTHENTICATION_FAILED[];
 
+#ifdef ENABLE_BT_IMAGE
+extern const char TXT_BT_FIRST_BOOT[];
+extern const char TXT_BT_SEARCHING_DEVICE[];
+extern const char TXT_BT_WAITING_IMAGE[];
+extern const char TXT_BT_TIMEOUT_30MIN[];
+extern const char TXT_BT_WAITING_IMAGE_TIMEOUT[];
+extern const char TXT_BT_TIMEOUT_EXPIRED[];
+extern const char TXT_BT_PRESS_BUTTON_RETRY[];
+extern const char TXT_BT_FACTORY_RESET[];
+extern const char TXT_BT_RESET_COMPLETE[];
+extern const char TXT_BT_SETTINGS_RESTORED[];
+extern const char TXT_BT_SETTINGS_RESTORED_STATE[];
+extern const char TXT_BT_RESTARTING[];
+extern const char TXT_BT_BATTERY_PERCENT[];
+#endif // ENABLE_BT_IMAGE
+
 #endif

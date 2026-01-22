@@ -83,8 +83,7 @@ class GoogleDriveTocParser {
      * @param error Pointer to error code (optional)
      * @return Parsed GoogleDriveFile, or empty file if parse error
      */
-    static GoogleDriveFile parse_file_line(const char* line,
-                                             photo_frame_error_t* error = nullptr);
+    static GoogleDriveFile parse_file_line(const char* line, photo_frame_error_t* error = nullptr);
 
   private:
     SdCard& sdCard_;

@@ -63,7 +63,7 @@ void display_power_on() {
     digitalWrite(DISPLAY_POWER_PIN, HIGH); // ProS3 LDO2 or N-MOSFET: HIGH = ON
 #endif
 
-    delay(200); // Allow power to stabilize (GDEP073E01 needs time)
+    delay(500); // Allow power to stabilize (GDEP073E01 needs time)
     log_i("[POWER] Display power stabilized");
 #endif
 }

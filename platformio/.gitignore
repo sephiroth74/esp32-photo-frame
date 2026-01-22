@@ -3,7 +3,20 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Python virtualenv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
 # Sensitive configuration files
 data/config.json
 # But keep the template
 !data/config.json.template
+
+# Test files
+tools/*.bin
+tools/test_*.bin

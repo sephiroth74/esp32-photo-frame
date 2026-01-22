@@ -76,19 +76,24 @@ struct RGBColor {
 
 // System operation states - always available for macro compatibility
 enum class SystemState {
-    IDLE,             // Off/Dark blue - system idle
-    STARTING,         // White pulse - system starting up
-    WIFI_CONNECTING,  // Blue pulse - connecting to WiFi
-    WIFI_FAILED,      // Red - WiFi connection failed
-    SD_READING,       // Orange - reading from SD card
-    SD_WRITING,       // Yellow - writing to SD card
-    GOOGLE_DRIVE,     // Cyan - Google Drive operations
-    DOWNLOADING,      // Purple pulse - downloading files
-    RENDERING,        // Pink - rendering to display
-    BATTERY_LOW,      // Red slow blink - battery low warning
-    ERROR,            // Red fast blink - system error
-    SLEEP_PREP,       // Dim white fade - preparing for sleep
-    CUSTOM            // User-defined color
+    IDLE,            // Off/Dark blue - system idle
+    STARTING,        // White pulse - system starting up
+    WIFI_CONNECTING, // Blue pulse - connecting to WiFi
+    WIFI_FAILED,     // Red - WiFi connection failed
+    SD_READING,      // Orange - reading from SD card
+    SD_WRITING,      // Yellow - writing to SD card
+    GOOGLE_DRIVE,    // Cyan - Google Drive operations
+    DOWNLOADING,     // Purple pulse - downloading files
+    RENDERING,       // Pink - rendering to display
+    BATTERY_LOW,     // Red slow blink - battery low warning
+    ERROR,           // Red fast blink - system error
+    SLEEP_PREP,      // Dim white fade - preparing for sleep
+#ifdef ENABLE_BT_IMAGE
+    BT_WAITING,   // Cyan pulse - waiting for BLE connection
+    BT_CONNECTED, // Green solid - BLE client connected
+    BT_RECEIVING, // Yellow pulse - receiving data over BLE
+#endif            // ENABLE_BT_IMAGE
+    CUSTOM        // User-defined color
 };
 
 // Effect types for color transitions - always available

@@ -195,8 +195,8 @@ class WifiManager {
     void end();
 
   private:
-    String _ssid;  // Currently connected SSID (for reporting)
-    String _password;  // Currently connected password
+    String _ssid;     // Currently connected SSID (for reporting)
+    String _password; // Currently connected password
     struct wifi_network {
         String ssid;
         String password;

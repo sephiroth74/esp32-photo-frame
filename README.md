@@ -6,10 +6,8 @@ This project implements a battery-powered digital photo frame using an ESP32 mic
 
 The photo frame features automatic image synchronization, configurable refresh intervals, and a comprehensive configuration system that allows runtime customization without firmware recompilation. Images are processed through dedicated tools (Rust processor, Android app, or Flutter app) to optimize them for e-paper display characteristics before being uploaded to storage.
 
-<img src="assets/PXL_20251019_160143849.jpg" alt="ESP32 Photo Frame - Front View" width="600" />
-<img src="assets/PXL_20251019_160130264.jpg" alt="ESP32 Photo Frame - Side View" width="600" />
-<img src="assets/screenshot2.png" alt="ESP32 Photo Frame - 3D Model Front" width="600" />
-<img src="assets/screenshot3.png" alt="ESP32 Photo Frame - 3D Model Back" width="600" />
+<img src="assets/screenshot-001.jpg" alt="ESP32 Photo Frame - Front View" width="746" />
+<img src="assets/screenshot-002.jpg" alt="ESP32 Photo Frame - Back View" width="746" />
 
 ## Features
 
@@ -95,39 +93,16 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 | Component | Specification | Purchase Link |
 |-----------|--------------|---------------|
 | Microcontroller | Unexpected Maker FeatherS3(D) (ESP32-S3, 8MB PSRAM, 16MB Flash) | [Unexpected Maker](https://unexpectedmaker.com/shop/feathers3) |
-| E-Paper Display | Waveshare 7.5" (800×480 pixels, B/W or color) | [Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm) |
-| Display Connector | Good Display DESPI-C02 (DESPI-C73) | [Good Display](https://www.good-display.com/companyfile/DESPI-C02-Specification-29.html) |
+| E-Paper Display | Good Display 7.3" (800×480 pixels, 6 color) | [Good Display](https://www.good-display.com/blank7.html?productId=533) |
+| Display Connector | Good Display DESPI-C73 (DESPI-C73) | [Good Display](https://www.good-display.com/product/522.html) |
 | SD Card Module | Adafruit MicroSD Breakout Board | [Adafruit #4682](https://www.adafruit.com/product/4682) |
 | Battery | 3.7V 5000mAh LiPo with JST connector | Various suppliers |
-| Push Buttons | Momentary switch (normally open) | Various suppliers |
+| Push Buttons | 6x6x13mm Momentary switch | Various suppliers |
 | MicroSD Card | 8GB or larger, FAT32 formatted | Various suppliers |
+| Capacitor | 100uF 16V | Various suppliers |
+| Heat breass threaded inserts | 4x5 | Various suppliers |
+| Screws | M2.5x5 M3x5 M3x6 | Various suppliers |
 
-### Optional Components
-
-| Component | Purpose | Notes |
-|-----------|---------|-------|
-| RTC Module | Accurate timekeeping without NTP | PCF8523 or DS3231 compatible |
-| Battery Monitor | Precise battery level tracking | MAX1704X I2C fuel gauge |
-| Potentiometer | 50kΩ linear potentiometer | Various suppliers |
-
-### Wiring Components
-
-| Component | Specification | Quantity | Purpose |
-|-----------|--------------|----------|---------|
-| Jumper Wires | Female-to-Female, 10-20cm | 20+ | Component connections |
-| Breadboard | Half-size (400 tie points) | 1 | Prototyping (optional) |
-| Pull-up Resistor | 10kΩ, 1/4W | 1-2 | BUSY pin and I2C (if needed) |
-| Capacitor | 100-470µF, 16V electrolytic | 1 | Power supply filtering |
-| Heat Shrink Tubing | Various sizes | Assorted | Wire insulation |
-
-### Enclosure and Mounting
-
-| Component | Description |
-|-----------|-------------|
-| 3D Printed Case | Custom design, PLA or PETG material |
-| Mounting Screws | M2.5 × 6mm or M3 × 6mm |
-| Standoffs | 5-10mm height, brass or nylon |
-| Display Mounting | Double-sided tape or mounting brackets |
 
 ### Required Tools
 
@@ -149,7 +124,6 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 |-------|--------------|-------|
 | Unexpected Maker FeatherS3 | Full | Default configuration, full feature support |
 | Unexpected Maker ProS3 | Full | Extended GPIO, MAX1704X battery monitor |
-| Generic ESP32-S3 (8MB PSRAM) | Good | May require configuration adjustments |
 
 ### Display Support
 
@@ -157,32 +131,14 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 |-------------|------------|---------------|--------|
 | Good Display 7.5" GDEY075T7 | 800×480 | Black/White | Fully Supported |
 | Good Display 7.3" GDEP073E01 | 800×480 | 6-Color ACeP | Fully Supported |
-| Waveshare 7.5" BW | 800x480 | Black/White | Fully supported |
-
-### Limitations by Platform
-
-#### ESP32-C6 Boards
-- Hardware I2C/WiFi interference requires complete I2C shutdown during network operations
-- RTC modules cannot be used reliably
-- NTP-only time synchronization
-
-#### Low PSRAM Boards (2MB)
-- Reduced JSON buffer sizes
-- May experience slower Google Drive synchronization
-- Limited to ~200 files without streaming optimizations
 
 
 ## Wiring
 
 The project uses separate communication buses to avoid conflicts between the SD card and e-paper display. The SD card utilizes the high-speed SDIO interface while the display uses a dedicated SPI bus.
 
-For detailed pin connections and wiring diagrams, see [Wiring Diagram Documentation](docs/wiring-diagram.md).
+For detailed pin connections and wiring diagrams, see [Wiring Diagram Schematics](docs/pros3d_schematics.pdf).
 
-Key connections:
-- SD Card: SDIO interface (GPIO 11, 12, 13, 14, 16, 17)
-- E-Paper: Dedicated SPI (GPIO 35, 36, 37, 38 plus control pins)
-- Potentiometer: Analog input (GPIO 18)
-- Wake Button: GPIO 1 with internal pull-up
 
 ## Setup
 
@@ -201,18 +157,7 @@ Key connections:
 3. **Configure PlatformIO**
    - Open the project in VS Code
    - PlatformIO will automatically install required packages
-   - Select your board environment in `platformio.ini` (default: feathers3_unexpectedmaker)
-
-4. **Python Virtual Environment** (Important!)
-   - PlatformIO requires Python 3.10-3.13
-   - Always use the project's virtual environment:
-   ```bash
-   cd platformio
-   source .venv/bin/activate  # On macOS/Linux
-   # or
-   .venv\Scripts\activate     # On Windows
-   ```
-   - This ensures compatibility with PlatformIO's build system
+   - Select your board environment in `platformio.ini` (default: pros3_unexpectedmaker)
 
 ### Configuration
 
@@ -309,7 +254,7 @@ If using Google Drive as your image source:
 
 ### Firmware Documentation
 - [Technical Specifications](docs/tech_specs.md) - System architecture and API documentation
-- [Wiring Diagram](docs/wiring-diagram.md) - Detailed hardware connections
+- [Schematics](docs/pros3d_schematics.pdf) - Detailed hardware connections
 - [Google Drive API](docs/google_drive_api.md) - Google Drive integration and setup
 
 ### Image Processing

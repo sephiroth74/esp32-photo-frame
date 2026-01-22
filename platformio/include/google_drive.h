@@ -33,11 +33,10 @@ namespace photo_frame {
  * @brief Image source enumeration for tracking where an image was loaded from.
  */
 typedef enum image_source {
-    IMAGE_SOURCE_CLOUD,      ///< Image was downloaded from Google Drive
-    IMAGE_SOURCE_LOCAL_CACHE ///< Image was loaded from local SD card cache
+    IMAGE_SOURCE_CLOUD,       ///< Image was downloaded from Google Drive
+    IMAGE_SOURCE_LOCAL_CACHE, ///< Image was loaded from local SD card cache
+    IMAGE_SOURCE_BLUETOOTH    ///< Image was received via Bluetooth
 } image_source_t;
-
-
 
 /**
  * @brief High-level Google Drive interface for file management and caching.
@@ -58,13 +57,13 @@ class GoogleDrive {
         last_image_source(IMAGE_SOURCE_LOCAL_CACHE),
         last_error(error_type::None) {}
 
-
     /**
      * @brief Initialize Google Drive from unified configuration structure.
      * @param gd_config Google Drive configuration from unified config system
      * @return photo_frame_error_t indicating success or failure
      */
-    photo_frame_error_t initialize_from_unified_config(const unified_config::GoogleDrive_config& gd_config);
+    photo_frame_error_t
+    initialize_from_unified_config(const unified_config::GoogleDrive_config& gd_config);
 
     /**
      * @brief Create necessary directories on the sdcard for google drive local cache.
@@ -133,7 +132,6 @@ class GoogleDrive {
      */
     uint32_t cleanup_temporary_files(SdCard& sdCard, boolean force);
 
-
     /**
      * @brief Load Google Drive root CA certificate from SD card
      * @param sdCard Reference to the SD card object
@@ -200,9 +198,9 @@ class GoogleDrive {
      * @return GoogleDriveFile at the specified index, or empty file if error
      */
     GoogleDriveFile get_toc_file_by_index(SdCard& sdCard,
-                                            const String& filePath,
-                                            size_t index,
-                                            photo_frame_error_t* error = nullptr);
+                                          const String& filePath,
+                                          size_t index,
+                                          photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Get the file count from the TOC file efficiently
@@ -230,8 +228,8 @@ class GoogleDrive {
      * @return GoogleDriveFile with the specified name, or empty file if not found
      */
     GoogleDriveFile get_toc_file_by_name(SdCard& sdCard,
-                                           const char* filename,
-                                           photo_frame_error_t* error = nullptr);
+                                         const char* filename,
+                                         photo_frame_error_t* error = nullptr);
 
     /**
      * @brief Get the last error that occurred during operations
@@ -260,8 +258,9 @@ class GoogleDrive {
      */
     uint32_t cleanup_all_cached_images(SdCard& sdCard);
 
-    GoogleDriveClient client;       ///< Google Drive client for API operations
-    unified_config::GoogleDrive_config config;  ///< Configuration settings for this Google Drive instance
+    GoogleDriveClient client; ///< Google Drive client for API operations
+    unified_config::GoogleDrive_config
+        config;                       ///< Configuration settings for this Google Drive instance
     image_source_t last_image_source; ///< Source of the last accessed/downloaded image
     photo_frame_error_t last_error;   ///< Last error that occurred during operations
 };

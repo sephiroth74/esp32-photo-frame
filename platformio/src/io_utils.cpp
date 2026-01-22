@@ -128,6 +128,33 @@ photo_frame_error_t validate_image_file(fs::File& sourceFile,
     return error_type::None;
 }
 
+photo_frame_error_t
+validate_image_size_exact(size_t fileSize, int expectedWidth, int expectedHeight) {
+    if (expectedWidth <= 0 || expectedHeight <= 0) {
+        log_e("Invalid dimensions for size validation: %d x %d", expectedWidth, expectedHeight);
+        return error_type::ImageDimensionsNotProvided;
+    }
+
+    size_t expectedSize = (size_t)expectedWidth * expectedHeight;
+
+    log_d("Image size validation - Expected: %d x %d = %zu bytes, Actual: %zu bytes",
+          expectedWidth,
+          expectedHeight,
+          expectedSize,
+          fileSize);
+
+    if (fileSize != expectedSize) {
+        log_e("Image size mismatch - Expected: %zu bytes, Got: %zu bytes (difference: %ld bytes)",
+              expectedSize,
+              fileSize,
+              (long int)(fileSize - expectedSize));
+        return error_type::ImageFileTruncated;
+    }
+
+    log_i("✓ Image size validation passed: %zu bytes", fileSize);
+    return error_type::None;
+}
+
 bool is_binary_format(const char* filename) {
     if (!filename)
         return false;

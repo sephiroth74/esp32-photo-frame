@@ -33,7 +33,8 @@ DisplayManager::DisplayManager() :
     displayDriver_(nullptr) // unique_ptr starts as nullptr
     ,
     initialized_(false),
-    rotation_(0) {
+    rotation_(0),
+    image_source_(IMAGE_SOURCE_LOCAL_CACHE) {
     log_d("DisplayManager constructor");
 }
 

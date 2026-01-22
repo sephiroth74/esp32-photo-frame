@@ -9,9 +9,13 @@
  * Implements the DisplayDriver interface for 6-color display operations
  */
 class DisplayDriver6C : public DisplayDriver {
-public:
-    DisplayDriver6C(int8_t cs_pin, int8_t dc_pin, int8_t rst_pin, int8_t busy_pin,
-                    int8_t sck_pin, int8_t mosi_pin);
+  public:
+    DisplayDriver6C(int8_t cs_pin,
+                    int8_t dc_pin,
+                    int8_t rst_pin,
+                    int8_t busy_pin,
+                    int8_t sck_pin,
+                    int8_t mosi_pin);
     virtual ~DisplayDriver6C();
 
     // DisplayDriver interface implementation
@@ -23,12 +27,12 @@ public:
     void power_off() override;
     void hibernate() override;
     const char* getDisplayType() const override { return "6-Color"; }
-    bool has_color() const override { return true; }  // 6-color display
+    bool has_color() const override { return true; } // 6-color display
 
-protected:
+  protected:
     void configureSPI() override;
 
-private:
+  private:
     // Pin definitions
     int8_t _cs_pin;
     int8_t _dc_pin;

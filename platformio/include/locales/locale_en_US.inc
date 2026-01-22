@@ -125,6 +125,23 @@ const char TXT_CHARGING_CIRCUIT_FAULT[] PROGMEM = "Charging circuit has a fault"
 const char TXT_BATTERY_NOT_DETECTED[] PROGMEM = "Battery is not detected by the system";
 const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Battery authentication failed";
 
-
+#ifdef ENABLE_BT_IMAGE
+// ========================================
+// BLUETOOTH/BLE MODE STRINGS - ENGLISH
+// ========================================
+const char TXT_BT_FIRST_BOOT[] PROGMEM = "First Boot";
+const char TXT_BT_SEARCHING_DEVICE[] PROGMEM = "Searching for: ";
+const char TXT_BT_WAITING_IMAGE[] PROGMEM = "Waiting for a new image...";
+const char TXT_BT_TIMEOUT_30MIN[] PROGMEM = "Timeout: 30 minutes";
+const char TXT_BT_WAITING_IMAGE_TIMEOUT[] PROGMEM = "Waiting for Image";
+const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout: 30 minutes expired";
+const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Press GPIO1 to retry";
+const char TXT_BT_FACTORY_RESET[] PROGMEM = "Factory Reset";
+const char TXT_BT_RESET_COMPLETE[] PROGMEM = "Complete!";
+const char TXT_BT_SETTINGS_RESTORED[] PROGMEM = "All settings have been";
+const char TXT_BT_SETTINGS_RESTORED_STATE[] PROGMEM = "restored to factory defaults";
+const char TXT_BT_RESTARTING[] PROGMEM = "Restarting...";
+const char TXT_BT_BATTERY_PERCENT[] PROGMEM = "Battery: %.1f%%";
+#endif
 
 

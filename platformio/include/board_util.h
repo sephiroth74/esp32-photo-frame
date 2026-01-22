@@ -155,7 +155,8 @@ void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_m
  *
  * Determines the display refresh interval by either:
  * - Reading an analog potentiometer value (if USE_POTENTIOMETER is defined)
- * - Using the default value from config.board.refresh.default_seconds (if USE_POTENTIOMETER is not defined)
+ * - Using the default value from config.board.refresh.default_seconds (if USE_POTENTIOMETER is not
+ * defined)
  *
  * The interval can be adjusted based on battery level to conserve power when the battery is low.
  *

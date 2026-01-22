@@ -23,17 +23,17 @@
 #ifndef __DISPLAY_MANAGER_H__
 #define __DISPLAY_MANAGER_H__
 
-#include <Arduino.h>
-#include <Adafruit_GFX.h>
-#include <RTClib.h>
-#include <memory>  // For std::unique_ptr
 #include "FS.h"
-#include "config.h"
-#include "image_buffer.h"
-#include "display_driver.h"
 #include "battery.h"
+#include "config.h"
+#include "display_driver.h"
 #include "errors.h"
 #include "google_drive.h"
+#include "image_buffer.h"
+#include <Adafruit_GFX.h>
+#include <Arduino.h>
+#include <RTClib.h>
+#include <memory> // For std::unique_ptr
 
 // Include the appropriate display library to get EPD_WIDTH and EPD_HEIGHT
 #ifdef DISP_6C
@@ -74,7 +74,7 @@ namespace photo_frame {
  * ```
  */
 class DisplayManager {
-public:
+  public:
     /**
      * @brief Constructor
      */
@@ -195,6 +195,18 @@ public:
     void drawBatteryStatus(battery_info_t battery_info);
 
     /**
+     * @brief Set the image source for status reporting
+     * @param source The source of the current image (CLOUD, LOCAL_CACHE, BLUETOOTH)
+     */
+    void setImageSource(image_source_t source) { image_source_ = source; }
+
+    /**
+     * @brief Get the current image source
+     * @return The image source enum value
+     */
+    image_source_t getImageSource() const { return image_source_; }
+
+    /**
      * @brief Draw image information
      * @param index Current image index
      * @param total_images Total number of images
@@ -216,8 +228,10 @@ public:
      * @param filename Filename that caused error
      * @param errorCode Error code
      */
-    void drawErrorWithDetails(const String& errMsgLn1, const String& errMsgLn2,
-                              const char* filename, uint16_t errorCode);
+    void drawErrorWithDetails(const String& errMsgLn1,
+                              const String& errMsgLn2,
+                              const char* filename,
+                              uint16_t errorCode);
 
     // ========== Display Control Functions ==========
 
@@ -296,11 +310,12 @@ public:
      */
     void release();
 
-private:
-    ImageBuffer imageBuffer_;                        ///< Manages image buffer and canvas
-    std::unique_ptr<DisplayDriver> displayDriver_;   ///< Hardware display driver (smart pointer)
-    bool initialized_;                               ///< Initialization state
-    uint8_t rotation_;                              ///< Current rotation (0-3)
+  private:
+    ImageBuffer imageBuffer_;                      ///< Manages image buffer and canvas
+    std::unique_ptr<DisplayDriver> displayDriver_; ///< Hardware display driver (smart pointer)
+    bool initialized_;                             ///< Initialization state
+    uint8_t rotation_;                             ///< Current rotation (0-3)
+    image_source_t image_source_;                  ///< Current image source (for status reporting)
 
     /**
      * @brief Create appropriate display driver based on configuration

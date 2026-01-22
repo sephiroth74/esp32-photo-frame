@@ -1,9 +1,9 @@
 #ifndef SD_CARD_TOC_PARSER_H
 #define SD_CARD_TOC_PARSER_H
 
+#include "errors.h"
 #include <Arduino.h>
 #include <FS.h>
-#include "errors.h"
 
 namespace photo_frame {
 
@@ -27,7 +27,7 @@ class SdCard;
  * - extension = <ext>
  */
 class SdCardTocParser {
-public:
+  public:
     /**
      * Constructor
      * @param sdCard Reference to SD card instance
@@ -93,10 +93,10 @@ public:
      */
     // get_directory_mod_time removed - no longer used for TOC validation
 
-private:
+  private:
     SdCard& sdCard_;
-    String tocDataPath_;  // Changed from const char* to String to avoid dangling pointers
-    String tocMetaPath_;  // Changed from const char* to String to avoid dangling pointers
+    String tocDataPath_; // Changed from const char* to String to avoid dangling pointers
+    String tocMetaPath_; // Changed from const char* to String to avoid dangling pointers
 
     // Cached metadata values (from meta file)
     mutable bool metaParsed_;
@@ -105,7 +105,6 @@ private:
     mutable size_t cachedFileCount_;
     mutable String cachedExtension_;
     mutable size_t cachedFileSize_;
-
 
     /**
      * Read a line from file
