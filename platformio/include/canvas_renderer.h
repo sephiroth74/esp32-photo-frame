@@ -60,6 +60,14 @@ void drawImageInfo(GFXcanvas8& canvas,
                    image_source_t imageSource);
 
 /**
+ * Draw image information on the canvas
+ * @param canvas Canvas to draw on
+ * @param message Message to display
+ * @param imageSource Source of the image (cloud/cache)
+ */
+void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t imageSource);
+
+/**
  * Draw error message on the canvas
  * @param canvas Canvas to draw on
  * @param error Error information

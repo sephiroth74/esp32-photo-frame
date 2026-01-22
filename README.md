@@ -8,6 +8,7 @@ The photo frame features automatic image synchronization, configurable refresh i
 
 <img src="assets/screenshot-001.jpg" alt="ESP32 Photo Frame - Front View" width="746" />
 <img src="assets/screenshot-002.jpg" alt="ESP32 Photo Frame - Back View" width="746" />
+<img src="assets/screenshot-003.jpg" alt="ESP32 Photo Frame - Back View" width="746" />
 
 ## Features
 
@@ -19,7 +20,6 @@ The photo frame features automatic image synchronization, configurable refresh i
 - Battery monitoring with power-saving modes and adaptive refresh scheduling
 - Deep sleep operation between updates for extended battery life (2-3 months on 5000mAh)
 - Binary image format (.bin) support optimized for e-paper displays
-- Streaming architecture supporting 350+ files on any ESP32 variant
 - Unified configuration system via single JSON file
 - Multi-language support (English and Italian localization)
 - Day/night scheduling to prevent overnight updates
@@ -92,9 +92,9 @@ For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG
 
 | Component | Specification | Purchase Link |
 |-----------|--------------|---------------|
-| Microcontroller | Unexpected Maker FeatherS3(D) (ESP32-S3, 8MB PSRAM, 16MB Flash) | [Unexpected Maker](https://unexpectedmaker.com/shop/feathers3) |
+| Microcontroller | Unexpected Maker ProS3(D) (ESP32-S3, 8MB PSRAM, 16MB Flash) | [Unexpected Maker](https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737) |
 | E-Paper Display | Good Display 7.3" (800×480 pixels, 6 color) | [Good Display](https://www.good-display.com/blank7.html?productId=533) |
-| Display Connector | Good Display DESPI-C73 (DESPI-C73) | [Good Display](https://www.good-display.com/product/522.html) |
+| Display Connector | Good Display DESPI-C73 | [Good Display](https://www.good-display.com/product/522.html) |
 | SD Card Module | Adafruit MicroSD Breakout Board | [Adafruit #4682](https://www.adafruit.com/product/4682) |
 | Battery | 3.7V 5000mAh LiPo with JST connector | Various suppliers |
 | Push Buttons | 6x6x13mm Momentary switch | Various suppliers |

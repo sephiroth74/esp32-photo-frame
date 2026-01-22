@@ -214,6 +214,8 @@ class DisplayManager {
      */
     void drawImageInfo(uint32_t index, uint32_t total_images, image_source_t image_source);
 
+    void drawImageInfo(const String& message, image_source_t image_source);
+
     /**
      * @brief Draw error message
      * @param error Error information

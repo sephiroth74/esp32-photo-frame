@@ -1722,7 +1722,7 @@ void setup_bluetooth_mode() {
     }
 
     // Draw BT icon in center (as image source indicator)
-    g_display.setImageSource(photo_frame::IMAGE_SOURCE_BLUETOOTH);
+    g_display.drawImageInfo("Bluetooth", photo_frame::IMAGE_SOURCE_BLUETOOTH);
 
     // Draw battery status on the right
     g_display.drawBatteryStatus(battery_info);

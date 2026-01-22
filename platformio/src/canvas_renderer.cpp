@@ -154,6 +154,20 @@ void drawImageInfo(GFXcanvas8& canvas,
         0);
 }
 
+void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t image_source) {
+    drawSideMessageWithIcon(
+        canvas,
+        gravity::TOP_CENTER,
+        image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
+            ? icon_name::cloud_0deg
+            : (image_source == photo_frame::image_source_t::IMAGE_SOURCE_BLUETOOTH
+                   ? icon_name::bluetooth_0deg
+                   : icon_name::micro_sd_card_0deg),
+        message.c_str(),
+        -4,
+        0);
+}
+
 void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filename) {
     log_d("drawError: Starting with error code %d, filename: %s",
           error.code,

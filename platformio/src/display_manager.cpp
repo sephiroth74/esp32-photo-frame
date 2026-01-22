@@ -205,6 +205,13 @@ void DisplayManager::drawImageInfo(uint32_t index,
     photo_frame::drawImageInfo(imageBuffer_.getCanvas(), index, total_images, image_source);
 }
 
+void DisplayManager::drawImageInfo(const String& message, image_source_t image_source) {
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
+        return;
+    photo_frame::drawImageInfo(imageBuffer_.getCanvas(), message, image_source);
+}
+
 void DisplayManager::drawError(photo_frame_error_t error, const char* filename) {
     log_w("draw_error. code=%d, category%d, filename=%s",
           error.code,
