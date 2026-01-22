@@ -86,7 +86,7 @@
 
 #define DISP_6C
 
-// Display orientation is now configured dynamically via config.json (board_config.portrait_mode)
+// Display orientation is now configured dynamically via config.json (board_config.display_rotation)
 // Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
 
 #define ACCENT_COLOR COLOR_DISPLAY_RED

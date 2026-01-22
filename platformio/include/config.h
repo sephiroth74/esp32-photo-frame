@@ -69,8 +69,6 @@
 /// - Runs comprehensive tests for all BT components
 /// - Tests protocol, preferences, battery, SD card, display, BLE
 /// - Does NOT start actual BLE advertising (safe to run)
-/// - Similar to ENABLE_DISPLAY_DIAGNOSTIC for display tests
-// #define ENABLE_BT_DIAGNOSTIC
 
 #ifdef ENABLE_BT_IMAGE
 /// Bluetooth mode constants
@@ -376,9 +374,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #include XSTR(LOCAL_CONFIG_FILE)
 
 /// Display orientation is now configured dynamically via config.json
-/// The board_config.portrait_mode field controls orientation:
-///   - portrait_mode: true  = 480x800 (portrait)
-///   - portrait_mode: false = 800x480 (landscape, default)
+/// The board_config.display_rotation field controls orientation (0-3):
+///   - 0: 0° (default landscape) | 1: 90° | 2: 180° | 3: 270°
 /// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
 
 /// Default value definitions with validation guards

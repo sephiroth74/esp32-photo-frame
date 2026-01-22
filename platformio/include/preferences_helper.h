@@ -102,25 +102,20 @@ class PreferencesHelper {
     bool setLastCleanup(time_t timestamp);
 
     /**
-     * @brief Get the display portrait mode setting
+     * @brief Get the display rotation setting (0-3)
      *
-     * This method retrieves the stored portrait_mode preference
-     * which determines if the display should be in portrait orientation.
-     *
-     * @return true for portrait, false for landscape (default)
+     * Stored preference key: "display_rotation". Returns values 0-3 where
+     * 0=0°, 1=90°, 2=180°, 3=270°. Defaults to 0 on missing/invalid data.
      */
-    bool getPortraitMode();
+    uint8_t getDisplayRotation();
 
     /**
-     * @brief Set the display portrait mode setting
+     * @brief Persist the display rotation setting (0-3)
      *
-     * This method stores the portrait_mode preference
-     * which determines if the display should be in portrait orientation.
-     *
-     * @param portrait_mode true for portrait, false for landscape
+     * @param rotation rotation value (clamped to 0-3)
      * @return true if successfully stored, false on error
      */
-    bool setPortraitMode(bool portrait_mode);
+    bool setDisplayRotation(uint8_t rotation);
 
     /**
      * @brief Get the last displayed image index

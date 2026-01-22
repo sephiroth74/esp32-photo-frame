@@ -38,7 +38,7 @@
 
 #define MAX_DISPLAY_BUFFER_SIZE 65536ul // e.g.
 
-// Dynamic display dimensions (will be set based on portrait_mode)
+// Dynamic display dimensions (based on display_rotation)
 extern uint16_t DISP_WIDTH;
 extern uint16_t DISP_HEIGHT;
 

@@ -15,7 +15,7 @@
     },
     "day_start_hour": 6,
     "day_end_hour": 23,
-    "portrait_mode": true
+    "display_rotation": 0
   },
   "google_drive_config": {
     "enabled": false,

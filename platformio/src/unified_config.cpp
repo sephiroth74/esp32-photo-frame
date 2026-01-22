@@ -256,9 +256,10 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
         log_d("Day schedule - start: %d", config.board.day_start_hour);
         log_d("Day schedule - end: %d", config.board.day_end_hour);
 
-        // Load portrait mode (dynamic display orientation)
-        config.board.portrait_mode = board_obj["portrait_mode"] | false;
-        log_i("Portrait mode: %s", config.board.portrait_mode ? "enabled" : "disabled");
+        // Load display rotation (0-3) (with backward compatibility for portrait_mode)
+        uint8_t rotation = board_obj["display_rotation"] | (board_obj["portrait_mode"] ? 1 : 0);
+        config.board.display_rotation = min<uint8_t>(rotation, 3);
+        log_i("Display rotation: %u", config.board.display_rotation);
 
     } else {
         log_w("Board configuration missing 'board_config'");
@@ -365,14 +366,13 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
         log_d("SD Card configuration not found, using defaults");
     }
 
-    // Save portrait_mode to preferences for fallback when SD card fails
+    // Save display_rotation to preferences for fallback when SD card fails
     // This ensures correct display orientation even if SD card fails on next boot
     auto& prefs = photo_frame::PreferencesHelper::getInstance();
-    if (prefs.setPortraitMode(config.board.portrait_mode)) {
-        log_i("Saved portrait_mode to preferences: %s",
-              config.board.portrait_mode ? "true" : "false");
+    if (prefs.setDisplayRotation(config.board.display_rotation)) {
+        log_i("Saved display_rotation to preferences: %u", config.board.display_rotation);
     } else {
-        log_w("Failed to save portrait_mode to preferences");
+        log_w("Failed to save display_rotation to preferences");
     }
 
     log_d("Configuration loaded successfully");

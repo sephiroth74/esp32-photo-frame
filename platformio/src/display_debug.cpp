@@ -425,10 +425,8 @@ void run_display_tests() {
     photo_frame::battery_info_t battery_info;
     battery_info.percent    = 100;
     battery_info.millivolts = 4120;
-    g_display.drawBatteryStatus(battery_info);
-
-    // Draw last update time
-    DateTime now         = DateTime(2024, 1, 15, 12, 30, 0);
+    uint8_t test_rotation   = 1; // 0=0°,1=90°,2=180°,3=270°
+    g_display.setRotation(test_rotation);
     long refresh_seconds = 3600; // 1 hour
     g_display.drawLastUpdate(now, refresh_seconds);
 

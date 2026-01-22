@@ -22,13 +22,6 @@
 
 #include "config.h"
 
-// ----------------------------------------------------------------------------
-// Diagnostic mode mutual exclusivity
-// ----------------------------------------------------------------------------
-#if defined(ENABLE_BT_DIAGNOSTIC) && defined(ENABLE_DISPLAY_DIAGNOSTIC)
-#error "ENABLE_BT_DIAGNOSTIC and ENABLE_DISPLAY_DIAGNOSTIC cannot both be defined"
-#endif
-
 // ============================================================================
 // COMPILE-TIME VALIDATION CHECKS
 //

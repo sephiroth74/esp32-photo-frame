@@ -95,23 +95,30 @@ bool PreferencesHelper::setLastCleanup(time_t timestamp) {
     return putULong("last_cleanup", timestamp);
 }
 
-bool PreferencesHelper::getPortraitMode() {
+uint8_t PreferencesHelper::getDisplayRotation() {
     if (!beginRead()) {
-        return false; // Default to landscape if can't read
+        return 0; // Default to 0° if can't read
     }
 
-    bool value = preferences.getBool("portrait_mode", false); // Default to landscape
+    uint8_t value = preferences.getUChar("display_rotation", 0);
     end();
+
+    if (value > 3) {
+        log_w("Invalid display_rotation %u found in preferences, resetting to 0", value);
+        value = 0;
+    }
 
     return value;
 }
 
-bool PreferencesHelper::setPortraitMode(bool portrait_mode) {
+bool PreferencesHelper::setDisplayRotation(uint8_t rotation) {
+    uint8_t clamped = rotation % 4; // Ensure 0-3
+
     if (!beginWrite()) {
         return false;
     }
 
-    size_t written = preferences.putBool("portrait_mode", portrait_mode);
+    size_t written = preferences.putUChar("display_rotation", clamped);
     end();
 
     return written > 0;

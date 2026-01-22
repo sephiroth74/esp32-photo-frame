@@ -17,9 +17,9 @@
 #endif
 
 // Dynamic display dimensions (exported for compatibility)
-// These will be set based on portrait_mode in the future
-uint16_t DISP_WIDTH  = EPD_WIDTH;  // 800
-uint16_t DISP_HEIGHT = EPD_HEIGHT; // 480
+// These will be set based on display rotation
+uint16_t DISP_WIDTH  = EPD_WIDTH;  // default landscape width
+uint16_t DISP_HEIGHT = EPD_HEIGHT; // default landscape height
 
 // Static display driver instance - created at compile time based on configuration
 #ifdef DISP_6C

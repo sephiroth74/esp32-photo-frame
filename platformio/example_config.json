@@ -46,7 +46,7 @@
         "images_directory": "/6c/portrait/bin"
     },
     "board_config": {
-        "portrait_mode": true,
+        "display_rotation": 1,
         "day_start_hour": 6,
         "day_end_hour": 23,
         "refresh": {

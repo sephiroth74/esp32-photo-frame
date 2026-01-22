@@ -79,15 +79,15 @@ struct unified_config {
             uint8_t low_battery_multiplier = 3; // 3x multiplier default
         } refresh;
 
-        uint8_t day_start_hour = 6;  // 6 AM default
-        uint8_t day_end_hour   = 23; // 11 PM default
-        bool portrait_mode = false; // Display orientation (dynamic, replaces compile-time constant)
+        uint8_t day_start_hour   = 6;  // 6 AM default
+        uint8_t day_end_hour     = 23; // 11 PM default
+        uint8_t display_rotation = 0;  // 0-3 (0=0°, 1=90°, 2=180°, 3=270°)
 
         bool is_valid() const {
             return day_start_hour < 24 && day_end_hour < 24 && refresh.min_seconds > 0 &&
                    refresh.max_seconds > refresh.min_seconds &&
                    refresh.default_seconds >= refresh.min_seconds &&
-                   refresh.default_seconds <= refresh.max_seconds;
+                   refresh.default_seconds <= refresh.max_seconds && display_rotation < 4;
         }
     } board;
 

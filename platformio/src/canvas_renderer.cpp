@@ -37,7 +37,7 @@ static void drawInvertedBitmap(GFXcanvas8& canvas,
 }
 
 void drawOverlay(GFXcanvas8& canvas) {
-    // Determine portrait mode from canvas rotation
+    // Determine orientation from canvas rotation
     // Rotation 1 or 3 = portrait, 0 or 2 = landscape
     bool portrait_mode = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
@@ -56,7 +56,7 @@ void drawOverlay(GFXcanvas8& canvas) {
 }
 
 void drawLastUpdate(GFXcanvas8& canvas, const DateTime& lastUpdate, long refresh_seconds) {
-    // Determine portrait mode from canvas rotation
+    // Determine orientation from canvas rotation
     bool portrait_mode      = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
     char dateTimeBuffer[32] = {0};
