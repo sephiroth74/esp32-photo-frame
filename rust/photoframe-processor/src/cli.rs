@@ -134,7 +134,7 @@ fn get_long_about() -> String {
     };
 
     format!(
-        "ESP32 Photo Frame - Image Processor (Rust Implementation)
+                "ESP32 Photo Frame - Image Processor (Rust Implementation)
 
 This tool processes photos for ESP32-based e-paper photo frames. It handles smart orientation detection,
 portrait image pairing, text annotations, and generates optimized binary files.
@@ -142,33 +142,29 @@ portrait image pairing, text annotations, and generates optimized binary files.
 Compiled features: {}
 
 Example Usage:
-  # Basic black & white processing (default 800x480, both BMP and binary files)
-  photoframe-processor -i ~/Photos -o ~/processed --auto
+    # Basic black & white processing (800x480 landscape by default)
+    photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format bin
 
-  # Process single image file
-  photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed
+    # Process single image file
+    photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed -t bw --output-format bin
 
-  # 6-color processing with only binary output
-  photoframe-processor -i ~/Photos -o ~/processed -t 6c \\
-    --output-format bin --font \"Arial-Bold\" --pointsize 22 --auto --verbose
+    # 6-color processing with only binary output (hardware 800x480)
+    photoframe-processor -i ~/Photos -o ~/processed -t 6c --output-format bin --verbose
 
-  # Multiple output formats (creates subdirectories: bmp/, bin/, jpg/)
-  photoframe-processor -i ~/Photos -o ~/processed --output-format bmp,bin,jpg --auto
+    # Multiple output formats (creates subdirectories: bmp/, bin/, jpg/)
+    photoframe-processor -i ~/Photos -o ~/processed --output-format bmp,bin,jpg
 
-  # PNG output format only
-  photoframe-processor -i ~/Photos -o ~/processed --output-format png --auto
+    # PNG output format only
+    photoframe-processor -i ~/Photos -o ~/processed --output-format png
 {}
-  # Process images without filename annotations
-  photoframe-processor -i ~/Photos -o ~/processed --auto
+    # Process images with filename annotations enabled
+    photoframe-processor -i ~/Photos -o ~/processed --annotate
 
-  # Process images with filename annotations enabled
-  photoframe-processor -i ~/Photos -o ~/processed --auto --annotate
-
-  # Dry run mode: simulate processing without creating files
-  photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose",
-        features_str,
-        ai_feature_desc,
-    )
+    # Dry run mode: simulate processing without creating files
+    photoframe-processor -i ~/Photos -o ~/processed --dry-run --verbose",
+                features_str,
+                ai_feature_desc,
+        )
 }
 
 #[derive(Parser, Debug)]
