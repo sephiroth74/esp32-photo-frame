@@ -356,26 +356,18 @@ const photo_frame_error InvalidConfigNoImageSource{TXT_CONFIG_NO_IMAGE_SOURCE, 3
 // Bluetooth errors (300-399) - Only compiled when ENABLE_BT_IMAGE is defined
 #ifdef ENABLE_BT_IMAGE
 // Critical Bluetooth errors (301-310) - Must be displayed on screen
-const photo_frame_error BtInitFailed{"BT initialization failed", 301, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error BtInvalidConfig{"Invalid BT configuration", 302, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
-const photo_frame_error BtImageTooLarge{"Image size exceeds limit", 303, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error BtInvalidRotation{"Invalid display rotation", 304, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
-const photo_frame_error BtTransferCorrupted{"Image data corrupted", 305, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtSdWriteFailed{"Failed to save image to SD", 306, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error BtNoFallbackImage{"No fallback image available", 307, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error BtImageValidationFailed{"Image format invalid", 308, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BtInitFailed{TXT_BT_INIT_FAILED, 301, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
+const photo_frame_error BtInvalidConfig{TXT_BT_INVALID_CONFIG, 302, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+const photo_frame_error BtImageTooLarge{TXT_BT_IMAGE_SIZE_ERROR, 303, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error BtInvalidRotation{TXT_BT_INVALID_ROTATION, 304, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+const photo_frame_error BtSdWriteFailed{TXT_BT_SD_WRITE_FAILED, 306, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
+const photo_frame_error BtImageValidationFailed{TXT_BT_IMAGE_VALIDATION_FAILED, 308, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
+const photo_frame_error BtFirstBootTimeout{TXT_BT_TIMEOUT_EXPIRED, 309, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
 
 // Non-critical Bluetooth errors (350-359) - Only logged, not displayed
-const photo_frame_error BtConnectionTimeout{"BT connection timeout", 350, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtClientDisconnected{"Client disconnected", 351, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtChunkTimeout{"Chunk receive timeout", 352, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtChunkRetry{"Chunk retry", 353, ERROR_SEVERITY_INFO, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtAdvertisingFailed{"BT advertising failed", 354, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error BtNoImageData{"No image data received", 355, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-
-// Warning Bluetooth errors (360-369) - Show warning icon, use fallback
-const photo_frame_error BtPartialTransfer{"Transfer incomplete", 360, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtLowBatterySkip{"Low battery - using fallback", 361, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
+const photo_frame_error BtConnectionTimeout{TXT_BT_CONNECTION_TIMEOUT, 350, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtClientDisconnected{TXT_BT_CLIENT_DISCONNECTED, 351, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
+const photo_frame_error BtChunkTimeout{TXT_BT_CHUNK_TIMEOUT, 352, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
 #endif // ENABLE_BT_IMAGE
 
 

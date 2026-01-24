@@ -706,6 +706,7 @@ mod tests {
             bounding_box: Some((700, 800, 1100, 1000)), // Add test bounding box
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -747,6 +748,7 @@ mod tests {
             bounding_box: Some((300, 200, 500, 400)), // Add test bounding box
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -775,6 +777,7 @@ mod tests {
             bounding_box: Some((0, 0, 100, 100)), // Add test bounding box
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -799,6 +802,7 @@ mod tests {
             bounding_box: Some((850, 850, 1000, 1000)), // Add test bounding box
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -826,6 +830,7 @@ mod tests {
             bounding_box: None, // No bounding box when no people detected
             confidence: 0.0,
             person_count: 0, // No people detected
+            individual_detections: vec![],
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -850,6 +855,7 @@ mod tests {
             bounding_box: Some((0, 0, 1000, 1000)), // Add test bounding box (entire image)
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -874,6 +880,7 @@ mod tests {
             bounding_box: Some((200, 100, 600, 500)), // 400x400 detection box
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -908,6 +915,7 @@ mod tests {
             bounding_box: Some((100, 100, 900, 700)), // 800x600 detection box
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         // Image is large enough, but detection box needs to fit with padding into smaller target
@@ -949,6 +957,7 @@ mod tests {
             bounding_box: Some((350, 300, 450, 500)), // 100x200 detection box (smaller, should not need scaling)
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (_crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -978,6 +987,7 @@ mod tests {
             bounding_box: None,
             confidence: 0.0,
             person_count: 0,
+            individual_detections: vec![],
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -1006,6 +1016,7 @@ mod tests {
             bounding_box: Some((300, 750, 500, 950)), // 200x200 detection box near bottom
             confidence: 0.9,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -1049,6 +1060,7 @@ mod tests {
             bounding_box: Some((83, 64, 958, 1205)), // 875x1141 detection box
             confidence: 0.73,
             person_count: 1,
+            individual_detections: vec![],
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(

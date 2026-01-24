@@ -2,6 +2,7 @@
 #include "config.h"
 #include "datetime_utils.h"
 #include <assets/icons/icons.h>
+#include <vector>
 #include FONT_HEADER
 
 namespace photo_frame {
@@ -166,6 +167,206 @@ void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t ima
         message.c_str(),
         -4,
         0);
+}
+
+void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
+                                 icon_name_t icon,
+                                 const String& title,
+                                 const String& message,
+                                 uint16_t icon_size) {
+    log_i("drawCenteredMessageWithIcon");
+
+    canvas.fillScreen(DISPLAY_COLOR_WHITE);
+
+    const unsigned char* bitmap       = (icon_size > 0) ? getBitmap(icon, icon_size) : nullptr;
+
+    const int16_t disp_w              = canvas.width();
+    const int16_t disp_h              = canvas.height();
+    const uint16_t horizontal_padding = 80;
+    const uint16_t max_text_width     = disp_w > horizontal_padding
+                                            ? static_cast<uint16_t>(disp_w - horizontal_padding)
+                                            : static_cast<uint16_t>(disp_w);
+
+    auto wrapText = [&](const String& text, const GFXfont* font, uint16_t maxWidth) {
+        std::vector<String> lines;
+        if (text.length() == 0 || maxWidth == 0) {
+            return lines;
+        }
+
+        canvas.setFont(font);
+
+        // First, split text by explicit newlines
+        String remaining = text;
+        while (!remaining.isEmpty()) {
+            // Check for newline character
+            int newlineIndex = remaining.indexOf('\n');
+            String segment;
+
+            if (newlineIndex >= 0) {
+                // Extract the segment before the newline
+                segment   = remaining.substring(0, newlineIndex);
+                remaining = remaining.substring(newlineIndex + 1);
+            } else {
+                // No more newlines, process the rest
+                segment   = remaining;
+                remaining = "";
+            }
+
+            // Now wrap this segment by width
+            while (!segment.isEmpty()) {
+                int16_t x1, y1;
+                uint16_t w, h;
+
+                canvas.getTextBounds(segment.c_str(), 0, 0, &x1, &y1, &w, &h);
+                if (w <= maxWidth) {
+                    lines.push_back(segment);
+                    break;
+                }
+
+                int lastSpace = -1;
+                uint16_t pos  = 0;
+                for (; pos < segment.length(); ++pos) {
+                    if (segment.charAt(pos) == ' ') {
+                        lastSpace = pos;
+                    }
+
+                    String probe = segment.substring(0, pos + 1);
+                    canvas.getTextBounds(probe.c_str(), 0, 0, &x1, &y1, &w, &h);
+
+                    if (w > maxWidth) {
+                        if (lastSpace >= 0) {
+                            pos = lastSpace;
+                        } else if (pos == 0) {
+                            pos = 1; // Force progress for very long single words
+                        }
+                        break;
+                    }
+                }
+
+                if (pos >= segment.length()) {
+                    lines.push_back(segment);
+                    break;
+                }
+
+                String line = segment.substring(0, pos);
+                while (line.length() > 0 && line.charAt(line.length() - 1) == ' ') {
+                    line.remove(line.length() - 1);
+                }
+                if (line.length() == 0 && segment.length() > 0) {
+                    line = segment.substring(0, 1);
+                    pos  = 1;
+                }
+
+                lines.push_back(line);
+                segment = segment.substring(pos);
+                while (!segment.isEmpty() && segment.charAt(0) == ' ') {
+                    segment.remove(0, 1);
+                }
+            }
+        }
+
+        return lines;
+    };
+
+    auto measureFontHeight = [&](const GFXfont* font) -> uint16_t {
+        canvas.setFont(font);
+        int16_t x1, y1;
+        uint16_t w, h;
+        canvas.getTextBounds("Ag", 0, 0, &x1, &y1, &w, &h);
+        return h;
+    };
+
+    const auto title_lines   = wrapText(title, &FONT_26pt8b, max_text_width);
+    const auto message_lines = wrapText(message, &FONT_10pt8b, max_text_width);
+
+    const bool has_icon      = (bitmap != nullptr);
+    const bool has_title     = !title_lines.empty();
+    const bool has_message   = !message_lines.empty();
+
+    if (!has_icon && !has_title && !has_message) {
+        return;
+    }
+
+    const uint16_t title_line_height    = measureFontHeight(&FONT_26pt8b);
+    const uint16_t message_line_height  = measureFontHeight(&FONT_10pt8b);
+
+    const int16_t icon_text_spacing     = 18;
+    const int16_t title_message_spacing = 12;
+    const int16_t title_line_gap        = 8;
+    const int16_t message_line_gap      = 6;
+
+    int32_t block_height                = 0;
+    if (has_icon) {
+        block_height += icon_size;
+        if (has_title || has_message) {
+            block_height += icon_text_spacing;
+        }
+    }
+
+    if (has_title) {
+        block_height += title_line_height * static_cast<int32_t>(title_lines.size());
+        if (title_lines.size() > 1) {
+            block_height += title_line_gap * static_cast<int32_t>(title_lines.size() - 1);
+        }
+    }
+
+    if (has_message) {
+        if (has_title) {
+            block_height += title_message_spacing;
+        }
+        block_height += message_line_height * static_cast<int32_t>(message_lines.size());
+        if (message_lines.size() > 1) {
+            block_height += message_line_gap * static_cast<int32_t>(message_lines.size() - 1);
+        }
+    }
+
+    const int16_t center_x = disp_w / 2;
+    int16_t cursor_y       = (disp_h - block_height) / 2;
+
+    if (has_icon) {
+        uint8_t accent_color = DISPLAY_COLOR_BLACK;
+#ifdef DISP_6C
+        accent_color = ACCENT_COLOR;
+#endif
+        const int16_t icon_x = center_x - static_cast<int16_t>(icon_size) / 2;
+        drawInvertedBitmap(canvas, icon_x, cursor_y, bitmap, icon_size, icon_size, accent_color);
+        cursor_y += icon_size;
+        if (has_title || has_message) {
+            cursor_y += icon_text_spacing;
+        }
+    }
+
+    auto drawLines = [&](const std::vector<String>& lines, const GFXfont* font, int16_t line_gap) {
+        if (lines.empty()) {
+            return;
+        }
+
+        canvas.setFont(font);
+        canvas.setTextColor(DISPLAY_COLOR_BLACK);
+
+        for (size_t idx = 0; idx < lines.size(); ++idx) {
+            int16_t x1, y1;
+            uint16_t w, h;
+            canvas.getTextBounds(lines[idx].c_str(), 0, 0, &x1, &y1, &w, &h);
+
+            const int16_t baseline_y = cursor_y - y1;
+            drawString(
+                canvas, center_x, baseline_y, lines[idx].c_str(), CENTER, DISPLAY_COLOR_BLACK);
+
+            cursor_y += h;
+            if (idx + 1 < lines.size()) {
+                cursor_y += line_gap;
+            }
+        }
+    };
+
+    drawLines(title_lines, &FONT_26pt8b, title_line_gap);
+
+    if (has_title && has_message) {
+        cursor_y += title_message_spacing;
+    }
+
+    drawLines(message_lines, &FONT_10pt8b, message_line_gap);
 }
 
 void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filename) {

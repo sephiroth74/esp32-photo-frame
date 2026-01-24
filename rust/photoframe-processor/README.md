@@ -5,7 +5,24 @@ High-performance Rust implementation of the ESP32 Photo Frame image processing p
 **Available as both CLI and GUI!** 🎨
 
 - **CLI**: Powerful command-line tool for batch processing and automation
+- **BLE Tool**: Dedicated Bluetooth utility for device communication (`bt-client`)
 - **GUI**: User-friendly graphical interface built with egui (see [GUI_README.md](GUI_README.md))
+
+## 📦 Project Structure
+
+This project provides two separate binaries:
+
+1. **photoframe-processor** - Main image processing tool
+   - Converts images to ESP32-compatible formats
+   - Handles orientation detection and pairing
+   - Supports multiple output formats (BMP, BIN, JPG, PNG)
+   - AI-powered subject detection (optional)
+
+2. **bt-client** - Bluetooth communication tool (requires `--features bluetooth`)
+   - Scans for PhotoFrame devices over BLE
+   - Uploads binary files to devices wirelessly
+   - Manages device selection and connection
+   - Supports orientation configuration during upload
 
 ## 🚀 Performance Benefits
 
@@ -42,10 +59,20 @@ High-performance Rust implementation of the ESP32 Photo Frame image processing p
 
 ```bash
 cd rust/photoframe-processor
+
+# Build the main image processor
 cargo build --release
+
+# Build with Bluetooth support (includes bt_client binary)
+cargo build --release --features bluetooth
+
+# Build with both AI and Bluetooth features
+cargo build --release --features "ai,bluetooth"
 ```
 
-The compiled binary will be available at `target/release/photoframe-processor`.
+The compiled binaries will be available at:
+- `target/release/photoframe-processor` - Main image processor
+- `target/release/bt_client` - Bluetooth tool (when built with bluetooth feature)
 
 ### Optional Features
 
@@ -72,6 +99,39 @@ cargo build --release --features ai
 ./photoframe-processor -i ~/Photos -o ~/processed -t bw -s 800x480 --output-format bin --auto
 ```
 
+### Bluetooth Operations
+
+The `bt-client` tool handles all Bluetooth communication with PhotoFrame devices (requires bluetooth feature):
+
+```bash
+# Scan for available PhotoFrame devices
+./bt-client scan
+
+# Upload a binary file to a specific device
+./bt-client upload -f processed/image.bin -d PhotoFrame-ABC123
+
+# Upload to first available device (auto-detect)
+./bt-client upload -f processed/image.bin
+
+# Specify device by MAC address
+./bt-client upload -f processed/image.bin -d AA:BB:CC:DD:EE:FF
+
+# Set display orientation during upload (0=landscape, 1=portrait, 2=landscape-reverse, 3=portrait-reverse)
+./bt-client upload -f processed/image.bin -d PhotoFrame-ABC123 --orientation 1
+
+# Verbose output with detailed information
+./bt-client upload -f processed/image.bin -v
+```
+
+**Workflow Example:**
+```bash
+# Step 1: Process images
+./photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format bin --auto
+
+# Step 2: Upload to device
+./bt.client upload -f ~/processed/bin/output_001.bin --orientation 0
+```
+
 ### Advanced Usage
 
 ```bash
@@ -83,9 +143,9 @@ cargo build --release --features ai
   --output-format bmp,bin,png \
   --font "Arial-Bold" \
   --pointsize 32 \
-  --extensions jpg,png,heic,webp \
+  --extensions jpg,png,webp \
   --jobs 8 \
-  --auto --verbose
+  --auto
 
 # With AI people detection and auto color correction (requires --features ai)
 ./photoframe-processor \
@@ -93,7 +153,7 @@ cargo build --release --features ai
   -t 6c -s 800x480 \
   --output-format bmp,bin,jpg \
   --detect-people \
-  --auto-color --annotate --force
+  --auto-color --annotate
 
 # Validate files without processing
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --validate-only
@@ -102,42 +162,36 @@ cargo build --release --features ai
 ./photoframe-processor -i ~/Photos -o ~/processed -s 800x480 --debug \
   --detect-people --output-format png
 
-# Decode combined portrait filenames to find original images
-./photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
-
-# Find original filename from hash (8-character hex)
-./photoframe-processor --find-hash "a1b2c3d4"
-
 # Dry run mode to simulate processing without creating files
 ./photoframe-processor -i ~/Photos -o ~/processed -t 6c --dry-run --verbose
 ```
 
 ### Command Line Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-i, --input <DIR>` | Input directories (can specify multiple) | **Required** |
-| `-o, --output <DIR>` | Output directory for processed images | **Required** |
-| `-s, --size <WIDTHxHEIGHT>` | Target display resolution (e.g., 800x480) | **Required** |
-| `-t, --type <TYPE>` | Processing type: `bw` or `6c` | `bw` |
-| `--output-format <FORMATS>` | Output formats: comma-separated list of `bmp`, `bin`, `jpg`, `png` | `bmp` |
-| `--extensions <LIST>` | File extensions to process (comma-separated) | `jpg,jpeg,png,heic,webp,tiff` |
-| `--auto` | Enable automatic orientation handling | `false` |
-| `--pointsize <SIZE>` | Font size for annotations | `22` |
-| `--font <FONT>` | Font family for annotations | `Arial` |
-| `--annotate_background <COLOR>` | Text background color (hex with alpha) | `#00000040` |
-| `--annotate` | Enable filename annotations on images | `false` |
-| `--divider-width <WIDTH>` | Width of divider line between combined portraits (pixels) | `3` |
-| `--divider-color <COLOR>` | Color of divider line (hex RGB, e.g., #FFFFFF) | `#FFFFFF` |
-| `--auto-color` | Enable automatic color correction | `false` |
-| `--detect-people` | Enable AI people detection for smart cropping (requires --features ai) | `false` |
-| `--debug` | Debug mode: visualize detection boxes | `false` |
-| `--force` | Process all files, bypassing duplicate checks | `false` |
-| `--find-hash <HASH>` | Find original filename for given hash | None |
-| `--find-original <FILENAME>` | Decode combined filename to show original filenames | None |
-| `-j, --jobs <N>` | Number of parallel processing jobs (0 = auto) | `0` |
-| `-v, --verbose` | Enable detailed output | `false` |
-| `--validate-only` | Only validate inputs, don't process | `false` |
+| Option                          | Description                                                            | Default                       |
+| ------------------------------- | ---------------------------------------------------------------------- | ----------------------------- |
+| `-i, --input <DIR>`             | Input directories (can specify multiple)                               | **Required**                  |
+| `-o, --output <DIR>`            | Output directory for processed images                                  | **Required**                  |
+| `-s, --size <WIDTHxHEIGHT>`     | Target display resolution (e.g., 800x480)                              | **Required**                  |
+| `-t, --type <TYPE>`             | Processing type: `bw` or `6c`                                          | `bw`                          |
+| `--output-format <FORMATS>`     | Output formats: comma-separated list of `bmp`, `bin`, `jpg`, `png`     | `bmp`                         |
+| `--extensions <LIST>`           | File extensions to process (comma-separated)                           | `jpg,jpeg,png,heic,webp,tiff` |
+| `--auto`                        | Enable automatic orientation handling                                  | `false`                       |
+| `--pointsize <SIZE>`            | Font size for annotations                                              | `22`                          |
+| `--font <FONT>`                 | Font family for annotations                                            | `Arial`                       |
+| `--annotate_background <COLOR>` | Text background color (hex with alpha)                                 | `#00000040`                   |
+| `--annotate`                    | Enable filename annotations on images                                  | `false`                       |
+| `--divider-width <WIDTH>`       | Width of divider line between combined portraits (pixels)              | `3`                           |
+| `--divider-color <COLOR>`       | Color of divider line (hex RGB, e.g., #FFFFFF)                         | `#FFFFFF`                     |
+| `--auto-color`                  | Enable automatic color correction                                      | `false`                       |
+| `--detect-people`               | Enable AI people detection for smart cropping (requires --features ai) | `false`                       |
+| `--debug`                       | Debug mode: visualize detection boxes                                  | `false`                       |
+| `--force`                       | Process all files, bypassing duplicate checks                          | `false`                       |
+| `--find-hash <HASH>`            | Find original filename for given hash                                  | None                          |
+| `--find-original <FILENAME>`    | Decode combined filename to show original filenames                    | None                          |
+| `-j, --jobs <N>`                | Number of parallel processing jobs (0 = auto)                          | `0`                           |
+| `-v, --verbose`                 | Enable detailed output                                                 | `false`                       |
+| `--validate-only`               | Only validate inputs, don't process                                    | `false`                       |
 
 ## 🏷️ Filename Organization
 
@@ -148,10 +202,10 @@ The processor uses a **prefixed filename system** to organize output files by pr
 - **Combined portraits**: `combined_{prefix}_{base64_file1}_{base64_file2}.{ext}`
 
 ### Processing Type Prefixes
-| Prefix | Processing Type | Description |
-|--------|----------------|-------------|
-| `bw` | Black & White | Monochrome dithered images |
-| `6c` | 6-Color | Red, Green, Blue, Yellow, Black, White |
+| Prefix | Processing Type | Description                            |
+| ------ | --------------- | -------------------------------------- |
+| `bw`   | Black & White   | Monochrome dithered images             |
+| `6c`   | 6-Color         | Red, Green, Blue, Yellow, Black, White |
 
 ### Examples
 ```bash
@@ -313,15 +367,6 @@ The processor combines two portrait images side-by-side into a landscape layout:
 - **Format**: Combined images maintain the same processing type (BW or 6C)
 - **No Divider**: Set `--divider-width 0` to disable the divider line completely
 
-### ESP32 Binary Format
-
-The processor generates binary files using the same 8-bit color format as the original `bmp2cpp` tool:
-
-- **3 bits for red** (0-7): `(R / 32) << 5`
-- **3 bits for green** (0-7): `(G / 32) << 2`  
-- **2 bits for blue** (0-3): `(B / 64)`
-- **Final format**: `RRRGGGBB` (8 bits per pixel)
-
 ### EXIF Orientation Support
 
 Handles all 8 EXIF orientation values:
@@ -417,7 +462,6 @@ This Rust processor is part of the larger ESP32 Photo Frame project. Contributio
 ## 🔗 Related Projects
 
 - **Main Project**: [ESP32 Photo Frame](../../README.md)
-- **Binary Converter**: [bin2bmp](../bin2bmp/) - Convert .bin files back to images
 - **Android Processor**: [PhotoFrameProcessor](../../android/PhotoFrameProcessor/) - Mobile image processing app
 
 ---

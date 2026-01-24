@@ -268,6 +268,23 @@ impl ProcessingEngine {
         format_dir.join(filename)
     }
 
+    /// Apply pre-rotation based on target orientation for 6C displays
+    /// Returns the rotated image according to the orientation setting
+    fn apply_pre_rotation(&self, img: &image::RgbImage) -> image::RgbImage {
+        use crate::cli::TargetOrientation;
+
+        match self.config.target_orientation {
+            TargetOrientation::Portrait => {
+                // 90° CW rotation for portrait display
+                image::imageops::rotate90(img)
+            }
+            TargetOrientation::Landscape => {
+                // No rotation needed for landscape
+                img.clone()
+            }
+        }
+    }
+
     pub fn new(config: ProcessingConfig) -> Result<Self> {
         // Initialize thread pool with specified number of jobs
         // Note: build_global() can only be called once per process
@@ -485,21 +502,23 @@ impl ProcessingEngine {
         );
 
         // Calculate actual number of output images after pairing
-        let actual_output_count = match self.config.target_orientation {
-            crate::cli::TargetOrientation::Landscape => {
-                // Landscape target: landscapes processed individually + portraits paired (2→1)
-                landscape_files.len() + (portrait_files.len() / 2)
-            }
-            crate::cli::TargetOrientation::Portrait => {
-                // Portrait target: portraits processed individually + landscapes paired (2→1)
-                portrait_files.len() + (landscape_files.len() / 2)
-            }
+        let is_landscape_like = matches!(
+            self.config.target_orientation,
+            crate::cli::TargetOrientation::Landscape
+        );
+        let actual_output_count = if is_landscape_like {
+            // Landscape target: landscapes processed individually + portraits paired (2→1)
+            landscape_files.len() + (portrait_files.len() / 2)
+        } else {
+            // Portrait target: portraits processed individually + landscapes paired (2→1)
+            portrait_files.len() + (landscape_files.len() / 2)
         };
 
         // Calculate images that will be skipped (unpaired)
-        let skipped_count = match self.config.target_orientation {
-            crate::cli::TargetOrientation::Landscape => portrait_files.len() % 2,
-            crate::cli::TargetOrientation::Portrait => landscape_files.len() % 2,
+        let skipped_count = if is_landscape_like {
+            portrait_files.len() % 2
+        } else {
+            landscape_files.len() % 2
         };
 
         // Progress bar should track total images being processed, not output count
@@ -518,9 +537,10 @@ impl ProcessingEngine {
 
         // Warn about skipped images
         if skipped_count > 0 {
-            let skipped_type = match self.config.target_orientation {
-                crate::cli::TargetOrientation::Landscape => "portrait",
-                crate::cli::TargetOrientation::Portrait => "landscape",
+            let skipped_type = if is_landscape_like {
+                "portrait"
+            } else {
+                "landscape"
             };
             println!(
                 "⚠️  {} {} image{} will be skipped (unpaired)",
@@ -533,72 +553,69 @@ impl ProcessingEngine {
         let mut all_results = Vec::new();
 
         // Pairing behavior depends on target orientation
-        match self.config.target_orientation {
-            crate::cli::TargetOrientation::Landscape => {
-                // LANDSCAPE TARGET: Process landscapes individually, pair portraits side-by-side
-                verbose_println(
-                    self.config.verbose,
-                    "Target orientation: Landscape (pairing portraits side-by-side)",
-                );
+        if is_landscape_like {
+            // LANDSCAPE TARGET (0° or 180°): Process landscapes individually, pair portraits side-by-side
+            verbose_println(
+                self.config.verbose,
+                "Target orientation: Landscape (pairing portraits side-by-side)",
+            );
 
-                // Process landscape images individually (each increments main progress by 1)
-                if !landscape_files.is_empty() {
-                    completion_progress.set_message("Processing landscape images...");
-                    let landscape_results = self.process_batch_with_progress(
-                        &landscape_files,
-                        output_dir,
-                        main_progress,
-                        thread_progress_bars,
-                        completion_progress,
-                    )?;
-                    all_results.extend(landscape_results);
-                }
-
-                // Process portrait images in pairs (side-by-side)
-                if !portrait_files.is_empty() {
-                    completion_progress.set_message("Processing portrait pairs (side-by-side)...");
-                    let portrait_results = self.process_portrait_pairs_with_progress(
-                        &portrait_files,
-                        output_dir,
-                        main_progress,
-                        thread_progress_bars,
-                        completion_progress,
-                    )?;
-                    all_results.extend(portrait_results);
-                }
+            // Process landscape images individually (each increments main progress by 1)
+            if !landscape_files.is_empty() {
+                completion_progress.set_message("Processing landscape images...");
+                let landscape_results = self.process_batch_with_progress(
+                    &landscape_files,
+                    output_dir,
+                    main_progress,
+                    thread_progress_bars,
+                    completion_progress,
+                )?;
+                all_results.extend(landscape_results);
             }
-            crate::cli::TargetOrientation::Portrait => {
-                // PORTRAIT TARGET: Process portraits individually, pair landscapes top-bottom
-                verbose_println(
-                    self.config.verbose,
-                    "Target orientation: Portrait (pairing landscapes top-bottom)",
-                );
 
-                // Process portrait images individually (each increments main progress by 1)
-                if !portrait_files.is_empty() {
-                    completion_progress.set_message("Processing portrait images...");
-                    let portrait_results = self.process_batch_with_progress(
-                        &portrait_files,
-                        output_dir,
-                        main_progress,
-                        thread_progress_bars,
-                        completion_progress,
-                    )?;
-                    all_results.extend(portrait_results);
-                }
+            // Process portrait images in pairs (side-by-side)
+            if !portrait_files.is_empty() {
+                completion_progress.set_message("Processing portrait pairs (side-by-side)...");
+                let portrait_results = self.process_portrait_pairs_with_progress(
+                    &portrait_files,
+                    output_dir,
+                    main_progress,
+                    thread_progress_bars,
+                    completion_progress,
+                )?;
+                all_results.extend(portrait_results);
+            }
+        } else {
+            // PORTRAIT TARGET (90° or 270°): Process portraits individually, pair landscapes top-bottom
+            verbose_println(
+                self.config.verbose,
+                "Target orientation: Portrait (pairing landscapes top-bottom)",
+            );
 
-                // Process landscape images in pairs (top-bottom)
-                if !landscape_files.is_empty() {
-                    completion_progress.set_message("Processing landscape pairs (top-bottom)...");
-                    let landscape_results = self.process_landscape_pairs_with_progress(
-                        &landscape_files,
-                        output_dir,
-                        main_progress,
-                        thread_progress_bars,
-                        completion_progress,
-                    )?;
-                    all_results.extend(landscape_results);
-                }
+            // Process portrait images individually (each increments main progress by 1)
+            if !portrait_files.is_empty() {
+                completion_progress.set_message("Processing portrait images...");
+                let portrait_results = self.process_batch_with_progress(
+                    &portrait_files,
+                    output_dir,
+                    main_progress,
+                    thread_progress_bars,
+                    completion_progress,
+                )?;
+                all_results.extend(portrait_results);
+            }
+
+            // Process landscape images in pairs (top-bottom)
+            if !landscape_files.is_empty() {
+                completion_progress.set_message("Processing landscape pairs (top-bottom)...");
+                let landscape_results = self.process_landscape_pairs_with_progress(
+                    &landscape_files,
+                    output_dir,
+                    main_progress,
+                    thread_progress_bars,
+                    completion_progress,
+                )?;
+                all_results.extend(landscape_results);
             }
         }
 
@@ -970,13 +987,13 @@ impl ProcessingEngine {
         // Pre-rotation is only needed for 6c portrait mode (writeDemoBitmap doesn't support rotation)
         // B/W displays use GxEPD2 setRotation() so no pre-rotation needed
         let final_img = if self.config.needs_pre_rotation {
-            progress_bar.set_message(format!("{} - Pre-rotating for portrait display", filename));
+            progress_bar.set_message(format!("{} - Pre-rotating for display", filename));
             progress_bar.set_position(86);
             verbose_println(
                 self.config.verbose,
-                "🔄 Pre-rotating 90° CW for 6c portrait display (writeDemoBitmap requires pre-rotated data)",
+                "🔄 Pre-rotating 90° for 6c portrait display (writeDemoBitmap requires pre-rotated data)",
             );
-            let rotated = image::imageops::rotate90(&processed_img);
+            let rotated = self.apply_pre_rotation(&processed_img);
             progress_bar.set_position(88);
             rotated
         } else {
@@ -1130,9 +1147,14 @@ impl ProcessingEngine {
         // Portrait resize dimensions depend on target orientation:
         // - Landscape target: half-width (will be paired side-by-side)
         // - Portrait target: full-width (individual display)
-        let portrait_width = match self.config.target_orientation {
-            crate::cli::TargetOrientation::Landscape => self.config.target_width / 2,
-            crate::cli::TargetOrientation::Portrait => self.config.target_width,
+        let is_landscape_target = matches!(
+            self.config.target_orientation,
+            crate::cli::TargetOrientation::Landscape
+        );
+        let portrait_width = if is_landscape_target {
+            self.config.target_width / 2
+        } else {
+            self.config.target_width
         };
         std::thread::yield_now();
 
@@ -1284,16 +1306,16 @@ impl ProcessingEngine {
         )?;
         progress_bar.set_position(85);
 
-        // Apply 90° CW rotation if needed (85-88%)
+        // Apply rotation if needed (85-88%)
         // Pre-rotation is only needed for 6c portrait mode
         let final_img = if self.config.needs_pre_rotation {
-            progress_bar.set_message(format!("{} - Pre-rotating for portrait display", filename));
+            progress_bar.set_message(format!("{} - Pre-rotating for display", filename));
             progress_bar.set_position(86);
             verbose_println(
                 self.config.verbose,
-                "🔄 Pre-rotating 90° CW for 6c portrait display (writeDemoBitmap requires pre-rotated data)",
+                "🔄 Pre-rotating 90° for 6c portrait display (writeDemoBitmap requires pre-rotated data)",
             );
-            let rotated = image::imageops::rotate90(&processed_img);
+            let rotated = self.apply_pre_rotation(&processed_img);
             progress_bar.set_position(88);
             rotated
         } else {

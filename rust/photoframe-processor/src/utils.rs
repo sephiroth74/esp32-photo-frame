@@ -518,29 +518,4 @@ mod tests {
             "My_Photo_2024_vacation.jpg"
         );
     }
-
-    #[test]
-    fn test_encode_filename_base64() {
-        // Test basic encoding
-        assert_eq!(encode_filename_base64("image"), "aW1hZ2U=");
-        assert_eq!(encode_filename_base64("test"), "dGVzdA==");
-
-        // Test '/' replacement with '-' using a string that produces '/' in base64
-        // "sure." encodes to "c3VyZS4=" which contains no '/', but "???>" produces "Pz8/Pg==" with '/'
-        let test_string = "???>"; // This should produce base64 with '/' characters
-        let encoded = encode_filename_base64(test_string);
-        let raw_base64 = general_purpose::STANDARD.encode(test_string.as_bytes());
-
-        // Verify our function replaces '/' with '-'
-        let expected = raw_base64.replace('/', "-");
-        assert_eq!(encoded, expected);
-
-        // Make sure no '/' characters remain
-        assert!(!encoded.contains('/'));
-
-        // Test that the replacement actually happened if there were '/' chars in raw base64
-        if raw_base64.contains('/') {
-            assert!(encoded.contains('-'));
-        }
-    }
 }

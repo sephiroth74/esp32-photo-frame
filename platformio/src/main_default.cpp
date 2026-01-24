@@ -373,22 +373,27 @@ handle_google_drive_operations(bool is_reset,
                             // Binary format only: Load to PSRAM buffer, then close SD card
                             log_i("Loading binary image to PSRAM buffer from SD card...");
                             uint16_t loadError = photo_frame::loadImageToBuffer(
-                                g_display.getBuffer(), file, filename, DISP_WIDTH, DISP_HEIGHT);
+                                photo_frame::DisplayManager::getInstance().getBuffer(),
+                                file,
+                                filename,
+                                DISP_WIDTH,
+                                DISP_HEIGHT);
 
                             // Close the SD card file after loading
                             file.close();
 
                             // Sample first few bytes to verify buffer has data
+                            auto& display = photo_frame::DisplayManager::getInstance();
                             log_d("Buffer check - First 8 bytes: %02X %02X %02X %02X %02X %02X "
                                   "%02X %02X",
-                                  g_display.getBuffer()[0],
-                                  g_display.getBuffer()[1],
-                                  g_display.getBuffer()[2],
-                                  g_display.getBuffer()[3],
-                                  g_display.getBuffer()[4],
-                                  g_display.getBuffer()[5],
-                                  g_display.getBuffer()[6],
-                                  g_display.getBuffer()[7]);
+                                  display.getBuffer()[0],
+                                  display.getBuffer()[1],
+                                  display.getBuffer()[2],
+                                  display.getBuffer()[3],
+                                  display.getBuffer()[4],
+                                  display.getBuffer()[5],
+                                  display.getBuffer()[6],
+                                  display.getBuffer()[7]);
 
                             if (loadError != 0) {
                                 log_e("Failed to load image to buffer, error code: %d", loadError);
@@ -570,8 +575,12 @@ handle_sd_card_operations(bool is_reset,
 
     // Load binary image to PSRAM buffer
     log_i("Loading binary image to PSRAM buffer...");
-    uint16_t loadError = photo_frame::loadImageToBuffer(
-        g_display.getBuffer(), file, original_filename.c_str(), DISP_WIDTH, DISP_HEIGHT);
+    uint16_t loadError =
+        photo_frame::loadImageToBuffer(photo_frame::DisplayManager::getInstance().getBuffer(),
+                                       file,
+                                       original_filename.c_str(),
+                                       DISP_WIDTH,
+                                       DISP_HEIGHT);
 
     file.close();
 
@@ -601,7 +610,11 @@ handle_sd_card_operations(bool is_reset,
             }
 
             loadError = photo_frame::loadImageToBuffer(
-                g_display.getBuffer(), file, original_filename.c_str(), DISP_WIDTH, DISP_HEIGHT);
+                photo_frame::DisplayManager::getInstance().getBuffer(),
+                file,
+                original_filename.c_str(),
+                DISP_WIDTH,
+                DISP_HEIGHT);
             file.close();
 
             if (loadError != 0) {
@@ -668,14 +681,6 @@ void default_main_setup() {
     // Setup battery and power management
     photo_frame::battery_info_t battery_info;
     photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
-
-#if BATTERY_POWER_SAVING
-    if (error == photo_frame::error_type::BatteryEmpty) {
-        // stop here as battery is empty and we entered deep sleep
-        log_e("Battery is empty!");
-        return;
-    }
-#endif // BATTERY_POWER_SAVING
 
     // Setup time synchronization and connectivity
     DateTime now = DateTime((uint32_t)0);
@@ -808,17 +813,17 @@ void default_main_setup() {
     if (error != photo_frame::error_type::None) {
         RGB_SET_STATE(ERROR); // Show error status
 
+        auto& display = photo_frame::DisplayManager::getInstance();
         // Clear display and draw error (include filename if available)
-        g_display.clear(DISPLAY_COLOR_WHITE);
-        g_display.drawError(error,
-                            original_filename.isEmpty() ? nullptr : original_filename.c_str());
+        display.clear(DISPLAY_COLOR_WHITE);
+        display.drawError(error, original_filename.isEmpty() ? nullptr : original_filename.c_str());
 
         if (error != photo_frame::error_type::BatteryLevelCritical && now.isValid()) {
-            g_display.drawLastUpdate(now, refresh_delay.refresh_seconds);
+            display.drawLastUpdate(now, refresh_delay.refresh_seconds);
         }
 
         // Render to display
-        g_display.render();
+        display.render();
     } else {
         // Render the image if it was successfully loaded
         if (error == photo_frame::error_type::None && file_ready) {

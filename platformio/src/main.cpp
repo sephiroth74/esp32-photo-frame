@@ -29,10 +29,10 @@
 // configuration flags.
 //
 // The actual setup() and loop() implementations are in separate files:
-// - bt_diagnostic_main.cpp  (ENABLE_BT_DIAGNOSTIC)
+// - bt_diagnostic_main.cpp      (ENABLE_BT_DIAGNOSTIC)
 // - display_diagnostic_main.cpp (ENABLE_DISPLAY_DIAGNOSTIC)
-// - bt_main.cpp (ENABLE_BT_IMAGE, but not ENABLE_BT_DIAGNOSTIC)
-// - default_main.cpp (normal mode - everything else)
+// - main_bt.cpp                 (ENABLE_BT_IMAGE)
+// - main_default.cpp            (normal mode)
 //
 // This architecture keeps main.cpp clean and minimal while allowing
 // each configuration to have its own dedicated implementation file.

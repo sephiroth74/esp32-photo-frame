@@ -29,33 +29,50 @@
 
 namespace photo_frame {
 
+// Static singleton instance
+static DisplayManager* g_display_instance = nullptr;
+
+DisplayManager& DisplayManager::getInstance() {
+    if (g_display_instance == nullptr) {
+        g_display_instance = new DisplayManager();
+        log_i("[DisplayManager] singleton created");
+    }
+    return *g_display_instance;
+}
+
 DisplayManager::DisplayManager() :
     displayDriver_(nullptr) // unique_ptr starts as nullptr
     ,
     initialized_(false),
     rotation_(0),
     image_source_(IMAGE_SOURCE_LOCAL_CACHE) {
-    log_d("DisplayManager constructor");
+    log_d("[DisplayManager] constructor");
 }
 
 DisplayManager::~DisplayManager() {
-    log_d("DisplayManager destructor");
+    log_d("[DisplayManager] destructor");
     release();
 }
 
 bool DisplayManager::initBuffer(bool preferPsram) {
-    log_i("Initializing DisplayManager buffer (Phase 1)...");
+    log_i("[DisplayManager] Initializing buffer (Phase 1)...");
+
+    // check if already initialized
+    if (imageBuffer_.isInitialized()) {
+        log_w("[DisplayManager] Image buffer already initialized");
+        return true;
+    }
 
     // Release any existing resources
     release();
 
     // Initialize the image buffer with display dimensions
     if (!imageBuffer_.init(EPD_WIDTH, EPD_HEIGHT, preferPsram)) {
-        log_e("Failed to initialize image buffer");
+        log_e("[DisplayManager] Failed to initialize image buffer");
         return false;
     }
 
-    log_i("Image buffer initialized (%ux%u = %u bytes, %s)",
+    log_i("[DisplayManager] Image buffer initialized (%ux%u = %u bytes, %s)",
           imageBuffer_.getWidth(),
           imageBuffer_.getHeight(),
           imageBuffer_.getSize(),
@@ -64,51 +81,51 @@ bool DisplayManager::initBuffer(bool preferPsram) {
     // Set default rotation (landscape) - for buffer operations
     setRotation(0);
 
-    log_i("DisplayManager buffer initialized successfully (Phase 1 complete)");
+    log_i("[DisplayManager] buffer initialized successfully (Phase 1 complete)");
     return true;
 }
 
 bool DisplayManager::initDisplay() {
-    log_i("Initializing DisplayManager display hardware (Phase 2)...");
+    log_i("[DisplayManager] Initializing display hardware (Phase 2)...");
 
     if (!imageBuffer_.isInitialized()) {
-        log_e("Buffer not initialized! Call initBuffer() first");
+        log_e("[DisplayManager] Buffer not initialized! Call initBuffer() first");
         return false;
     }
 
     if (displayDriver_) {
-        log_w("Display driver already initialized");
+        log_w("[DisplayManager] Display driver already initialized");
         return true;
     }
 
     // Create and initialize the display driver
     displayDriver_ = createDisplayDriver();
     if (!displayDriver_) {
-        log_e("Failed to create display driver");
+        log_e("[DisplayManager] Failed to create display driver");
         return false;
     }
 
     if (!displayDriver_->init()) {
-        log_e("Failed to initialize display driver");
+        log_e("[DisplayManager] Failed to initialize display driver");
         displayDriver_.reset(); // Smart pointer automatically deletes
         return false;
     }
 
-    log_i("Display driver initialized");
+    log_i("[DisplayManager] Display driver initialized");
 
     initialized_ = true;
-    log_i("DisplayManager fully initialized (Phase 2 complete)");
+    log_i("[DisplayManager] fully initialized (Phase 2 complete)");
 
     return true;
 }
 
 std::unique_ptr<DisplayDriver> DisplayManager::createDisplayDriver() {
 #ifdef DISP_6C
-    log_i("Creating 6-color display driver");
+    log_i("[DisplayManager] Creating 6-color display driver");
     return std::unique_ptr<DisplayDriver>(new DisplayDriver6C(
         EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN));
 #else
-    log_i("Creating B/W display driver");
+    log_i("[DisplayManager] Creating B/W display driver");
     return std::unique_ptr<DisplayDriver>(new DisplayDriverBW(
         EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN, EPD_SCK_PIN, EPD_MOSI_PIN));
 #endif
@@ -116,7 +133,7 @@ std::unique_ptr<DisplayDriver> DisplayManager::createDisplayDriver() {
 
 void DisplayManager::setRotation(uint8_t rotation) {
     if (rotation > 3) {
-        log_w("Invalid rotation %u, using 0", rotation);
+        log_w("[DisplayManager] Invalid rotation %u, using 0", rotation);
         rotation = 0;
     }
 
@@ -124,7 +141,7 @@ void DisplayManager::setRotation(uint8_t rotation) {
 
     if (imageBuffer_.isInitialized()) {
         imageBuffer_.getCanvas().setRotation(rotation);
-        log_d("Canvas rotation set to %u", rotation);
+        log_d("[DisplayManager] Canvas rotation set to %u", rotation);
     }
 }
 
@@ -155,19 +172,22 @@ uint16_t DisplayManager::getHeight() const {
 }
 
 void DisplayManager::clear(uint8_t color) {
+    log_i("[DisplayManager] Clearing buffer with color 0x%02X", color);
     if (imageBuffer_.isInitialized()) {
         imageBuffer_.clear(color);
     }
 }
 
 bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size) {
+    log_i("[DisplayManager] Filling buffer with image data (%u bytes)", size);
+
     if (!initialized_) {
-        log_e("DisplayManager not initialized");
+        log_e("[DisplayManager] not initialized");
         return false;
     }
 
     if (size != imageBuffer_.getSize()) {
-        log_e("Image size mismatch: expected %u, got %u", imageBuffer_.getSize(), size);
+        log_e("[DisplayManager] Image size mismatch: expected %u, got %u", imageBuffer_.getSize(), size);
         return false;
     }
 
@@ -177,12 +197,14 @@ bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size) {
 
 void DisplayManager::drawOverlay() {
     // Only need buffer to be initialized for drawing to canvas
+    log_i("[DisplayManager] Drawing overlay on canvas");
     if (!imageBuffer_.isInitialized())
         return;
     photo_frame::drawOverlay(imageBuffer_.getCanvas());
 }
 
 void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds) {
+    log_i("[DisplayManager] Drawing last update time on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
@@ -190,6 +212,7 @@ void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_sec
 }
 
 void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
+    log_i("[DisplayManager] Drawing battery status on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
@@ -199,6 +222,7 @@ void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
 void DisplayManager::drawImageInfo(uint32_t index,
                                    uint32_t total_images,
                                    image_source_t image_source) {
+                                    log_i("[DisplayManager] Drawing image info on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
@@ -206,6 +230,7 @@ void DisplayManager::drawImageInfo(uint32_t index,
 }
 
 void DisplayManager::drawImageInfo(const String& message, image_source_t image_source) {
+    log_i("[DisplayManager] Drawing image info message on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
@@ -225,10 +250,23 @@ void DisplayManager::drawError(photo_frame_error_t error, const char* filename) 
     photo_frame::drawError(imageBuffer_.getCanvas(), error, filename);
 }
 
+void DisplayManager::drawCenteredMessageWithIcon(GFXcanvas8& canvas,
+                                                 icon_name_t icon,
+                                                 const String& title,
+                                                 const String& message,
+                                                 uint16_t icon_size) {
+    log_i("[DisplayManager] Drawing centered message with icon on canvas");
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
+        return;
+    photo_frame::drawCenteredMessageWithIcon(canvas, icon, title, message, icon_size);
+}
+
 void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,
                                           const String& errMsgLn2,
                                           const char* filename,
                                           uint16_t errorCode) {
+    log_i("[DisplayManager] Drawing error with details on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
@@ -237,6 +275,7 @@ void DisplayManager::drawErrorWithDetails(const String& errMsgLn1,
 }
 
 bool DisplayManager::render() {
+    log_i("[DisplayManager] Rendering buffer to display");
     if (!initialized_ || !displayDriver_) {
         log_e("DisplayManager not initialized");
         return false;
@@ -246,24 +285,28 @@ bool DisplayManager::render() {
 }
 
 void DisplayManager::sleep() {
+    log_i("[DisplayManager] Putting display to sleep");
     if (displayDriver_) {
         displayDriver_->sleep();
     }
 }
 
 void DisplayManager::powerOff() {
+    log_i("[DisplayManager] Powering off display");
     if (displayDriver_) {
         displayDriver_->power_off();
     }
 }
 
 void DisplayManager::hibernate() {
+    log_i("[DisplayManager] Putting display to hibernate");
     if (displayDriver_) {
         displayDriver_->hibernate();
     }
 }
 
 void DisplayManager::refresh(bool partial_update) {
+    log_i("[DisplayManager] Refreshing display (partial_update=%s)", partial_update ? "true" : "false");
     if (displayDriver_) {
         displayDriver_->refresh(partial_update);
     }

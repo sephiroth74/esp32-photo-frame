@@ -48,12 +48,12 @@ namespace photo_frame {
  * - Error classification and recovery
  */
 class BluetoothImageManager {
-  public:
+public:
     /**
      * @brief Error severity levels for classification
      */
     enum ErrorSeverity {
-        SEVERITY_IGNORE,  // Only log, continue operation
+        SEVERITY_IGNORE, // Only log, continue operation
         SEVERITY_WARNING, // Log + show icon, use fallback
         SEVERITY_CRITICAL // Log + display full error
     };
@@ -90,10 +90,9 @@ class BluetoothImageManager {
      * @param battery_reader Battery reader instance for checks
      * @param timeout_ms Maximum time to wait
      * @param timeout_callback Optional callback on timeout (shows message on display)
-     * @return Error code (BtLowBatterySkip if battery too low)
      */
     photo_frame_error_t waitForImageWithBatteryCheck(uint32_t timeout_ms,
-                                                     bool (*timeout_callback)() = nullptr);
+        bool (*timeout_callback)() = nullptr);
 
     /**
      * @brief Get received configuration
@@ -139,6 +138,18 @@ class BluetoothImageManager {
     void shutdown();
 
     /**
+     * @brief Set device orientation
+     * @param orientation Orientation value (0-3)
+     */
+    void setDeviceOrientation(uint8_t orientation) {device_orientation_ = orientation;}
+
+    /**
+     * @brief Get device orientation
+     * @return Orientation value (0-3)
+     */
+    uint8_t getDeviceOrientation() const {return device_orientation_;}
+
+    /**
      * @brief Get error severity classification
      *
      * @param error Error to classify
@@ -168,7 +179,7 @@ class BluetoothImageManager {
      * @param rotation Rotation value to validate (0-3)
      * @return true if valid
      */
-    static bool validateRotation(uint8_t rotation);
+    static bool validateOrientation(uint8_t rotation);
 
     /**
      * @brief Get human-readable error suggestion
@@ -178,7 +189,7 @@ class BluetoothImageManager {
      */
     static const char* getErrorSuggestion(photo_frame_error_t error);
 
-  private:
+private:
     BLEServer* server_;
     BLEService* service_;
     BLECharacteristic* char_config_;
@@ -189,6 +200,7 @@ class BluetoothImageManager {
     bt_protocol::BTImageConfig config_;
     photo_frame_error_t last_error_;
 
+    uint8_t device_orientation_;
     bool connected_;
     bool config_received_;
     bool transfer_complete_;

@@ -142,43 +142,6 @@ class PreferencesHelper {
     // ========================================
 
     /**
-     * @brief Get display rotation for Bluetooth mode
-     *
-     * Returns the saved rotation value (0-3) for the display.
-     * 0=0° (landscape), 1=90° (portrait), 2=180° (inverted landscape), 3=270° (inverted portrait)
-     *
-     * @return Rotation value (0-3), defaults to 0
-     */
-    uint8_t getBtRotation();
-
-    /**
-     * @brief Set display rotation for Bluetooth mode
-     *
-     * Stores the rotation value for the display.
-     *
-     * @param rotation Rotation value (0-3)
-     * @return true if successfully stored, false on error
-     */
-    bool setBtRotation(uint8_t rotation);
-
-    /**
-     * @brief Check if this is the first boot in BT mode
-     *
-     * Returns true if no BT image has been received yet.
-     *
-     * @return true if first boot, false otherwise
-     */
-    bool getBtFirstBoot();
-
-    /**
-     * @brief Set first boot flag for BT mode
-     *
-     * @param is_first true if this is first boot
-     * @return true if successfully stored, false on error
-     */
-    bool setBtFirstBoot(bool is_first);
-
-    /**
      * @brief Check if a valid BT image is available
      *
      * Returns true if a fallback image exists on SD card.

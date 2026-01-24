@@ -25,8 +25,8 @@
 
 const char images_directory[]      = "/6c/portrait/bin";
 static const char image_filename[] = "/6c/bin/6c_MjAyMjA3MjBfMTk1NjEz__portrait.bin";
-static photo_frame::DisplayManager g_display; // Use DisplayManager for all display operations
-static photo_frame::SdCard sdCard;            // Use same SD card class as main.cpp
+// Note: display_debug uses the DisplayManager singleton via DisplayManager::getInstance()
+static photo_frame::SdCard sdCard; // Use same SD card class as main.cpp
 
 // Forward declarations
 bool init_display_manager();
@@ -114,21 +114,21 @@ void test_display_power_cycle() {
         log_i("Display initialized successfully with power control");
 
         // Try to draw something simple
-        GFXcanvas8& canvas = g_display.getCanvas();
+        GFXcanvas8& canvas = photo_frame::DisplayManager::getInstance().getCanvas();
         canvas.fillScreen(COLOR_WHITE);
         canvas.fillRect(100, 100, 200, 200, COLOR_BLACK);
         canvas.fillRect(150, 150, 100, 100, COLOR_RED);
         log_i("Drew test pattern");
 
         // Render to display
-        if (g_display.render()) {
+        if (photo_frame::DisplayManager::getInstance().render()) {
             log_i("Test pattern rendered successfully");
         } else {
             log_e("Failed to render test pattern");
         }
 
         // Sleep display before power off
-        g_display.sleep();
+        photo_frame::DisplayManager::getInstance().sleep();
         delay(1000);
     }
 
@@ -160,7 +160,7 @@ void test_display_power_cycle() {
 }
 
 bool init_display_manager() {
-    if (g_display.isInitialized()) {
+    if (photo_frame::DisplayManager::getInstance().isInitialized()) {
         log_w("Display manager already initialized");
         return true;
     }
@@ -168,28 +168,29 @@ bool init_display_manager() {
     log_i("Initializing display manager...");
 
     // First initialize the buffer
-    if (!g_display.initBuffer(true)) { // true = prefer PSRAM
+    if (!photo_frame::DisplayManager::getInstance().initBuffer(true)) { // true = prefer PSRAM
         log_e("[display_debug] CRITICAL: Failed to initialize display buffer!");
         log_e("[display_debug] Cannot continue without buffer");
         return false;
     }
 
     // Then initialize the display hardware
-    if (!g_display.initDisplay()) {
+    if (!photo_frame::DisplayManager::getInstance().initDisplay()) {
         log_e("[display_debug] CRITICAL: Failed to initialize display hardware!");
         log_e("[display_debug] Cannot continue without display");
         return false;
     }
 
     log_i("[display_debug] Display manager initialized successfully");
-    log_i("[display_debug] Buffer size: %u bytes", g_display.getBufferSize());
+    log_i("[display_debug] Buffer size: %u bytes",
+          photo_frame::DisplayManager::getInstance().getBufferSize());
     return true;
 }
 
 void cleanup_display_manager() {
-    if (g_display.isInitialized()) {
+    if (photo_frame::DisplayManager::getInstance().isInitialized()) {
         log_i("[display_debug] Releasing display manager");
-        g_display.release();
+        photo_frame::DisplayManager::getInstance().release();
         log_i("[display_debug] Display manager released");
     }
 }
@@ -396,17 +397,17 @@ void run_display_tests() {
     }
 
     // Copy image from temporary buffer to display buffer
-    memcpy(g_display.getBuffer(), tempBuffer, bufferSize);
+    memcpy(photo_frame::DisplayManager::getInstance().getBuffer(), tempBuffer, bufferSize);
     free(tempBuffer);
     log_i("Image copied to display buffer");
 
     // Check display is valid
-    if (!g_display.isInitialized()) {
+    if (!photo_frame::DisplayManager::getInstance().isInitialized()) {
         log_e("Display manager is not initialized!");
         return;
     }
 
-    log_v("Image buffer address: %p", g_display.getBuffer());
+    log_v("Image buffer address: %p", photo_frame::DisplayManager::getInstance().getBuffer());
     delay(1000);
 
     log_i("Displaying SD Card image");
@@ -415,32 +416,33 @@ void run_display_tests() {
     bool portrait_mode = true; // Change to true if testing portrait mode
 
     if (portrait_mode) {
-        g_display.setRotation(1);
+        photo_frame::DisplayManager::getInstance().setRotation(1);
     }
 
     log_v("Drawing overlay elements...");
-    g_display.drawOverlay();
+    photo_frame::DisplayManager::getInstance().drawOverlay();
 
     // Draw battery status
     photo_frame::battery_info_t battery_info;
     battery_info.percent    = 100;
     battery_info.millivolts = 4120;
     uint8_t test_rotation   = 1; // 0=0°,1=90°,2=180°,3=270°
-    g_display.setRotation(test_rotation);
+    photo_frame::DisplayManager::getInstance().setRotation(test_rotation);
     long refresh_seconds = 3600; // 1 hour
-    g_display.drawLastUpdate(now, refresh_seconds);
+    photo_frame::DisplayManager::getInstance().drawLastUpdate(now, refresh_seconds);
 
     // Draw image info
-    g_display.drawImageInfo(0, 10, photo_frame::image_source_t::IMAGE_SOURCE_CLOUD);
+    photo_frame::DisplayManager::getInstance().drawImageInfo(
+        0, 10, photo_frame::image_source_t::IMAGE_SOURCE_CLOUD);
 
     // Render the image with overlays to the display
     log_i("Rendering image to display...");
-    if (!g_display.render()) {
+    if (!photo_frame::DisplayManager::getInstance().render()) {
         log_e("Failed to render image!");
     }
 
     // Put display to sleep to preserve lifespan
-    g_display.sleep();
+    photo_frame::DisplayManager::getInstance().sleep();
 
     log_i("Display rendered and put to sleep mode");
     delay(5000); // Delay for 5s to view the result

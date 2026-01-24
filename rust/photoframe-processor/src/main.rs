@@ -108,7 +108,7 @@ fn main() -> Result<()> {
         // Always collect report data in JSON mode, otherwise use --report flag
         optimization_report: args.json_progress || args.report,
         // Target display orientation
-        target_orientation: args.target_orientation.clone(),
+        target_orientation: args.target_orientation.orientation.clone(),
         // Pre-rotation (only for 6c portrait mode)
         needs_pre_rotation: args.needs_pre_rotation(),
         // JSON progress output
@@ -258,7 +258,7 @@ fn main() -> Result<()> {
     let output_formats = config.output_formats.clone();
 
     // Initialize processing engine
-    let engine = ProcessingEngine::new(config)?;
+    let engine = ProcessingEngine::new(config.clone())?;
 
     // Initialize multi-progress system (disabled in debug or JSON mode)
     let multi_progress = MultiProgress::new();
@@ -603,7 +603,11 @@ fn main() -> Result<()> {
 
             // Show portrait images
             if portraits_processed > 0 {
-                let portrait_msg = if args.target_orientation == cli::TargetOrientation::Landscape {
+                let is_landscape_like = matches!(
+                    args.target_orientation.orientation,
+                    cli::TargetOrientation::Landscape
+                );
+                let portrait_msg = if is_landscape_like {
                     format!(
                         "  Portrait images: {} (combined side-by-side into landscape pairs)",
                         style(portraits_processed).bold().magenta()
@@ -619,7 +623,11 @@ fn main() -> Result<()> {
 
             // Show landscape images
             if landscapes_processed > 0 {
-                let landscape_msg = if args.target_orientation == cli::TargetOrientation::Portrait {
+                let is_portrait_like = matches!(
+                    args.target_orientation.orientation,
+                    cli::TargetOrientation::Portrait
+                );
+                let landscape_msg = if is_portrait_like {
                     format!(
                         "  Landscape images: {} (combined top-bottom into portrait pairs)",
                         style(landscapes_processed).bold().cyan()

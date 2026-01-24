@@ -129,19 +129,20 @@ const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Battery authentication
 // ========================================
 // BLUETOOTH/BLE MODE STRINGS - ENGLISH
 // ========================================
-const char TXT_BT_FIRST_BOOT[] PROGMEM = "First Boot";
 const char TXT_BT_SEARCHING_DEVICE[] PROGMEM = "Searching for: ";
-const char TXT_BT_WAITING_IMAGE[] PROGMEM = "Waiting for a new image...";
-const char TXT_BT_TIMEOUT_30MIN[] PROGMEM = "Timeout: 30 minutes";
-const char TXT_BT_WAITING_IMAGE_TIMEOUT[] PROGMEM = "Waiting for Image";
-const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout: 30 minutes expired";
-const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Press GPIO1 to retry";
-const char TXT_BT_FACTORY_RESET[] PROGMEM = "Factory Reset";
-const char TXT_BT_RESET_COMPLETE[] PROGMEM = "Complete!";
-const char TXT_BT_SETTINGS_RESTORED[] PROGMEM = "All settings have been";
-const char TXT_BT_SETTINGS_RESTORED_STATE[] PROGMEM = "restored to factory defaults";
-const char TXT_BT_RESTARTING[] PROGMEM = "Restarting...";
-const char TXT_BT_BATTERY_PERCENT[] PROGMEM = "Battery: %.1f%%";
+const char TXT_BT_WAITING_IMAGE[] PROGMEM = "Waiting";
+const char TXT_BT_TIMEOUT_MIN[] PROGMEM = "Timeout: %d minutes";
+const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout expired";
+const char TXT_BT_INIT_FAILED[] PROGMEM = "Bluetooth initialization failed";
+const char TXT_BT_INVALID_CONFIG[] PROGMEM = "Invalid Bluetooth configuration";
+const char TXT_BT_IMAGE_SIZE_ERROR[] PROGMEM = "Bluetooth image size error";
+const char TXT_BT_INVALID_ROTATION[] PROGMEM = "Bluetooth invalid rotation";
+const char TXT_BT_SD_WRITE_FAILED[] PROGMEM = "Bluetooth SD write failed";
+const char TXT_BT_IMAGE_VALIDATION_FAILED[] PROGMEM = "Bluetooth image validation failed";
+const char TXT_BT_CONNECTION_TIMEOUT[] PROGMEM = "Bluetooth connection timeout";
+const char TXT_BT_CLIENT_DISCONNECTED[] PROGMEM = "Bluetooth client disconnected";
+const char TXT_BT_CHUNK_TIMEOUT[] PROGMEM = "Bluetooth chunk receive timeout";
+const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Press button to retry";
 #endif
 
 

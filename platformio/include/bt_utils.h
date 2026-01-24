@@ -35,13 +35,6 @@ namespace bt_utils {
  * @brief Battery management utilities for Bluetooth mode
  */
 
-/**
- * @brief Check battery status and determine action
- *
- * @param battery_info Current battery information
- * @return Error if battery is critical, None otherwise
- */
-photo_frame_error_t checkBatteryStatus(const battery_info_t& battery_info);
 
 /**
  * @brief Display battery critical error and sleep
@@ -50,9 +43,13 @@ photo_frame_error_t checkBatteryStatus(const battery_info_t& battery_info);
  *
  * @param battery_info Battery information to display
  * @param wakeup_reason Current wakeup reason
+ * @param display_rotation Current display rotation
  */
 void handleCriticalBattery(const battery_info_t& battery_info,
-                           esp_sleep_wakeup_cause_t wakeup_reason);
+                           esp_sleep_wakeup_cause_t wakeup_reason,
+                           uint8_t display_rotation);
+
+const String getBluetoothDeviceName();
 
 /**
  * @brief Display battery low warning
@@ -70,18 +67,6 @@ void displayBatteryWarning(const battery_info_t& battery_info);
  */
 void displayFirstBootTimeout();
 
-/**
- * @brief Display waiting message and initialize display for BT mode
- *
- * Handles display initialization and shows appropriate waiting message:
- * - First boot: Shows "Primo Avvio" message with 30min timeout
- * - Subsequent boot: Leaves display untouched (shows last image)
- *
- * @param display Display manager instance
- * @param is_first_boot Whether this is first boot or subsequent
- * @return true if display initialized successfully, false otherwise
- */
-bool displayWaitingMessage(DisplayManager& display, bool is_first_boot);
 
 /**
  * @brief Perform factory reset for Bluetooth mode
@@ -105,11 +90,14 @@ void performFactoryReset();
  * Monitors GPIO button for long press (5 seconds).
  * If pressed, performs factory reset.
  *
+ * @param wakeup_reason Current wakeup reason
  * @param button_pin GPIO pin to monitor
  * @param press_duration_ms Duration in milliseconds for long press detection
  * @return true if factory reset was triggered, false otherwise
  */
-bool checkFactoryResetButton(gpio_num_t button_pin, uint32_t press_duration_ms = 5000);
+bool checkFactoryResetButton(esp_sleep_wakeup_cause_t wakeup_reason,
+                             gpio_num_t button_pin,
+                             uint32_t press_duration_ms = 5000);
 
 } // namespace bt_utils
 } // namespace photo_frame

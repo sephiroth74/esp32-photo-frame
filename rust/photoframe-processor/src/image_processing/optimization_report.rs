@@ -391,7 +391,6 @@ impl OptimizationReport {
                 Cell::new("Contrast"),
                 Cell::new("Color"),
                 Cell::new("Rot."),
-                Cell::new("Skip"),
                 Cell::new("People"),
             ]));
 
@@ -478,7 +477,6 @@ impl OptimizationReport {
         let dither_name = format_dither_method(&entry.dither_method);
         let color_check = if entry.auto_color { "✓" } else { "✗" };
         let rotation_check = if entry.was_rotated { "✓" } else { "✗" };
-        let skip_check = if entry.color_skipped { "✓" } else { "✗" };
         let people_info = if entry.people_detected {
             format!("✓ ({})", entry.people_count)
         } else {
@@ -489,13 +487,12 @@ impl OptimizationReport {
 
         table.add_row(Row::new(vec![
             Cell::new(&input_with_marker),
-            Cell::new(&truncate(&entry.output_filename, 25)),
+            Cell::new(&truncate(&entry.output_filename, 50)),
             Cell::new(&dither_name),
             Cell::new(&format!("{:.1}", entry.dither_strength)),
             Cell::new(&format!("{:+.2}", entry.contrast)),
             Cell::new(color_check),
             Cell::new(rotation_check),
-            Cell::new(skip_check),
             Cell::new(&people_info),
         ]));
     }

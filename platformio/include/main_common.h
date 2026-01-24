@@ -41,7 +41,7 @@ typedef struct {
 // ============================================================================
 // GLOBAL OBJECTS (shared across main files)
 // ============================================================================
-extern photo_frame::DisplayManager g_display;
+// Note: DisplayManager is now a singleton - use DisplayManager::getInstance()
 extern uint8_t display_rotation; // 0-3 rotation applied to display/canvas
 extern unsigned long startupTime;
 extern photo_frame::BatteryReader battery_reader;
@@ -86,11 +86,6 @@ bool init_display_hardware();
  * but this function can be called explicitly if needed.
  */
 void cleanup_image_buffer();
-
-/**
- * @brief Helper function to cleanup temporary files from LittleFS
- */
-void cleanup_temp_image_file();
 
 // ============================================================================
 // POWER MANAGEMENT

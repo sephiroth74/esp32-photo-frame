@@ -70,12 +70,14 @@
 /// - Tests protocol, preferences, battery, SD card, display, BLE
 /// - Does NOT start actual BLE advertising (safe to run)
 
-#ifdef ENABLE_BT_IMAGE
-/// Bluetooth mode constants
-#define BT_FIRST_BOOT_TIMEOUT_MS     (30 * 60 * 1000) // 30 minutes timeout for first boot
-#define BT_LISTEN_TIMEOUT_MS         (5 * 60 * 1000)  // 5 minutes timeout for subsequent boots
-#define BT_BATTERY_CHECK_INTERVAL_MS 60000            // Check battery every 60 seconds
-#endif                                                // ENABLE_BT_IMAGE
+// #ifdef ENABLE_BT_IMAGE
+// /// Bluetooth mode constants
+// #define BT_FIRST_BOOT_TIMEOUT_MS     (2 * 60 * 1000) // minutes timeout for first boot
+// #define BT_LISTEN_TIMEOUT_MS         (5 * 60 * 1000) // 5 minutes timeout for subsequent boots
+// #define BT_BATTERY_CHECK_INTERVAL_MS 60000           // Check battery every 60 seconds
+// #define BT_DEFAULT_IMAGE_FILENAME    "/default.bin"  // Default image filename in LittleFS
+// #define BT_CURRENT_IMAGE_FILENAME    "/current.bin"  // Current image filename in LittleFS
+// #endif                                               // ENABLE_BT_IMAGE
 
 // ----------------------------------------------------------------------------
 // E-Paper Display Configuration
@@ -376,6 +378,11 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 /// Display orientation is now configured dynamically via config.json
 /// The board_config.display_rotation field controls orientation (0-3):
 ///   - 0: 0° (default landscape) | 1: 90° | 2: 180° | 3: 270°
+
+#ifndef DEFAULT_ORIENTATION
+#define DEFAULT_ORIENTATION 0 // Default to 0° if not defined
+#endif
+
 /// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
 
 /// Default value definitions with validation guards
@@ -485,5 +492,29 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #define ACCENT_COLOR GxEPD_BLACK // Default to black
 #endif
 #endif
+
+#ifdef ENABLE_BT_IMAGE
+/// Bluetooth mode constants
+#ifndef BT_FIRST_BOOT_TIMEOUT_MS
+#define BT_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
+#endif                                            // BT_FIRST_BOOT_TIMEOUT_MS
+
+#ifndef BT_LISTEN_TIMEOUT_MS
+#define BT_LISTEN_TIMEOUT_MS (5 * 60 * 1000) // 5 minutes timeout for subsequent boots
+#endif                                       // BT_LISTEN_TIMEOUT_MS
+
+#ifndef BT_BATTERY_CHECK_INTERVAL_MS
+#define BT_BATTERY_CHECK_INTERVAL_MS 60000 // Check battery every 60 seconds
+#endif                                     // BT_BATTERY_CHECK_INTERVAL_MS
+
+#ifndef BT_DEFAULT_IMAGE_FILENAME
+#define BT_DEFAULT_IMAGE_FILENAME "/default.bin" // Default image filename in LittleFS
+#endif                                           // BT_DEFAULT_IMAGE_FILENAME
+
+#ifndef BT_CURRENT_IMAGE_FILENAME
+#define BT_CURRENT_IMAGE_FILENAME "/current.bin" // Current image filename in LittleFS
+#endif                                           // BT_CURRENT_IMAGE_FILENAME
+
+#endif // ENABLE_BT_IMAGE
 
 #endif // __PHOTO_FRAME_CONFIG_H__

@@ -33,6 +33,8 @@ namespace photo_frame {
 
 namespace board_utils {
 
+static bool display_power_initialized = false;
+
 void init_display_power() {
 #ifdef DISPLAY_POWER_PIN
     log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
@@ -52,6 +54,13 @@ void display_power_on() {
 #error                                                                                             \
     "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
 #endif
+
+    if (display_power_initialized == true) {
+        log_i("[POWER] Display power already initialized, skipping power-on delay");
+        return;
+    } else {
+        display_power_initialized = true;
+    }
 
     log_i("[POWER] Turning display ON (GPIO %d -> %s)",
           DISPLAY_POWER_PIN,
@@ -74,6 +83,11 @@ void display_power_off() {
 #error                                                                                             \
     "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
 #endif
+
+    if (!display_power_initialized) {
+        log_i("[POWER] Display power not initialized, skipping power-off");
+        return;
+    }
 
     log_i("[POWER] Turning display OFF (GPIO %d -> %s)",
           DISPLAY_POWER_PIN,

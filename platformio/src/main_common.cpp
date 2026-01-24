@@ -45,7 +45,7 @@
 // ============================================================================
 // GLOBAL OBJECTS
 // ============================================================================
-photo_frame::DisplayManager g_display;
+// Note: DisplayManager is now a singleton - use DisplayManager::getInstance()
 uint8_t display_rotation  = 0; // 0=0°,1=90°,2=180°,3=270°
 unsigned long startupTime = 0;
 
@@ -88,10 +88,7 @@ bool initialize_hardware() {
             log_e("[PSRAM] CRITICAL: Failed to initialize PSRAM: %s", esp_err_to_name(ret));
             log_e("[PSRAM] PSRAM is required for this board configuration!");
             log_e("[PSRAM] System will likely crash due to memory constraints");
-// For ProS3(d) and other PSRAM-mandatory boards, we should halt
-#ifdef BOARD_HAS_PSRAM
-            ESP.restart(); // Restart to try again
-#endif
+            return false;
         } else {
             log_i("[PSRAM] PSRAM initialized successfully");
 
@@ -130,36 +127,25 @@ bool initialize_hardware() {
 }
 
 bool init_image_buffer() {
-    if (g_display.isBufferInitialized()) {
-        log_w("[main] Display buffer already initialized");
-        return true;
-    }
-
+    auto& display = photo_frame::DisplayManager::getInstance();
     log_i("[main] Initializing display buffer (Phase 1)...");
 
-    if (!g_display.initBuffer(true)) { // true = prefer PSRAM
+    if (!display.initBuffer(true)) { // true = prefer PSRAM
         log_e("[main] CRITICAL: Failed to initialize display buffer!");
         log_e("[main] Cannot continue without buffer");
         return false;
     }
 
     log_i("[main] Display buffer initialized successfully");
-    log_i("[main] Buffer size: %u bytes", g_display.getBufferSize());
-
-    // Apply current rotation to buffer so width/height match
-    g_display.setRotation(display_rotation);
+    log_i("[main] Buffer size: %u bytes", display.getBufferSize());
     return true;
 }
 
 bool init_display_hardware() {
-    if (g_display.isDisplayInitialized()) {
-        log_w("[main] Display hardware already initialized");
-        return true;
-    }
-
+    auto& display = photo_frame::DisplayManager::getInstance();
     log_i("[main] Initializing display hardware (Phase 2)...");
 
-    if (!g_display.initDisplay()) {
+    if (!display.initDisplay()) {
         log_e("[main] CRITICAL: Failed to initialize display hardware!");
         log_e("[main] Cannot continue without display");
         return false;
@@ -170,15 +156,12 @@ bool init_display_hardware() {
 }
 
 void cleanup_image_buffer() {
-    if (g_display.isInitialized()) {
+    auto& display = photo_frame::DisplayManager::getInstance();
+    if (display.isInitialized()) {
         log_i("[main] Releasing display manager");
-        g_display.release();
+        display.release();
         log_i("[main] Display manager released");
     }
-}
-
-void cleanup_temp_image_file() {
-    photo_frame::littlefs_manager::LittleFsManager::cleanup_temp_files();
 }
 
 photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
@@ -338,7 +321,7 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
 #endif               // RGB_STATUS_ENABLED
 
     // Power off display and release resources before sleep
-    g_display.powerOff();
+    photo_frame::DisplayManager::getInstance().powerOff();
     cleanup_image_buffer();
 
     delay(100);
@@ -399,27 +382,26 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // Check portrait mode from config (or preferences fallback)
         extern photo_frame::unified_config systemConfig;
         uint8_t rotation = systemConfig.board.display_rotation;
-        bool portrait    = (rotation == 1 || rotation == 3);
         if (!systemConfig.is_valid()) {
             auto& prefs = photo_frame::PreferencesHelper::getInstance();
             rotation    = prefs.getDisplayRotation();
-            portrait    = (rotation == 1 || rotation == 3);
         }
 
         // Set rotation for portrait mode if needed
-        g_display.setRotation(rotation);
+        auto& display = photo_frame::DisplayManager::getInstance();
+        display.setRotation(rotation);
 
         // Draw overlay based on portrait mode
-        g_display.drawOverlay();
+        display.drawOverlay();
 
         // Draw status information
-        g_display.drawLastUpdate(now, refresh_delay.refresh_seconds);
-        g_display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-        g_display.drawBatteryStatus(battery_info);
+        display.drawLastUpdate(now, refresh_delay.refresh_seconds);
+        display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
+        display.drawBatteryStatus(battery_info);
 
         // Render the image with overlays to the display
         log_i("Rendering image to display...");
-        if (!g_display.render()) {
+        if (!display.render()) {
             log_e("Failed to render image!");
             rendering_failed = true;
         } else {
@@ -429,21 +411,22 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // ============================================
         // B/W displays: Same system as 6C, no paged rendering
         // ============================================
+        auto& display = photo_frame::DisplayManager::getInstance();
 
         // Set rotation for portrait mode if needed
-        g_display.setRotation(display_rotation);
+        display.setRotation(display_rotation);
 
         // Draw overlay based on portrait mode
-        g_display.drawOverlay();
+        display.drawOverlay();
 
         // Draw status information
-        g_display.drawLastUpdate(now, refresh_delay.refresh_seconds);
-        g_display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-        g_display.drawBatteryStatus(battery_info);
+        display.drawLastUpdate(now, refresh_delay.refresh_seconds);
+        display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
+        display.drawBatteryStatus(battery_info);
 
         // Render the image with overlays to the display
         log_i("Rendering B/W image to display...");
-        if (!g_display.render()) {
+        if (!display.render()) {
             log_e("Failed to render B/W image!");
             rendering_failed = true;
         } else {
@@ -465,22 +448,22 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         if (rendering_failed) {
             log_w("Rendering failed!");
 
+            auto& display = photo_frame::DisplayManager::getInstance();
             // Clear display and draw error
-            g_display.clear(DISPLAY_COLOR_WHITE);
-            g_display.drawErrorWithDetails(
+            display.clear(DISPLAY_COLOR_WHITE);
+            display.drawErrorWithDetails(
                 TXT_IMAGE_FORMAT_NOT_SUPPORTED, "", original_filename, error_code);
 
             // Draw status information
-            g_display.drawLastUpdate(now, refresh_delay.refresh_seconds);
-            g_display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-            g_display.drawBatteryStatus(battery_info);
+            display.drawLastUpdate(now, refresh_delay.refresh_seconds);
+            display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
+            display.drawBatteryStatus(battery_info);
 
             // Render error to display
-            g_display.render();
+            display.render();
         }
 
-        file.close();              // Close the file after drawing
-        cleanup_temp_image_file(); // Clean up temporary LittleFS file
+        file.close(); // Close the file after drawing
 
     } else if (error == photo_frame::error_type::None) {
         // -------------------------------
@@ -488,18 +471,18 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
         // -------------------------------
         log_w("Partial update mode not yet supported in new display system");
 
+        auto& display = photo_frame::DisplayManager::getInstance();
         // For now, use same rendering as full update
         // Draw overlay and status
-        g_display.drawOverlay();
-        g_display.drawLastUpdate(now, refresh_delay.refresh_seconds);
-        g_display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-        g_display.drawBatteryStatus(battery_info);
+        display.drawOverlay();
+        display.drawLastUpdate(now, refresh_delay.refresh_seconds);
+        display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
+        display.drawBatteryStatus(battery_info);
 
         // Render to display
-        g_display.render();
+        display.render();
 
-        file.close();              // Close the file after drawing
-        cleanup_temp_image_file(); // Clean up temporary LittleFS file
+        file.close(); // Close the file after drawing
     }
 
     return error;

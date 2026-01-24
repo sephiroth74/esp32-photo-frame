@@ -35,74 +35,48 @@
 namespace photo_frame {
 namespace bt_utils {
 
-photo_frame_error_t checkBatteryStatus(const battery_info_t& battery_info) {
-    if (battery_info.is_critical()) {
-        log_e("[BT] Battery is critical: %.1f%%", battery_info.percent);
-        return error_type::BtLowBatterySkip;
-    }
-
-    if (battery_info.is_empty()) {
-        log_e("[BT] Battery is empty: %.1f%%", battery_info.percent);
-        return error_type::BatteryEmpty;
-    }
-
-    if (battery_info.is_low()) {
-        log_w("[BT] Battery is low: %.1f%%", battery_info.percent);
-        return error_type::BtLowBatterySkip;
-    }
-
-    return error_type::None;
+const String getBluetoothDeviceName() {
+    uint32_t chip_id = ESP.getEfuseMac() & 0xFFFFFF;
+    return String(photo_frame::bt_protocol::BT_DEVICE_NAME) + "-" + String(chip_id, HEX);
 }
 
 void handleCriticalBattery(const battery_info_t& battery_info,
-                           esp_sleep_wakeup_cause_t wakeup_reason) {
+                           esp_sleep_wakeup_cause_t wakeup_reason,
+                           uint8_t display_rotation) {
     log_e("[BT] Handling critical battery state: %.1f%%", battery_info.percent);
 
     RGB_SET_STATE(BATTERY_LOW);
 
-    // Initialize display if not already done
-    // This is safe to call even if display is partially initialized
-    photo_frame::DisplayManager display;
+    // Use singleton DisplayManager instance
+    auto& display = photo_frame::DisplayManager::getInstance();
 
-    if (!display.isBufferInitialized()) {
-        if (!display.initBuffer(true)) {
-            log_e("[BT] Failed to init buffer for error display");
-            // Can't display error, just sleep indefinitely
-            board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
-            return;
-        }
+    if (!display.initBuffer(true)) {
+        log_e("[BT] Failed to init buffer for error display");
+        board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
+        return;
     }
 
     board_utils::display_power_on();
-    delay(100);
 
-    if (!display.isDisplayInitialized()) {
-        if (!display.initDisplay()) {
-            log_e("[BT] Failed to init display for error display");
-            // Can't display error, just sleep indefinitely
-            board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
-            return;
-        }
+    if (!display.initDisplay()) {
+        log_e("[BT] Failed to init display for error display");
+        board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
+        return;
     }
 
     delay(300);
 
     // Draw battery critical error
+    display.setRotation(display_rotation);
     display.clear(DISPLAY_COLOR_WHITE);
     display.drawError(error_type::BatteryLevelCritical, nullptr);
-
-    // Add battery percentage info
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "Battery: %.1f%%", battery_info.percent);
-
-    // Render
     display.render();
 
     delay(2000);
 
     // Power off and sleep indefinitely (only wake via GPIO1)
-    board_utils::display_power_off();
     display.powerOff();
+    board_utils::display_power_off();
 
     log_i("[BT] Battery critical - entering indefinite sleep (wake via GPIO1 only)");
     board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0); // 0 = indefinite sleep
@@ -113,24 +87,19 @@ void displayBatteryWarning(const battery_info_t& battery_info) {
 
     RGB_SET_STATE(BATTERY_LOW);
 
-    // Initialize display infrastructure
-    photo_frame::DisplayManager display;
+    // Use singleton DisplayManager instance
+    auto& display = photo_frame::DisplayManager::getInstance();
 
-    if (!display.isBufferInitialized()) {
-        if (!display.initBuffer(true)) {
-            log_e("[BT] Failed to init buffer for warning display");
-            return;
-        }
+    if (!display.initBuffer(true)) {
+        log_e("[BT] Failed to init buffer for warning display");
+        return;
     }
 
     board_utils::display_power_on();
-    delay(100);
 
-    if (!display.isDisplayInitialized()) {
-        if (!display.initDisplay()) {
-            log_e("[BT] Failed to init display for warning display");
-            return;
-        }
+    if (!display.initDisplay()) {
+        log_e("[BT] Failed to init display for warning display");
+        return;
     }
 
     delay(300);
@@ -152,80 +121,30 @@ void displayBatteryWarning(const battery_info_t& battery_info) {
 
 void displayFirstBootTimeout() {
     log_i("[BT] Timeout on first boot - displaying message");
+    auto& display = photo_frame::DisplayManager::getInstance();
 
-    RGB_SET_STATE(SLEEP_PREP);
-
-    // Initialize display
-    photo_frame::DisplayManager display;
-
-    if (!display.isBufferInitialized()) {
-        if (!display.initBuffer(true)) {
-            log_e("[BT] Failed to init buffer for timeout display");
-            return;
-        }
+    if (!display.initBuffer(true)) {
+        log_e("[BT] Failed to init buffer for timeout display");
+        return;
     }
 
     board_utils::display_power_on();
-    delay(100);
 
-    if (!display.isDisplayInitialized()) {
-        if (!display.initDisplay()) {
-            log_e("[BT] Failed to init display for timeout display");
-            return;
-        }
+    if (!display.initDisplay()) {
+        log_e("[BT] Failed to init display for timeout display");
+        return;
     }
-
-    delay(300);
 
     // Draw timeout message
     display.clear(DISPLAY_COLOR_WHITE);
-
-    // Get canvas for drawing
-    GFXcanvas8& canvas = display.getCanvas();
-
-    // Set text color and size
-    canvas.setTextColor(DISPLAY_COLOR_BLACK);
-    canvas.setFont(&FONT_14pt8b);
-
-    // Calculate center positions
-    uint16_t display_width  = display.getWidth();
-    uint16_t display_height = display.getHeight();
-
-    // Title
-    const char* title = TXT_BT_WAITING_IMAGE_TIMEOUT;
-    int16_t x1, y1;
-    uint16_t w1, h1;
-    canvas.getTextBounds(title, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t title_x = (display_width - w1) / 2;
-    int16_t title_y = (display_height / 2) - 40;
-    canvas.setCursor(title_x, title_y);
-    canvas.print(title);
-
-    // Message line 1
-    canvas.setFont(&FONT_12pt8b);
-    const char* msg1 = TXT_BT_TIMEOUT_EXPIRED;
-    canvas.getTextBounds(msg1, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t msg1_x = (display_width - w1) / 2;
-    int16_t msg1_y = title_y + 40;
-    canvas.setCursor(msg1_x, msg1_y);
-    canvas.print(msg1);
-
-    // Message line 2
-    const char* msg2 = TXT_BT_PRESS_BUTTON_RETRY;
-    canvas.getTextBounds(msg2, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t msg2_x = (display_width - w1) / 2;
-    int16_t msg2_y = msg1_y + 20;
-    canvas.setCursor(msg2_x, msg2_y);
-    canvas.print(msg2);
+    display.drawCenteredMessageWithIcon(display.getCanvas(),
+                                        icon_name::bluetooth_0deg,
+                                        TXT_BT_TIMEOUT_EXPIRED,    // Message: "Timeout scaduto"
+                                        TXT_BT_PRESS_BUTTON_RETRY, // Title: "In attesa di immagine"
+                                        196);
 
     // Render
     display.render();
-
-    delay(2000);
-
-    // Power off display
-    board_utils::display_power_off();
-    display.powerOff();
 }
 
 void performFactoryReset() {
@@ -238,115 +157,28 @@ void performFactoryReset() {
     auto& prefs  = PreferencesHelper::getInstance();
 
     bool success = true;
-    success &= prefs.setBtRotation(0);
-    success &= prefs.setBtFirstBoot(true);
     success &= prefs.setBtImageAvailable(false);
     success &= prefs.setBtLastError(0);
     success &= prefs.setBtRetryCount(0);
+    success &= prefs.setDisplayRotation(DEFAULT_ORIENTATION); // reset to default orientation
 
     if (success) {
         log_i("[BT] ✓ All BT preferences cleared");
     } else {
         log_w("[BT] ⚠ Some preferences failed to clear");
     }
-
-    // Step 2: Show confirmation message on display
-    log_i("[BT] Step 2: Showing confirmation message...");
-
-    // Initialize display
-    DisplayManager display;
-
-    if (!display.initBuffer(true)) {
-        log_e("[BT] Failed to init display buffer for reset confirmation");
-    } else {
-        board_utils::display_power_on();
-        delay(100);
-
-        if (!display.initDisplay()) {
-            log_e("[BT] Failed to init display hardware for reset confirmation");
-        } else {
-            delay(300);
-
-            // Draw confirmation message
-            display.clear(DISPLAY_COLOR_WHITE);
-
-            GFXcanvas8& canvas = display.getCanvas();
-            canvas.setTextColor(DISPLAY_COLOR_BLACK);
-            canvas.setFont(&FONT_26pt8b);
-
-            uint16_t display_width  = display.getWidth();
-            uint16_t display_height = display.getHeight();
-
-            // Title
-            const char* title = TXT_BT_FACTORY_RESET;
-            int16_t x1, y1;
-            uint16_t w1, h1;
-            canvas.getTextBounds(title, 0, 0, &x1, &y1, &w1, &h1);
-            int16_t title_x = (display_width - w1) / 2;
-            int16_t title_y = (display_height / 2) - 60;
-            canvas.setCursor(title_x, title_y);
-            canvas.print(title);
-
-            // Message line 1
-            canvas.setFont(&FONT_18pt8b);
-            const char* msg1 = TXT_BT_RESET_COMPLETE;
-            canvas.getTextBounds(msg1, 0, 0, &x1, &y1, &w1, &h1);
-            int16_t msg1_x = (display_width - w1) / 2;
-            int16_t msg1_y = title_y + 60;
-            canvas.setCursor(msg1_x, msg1_y);
-            canvas.print(msg1);
-
-            // Message line 2
-            canvas.setFont(&FONT_12pt8b);
-            const char* msg2 = TXT_BT_SETTINGS_RESTORED;
-            canvas.getTextBounds(msg2, 0, 0, &x1, &y1, &w1, &h1);
-            int16_t msg2_x = (display_width - w1) / 2;
-            int16_t msg2_y = msg1_y + 40;
-            canvas.setCursor(msg2_x, msg2_y);
-            canvas.print(msg2);
-
-            // Message line 3
-            const char* msg3 = TXT_BT_SETTINGS_RESTORED_STATE;
-            canvas.getTextBounds(msg3, 0, 0, &x1, &y1, &w1, &h1);
-            int16_t msg3_x = (display_width - w1) / 2;
-            int16_t msg3_y = msg2_y + 20;
-            canvas.setCursor(msg3_x, msg3_y);
-            canvas.print(msg3);
-
-            // Message line 4
-            canvas.setFont(&FONT_12pt8b);
-            const char* msg4 = TXT_BT_RESTARTING;
-            canvas.getTextBounds(msg4, 0, 0, &x1, &y1, &w1, &h1);
-            int16_t msg4_x = (display_width - w1) / 2;
-            int16_t msg4_y = msg3_y + 40;
-            canvas.setCursor(msg4_x, msg4_y);
-            canvas.print(msg4);
-
-            // Render
-            display.render();
-
-            log_i("[BT] ✓ Confirmation displayed");
-
-            // Keep message visible for 3 seconds
-            delay(3000);
-
-            board_utils::display_power_off();
-            display.powerOff();
-        }
-    }
-
-    // Step 3: Restart device
-    log_i("[BT] Step 3: Restarting device...");
-    log_i("[BT] ========================================");
-
-    delay(500);
-    ESP.restart();
-
-    // Never reached
 }
 
-bool checkFactoryResetButton(gpio_num_t button_pin, uint32_t press_duration_ms) {
+bool checkFactoryResetButton(esp_sleep_wakeup_cause_t wakeup_reason,
+                             gpio_num_t button_pin,
+                             uint32_t press_duration_ms) {
     log_i("[BT] Checking for factory reset button press on GPIO%d...", button_pin);
+    log_d("[BT] Wakeup reason: %d", wakeup_reason);
+
+    if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
+        log_d("[BT] Wakeup reason is UNDEFINED - factory reset requested");
+        return true;
+    }
 
     // Configure button pin with pull-up
     pinMode(button_pin, INPUT_PULLUP);
@@ -392,95 +224,6 @@ bool checkFactoryResetButton(gpio_num_t button_pin, uint32_t press_duration_ms) 
     return true;
 }
 
-bool displayWaitingMessage(DisplayManager& display, bool is_first_boot) {
-    log_i("[BT] Initializing display for BT mode (first_boot: %s)",
-          is_first_boot ? "true" : "false");
-
-    // Phase 1: Initialize buffer
-    if (!display.isBufferInitialized()) {
-        if (!display.initBuffer(true)) { // prefer PSRAM
-            log_e("[BT] Failed to initialize display buffer");
-            return false;
-        }
-    }
-
-    // For subsequent boots, don't touch the display - leave it showing the last image
-    if (!is_first_boot) {
-        log_i("[BT] Subsequent boot - skipping display update (keeping last image)");
-        return true;
-    }
-
-    // First boot only: Show waiting message
-    log_i("[BT] First boot - showing waiting message");
-
-    // Phase 2: Initialize hardware
-    board_utils::display_power_on();
-    delay(100);
-
-    if (!display.initDisplay()) {
-        log_e("[BT] Failed to initialize display hardware");
-        return false;
-    }
-
-    delay(300);
-
-    // Draw waiting message
-    display.clear(DISPLAY_COLOR_WHITE);
-
-    GFXcanvas8& canvas = display.getCanvas();
-    canvas.setFont(&FONT_24pt8b);
-    canvas.setTextColor(DISPLAY_COLOR_BLACK);
-
-    uint16_t display_width  = display.getWidth();
-    uint16_t display_height = display.getHeight();
-
-    // Title
-    const char* title = "Primo Avvio";
-    int16_t x1, y1;
-    uint16_t w1, h1;
-    canvas.getTextBounds(title, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t title_x = (display_width - w1) / 2;
-    int16_t title_y = (display_height / 2) - 60;
-    canvas.setCursor(title_x, title_y);
-    canvas.print(title);
-
-    // Device name line
-    canvas.setFont(&FONT_14pt8b);
-    char device_name_line[64];
-    snprintf(device_name_line, sizeof(device_name_line), "Cerca: %s", bt_protocol::BT_DEVICE_NAME);
-    canvas.getTextBounds(device_name_line, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t device_x = (display_width - w1) / 2;
-    int16_t device_y = title_y + 30;
-    canvas.setCursor(device_x, device_y);
-    canvas.print(device_name_line);
-
-    // Message line 1
-    const char* msg = "In attesa di una nuova immagine...";
-    canvas.getTextBounds(msg, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t msg_x = (display_width - w1) / 2;
-    int16_t msg_y = device_y + 25;
-    canvas.setCursor(msg_x, msg_y);
-    canvas.print(msg);
-
-    // Timeout info
-    const char* timeout_msg = "Timeout: 30 minuti";
-    canvas.getTextBounds(timeout_msg, 0, 0, &x1, &y1, &w1, &h1);
-    int16_t timeout_x = (display_width - w1) / 2;
-    int16_t timeout_y = msg_y + 20;
-    canvas.setCursor(timeout_x, timeout_y);
-    canvas.print(timeout_msg);
-
-    // Render to display
-    display.render();
-
-    // Power off display to save battery during wait
-    display.powerOff();
-    board_utils::display_power_off();
-
-    log_i("[BT] Display initialized and waiting message shown");
-
-    return true;
-}
 
 } // namespace bt_utils
 } // namespace photo_frame

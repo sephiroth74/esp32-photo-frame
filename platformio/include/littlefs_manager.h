@@ -38,17 +38,32 @@ namespace littlefs_manager {
  */
 class LittleFsManager {
   public:
+    static LittleFsManager& getInstance();
+
+    ~LittleFsManager();
+
     /**
      * @brief Initialize LittleFS if not already mounted
      * @return true if LittleFS is ready, false on error
      */
-    static bool init();
+    bool init();
+
+    /**
+     * @brief Release LittleFS resources
+     */
+    void release();
 
     /**
      * @brief Clean up temporary files from LittleFS
      * @param pattern File pattern to match (e.g., "*.tmp")
      */
-    static void cleanup_temp_files();
+    void cleanup_temp_files();
+
+    /**
+     * @brief List all files in LittleFS (for debugging)
+     * @param path Directory path to list
+     */
+    void list_files(const char* path);
 
     /**
      * @brief Copy a file from SD card to LittleFS
@@ -56,10 +71,57 @@ class LittleFsManager {
      * @param dest_filename Destination filename in LittleFS (including path)
      * @return true if copy succeeded, false on error
      */
-    static bool copy_to_littlefs(fs::File& source_file, const char* dest_filename);
+    bool copy_to_littlefs(fs::File& source_file, const char* dest_filename);
+
+    /**
+     * @brief Open a file in LittleFS
+     * @param filename Filename to open (including path)
+     * @param mode File open mode (e.g., "r", "w")
+     * @return Opened File object, or invalid File on error
+     */
+    File open_file(const char* filename, const char* mode);
+
+    /**
+     * @brief Read a file from LittleFS into a buffer
+     * @param filename Filename to read (including path)
+     * @param buffer Destination buffer
+     * @param buffer_size Maximum bytes to read
+     * @return Number of bytes read, or 0 on error
+     */
+    size_t read_file(const char* filename, uint8_t* buffer, size_t buffer_size);
+
+    /**
+     * @brief Delete a file from LittleFS
+     * @param filename Filename to delete (including path)
+     * @return true if deletion succeeded, false on error
+     */
+    bool delete_file(const char* filename);
+
+    /**
+     * @brief Write a buffer to a file in LittleFS
+     * @param filename Filename to write (including path)
+     * @param buffer Data to write
+     * @param buffer_size Number of bytes to write
+     * @return true if write succeeded, false on error
+     */
+    bool write_file(const char* filename, const uint8_t* buffer, size_t buffer_size);
+
+    /**
+     * @brief Get the size of a file in LittleFS
+     * @param filename Filename to check (including path)
+     * @return File size in bytes, or 0 if file doesn't exist
+     */
+    size_t get_file_size(const char* filename);
+
+    /**
+     * @brief Check if a file exists in LittleFS
+     * @param filename Filename to check (including path)
+     * @return true if file exists, false otherwise
+     */
+    bool file_exists(const char* filename);
 
   private:
-    static bool initialized;
+    LittleFsManager() = default;
 };
 
 } // namespace littlefs_manager

@@ -127,17 +127,19 @@ const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Autenticazione batteri
 // ========================================
 // BLUETOOTH/BLE MODE STRINGS - ITALIANO
 // ========================================
-const char TXT_BT_FIRST_BOOT[] PROGMEM = "Primo Avvio";
 const char TXT_BT_SEARCHING_DEVICE[] PROGMEM = "Cerca: ";
-const char TXT_BT_WAITING_IMAGE[] PROGMEM = "In attesa di una nuova immagine...";
-const char TXT_BT_TIMEOUT_30MIN[] PROGMEM = "Timeout: 30 minuti";
-const char TXT_BT_WAITING_IMAGE_TIMEOUT[] PROGMEM = "In Attesa di Immagine";
-const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout: 30 minuti scaduti";
-const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Premere GPIO1 per riprovare";
-const char TXT_BT_FACTORY_RESET[] PROGMEM = "Factory Reset";
-const char TXT_BT_RESET_COMPLETE[] PROGMEM = "Completato!";
-const char TXT_BT_SETTINGS_RESTORED[] PROGMEM = "Tutte le impostazioni sono";
-const char TXT_BT_SETTINGS_RESTORED_STATE[] PROGMEM = "state ripristinate";
-const char TXT_BT_RESTARTING[] PROGMEM = "Riavvio...";
-const char TXT_BT_BATTERY_PERCENT[] PROGMEM = "Batteria: %.1f%%";
+const char TXT_BT_WAITING_IMAGE[] PROGMEM = "In attesa";
+const char TXT_BT_TIMEOUT_MIN[] PROGMEM = "Timeout: %d minuti";
+const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout scaduto";
+const char TXT_BT_INIT_FAILED[] PROGMEM = "Inizializzazione Bluetooth fallita";
+const char TXT_BT_INVALID_CONFIG[] PROGMEM = "Configurazione Bluetooth non valida";
+const char TXT_BT_IMAGE_SIZE_ERROR[] PROGMEM = "Dimensione immagine non valida";
+const char TXT_BT_INVALID_ROTATION[] PROGMEM = "Rotazione immagine non valida";
+const char TXT_BT_SD_WRITE_FAILED[] PROGMEM = "Scrittura su SD fallita";
+const char TXT_BT_IMAGE_VALIDATION_FAILED[] PROGMEM = "Immagine non valida";
+const char TXT_BT_CONNECTION_TIMEOUT[] PROGMEM = "Timeout connessione Bluetooth";
+const char TXT_BT_CLIENT_DISCONNECTED[] PROGMEM = "Client Bluetooth disconnesso";
+const char TXT_BT_CHUNK_TIMEOUT[] PROGMEM = "Timeout ricezione chunk";
+const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Premi un pulsante per riprovare";
+
 #endif // ENABLE_BT_IMAGE

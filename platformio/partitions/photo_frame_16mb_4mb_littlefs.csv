@@ -1,0 +1,6 @@
+# ESP32 Photo Frame - Optimized 16MB Partition Table (No OTA, Unexpected Maker FeatherS3 Pro) with 4MB LittleFS
+# Name,      Type, SubType,  Offset,     Size,      Flags
+nvs,         data, nvs,      0x9000,     0x6000,
+app0,        app,  factory,  0x10000,    0xBF0000,
+spiffs,      data, spiffs,   0xC00000,   0x400000,
+coredump,    data, coredump, 0xFF0000,   0x10000,

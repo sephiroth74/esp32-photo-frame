@@ -23,7 +23,7 @@
 #ifndef BT_MAIN_H
 #define BT_MAIN_H
 
-// This header is included by main.cpp to ensure bt_main.cpp's
+// This header is included by main.cpp to ensure main_bt.cpp's
 // setup() and loop() are linked properly
 
 void bt_main_setup();

@@ -33,6 +33,7 @@
 #include <Adafruit_GFX.h>
 #include <Arduino.h>
 #include <RTClib.h>
+#include <assets/icons/icons.h>
 #include <memory> // For std::unique_ptr
 
 // Include the appropriate display library to get EPD_WIDTH and EPD_HEIGHT
@@ -76,7 +77,22 @@ namespace photo_frame {
 class DisplayManager {
   public:
     /**
-     * @brief Constructor
+     * @brief Get singleton instance of DisplayManager
+     * @return Reference to the global DisplayManager instance
+     *
+     * The singleton instance should be initialized once at startup via:
+     * - initBuffer() for Phase 1 (buffer allocation)
+     * - initDisplay() for Phase 2 (hardware initialization)
+     *
+     * All code should use getInstance() to access the display, ensuring
+     * only one DisplayManager instance exists and avoiding redundant
+     * initialization.
+     */
+    static DisplayManager& getInstance();
+
+    /**
+     * @brief Constructor (use getInstance() instead)
+     * @deprecated Use getInstance() for singleton access
      */
     DisplayManager();
 
@@ -222,6 +238,20 @@ class DisplayManager {
      * @param filename Optional filename to display (nullptr if not applicable)
      */
     void drawError(photo_frame_error_t error, const char* filename = nullptr);
+
+    /**
+     * @brief Draw centered message with icon on the canvas
+     * @param canvas Canvas to draw on
+     * @param icon Icon to display
+     * @param title Title text (optional)
+     * @param message Message text (optional)
+     * @param icon_size Size of the icon bitmap to use
+     */
+    void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
+                                     icon_name_t icon,
+                                     const String& title,
+                                     const String& message,
+                                     uint16_t icon_size);
 
     /**
      * @brief Draw error with details

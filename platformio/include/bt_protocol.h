@@ -42,8 +42,9 @@
 // Maximum image size (10MB)
 #define BT_MAX_IMAGE_SIZE (10 * 1024 * 1024)
 
-// Transfer chunk size (must fit in BLE MTU - typically 512 bytes)
-#define BT_CHUNK_SIZE 512
+// Transfer chunk size - increased to 2048 for faster transfers
+// Max payload in BLE is 247 bytes per notification, but buffering allows larger chunks
+#define BT_CHUNK_SIZE 1024
 
 // Timeouts
 #define BT_CHUNK_TIMEOUT_MS      30000  // 30 seconds per chunk
@@ -60,6 +61,8 @@ constexpr const char* BT_CHAR_IMAGE_DATA_UUID  = "00002a2a-0000-1000-8000-00805f
 constexpr const char* BT_CHAR_STATUS_UUID      = "00002a2b-0000-1000-8000-00805f9b34fb";
 constexpr const char* BT_CHAR_DEVICE_INFO_UUID = "00002a2c-0000-1000-8000-00805f9b34fb";
 constexpr const char* BT_DEVICE_NAME           = "ESP32-PhotoFrame";
+constexpr uint16_t BT_MANUFACTURER_ID          = 0x1337; // Custom manufacturer identifier
+constexpr uint8_t BT_MANUFACTURER_MAGIC[4]     = {'P', 'F', 'R', '1'}; // PhotoFrame Rev1 tag
 
 /**
  * @brief Configuration data sent at the start of transfer
@@ -83,6 +86,7 @@ struct BTImageConfig {
  *
  * This structure is sent by the device to the client when connecting,
  * allowing the client to know the display capabilities and current settings.
+ * The mtu_size field tells the client the recommended chunk size for image transfer.
  */
 struct BTDeviceConfig {
     uint8_t version;          // Protocol version (BT_PROTOCOL_VERSION)
@@ -90,7 +94,7 @@ struct BTDeviceConfig {
     uint16_t width;           // Display width in pixels
     uint16_t height;          // Display height in pixels
     uint8_t current_rotation; // Current display rotation: 0=0°, 1=90°, 2=180°, 3=270°
-    uint16_t reserved;        // Reserved for future use
+    uint16_t mtu_size;        // Recommended chunk/MTU size for transfer (e.g., 2048 bytes)
 } __attribute__((packed));
 
 /**

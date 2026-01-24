@@ -68,6 +68,20 @@ void drawImageInfo(GFXcanvas8& canvas,
 void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t imageSource);
 
 /**
+ * Draw centered message with icon on the canvas
+ * @param canvas Canvas to draw on
+ * @param icon Icon to display
+ * @param title Title text (optional)
+ * @param message Message text (optional)
+ * @param icon_size Size of the icon bitmap to use
+ */
+void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
+                                 icon_name_t icon,
+                                 const String& title,
+                                 const String& message,
+                                 uint16_t icon_size);
+
+/**
  * Draw error message on the canvas
  * @param canvas Canvas to draw on
  * @param error Error information

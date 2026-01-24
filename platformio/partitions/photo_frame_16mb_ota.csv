@@ -1,4 +1,6 @@
 # ESP32 Photo Frame - 16MB Partition Table with Dual OTA Support (No Factory)
+# Must use:
+#   board_upload.offset_address = 0x20000
 # 2 OTA partitions (5MB each) + 5.84MB spiffs - Optimized layout without factory partition
 # Name,      Type, SubType,  Offset,     Size,      Flags
 nvs,         data, nvs,      0x9000,     0x6000,

@@ -66,8 +66,6 @@ esp32-photo-frame/
 │   └── platformio.ini         # PlatformIO configuration
 ├── rust/                      # Rust-based tools
 │   ├── photoframe-processor/  # Main image processing tool
-│   ├── bin2bmp/              # Binary to image converter
-│   └── bmp2cpp/              # Bitmap to C++ header converter
 ├── android/                   # Android companion app
 │   └── PhotoFrameProcessor/   # Kotlin-based image processor
 ├── photoframe_flutter/        # Flutter desktop application

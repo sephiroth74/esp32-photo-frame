@@ -27,14 +27,67 @@ pub enum OutputType {
     Png,
 }
 
-#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetOrientation {
-    /// Target landscape display (default) - pairs portraits side-by-side
-    #[value(name = "landscape")]
+    /// Landscape display (0°/180°) - pairs portraits side-by-side
     Landscape,
-    /// Target portrait display - pairs landscapes top-bottom
-    #[value(name = "portrait")]
+    /// Portrait display (90°/270°) - pairs landscapes top-bottom
     Portrait,
+}
+
+impl TargetOrientation {
+    /// Parse from string or number (0-3)
+    /// Maps 0,2 (landscape-like) to Landscape and 1,3 (portrait-like) to Portrait
+    /// The display will handle the reverse orientation (180°/270°) itself
+    pub fn parse(s: &str) -> Result<(Self, u8), String> {
+        match s.to_lowercase().as_str() {
+            "0" | "landscape" | "0°" => Ok((Self::Landscape, 0)),
+            "1" | "portrait" | "90°" => Ok((Self::Portrait, 1)),
+            "2" | "180°" | "landscape-reverse" => Ok((Self::Landscape, 2)),
+            "3" | "270°" | "portrait-reverse" => Ok((Self::Portrait, 3)),
+            _ => Err(format!(
+                "Invalid orientation: '{}'. Use 0-3, 'landscape', 'portrait', '180°', '270°'",
+                s
+            )),
+        }
+    }
+
+    /// Get display name for output messages
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::Landscape => "landscape",
+            Self::Portrait => "portrait",
+        }
+    }
+}
+
+impl std::fmt::Display for TargetOrientation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.display_name())
+    }
+}
+
+/// Wrapper for orientation that stores both the display orientation and BLE rotation value
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OrientationConfig {
+    pub orientation: TargetOrientation,
+    pub ble_rotation: u8,
+}
+
+impl OrientationConfig {
+    pub fn parse(s: &str) -> Result<Self, String> {
+        let (orientation, ble_rotation) = TargetOrientation::parse(s)?;
+        Ok(Self {
+            orientation,
+            ble_rotation,
+        })
+    }
+}
+
+impl std::fmt::Display for OrientationConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (rotation: {})", self.orientation, self.ble_rotation)
+    }
 }
 
 /// Report output format options
@@ -130,7 +183,7 @@ pub struct Args {
     #[arg(
         short = 'i',
         long = "input",
-        required_unless_present_any = ["find_original", "find_hash", "config_file"],
+        required_unless_present_any = ["config_file"],
         value_name = "DIR|FILE"
     )]
     pub input_paths: Vec<PathBuf>,
@@ -139,7 +192,7 @@ pub struct Args {
     #[arg(
         short = 'o',
         long = "output",
-        required_unless_present_any = ["find_original", "find_hash", "config_file"],
+        required_unless_present_any = ["config_file"],
         value_name = "DIR",
         default_value = "."
     )]
@@ -151,19 +204,22 @@ pub struct Args {
     pub processing_type: ColorType,
 
     /// Output formats: comma-separated list of bmp, bin, jpg, png (e.g., "bmp,bin" or "jpg")
-    #[arg(long = "output-format", default_value = "bmp")]
+    #[arg(long = "output-format", default_value = "bin")]
     pub output_formats_str: String,
 
     /// Display orientation (how the physical display is mounted)
-    /// - landscape: Display mounted horizontally (800×480 visual)
-    /// - portrait: Display mounted vertically (480×800 visual, images pre-rotated for 6c)
+    /// - landscape or 0: Display mounted horizontally (800×480 visual)
+    /// - portrait or 1: Display mounted vertically (480×800 visual, images pre-rotated for 6c)
+    /// - landscape-reverse or 2: Upside-down horizontal (display handles reverse)
+    /// - portrait-reverse or 3: Upside-down vertical (display handles reverse)
     #[arg(
         long = "orientation",
         default_value = "landscape",
         value_name = "ORIENTATION",
-        help = "Display mounting orientation: 'landscape' (horizontal) or 'portrait' (vertical)"
+        help = "Display mounting orientation: 0/landscape, 1/portrait, 2/landscape-reverse, 3/portrait-reverse",
+        value_parser = OrientationConfig::parse
     )]
-    pub target_orientation: TargetOrientation,
+    pub target_orientation: OrientationConfig,
 
     /// Comma-separated list of image extensions to process
     #[arg(long = "extensions", default_value = "jpg,jpeg,png,heic,webp,tiff")]
@@ -326,10 +382,10 @@ impl Args {
     ///   - Portrait: 480×800
     ///
     /// - 6C displays: Always hardware dimensions (writeDemoBitmap requires pre-rotation)
-    ///   - Landscape: 800×480 (no pre-rotation)
+    ///   - Landscape: 800×480
     ///   - Portrait: 800×480 (with pre-rotation)
     pub fn get_dimensions(&self) -> (u32, u32) {
-        match (&self.processing_type, &self.target_orientation) {
+        match (&self.processing_type, &self.target_orientation.orientation) {
             // B/W displays: dimensions match visual orientation
             (ColorType::BlackWhite, TargetOrientation::Landscape) => (800, 480),
             (ColorType::BlackWhite, TargetOrientation::Portrait) => (480, 800),
@@ -341,7 +397,7 @@ impl Args {
 
     /// Check if pre-rotation is needed for the current configuration
     pub fn needs_pre_rotation(&self) -> bool {
-        match (&self.processing_type, &self.target_orientation) {
+        match (&self.processing_type, &self.target_orientation.orientation) {
             // Only 6C in portrait mode needs pre-rotation
             (ColorType::SixColor, TargetOrientation::Portrait) => true,
             _ => false,

@@ -97,15 +97,15 @@ bool PreferencesHelper::setLastCleanup(time_t timestamp) {
 
 uint8_t PreferencesHelper::getDisplayRotation() {
     if (!beginRead()) {
-        return 0; // Default to 0° if can't read
+        return DEFAULT_ORIENTATION;
     }
 
-    uint8_t value = preferences.getUChar("display_rotation", 0);
+    uint8_t value = preferences.getUChar("disp_rotation", DEFAULT_ORIENTATION);
     end();
 
     if (value > 3) {
         log_w("Invalid display_rotation %u found in preferences, resetting to 0", value);
-        value = 0;
+        value = DEFAULT_ORIENTATION;
     }
 
     return value;
@@ -118,7 +118,7 @@ bool PreferencesHelper::setDisplayRotation(uint8_t rotation) {
         return false;
     }
 
-    size_t written = preferences.putUChar("display_rotation", clamped);
+    size_t written = preferences.putUChar("disp_rotation", clamped);
     end();
 
     return written > 0;
@@ -134,62 +134,6 @@ bool PreferencesHelper::setImageIndex(uint32_t index) { return putULong("image_i
 // ========================================
 // BLUETOOTH MODE METHODS
 // ========================================
-
-uint8_t PreferencesHelper::getBtRotation() {
-    if (!beginRead()) {
-        return 0; // Default to 0° (landscape)
-    }
-
-    uint8_t value = preferences.getUChar("bt_rotation", 0);
-    end();
-
-    // Validate range
-    if (value > 3) {
-        log_w("[Prefs] Invalid bt_rotation value: %d, using 0", value);
-        return 0;
-    }
-
-    return value;
-}
-
-bool PreferencesHelper::setBtRotation(uint8_t rotation) {
-    // Validate input
-    if (rotation > 3) {
-        log_e("[Prefs] Invalid rotation value: %d (must be 0-3)", rotation);
-        return false;
-    }
-
-    if (!beginWrite()) {
-        return false;
-    }
-
-    size_t written = preferences.putUChar("bt_rotation", rotation);
-    end();
-
-    return written > 0;
-}
-
-bool PreferencesHelper::getBtFirstBoot() {
-    if (!beginRead()) {
-        return true; // Default to first boot if can't read
-    }
-
-    bool value = preferences.getBool("bt_first_boot", true);
-    end();
-
-    return value;
-}
-
-bool PreferencesHelper::setBtFirstBoot(bool is_first) {
-    if (!beginWrite()) {
-        return false;
-    }
-
-    size_t written = preferences.putBool("bt_first_boot", is_first);
-    end();
-
-    return written > 0;
-}
 
 bool PreferencesHelper::getBtImageAvailable() {
     if (!beginRead()) {
@@ -264,8 +208,6 @@ bool PreferencesHelper::clearBtPreferences() {
 
     log_i("[Prefs] Clearing all BT preferences");
 
-    preferences.remove("bt_rotation");
-    preferences.remove("bt_first_boot");
     preferences.remove("bt_img_avail");
     preferences.remove("bt_last_err");
     preferences.remove("bt_retry_cnt");

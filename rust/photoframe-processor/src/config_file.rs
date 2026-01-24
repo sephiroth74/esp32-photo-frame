@@ -1,4 +1,4 @@
-use crate::cli::{Args, ColorType, DitherMethod, ReportFormat, TargetOrientation};
+use crate::cli::{Args, ColorType, DitherMethod, OrientationConfig, ReportFormat};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -100,16 +100,20 @@ impl Args {
         // Orientation
         if !args_from_cli.iter().any(|a| a == "--orientation") {
             if let Some(orientation) = config.orientation {
-                self.target_orientation = match orientation.as_str() {
-                    "landscape" => TargetOrientation::Landscape,
-                    "portrait" => TargetOrientation::Portrait,
-                    _ => self.target_orientation.clone(),
+                match OrientationConfig::parse(orientation.as_str()) {
+                    Ok(target_orientation) => {
+                        self.target_orientation = target_orientation;
+                    }
+                    Err(e) => {
+                        eprintln!("Error parsing orientation: {}", e);
+                        self.target_orientation = self.target_orientation.clone();
+                    }
                 };
             }
         }
 
         // Output formats - build from individual booleans if using default
-        if self.output_formats_str == "bmp" {
+        if self.output_formats_str == "bin" {
             let mut formats = Vec::new();
             if config.output_bmp.unwrap_or(false) {
                 formats.push("bmp");

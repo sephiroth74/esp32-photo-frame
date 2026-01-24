@@ -5,18 +5,10 @@
 // https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737
 
 // Pin definitions for ProS3(d) (ESP32-S3) - Based on actual pinout
-// Using SEPARATE SPI buses for SD card and e-Paper display to avoid conflicts
-//
-// SPI Bus Configuration:
-// - SD Card: Uses HSPI (secondary SPI bus) - initialized first in sd_card.cpp
-// - Display: Uses VSPI (default SPI bus) - initialized later in renderer.cpp
-//
-// This configuration follows the GxEPD2_SD_Example pattern:
-// 1. SD card initialization creates SPIClass hspi(HSPI) and passes it to SD.begin()
-// 2. Display initialization calls SPI.end() then SPI.begin() with display pins
-// 3. Both devices can operate independently on their dedicated SPI buses
-//
-// This approach resolves SPI conflicts that occur when both devices share the same bus
+
+// ==========================================================================
+// SPI Pin Configuration
+// ==========================================================================
 
 // Enable separate SPI bus for SD card
 // Using HSPI for SD to avoid conflicts when BLE/BT diagnostics are active
@@ -36,6 +28,14 @@
 #define SD_MOSI_PIN 14 // SD SPI MOSI - IO35 (VSPI, shared with display)
 #define SD_CS_PIN 15 // SD Card Chip Select (CS)
 
+// ==========================================================================
+// E-Paper Display Pin Configuration
+// ==========================================================================
+
+#define DISP_6C
+#define ACCENT_COLOR DISPLAY_COLOR_RED
+#define FONT_HEADER "assets/fonts/Ubuntu_R.h"
+
 // e-Paper Display - using default SPI (VSPI)
 #define EPD_BUSY_PIN 6 // IO6 - available digital pin
 #define EPD_RST_PIN 4 // IO5 - available digital pin
@@ -45,6 +45,10 @@
 #define EPD_MOSI_PIN 35 // IO35 - SPI MOSI for e-paper (VSPI)
 
 #define DISPLAY_TIMEOUT_MS 60000
+
+// ===========================================================================
+// Battery Monitoring Configuration
+// ===========================================================================
 
 // Battery monitoring - ProS3 has MAX1704X fuel gauge over I2C
 #define BATTERY_NUM_READINGS 100
@@ -57,12 +61,9 @@
 #define MAX1704X_SDA_PIN 8 // IO8 - I2C SDA
 #define MAX1704X_SCL_PIN 9 // IO9 - I2C SCL
 
-// Built-in LED - ProS3 uses RGB NeoPixel on GPIO18
-// #ifdef LED_BUILTIN
-// #undef LED_BUILTIN
-// #endif // LED_BUILTIN
-
-// #define LED_BUILTIN 21 // ProS3 LED pin
+// ===========================================================================
+// User Interface Hardware
+// ===========================================================================
 
 // RGB NeoPixel LED configuration - ProS3 built-in
 #define RGB_LED_PIN 18 // GPIO18 - Built-in RGB NeoPixel on ProS3
@@ -82,15 +83,18 @@
 #define DISPLAY_POWER_PIN 17
 #define DISPLAY_POWER_ACTIVE_LOW 0 // ProS3 LDO2: HIGH = ON, LOW = OFF
 
+// ===========================================================================
+// Timezone Configuration
+// ===========================================================================
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0"
 
-#define DISP_6C
+// ===========================================================================
+// Bluetooth mode configuration
+// ===========================================================================
 
-// Display orientation is now configured dynamically via config.json (board_config.display_rotation)
-// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
-
-#define ACCENT_COLOR COLOR_DISPLAY_RED
-
-#define FONT_HEADER "assets/fonts/Ubuntu_R.h"
+#ifdef ENABLE_BT_IMAGE
+// Bluetooth mode constants
+#define BT_FIRST_BOOT_TIMEOUT_MS     (15 * 60 * 1000) // minutes timeout for first boot
+#endif // ENABLE_BT_IMAGE
 
 #define LOCALE it_IT

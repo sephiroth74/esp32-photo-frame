@@ -46,8 +46,8 @@ const StatusConfig RGBStatus::STATUS_CONFIGS[] = {
     {SystemState::SLEEP_PREP,      RGBColors::DIM_WHITE, RGBEffect::FADE_OUT,   2000, 12},
 #ifdef ENABLE_BT_IMAGE
     {SystemState::BT_WAITING,      RGBColors::CYAN,      RGBEffect::PULSE,      0,    12},
-    {SystemState::BT_CONNECTED,    RGBColors::GREEN,     RGBEffect::SOLID,      0,    12},
-    {SystemState::BT_RECEIVING,    RGBColors::YELLOW,    RGBEffect::PULSE,      0,    12},
+    {SystemState::BT_CONNECTED,    RGBColors::BLUE,      RGBEffect::SOLID,      0,    12},
+    {SystemState::BT_RECEIVING,    RGBColors::GREEN,     RGBEffect::PULSE,      0,    12},
 #endif  // ENABLE_BT_IMAGE
     {SystemState::CUSTOM,          RGBColors::WHITE,     RGBEffect::SOLID,      0,    12}
 };
