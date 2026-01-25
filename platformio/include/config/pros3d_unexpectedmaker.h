@@ -94,7 +94,8 @@
 
 #ifdef ENABLE_BT_IMAGE
 // Bluetooth mode constants
-#define BT_FIRST_BOOT_TIMEOUT_MS     (15 * 60 * 1000) // minutes timeout for first boot
+#define BT_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
+#define BT_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // minutes timeout for subsequent boots
 #endif // ENABLE_BT_IMAGE
 
 #define LOCALE it_IT

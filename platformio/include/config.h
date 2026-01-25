@@ -500,7 +500,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif                                            // BT_FIRST_BOOT_TIMEOUT_MS
 
 #ifndef BT_LISTEN_TIMEOUT_MS
-#define BT_LISTEN_TIMEOUT_MS (5 * 60 * 1000) // 5 minutes timeout for subsequent boots
+#define BT_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
 #endif                                       // BT_LISTEN_TIMEOUT_MS
 
 #ifndef BT_BATTERY_CHECK_INTERVAL_MS
