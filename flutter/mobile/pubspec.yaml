@@ -37,6 +37,7 @@ dependencies:
   provider: ^6.1.2
   image_picker: ^1.1.1
   flutter_reactive_ble: ^5.2.3
+  image: ^4.1.7
 
 dev_dependencies:
   flutter_test:

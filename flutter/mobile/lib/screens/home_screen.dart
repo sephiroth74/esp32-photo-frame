@@ -40,7 +40,9 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _startWizard(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProcessingWizardScreen(imageFile: context.read<ImageProcessingState>().imageFile!)));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ProcessingWizardScreen(imageFile: context.read<ImageProcessingState>().imageFile!)));
   }
 }
 
@@ -79,6 +81,7 @@ class _SelectedImageView extends StatelessWidget {
         return SizedBox(
           width: maxWidth,
           child: Stack(
+            alignment: Alignment.center,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
@@ -87,23 +90,21 @@ class _SelectedImageView extends StatelessWidget {
                   child: Image.file(file, fit: BoxFit.cover),
                 ),
               ),
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Wrap(
-                      spacing: 8,
-                      children: [
-                        FilledButton.icon(onPressed: onPlay, icon: const Icon(Icons.play_arrow), label: const Text('Play')),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                          onPressed: onDelete,
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Elimina'),
-                        ),
-                      ],
-                    ),
+              Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      FilledButton.icon(onPressed: onPlay, icon: const Icon(Icons.play_arrow), label: const Text('Start')),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Elimina'),
+                      ),
+                    ],
                   ),
                 ),
               ),

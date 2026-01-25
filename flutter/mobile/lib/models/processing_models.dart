@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 enum DisplayType { sixColors, blackAndWhite }
 
-enum DitheringMethod { none, ordered, floydSteinberg, bayerMatrix, sierra }
+enum DitheringMethod { floydSteinberg, atkinson, stucki, jarvisJudiceNinke, ordered }
 
 typedef Resolution = Size;
 
@@ -42,6 +42,7 @@ class ProcessingJob {
   final double saturation;
   final double contrast;
   final double brightness;
+  final double ditherStrength;
   final AnnotationSettings annotation;
 
   const ProcessingJob({
@@ -54,6 +55,7 @@ class ProcessingJob {
     this.saturation = 1.0,
     this.contrast = 1.0,
     this.brightness = 1.0,
+    this.ditherStrength = 0.8,
     this.annotation = const AnnotationSettings(),
   });
 
@@ -67,6 +69,7 @@ class ProcessingJob {
     double? saturation,
     double? contrast,
     double? brightness,
+    double? ditherStrength,
     AnnotationSettings? annotation,
   }) {
     return ProcessingJob(
@@ -79,6 +82,7 @@ class ProcessingJob {
       saturation: saturation ?? this.saturation,
       contrast: contrast ?? this.contrast,
       brightness: brightness ?? this.brightness,
+      ditherStrength: ditherStrength ?? this.ditherStrength,
       annotation: annotation ?? this.annotation,
     );
   }
