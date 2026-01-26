@@ -61,10 +61,7 @@ class _RotationCropStepState extends State<RotationCropStep> {
                             final maxPanX = containerWidth * (_cropZoom - 1.0) / 2;
                             final maxPanY = containerHeight * (_cropZoom - 1.0) / 2;
 
-                            _panOffset = Offset(
-                              (_panOffset.dx + dx).clamp(-maxPanX, maxPanX),
-                              (_panOffset.dy + dy).clamp(-maxPanY, maxPanY),
-                            );
+                            _panOffset = Offset((_panOffset.dx + dx).clamp(-maxPanX, maxPanX), (_panOffset.dy + dy).clamp(-maxPanY, maxPanY));
                           });
                           state.updateCropZoom(_cropZoom);
                           state.updatePanOffset(_panOffset);

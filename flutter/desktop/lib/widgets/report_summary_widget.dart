@@ -18,69 +18,29 @@ class ReportSummaryWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Processing Summary',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+          const Text('Processing Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          _buildSummaryRow(
-            'Total images',
-            summary!['total_images']?.toString() ?? '0',
-          ),
-          if (summary!['skipped_images'] != null &&
-              summary!['skipped_images'] > 0)
-            _buildSummaryRow(
-              'Skipped (unpaired)',
-              summary!['skipped_images']?.toString() ?? '0',
-            ),
-          _buildSummaryRow(
-            'Images with people',
-            '${summary!['images_with_people'] ?? 0} (${_formatPercentage(summary!['people_detection_rate'])})',
-          ),
-          _buildSummaryRow(
-            'Images with pastel tones',
-            '${summary!['images_with_pastel'] ?? 0} (${_formatPercentage(summary!['pastel_rate'])})',
-          ),
-          _buildSummaryRow(
-            'Landscape images',
-            summary!['landscape_images']?.toString() ?? '0',
-          ),
-          _buildSummaryRow(
-            'Portrait pairs',
-            summary!['portrait_pairs']?.toString() ?? '0',
-          ),
-          _buildSummaryRow(
-            'Individual portraits',
-            summary!['individual_portraits']?.toString() ?? '0',
-          ),
+          _buildSummaryRow('Total images', summary!['total_images']?.toString() ?? '0'),
+          if (summary!['skipped_images'] != null && summary!['skipped_images'] > 0)
+            _buildSummaryRow('Skipped (unpaired)', summary!['skipped_images']?.toString() ?? '0'),
+          _buildSummaryRow('Images with people', '${summary!['images_with_people'] ?? 0} (${_formatPercentage(summary!['people_detection_rate'])})'),
+          _buildSummaryRow('Images with pastel tones', '${summary!['images_with_pastel'] ?? 0} (${_formatPercentage(summary!['pastel_rate'])})'),
+          _buildSummaryRow('Landscape images', summary!['landscape_images']?.toString() ?? '0'),
+          _buildSummaryRow('Portrait pairs', summary!['portrait_pairs']?.toString() ?? '0'),
+          _buildSummaryRow('Individual portraits', summary!['individual_portraits']?.toString() ?? '0'),
 
           if (report != null) ...[
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
-            const Text(
-              'Detailed Report',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            const Text('Detailed Report', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            if (report!['landscape_entries'] != null &&
-                (report!['landscape_entries'] as List).isNotEmpty)
-              _buildReportSection(
-                'Landscape Images',
-                report!['landscape_entries'] as List,
-              ),
-            if (report!['portrait_pairs'] != null &&
-                (report!['portrait_pairs'] as List).isNotEmpty)
-              _buildPortraitPairsSection(
-                'Portrait Pairs',
-                report!['portrait_pairs'] as List,
-              ),
-            if (report!['portrait_entries'] != null &&
-                (report!['portrait_entries'] as List).isNotEmpty)
-              _buildReportSection(
-                'Individual Portraits',
-                report!['portrait_entries'] as List,
-              ),
+            if (report!['landscape_entries'] != null && (report!['landscape_entries'] as List).isNotEmpty)
+              _buildReportSection('Landscape Images', report!['landscape_entries'] as List),
+            if (report!['portrait_pairs'] != null && (report!['portrait_pairs'] as List).isNotEmpty)
+              _buildPortraitPairsSection('Portrait Pairs', report!['portrait_pairs'] as List),
+            if (report!['portrait_entries'] != null && (report!['portrait_entries'] as List).isNotEmpty)
+              _buildReportSection('Individual Portraits', report!['portrait_entries'] as List),
           ],
         ],
       ),
@@ -104,10 +64,7 @@ class ReportSummaryWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$title (${entries.length})',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        Text('$title (${entries.length})', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -132,10 +89,7 @@ class ReportSummaryWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$title (${pairs.length})',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        Text('$title (${pairs.length})', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -150,28 +104,18 @@ class ReportSummaryWidget extends StatelessWidget {
               return [
                 DataRow(
                   cells: [
-                    DataCell(
-                      Text(_truncateFilename(pair['left']['input_filename'])),
-                    ),
+                    DataCell(Text(_truncateFilename(pair['left']['input_filename']))),
                     DataCell(Text(_truncateFilename(pair['combined_output']))),
-                    DataCell(
-                      Text(_formatDitherMethod(pair['left']['dither_method'])),
-                    ),
+                    DataCell(Text(_formatDitherMethod(pair['left']['dither_method']))),
                     DataCell(Text(pair['left']['people_detected'] ? '✓' : '✗')),
                   ],
                 ),
                 DataRow(
                   cells: [
-                    DataCell(
-                      Text(_truncateFilename(pair['right']['input_filename'])),
-                    ),
+                    DataCell(Text(_truncateFilename(pair['right']['input_filename']))),
                     const DataCell(Text('')),
-                    DataCell(
-                      Text(_formatDitherMethod(pair['right']['dither_method'])),
-                    ),
-                    DataCell(
-                      Text(pair['right']['people_detected'] ? '✓' : '✗'),
-                    ),
+                    DataCell(Text(_formatDitherMethod(pair['right']['dither_method']))),
+                    DataCell(Text(pair['right']['people_detected'] ? '✓' : '✗')),
                   ],
                 ),
               ];
@@ -191,13 +135,7 @@ class ReportSummaryWidget extends StatelessWidget {
         DataCell(Text(_formatDitherMethod(entry['dither_method']))),
         DataCell(Text(entry['dither_strength']?.toStringAsFixed(1) ?? '')),
         DataCell(Text(entry['contrast']?.toStringAsFixed(1) ?? '')),
-        DataCell(
-          Text(
-            entry['people_detected'] == true
-                ? '✓ (${entry['people_count']})'
-                : '✗',
-          ),
-        ),
+        DataCell(Text(entry['people_detected'] == true ? '✓ (${entry['people_count']})' : '✗')),
       ],
     );
   }

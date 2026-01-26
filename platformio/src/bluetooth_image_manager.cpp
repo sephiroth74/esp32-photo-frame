@@ -28,6 +28,7 @@
 #include "bt_utils.h"
 #include "config.h"
 #include "display_manager.h"
+#include "esp_task_wdt.h"
 #include "io_utils.h"
 #include "preferences_helper.h"
 #include "rgb_status.h"
@@ -84,6 +85,10 @@ class BTServerCallbacks : public BLEServerCallbacks {
             if (!g_bt_manager->transfer_complete_) {
                 g_bt_manager->last_error_ = error_type::BtClientDisconnected;
             }
+
+            // Restart advertising so the device can be discovered again
+            log_i("[BLE] Restarting advertising after disconnect");
+            BLEDevice::startAdvertising();
         }
     }
 };
@@ -190,6 +195,9 @@ class BTDeviceInfoCallbacks : public BLECharacteristicCallbacks {
 class BTImageDataCallbacks : public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic* pCharacteristic) override
     {
+        // Reset watchdog to prevent timeout during BLE chunk processing
+        esp_task_wdt_reset();
+
         if (!g_bt_manager || !g_bt_manager->config_received_) {
             log_w("[BLE] Image data received but config not ready");
             return;
@@ -229,21 +237,67 @@ class BTImageDataCallbacks : public BLECharacteristicCallbacks {
 
         // Check if transfer is complete
         if (g_bt_manager->bytes_received_ >= g_bt_manager->config_.image_size) {
-            log_i("[BLE] Image transfer complete - validating size");
+            log_i("[BLE] Image transfer complete - parsing PFR1 header");
+            log_d("[BLE] Total bytes received: %u", g_bt_manager->bytes_received_);
 
-            // Validate that received bytes match exactly with expected size
-            auto sizeError = photo_frame::io_utils::validate_image_size_exact(g_bt_manager->bytes_received_,
-                g_bt_manager->config_.width,
-                g_bt_manager->config_.height);
+            // Parse and validate PFR1 header
+            bt_protocol::PFR1Header pfr1_header;
+            if (!bt_protocol::parsePFR1Header(g_bt_manager->image_buffer_,
+                    g_bt_manager->bytes_received_,
+                    pfr1_header)) {
+                log_e("[BLE] PFR1 header validation failed");
+                g_bt_manager->last_error_ = error_type::BtInvalidConfig;
+                g_bt_manager->transfer_complete_ = false;
+                return;
+            }
+
+            // Extract payload CRC32 (last 4 bytes after payload)
+            uint32_t payload_crc32 = g_bt_manager->image_buffer_[PFR1_HEADER_SIZE + pfr1_header.payload_len] | (g_bt_manager->image_buffer_[PFR1_HEADER_SIZE + pfr1_header.payload_len + 1] << 8) | (g_bt_manager->image_buffer_[PFR1_HEADER_SIZE + pfr1_header.payload_len + 2] << 16) | (g_bt_manager->image_buffer_[PFR1_HEADER_SIZE + pfr1_header.payload_len + 3] << 24);
+
+            // Validate payload CRC
+            if (!bt_protocol::validatePFR1PayloadCRC(
+                    &g_bt_manager->image_buffer_[PFR1_HEADER_SIZE],
+                    pfr1_header.payload_len,
+                    payload_crc32)) {
+                log_e("[BLE] PFR1 payload CRC validation failed");
+                g_bt_manager->last_error_ = error_type::ImageSizeInvalid;
+                g_bt_manager->transfer_complete_ = false;
+                return;
+            }
+
+            // Store parsed header info for later use
+            g_bt_manager->pfr1_width_ = pfr1_header.width;
+            g_bt_manager->pfr1_height_ = pfr1_header.height;
+            g_bt_manager->pfr1_rotation_ = pfr1_header.rotation;
+            g_bt_manager->pfr1_color_mode_ = pfr1_header.color_mode;
+            g_bt_manager->pfr1_payload_offset_ = PFR1_HEADER_SIZE;
+            g_bt_manager->pfr1_payload_len_ = pfr1_header.payload_len;
+
+            log_i("[BLE] ✓ PFR1 validation passed: %ux%u, rotation=%u, color_mode=%u, payload=%u bytes",
+                pfr1_header.width, pfr1_header.height, pfr1_header.rotation,
+                pfr1_header.color_mode, pfr1_header.payload_len);
+            // Log rotation info - config vs header
+            if (g_bt_manager->config_.rotation != pfr1_header.rotation) {
+                log_w("[BLE] Rotation mismatch: config=%u, header=%u (config takes priority for rendering)",
+                    g_bt_manager->config_.rotation, pfr1_header.rotation);
+            } else {
+                log_d("[BLE] Rotation matches: config=%u, header=%u",
+                    g_bt_manager->config_.rotation, pfr1_header.rotation);
+            }
+            // Validate dimensions match expected (from header, not config)
+            auto sizeError = photo_frame::io_utils::validate_image_size_exact(
+                pfr1_header.payload_len,
+                pfr1_header.width,
+                pfr1_header.height);
 
             if (sizeError != photo_frame::error_type::None) {
-                log_e("[BLE] Image size validation failed: %s", sizeError.message);
+                log_e("[BLE] Payload size validation failed: %s", sizeError.message);
                 g_bt_manager->last_error_ = sizeError;
                 g_bt_manager->transfer_complete_ = false;
                 return;
             }
 
-            log_i("[BLE] ✓ Image size validation passed - transfer successful!");
+            log_i("[BLE] ✓ Transfer complete and validated!");
             g_bt_manager->transfer_complete_ = true;
         }
     }
@@ -269,6 +323,12 @@ BluetoothImageManager::BluetoothImageManager()
     , image_buffer_(nullptr)
     , image_buffer_size_(0)
     , image_buffer_allocated_(false)
+    , pfr1_width_(0)
+    , pfr1_height_(0)
+    , pfr1_rotation_(0)
+    , pfr1_color_mode_(0)
+    , pfr1_payload_offset_(0)
+    , pfr1_payload_len_(0)
 {
     log_d("[BT Manager] Constructor");
     last_error_ = error_type::None;
@@ -416,8 +476,11 @@ photo_frame_error_t BluetoothImageManager::waitForImage(uint32_t timeout_ms)
 
         // Check chunk timeout (30 seconds between chunks)
         if (config_received_ && millis() - last_chunk_ms_ > BT_CHUNK_TIMEOUT_MS) {
-            log_e("[BT Manager] Chunk timeout");
-            return error_type::BtChunkTimeout;
+            log_w("[BT Manager] Chunk timeout - resetting current transfer");
+            resetCurrentTransfer();
+            // Continue waiting instead of returning error
+            // This keeps the BLE window active for retry
+            continue;
         }
 
         delay(100);
@@ -512,6 +575,32 @@ void BluetoothImageManager::shutdown()
     connected_ = false;
     config_received_ = false;
     transfer_complete_ = false;
+}
+
+void BluetoothImageManager::resetCurrentTransfer()
+{
+    log_i("[BT Manager] Resetting current transfer (keeping BLE connection active)");
+
+    // Free image buffer if allocated
+    if (image_buffer_) {
+        free(image_buffer_);
+        image_buffer_ = nullptr;
+    }
+
+    // Reset transfer state
+    image_buffer_allocated_ = false;
+    image_buffer_size_ = 0;
+    bytes_received_ = 0;
+    chunks_received_ = 0;
+    config_received_ = false;
+    transfer_complete_ = false;
+    last_error_ = error_type::None;
+    last_chunk_ms_ = 0;
+
+    // Keep connected flag and connection_start_ms_ unchanged
+    // This allows the BLE connection window to remain open
+    log_i("[BT Manager] Transfer reset complete, ready for new transfer");
+    RGB_SET_STATE(BT_CONNECTED); // Back to connected state
 }
 
 bt_protocol::BTDeviceConfig BluetoothImageManager::buildDeviceConfig() const

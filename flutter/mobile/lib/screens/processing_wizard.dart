@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../state/image_processing_state.dart';
+import '../utils/app_logger.dart';
 import 'wizard/rotation_crop_step.dart';
 import 'wizard/dithering_step.dart';
 import 'wizard/annotation_step.dart';
@@ -25,11 +27,13 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
   @override
   void initState() {
     super.initState();
+    logger.fine('Wizard: Initialized with image ${widget.imageFile.path}');
     _pageController = PageController();
   }
 
   @override
   void dispose() {
+    logger.fine('Wizard: Disposing');
     _pageController.dispose();
     super.dispose();
   }
@@ -37,13 +41,49 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
   String _getTitleForStep(int step) {
     const titles = ['Crop & Rotate', 'Dithering', 'Annotation', 'Review'];
     if (step >= 0 && step < titles.length) {
-      return titles[step];
+      return '${titles[step]} (${step + 1} of 4)';
     }
     return '';
   }
 
   void _finishWizard() {
     Navigator.of(context).pop();
+  }
+
+  Future<void> _onShareBin(ImageProcessingState state) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Preparazione file .bin...')],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final binaryData = await state.generateBinaryData();
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    if (binaryData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossibile generare il file .bin')));
+      return;
+    }
+
+    try {
+      final tempFile = File('${Directory.systemTemp.path}/photoframe_${DateTime.now().millisecondsSinceEpoch}.bin');
+      await tempFile.writeAsBytes(binaryData, flush: true);
+      await Share.shareXFiles([XFile(tempFile.path)], text: 'PhotoFrame .bin ready for desktop test');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Condivisione fallita: $e')));
+    }
   }
 
   @override
@@ -59,14 +99,13 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
             elevation: 0,
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            actions: _currentStep == 3
+                ? [IconButton(icon: const Icon(Icons.share), tooltip: 'Condividi .bin', onPressed: () => _onShareBin(state))]
+                : [],
           ),
           body: Column(
             children: [
               LinearProgressIndicator(value: (_currentStep + 1) / 4, minHeight: 4),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('Step ${_currentStep + 1} of 4', style: Theme.of(context).textTheme.bodySmall),
-              ),
               Expanded(
                 child: PageView(
                   controller: _pageController,
@@ -94,6 +133,12 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                 ElevatedButton.icon(
                   onPressed: _currentStep > 0
                       ? () {
+                          logger.fine('Wizard: Back pressed from step $_currentStep');
+                          // If returning from Dithering to Crop, clear stale intermediate (forces regeneration on next Next press)
+                          if (_currentStep == 1) {
+                            logger.fine('Wizard: Clearing dithering data when returning to Crop');
+                            context.read<ImageProcessingState>().clearDitheringData();
+                          }
                           _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                         }
                       : null,
@@ -103,12 +148,28 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                 FilledButton.icon(
                   onPressed: () async {
                     if (_currentStep < 3) {
+                      logger.fine('Wizard: Next pressed from step $_currentStep');
                       if (_currentStep == 0) {
+                        logger.fine('Wizard: Rendering intermediate crop');
                         // Render intermediate image before moving to next step
                         await context.read<ImageProcessingState>().renderIntermediateCrop(widget.imageFile);
+                      } else if (_currentStep == 1) {
+                        logger.fine('Wizard: Saving dithering preview');
+                        // Save dithering preview as intermediate for next steps
+                        await context.read<ImageProcessingState>().saveDitherPreview();
+                      } else if (_currentStep == 2) {
+                        logger.fine('Wizard: Applying annotation to dithered image');
+                        // Apply annotation to the dithered image
+                        final annotatedFile = await context.read<ImageProcessingState>().renderIntermediateWithAnnotation();
+                        if (annotatedFile == null) {
+                          logger.warning('Wizard: Failed to apply annotation - no annotated file returned');
+                        } else {
+                          logger.info('Wizard: Annotation applied successfully: ${annotatedFile.path}');
+                        }
                       }
                       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                     } else {
+                      logger.info('Wizard: Finishing wizard');
                       _finishWizard();
                     }
                   },

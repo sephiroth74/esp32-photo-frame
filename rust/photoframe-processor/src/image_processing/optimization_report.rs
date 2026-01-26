@@ -1,4 +1,5 @@
-use crate::cli::{DitherMethod, ReportFormat};
+use crate::cli::ReportFormat;
+use photoframe_lib::DitheringMethod;
 use prettytable::{format, Cell, Row, Table};
 use serde::{Deserialize, Serialize};
 /// Optimization report generation for auto-optimize feature
@@ -12,7 +13,7 @@ use std::path::Path;
 pub struct OptimizationEntry {
     pub input_filename: String,
     pub output_filename: String,
-    pub dither_method: DitherMethod,
+    pub dither_method: DitheringMethod,
     pub dither_strength: f32,
     pub contrast: f32,
     pub auto_color: bool,
@@ -499,13 +500,13 @@ impl OptimizationReport {
 }
 
 /// Format dithering method name
-fn format_dither_method(method: &DitherMethod) -> String {
+fn format_dither_method(method: &DitheringMethod) -> String {
     match method {
-        DitherMethod::FloydSteinberg => "Floyd-S".to_string(),
-        DitherMethod::Atkinson => "Atkinson".to_string(),
-        DitherMethod::Stucki => "Stucki".to_string(),
-        DitherMethod::JarvisJudiceNinke => "JJN".to_string(),
-        DitherMethod::Ordered => "Ordered".to_string(),
+        DitheringMethod::FloydSteinberg => "Floyd-S".to_string(),
+        DitheringMethod::Atkinson => "Atkinson".to_string(),
+        DitheringMethod::Stucki => "Stucki".to_string(),
+        DitheringMethod::JarvisJudiceNinke => "JJN".to_string(),
+        DitheringMethod::Ordered => "Ordered".to_string(),
     }
 }
 

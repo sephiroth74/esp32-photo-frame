@@ -51,10 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: IndexedStack(
-                      index: _tabController.index,
-                      children: const [ProcessingScreen(), BleUploadScreen()],
-                    ),
+                    child: IndexedStack(index: _tabController.index, children: const [ProcessingScreen(), BleUploadScreen()]),
                   ),
                 ],
               ),

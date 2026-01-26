@@ -13,13 +13,8 @@ class BleUploadScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BleUploadState>(
       builder: (context, ble, _) {
-        final fileLabel = ble.binPath != null
-            ? ble.binPath!.split('/').last
-            : 'No file selected';
-        final deviceLabel =
-            ble.deviceInfo?.name ??
-            ble.connected?.platformName ??
-            'No device selected';
+        final fileLabel = ble.binPath != null ? ble.binPath!.split('/').last : 'No file selected';
+        final deviceLabel = ble.deviceInfo?.name ?? ble.connected?.platformName ?? 'No device selected';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,13 +26,7 @@ class BleUploadScreen extends StatelessWidget {
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(left: 12, bottom: 8),
-                      child: Text(
-                        'Bluetooth Upload',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text('Bluetooth Upload', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                     AppKitGroupBox(
                       style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -53,25 +42,19 @@ class BleUploadScreen extends StatelessWidget {
                                     ? null
                                     : () async {
                                         try {
-                                          final found = await ble.scan(
-                                            timeout: const Duration(seconds: 6),
-                                          );
+                                          final found = await ble.scan(timeout: const Duration(seconds: 6));
                                           if (!found && context.mounted) {
                                             showAppKitDialog(
                                               context: context,
                                               barrierDismissible: true,
                                               builder: (context) => AppKitDialog(
-                                                title: const Text(
-                                                  'Nessun device trovato',
-                                                ),
+                                                title: const Text('Nessun device trovato'),
                                                 message: (context) => const Text(
                                                   'Non sono stati rilevati frame Bluetooth. Assicurati che il frame sia acceso e in pairing, poi riprova.',
                                                 ),
                                                 primaryButton: AppKitButton(
-                                                  size:
-                                                      AppKitControlSize.regular,
-                                                  type:
-                                                      AppKitButtonType.primary,
+                                                  size: AppKitControlSize.regular,
+                                                  type: AppKitButtonType.primary,
                                                   onTap: () {
                                                     Navigator.of(context).pop();
                                                   },
@@ -85,61 +68,36 @@ class BleUploadScreen extends StatelessWidget {
                                             showAppKitDialog(
                                               context: context,
                                               barrierDismissible: true,
-                                              builder: (context) =>
-                                                  AppKitDialog(
-                                                    title: const Text(
-                                                      'Errore Bluetooth',
-                                                    ),
-                                                    message: (context) =>
-                                                        SelectableText(
-                                                          e.toString(),
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 13,
-                                                              ),
-                                                        ),
-                                                    primaryButton: AppKitButton(
-                                                      size: AppKitControlSize
-                                                          .regular,
-                                                      type: AppKitButtonType
-                                                          .primary,
-                                                      onTap: () {
-                                                        Navigator.of(
-                                                          context,
-                                                        ).pop();
-                                                      },
-                                                      child: const Text('Ok'),
-                                                    ),
-                                                  ),
+                                              builder: (context) => AppKitDialog(
+                                                title: const Text('Errore Bluetooth'),
+                                                message: (context) => SelectableText(e.toString(), style: const TextStyle(fontSize: 13)),
+                                                primaryButton: AppKitButton(
+                                                  size: AppKitControlSize.regular,
+                                                  type: AppKitButtonType.primary,
+                                                  onTap: () {
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                  child: const Text('Ok'),
+                                                ),
+                                              ),
                                             );
                                           }
                                         }
                                       },
-                                child: Text(
-                                  ble.scanning
-                                      ? 'Scanning…'
-                                      : 'Scan for Devices',
-                                ),
+                                child: Text(ble.scanning ? 'Scanning…' : 'Scan for Devices'),
                               ),
                               const SizedBox(width: 8),
                               AppKitButton(
                                 size: AppKitControlSize.regular,
                                 type: AppKitButtonType.secondary,
-                                onTap: ble.connected != null
-                                    ? ble.disconnect
-                                    : null,
+                                onTap: ble.connected != null ? ble.disconnect : null,
                                 child: const Text('Disconnect'),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  ble.status.isNotEmpty
-                                      ? ble.status
-                                      : 'Select a device and choose a .bin file to upload',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[700],
-                                  ),
+                                  ble.status.isNotEmpty ? ble.status : 'Select a device and choose a .bin file to upload',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -148,24 +106,15 @@ class BleUploadScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           _DeviceList(ble: ble),
-                          if (ble.deviceInfo != null) ...[
-                            const SizedBox(height: 12),
-                            _DeviceInfo(ble: ble),
-                          ],
+                          if (ble.deviceInfo != null) ...[const SizedBox(height: 12), _DeviceInfo(ble: ble)],
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              const SizedBox(
-                                width: 100,
-                                child: Text('Selected File:'),
-                              ),
+                              const SizedBox(width: 100, child: Text('Selected File:')),
                               Expanded(
                                 child: Text(
                                   fileLabel,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -173,23 +122,14 @@ class BleUploadScreen extends StatelessWidget {
                               AppKitButton(
                                 size: AppKitControlSize.regular,
                                 onTap: () async {
-                                  final result = await FilePicker.platform
-                                      .pickFiles(
-                                        type: FileType.custom,
-                                        allowedExtensions: const ['bin'],
-                                        initialDirectory:
-                                            FilePickerHistory.initialDir(
-                                              'bleBin',
-                                            ),
-                                      );
-                                  if (result != null &&
-                                      result.files.single.path != null) {
-                                    final selectedPath =
-                                        result.files.single.path!;
-                                    FilePickerHistory.rememberFile(
-                                      'bleBin',
-                                      selectedPath,
-                                    );
+                                  final result = await FilePicker.platform.pickFiles(
+                                    type: FileType.custom,
+                                    allowedExtensions: const ['bin'],
+                                    initialDirectory: FilePickerHistory.initialDir('bleBin'),
+                                  );
+                                  if (result != null && result.files.single.path != null) {
+                                    final selectedPath = result.files.single.path!;
+                                    FilePickerHistory.rememberFile('bleBin', selectedPath);
                                     await ble.pickBin(selectedPath);
                                   }
                                 },
@@ -200,10 +140,7 @@ class BleUploadScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              const SizedBox(
-                                width: 100,
-                                child: Text('Rotation:'),
-                              ),
+                              const SizedBox(width: 100, child: Text('Rotation:')),
                               AppKitPopupButton<int>(
                                 selectedItem: ble.rotation,
                                 onItemSelected: (value) {
@@ -212,62 +149,45 @@ class BleUploadScreen extends StatelessWidget {
                                   }
                                 },
                                 items: const [
-                                  AppKitContextMenuItem(
-                                    value: 0,
-                                    child: Text('0° Landscape'),
-                                  ),
-                                  AppKitContextMenuItem(
-                                    value: 1,
-                                    child: Text('90° Portrait'),
-                                  ),
-                                  AppKitContextMenuItem(
-                                    value: 2,
-                                    child: Text('180° Landscape'),
-                                  ),
-                                  AppKitContextMenuItem(
-                                    value: 3,
-                                    child: Text('270° Portrait'),
-                                  ),
+                                  AppKitContextMenuItem(value: 0, child: Text('0° Landscape')),
+                                  AppKitContextMenuItem(value: 1, child: Text('90° Portrait')),
+                                  AppKitContextMenuItem(value: 2, child: Text('180° Landscape')),
+                                  AppKitContextMenuItem(value: 3, child: Text('270° Portrait')),
                                 ],
                               ),
                               const SizedBox(width: 12),
-                              Text(
-                                'Device: $deviceLabel',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
+                              Text('Device: $deviceLabel', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Container(
-                            height: ble.rotation % 2 == 0 ? 480 : 800,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey[300]!),
-                            ),
-                            child: ble.previewImage != null
-                                ? RotatedBox(
-                                    quarterTurns: -ble.rotation,
-                                    child: RawImage(
-                                      image: ble.previewImage,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  )
-                                : Center(
-                                    child: Text(
-                                      'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[700],
+
+                          if (ble.previewImage != null) ...[
+                            Container(
+                              height: ble.rotation % 2 == 0 ? ble.binHeader!.height.toDouble() : ble.binHeader!.width.toDouble(),
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: ble.previewImage != null
+                                  ? RotatedBox(
+                                      quarterTurns: -ble.rotation,
+                                      child: RawImage(image: ble.previewImage, fit: BoxFit.contain),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                                       ),
                                     ),
-                                  ),
-                          ),
+                            ),
+                            const SizedBox(height: 12),
+                            _HeaderCard(ble: ble),
+                          ] else ...[
+                            Placeholder(fallbackHeight: 240, color: Colors.grey),
+                          ],
                           const SizedBox(height: 12),
                         ],
                       ),
@@ -279,10 +199,7 @@ class BleUploadScreen extends StatelessWidget {
             if (ble.error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  ble.error!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                ),
+                child: Text(ble.error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
               ),
             Column(
               mainAxisSize: MainAxisSize.min,
@@ -295,10 +212,7 @@ class BleUploadScreen extends StatelessWidget {
                       if (ble.uploading || ble.progress > 0) ...[
                         AppKitProgressBar(value: ble.progress),
                         const SizedBox(height: 6),
-                        Text(
-                          'Upload progress: ${(ble.progress * 100).toStringAsFixed(0)}%',
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                        Text('Upload progress: ${(ble.progress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12)),
                       ],
                     ],
                   ),
@@ -319,10 +233,7 @@ class BleUploadScreen extends StatelessWidget {
                                   barrierDismissible: true,
                                   builder: (context) => AppKitDialog(
                                     title: const Text('Errore Upload'),
-                                    message: (context) => SelectableText(
-                                      errorMsg,
-                                      style: const TextStyle(fontSize: 13),
-                                    ),
+                                    message: (context) => SelectableText(errorMsg, style: const TextStyle(fontSize: 13)),
                                     primaryButton: AppKitButton(
                                       size: AppKitControlSize.regular,
                                       type: AppKitButtonType.primary,
@@ -336,9 +247,7 @@ class BleUploadScreen extends StatelessWidget {
                               }
                             }
                           : null,
-                      child: Text(
-                        ble.uploading ? 'Uploading…' : 'Upload to Device',
-                      ),
+                      child: Text(ble.uploading ? 'Uploading…' : 'Upload to Device'),
                     ),
                   ],
                 ),
@@ -368,19 +277,14 @@ class _DeviceList extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey[300]!),
         ),
-        child: const Text(
-          'No devices found yet. Tap Scan to refresh.',
-          style: TextStyle(fontSize: 12),
-        ),
+        child: const Text('No devices found yet. Tap Scan to refresh.', style: TextStyle(fontSize: 12)),
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: ble.devices.map((result) {
-        final name = result.device.platformName.isNotEmpty
-            ? result.device.platformName
-            : result.device.remoteId.str;
+        final name = result.device.platformName.isNotEmpty ? result.device.platformName : result.device.remoteId.str;
         final isConnected = ble.connected?.remoteId == result.device.remoteId;
         return Container(
           margin: const EdgeInsets.only(bottom: 6),
@@ -388,11 +292,7 @@ class _DeviceList extends StatelessWidget {
           decoration: BoxDecoration(
             color: isConnected ? Colors.green.withAlpha(13) : Colors.grey[50],
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isConnected
-                  ? Colors.green.withAlpha(80)
-                  : Colors.grey[300]!,
-            ),
+            border: Border.all(color: isConnected ? Colors.green.withAlpha(80) : Colors.grey[300]!),
           ),
           child: Row(
             children: [
@@ -400,17 +300,8 @@ class _DeviceList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      result.device.remoteId.str,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                    ),
+                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(result.device.remoteId.str, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
                   ],
                 ),
               ),
@@ -426,6 +317,91 @@ class _DeviceList extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  final BleUploadState ble;
+  const _HeaderCard({required this.ble});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = ble.binHeader;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.description_outlined, size: 18),
+              SizedBox(width: 6),
+              Text('Header PFR1', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (h == null)
+            const Text('Select a .bin file to see header details.', style: TextStyle(fontSize: 12))
+          else ...[
+            _row('Magic', 'PFR1 (0x50465231)'),
+            _row('Version', h.version.toString()),
+            _row('Header len', '${h.headerLen} bytes'),
+            _row('Size', '${h.width} x ${h.height}'),
+            _row('Rotation', _rotationLabel(h.rotation)),
+            _row('Color mode', _colorModeLabel(h.colorMode)),
+            _row('Payload', '${h.payloadLen} bytes'),
+            _row('Header CRC32', '0x${h.headerCrc32.toRadixString(16).padLeft(8, '0')}'),
+            _row('Total file size', '${h.headerLen + h.payloadLen + 4} bytes'),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(value, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  static String _rotationLabel(int v) {
+    switch (v % 4) {
+      case 0:
+        return '0° (landscape)';
+      case 1:
+        return '90° (portrait)';
+      case 2:
+        return '180°';
+      case 3:
+        return '270°';
+      default:
+        return '$v';
+    }
+  }
+
+  static String _colorModeLabel(int v) {
+    switch (v) {
+      case 0:
+        return 'Black & White';
+      case 1:
+        return 'Six Colors';
+      default:
+        return 'Unknown ($v)';
+    }
   }
 }
 
@@ -449,10 +425,7 @@ class _DeviceInfo extends StatelessWidget {
         spacing: 12,
         runSpacing: 8,
         children: [
-          _InfoChip(
-            label: 'Display',
-            value: info.displayType == 1 ? '6-color' : 'B/W',
-          ),
+          _InfoChip(label: 'Display', value: info.displayType == 1 ? '6-color' : 'B/W'),
           _InfoChip(label: 'Resolution', value: '${info.width}x${info.height}'),
           _InfoChip(label: 'Rotation', value: _rotationName(info.rotation)),
           _InfoChip(label: 'MTU', value: info.mtu.toString()),
@@ -489,23 +462,14 @@ class _InfoChip extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.grey[300]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
           const SizedBox(width: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );

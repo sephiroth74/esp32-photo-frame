@@ -5,8 +5,6 @@ pub mod binary;
 pub mod color_correction;
 pub mod combine;
 pub mod convert;
-pub mod convert_improved;
-pub mod dithering;
 pub mod optimization_report;
 pub mod orientation;
 pub mod resize;
@@ -27,45 +25,27 @@ use image::{Rgb, RgbImage};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use indicatif::ProgressBar;
+use photoframe_lib::{process_image_with_display_type, DisplayType, DitheringMethod};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
 
-use crate::cli::DitherMethod;
 use crate::utils::{create_readable_combined_filename, has_valid_extension, verbose_println};
 use combine::combine_processed_portraits;
 use orientation::get_effective_target_dimensions;
 
-#[derive(Debug, Clone, strum_macros::EnumIter)]
-pub enum ProcessingType {
-    BlackWhite,
-    SixColor,
-}
-
-impl ProcessingType {
-    /// Get the filename prefix for this processing type
-    pub fn get_prefix(&self) -> &'static str {
-        match self {
-            ProcessingType::BlackWhite => "bw",
-            ProcessingType::SixColor => "6c",
-        }
-    }
-
-    /// Parse prefix back to ProcessingType
-    #[allow(dead_code)]
-    pub fn from_prefix(prefix: &str) -> Option<Self> {
-        match prefix {
-            "bw" => Some(ProcessingType::BlackWhite),
-            "6c" => Some(ProcessingType::SixColor),
-            _ => None,
-        }
+fn infer_color_mode(payload: &[u8]) -> u8 {
+    if payload.iter().all(|&b| b == 0x00 || b == 0xFF) {
+        0
+    } else {
+        1
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ProcessingConfig {
-    pub processing_type: ProcessingType,
+    pub processing_type: DisplayType,
     pub target_width: u32,
     pub target_height: u32,
     pub auto_orientation: bool,
@@ -92,7 +72,7 @@ pub struct ProcessingConfig {
     pub divider_width: u32,
     pub divider_color: Rgb<u8>,
     // Dithering method
-    pub dithering_method: DitherMethod,
+    pub dithering_method: DitheringMethod,
     // Dithering strength (0.0-2.0, multiplier for error diffusion)
     pub dither_strength: f32,
     // Contrast adjustment (-100 to 100, applied before dithering)
@@ -104,8 +84,8 @@ pub struct ProcessingConfig {
     // Auto-optimization
     pub auto_optimize: bool,
     pub optimization_report: bool,
-    // Target display orientation
-    pub target_orientation: crate::cli::TargetOrientation,
+    // Target display orientation (includes rotation 0-3)
+    pub target_orientation: crate::cli::OrientationConfig,
     // Pre-rotation flag (true for 6c portrait mode only)
     pub needs_pre_rotation: bool,
     // JSON progress output (suppresses all other output)
@@ -270,10 +250,10 @@ impl ProcessingEngine {
 
     /// Apply pre-rotation based on target orientation for 6C displays
     /// Returns the rotated image according to the orientation setting
-    fn apply_pre_rotation(&self, img: &image::RgbImage) -> image::RgbImage {
+    fn apply_pre_rotation(&self, img: &RgbImage) -> RgbImage {
         use crate::cli::TargetOrientation;
 
-        match self.config.target_orientation {
+        match self.config.target_orientation.orientation {
             TargetOrientation::Portrait => {
                 // 90° CW rotation for portrait display
                 image::imageops::rotate90(img)
@@ -503,7 +483,7 @@ impl ProcessingEngine {
 
         // Calculate actual number of output images after pairing
         let is_landscape_like = matches!(
-            self.config.target_orientation,
+            self.config.target_orientation.orientation,
             crate::cli::TargetOrientation::Landscape
         );
         let actual_output_count = if is_landscape_like {
@@ -1040,18 +1020,21 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        // Use appropriate binary format based on display type
-                        let binary_data = match self.config.processing_type {
-                            ProcessingType::BlackWhite => {
-                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&final_img)?
-                            }
-                            ProcessingType::SixColor => {
-                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&final_img)?
-                            }
-                        };
-                        std::fs::write(&output_path, binary_data).with_context(|| {
+                        let payload = process_image_with_display_type(
+                            &final_img,
+                            self.config.processing_type,
+                        )?;
+                        let (w, h) = final_img.dimensions();
+                        let color_mode = infer_color_mode(&payload);
+                        let bin = photoframe_lib::build_bin_file(
+                            &payload,
+                            w as u16,
+                            h as u16,
+                            0,
+                            color_mode,
+                            1u8,
+                        );
+                        std::fs::write(&output_path, bin).with_context(|| {
                             format!("Failed to save binary: {}", output_path.display())
                         })?;
                     }
@@ -1148,7 +1131,7 @@ impl ProcessingEngine {
         // - Landscape target: half-width (will be paired side-by-side)
         // - Portrait target: full-width (individual display)
         let is_landscape_target = matches!(
-            self.config.target_orientation,
+            self.config.target_orientation.orientation,
             crate::cli::TargetOrientation::Landscape
         );
         let portrait_width = if is_landscape_target {
@@ -1363,18 +1346,21 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        // Use appropriate binary format based on display type
-                        let binary_data = match self.config.processing_type {
-                            ProcessingType::BlackWhite => {
-                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&final_img)?
-                            }
-                            ProcessingType::SixColor => {
-                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&final_img)?
-                            }
-                        };
-                        std::fs::write(&output_path, binary_data).with_context(|| {
+                        let payload = process_image_with_display_type(
+                            &final_img,
+                            self.config.processing_type,
+                        )?;
+                        let (w, h) = final_img.dimensions();
+                        let color_mode = infer_color_mode(&payload);
+                        let bin = photoframe_lib::build_bin_file(
+                            &payload,
+                            w as u16,
+                            h as u16,
+                            0,
+                            color_mode,
+                            1u8,
+                        );
+                        std::fs::write(&output_path, bin).with_context(|| {
                             format!("Failed to save portrait binary: {}", output_path.display())
                         })?;
                     }
@@ -2066,18 +2052,21 @@ impl ProcessingEngine {
                         })?;
                     }
                     crate::cli::OutputType::Bin => {
-                        // Use appropriate binary format based on display type
-                        let binary_data = match self.config.processing_type {
-                            ProcessingType::BlackWhite => {
-                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&final_combined_img)?
-                            }
-                            ProcessingType::SixColor => {
-                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&final_combined_img)?
-                            }
-                        };
-                        std::fs::write(&output_path, &binary_data).with_context(|| {
+                        let payload = process_image_with_display_type(
+                            &final_combined_img,
+                            self.config.processing_type,
+                        )?;
+                        let (w, h) = final_combined_img.dimensions();
+                        let color_mode = infer_color_mode(&payload);
+                        let bin = photoframe_lib::build_bin_file(
+                            &payload,
+                            w as u16,
+                            h as u16,
+                            0,
+                            color_mode,
+                            1u8,
+                        );
+                        std::fs::write(&output_path, &bin).with_context(|| {
                             format!("Failed to save combined binary: {}", output_path.display())
                         })?;
                     }
@@ -2795,16 +2784,10 @@ impl ProcessingEngine {
                     }
                     crate::cli::OutputType::Bin => {
                         // Use appropriate binary format based on display type
-                        let binary_data = match self.config.processing_type {
-                            ProcessingType::BlackWhite => {
-                                // B/W displays use the original ESP32 compressed format (RRRGGGBB)
-                                binary::convert_to_esp32_binary(&combined)?
-                            }
-                            ProcessingType::SixColor => {
-                                // 6c displays use demo bitmap mode 1 format for drawDemoBitmap()
-                                binary::convert_to_demo_bitmap_mode1(&combined)?
-                            }
-                        };
+                        let binary_data = process_image_with_display_type(
+                            &combined,
+                            self.config.processing_type,
+                        )?;
                         std::fs::write(&output_path, &binary_data).with_context(|| {
                             format!("Failed to save combined binary: {}", output_path.display())
                         })?;

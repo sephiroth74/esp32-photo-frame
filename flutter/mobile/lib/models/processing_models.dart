@@ -16,7 +16,7 @@ class AnnotationSettings {
   const AnnotationSettings({
     this.text = '',
     this.fontFamily = 'Roboto',
-    this.fontSize = 16,
+    this.fontSize = 8,
     this.textColor = Colors.white,
     this.backgroundColor = Colors.black,
   });
@@ -50,12 +50,12 @@ class ProcessingJob {
     this.targetResolution = const Resolution(800, 480),
     this.cropZoom = 1.0,
     this.panOffset = Offset.zero,
-    this.dithering = DitheringMethod.floydSteinberg,
+    this.dithering = DitheringMethod.atkinson,
     this.displayType = DisplayType.sixColors,
-    this.saturation = 1.0,
-    this.contrast = 1.0,
-    this.brightness = 1.0,
-    this.ditherStrength = 0.8,
+    this.saturation = 1.2,
+    this.contrast = 1.15,
+    this.brightness = 1.2,
+    this.ditherStrength = 1.05,
     this.annotation = const AnnotationSettings(),
   });
 

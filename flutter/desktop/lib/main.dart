@@ -25,10 +25,7 @@ Future<void> _configureMacosWindowUtils() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  assert(
-    Platform.isMacOS && !kIsWeb,
-    'This example is intended to run on macOS desktop only.',
-  );
+  assert(Platform.isMacOS && !kIsWeb, 'This example is intended to run on macOS desktop only.');
 
   // Initialize window manager
   await windowManager.ensureInitialized();

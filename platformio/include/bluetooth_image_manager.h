@@ -119,6 +119,64 @@ public:
     const uint8_t* getImageBuffer() const { return image_buffer_; }
 
     /**
+     * @brief Get pointer to image payload (without PFR1 header)
+     *
+     * @return Pointer to payload data (nullptr if not available)
+     */
+    const uint8_t* getImagePayload() const
+    {
+        return image_buffer_ ? &image_buffer_[pfr1_payload_offset_] : nullptr;
+    }
+
+    /**
+     * @brief Get payload size (without header)
+     *
+     * @return Payload size in bytes
+     */
+    uint32_t getPayloadSize() const { return pfr1_payload_len_; }
+
+    /**
+     * @brief Get image width from PFR1 header
+     *
+     * @return Image width
+     */
+    uint16_t getImageWidth() const { return pfr1_width_; }
+
+    /**
+     * @brief Get image height from PFR1 header
+     *
+     * @return Image height
+     */
+    uint16_t getImageHeight() const { return pfr1_height_; }
+
+    /**
+     * @brief Get rotation from PFR1 header
+     *
+     * This is the rotation value embedded in the .bin file header.
+     * May differ from the requested rotation in config.
+     *
+     * @return Rotation value (0-3) from file header
+     */
+    uint8_t getImageRotation() const { return pfr1_rotation_; }
+
+    /**
+     * @brief Get requested rotation from client config
+     *
+     * This is the rotation requested by the client and should be used
+     * for rendering. It may override the rotation in the file header.
+     *
+     * @return Rotation value (0-3) from client config
+     */
+    uint8_t getRequestedRotation() const { return config_.rotation; }
+
+    /**
+     * @brief Get color mode from PFR1 header
+     *
+     * @return Color mode (0=BW, 1=6C)
+     */
+    uint8_t getImageColorMode() const { return pfr1_color_mode_; }
+
+    /**
      * @brief Get size of received image
      *
      * @return Size in bytes
@@ -141,13 +199,21 @@ public:
      * @brief Set device orientation
      * @param orientation Orientation value (0-3)
      */
-    void setDeviceOrientation(uint8_t orientation) {device_orientation_ = orientation;}
+    void setDeviceOrientation(uint8_t orientation) { device_orientation_ = orientation; }
 
     /**
      * @brief Get device orientation
      * @return Orientation value (0-3)
      */
-    uint8_t getDeviceOrientation() const {return device_orientation_;}
+    uint8_t getDeviceOrientation() const { return device_orientation_; }
+
+    /**
+     * @brief Reset current transfer state without closing BLE connection
+     *
+     * Clears transfer buffers and state, allowing a new transfer to be initiated
+     * while keeping the BLE connection and advertising window active.
+     */
+    void resetCurrentTransfer();
 
     /**
      * @brief Get error severity classification
@@ -214,6 +280,14 @@ private:
     uint8_t* image_buffer_;
     size_t image_buffer_size_;
     bool image_buffer_allocated_;
+
+    // PFR1 header info (extracted after transfer complete)
+    uint16_t pfr1_width_;
+    uint16_t pfr1_height_;
+    uint8_t pfr1_rotation_;
+    uint8_t pfr1_color_mode_;
+    uint32_t pfr1_payload_offset_; // Offset to payload in buffer (after header)
+    uint32_t pfr1_payload_len_; // Payload length
 
     /**
      * @brief Process received configuration

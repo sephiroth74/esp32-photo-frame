@@ -4,7 +4,9 @@ use btleplug::api::{
     WriteType,
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
+use crc32fast::Hasher as Crc32Hasher;
 use indicatif::{ProgressBar, ProgressStyle};
+use photoframe_lib::{parse_bin_file, BinHeader};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::runtime::Runtime;
@@ -56,6 +58,10 @@ pub struct DeviceInfo {
     pub current_rotation: u8,
     pub mtu_size: u16,
 }
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct LocalBinHeader(BinHeader);
 
 pub fn scan_devices() -> Result<()> {
     let rt = Runtime::new()?;
@@ -148,13 +154,17 @@ pub fn upload_image_with_dimensions(
     bin_path: &Path,
     _width: u16,
     _height: u16,
-    rotation: u8,
+    _rotation: u8,
     device_hint: Option<&str>,
 ) -> Result<()> {
-    let bin_data = std::fs::read(bin_path)
+    let raw_data = std::fs::read(bin_path)
         .with_context(|| format!("Failed to read binary image: {}", bin_path.display()))?;
 
-    let image_size = bin_data.len();
+    let (bin_header, payload, payload_crc) =
+        parse_bin_file(&raw_data).context("Failed to parse .bin header")?;
+    validate_payload_crc(payload, payload_crc)?;
+    // Own the payload for the async block
+    let payload: Vec<u8> = payload.to_vec();
 
     let rt = Runtime::new()?;
     rt.block_on(async move {
@@ -184,33 +194,52 @@ pub fn upload_image_with_dimensions(
         let device_info = read_device_info(&peripheral).await?;
         println!("✓ Device configuration received");
 
-        // Calculate expected image size based on device display type (mirror device dims)
-        let expected_bw_size = device_info.width as usize * device_info.height as usize;
-        let expected_6c_size = device_info.width as usize * device_info.height as usize;
+        // Validate payload size vs device display
+        let expected_bw_size = (bin_header.width as usize) * (bin_header.height as usize);
+        let expected_6c_size = expected_bw_size; // packed 6c should match pixel count for now
 
-        let is_valid_size = if device_info.display_type == 1 {
-            // 6-color display - expected_6c_size
-            image_size == expected_6c_size
-                || image_size == (device_info.width as usize * device_info.height as usize * 3) / 8
+        let bw = bin_header.color_mode == 0;
+        let w = bin_header.width as usize;
+        let h = bin_header.height as usize;
+        let is_valid_size = if !bw {
+            payload.len() == expected_6c_size || payload.len() == (w * h * 3) / 8
         } else {
-            // B/W display
-            image_size == expected_bw_size
+            payload.len() == expected_bw_size
         };
 
         if !is_valid_size {
-            eprintln!("\n⚠ Warning: Image size mismatch!");
-            eprintln!("  Got {} bytes", image_size);
-            if device_info.display_type == 1 {
+            eprintln!("\n⚠ Warning: Image size mismatch (file vs header expectations)!");
+            eprintln!("  Got {} bytes", payload.len());
+            if bin_header.color_mode == 1 {
                 eprintln!(
                     "  Expected {} bytes (for 6-color {}x{})",
-                    expected_6c_size, device_info.width, device_info.height
+                    expected_6c_size, w, h
                 );
             } else {
                 eprintln!(
                     "  Expected {} bytes (for B/W {}x{})",
-                    expected_bw_size, device_info.width, device_info.height
+                    expected_bw_size, w, h
                 );
             }
+        }
+
+        // Warn if file color mode doesn't match device
+        if (bin_header.color_mode == 1 && device_info.display_type == 0)
+            || (bin_header.color_mode == 0 && device_info.display_type == 1)
+        {
+            eprintln!(
+                "\n⚠ Warning: File color mode ({}) does not match device ({})",
+                if bin_header.color_mode == 1 {
+                    "6C"
+                } else {
+                    "BW"
+                },
+                if device_info.display_type == 1 {
+                    "6C"
+                } else {
+                    "BW"
+                }
+            );
         }
 
         // Get effective chunk size from device
@@ -224,21 +253,18 @@ pub fn upload_image_with_dimensions(
             CHUNK_SIZE
         };
 
-        println!("\n📷 Image Configuration:");
-        println!("   Size: {} bytes", image_size);
-        println!(
-            "   Dimensions: {}x{}",
-            device_info.width, device_info.height
-        );
+        println!("\n📷 Image Configuration (from file header):");
+        println!("   Size: {} bytes", payload.len());
+        println!("   Dimensions: {}x{}", w, h);
         println!(
             "   Display: {}",
-            if device_info.display_type == 1 {
+            if bin_header.color_mode == 1 {
                 "6-color"
             } else {
                 "B/W"
             }
         );
-        println!("   Rotation: {}", rotation);
+        println!("   Rotation: {}", bin_header.rotation);
         println!("   Chunk size: {} bytes", chunk_size);
 
         let chars: Vec<Characteristic> = peripheral.characteristics().into_iter().collect();
@@ -246,8 +272,12 @@ pub fn upload_image_with_dimensions(
         let image_char = find_char(&chars, IMAGE_CHAR_UUID)?;
 
         println!("\n📤 Sending configuration...");
-        let config_payload =
-            build_config_payload(&bin_data, device_info.width, device_info.height, rotation);
+        let config_payload = build_config_payload(
+            &payload,
+            bin_header.width,
+            bin_header.height,
+            bin_header.rotation,
+        );
         peripheral
             .write(&config_char, &config_payload, WriteType::WithResponse)
             .await
@@ -257,8 +287,8 @@ pub fn upload_image_with_dimensions(
         sleep(Duration::from_millis(500)).await;
 
         println!("\n📤 Sending image data...");
-        let num_chunks = (bin_data.len() + chunk_size - 1) / chunk_size;
-        let pb = ProgressBar::new(bin_data.len() as u64);
+        let num_chunks = (payload.len() + chunk_size - 1) / chunk_size;
+        let pb = ProgressBar::new(payload.len() as u64);
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("{spinner:.green} Uploading [{bar:30}] {bytes}/{total_bytes} ({eta})")
@@ -266,7 +296,7 @@ pub fn upload_image_with_dimensions(
                 .progress_chars("=> "),
         );
 
-        for (i, chunk) in bin_data.chunks(chunk_size).enumerate() {
+        for (i, chunk) in payload.chunks(chunk_size).enumerate() {
             peripheral
                 .write(&image_char, chunk, WriteType::WithResponse)
                 .await
@@ -560,4 +590,221 @@ fn crc16_modbus(data: &[u8]) -> u16 {
         }
     }
     crc
+}
+
+// use shared parser from photoframe-lib
+
+fn validate_payload_crc(payload: &[u8], expected_crc: u32) -> Result<()> {
+    let mut hasher = Crc32Hasher::new();
+    hasher.update(payload);
+    let crc = hasher.finalize();
+    if crc != expected_crc {
+        return Err(anyhow!(
+            "Payload CRC mismatch: expected 0x{:08x}, got 0x{:08x}",
+            expected_crc,
+            crc
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn crc16_modbus_known_vector() {
+        // Standard test vector: "123456789" -> CRC16/MODBUS = 0x4B37
+        let crc = crc16_modbus(b"123456789");
+        assert_eq!(crc, 0x4B37);
+    }
+
+    #[test]
+    fn build_config_payload_has_valid_crc_and_layout() {
+        // Use deterministic payload and fields
+        let data = vec![0xAAu8; 100];
+        let width: u16 = 800;
+        let height: u16 = 480;
+        let rotation: u8 = 1;
+
+        let raw = build_config_payload(&data, width, height, rotation);
+
+        // Expected struct size (packed): 2+1+1+2+2+4+4+2 = 18
+        assert_eq!(raw.len(), std::mem::size_of::<BtImageConfig>());
+
+        // Verify magic (0xBEEF LE)
+        assert_eq!(raw[0], 0xEF);
+        assert_eq!(raw[1], 0xBE);
+
+        // Version and rotation
+        assert_eq!(raw[2], 0x01);
+        assert_eq!(raw[3], rotation);
+
+        // Width, Height
+        assert_eq!(u16::from_le_bytes([raw[4], raw[5]]), width);
+        assert_eq!(u16::from_le_bytes([raw[6], raw[7]]), height);
+
+        // Image size
+        assert_eq!(
+            u32::from_le_bytes([raw[12], raw[13], raw[14], raw[15]]),
+            data.len() as u32
+        );
+
+        // CRC should validate over all but the last 2 bytes
+        let expected_crc = crc16_modbus(&raw[..raw.len() - 2]);
+        let found_crc = u16::from_le_bytes([raw[16], raw[17]]);
+        assert_eq!(found_crc, expected_crc);
+    }
+
+    #[test]
+    fn parse_bin_file_valid() {
+        // Build a minimal valid BIN with header + payload + payload CRC32
+        let width: u16 = 800;
+        let height: u16 = 480;
+        let rotation: u8 = 0;
+        let color_mode: u8 = 1; // 6-color
+        let payload: Vec<u8> = (0..64u8).collect();
+
+        let mut header = Vec::new();
+        header.extend_from_slice(&photoframe_lib::BIN_MAGIC.to_le_bytes()); // magic (4)
+        header.push(1); // version (1)
+        header.extend_from_slice(&(photoframe_lib::BIN_HEADER_SIZE as u16).to_le_bytes()); // header_len (2)
+        header.extend_from_slice(&width.to_le_bytes()); // width (2)
+        header.extend_from_slice(&height.to_le_bytes()); // height (2)
+        header.push(rotation); // rotation (1)
+        header.push(color_mode); // color (1)
+        header.extend_from_slice(&(payload.len() as u32).to_le_bytes()); // payload_len (4)
+
+        // Compute header CRC32 over first BIN_HEADER_SIZE-4 bytes
+        let mut hasher = Crc32Hasher::new();
+        hasher.update(&header);
+        let header_crc = hasher.finalize();
+        header.extend_from_slice(&header_crc.to_le_bytes()); // header_crc32 (4)
+
+        assert_eq!(header.len(), photoframe_lib::BIN_HEADER_SIZE);
+
+        // Build full file: header + payload + payload CRC32
+        let mut file = header;
+        file.extend_from_slice(&payload);
+        let mut ph = Crc32Hasher::new();
+        ph.update(&payload);
+        let payload_crc = ph.finalize();
+        file.extend_from_slice(&payload_crc.to_le_bytes());
+
+        let (parsed, parsed_payload, parsed_payload_crc) =
+            parse_bin_file(&file).expect("parse_bin_file should accept valid file");
+
+        let v = parsed.version;
+        let hl = parsed.header_len;
+        let pw = parsed.width;
+        let ph = parsed.height;
+        let pr = parsed.rotation;
+        let pcm = parsed.color_mode;
+        let ppl = parsed.payload_len;
+        let phc = parsed.header_crc32;
+
+        assert_eq!(v, 1);
+        assert_eq!(hl, photoframe_lib::BIN_HEADER_SIZE as u16);
+        assert_eq!(pw, width);
+        assert_eq!(ph, height);
+        assert_eq!(pr, rotation);
+        assert_eq!(pcm, color_mode);
+        assert_eq!(ppl, payload.len() as u32);
+        assert_eq!(phc, header_crc);
+        assert_eq!(parsed_payload, &payload[..]);
+        assert_eq!(parsed_payload_crc, payload_crc);
+    }
+
+    #[test]
+    fn parse_bin_file_rejects_bad_magic() {
+        let width: u16 = 10;
+        let height: u16 = 10;
+        let payload: Vec<u8> = vec![0x55; 10];
+
+        let mut header = Vec::new();
+        header.extend_from_slice(&0xDEADBEEFu32.to_le_bytes()); // wrong magic
+        header.push(1);
+        header.extend_from_slice(&(photoframe_lib::BIN_HEADER_SIZE as u16).to_le_bytes());
+        header.extend_from_slice(&width.to_le_bytes());
+        header.extend_from_slice(&height.to_le_bytes());
+        header.push(0);
+        header.push(0);
+        header.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        let mut hasher = Crc32Hasher::new();
+        hasher.update(&header);
+        let header_crc = hasher.finalize();
+        header.extend_from_slice(&header_crc.to_le_bytes());
+
+        let mut file = header;
+        file.extend_from_slice(&payload);
+        let mut ph = Crc32Hasher::new();
+        ph.update(&payload);
+        let payload_crc = ph.finalize();
+        file.extend_from_slice(&payload_crc.to_le_bytes());
+
+        let err = parse_bin_file(&file).unwrap_err();
+        assert!(err.to_string().contains("Invalid BIN magic"));
+    }
+
+    #[test]
+    fn parse_bin_file_rejects_bad_header_crc() {
+        let width: u16 = 10;
+        let height: u16 = 10;
+        let payload: Vec<u8> = vec![0x55; 10];
+
+        let mut header = Vec::new();
+        header.extend_from_slice(&photoframe_lib::BIN_MAGIC.to_le_bytes());
+        header.push(1);
+        header.extend_from_slice(&(photoframe_lib::BIN_HEADER_SIZE as u16).to_le_bytes());
+        header.extend_from_slice(&width.to_le_bytes());
+        header.extend_from_slice(&height.to_le_bytes());
+        header.push(0);
+        header.push(0);
+        header.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        // Intentionally wrong CRC
+        header.extend_from_slice(&0x12345678u32.to_le_bytes());
+
+        let mut file = header;
+        file.extend_from_slice(&payload);
+        let mut ph = Crc32Hasher::new();
+        ph.update(&payload);
+        let payload_crc = ph.finalize();
+        file.extend_from_slice(&payload_crc.to_le_bytes());
+
+        let err = parse_bin_file(&file).unwrap_err();
+        assert!(err.to_string().contains("Header CRC mismatch"));
+    }
+
+    #[test]
+    fn parse_bin_file_rejects_truncated_payload() {
+        let width: u16 = 10;
+        let height: u16 = 10;
+        let payload_len: usize = 100;
+        let payload: Vec<u8> = vec![0x77; 50]; // shorter than declared
+
+        let mut header = Vec::new();
+        header.extend_from_slice(&photoframe_lib::BIN_MAGIC.to_le_bytes());
+        header.push(1);
+        header.extend_from_slice(&(photoframe_lib::BIN_HEADER_SIZE as u16).to_le_bytes());
+        header.extend_from_slice(&width.to_le_bytes());
+        header.extend_from_slice(&height.to_le_bytes());
+        header.push(0);
+        header.push(0);
+        header.extend_from_slice(&(payload_len as u32).to_le_bytes());
+        let mut hasher = Crc32Hasher::new();
+        hasher.update(&header);
+        let header_crc = hasher.finalize();
+        header.extend_from_slice(&header_crc.to_le_bytes());
+
+        let mut file = header;
+        file.extend_from_slice(&payload);
+        // Even with CRC appended, total bytes will be less than declared total
+        let mut ph = Crc32Hasher::new();
+        ph.update(&payload);
+        let payload_crc = ph.finalize();
+        file.extend_from_slice(&payload_crc.to_le_bytes());
+
+        let err = parse_bin_file(&file).unwrap_err();
+        assert!(err.to_string().contains("BIN truncated: have"));
+    }
 }

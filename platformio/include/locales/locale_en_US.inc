@@ -51,8 +51,6 @@ const char TXT_LITTLEFS_FILE_CREATE_FAILED[] PROGMEM = "Failed to create LittleF
 const char TXT_LITTLEFS_FILE_OPEN_FAILED[] PROGMEM = "Failed to open LittleFS file";
 const char TXT_FILE_COPY_FAILED[] PROGMEM = "Failed to copy file";
 
-
-
 // OAuth/Authentication Specific Errors (40-49)
 const char TXT_OAUTH_TOKEN_EXPIRED[] PROGMEM = "OAuth access token has expired";
 const char TXT_OAUTH_TOKEN_INVALID[] PROGMEM = "OAuth access token is invalid or malformed";
@@ -85,7 +83,7 @@ const char TXT_HTTP_BAD_REQUEST[] PROGMEM = "HTTP 400: Bad request";
 const char TXT_IMAGE_FILE_CORRUPTED[] PROGMEM = "Image file appears to be corrupted or invalid";
 const char TXT_IMAGE_FILE_TOO_LARGE[] PROGMEM = "Image file is too large for processing";
 const char TXT_IMAGE_DIMENSIONS_INVALID[] PROGMEM = "Image dimensions are invalid or unsupported";
-const char TXT_IMAGE_DIMENSIONS_MISMATCH[] PROGMEM = "Image dimensions don't match expected size";
+const char TXT_IMAGE_SIZE_INVALID[] PROGMEM = "File size invalid";
 const char TXT_IMAGE_COLOR_DEPTH_UNSUPPORTED[] PROGMEM = "Image color depth is not supported";
 const char TXT_IMAGE_PIXEL_DATA_CORRUPTED[] PROGMEM = "Pixel data is corrupted or unreadable";
 const char TXT_IMAGE_FILE_SEEK_FAILED[] PROGMEM = "Failed to seek to position in image file";
@@ -144,5 +142,3 @@ const char TXT_BT_CLIENT_DISCONNECTED[] PROGMEM = "Bluetooth client disconnected
 const char TXT_BT_CHUNK_TIMEOUT[] PROGMEM = "Bluetooth chunk receive timeout";
 const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Press button to retry";
 #endif
-
-

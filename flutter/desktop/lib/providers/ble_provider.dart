@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:path/path.dart' as p;
+import '../services/bin_parser.dart';
 
 class BleDeviceInfo {
   final String id;
@@ -32,8 +33,7 @@ class BleUploadState with ChangeNotifier {
   static final _configChar = Guid("00002a29-0000-1000-8000-00805f9b34fb");
   static final _imageChar = Guid("00002a2a-0000-1000-8000-00805f9b34fb");
   static final _deviceInfoChar = Guid("00002a2c-0000-1000-8000-00805f9b34fb");
-  static const _defaultChunk =
-      512; // Conservative chunk size for iOS/macOS reliability
+  static const _defaultChunk = 512; // Conservative chunk size for iOS/macOS reliability
   static const _maxChunk = 512; // iOS/macOS limit for withResponse writes
   static const _manufacturerId = 0x1337;
   static const _manufacturerMagic = [0x50, 0x46, 0x52, 0x31]; // "PFR1"
@@ -53,12 +53,12 @@ class BleUploadState with ChangeNotifier {
 
   String? binPath;
   ui.Image? previewImage;
+  BinHeader? binHeader;
   int rotation = 0;
 
   StreamSubscription<List<ScanResult>>? _scanSub;
 
-  bool get canUpload =>
-      connected != null && deviceInfo != null && binPath != null && !uploading;
+  bool get canUpload => connected != null && deviceInfo != null && binPath != null && !uploading;
 
   void setRotation(int value) {
     rotation = value;
@@ -87,9 +87,7 @@ class BleUploadState with ChangeNotifier {
             .timeout(
               const Duration(seconds: 5),
               onTimeout: () {
-                throw Exception(
-                  'Bluetooth non disponibile. Assicurati che il Bluetooth sia acceso.',
-                );
+                throw Exception('Bluetooth non disponibile. Assicurati che il Bluetooth sia acceso.');
               },
             );
       }
@@ -127,8 +125,7 @@ class BleUploadState with ChangeNotifier {
 
     // Fallback: check device name
     final name = result.device.platformName;
-    if (name.startsWith(_devicePrefix) ||
-        name.startsWith(_deviceFallbackPrefix)) {
+    if (name.startsWith(_devicePrefix) || name.startsWith(_deviceFallbackPrefix)) {
       return true;
     }
 
@@ -144,8 +141,7 @@ class BleUploadState with ChangeNotifier {
       await connected?.disconnect();
       await d.connect(timeout: const Duration(seconds: 8));
       connected = d;
-      status =
-          'Connected to ${d.platformName.isNotEmpty ? d.platformName : d.remoteId.str}';
+      status = 'Connected to ${d.platformName.isNotEmpty ? d.platformName : d.remoteId.str}';
       await _discoverAndReadInfo();
     } catch (e) {
       error = 'Connection failed: $e';
@@ -163,6 +159,7 @@ class BleUploadState with ChangeNotifier {
     connected = null;
     deviceInfo = null;
     previewImage = null;
+    binHeader = null;
     status = '';
     notifyListeners();
   }
@@ -177,49 +174,26 @@ class BleUploadState with ChangeNotifier {
     if (binPath == null) return;
     try {
       final bytes = await File(binPath!).readAsBytes();
-      // Attempt to infer size from device info, else assume 800x480
-      final w = deviceInfo?.width ?? 800;
-      final h = deviceInfo?.height ?? 480;
-      final rgba = _decodeBinToRgba(bytes, w, h);
-      previewImage = await _rgbaToImage(rgba, w, h);
+      ui.Image? img;
+      BinHeader? header;
+      // Try new PFR1 format first
+      final parsed = BinParser.parse(bytes);
+      final rgba = BinParser.decodeToRgba(parsed);
+      img = await _rgbaToImage(rgba, parsed.header.width, parsed.header.height);
+      header = parsed.header;
+      previewImage = img;
+      binHeader = header;
       status = 'Preview loaded (${p.basename(binPath!)})';
     } catch (e) {
+      previewImage = null;
+      binHeader = null;
       error = 'Preview failed: $e';
     }
   }
 
-  Uint8List _decodeBinToRgba(Uint8List src, int width, int height) {
-    final expected = width * height;
-    if (src.length < expected) {
-      // pad with white
-      final padded = Uint8List(expected)..setRange(0, src.length, src);
-      src = padded;
-    }
-    final out = Uint8List(width * height * 4);
-    for (int i = 0; i < width * height; i++) {
-      final b = src[i];
-      // RRRGGGBB (3/3/2 bits)
-      final r = ((b >> 5) & 0x07) * 255 ~/ 7;
-      final g = ((b >> 2) & 0x07) * 255 ~/ 7;
-      final bl = (b & 0x03) * 255 ~/ 3;
-      final o = i * 4;
-      out[o] = r;
-      out[o + 1] = g;
-      out[o + 2] = bl;
-      out[o + 3] = 0xFF;
-    }
-    return out;
-  }
-
   Future<ui.Image> _rgbaToImage(Uint8List rgba, int width, int height) {
     final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-      rgba,
-      width,
-      height,
-      ui.PixelFormat.rgba8888,
-      (img) => completer.complete(img),
-    );
+    ui.decodeImageFromPixels(rgba, width, height, ui.PixelFormat.rgba8888, (img) => completer.complete(img));
     return completer.future;
   }
 
@@ -269,9 +243,7 @@ class BleUploadState with ChangeNotifier {
 
       // Additional safety: ensure we never exceed platform limits
       if (chunk > _maxChunk) {
-        print(
-          '⚠ Limiting chunk from $chunk to $_maxChunk for platform compatibility',
-        );
+        print('⚠ Limiting chunk from $chunk to $_maxChunk for platform compatibility');
         chunk = _maxChunk;
       }
 
@@ -349,9 +321,7 @@ class BleUploadState with ChangeNotifier {
     status = 'Device v$version $displayName ${width}x$height mtu=$mtu';
     deviceInfo = BleDeviceInfo(
       id: connected!.remoteId.str,
-      name: connected!.platformName.isNotEmpty
-          ? connected!.platformName
-          : connected!.remoteId.str,
+      name: connected!.platformName.isNotEmpty ? connected!.platformName : connected!.remoteId.str,
       rssi: 0,
       mtu: mtu,
       width: width,
@@ -387,12 +357,7 @@ class BleUploadState with ChangeNotifier {
   }
 
   List<int> _le16(int v) => [v & 0xFF, (v >> 8) & 0xFF];
-  List<int> _le32(int v) => [
-    v & 0xFF,
-    (v >> 8) & 0xFF,
-    (v >> 16) & 0xFF,
-    (v >> 24) & 0xFF,
-  ];
+  List<int> _le32(int v) => [v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF];
 
   int _crc16(List<int> data) {
     int crc = 0xFFFF;

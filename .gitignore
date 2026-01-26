@@ -61,3 +61,9 @@ platformio/DISPLAY_REFACTORING_SUMMARY.md
 platformio/MEMORY_SAFETY_IMPROVEMENTS.md
 assets/pros3d/pros3d-backups/
 assets/pros3d/~pros3d.kicad_sch.lck
+rust/photoframe-dithering/target/
+rust/photoframe-dithering/tests/output/
+rust/photoframe-dithering/examples/output/
+rust/photoframe-lib/examples/output
+rust/photoframe-lib/target/
+rust/photoframe-lib/tests/output/

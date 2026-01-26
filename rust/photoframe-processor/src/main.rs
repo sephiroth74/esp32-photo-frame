@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use photoframe_lib::{DitheringMethod, DisplayType};
 use serde_json;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -13,19 +14,18 @@ mod image_processing;
 mod json_output;
 mod utils;
 
-use cli::{Args, ColorType, DitherMethod};
+use cli::{Args, ColorType};
 use image_processing::{
     color_correction, ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult,
-    ProcessingType,
 };
 use json_output::JsonMessage;
 use utils::{create_progress_bar, format_duration, validate_inputs, verbose_println};
 
-impl From<ColorType> for ProcessingType {
+impl From<ColorType> for DisplayType {
     fn from(color_type: ColorType) -> Self {
         match color_type {
-            ColorType::BlackWhite => ProcessingType::BlackWhite,
-            ColorType::SixColor => ProcessingType::SixColor,
+            ColorType::BlackWhite => DisplayType::BlackAndWhite,
+            ColorType::SixColor => DisplayType::SixColors,
         }
     }
 }
@@ -107,8 +107,8 @@ fn main() -> Result<()> {
         auto_optimize: args.auto_optimize,
         // Always collect report data in JSON mode, otherwise use --report flag
         optimization_report: args.json_progress || args.report,
-        // Target display orientation
-        target_orientation: args.target_orientation.orientation.clone(),
+        // Target display orientation (includes rotation 0-3)
+        target_orientation: args.target_orientation.clone(),
         // Pre-rotation (only for 6c portrait mode)
         needs_pre_rotation: args.needs_pre_rotation(),
         // JSON progress output
@@ -171,11 +171,11 @@ fn main() -> Result<()> {
         println!(
             "  Dithering method: {}",
             match config.dithering_method {
-                DitherMethod::FloydSteinberg => "Floyd-Steinberg (enhanced)",
-                DitherMethod::Atkinson => "Atkinson (brightness preserving)",
-                DitherMethod::Stucki => "Stucki (pattern reducing)",
-                DitherMethod::JarvisJudiceNinke => "Jarvis-Judice-Ninke (photo optimized)",
-                DitherMethod::Ordered => "Ordered/Bayer (text optimized)",
+                DitheringMethod::FloydSteinberg => "Floyd-Steinberg (enhanced)",
+                DitheringMethod::Atkinson => "Atkinson (brightness preserving)",
+                DitheringMethod::Stucki => "Stucki (pattern reducing)",
+                DitheringMethod::JarvisJudiceNinke => "Jarvis-Judice-Ninke (photo optimized)",
+                DitheringMethod::Ordered => "Ordered/Bayer (text optimized)",
             }
         );
         println!("    Strength: {:.1}x", config.dither_strength);

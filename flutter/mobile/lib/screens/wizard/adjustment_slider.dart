@@ -6,6 +6,7 @@ class AdjustmentSlider extends StatelessWidget {
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
 
   const AdjustmentSlider({
     super.key,
@@ -14,6 +15,7 @@ class AdjustmentSlider extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    this.onChangeEnd,
   });
 
   @override
@@ -28,7 +30,7 @@ class AdjustmentSlider extends StatelessWidget {
             Text(value.toStringAsFixed(2), style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
-        Slider(value: value, min: min, max: max, onChanged: onChanged),
+        Slider(value: value, min: min, max: max, onChanged: onChanged, onChangeEnd: onChangeEnd),
         const SizedBox(height: 16),
       ],
     );

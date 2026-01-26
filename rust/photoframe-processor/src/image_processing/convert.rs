@@ -1,8 +1,7 @@
 use anyhow::Result;
 use image::{Rgb, RgbImage};
-
-use super::ProcessingType;
-use crate::cli::DitherMethod;
+use photoframe_lib::dithering::apply_floyd_steinberg_dithering;
+use photoframe_lib::{apply_dithering, DisplayType, DitheringMethod};
 
 /// Process an image with color conversion and dithering
 ///
@@ -16,13 +15,13 @@ use crate::cli::DitherMethod;
 /// - >1.0 = pronounced dithering
 pub fn process_image(
     img: &RgbImage,
-    processing_type: &ProcessingType,
-    dithering_method: &DitherMethod,
+    processing_type: &DisplayType,
+    dithering_method: &DitheringMethod,
     dither_strength: f32,
 ) -> Result<RgbImage> {
     match processing_type {
-        ProcessingType::BlackWhite => apply_bw_processing(img, dither_strength),
-        ProcessingType::SixColor => apply_6c_processing(img, dithering_method, dither_strength),
+        DisplayType::BlackAndWhite => apply_bw_processing(img, dither_strength),
+        DisplayType::SixColors => apply_6c_processing(img, dithering_method, dither_strength),
     }
 }
 
@@ -30,7 +29,6 @@ pub fn process_image(
 fn apply_bw_processing(img: &RgbImage, dither_strength: f32) -> Result<RgbImage> {
     // Convert to grayscale first
     let grayscale = convert_to_grayscale(img);
-
     // Apply Floyd-Steinberg dithering with strength
     apply_floyd_steinberg_dithering(&grayscale, dither_strength)
 }
@@ -38,33 +36,39 @@ fn apply_bw_processing(img: &RgbImage, dither_strength: f32) -> Result<RgbImage>
 /// Apply 6-color processing with selectable dithering method
 fn apply_6c_processing(
     img: &RgbImage,
-    dithering_method: &DitherMethod,
+    dithering_method: &DitheringMethod,
     dither_strength: f32,
 ) -> Result<RgbImage> {
-    match dithering_method {
-        DitherMethod::FloydSteinberg => {
-            super::convert_improved::apply_enhanced_floyd_steinberg_dithering(
-                img,
-                &SIX_COLOR_PALETTE,
-                dither_strength,
-            )
-        }
-        DitherMethod::Atkinson => {
-            super::dithering::apply_atkinson_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
-        }
-        DitherMethod::Stucki => {
-            super::dithering::apply_stucki_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
-        }
-        DitherMethod::JarvisJudiceNinke => super::dithering::apply_jarvis_judice_ninke_dithering(
-            img,
-            &SIX_COLOR_PALETTE,
-            dither_strength,
-        ),
-        DitherMethod::Ordered => {
-            // Ordered dithering doesn't use error diffusion, so strength doesn't apply
-            super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
-        }
-    }
+    apply_dithering(
+        img,
+        *dithering_method,
+        DisplayType::SixColors,
+        dither_strength,
+    )
+    //match dithering_method {
+    //    DitheringMethod::FloydSteinberg => {
+    //        super::convert_improved::apply_enhanced_floyd_steinberg_dithering(
+    //            img,
+    //            &SIX_COLOR_PALETTE,
+    //            dither_strength,
+    //        )
+    //    }
+    //    DitheringMethod::Atkinson => {
+    //        super::dithering::apply_atkinson_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
+    //    }
+    //    DitheringMethod::Stucki => {
+    //        super::dithering::apply_stucki_dithering(img, &SIX_COLOR_PALETTE, dither_strength)
+    //    }
+    //    DitheringMethod::JarvisJudiceNinke => super::dithering::apply_jarvis_judice_ninke_dithering(
+    //        img,
+    //        &SIX_COLOR_PALETTE,
+    //        dither_strength,
+    //    ),
+    //    DitheringMethod::Ordered => {
+    //        // Ordered dithering doesn't use error diffusion, so strength doesn't apply
+    //        super::convert_improved::apply_ordered_dithering(img, &SIX_COLOR_PALETTE)
+    //    }
+    //}
 }
 
 /// Convert RGB image to grayscale using luminance weights
@@ -86,75 +90,7 @@ fn convert_to_grayscale(img: &RgbImage) -> RgbImage {
     grayscale
 }
 
-/// Apply Floyd-Steinberg dithering to a grayscale image
-///
-/// This implements the Floyd-Steinberg error diffusion algorithm
-/// to convert grayscale images to pure black and white
-///
-/// The dither_strength parameter (0.0-2.0) controls error diffusion strength:
-/// - 1.0 = normal (default)
-/// - <1.0 = subtle dithering
-/// - >1.0 = pronounced dithering
-fn apply_floyd_steinberg_dithering(img: &RgbImage, dither_strength: f32) -> Result<RgbImage> {
-    let (width, height) = img.dimensions();
-    let mut output = img.clone();
-
-    // Convert to working buffer with error accumulation
-    let mut working_buffer: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
-    for y in 0..height {
-        let mut row = Vec::with_capacity(width as usize);
-        for x in 0..width {
-            let pixel = img.get_pixel(x, y);
-            // Use red channel since image should be grayscale
-            row.push(pixel[0] as f32);
-        }
-        working_buffer.push(row);
-    }
-
-    // Apply Floyd-Steinberg dithering
-    for y in 0..height {
-        for x in 0..width {
-            let old_pixel = working_buffer[y as usize][x as usize];
-            let new_pixel = if old_pixel < 128.0 { 0.0 } else { 255.0 };
-
-            working_buffer[y as usize][x as usize] = new_pixel;
-
-            let error = (old_pixel - new_pixel) * dither_strength;
-
-            // Distribute error to neighboring pixels
-            // Floyd-Steinberg error distribution:
-            //     * 7/16
-            // 3/16 5/16 1/16
-
-            if x + 1 < width {
-                working_buffer[y as usize][(x + 1) as usize] += error * 7.0 / 16.0;
-            }
-
-            if y + 1 < height {
-                if x > 0 {
-                    working_buffer[(y + 1) as usize][(x - 1) as usize] += error * 3.0 / 16.0;
-                }
-                working_buffer[(y + 1) as usize][x as usize] += error * 5.0 / 16.0;
-                if x + 1 < width {
-                    working_buffer[(y + 1) as usize][(x + 1) as usize] += error * 1.0 / 16.0;
-                }
-            }
-        }
-    }
-
-    // Convert back to image
-    for y in 0..height {
-        for x in 0..width {
-            let value = working_buffer[y as usize][x as usize].clamp(0.0, 255.0) as u8;
-            output.put_pixel(x, y, Rgb([value, value, value]));
-        }
-    }
-
-    Ok(output)
-}
-
 /// Generic function to find the closest color in any palette
-#[allow(dead_code)]
 fn find_closest_color(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8, u8) {
     let mut min_distance = f32::MAX;
     let mut closest_color = palette[0];
@@ -177,7 +113,6 @@ fn find_closest_color(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8,
 }
 
 /// Create working buffers for Floyd-Steinberg dithering
-#[allow(dead_code)]
 fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<Vec<f32>>) {
     let (width, height) = img.dimensions();
     let mut working_r: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
@@ -328,17 +263,6 @@ fn apply_floyd_steinberg_dithering_with_palette(
     Ok(output)
 }
 
-/// 6-color palette for e-paper displays
-/// These are the ESP32-representable colors based on the RRRGGGBB format
-const SIX_COLOR_PALETTE: [(u8, u8, u8); 6] = [
-    (0, 0, 0),       // Black   (ESP32: 0x00)
-    (255, 255, 255), // White   (ESP32: 0xFF)
-    (252, 0, 0),     // Red     (ESP32: 0xE0)
-    (0, 252, 0),     // Green   (ESP32: 0x1C)
-    (0, 0, 255),     // Blue    (ESP32: 0x03)
-    (252, 252, 0),   // Yellow  (ESP32: 0xFC)
-];
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -386,29 +310,12 @@ mod tests {
     }
 
     #[test]
-    fn test_find_closest_6_color() {
-        assert_eq!(find_closest_color(0, 0, 0, &SIX_COLOR_PALETTE), (0, 0, 0)); // Black
-        assert_eq!(
-            find_closest_color(255, 255, 255, &SIX_COLOR_PALETTE),
-            (255, 255, 255)
-        ); // White
-        assert_eq!(
-            find_closest_color(200, 0, 0, &SIX_COLOR_PALETTE),
-            (252, 0, 0)
-        ); // Close to red
-        assert_eq!(
-            find_closest_color(128, 128, 0, &SIX_COLOR_PALETTE),
-            (252, 252, 0)
-        ); // Close to yellow
-    }
-
-    #[test]
     fn test_process_image_bw() {
         let img = create_gradient_image(10, 10);
         let result = process_image(
             &img,
-            &ProcessingType::BlackWhite,
-            &DitherMethod::FloydSteinberg,
+            &DisplayType::BlackAndWhite,
+            &DitheringMethod::FloydSteinberg,
             1.0,
         )
         .unwrap();
@@ -416,59 +323,6 @@ mod tests {
         // Should be dithered black and white
         for pixel in result.pixels() {
             assert!(pixel[0] == 0 || pixel[0] == 255);
-        }
-    }
-
-    #[test]
-    fn test_process_image_6c() {
-        let img = ImageBuffer::from_fn(4, 4, |x, y| {
-            match (x % 2, y % 2) {
-                (0, 0) => Rgb([252, 0, 0]),   // Red
-                (1, 0) => Rgb([0, 252, 0]),   // Green
-                (0, 1) => Rgb([0, 0, 255]),   // Blue
-                (1, 1) => Rgb([252, 252, 0]), // Yellow
-                _ => unreachable!(),
-            }
-        });
-
-        let result = process_image(
-            &img,
-            &ProcessingType::SixColor,
-            &DitherMethod::FloydSteinberg,
-            1.0,
-        )
-        .unwrap();
-
-        // Should only contain colors from the 6-color palette
-        for pixel in result.pixels() {
-            let color = (pixel[0], pixel[1], pixel[2]);
-            assert!(
-                SIX_COLOR_PALETTE.contains(&color),
-                "Found non-palette color: {:?}",
-                color
-            );
-        }
-    }
-
-    #[test]
-    fn test_6_color_dithering() {
-        // Create a simple gradient that should be dithered
-        let img = ImageBuffer::from_fn(8, 8, |x, _| {
-            let intensity = (x * 255 / 8) as u8;
-            Rgb([intensity, intensity, 0]) // Yellow-ish gradient
-        });
-
-        let result =
-            apply_floyd_steinberg_dithering_with_palette(&img, &SIX_COLOR_PALETTE).unwrap();
-
-        // Verify all pixels are from the 6-color palette
-        for pixel in result.pixels() {
-            let color = (pixel[0], pixel[1], pixel[2]);
-            assert!(
-                SIX_COLOR_PALETTE.contains(&color),
-                "Found non-palette color: {:?}",
-                color
-            );
         }
     }
 }

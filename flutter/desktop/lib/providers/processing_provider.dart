@@ -7,12 +7,7 @@ import '../models/config_profile.dart';
 import '../services/config_profile_service.dart';
 
 class ProcessingProvider with ChangeNotifier {
-  ProcessingConfig _config = const ProcessingConfig(
-    inputPath: '',
-    outputPath: '',
-    outputBin: true,
-    outputJpg: true,
-  );
+  ProcessingConfig _config = const ProcessingConfig(inputPath: '', outputPath: '', outputBin: true, outputJpg: true);
   String? _currentProfilePath;
   String? _currentProfileName;
   bool _hasUnsavedChanges = false;
@@ -69,16 +64,9 @@ class ProcessingProvider with ChangeNotifier {
 
   Future<void> saveProfile({String? filePath, String? name}) async {
     try {
-      final savedPath = await ConfigProfileService.saveProfile(
-        _config,
-        filePath: filePath,
-        name: name,
-      );
+      final savedPath = await ConfigProfileService.saveProfile(_config, filePath: filePath, name: name);
       _currentProfilePath = savedPath;
-      _currentProfileName =
-          name ??
-          filePath?.split('/').last.replaceAll('.pfconfig', '') ??
-          'Untitled';
+      _currentProfileName = name ?? filePath?.split('/').last.replaceAll('.pfconfig', '') ?? 'Untitled';
       _hasUnsavedChanges = false;
       await _loadRecentFiles();
       notifyListeners();
@@ -148,10 +136,7 @@ class ProcessingProvider with ChangeNotifier {
     }
 
     // Validate at least one output format
-    if (!_config.outputBmp &&
-        !_config.outputBin &&
-        !_config.outputJpg &&
-        !_config.outputPng) {
+    if (!_config.outputBmp && !_config.outputBin && !_config.outputJpg && !_config.outputPng) {
       _errorMessage = 'Please select at least one output format';
       notifyListeners();
       return;
@@ -188,9 +173,7 @@ class ProcessingProvider with ChangeNotifier {
       final process = await Process.start(binary, args);
 
       // Listen to stdout for JSON progress
-      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
-        line,
-      ) {
+      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
         debugPrint('STDOUT: $line'); // Debug all output
         try {
           final json = jsonDecode(line);
@@ -221,11 +204,9 @@ class ProcessingProvider with ChangeNotifier {
             debugPrint('Report available: ${_lastReport != null}');
 
             if (failed == 0) {
-              _resultsMessage =
-                  '✓ Successfully processed $processed/$totalFiles images';
+              _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
             } else {
-              _resultsMessage =
-                  'Processed $totalFiles images ($processed succeeded, $failed failed)';
+              _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
             }
           } else if (type == 'summary') {
             // Legacy summary format (backwards compatibility)
@@ -251,11 +232,9 @@ class ProcessingProvider with ChangeNotifier {
             debugPrint('Created basic summary from legacy format');
 
             if (failed == 0) {
-              _resultsMessage =
-                  '✓ Successfully processed $processed/$totalFiles images';
+              _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
             } else {
-              _resultsMessage =
-                  'Processed $totalFiles images ($processed succeeded, $failed failed)';
+              _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
             }
           }
         } catch (e) {
@@ -265,12 +244,9 @@ class ProcessingProvider with ChangeNotifier {
       });
 
       // Listen to stderr for errors
-      process.stderr
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .listen((line) {
-            debugPrint('STDERR: $line');
-          });
+      process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+        debugPrint('STDERR: $line');
+      });
 
       final exitCode = await process.exitCode;
       debugPrint('Process exit code: $exitCode');
@@ -350,9 +326,7 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.autoOptimize) {
       args.add('--auto-optimize');
     } else {
-      debugPrint(
-        'Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation-boost=${_config.saturationBoost}',
-      );
+      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation-boost=${_config.saturationBoost}');
       args.addAll([
         '--dithering',
         _ditherMethodToString(_config.ditherMethod),
@@ -371,32 +345,19 @@ class ProcessingProvider with ChangeNotifier {
     }
     if (_config.annotate) {
       args.add('--annotate');
-      args.addAll([
-        '--font',
-        _config.font,
-        '--pointsize=${_config.pointsize}',
-        '--annotate_background',
-        _config.annotateBackground,
-      ]);
+      args.addAll(['--font', _config.font, '--pointsize=${_config.pointsize}', '--annotate_background', _config.annotateBackground]);
     }
     // Report is now always generated in JSON mode, no need for --report flag
     if (_config.jobs > 0) args.add('--jobs=${_config.jobs}');
 
-    args.addAll([
-      '--divider-width=${_config.dividerWidth}',
-      '--divider-color',
-      _config.dividerColor,
-      '--extensions',
-      _config.extensions,
-    ]);
+    args.addAll(['--divider-width=${_config.dividerWidth}', '--divider-color', _config.dividerColor, '--extensions', _config.extensions]);
 
     return args;
   }
 
   Future<String?> _findProcessorBinary() async {
     // If user has configured a custom path, use it
-    if (_config.processorBinaryPath != null &&
-        _config.processorBinaryPath!.isNotEmpty) {
+    if (_config.processorBinaryPath != null && _config.processorBinaryPath!.isNotEmpty) {
       final file = File(_config.processorBinaryPath!);
       if (await file.exists()) {
         return file.absolute.path;

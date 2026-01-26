@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use photoframe_lib::DitheringMethod;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
@@ -99,25 +100,6 @@ pub enum ReportFormat {
     Rich,
     #[value(name = "json")]
     Json,
-}
-
-#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum DitherMethod {
-    /// Floyd-Steinberg with perceptual color weighting (best for gradients)
-    #[value(name = "floyd-steinberg")]
-    FloydSteinberg,
-    /// Atkinson dithering (preserves brightness, good for photos)
-    #[value(name = "atkinson")]
-    Atkinson,
-    /// Stucki dithering (similar to Floyd-Steinberg but more diffused)
-    #[value(name = "stucki")]
-    Stucki,
-    /// Jarvis-Judice-Ninke dithering (very diffused, best for photos)
-    #[value(name = "jarvis")]
-    JarvisJudiceNinke,
-    /// Ordered dithering with Bayer matrix (less noise, good for text)
-    #[value(name = "ordered")]
-    Ordered,
 }
 
 fn get_long_about() -> String {
@@ -259,7 +241,7 @@ pub struct Args {
         value_name = "METHOD",
         help = "Dithering algorithm: floyd-steinberg (best gradients), atkinson (bright), stucki (diffused), jarvis (photos), ordered (text)"
     )]
-    pub dithering_method: DitherMethod,
+    pub dithering_method: DitheringMethod,
 
     /// Dithering strength (0.0-2.0, default 1.0). Higher values = stronger dithering effect
     #[arg(

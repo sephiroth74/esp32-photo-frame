@@ -163,7 +163,7 @@ extern const char TXT_HTTP_BAD_REQUEST[];
 extern const char TXT_IMAGE_FILE_CORRUPTED[];
 extern const char TXT_IMAGE_FILE_TOO_LARGE[];
 extern const char TXT_IMAGE_DIMENSIONS_INVALID[];
-extern const char TXT_IMAGE_DIMENSIONS_MISMATCH[];
+extern const char TXT_IMAGE_SIZE_INVALID[];
 extern const char TXT_IMAGE_COLOR_DEPTH_UNSUPPORTED[];
 extern const char TXT_IMAGE_PIXEL_DATA_CORRUPTED[];
 extern const char TXT_IMAGE_FILE_SEEK_FAILED[];

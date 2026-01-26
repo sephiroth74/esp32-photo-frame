@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:photoframe/utils/app_logger.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
@@ -6,6 +7,7 @@ import 'state/image_processing_state.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  initLogging();
   runApp(const PhotoframeApp());
 }
 

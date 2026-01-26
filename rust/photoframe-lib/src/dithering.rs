@@ -1,0 +1,803 @@
+use anyhow::Result;
+use image::{Rgb, RgbImage};
+
+/// Use canonical helpers from core module to avoid duplication
+use crate::{DitheringMethod, DisplayType};
+
+/// Provide thin local wrappers that forward to the canonical implementations in `core`.
+/// Wrappers avoid potential ordering/circular import issues while keeping call sites unchanged.
+fn create_working_buffers(img: &RgbImage) -> (Vec<Vec<f32>>, Vec<Vec<f32>>, Vec<Vec<f32>>) {
+    crate::core::create_working_buffers(img)
+}
+
+fn find_closest_color_weighted(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) -> (u8, u8, u8) {
+    crate::core::find_closest_color_weighted(r, g, b, palette)
+}
+
+/// Public dispatcher: apply a dithering `method` using the selected `display_type` and `dither_strength`.
+///
+/// This function keeps the same public API as before (used by `lib.rs`) and
+/// dispatches to the concrete algorithm implementations in this module.
+pub fn apply_dithering(
+    img: &RgbImage,
+    method: DitheringMethod,
+    display_type: DisplayType,
+    dither_strength: f32,
+) -> anyhow::Result<RgbImage> {
+    let palette = match display_type {
+        DisplayType::SixColors => crate::core::SIX_COLOR_PALETTE.to_vec(),
+        DisplayType::BlackAndWhite => crate::core::BW_PALETTE.to_vec(),
+    };
+    let palette_ref = palette.as_slice();
+
+    match method {
+        DitheringMethod::FloydSteinberg => apply_enhanced_floyd_steinberg_dithering(img, palette_ref, dither_strength),
+        DitheringMethod::Atkinson => apply_atkinson_dithering(img, palette_ref, dither_strength),
+        DitheringMethod::Stucki => apply_stucki_dithering(img, palette_ref, dither_strength),
+        DitheringMethod::JarvisJudiceNinke => apply_jarvis_judice_ninke_dithering(img, palette_ref, dither_strength),
+        DitheringMethod::Ordered => apply_ordered_dithering(img, palette_ref),
+    }
+}
+
+/// Apply Floyd-Steinberg dithering to a grayscale image
+///
+/// This implements the Floyd-Steinberg error diffusion algorithm
+/// to convert grayscale images to pure black and white
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength:
+/// - 1.0 = normal (default)
+/// - <1.0 = subtle dithering
+/// - >1.0 = pronounced dithering
+pub fn apply_floyd_steinberg_dithering(img: &RgbImage, dither_strength: f32) -> Result<RgbImage> {
+    let (width, height) = img.dimensions();
+    let mut output = img.clone();
+
+    // Convert to working buffer with error accumulation
+    let mut working_buffer: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
+    for y in 0..height {
+        let mut row = Vec::with_capacity(width as usize);
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y);
+            // Use red channel since image should be grayscale
+            row.push(pixel[0] as f32);
+        }
+        working_buffer.push(row);
+    }
+
+    // Apply Floyd-Steinberg dithering
+    for y in 0..height {
+        for x in 0..width {
+            let old_pixel = working_buffer[y as usize][x as usize];
+            let new_pixel = if old_pixel < 128.0 { 0.0 } else { 255.0 };
+
+            working_buffer[y as usize][x as usize] = new_pixel;
+
+            let error = (old_pixel - new_pixel) * dither_strength;
+
+            // Distribute error to neighboring pixels
+            // Floyd-Steinberg error distribution:
+            //     * 7/16
+            // 3/16 5/16 1/16
+
+            if x + 1 < width {
+                working_buffer[y as usize][(x + 1) as usize] += error * 7.0 / 16.0;
+            }
+
+            if y + 1 < height {
+                if x > 0 {
+                    working_buffer[(y + 1) as usize][(x - 1) as usize] += error * 3.0 / 16.0;
+                }
+                working_buffer[(y + 1) as usize][x as usize] += error * 5.0 / 16.0;
+                if x + 1 < width {
+                    working_buffer[(y + 1) as usize][(x + 1) as usize] += error * 1.0 / 16.0;
+                }
+            }
+        }
+    }
+
+    // Convert back to image
+    for y in 0..height {
+        for x in 0..width {
+            let value = working_buffer[y as usize][x as usize].clamp(0.0, 255.0) as u8;
+            output.put_pixel(x, y, Rgb([value, value, value]));
+        }
+    }
+
+    Ok(output)
+}
+
+/// Jarvis-Judice-Ninke dithering - best for detailed photographs
+///
+/// Uses a 5×3 matrix with different weights than Stucki, creating very smooth
+/// results that are particularly well-suited for photographic images with lots of detail.
+///
+/// Error distribution pattern:
+/// ```text
+///             *   7/48  5/48
+///     3/48  5/48  7/48  5/48  3/48
+///     1/48  3/48  5/48  3/48  1/48
+/// ```
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength.
+pub fn apply_jarvis_judice_ninke_dithering(
+    img: &RgbImage,
+    palette: &[(u8, u8, u8)],
+    dither_strength: f32,
+) -> Result<RgbImage> {
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+    let (mut working_r, mut working_g, mut working_b) = create_working_buffers(img);
+
+    for y in 0..height {
+        for x in 0..width {
+            let y_idx = y as usize;
+            let x_idx = x as usize;
+
+            let current_r = working_r[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_g = working_g[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_b = working_b[y_idx][x_idx].clamp(0.0, 255.0);
+
+            let (palette_r, palette_g, palette_b) = find_closest_color_weighted(
+                current_r as u8,
+                current_g as u8,
+                current_b as u8,
+                palette,
+            );
+
+            output.put_pixel(x, y, Rgb([palette_r, palette_g, palette_b]));
+
+            let error_r = (current_r - (palette_r as f32)) * dither_strength;
+            let error_g = (current_g - (palette_g as f32)) * dither_strength;
+            let error_b = (current_b - (palette_b as f32)) * dither_strength;
+
+            distribute_jjn_error(
+                &mut working_r,
+                &mut working_g,
+                &mut working_b,
+                x,
+                y,
+                width,
+                height,
+                error_r,
+                error_g,
+                error_b,
+            );
+        }
+    }
+
+    Ok(output)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn distribute_jjn_error(
+    working_r: &mut [Vec<f32>],
+    working_g: &mut [Vec<f32>],
+    working_b: &mut [Vec<f32>],
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    error_r: f32,
+    error_g: f32,
+    error_b: f32,
+) {
+    let x_idx = x as usize;
+    let y_idx = y as usize;
+    let divisor = 48.0;
+
+    // Current row
+    if x + 1 < width {
+        let factor = 7.0 / divisor;
+        working_r[y_idx][x_idx + 1] += error_r * factor;
+        working_g[y_idx][x_idx + 1] += error_g * factor;
+        working_b[y_idx][x_idx + 1] += error_b * factor;
+    }
+    if x + 2 < width {
+        let factor = 5.0 / divisor;
+        working_r[y_idx][x_idx + 2] += error_r * factor;
+        working_g[y_idx][x_idx + 2] += error_g * factor;
+        working_b[y_idx][x_idx + 2] += error_b * factor;
+    }
+
+    // Next row
+    if y + 1 < height {
+        let offsets_and_factors = [
+            (-2, 3.0 / divisor),
+            (-1, 5.0 / divisor),
+            (0, 7.0 / divisor),
+            (1, 5.0 / divisor),
+            (2, 3.0 / divisor),
+        ];
+
+        for (offset, factor) in offsets_and_factors {
+            let target_x = x as i32 + offset;
+            if target_x >= 0 && (target_x as u32) < width {
+                let target_x_idx = target_x as usize;
+                working_r[y_idx + 1][target_x_idx] += error_r * factor;
+                working_g[y_idx + 1][target_x_idx] += error_g * factor;
+                working_b[y_idx + 1][target_x_idx] += error_b * factor;
+            }
+        }
+    }
+
+    // Row y+2
+    if y + 2 < height {
+        let offsets_and_factors = [
+            (-2, 1.0 / divisor),
+            (-1, 3.0 / divisor),
+            (0, 5.0 / divisor),
+            (1, 3.0 / divisor),
+            (2, 1.0 / divisor),
+        ];
+
+        for (offset, factor) in offsets_and_factors {
+            let target_x = x as i32 + offset;
+            if target_x >= 0 && (target_x as u32) < width {
+                let target_x_idx = target_x as usize;
+                working_r[y_idx + 2][target_x_idx] += error_r * factor;
+                working_g[y_idx + 2][target_x_idx] += error_g * factor;
+                working_b[y_idx + 2][target_x_idx] += error_b * factor;
+            }
+        }
+    }
+}
+
+/// Stucki dithering - reduces visible patterns with wide diffusion
+///
+/// Uses a 5×3 matrix for error diffusion, distributing error over a wider area
+/// than Floyd-Steinberg, which helps reduce visible dithering patterns.
+///
+/// Error distribution pattern:
+/// ```text
+///             *   8/42  4/42
+///     2/42  4/42  8/42  4/42  2/42
+///     1/42  2/42  4/42  2/42  1/42
+/// ```
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength.
+pub fn apply_stucki_dithering(
+    img: &RgbImage,
+    palette: &[(u8, u8, u8)],
+    dither_strength: f32,
+) -> Result<RgbImage> {
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+    let (mut working_r, mut working_g, mut working_b) = create_working_buffers(img);
+
+    for y in 0..height {
+        for x in 0..width {
+            let y_idx = y as usize;
+            let x_idx = x as usize;
+
+            let current_r = working_r[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_g = working_g[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_b = working_b[y_idx][x_idx].clamp(0.0, 255.0);
+
+            let (palette_r, palette_g, palette_b) = find_closest_color_weighted(
+                current_r as u8,
+                current_g as u8,
+                current_b as u8,
+                palette,
+            );
+
+            output.put_pixel(x, y, Rgb([palette_r, palette_g, palette_b]));
+
+            let error_r = (current_r - (palette_r as f32)) * dither_strength;
+            let error_g = (current_g - (palette_g as f32)) * dither_strength;
+            let error_b = (current_b - (palette_b as f32)) * dither_strength;
+
+            distribute_stucki_error(
+                &mut working_r,
+                &mut working_g,
+                &mut working_b,
+                x,
+                y,
+                width,
+                height,
+                error_r,
+                error_g,
+                error_b,
+            );
+        }
+    }
+
+    Ok(output)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn distribute_stucki_error(
+    working_r: &mut [Vec<f32>],
+    working_g: &mut [Vec<f32>],
+    working_b: &mut [Vec<f32>],
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    error_r: f32,
+    error_g: f32,
+    error_b: f32,
+) {
+    let x_idx = x as usize;
+    let y_idx = y as usize;
+    let divisor = 42.0;
+
+    // Current row
+    if x + 1 < width {
+        let factor = 8.0 / divisor;
+        working_r[y_idx][x_idx + 1] += error_r * factor;
+        working_g[y_idx][x_idx + 1] += error_g * factor;
+        working_b[y_idx][x_idx + 1] += error_b * factor;
+    }
+    if x + 2 < width {
+        let factor = 4.0 / divisor;
+        working_r[y_idx][x_idx + 2] += error_r * factor;
+        working_g[y_idx][x_idx + 2] += error_g * factor;
+        working_b[y_idx][x_idx + 2] += error_b * factor;
+    }
+
+    // Next row
+    if y + 1 < height {
+        let offsets_and_factors = [
+            (-2, 2.0 / divisor),
+            (-1, 4.0 / divisor),
+            (0, 8.0 / divisor),
+            (1, 4.0 / divisor),
+            (2, 2.0 / divisor),
+        ];
+
+        for (offset, factor) in offsets_and_factors {
+            let target_x = x as i32 + offset;
+            if target_x >= 0 && (target_x as u32) < width {
+                let target_x_idx = target_x as usize;
+                working_r[y_idx + 1][target_x_idx] += error_r * factor;
+                working_g[y_idx + 1][target_x_idx] += error_g * factor;
+                working_b[y_idx + 1][target_x_idx] += error_b * factor;
+            }
+        }
+    }
+
+    // Row y+2
+    if y + 2 < height {
+        let offsets_and_factors = [
+            (-2, 1.0 / divisor),
+            (-1, 2.0 / divisor),
+            (0, 4.0 / divisor),
+            (1, 2.0 / divisor),
+            (2, 1.0 / divisor),
+        ];
+
+        for (offset, factor) in offsets_and_factors {
+            let target_x = x as i32 + offset;
+            if target_x >= 0 && (target_x as u32) < width {
+                let target_x_idx = target_x as usize;
+                working_r[y_idx + 2][target_x_idx] += error_r * factor;
+                working_g[y_idx + 2][target_x_idx] += error_g * factor;
+                working_b[y_idx + 2][target_x_idx] += error_b * factor;
+            }
+        }
+    }
+}
+
+/// Atkinson dithering - preserves brightness, good for photos
+///
+/// Diffuses only 75% of error (6/8), creating lighter results that preserve
+/// the original image brightness better than Floyd-Steinberg.
+///
+/// Error distribution pattern:
+/// ```text
+///         *   1/8  1/8
+///     1/8 1/8  1/8
+///         1/8
+/// ```
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength.
+pub fn apply_atkinson_dithering(
+    img: &RgbImage,
+    palette: &[(u8, u8, u8)],
+    dither_strength: f32,
+) -> Result<RgbImage> {
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+    let (mut working_r, mut working_g, mut working_b) = create_working_buffers(img);
+
+    for y in 0..height {
+        for x in 0..width {
+            let y_idx = y as usize;
+            let x_idx = x as usize;
+
+            let current_r = working_r[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_g = working_g[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_b = working_b[y_idx][x_idx].clamp(0.0, 255.0);
+
+            let (palette_r, palette_g, palette_b) = find_closest_color_weighted(
+                current_r as u8,
+                current_g as u8,
+                current_b as u8,
+                palette,
+            );
+
+            output.put_pixel(x, y, Rgb([palette_r, palette_g, palette_b]));
+
+            let error_r = (current_r - (palette_r as f32)) * dither_strength;
+            let error_g = (current_g - (palette_g as f32)) * dither_strength;
+            let error_b = (current_b - (palette_b as f32)) * dither_strength;
+
+            distribute_atkinson_error(
+                &mut working_r,
+                &mut working_g,
+                &mut working_b,
+                x,
+                y,
+                width,
+                height,
+                error_r,
+                error_g,
+                error_b,
+            );
+        }
+    }
+
+    Ok(output)
+}
+
+fn distribute_atkinson_error(
+    working_r: &mut [Vec<f32>],
+    working_g: &mut [Vec<f32>],
+    working_b: &mut [Vec<f32>],
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    error_r: f32,
+    error_g: f32,
+    error_b: f32,
+) {
+    let factor = 1.0 / 8.0;
+    let x_idx = x as usize;
+    let y_idx = y as usize;
+
+    // Current row: x+1, x+2
+    if x + 1 < width {
+        working_r[y_idx][x_idx + 1] += error_r * factor;
+        working_g[y_idx][x_idx + 1] += error_g * factor;
+        working_b[y_idx][x_idx + 1] += error_b * factor;
+    }
+    if x + 2 < width {
+        working_r[y_idx][x_idx + 2] += error_r * factor;
+        working_g[y_idx][x_idx + 2] += error_g * factor;
+        working_b[y_idx][x_idx + 2] += error_b * factor;
+    }
+
+    // Next row: x-1, x, x+1
+    if y + 1 < height {
+        if x > 0 {
+            working_r[y_idx + 1][x_idx - 1] += error_r * factor;
+            working_g[y_idx + 1][x_idx - 1] += error_g * factor;
+            working_b[y_idx + 1][x_idx - 1] += error_b * factor;
+        }
+        working_r[y_idx + 1][x_idx] += error_r * factor;
+        working_g[y_idx + 1][x_idx] += error_g * factor;
+        working_b[y_idx + 1][x_idx] += error_b * factor;
+        if x + 1 < width {
+            working_r[y_idx + 1][x_idx + 1] += error_r * factor;
+            working_g[y_idx + 1][x_idx + 1] += error_g * factor;
+            working_b[y_idx + 1][x_idx + 1] += error_b * factor;
+        }
+    }
+
+    // Row y+2: x only
+    if y + 2 < height {
+        working_r[y_idx + 2][x_idx] += error_r * factor;
+        working_g[y_idx + 2][x_idx] += error_g * factor;
+        working_b[y_idx + 2][x_idx] += error_b * factor;
+    }
+}
+
+/// Enhanced Floyd-Steinberg dithering that simulates a full color range
+/// using only the limited e-paper palette
+///
+/// The dither_strength parameter (0.0-2.0) controls error diffusion strength:
+/// - 1.0 = normal (default)
+/// - <1.0 = subtle dithering
+/// - >1.0 = pronounced dithering
+pub fn apply_enhanced_floyd_steinberg_dithering(
+    img: &RgbImage,
+    palette: &[(u8, u8, u8)],
+    dither_strength: f32,
+) -> Result<RgbImage> {
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+
+    // Create working buffers - keep original image values
+    let (mut working_r, mut working_g, mut working_b) = create_working_buffers(img);
+
+    // Process each pixel
+    for y in 0..height {
+        for x in 0..width {
+            let y_idx = y as usize;
+            let x_idx = x as usize;
+
+            // Get current pixel values (with accumulated error)
+            let current_r = working_r[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_g = working_g[y_idx][x_idx].clamp(0.0, 255.0);
+            let current_b = working_b[y_idx][x_idx].clamp(0.0, 255.0);
+
+            // Find closest color in the limited palette
+            let (palette_r, palette_g, palette_b) = find_closest_color_weighted(
+                current_r as u8,
+                current_g as u8,
+                current_b as u8,
+                palette,
+            );
+
+            // Set output pixel to palette color
+            output.put_pixel(x, y, Rgb([palette_r, palette_g, palette_b]));
+
+            // Calculate error (difference between desired and actual color) multiplied by strength
+            let error_r = (current_r - (palette_r as f32)) * dither_strength;
+            let error_g = (current_g - (palette_g as f32)) * dither_strength;
+            let error_b = (current_b - (palette_b as f32)) * dither_strength;
+
+            // Distribute error to neighboring pixels using Floyd-Steinberg weights
+            distribute_error_floyd_steinberg(
+                &mut working_r,
+                &mut working_g,
+                &mut working_b,
+                x,
+                y,
+                width,
+                height,
+                error_r,
+                error_g,
+                error_b,
+            );
+        }
+    }
+
+    Ok(output)
+}
+
+/// Distribute error using Floyd-Steinberg algorithm
+fn distribute_error_floyd_steinberg(
+    working_r: &mut [Vec<f32>],
+    working_g: &mut [Vec<f32>],
+    working_b: &mut [Vec<f32>],
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    error_r: f32,
+    error_g: f32,
+    error_b: f32,
+) {
+    // Floyd-Steinberg error distribution matrix:
+    //     * 7/16
+    // 3/16 5/16 1/16
+
+    // Right pixel (7/16 of error)
+    if x + 1 < width {
+        let next_x = (x + 1) as usize;
+        let curr_y = y as usize;
+        working_r[curr_y][next_x] += error_r * 7.0 / 16.0;
+        working_g[curr_y][next_x] += error_g * 7.0 / 16.0;
+        working_b[curr_y][next_x] += error_b * 7.0 / 16.0;
+    }
+
+    if y + 1 < height {
+        let next_y = (y + 1) as usize;
+        let curr_x = x as usize;
+
+        // Bottom-left pixel (3/16 of error)
+        if x > 0 {
+            let prev_x = (x - 1) as usize;
+            working_r[next_y][prev_x] += error_r * 3.0 / 16.0;
+            working_g[next_y][prev_x] += error_g * 3.0 / 16.0;
+            working_b[next_y][prev_x] += error_b * 3.0 / 16.0;
+        }
+
+        // Bottom pixel (5/16 of error)
+        working_r[next_y][curr_x] += error_r * 5.0 / 16.0;
+        working_g[next_y][curr_x] += error_g * 5.0 / 16.0;
+        working_b[next_y][curr_x] += error_b * 5.0 / 16.0;
+
+        // Bottom-right pixel (1/16 of error)
+        if x + 1 < width {
+            let next_x = (x + 1) as usize;
+            working_r[next_y][next_x] += error_r * 1.0 / 16.0;
+            working_g[next_y][next_x] += error_g * 1.0 / 16.0;
+            working_b[next_y][next_x] += error_b * 1.0 / 16.0;
+        }
+    }
+}
+
+/// Alternative: Ordered dithering (Bayer matrix) for comparison
+/// This can produce less "wormy" patterns than Floyd-Steinberg in some cases
+pub fn apply_ordered_dithering(img: &RgbImage, palette: &[(u8, u8, u8)]) -> Result<RgbImage> {
+    // 8x8 Bayer dithering matrix
+    const BAYER_8X8: [[f32; 8]; 8] = [
+        [
+            0.0 / 64.0,
+            48.0 / 64.0,
+            12.0 / 64.0,
+            60.0 / 64.0,
+            3.0 / 64.0,
+            51.0 / 64.0,
+            15.0 / 64.0,
+            63.0 / 64.0,
+        ],
+        [
+            32.0 / 64.0,
+            16.0 / 64.0,
+            44.0 / 64.0,
+            28.0 / 64.0,
+            35.0 / 64.0,
+            19.0 / 64.0,
+            47.0 / 64.0,
+            31.0 / 64.0,
+        ],
+        [
+            8.0 / 64.0,
+            56.0 / 64.0,
+            4.0 / 64.0,
+            52.0 / 64.0,
+            11.0 / 64.0,
+            59.0 / 64.0,
+            7.0 / 64.0,
+            55.0 / 64.0,
+        ],
+        [
+            40.0 / 64.0,
+            24.0 / 64.0,
+            36.0 / 64.0,
+            20.0 / 64.0,
+            43.0 / 64.0,
+            27.0 / 64.0,
+            39.0 / 64.0,
+            23.0 / 64.0,
+        ],
+        [
+            2.0 / 64.0,
+            50.0 / 64.0,
+            14.0 / 64.0,
+            62.0 / 64.0,
+            1.0 / 64.0,
+            49.0 / 64.0,
+            13.0 / 64.0,
+            61.0 / 64.0,
+        ],
+        [
+            34.0 / 64.0,
+            18.0 / 64.0,
+            46.0 / 64.0,
+            30.0 / 64.0,
+            33.0 / 64.0,
+            17.0 / 64.0,
+            45.0 / 64.0,
+            29.0 / 64.0,
+        ],
+        [
+            10.0 / 64.0,
+            58.0 / 64.0,
+            6.0 / 64.0,
+            54.0 / 64.0,
+            9.0 / 64.0,
+            57.0 / 64.0,
+            5.0 / 64.0,
+            53.0 / 64.0,
+        ],
+        [
+            42.0 / 64.0,
+            26.0 / 64.0,
+            38.0 / 64.0,
+            22.0 / 64.0,
+            41.0 / 64.0,
+            25.0 / 64.0,
+            37.0 / 64.0,
+            21.0 / 64.0,
+        ],
+    ];
+
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y);
+
+            // Get threshold from Bayer matrix
+            let threshold = BAYER_8X8[(y % 8) as usize][(x % 8) as usize];
+
+            // Add threshold to pixel values (centered around 0.5)
+            let r = (pixel[0] as f32 / 255.0 + threshold - 0.5).clamp(0.0, 1.0) * 255.0;
+            let g = (pixel[1] as f32 / 255.0 + threshold - 0.5).clamp(0.0, 1.0) * 255.0;
+            let b = (pixel[2] as f32 / 255.0 + threshold - 0.5).clamp(0.0, 1.0) * 255.0;
+
+            // Find closest color in palette
+            let (new_r, new_g, new_b) =
+                find_closest_color_weighted(r as u8, g as u8, b as u8, palette);
+
+            output.put_pixel(x, y, Rgb([new_r, new_g, new_b]));
+        }
+    }
+
+    Ok(output)
+}
+
+/// Apply pre-processing to enhance image before dithering
+#[allow(dead_code)]
+pub fn preprocess_for_dithering(img: &RgbImage) -> RgbImage {
+    let (width, height) = img.dimensions();
+    let mut output = RgbImage::new(width, height);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y);
+
+            // Increase saturation slightly to compensate for dithering
+            let (h, s, v) = rgb_to_hsv(pixel[0], pixel[1], pixel[2]);
+            let enhanced_s = (s * 1.2).min(1.0); // Boost saturation by 20%
+            let (r, g, b) = hsv_to_rgb(h, enhanced_s, v);
+
+            output.put_pixel(x, y, Rgb([r, g, b]));
+        }
+    }
+
+    output
+}
+
+/// Convert RGB to HSV color space
+#[allow(dead_code)]
+fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
+    let r = r as f32 / 255.0;
+    let g = g as f32 / 255.0;
+    let b = b as f32 / 255.0;
+
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let delta = max - min;
+
+    let h = if delta == 0.0 {
+        0.0
+    } else if max == r {
+        60.0 * (((g - b) / delta) % 6.0)
+    } else if max == g {
+        60.0 * (((b - r) / delta) + 2.0)
+    } else {
+        60.0 * (((r - g) / delta) + 4.0)
+    };
+
+    let s = if max == 0.0 { 0.0 } else { delta / max };
+    let v = max;
+
+    (h, s, v)
+}
+
+/// Convert HSV back to RGB
+#[allow(dead_code)]
+fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
+    let c = v * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = v - c;
+
+    let (r, g, b) = if h < 60.0 {
+        (c, x, 0.0)
+    } else if h < 120.0 {
+        (x, c, 0.0)
+    } else if h < 180.0 {
+        (0.0, c, x)
+    } else if h < 240.0 {
+        (0.0, x, c)
+    } else if h < 300.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+
+    (
+        ((r + m) * 255.0) as u8,
+        ((g + m) * 255.0) as u8,
+        ((b + m) * 255.0) as u8,
+    )
+}
+
+// (SIX_COLOR_PALETTE moved to core.rs; removed duplicate from this file)

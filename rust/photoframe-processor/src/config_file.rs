@@ -1,5 +1,6 @@
-use crate::cli::{Args, ColorType, DitherMethod, OrientationConfig, ReportFormat};
+use crate::cli::{Args, ColorType, OrientationConfig, ReportFormat};
 use anyhow::{Context, Result};
+use photoframe_lib::DitheringMethod;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -136,13 +137,13 @@ impl Args {
         if !args_from_cli.iter().any(|a| a == "--dithering") {
             if let Some(method) = config.dither_method {
                 self.dithering_method = match method.as_str() {
-                    "floyd-steinberg" | "floydSteinberg" => DitherMethod::FloydSteinberg,
-                    "atkinson" => DitherMethod::Atkinson,
-                    "stucki" => DitherMethod::Stucki,
+                    "floyd-steinberg" | "floydSteinberg" => DitheringMethod::FloydSteinberg,
+                    "atkinson" => DitheringMethod::Atkinson,
+                    "stucki" => DitheringMethod::Stucki,
                     "jarvis" | "jarvis-judice-ninke" | "jarvisJudiceNinke" => {
-                        DitherMethod::JarvisJudiceNinke
+                        DitheringMethod::JarvisJudiceNinke
                     }
-                    "ordered" => DitherMethod::Ordered,
+                    "ordered" => DitheringMethod::Ordered,
                     _ => self.dithering_method.clone(),
                 };
             }

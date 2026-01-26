@@ -6,21 +6,13 @@ part of 'processing_config.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-ProcessingConfig _$ProcessingConfigFromJson(
-  Map<String, dynamic> json,
-) => ProcessingConfig(
+ProcessingConfig _$ProcessingConfigFromJson(Map<String, dynamic> json) => ProcessingConfig(
   inputPath: json['inputPath'] as String,
   outputPath: json['outputPath'] as String,
-  displayType:
-      $enumDecodeNullable(_$DisplayTypeEnumMap, json['displayType']) ??
-      DisplayType.blackWhite,
-  orientation:
-      $enumDecodeNullable(_$TargetOrientationEnumMap, json['orientation']) ??
-      TargetOrientation.landscape,
+  displayType: $enumDecodeNullable(_$DisplayTypeEnumMap, json['displayType']) ?? DisplayType.blackWhite,
+  orientation: $enumDecodeNullable(_$TargetOrientationEnumMap, json['orientation']) ?? TargetOrientation.landscape,
   autoColorCorrect: json['autoColorCorrect'] as bool? ?? false,
-  ditherMethod:
-      $enumDecodeNullable(_$DitherMethodEnumMap, json['ditherMethod']) ??
-      DitherMethod.floydSteinberg,
+  ditherMethod: $enumDecodeNullable(_$DitherMethodEnumMap, json['ditherMethod']) ?? DitherMethod.floydSteinberg,
   ditherStrength: (json['ditherStrength'] as num?)?.toDouble() ?? 1.0,
   contrast: (json['contrast'] as num?)?.toInt() ?? 0,
   brightness: (json['brightness'] as num?)?.toInt() ?? 0,
@@ -44,46 +36,39 @@ ProcessingConfig _$ProcessingConfigFromJson(
   processorBinaryPath: json['processorBinaryPath'] as String?,
 );
 
-Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) =>
-    <String, dynamic>{
-      'inputPath': instance.inputPath,
-      'outputPath': instance.outputPath,
-      'displayType': _$DisplayTypeEnumMap[instance.displayType]!,
-      'orientation': _$TargetOrientationEnumMap[instance.orientation]!,
-      'autoColorCorrect': instance.autoColorCorrect,
-      'ditherMethod': _$DitherMethodEnumMap[instance.ditherMethod]!,
-      'ditherStrength': instance.ditherStrength,
-      'contrast': instance.contrast,
-      'brightness': instance.brightness,
-      'saturationBoost': instance.saturationBoost,
-      'autoOptimize': instance.autoOptimize,
-      'outputBmp': instance.outputBmp,
-      'outputBin': instance.outputBin,
-      'outputJpg': instance.outputJpg,
-      'outputPng': instance.outputPng,
-      'detectPeople': instance.detectPeople,
-      'confidenceThreshold': instance.confidenceThreshold,
-      'annotate': instance.annotate,
-      'font': instance.font,
-      'pointsize': instance.pointsize,
-      'annotateBackground': instance.annotateBackground,
-      'dividerWidth': instance.dividerWidth,
-      'dividerColor': instance.dividerColor,
-      'report': instance.report,
-      'jobs': instance.jobs,
-      'extensions': instance.extensions,
-      'processorBinaryPath': instance.processorBinaryPath,
-    };
-
-const _$DisplayTypeEnumMap = {
-  DisplayType.blackWhite: 'bw',
-  DisplayType.sixColor: '6c',
+Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) => <String, dynamic>{
+  'inputPath': instance.inputPath,
+  'outputPath': instance.outputPath,
+  'displayType': _$DisplayTypeEnumMap[instance.displayType]!,
+  'orientation': _$TargetOrientationEnumMap[instance.orientation]!,
+  'autoColorCorrect': instance.autoColorCorrect,
+  'ditherMethod': _$DitherMethodEnumMap[instance.ditherMethod]!,
+  'ditherStrength': instance.ditherStrength,
+  'contrast': instance.contrast,
+  'brightness': instance.brightness,
+  'saturationBoost': instance.saturationBoost,
+  'autoOptimize': instance.autoOptimize,
+  'outputBmp': instance.outputBmp,
+  'outputBin': instance.outputBin,
+  'outputJpg': instance.outputJpg,
+  'outputPng': instance.outputPng,
+  'detectPeople': instance.detectPeople,
+  'confidenceThreshold': instance.confidenceThreshold,
+  'annotate': instance.annotate,
+  'font': instance.font,
+  'pointsize': instance.pointsize,
+  'annotateBackground': instance.annotateBackground,
+  'dividerWidth': instance.dividerWidth,
+  'dividerColor': instance.dividerColor,
+  'report': instance.report,
+  'jobs': instance.jobs,
+  'extensions': instance.extensions,
+  'processorBinaryPath': instance.processorBinaryPath,
 };
 
-const _$TargetOrientationEnumMap = {
-  TargetOrientation.landscape: 'landscape',
-  TargetOrientation.portrait: 'portrait',
-};
+const _$DisplayTypeEnumMap = {DisplayType.blackWhite: 'bw', DisplayType.sixColor: '6c'};
+
+const _$TargetOrientationEnumMap = {TargetOrientation.landscape: 'landscape', TargetOrientation.portrait: 'portrait'};
 
 const _$DitherMethodEnumMap = {
   DitherMethod.floydSteinberg: 'floyd-steinberg',

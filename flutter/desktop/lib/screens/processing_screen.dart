@@ -65,10 +65,7 @@ class _FileSelectionSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'File Selection',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('File Selection', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -85,9 +82,7 @@ class _FileSelectionSection extends StatelessWidget {
                       maxLines: 1,
                       placeholder: 'Select input directory...',
                       onChanged: (value) {
-                        provider.updateConfig(
-                          config.copyWith(inputPath: value),
-                        );
+                        provider.updateConfig(config.copyWith(inputPath: value));
                       },
                     ),
                   ),
@@ -95,11 +90,7 @@ class _FileSelectionSection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final path = await FilePicker.platform.getDirectoryPath(
-                        initialDirectory: FilePickerHistory.initialDir(
-                          'inputDir',
-                        ),
-                      );
+                      final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('inputDir', path);
                         provider.updateConfig(config.copyWith(inputPath: path));
@@ -116,14 +107,10 @@ class _FileSelectionSection extends StatelessWidget {
                   Expanded(
                     child: AppKitTextField(
                       maxLines: 1,
-                      controller: TextEditingController(
-                        text: config.outputPath,
-                      ),
+                      controller: TextEditingController(text: config.outputPath),
                       placeholder: 'Select output directory...',
                       onChanged: (value) {
-                        provider.updateConfig(
-                          config.copyWith(outputPath: value),
-                        );
+                        provider.updateConfig(config.copyWith(outputPath: value));
                       },
                     ),
                   ),
@@ -131,16 +118,10 @@ class _FileSelectionSection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final path = await FilePicker.platform.getDirectoryPath(
-                        initialDirectory: FilePickerHistory.initialDir(
-                          'outputDir',
-                        ),
-                      );
+                      final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('outputDir', path);
-                        provider.updateConfig(
-                          config.copyWith(outputPath: path),
-                        );
+                        provider.updateConfig(config.copyWith(outputPath: path));
                       }
                     },
                     child: const Text('Browse...'),
@@ -168,10 +149,7 @@ class _ProcessorBinarySection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Processor Binary',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Processor Binary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -185,17 +163,10 @@ class _ProcessorBinarySection extends StatelessWidget {
                   Expanded(
                     child: AppKitTextField(
                       maxLines: 1,
-                      controller: TextEditingController(
-                        text: config.processorBinaryPath ?? '',
-                      ),
-                      placeholder:
-                          'Path to photoframe-processor binary (optional)',
+                      controller: TextEditingController(text: config.processorBinaryPath ?? ''),
+                      placeholder: 'Path to photoframe-processor binary (optional)',
                       onChanged: (value) {
-                        provider.updateConfig(
-                          config.copyWith(
-                            processorBinaryPath: value.isEmpty ? null : value,
-                          ),
-                        );
+                        provider.updateConfig(config.copyWith(processorBinaryPath: value.isEmpty ? null : value));
                       },
                     ),
                   ),
@@ -203,20 +174,11 @@ class _ProcessorBinarySection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final result = await FilePicker.platform.pickFiles(
-                        initialDirectory: FilePickerHistory.initialDir(
-                          'processorBinary',
-                        ),
-                      );
+                      final result = await FilePicker.platform.pickFiles(initialDirectory: FilePickerHistory.initialDir('processorBinary'));
                       if (result != null && result.files.single.path != null) {
                         final selectedPath = result.files.single.path!;
-                        FilePickerHistory.rememberFile(
-                          'processorBinary',
-                          selectedPath,
-                        );
-                        provider.updateConfig(
-                          config.copyWith(processorBinaryPath: selectedPath),
-                        );
+                        FilePickerHistory.rememberFile('processorBinary', selectedPath);
+                        provider.updateConfig(config.copyWith(processorBinaryPath: selectedPath));
                       }
                     },
                     child: const Text('Browse...'),
@@ -224,10 +186,7 @@ class _ProcessorBinarySection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                'ℹ If not specified, the app will search in common locations',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
+              Text('ℹ If not specified, the app will search in common locations', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
             ],
           ),
         ),
@@ -249,10 +208,7 @@ class _DisplaySettingsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Display Settings',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Display Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -272,20 +228,12 @@ class _DisplaySettingsSection extends StatelessWidget {
                           selectedItem: config.displayType,
                           onItemSelected: (value) {
                             if (value != null) {
-                              provider.updateConfig(
-                                config.copyWith(displayType: value),
-                              );
+                              provider.updateConfig(config.copyWith(displayType: value));
                             }
                           },
                           items: const [
-                            AppKitContextMenuItem(
-                              value: DisplayType.blackWhite,
-                              child: Text('Black & White'),
-                            ),
-                            AppKitContextMenuItem(
-                              value: DisplayType.sixColor,
-                              child: Text('6-Color'),
-                            ),
+                            AppKitContextMenuItem(value: DisplayType.blackWhite, child: Text('Black & White')),
+                            AppKitContextMenuItem(value: DisplayType.sixColor, child: Text('6-Color')),
                           ],
                         ),
                       ],
@@ -302,20 +250,12 @@ class _DisplaySettingsSection extends StatelessWidget {
                           selectedItem: config.orientation,
                           onItemSelected: (value) {
                             if (value != null) {
-                              provider.updateConfig(
-                                config.copyWith(orientation: value),
-                              );
+                              provider.updateConfig(config.copyWith(orientation: value));
                             }
                           },
                           items: const [
-                            AppKitContextMenuItem(
-                              value: TargetOrientation.landscape,
-                              child: Text('Landscape'),
-                            ),
-                            AppKitContextMenuItem(
-                              value: TargetOrientation.portrait,
-                              child: Text('Portrait'),
-                            ),
+                            AppKitContextMenuItem(value: TargetOrientation.landscape, child: Text('Landscape')),
+                            AppKitContextMenuItem(value: TargetOrientation.portrait, child: Text('Portrait')),
                           ],
                         ),
                       ],
@@ -349,10 +289,7 @@ class _PeopleDetectionSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'People Detection (AI)',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('People Detection (AI)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -365,9 +302,7 @@ class _PeopleDetectionSection extends StatelessWidget {
                   AppKitSwitch(
                     checked: config.detectPeople,
                     onChanged: (value) {
-                      provider.updateConfig(
-                        config.copyWith(detectPeople: value),
-                      );
+                      provider.updateConfig(config.copyWith(detectPeople: value));
                     },
                   ),
                   const SizedBox(width: 8),
@@ -376,10 +311,7 @@ class _PeopleDetectionSection extends StatelessWidget {
               ),
               if (config.detectPeople) ...[
                 const SizedBox(height: 12),
-                Text(
-                  'ℹ Uses YOLO11 model for accurate subject detection',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
+                Text('ℹ Uses YOLO11 model for accurate subject detection', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -387,17 +319,13 @@ class _PeopleDetectionSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Confidence: ${config.confidenceThreshold.toStringAsFixed(2)}',
-                          ),
+                          Text('Confidence: ${config.confidenceThreshold.toStringAsFixed(2)}'),
                           AppKitSlider(
                             value: config.confidenceThreshold,
                             min: 0.3,
                             max: 0.95,
                             onChanged: (value) {
-                              provider.updateConfig(
-                                config.copyWith(confidenceThreshold: value),
-                              );
+                              provider.updateConfig(config.copyWith(confidenceThreshold: value));
                             },
                           ),
                         ],
@@ -428,10 +356,7 @@ class _DitheringSettingsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Dithering Settings',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Dithering Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.standardScrollBox,
@@ -444,15 +369,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                   AppKitSwitch(
                     checked: config.autoColorCorrect,
                     onChanged: (value) {
-                      provider.updateConfig(
-                        config.copyWith(autoColorCorrect: value),
-                      );
+                      provider.updateConfig(config.copyWith(autoColorCorrect: value));
                     },
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Auto-color correction (remove color casts, enhance quality)',
-                  ),
+                  const Text('Auto-color correction (remove color casts, enhance quality)'),
                 ],
               ),
               const SizedBox(height: 8),
@@ -461,15 +382,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                   AppKitSwitch(
                     checked: config.autoOptimize,
                     onChanged: (value) {
-                      provider.updateConfig(
-                        config.copyWith(autoOptimize: value),
-                      );
+                      provider.updateConfig(config.copyWith(autoOptimize: value));
                     },
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Auto-optimize (automatic per-image optimization)',
-                  ),
+                  const Text('Auto-optimize (automatic per-image optimization)'),
                 ],
               ),
               if (!config.autoOptimize) ...[
@@ -483,32 +400,15 @@ class _DitheringSettingsSection extends StatelessWidget {
                       selectedItem: config.ditherMethod,
                       onItemSelected: (value) {
                         if (value != null) {
-                          provider.updateConfig(
-                            config.copyWith(ditherMethod: value),
-                          );
+                          provider.updateConfig(config.copyWith(ditherMethod: value));
                         }
                       },
                       items: const [
-                        AppKitContextMenuItem(
-                          value: DitherMethod.floydSteinberg,
-                          child: Text('Floyd-Steinberg'),
-                        ),
-                        AppKitContextMenuItem(
-                          value: DitherMethod.atkinson,
-                          child: Text('Atkinson'),
-                        ),
-                        AppKitContextMenuItem(
-                          value: DitherMethod.stucki,
-                          child: Text('Stucki'),
-                        ),
-                        AppKitContextMenuItem(
-                          value: DitherMethod.jarvisJudiceNinke,
-                          child: Text('Jarvis'),
-                        ),
-                        AppKitContextMenuItem(
-                          value: DitherMethod.ordered,
-                          child: Text('Ordered/Bayer'),
-                        ),
+                        AppKitContextMenuItem(value: DitherMethod.floydSteinberg, child: Text('Floyd-Steinberg')),
+                        AppKitContextMenuItem(value: DitherMethod.atkinson, child: Text('Atkinson')),
+                        AppKitContextMenuItem(value: DitherMethod.stucki, child: Text('Stucki')),
+                        AppKitContextMenuItem(value: DitherMethod.jarvisJudiceNinke, child: Text('Jarvis')),
+                        AppKitContextMenuItem(value: DitherMethod.ordered, child: Text('Ordered/Bayer')),
                       ],
                     ),
                   ],
@@ -520,17 +420,13 @@ class _DitheringSettingsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Strength: ${config.ditherStrength.toStringAsFixed(2)}',
-                          ),
+                          Text('Strength: ${config.ditherStrength.toStringAsFixed(2)}'),
                           AppKitSlider(
                             value: config.ditherStrength,
                             min: 0.5,
                             max: 1.5,
                             onChanged: (value) {
-                              provider.updateConfig(
-                                config.copyWith(ditherStrength: value),
-                              );
+                              provider.updateConfig(config.copyWith(ditherStrength: value));
                             },
                           ),
                         ],
@@ -547,9 +443,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                             min: 0.0,
                             max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(
-                                config.copyWith(contrast: value.round() - 100),
-                              );
+                              provider.updateConfig(config.copyWith(contrast: value.round() - 100));
                             },
                           ),
                         ],
@@ -566,11 +460,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                             min: 0.0,
                             max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(
-                                config.copyWith(
-                                  brightness: value.round() - 100,
-                                ),
-                              );
+                              provider.updateConfig(config.copyWith(brightness: value.round() - 100));
                             },
                           ),
                         ],
@@ -585,17 +475,13 @@ class _DitheringSettingsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Saturation Boost: ${config.saturationBoost.toStringAsFixed(1)}',
-                          ),
+                          Text('Saturation Boost: ${config.saturationBoost.toStringAsFixed(1)}'),
                           AppKitSlider(
                             value: config.saturationBoost,
                             min: 0.5,
                             max: 2.0,
                             onChanged: (value) {
-                              provider.updateConfig(
-                                config.copyWith(saturationBoost: value),
-                              );
+                              provider.updateConfig(config.copyWith(saturationBoost: value));
                             },
                           ),
                         ],
@@ -605,10 +491,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                 ),
               ] else ...[
                 const SizedBox(height: 8),
-                Text(
-                  '(Auto-optimize will select optimal parameters for each image)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
+                Text('(Auto-optimize will select optimal parameters for each image)', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               ],
             ],
           ),
@@ -631,10 +514,7 @@ class _OutputFormatsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Output Formats',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Output Formats', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -652,9 +532,7 @@ class _OutputFormatsSection extends StatelessWidget {
                       AppKitCheckbox(
                         value: config.outputBmp,
                         onChanged: (value) {
-                          provider.updateConfig(
-                            config.copyWith(outputBmp: value),
-                          );
+                          provider.updateConfig(config.copyWith(outputBmp: value));
                         },
                       ),
                       const SizedBox(width: 8),
@@ -667,9 +545,7 @@ class _OutputFormatsSection extends StatelessWidget {
                       AppKitCheckbox(
                         value: config.outputBin,
                         onChanged: (value) {
-                          provider.updateConfig(
-                            config.copyWith(outputBin: value),
-                          );
+                          provider.updateConfig(config.copyWith(outputBin: value));
                         },
                       ),
                       const SizedBox(width: 8),
@@ -682,9 +558,7 @@ class _OutputFormatsSection extends StatelessWidget {
                       AppKitCheckbox(
                         value: config.outputJpg,
                         onChanged: (value) {
-                          provider.updateConfig(
-                            config.copyWith(outputJpg: value),
-                          );
+                          provider.updateConfig(config.copyWith(outputJpg: value));
                         },
                       ),
                       const SizedBox(width: 8),
@@ -697,9 +571,7 @@ class _OutputFormatsSection extends StatelessWidget {
                       AppKitCheckbox(
                         value: config.outputPng,
                         onChanged: (value) {
-                          provider.updateConfig(
-                            config.copyWith(outputPng: value),
-                          );
+                          provider.updateConfig(config.copyWith(outputPng: value));
                         },
                       ),
                       const SizedBox(width: 8),
@@ -720,12 +592,10 @@ class _AnnotationSettingsSection extends StatefulWidget {
   const _AnnotationSettingsSection();
 
   @override
-  State<_AnnotationSettingsSection> createState() =>
-      _AnnotationSettingsSectionState();
+  State<_AnnotationSettingsSection> createState() => _AnnotationSettingsSectionState();
 }
 
-class _AnnotationSettingsSectionState
-    extends State<_AnnotationSettingsSection> {
+class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> {
   List<String> _systemFonts = [];
   bool _fontsLoaded = false;
 
@@ -754,10 +624,7 @@ class _AnnotationSettingsSectionState
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Annotation Settings',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Annotation Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -787,24 +654,13 @@ class _AnnotationSettingsSectionState
                       child: _fontsLoaded
                           ? AppKitPopupButton<String>(
                               style: AppKitPopupButtonStyle.bevel,
-                              selectedItem: _systemFonts.contains(config.font)
-                                  ? config.font
-                                  : null,
+                              selectedItem: _systemFonts.contains(config.font) ? config.font : null,
                               onItemSelected: (value) {
                                 if (value != null) {
-                                  provider.updateConfig(
-                                    config.copyWith(font: value),
-                                  );
+                                  provider.updateConfig(config.copyWith(font: value));
                                 }
                               },
-                              items: _systemFonts
-                                  .map(
-                                    (font) => AppKitContextMenuItem(
-                                      value: font,
-                                      child: Text(font),
-                                    ),
-                                  )
-                                  .toList(),
+                              items: _systemFonts.map((font) => AppKitContextMenuItem(value: font, child: Text(font))).toList(),
                             )
                           : const AppKitProgressCircle(value: null),
                     ),
@@ -814,17 +670,13 @@ class _AnnotationSettingsSectionState
                     SizedBox(
                       width: 80,
                       child: AppKitTextField(
-                        controller: TextEditingController(
-                          text: config.pointsize.toString(),
-                        ),
+                        controller: TextEditingController(text: config.pointsize.toString()),
                         placeholder: '22',
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
                           final size = int.tryParse(value);
                           if (size != null) {
-                            provider.updateConfig(
-                              config.copyWith(pointsize: size),
-                            );
+                            provider.updateConfig(config.copyWith(pointsize: size));
                           }
                         },
                       ),
@@ -835,14 +687,10 @@ class _AnnotationSettingsSectionState
                     SizedBox(
                       width: 120,
                       child: AppKitTextField(
-                        controller: TextEditingController(
-                          text: config.annotateBackground,
-                        ),
+                        controller: TextEditingController(text: config.annotateBackground),
                         placeholder: '#00000040',
                         onChanged: (value) {
-                          provider.updateConfig(
-                            config.copyWith(annotateBackground: value),
-                          );
+                          provider.updateConfig(config.copyWith(annotateBackground: value));
                         },
                       ),
                     ),
@@ -870,10 +718,7 @@ class _DividerSettingsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Divider Settings',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Divider Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.standardScrollBox,
@@ -890,17 +735,13 @@ class _DividerSettingsSection extends StatelessWidget {
                         const Text('Width:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
-                          controller: TextEditingController(
-                            text: config.dividerWidth.toString(),
-                          ),
+                          controller: TextEditingController(text: config.dividerWidth.toString()),
                           placeholder: '3',
                           keyboardType: TextInputType.number,
                           onChanged: (value) {
                             final width = int.tryParse(value);
                             if (width != null) {
-                              provider.updateConfig(
-                                config.copyWith(dividerWidth: width),
-                              );
+                              provider.updateConfig(config.copyWith(dividerWidth: width));
                             }
                           },
                         ),
@@ -915,14 +756,10 @@ class _DividerSettingsSection extends StatelessWidget {
                         const Text('Color:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
-                          controller: TextEditingController(
-                            text: config.dividerColor,
-                          ),
+                          controller: TextEditingController(text: config.dividerColor),
                           placeholder: '#FFFFFF',
                           onChanged: (value) {
-                            provider.updateConfig(
-                              config.copyWith(dividerColor: value),
-                            );
+                            provider.updateConfig(config.copyWith(dividerColor: value));
                           },
                         ),
                       ],
@@ -931,10 +768,7 @@ class _DividerSettingsSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                'ℹ Divider is drawn between paired portrait images',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
+              Text('ℹ Divider is drawn between paired portrait images', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
             ],
           ),
         ),
@@ -956,10 +790,7 @@ class _AdvancedOptionsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text(
-            'Advanced Options',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          child: Text('Advanced Options', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.roundedScrollBox,
@@ -976,23 +807,16 @@ class _AdvancedOptionsSection extends StatelessWidget {
                         const Text('Parallel Jobs:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
-                          controller: TextEditingController(
-                            text: config.jobs == 0
-                                ? 'Auto'
-                                : config.jobs.toString(),
-                          ),
+                          controller: TextEditingController(text: config.jobs == 0 ? 'Auto' : config.jobs.toString()),
                           placeholder: 'Auto',
                           keyboardType: TextInputType.number,
                           onChanged: (value) {
-                            if (value.toLowerCase() == 'auto' ||
-                                value.isEmpty) {
+                            if (value.toLowerCase() == 'auto' || value.isEmpty) {
                               provider.updateConfig(config.copyWith(jobs: 0));
                             } else {
                               final jobs = int.tryParse(value);
                               if (jobs != null) {
-                                provider.updateConfig(
-                                  config.copyWith(jobs: jobs),
-                                );
+                                provider.updateConfig(config.copyWith(jobs: jobs));
                               }
                             }
                           },
@@ -1008,14 +832,10 @@ class _AdvancedOptionsSection extends StatelessWidget {
                         const Text('File Extensions:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
-                          controller: TextEditingController(
-                            text: config.extensions,
-                          ),
+                          controller: TextEditingController(text: config.extensions),
                           placeholder: 'jpg,jpeg,png,heic',
                           onChanged: (value) {
-                            provider.updateConfig(
-                              config.copyWith(extensions: value),
-                            );
+                            provider.updateConfig(config.copyWith(extensions: value));
                           },
                         ),
                       ],
@@ -1075,9 +895,7 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
                 : () {
                     provider.startProcessing();
                   },
-            child: Text(
-              provider.isProcessing ? 'Processing...' : 'Process Images',
-            ),
+            child: Text(provider.isProcessing ? 'Processing...' : 'Process Images'),
           ),
         ),
       ],
@@ -1113,11 +931,7 @@ class _ProcessingDialog extends StatelessWidget {
       barrierDismissible: true,
       builder: (context) {
         return AppKitDialog(
-          constraints: const BoxConstraints(
-            minWidth: 800,
-            maxWidth: 800,
-            maxHeight: 600,
-          ),
+          constraints: const BoxConstraints(minWidth: 800, maxWidth: 800, maxHeight: 600),
           title: const Text('Processing Report'),
           message: (context) => SizedBox(
             height: 500,
@@ -1138,28 +952,16 @@ class _ProcessingDialog extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 20,
-                              ),
+                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
                               const SizedBox(width: 8),
                               const Text(
                                 'Processing Complete',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          _buildReportRow(
-                            'Total images processed',
-                            provider.lastSummary!['total_images']?.toString() ??
-                                '0',
-                          ),
+                          _buildReportRow('Total images processed', provider.lastSummary!['total_images']?.toString() ?? '0'),
                           _buildReportRow(
                             'Images with people',
                             '${provider.lastSummary!['images_with_people'] ?? 0} (${(provider.lastSummary!['people_detection_rate'] ?? 0).toStringAsFixed(1)}%)',
@@ -1168,42 +970,18 @@ class _ProcessingDialog extends StatelessWidget {
                             'Images with pastel tones',
                             '${provider.lastSummary!['images_with_pastel'] ?? 0} (${(provider.lastSummary!['pastel_rate'] ?? 0).toStringAsFixed(1)}%)',
                           ),
-                          _buildReportRow(
-                            'Landscape images',
-                            provider.lastSummary!['landscape_images']
-                                    ?.toString() ??
-                                '0',
-                          ),
-                          _buildReportRow(
-                            'Portrait pairs',
-                            provider.lastSummary!['portrait_pairs']
-                                    ?.toString() ??
-                                '0',
-                          ),
-                          _buildReportRow(
-                            'Individual portraits',
-                            provider.lastSummary!['individual_portraits']
-                                    ?.toString() ??
-                                '0',
-                          ),
+                          _buildReportRow('Landscape images', provider.lastSummary!['landscape_images']?.toString() ?? '0'),
+                          _buildReportRow('Portrait pairs', provider.lastSummary!['portrait_pairs']?.toString() ?? '0'),
+                          _buildReportRow('Individual portraits', provider.lastSummary!['individual_portraits']?.toString() ?? '0'),
                         ],
                       ),
                     ),
                   ],
                   if (hasReport && provider.lastReport != null) ...[
                     const SizedBox(height: 20),
-                    const Text(
-                      'Processing Details',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    const Text('Processing Details', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-                    ReportSummaryWidget(
-                      summary: provider.lastSummary,
-                      report: provider.lastReport,
-                    ),
+                    ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
                   ] else if (!hasReport) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -1217,38 +995,22 @@ class _ProcessingDialog extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 20,
-                              ),
+                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
                               const SizedBox(width: 8),
                               const Text(
                                 'Processing Complete',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            provider.resultsMessage.isNotEmpty
-                                ? provider.resultsMessage
-                                : 'Image processing completed successfully',
+                            provider.resultsMessage.isNotEmpty ? provider.resultsMessage : 'Image processing completed successfully',
                             style: const TextStyle(fontSize: 13),
                           ),
                           if (provider.processedCount > 0) ...[
                             const SizedBox(height: 8),
-                            Text(
-                              'Processed: ${provider.processedCount} images',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            Text('Processed: ${provider.processedCount} images', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ],
                       ),
@@ -1278,10 +1040,7 @@ class _ProcessingDialog extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 13)),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          ),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -1303,36 +1062,24 @@ class _ProcessingDialog extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Processing: ${provider.processedCount}/${provider.totalCount}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
               Text(
-                provider.currentFile.isNotEmpty
-                    ? 'Current: ${provider.currentFile}'
-                    : 'Initializing...',
+                provider.currentFile.isNotEmpty ? 'Current: ${provider.currentFile}' : 'Initializing...',
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               if (provider.errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(
-                  provider.errorMessage,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                ),
+                Text(provider.errorMessage, style: const TextStyle(color: Colors.red, fontSize: 12)),
               ],
               if (provider.resultsMessage.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(
-                  provider.resultsMessage,
-                  style: const TextStyle(color: Colors.green, fontSize: 12),
-                ),
+                Text(provider.resultsMessage, style: const TextStyle(color: Colors.green, fontSize: 12)),
               ],
-              if (!provider.isProcessing &&
-                  provider.resultsMessage.isNotEmpty) ...[
+              if (!provider.isProcessing && provider.resultsMessage.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 12),
@@ -1347,20 +1094,10 @@ class _ProcessingDialog extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 20,
-                          ),
+                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              _getProcessingCompleteSummary(provider),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                            child: Text(_getProcessingCompleteSummary(provider), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                           ),
                         ],
                       ),
@@ -1376,10 +1113,7 @@ class _ProcessingDialog extends StatelessWidget {
                           children: const [
                             Icon(Icons.assessment, size: 14),
                             SizedBox(width: 6),
-                            Text(
-                              'View Full Report',
-                              style: TextStyle(fontSize: 12),
-                            ),
+                            Text('View Full Report', style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),

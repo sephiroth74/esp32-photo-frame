@@ -1,6 +1,6 @@
 [package]
 name = "photoframe-processor"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 authors = ["Alessandro Crugnola"]
 description = "High-performance image processor for converting images to binary or bitmaps ready files to be displayed on ESP32 board with e-paper display."
@@ -21,6 +21,9 @@ path = "src/bin/bt_client.rs"
 required-features = ["bluetooth"]
 
 [dependencies]
+# Shared dithering library
+photoframe-lib = { path = "../photoframe-lib" }
+
 # Core image processing
 image = { version = "0.25.9", features = ["jpeg", "png", "webp", "tiff"] }
 imageproc = "0.26.0"
@@ -35,16 +38,13 @@ console = "0.16.2"
 walkdir = "2.5.0"
 rayon = "1.11.0"
 anyhow = "1.0.100"
+crc32fast = "1.4"
 
 # EXIF data handling  
 kamadak-exif = "0.6.1"
 
 # Text rendering
 ab_glyph = "0.2.32"
-rusttype = "0.9.3"
-
-strum = "0.27.2"
-strum_macros = "0.27.2"
 
 # Parallel processing
 num_cpus = "1.17.0"
