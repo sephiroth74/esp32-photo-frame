@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
@@ -10,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../models/processing_models.dart';
 import '../services/ble_service.dart';
+import '../services/bin_parser.dart';
 import '../state/image_processing_state.dart';
 import '../utils/app_logger.dart';
 
@@ -219,14 +219,14 @@ class _BleUploadScreenState extends State<BleUploadScreen> {
             if (header == null)
               const Text('Header non disponibile: genera prima il file (.bin).')
             else ...[
-              _headerRow('Magic', 'PFR1 (0x${header.magic.toRadixString(16).padLeft(8, '0')})'),
+              _headerRow('Magic', 'PFR1 (0x50465231)'),
               _headerRow('Versione', header.version.toString()),
               _headerRow('Dimensioni', '${header.width} x ${header.height}'),
               _headerRow('Rotazione', _rotationLabel(header.rotation)),
               _headerRow('Color mode', _colorModeLabel(header.colorMode)),
               _headerRow('Payload', '${header.payloadLen} bytes'),
               _headerRow('Header len', '${header.headerLen} bytes'),
-              _headerRow('File totale', data!.length.toString() + ' bytes'),
+              _headerRow('File totale', '${data!.length} bytes'),
             ],
           ],
         ),
@@ -272,30 +272,14 @@ class _BleUploadScreenState extends State<BleUploadScreen> {
     }
   }
 
-  _ParsedPfr1Header? _parsePfr1Header(Uint8List data) {
-    if (data.length < 21) return null;
-    final view = ByteData.sublistView(data);
-    final magic = view.getUint32(0, Endian.little);
-    if (magic != 0x50465231) return null;
-    final version = view.getUint8(4);
-    final headerLen = view.getUint16(5, Endian.little);
-    final width = view.getUint16(7, Endian.little);
-    final height = view.getUint16(9, Endian.little);
-    final rotation = view.getUint8(11);
-    final colorMode = view.getUint8(12);
-    final payloadLen = view.getUint32(13, Endian.little);
-    final headerCrc32 = view.getUint32(17, Endian.little);
-    return _ParsedPfr1Header(
-      magic: magic,
-      version: version,
-      headerLen: headerLen,
-      width: width,
-      height: height,
-      rotation: rotation,
-      colorMode: colorMode,
-      payloadLen: payloadLen,
-      headerCrc32: headerCrc32,
-    );
+  BinHeader? _parsePfr1Header(Uint8List data) {
+    try {
+      final parsed = BinParser.parse(data);
+      return parsed.header;
+    } catch (e) {
+      logger.warning('Failed to parse PFR1 header: $e');
+      return null;
+    }
   }
 
   Widget _buildDeviceList() {
@@ -387,7 +371,10 @@ class _BleUploadScreenState extends State<BleUploadScreen> {
             setState(() {
               _scanning = false;
             });
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Scan error: $e')));
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Scan error: $e')));
+            }
           },
         );
 
@@ -601,28 +588,4 @@ class _UploadProgressDialogState extends State<_UploadProgressDialog> {
       actions: [TextButton(onPressed: _cancelled ? null : _cancel, child: const Text('Cancel'))],
     );
   }
-}
-
-class _ParsedPfr1Header {
-  final int magic;
-  final int version;
-  final int headerLen;
-  final int width;
-  final int height;
-  final int rotation;
-  final int colorMode;
-  final int payloadLen;
-  final int headerCrc32;
-
-  const _ParsedPfr1Header({
-    required this.magic,
-    required this.version,
-    required this.headerLen,
-    required this.width,
-    required this.height,
-    required this.rotation,
-    required this.colorMode,
-    required this.payloadLen,
-    required this.headerCrc32,
-  });
 }

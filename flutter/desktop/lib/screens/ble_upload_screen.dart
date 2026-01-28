@@ -186,7 +186,22 @@ class BleUploadScreen extends StatelessWidget {
                             const SizedBox(height: 12),
                             _HeaderCard(ble: ble),
                           ] else ...[
-                            Placeholder(fallbackHeight: 240, color: Colors.grey),
+                            Container(
+                              height: 480,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: Center(
+                                      child: Text(
+                                        'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                      ),
+                                    ),
+                            ),
                           ],
                           const SizedBox(height: 12),
                         ],
@@ -356,7 +371,7 @@ class _HeaderCard extends StatelessWidget {
             _row('Size', '${h.width} x ${h.height}'),
             _row('Rotation', _rotationLabel(h.rotation)),
             _row('Color mode', _colorModeLabel(h.colorMode)),
-            _row('Payload', '${h.payloadLen} bytes'),
+            _row('Image size', '${h.payloadLen} bytes'),
             _row('Header CRC32', '0x${h.headerCrc32.toRadixString(16).padLeft(8, '0')}'),
             _row('Total file size', '${h.headerLen + h.payloadLen + 4} bytes'),
           ],

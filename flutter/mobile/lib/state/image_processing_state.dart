@@ -11,6 +11,7 @@ import 'package:exif/exif.dart';
 import '../models/processing_models.dart';
 import '../services/dithering_processor.dart';
 import '../services/photoframe_dithering_ffi.dart';
+import '../services/gallery_service.dart';
 import '../utils/app_logger.dart';
 
 class _DitherArgs {
@@ -74,6 +75,10 @@ class ImageProcessingState extends ChangeNotifier {
     if (picked != null) {
       logger.info('Image picked: ${picked.path}');
       _image = picked;
+      // Reset processing state for new image
+      _intermediateFile = null;
+      _ditherPreview = null;
+      _binaryData = null;
       // Try to prefill annotation text with EXIF capture date
       try {
         logger.fine('Reading EXIF data');
@@ -432,7 +437,7 @@ class ImageProcessingState extends ChangeNotifier {
       final processingType = _job.displayType == DisplayType.blackAndWhite ? 0 : 1;
 
       // For now the header rotation is always 0; rotation is sent via BLE config.
-      const rotationValue = 0;
+      int rotationValue = 0;
 
       // Check if target resolution is portrait (width < height).
       // Images MUST be rotated to landscape orientation before binary conversion (display buffer is always landscape).
@@ -446,13 +451,16 @@ class ImageProcessingState extends ChangeNotifier {
       totalRotationAngle += _job.rotation; // Add user-applied rotation
       totalRotationAngle = totalRotationAngle % 360; // Normalize to 0-360
 
+      // rotation is 0 to 3 (0°, 90°, 180°, 270°) in header, but we need angle in degrees for image rotation
+      rotationValue = totalRotationAngle ~/ 90;
+
       if (totalRotationAngle > 0) {
         final decoded = img.decodeImage(bytes);
         if (decoded != null) {
           final rotated = img.copyRotate(decoded, angle: totalRotationAngle);
           bytes = Uint8List.fromList(img.encodePng(rotated));
           logger.info(
-            'Rotated image for bin generation: ${rotated.width}x${rotated.height} (was: ${decoded.width}x${decoded.height}, total rotation: ${totalRotationAngle}°, isPortrait: $isPortrait, userRotation: ${_job.rotation}°)',
+            'Rotated image for bin generation: ${rotated.width}x${rotated.height} (was: ${decoded.width}x${decoded.height}, total rotation: $totalRotationAngle°, isPortrait: $isPortrait, userRotation: ${_job.rotation}°)',
           );
         } else {
           logger.warning('Failed to decode image for rotation; proceeding without rotation');
@@ -478,4 +486,37 @@ class ImageProcessingState extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Save the generated .pfr1 file to the gallery using the original image filename
+  Future<File?> savePfr1ToGallery() async {
+    if (_binaryData == null) {
+      logger.warning('No binary data available to save');
+      return null;
+    }
+    
+    if (_image == null) {
+      logger.warning('No original image available for naming');
+      return null;
+    }
+    
+    try {
+      final originalImageName = _image!.name; // Get filename from XFile
+      logger.info('Saving .pfr1 file to gallery with name: $originalImageName');
+      
+      final savedFile = await GalleryService.savePfr1File(
+        binaryData: _binaryData!,
+        originalImageName: originalImageName,
+      );
+      
+      if (savedFile != null) {
+        logger.info('Successfully saved .pfr1 file to gallery: ${savedFile.path}');
+      }
+      
+      return savedFile;
+    } catch (e, stackTrace) {
+      logger.severe('Failed to save .pfr1 file to gallery', e, stackTrace);
+      return null;
+    }
+  }
 }
+

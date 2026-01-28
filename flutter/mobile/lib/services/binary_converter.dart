@@ -12,6 +12,7 @@ class BinaryConverter {
     double saturation = 1.0,
     double contrast = 0.0,
     double brightness = 0.0,
+    int rotation = 0,
   }) {
     logger.fine(
       'Converting image to binary: displayType=$displayType, '
@@ -26,7 +27,7 @@ class BinaryConverter {
     logger.fine('Calling Rust FFI convert_with_processing with ${imageBytes.length} bytes');
 
     // Call native Rust library (rotation fixed to 0; rotation handled via BLE config)
-    final result = PhotoframeDithering.convertWithProcessing(imageBytes: imageBytes, processingType: processingType, rotation: 0);
+    final result = PhotoframeDithering.convertWithProcessing(imageBytes: imageBytes, processingType: processingType, rotation: rotation);
 
     stopwatch.stop();
 

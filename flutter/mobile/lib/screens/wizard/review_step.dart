@@ -49,9 +49,20 @@ class ReviewStep extends StatelessWidget {
       return;
     }
 
+    // Save .pfr1 file to gallery before uploading
+    final savedFile = await state.savePfr1ToGallery();
+    if (savedFile != null) {
+      _logger.info('File saved to gallery: ${savedFile.path}');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File salvato nella galleria: ${savedFile.path}')));
+      }
+    } else {
+      _logger.warning('Failed to save file to gallery, but continuing with upload');
+    }
+
     // Navigate to Bluetooth upload wizard
     final intermediateFile = state.intermediateFile;
-    if (intermediateFile != null) {
+    if (intermediateFile != null && context.mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => BleUploadScreen(image: intermediateFile, job: job),

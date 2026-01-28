@@ -46,8 +46,65 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
     return '';
   }
 
-  void _finishWizard() {
-    Navigator.of(context).pop();
+  Future<void> _finishWizard() async {
+    logger.info('Wizard: Finishing - generating and saving .pfr1 file');
+
+    // Show loading indicator
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Generazione file .pfr1...')],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final state = context.read<ImageProcessingState>();
+
+      // Generate binary data if not already generated
+      final binaryData = state.binaryData ?? await state.generateBinaryData();
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      if (binaryData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossibile generare il file .pfr1')));
+        return;
+      }
+
+      // Save to gallery
+      final savedFile = await state.savePfr1ToGallery();
+      if (savedFile != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File salvato nella galleria: ${savedFile.path}')));
+          logger.info('Wizard: File saved successfully to gallery');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Errore nel salvataggio del file')));
+        }
+        return;
+      }
+
+      // Close the wizard
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e, stackTrace) {
+      logger.severe('Wizard: Error finishing wizard', e, stackTrace);
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog if open
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore: $e')));
+      }
+    }
   }
 
   Future<void> _onShareBin(ImageProcessingState state) async {
