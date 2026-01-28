@@ -197,6 +197,7 @@ struct unified_config {
             board.refresh.low_battery_multiplier;
         doc["board_config"]["day_start_hour"] = board.day_start_hour;
         doc["board_config"]["day_end_hour"]   = board.day_end_hour;
+        doc["board_config"]["display_rotation"] = board.display_rotation;
 
         doc["google_drive_config"]["authentication"]["service_account_email"] =
             GoogleDrive.auth.service_account_email;

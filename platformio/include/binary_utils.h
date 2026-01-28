@@ -26,6 +26,7 @@
 #include <memory>
 #include <FS.h>
 #include "pfr1_config.h"
+#include "errors.h"
 
 namespace photo_frame {
 namespace binary_utils {
@@ -141,9 +142,9 @@ namespace binary_utils {
      * Sets is_validated flag on success.
      *
      * @param wrapper Wrapper to validate (buffer must be pre-populated)
-     * @return true if valid, false otherwise
+     * @return photo_frame_error - None if valid, appropriate error otherwise
      */
-    bool validatePFR1Wrapper(PFR1BinaryFile& wrapper);
+    photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper);
 
     /**
      * @brief Load and validate PFR1 file from filesystem into wrapper
@@ -154,9 +155,9 @@ namespace binary_utils {
      *
      * @param file Open file to read from
      * @param wrapper Wrapper to populate (must be pre-allocated with correct dimensions)
-     * @return true if valid, false otherwise
+     * @return photo_frame_error - None if valid, appropriate error otherwise
      */
-    bool validatePFR1File(fs::File& file,
+    photo_frame_error validatePFR1File(fs::File& file,
         PFR1BinaryFile& wrapper);
 
 } // namespace binary_utils

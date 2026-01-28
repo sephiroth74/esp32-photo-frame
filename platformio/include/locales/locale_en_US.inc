@@ -30,9 +30,24 @@ const char TXT_SSL_CERTIFICATE_LOAD_FAILED[] PROGMEM = "SSL certificate load fai
 const char TXT_RATE_LIMIT_TIMEOUT_EXCEEDED[] PROGMEM = "Rate limit timeout exceeded";
 const char TXT_WIFI_CREDENTIALS_NOT_FOUND[] PROGMEM = "WiFi credentials not found";
 const char TXT_WIFI_CONNECTION_FAILED[] PROGMEM = "WiFi connection failed";
+const char TXT_SD_CARD_INIT_FAILED[] PROGMEM = "SD card initialization failed";
+const char TXT_LITTLEFS_FILE_NOT_FOUND[] PROGMEM = "LittleFS file not found";
+const char TXT_LITTLEFS_FILE_READ_ERROR[] PROGMEM = "LittleFS file read error";
 
-// Google Drive configuration validation error messages
-const char TXT_CONFIG_MISSING_SECTION[] PROGMEM = "Missing configuration section";
+const char TXT_TOC_BUILD_FAILED[] PROGMEM = "TOC build failed";
+const char TXT_TOC_INVALID[] PROGMEM = "TOC is invalid or outdated";
+const char TXT_TOC_READ_FAILED[] PROGMEM = "Failed to read TOC";
+const char TXT_TOC_HEADER_INVALID[] PROGMEM = "TOC header is invalid";
+const char TXT_TOC_INDEX_OUT_OF_RANGE[] PROGMEM = "TOC index out of range";
+const char TXT_TOC_METADATA_MISSING[] PROGMEM = "TOC metadata file missing";
+const char TXT_TOC_DIRECTORY_MISMATCH[] PROGMEM = "TOC directory mismatch";
+const char TXT_TOC_WRITE_FAILED[] PROGMEM = "Failed to write TOC";
+const char TXT_TOC_CORRUPTED[] PROGMEM = "TOC file is corrupted";
+
+
+    // Google Drive configuration validation error messages
+    const char TXT_CONFIG_MISSING_SECTION[] PROGMEM
+    = "Missing configuration section";
 const char TXT_CONFIG_MISSING_FIELD[] PROGMEM = "Missing required field";
 const char TXT_CONFIG_INVALID_EMAIL[] PROGMEM = "Invalid email address format";
 const char TXT_CONFIG_INVALID_PEM_KEY[] PROGMEM = "Invalid PEM key format";

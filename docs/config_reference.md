@@ -273,7 +273,7 @@ The SD Card configuration allows using local SD card directory as an image sourc
 ```json
 {
   "board_config": {
-    "portrait_mode": false,
+    "display_rotation": 0,
     "day_start_hour": 6,
     "day_end_hour": 23,
     "refresh": {
@@ -289,7 +289,7 @@ The SD Card configuration allows using local SD card directory as an image sourc
 
 | Parameter        | Type    | Default | Description                                    |
 | ---------------- | ------- | ------- | ---------------------------------------------- |
-| `portrait_mode`  | boolean | false   | Enable portrait (vertical) display orientation |
+| `display_rotation`  | int | 0   | display orientation (0 - 90 - 180 or 270°) |
 | `day_start_hour` | integer | 6       | Hour when display updates start (0-23)         |
 | `day_end_hour`   | integer | 23      | Hour when display updates stop (0-23)          |
 

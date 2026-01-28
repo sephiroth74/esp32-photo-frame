@@ -30,6 +30,19 @@ const char TXT_SSL_CERTIFICATE_LOAD_FAILED[] PROGMEM = "Caricamento certificato 
 const char TXT_RATE_LIMIT_TIMEOUT_EXCEEDED[] PROGMEM = "Timeout superato";
 const char TXT_WIFI_CREDENTIALS_NOT_FOUND[] PROGMEM = "Credenziali WiFi non trovate";
 const char TXT_WIFI_CONNECTION_FAILED[] PROGMEM = "Connessione WiFi fallita";
+const char TXT_SD_CARD_INIT_FAILED[] PROGMEM = "Inizializzazione scheda SD fallita";
+const char TXT_LITTLEFS_FILE_NOT_FOUND[] PROGMEM = "File LittleFS non trovato";
+const char TXT_LITTLEFS_FILE_READ_ERROR[] PROGMEM = "Errore di lettura file LittleFS";
+
+const char TXT_TOC_BUILD_FAILED[] PROGMEM = "Costruzione TOC fallita";
+const char TXT_TOC_INVALID[] PROGMEM = "TOC non valido o obsoleto";
+const char TXT_TOC_READ_FAILED[] PROGMEM = "Lettura TOC fallita";
+const char TXT_TOC_HEADER_INVALID[] PROGMEM = "Header TOC non valido";
+const char TXT_TOC_INDEX_OUT_OF_RANGE[] PROGMEM = "Indice TOC fuori intervallo";
+const char TXT_TOC_METADATA_MISSING[] PROGMEM = "File metadati TOC mancante";
+const char TXT_TOC_DIRECTORY_MISMATCH[] PROGMEM = "Incoerenza nella directory TOC";
+const char TXT_TOC_WRITE_FAILED[] PROGMEM = "Scrittura TOC fallita";
+const char TXT_TOC_CORRUPTED[] PROGMEM = "File TOC corrotto";
 
 // Google Drive configuration validation error messages
 const char TXT_CONFIG_MISSING_SECTION[] PROGMEM = "Sezione di configurazione mancante";

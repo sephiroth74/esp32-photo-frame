@@ -508,11 +508,11 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif                                     // BT_BATTERY_CHECK_INTERVAL_MS
 
 #ifndef BT_DEFAULT_IMAGE_FILENAME
-#define BT_DEFAULT_IMAGE_FILENAME "/default.bin" // Default image filename in LittleFS
+#define BT_DEFAULT_IMAGE_FILENAME "/default.pfr1" // Default image filename in LittleFS
 #endif                                           // BT_DEFAULT_IMAGE_FILENAME
 
 #ifndef BT_CURRENT_IMAGE_FILENAME
-#define BT_CURRENT_IMAGE_FILENAME "/current.bin" // Current image filename in LittleFS
+#define BT_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
 #endif                                           // BT_CURRENT_IMAGE_FILENAME
 
 #endif // ENABLE_BT_IMAGE

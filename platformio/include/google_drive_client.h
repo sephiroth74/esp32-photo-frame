@@ -81,23 +81,23 @@ typedef struct {
 
 } GoogleDrive_access_token;
 
-/**
- * @brief Error codes for Google Drive operations.
- *
- * Enumeration of possible error conditions that can occur during
- * Google Drive API interactions.
- */
-enum class GoogleDrive_error {
-    None,              ///< No error occurred
-    JwtCreationFailed, ///< Failed to create JWT token for authentication
-    HttpPostFailed,    ///< HTTP POST request failed
-    JsonParseFailed,   ///< Failed to parse JSON response
-    TokenMissing,      ///< Access token is missing or invalid
-    FileOpenFailed,    ///< Failed to open local file for writing
-    HttpConnectFailed, ///< Failed to establish HTTP connection
-    HttpGetFailed,     ///< HTTP GET request failed
-    DownloadFailed     ///< File download operation failed
-};
+// /**
+//  * @brief Error codes for Google Drive operations.
+//  *
+//  * Enumeration of possible error conditions that can occur during
+//  * Google Drive API interactions.
+//  */
+// enum class GoogleDrive_error {
+//     None,              ///< No error occurred
+//     JwtCreationFailed, ///< Failed to create JWT token for authentication
+//     HttpPostFailed,    ///< HTTP POST request failed
+//     JsonParseFailed,   ///< Failed to parse JSON response
+//     TokenMissing,      ///< Access token is missing or invalid
+//     FileOpenFailed,    ///< Failed to open local file for writing
+//     HttpConnectFailed, ///< Failed to establish HTTP connection
+//     HttpGetFailed,     ///< HTTP GET request failed
+//     DownloadFailed     ///< File download operation failed
+// };
 
 /**
  * @brief HTTP response information for retry logic
@@ -202,7 +202,7 @@ class GoogleDriveClient {
      * for making authorized API calls. The implementation may involve refreshing
      * an expired token or acquiring a new one using stored credentials.
      *
-     * @return GoogleDrive_error indicating the result of the operation.
+     * @return photo_frame_error_t indicating the result of the operation.
      */
     photo_frame_error_t get_access_token();
 
@@ -229,7 +229,7 @@ class GoogleDriveClient {
      *
      * @param fileId The unique identifier of the file on Google Drive.
      * @param outFile The file object to write the downloaded content to.
-     * @return GoogleDrive_error indicating the result of the operation.
+     * @return photo_frame_error_t indicating the result of the operation.
      */
     photo_frame_error_t download_file(const String& fileId, fs::File* outFile);
 

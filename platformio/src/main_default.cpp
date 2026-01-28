@@ -37,6 +37,7 @@
 #include "google_drive.h"
 #include "google_drive_client.h"
 #include "io_utils.h"
+#include "binary_utils.h"
 #include "littlefs_manager.h"
 #include "preferences_helper.h"
 #include "renderer.h"
@@ -65,26 +66,26 @@ photo_frame::unified_config systemConfig; // Unified configuration system
 
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-                            bool is_reset,
-                            DateTime& now);
+    bool is_reset,
+    DateTime& now);
 
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
-                               fs::File& file,
-                               String& original_filename,
-                               uint32_t& image_index,
-                               uint32_t& total_files,
-                               const photo_frame::battery_info_t& battery_info,
-                               bool& file_ready);
+    fs::File& file,
+    String& original_filename,
+    uint32_t& image_index,
+    uint32_t& total_files,
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready);
 
 photo_frame::photo_frame_error_t
 handle_sd_card_operations(bool is_reset,
-                          fs::File& file,
-                          String& original_filename,
-                          uint32_t& image_index,
-                          uint32_t& total_files,
-                          const photo_frame::battery_info_t& battery_info,
-                          bool& file_ready);
+    fs::File& file,
+    String& original_filename,
+    uint32_t& image_index,
+    uint32_t& total_files,
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready);
 
 // ============================================================================
 // MODE-SPECIFIC IMPLEMENTATIONS
@@ -92,8 +93,9 @@ handle_sd_card_operations(bool is_reset,
 
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-                            bool is_reset,
-                            DateTime& now) {
+    bool is_reset,
+    DateTime& now)
+{
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
     log_i("--------------------------------------");
@@ -110,14 +112,13 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
     if (battery_info.is_low()) {
 #ifdef RGB_STATUS_ENABLED
         rgbStatus.setBrightness(32); // Reduce brightness to 50% of normal for low battery
-#endif                               // RGB_STATUS_ENABLED
+#endif // RGB_STATUS_ENABLED
     }
 
     // Load unified configuration from SD card
     if (error == photo_frame::error_type::None) {
         log_i("Loading unified configuration...");
-        error =
-            photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
+        error = photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
 
         if (error != photo_frame::error_type::None) {
             log_w("Failed to load unified configuration: %d", error.code);
@@ -167,7 +168,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
                     }
                 } else {
                     log_i("Successfully fetched time from NTP: %s",
-                          now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+                        now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
                 }
             }
         } else {
@@ -195,16 +196,17 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 
 photo_frame::photo_frame_error_t
 handle_google_drive_operations(bool is_reset,
-                               fs::File& file,
-                               String& original_filename,
-                               uint32_t& image_index,
-                               uint32_t& total_files,
-                               const photo_frame::battery_info_t& battery_info,
-                               bool& file_ready) {
-    photo_frame::photo_frame_error_t error    = photo_frame::error_type::None;
+    fs::File& file,
+    String& original_filename,
+    uint32_t& image_index,
+    uint32_t& total_files,
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready)
+{
+    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
     photo_frame::photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
-    file_ready                                = false; // Initialize to false
-    bool write_toc                            = is_reset;
+    file_ready = false; // Initialize to false
+    bool write_toc = is_reset;
 
     log_i("--------------------------------------");
     log_i(" - Find the next image from the SD...");
@@ -237,8 +239,8 @@ handle_google_drive_operations(bool is_reset,
 
             if (!shouldCleanup) {
                 // Check if we need to run cleanup based on time interval
-                auto& prefs        = photo_frame::PreferencesHelper::getInstance();
-                time_t now         = time(NULL);
+                auto& prefs = photo_frame::PreferencesHelper::getInstance();
+                time_t now = time(NULL);
                 time_t lastCleanup = prefs.getLastCleanup();
 
                 if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
@@ -246,8 +248,8 @@ handle_google_drive_operations(bool is_reset,
                     log_i("Time since last cleanup: %ld seconds", now - lastCleanup);
                 } else {
                     log_i("Skipping cleanup, only %ld seconds since last cleanup (need %d seconds)",
-                          now - lastCleanup,
-                          CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
+                        now - lastCleanup,
+                        CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
                 }
             }
 
@@ -271,7 +273,7 @@ handle_google_drive_operations(bool is_reset,
             bool batteryConservationMode = battery_info.is_critical();
             if (batteryConservationMode) {
                 log_w("Battery critical (%d%%) - using cached TOC to preserve power",
-                      battery_info.percent);
+                    battery_info.percent);
             }
 
             if (error == photo_frame::error_type::None) {
@@ -297,9 +299,9 @@ handle_google_drive_operations(bool is_reset,
                 selectedFile = drive.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
                 if (tocError != photo_frame::error_type::None) {
                     log_w("Test file not found in TOC, falling back to random selection. Error: %d",
-                          tocError.code);
+                        tocError.code);
                     // Fallback to random selection
-                    image_index  = random(0, drive.get_toc_file_count());
+                    image_index = random(0, drive.get_toc_file_count());
                     selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
                 }
 #else
@@ -318,8 +320,7 @@ handle_google_drive_operations(bool is_reset,
 
                     // Always download to SD card first for better caching
                     String localFilePath = drive.get_cached_file_path(selectedFile.name);
-                    if (sdCard.fileExists(localFilePath.c_str()) &&
-                        sdCard.getFileSize(localFilePath.c_str()) > 0) {
+                    if (sdCard.fileExists(localFilePath.c_str()) && sdCard.getFileSize(localFilePath.c_str()) > 0) {
                         log_i("File already exists in SD card, using cached version");
                         file = sdCard.open(localFilePath.c_str(), FILE_READ);
                         drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
@@ -328,7 +329,7 @@ handle_google_drive_operations(bool is_reset,
                         if (batteryConservationMode) {
                             log_w("Skipping file download due to critical battery level (%d%%) - "
                                   "will use cached files if available",
-                                  battery_info.percent);
+                                battery_info.percent);
                             error = photo_frame::error_type::BatteryLevelCritical;
                         } else {
                             // Download the selected file to SD card
@@ -339,12 +340,12 @@ handle_google_drive_operations(bool is_reset,
                     // Validate and load image file directly to PSRAM buffer
                     if (error == photo_frame::error_type::None && file) {
                         const char* filename = file.name();
-                        String filePath      = String(filename);
-                        original_filename    = String(filename);
+                        String filePath = String(filename);
+                        original_filename = String(filename);
 
                         log_i("Validating downloaded image file...");
-                        auto validationError = photo_frame::io_utils::validate_image_file(
-                            file, filename, DISP_WIDTH, DISP_HEIGHT);
+                        photo_frame::binary_utils::PFR1BinaryFile wrapper(DISP_WIDTH, DISP_HEIGHT);
+                        auto validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
 
                         if (validationError != photo_frame::error_type::None) {
                             log_e("Image validation FAILED: %s", validationError.message);
@@ -386,14 +387,14 @@ handle_google_drive_operations(bool is_reset,
                             auto& display = photo_frame::DisplayManager::getInstance();
                             log_d("Buffer check - First 8 bytes: %02X %02X %02X %02X %02X %02X "
                                   "%02X %02X",
-                                  display.getBuffer()[0],
-                                  display.getBuffer()[1],
-                                  display.getBuffer()[2],
-                                  display.getBuffer()[3],
-                                  display.getBuffer()[4],
-                                  display.getBuffer()[5],
-                                  display.getBuffer()[6],
-                                  display.getBuffer()[7]);
+                                display.getBuffer()[0],
+                                display.getBuffer()[1],
+                                display.getBuffer()[2],
+                                display.getBuffer()[3],
+                                display.getBuffer()[4],
+                                display.getBuffer()[5],
+                                display.getBuffer()[6],
+                                display.getBuffer()[7]);
 
                             if (loadError != 0) {
                                 log_e("Failed to load image to buffer, error code: %d", loadError);
@@ -402,7 +403,7 @@ handle_google_drive_operations(bool is_reset,
                                 log_i("Binary image loaded to PSRAM buffer");
                                 // Mark as successfully processed
                                 fileProcessedSuccessfully = true;
-                                file_ready                = true; // Binary image loaded to buffer
+                                file_ready = true; // Binary image loaded to buffer
                             }
                             sdCard.end();
                         }
@@ -453,14 +454,15 @@ handle_google_drive_operations(bool is_reset,
 
 photo_frame::photo_frame_error_t
 handle_sd_card_operations(bool is_reset,
-                          fs::File& file,
-                          String& original_filename,
-                          uint32_t& image_index,
-                          uint32_t& total_files,
-                          const photo_frame::battery_info_t& battery_info,
-                          bool& file_ready) {
+    fs::File& file,
+    String& original_filename,
+    uint32_t& image_index,
+    uint32_t& total_files,
+    const photo_frame::battery_info_t& battery_info,
+    bool& file_ready)
+{
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
-    file_ready                             = false;
+    file_ready = false;
 
     log_i("--------------------------------------");
     log_i(" - SD Card Only Mode - Local Images");
@@ -515,8 +517,8 @@ handle_sd_card_operations(bool is_reset,
 
     // Count total files in directory (uses TOC cache if enabled)
     total_files = systemConfig.sd_card.use_toc_cache
-                      ? sdCard.countFilesCached(images_dir, ".bin", true)
-                      : sdCard.countFilesInDirectory(images_dir, ".bin");
+        ? sdCard.countFilesCached(images_dir, ".bin", true)
+        : sdCard.countFilesInDirectory(images_dir, ".bin");
     if (total_files == 0) {
         log_e("No .bin files found in directory: %s", images_dir);
         sdCard.end();
@@ -531,8 +533,8 @@ handle_sd_card_operations(bool is_reset,
 
     // Get the file path at the selected index (uses TOC cache if enabled)
     String file_path = systemConfig.sd_card.use_toc_cache
-                           ? sdCard.getFileAtIndexCached(images_dir, image_index, ".bin", true)
-                           : sdCard.getFileAtIndex(images_dir, image_index, ".bin");
+        ? sdCard.getFileAtIndexCached(images_dir, image_index, ".bin", true)
+        : sdCard.getFileAtIndex(images_dir, image_index, ".bin");
     if (file_path.isEmpty()) {
         log_e("Failed to get file at index %d", image_index);
         sdCard.end();
@@ -559,13 +561,13 @@ handle_sd_card_operations(bool is_reset,
 
     // Validate the binary file
     log_i("Validating image file dimensions and size...");
-    auto validationError = photo_frame::io_utils::validate_image_file(
-        file, original_filename.c_str(), DISP_WIDTH, DISP_HEIGHT);
+    photo_frame::binary_utils::PFR1BinaryFile wrapper(DISP_WIDTH, DISP_HEIGHT);
+    auto validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
 
     if (validationError != photo_frame::error_type::None) {
         log_e("Image validation failed for: %s - %s",
-              original_filename.c_str(),
-              validationError.message);
+            original_filename.c_str(),
+            validationError.message);
         file.close();
         sdCard.end();
         return validationError;
@@ -575,12 +577,11 @@ handle_sd_card_operations(bool is_reset,
 
     // Load binary image to PSRAM buffer
     log_i("Loading binary image to PSRAM buffer...");
-    uint16_t loadError =
-        photo_frame::loadImageToBuffer(photo_frame::DisplayManager::getInstance().getBuffer(),
-                                       file,
-                                       original_filename.c_str(),
-                                       DISP_WIDTH,
-                                       DISP_HEIGHT);
+    uint16_t loadError = photo_frame::loadImageToBuffer(photo_frame::DisplayManager::getInstance().getBuffer(),
+        file,
+        original_filename.c_str(),
+        DISP_WIDTH,
+        DISP_HEIGHT);
 
     file.close();
 
@@ -647,7 +648,8 @@ handle_sd_card_operations(bool is_reset,
 // SETUP & LOOP
 // ============================================================================
 
-void default_main_setup() {
+void default_main_setup()
+{
     Serial.begin(115200);
     delay(5000);
 
@@ -694,7 +696,7 @@ void default_main_setup() {
 
     // If config loading failed, try to get from preferences
     if (!systemConfig.is_valid()) {
-        auto& prefs      = photo_frame::PreferencesHelper::getInstance();
+        auto& prefs = photo_frame::PreferencesHelper::getInstance();
         display_rotation = prefs.getDisplayRotation(); // Default to 0 (landscape) if not set
         log_w("Config invalid, using rotation from preferences: %u", display_rotation);
     }
@@ -713,7 +715,7 @@ void default_main_setup() {
 
         const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
         photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-                                                   emergency_sleep_duration);
+            emergency_sleep_duration);
         return;
     }
 
@@ -721,7 +723,7 @@ void default_main_setup() {
     fs::File file;
     uint32_t image_index = 0, total_files = 0;
     String original_filename; // Store original filename for format detection
-    bool file_ready = false;  // Track if file is ready (buffer loaded or file open)
+    bool file_ready = false; // Track if file is ready (buffer loaded or file open)
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
         // Choose image source based on configuration
@@ -729,22 +731,22 @@ void default_main_setup() {
             log_i("Using Google Drive as image source");
             RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
             error = handle_google_drive_operations(is_reset,
-                                                   file,
-                                                   original_filename,
-                                                   image_index,
-                                                   total_files,
-                                                   battery_info,
-                                                   file_ready);
+                file,
+                original_filename,
+                image_index,
+                total_files,
+                battery_info,
+                file_ready);
         } else if (systemConfig.sd_card.enabled) {
             log_i("Using SD Card as image source (Google Drive disabled)");
             RGB_SET_STATE(SD_READING); // Show SD Card operations
             error = handle_sd_card_operations(is_reset,
-                                              file,
-                                              original_filename,
-                                              image_index,
-                                              total_files,
-                                              battery_info,
-                                              file_ready);
+                file,
+                original_filename,
+                image_index,
+                total_files,
+                battery_info,
+                file_ready);
         } else {
             // This should not happen as config validation ensures at least one source is enabled
             log_e("No image source enabled!");
@@ -789,7 +791,7 @@ void default_main_setup() {
 
         const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
         photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-                                                   emergency_sleep_duration);
+            emergency_sleep_duration);
         return;
     }
 
@@ -829,14 +831,14 @@ void default_main_setup() {
         if (error == photo_frame::error_type::None && file_ready) {
             log_i("Rendering validated binary image from buffer...");
             error = render_image(file,
-                                 original_filename.c_str(),
-                                 error,
-                                 now,
-                                 refresh_delay,
-                                 image_index,
-                                 total_files,
-                                 drive,
-                                 battery_info);
+                original_filename.c_str(),
+                error,
+                now,
+                refresh_delay,
+                image_index,
+                total_files,
+                drive,
+                battery_info);
         }
 
         // Ensure file is closed (should already be closed after buffer load)
@@ -847,11 +849,12 @@ void default_main_setup() {
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
-    delay(2500);               // Allow sleep preparation animation to complete
+    delay(2500); // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
 }
 
-void default_main_loop() {
+void default_main_loop()
+{
     delay(1000); // Just to avoid watchdog reset
 }
 

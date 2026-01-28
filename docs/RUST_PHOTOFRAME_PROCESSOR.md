@@ -63,134 +63,220 @@ To enable YOLO people detection:
 
 2. **Build the project**:
    ```bash
-   # Standard build (AI features enabled by default)
+   # Standard build (without AI features)
    cargo build --release
    
-   # Build without AI features
-   cargo build --release --no-default-features
+   # Build with AI people detection features (YOLO11)
+   cargo build --release --features ai
+   
+   # Build with all features
+   cargo build --release --all-features
    ```
 
 3. **Install locally** (optional):
    ```bash
    cargo install --path .
+   cargo install --path . --features ai  # With AI support
    ```
 
 ### YOLO11 Model Setup (for AI features)
 
-1. **Download YOLO11 model**:
-   The YOLO11 nano model (`yolo11n.onnx`) is now integrated directly into the Rust binary. AI detection works out of the box with the `--detect-people` flag, no Python required!
+The YOLO11 nano model (`yolo11n.onnx`) is embedded directly into the Rust binary when you build with `--features ai`. No additional setup is required!
 
-2. **Verify installation**:
-   ```bash
-   ./target/release/photoframe-processor --help
-   ```
+**Verify installation**:
+```bash
+./target/release/photoframe-processor --help | grep detect-people
+```
 
 ## 🎯 Usage
 
 ### Basic Usage
 
 ```bash
-# Process all images in a directory (default: 800x480, both BMP and binary)
-photoframe-processor -i ~/Photos -o ~/processed --auto
+# Process all images in a directory (default: 800x480 landscape, BW, PFR1 format)
+photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format pfr1
 
 # Process a single image file
 photoframe-processor -i ~/Photos/image.jpg -o ~/processed
 
-# Custom size and output format
-photoframe-processor -i ~/Photos -o ~/processed -s 1024x768 --output-format bin
-```
+# Black & white processing with binary output
+photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format pfr1
 
-### Advanced Options
-
-```bash
-# 6-color processing with custom font
-photoframe-processor -i ~/Photos -o ~/processed \
-  -t 6c \
-  --font "Arial-Bold" \
-  --pointsize 32 \
-  --auto --verbose
+# 6-color processing (hardware 800x480)
+photoframe-processor -i ~/Photos -o ~/processed -t 6c --output-format pfr1
 
 # Multiple input sources
 photoframe-processor \
   -i ~/Photos/2023 \
   -i ~/Photos/2024 \
   -i ~/single-image.jpg \
-  -o ~/processed \
-  --jobs 8
+  -o ~/processed
 ```
 
-### AI-Powered People Detection (YOLO11)
+### Advanced Options
 
 ```bash
-# Enable YOLO11 people detection (built-in, no Python required!)
+# 6-color processing with custom font and annotations
+photoframe-processor -i ~/Photos -o ~/processed \
+  -t 6c \
+  --font "Arial" \
+  --pointsize 28 \
+  --annotate \
+  --verbose
+
+# Multiple output formats (creates subdirectories: bmp/, pfr1/, jpg/)
+photoframe-processor -i ~/Photos -o ~/processed \
+  --output-format bmp,pfr1,jpg \
+  -j 8
+
+# Brightness and contrast adjustment
+photoframe-processor -i ~/Photos -o ~/processed \
+  --brightness 20 \
+  --contrast 30 \
+  --saturation-boost 1.2
+
+# Dithering customization
+photoframe-processor -i ~/Photos -o ~/processed \
+  --dithering floyd-steinberg \
+  --dither-strength 1.5
+
+# Parallel processing with custom job count
+photoframe-processor -i ~/Photos -o ~/processed -j 4 --verbose
+
+# Dry run: simulate processing without creating files
+photoframe-processor -i ~/Photos -o ~/processed --dry-run --verbose
+```
+
+### AI-Powered People Detection (YOLO11 - Optional)
+
+```bash
+# Enable YOLO11 people detection (requires --features ai at build time)
 photoframe-processor -i ~/Photos -o ~/processed \
   --detect-people \
-  --auto --verbose
+  --verbose
 
-# People detection with detailed statistics and multiple formats
+# People detection with custom confidence threshold
 photoframe-processor -i ~/family-photos -o ~/processed \
   --detect-people \
-  --output-format bmp,bin,png \
-  --verbose  # Shows detection statistics
+  --confidence 0.7 \
+  --verbose
 
-# Adjust confidence threshold for detection
+# Debug mode: visualize detection boxes and crop areas
 photoframe-processor -i ~/Photos -o ~/processed \
   --detect-people \
-  --confidence 0.7 \
-  --auto
+  --debug \
+  --verbose
+
+# Multiple output formats with people detection
+photoframe-processor -i ~/Photos -o ~/processed \
+  --detect-people \
+  --output-format bmp,pfr1,jpg \
+  --verbose
 ```
 
 ### Utility Commands
 
 ```bash
-# Find original filename from hash (for debugging processed images)
-photoframe-processor --find-hash a1b2c3d4
+# Validate a .pfr1 binary file
+photoframe-processor --validate ~/output/image.pfr1
 
-# Decode combined portrait filename to show original filenames
-photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.pfr1"
+# Generate processing report table
+photoframe-processor -i ~/Photos -o ~/processed --report --verbose
 
-# Dry run: simulate processing without creating files
-photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose
+# Report in different formats
+photoframe-processor -i ~/Photos -o ~/processed --report --report-output-format json
+photoframe-processor -i ~/Photos -o ~/processed --report --report-output-format plain
+photoframe-processor -i ~/Photos -o ~/processed --report --report-output-format rich
 
-# Debug mode: visualize detection boxes and crop areas
-photoframe-processor -i ~/Photos -o ~/processed --detect-people \
-  --debug --verbose
+# Load configuration from JSON file
+photoframe-processor -i ~/Photos -o ~/processed --config-file config.pfconfig
+
+# JSON progress output (for GUI integration)
+photoframe-processor -i ~/Photos -o ~/processed --json-progress
+
+# Auto color correction before processing
+photoframe-processor -i ~/Photos -o ~/processed --auto-color --verbose
+
+# Display dimensions and orientation
+photoframe-processor -i ~/Photos -o ~/processed \
+  --orientation landscape \
+  --verbose
 ```
 
 ## ⚙️ Configuration Options
 
-### Processing Types
-- `bw` - Black & white processing (default)
-- `6c` - 6-color processing for color e-paper displays
+### Processing & Display Options
+- `-i, --input <DIR|FILE>` - Input directory or image file (can be specified multiple times)
+- `-o, --output <DIR>` - Output directory for processed images (default: ".")
+- `-t, --type <TYPE>` - Display type: `bw` (black & white) or `6c` (6-color) (default: "bw")
+- `--orientation <ORIENTATION>` - Display mounting orientation:
+  - `0` or `landscape` - Display mounted horizontally (800×480 visual)
+  - `1` or `portrait` - Display mounted vertically (480×800 visual)
+  - `2` or `landscape-reverse` - Upside-down horizontal
+  - `3` or `portrait-reverse` - Upside-down vertical
+  - (default: "landscape")
 
-### Output Formats
-- `bmp` - Generate only BMP files
-- `bin` - Generate only ESP32 binary files
-- `jpg` - Generate only JPEG files
-- `png` - Generate only PNG files
-- Multiple formats can be specified with comma separation (e.g., `bmp,bin,jpg`)
+### Output Format Options
+- `--output-format <FORMAT>` - Output formats: comma-separated list of `bmp`, `pfr1`, `jpg`, `png`
+  - Examples: `--output-format pfr1`, `--output-format bmp,pfr1,jpg`
+  - (default: "pfr1")
 
-### Font Options
-- `--font` - Font family name (e.g., "Arial", "Helvetica-Bold")
-- `--pointsize` - Font size in pixels (default: 24)
-- `--annotate_background` - Hex color with alpha (e.g., "#00000040")
-
-### AI Detection Options
-- `--detect-people` - Enable YOLO11 people detection (built-in)
-- `--confidence` - Confidence threshold for detection (0.0-1.0, default: 0.6)
-
-### Utility Options
-- `--find-hash` - Find original filename from an 8-character hash
-- `--find-original` - Decode combined portrait filename to show original filenames
+### File Processing Options
+- `--extensions <EXTENSIONS>` - File extensions to process (comma-separated, default: "jpg,jpeg,png,heic,webp,tiff")
+- `--validate <FILE>` - Validate a .pfr1 binary file and exit
+- `--config-file <FILE>` - Load configuration from JSON file (compatible with Flutter app .pfconfig files)
 - `--dry-run` - Simulate processing without creating files
-- `--debug` - Enable debug mode with visualization of detection boxes
-- `--annotate` - Enable filename annotations on processed images
-- `--auto-color` - Enable automatic color correction before processing
+
+### Image Adjustment Options
+- `--brightness <ADJUSTMENT>` - Brightness adjustment (-100 to 100, default: 0)
+  - Positive = lighter, negative = darker
+- `--contrast <ADJUSTMENT>` - Contrast adjustment (-100 to 100, default: 0)
+  - Positive = increase, negative = decrease
+- `--saturation-boost <MULTIPLIER>` - Saturation boost (0.5-2.0, default: 1.1)
+  - >1.0 = more vibrant, <1.0 = less vibrant
+- `--auto-color` - Enable automatic color correction before processing (uses ImageMagick if available)
+
+### Dithering Options
+- `--dithering <METHOD>` - Dithering algorithm (default: "floyd-steinberg")
+  - `floyd-steinberg` - Best gradients
+  - `atkinson` - Bright, high contrast
+  - `stucki` - Diffused dithering
+  - `jarvis` - Good for photos
+  - `ordered` - Good for text
+- `--dither-strength <STRENGTH>` - Dithering strength multiplier (0.0-2.0, default: 1.0)
+  - 1.0 = normal, <1.0 = subtle, >1.0 = pronounced
+- `--auto-optimize` - Automatically select optimal dithering, strength, and contrast for each image
+
+### Text Annotation Options
+- `--annotate` - Enable filename annotations on processed images (default: false)
+- `--font <FONT>` - Font specification for annotations (default: "Arial")
+  - Can be font name ("Arial"), filename ("Arial.ttf"), or full path
+- `--pointsize <SIZE>` - Font size for annotations (default: 22)
+- `--annotate_background <COLOR>` - Background color for annotations (hex with alpha, default: "#00000040")
+
+### Portrait Image Combination Options
+- `--divider-width <WIDTH>` - Width of divider line between combined portrait images (default: 3)
+- `--divider-color <COLOR>` - Color of divider line (hex RGB, default: "#FFFFFF" for white)
+
+### AI Detection Options (requires `--features ai` at build time)
+- `--detect-people` - Enable YOLO11 people detection for smart cropping
+- `--confidence <THRESHOLD>` - Confidence threshold for people detection (0.0-1.0, default: 0.6)
+- `--debug` - Enable debug mode: visualize detection boxes and crop areas
+
+### Output & Reporting Options
+- `--report` - Display formatted table with processing parameters
+- `--report-output-format <FORMAT>` - Report output format (default: "rich")
+  - `plain` - Simple text
+  - `rich` - Formatted table
+  - `json` - Structured data
+- `--json-progress` - Output progress as JSON lines (for GUI integration, suppresses all other output)
 
 ### Performance Options
-- `--jobs` - Number of parallel jobs (0 = auto-detect cores)
-- `--auto` - Enable automatic orientation handling
-- `--verbose` - Show detailed processing information
+- `-j, --jobs <N>` - Number of parallel processing jobs (0 = auto-detect CPU cores, default: 0)
+
+### Verbosity Options
+- `-v, --verbose` - Enable verbose output with detailed progress information
+- `--debug` - Enable debug mode with visualization (for AI detection)
 
 ## 📊 Performance Characteristics
 
@@ -426,9 +512,7 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 ## 🔗 Related Documentation
 
 - [Main Project README](../README.md)
-- [Technical Specifications](./tech_specs.md)
-- [Image Processing Pipeline](./image_processing.md)
-- [Binary Format Documentation](./bin_2_image.md)
+- [Binary Format Documentation](./BINARY_FILE_FORMAT.md)
 
 ## 📈 Roadmap
 
@@ -439,12 +523,6 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 - [x] Portrait image pairing and combination
 - [x] Multi-format output support (BMP, binary, JPG, PNG)
 - [x] Utility commands for filename management and debugging
-
-### Near-term Goals
-- [ ] Custom color palette support
-- [ ] Batch processing resume functionality
-- [ ] Enhanced error recovery and reporting
-- [ ] Performance optimization for large image batches
 
 ### Future Enhancements
 - [ ] GPU acceleration support

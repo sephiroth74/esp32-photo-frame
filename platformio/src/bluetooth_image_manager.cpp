@@ -247,9 +247,10 @@ class BTImageDataCallbacks : public BLECharacteristicCallbacks {
             log_d("[BLE] Total bytes received: %u", g_bt_manager->bytes_received_);
 
             // Validate the wrapper (header + payload CRC)
-            if (!photo_frame::binary_utils::validatePFR1Wrapper(*g_bt_manager->image_file_)) {
+            auto error = photo_frame::binary_utils::validatePFR1Wrapper(*g_bt_manager->image_file_);
+            if (error != photo_frame::error_type::None) {
                 log_e("[BLE] PFR1 wrapper validation failed");
-                g_bt_manager->last_error_ = error_type::BtInvalidConfig;
+                g_bt_manager->last_error_ = error;
                 g_bt_manager->transfer_complete_ = false;
                 return;
             }

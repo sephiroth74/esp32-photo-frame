@@ -134,16 +134,16 @@ Compiled features: {}
 
 Example Usage:
     # Basic black & white processing (800x480 landscape by default)
-    photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format bin
+    photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format pfr1
 
     # Process single image file
-    photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed -t bw --output-format bin
+    photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed -t bw --output-format pfr1
 
     # 6-color processing with only binary output (hardware 800x480)
-    photoframe-processor -i ~/Photos -o ~/processed -t 6c --output-format bin --verbose
+    photoframe-processor -i ~/Photos -o ~/processed -t 6c --output-format pfr1 --verbose
 
-    # Multiple output formats (creates subdirectories: bmp/, bin/, jpg/)
-    photoframe-processor -i ~/Photos -o ~/processed --output-format bmp,bin,jpg
+    # Multiple output formats (creates subdirectories: bmp/, pfr1/, jpg/)
+    photoframe-processor -i ~/Photos -o ~/processed --output-format bmp,pfr1,jpg
 
     # PNG output format only
     photoframe-processor -i ~/Photos -o ~/processed --output-format png

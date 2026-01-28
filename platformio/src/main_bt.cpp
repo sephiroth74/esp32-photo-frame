@@ -63,16 +63,16 @@ photo_frame::photo_frame_error_t load_littlefs_file(const char* filename, photo_
     // Try to open file
     File file = littleFs.open_file(filename, "r");
     if (!file) {
-        return photo_frame::error_type::FileNotFound;
+        return photo_frame::error_type::LittleFsFileNotFound;
     }
 
     // Load and validate file into wrapper
-    bool valid = photo_frame::binary_utils::validatePFR1File(file, wrapper);
+    auto validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
     file.close();
 
-    if (!valid || !wrapper.isValidated()) {
-        log_e("[BT] %s PFR1 validation failed", filename);
-        return photo_frame::error_type::BtImageValidationFailed;
+    if (validationError != photo_frame::error_type::None) {
+        log_e("[BT] %s PFR1 validation failed: %s", filename, validationError.message);
+        return validationError;
     }
 
     // Copy payload into display buffer

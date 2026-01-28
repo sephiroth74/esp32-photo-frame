@@ -87,11 +87,15 @@ extern const char TXT_TOC_HEADER_INVALID[];
 extern const char TXT_TOC_INDEX_OUT_OF_RANGE[];
 extern const char TXT_TOC_METADATA_MISSING[];
 extern const char TXT_TOC_DIRECTORY_MISMATCH[];
+extern const char TXT_TOC_WRITE_FAILED[];
+extern const char TXT_TOC_CORRUPTED[];
 extern const char TXT_SD_CARD_SIZE_INVALID[];
 extern const char TXT_SD_CARD_INIT_FAILED[];
 extern const char TXT_SD_CARD_VERSION_UNSUPPORTED[];
 extern const char TXT_SD_CARD_FILESYSTEM_UNSUPPORTED[];
 // LittleFS Specific Errors (110-119)
+extern const char TXT_LITTLEFS_FILE_NOT_FOUND[];
+extern const char TXT_LITTLEFS_FILE_READ_ERROR[];
 extern const char TXT_LITTLEFS_INIT_FAILED[];
 extern const char TXT_LITTLEFS_FILE_CREATE_FAILED[];
 extern const char TXT_LITTLEFS_FILE_OPEN_FAILED[];

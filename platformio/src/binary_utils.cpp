@@ -2,6 +2,7 @@
 // (see header for details)
 
 #include "binary_utils.h"
+#include "errors.h"
 
 namespace photo_frame {
 namespace binary_utils {
@@ -128,27 +129,27 @@ namespace binary_utils {
         log_d("[PFR1BinaryFile] Allocated %u bytes on PSRAM (%ux%u)", buffer_size_, width, height);
     }
 
-    bool validatePFR1Wrapper(PFR1BinaryFile& wrapper)
+    photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper)
     {
         if (!wrapper.getBuffer() || wrapper.getBufferSize() == 0) {
             log_e("[PFR1] Wrapper has no buffer allocated");
-            return false;
+            return photo_frame::error_type::ImageMemoryAllocationFailed;
         }
 
         // Parse and validate header
         if (!parsePFR1Header(wrapper.getBuffer(), wrapper.getBufferSize(), wrapper.header)) {
             log_e("[PFR1] Header parsing/validation failed");
-            return false;
+            return photo_frame::error_type::ImageFileHeaderInvalid;
         }
 
         // Check dimensions match those used during wrapper construction
         if (wrapper.header.width != wrapper.getWidth()) {
             log_e("[PFR1] Width mismatch: got %u, expected %u", wrapper.header.width, wrapper.getWidth());
-            return false;
+            return photo_frame::error_type::ImageDimensionsInvalid;
         }
         if (wrapper.header.height != wrapper.getHeight()) {
             log_e("[PFR1] Height mismatch: got %u, expected %u", wrapper.header.height, wrapper.getHeight());
-            return false;
+            return photo_frame::error_type::ImageDimensionsInvalid;
         }
 
         // Validate payload CRC
@@ -158,37 +159,41 @@ namespace binary_utils {
 
         if (!validatePFR1PayloadCRC(payload, payload_len, payload_crc)) {
             log_e("[PFR1] Payload validation failed");
-            return false;
+#ifdef ENABLE_BT_IMAGE
+            return photo_frame::error_type::BtImageValidationFailed;
+#else
+            return photo_frame::error_type::ImageFileCorrupted;
+#endif
         }
 
         wrapper.markValidated();
         log_i("[PFR1] Wrapper validated successfully");
-        return true;
+        return photo_frame::error_type::None;
     }
 
-    bool validatePFR1File(fs::File& file, PFR1BinaryFile& wrapper)
+    photo_frame_error validatePFR1File(fs::File& file, PFR1BinaryFile& wrapper)
     {
         if (!file) {
             log_e("[PFR1] Invalid file object");
-            return false;
+            return photo_frame::error_type::SdCardFileOpenFailed;
         }
 
         // Read entire file into wrapper buffer
         size_t to_read = file.size();
         if (to_read == 0) {
             log_e("[PFR1] File is empty");
-            return false;
+            return photo_frame::error_type::ImageFileEmpty;
         }
 
         if (to_read > wrapper.getBufferSize()) {
             log_e("[PFR1] File too large: %u bytes (buffer: %u bytes)", to_read, wrapper.getBufferSize());
-            return false;
+            return photo_frame::error_type::ImageFileTooLarge;
         }
 
         size_t bytes_read = file.read(wrapper.getBuffer(), to_read);
         if (bytes_read != to_read) {
             log_e("[PFR1] Read error: got %u bytes, expected %u", bytes_read, to_read);
-            return false;
+            return photo_frame::error_type::ImageFileReadFailed;
         }
 
         // Validate wrapper (which includes payload CRC check)
