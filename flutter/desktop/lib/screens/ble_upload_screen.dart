@@ -13,6 +13,7 @@ class BleUploadScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BleUploadState>(
       builder: (context, ble, _) {
+        final theme = AppKitTheme.of(context);
         final fileLabel = ble.binPath != null ? ble.binPath!.split('/').last : 'No file selected';
         final deviceLabel = ble.deviceInfo?.name ?? ble.connected?.platformName ?? 'No device selected';
 
@@ -48,9 +49,9 @@ class BleUploadScreen extends StatelessWidget {
                                               context: context,
                                               barrierDismissible: true,
                                               builder: (context) => AppKitDialog(
-                                                title: const Text('Nessun device trovato'),
+                                                title: const Text('No Devices Found'),
                                                 message: (context) => const Text(
-                                                  'Non sono stati rilevati frame Bluetooth. Assicurati che il frame sia acceso e in pairing, poi riprova.',
+                                                  'No compatible devices were found during the scan. Please ensure your device is powered on and in range, then try again.',
                                                 ),
                                                 primaryButton: AppKitButton(
                                                   size: AppKitControlSize.regular,
@@ -69,7 +70,7 @@ class BleUploadScreen extends StatelessWidget {
                                               context: context,
                                               barrierDismissible: true,
                                               builder: (context) => AppKitDialog(
-                                                title: const Text('Errore Bluetooth'),
+                                                title: const Text('Bluetooth Scan Error'),
                                                 message: (context) => SelectableText(e.toString(), style: const TextStyle(fontSize: 13)),
                                                 primaryButton: AppKitButton(
                                                   size: AppKitControlSize.regular,
@@ -162,14 +163,10 @@ class BleUploadScreen extends StatelessWidget {
                           const SizedBox(height: 12),
 
                           if (ble.previewImage != null) ...[
-                            Container(
+                            AppKitGroupBox(
+                              style: AppKitGroupBoxStyle.roundedScrollBox,
                               height: ble.rotation % 2 == 0 ? ble.binHeader!.height.toDouble() : ble.binHeader!.width.toDouble(),
                               width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[300]!),
-                              ),
                               child: ble.previewImage != null
                                   ? RotatedBox(
                                       quarterTurns: -ble.rotation,
@@ -186,21 +183,17 @@ class BleUploadScreen extends StatelessWidget {
                             const SizedBox(height: 12),
                             _HeaderCard(ble: ble),
                           ] else ...[
-                            Container(
+                            AppKitGroupBox(
+                              style: AppKitGroupBoxStyle.roundedScrollBox,
                               height: 480,
                               width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[300]!),
-                              ),
                               child: Center(
-                                      child: Text(
-                                        'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                                      ),
-                                    ),
+                                child: Text(
+                                  'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                ),
+                              ),
                             ),
                           ],
                           const SizedBox(height: 12),
@@ -220,15 +213,12 @@ class BleUploadScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  height: 20,
+                  height: 40,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (ble.uploading || ble.progress > 0) ...[
-                        AppKitProgressBar(value: ble.progress),
-                        const SizedBox(height: 6),
-                        Text('Upload progress: ${(ble.progress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12)),
-                      ],
+                      if (ble.uploading) ...[AppKitProgressBar(value: ble.progress)] else ...[const SizedBox.shrink()],
                     ],
                   ),
                 ),
@@ -283,16 +273,19 @@ class _DeviceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppKitTheme.of(context);
     if (ble.devices.isEmpty) {
-      return Container(
+      return AppKitGroupBox(
+        style: AppKitGroupBoxStyle.roundedScrollBox,
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
+        child: Row(
+          children: [
+            if (ble.scanning) ...[const AppKitProgressCircle(size: 16), const SizedBox(width: 8, height: 16)],
+            const SizedBox(width: 0, height: 16),
+            const Text('No devices found yet. Tap Scan to refresh.', style: TextStyle(fontSize: 12)),
+          ],
         ),
-        child: const Text('No devices found yet. Tap Scan to refresh.', style: TextStyle(fontSize: 12)),
       );
     }
 
@@ -305,9 +298,9 @@ class _DeviceList extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: isConnected ? Colors.green.withAlpha(13) : Colors.grey[50],
+            color: isConnected ? AppKitColors.systemGreen.resolveWithContext(context).withAlpha(10) : null,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isConnected ? Colors.green.withAlpha(80) : Colors.grey[300]!),
+            border: Border.all(color: isConnected ? AppKitColors.appleGreen.withAlpha(80) : AppKitColors.windowFrameColor),
           ),
           child: Row(
             children: [
@@ -315,8 +308,8 @@ class _DeviceList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(result.device.remoteId.str, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+                    Text(name, style: theme.typography.body.copyWith(fontWeight: FontWeight.w600)),
+                    Text(result.device.remoteId.str, style: theme.typography.caption1),
                   ],
                 ),
               ),
@@ -324,7 +317,7 @@ class _DeviceList extends StatelessWidget {
               const SizedBox(width: 8),
               AppKitButton(
                 size: AppKitControlSize.small,
-                onTap: ble.connecting ? null : () => ble.selectDevice(result),
+                onTap: (ble.connecting || ble.connected != null) ? null : () => ble.selectDevice(result),
                 child: Text(isConnected ? 'Connected' : 'Connect'),
               ),
             ],
@@ -342,15 +335,12 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = ble.binHeader;
+    final theme = AppKitTheme.of(context);
 
-    return Container(
+    return AppKitGroupBox(
+      style: AppKitGroupBoxStyle.roundedScrollBox,
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -471,20 +461,24 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppKitTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.controlBackgroundColor,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey[300]!),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 4, offset: const Offset(0, 2))],
+        border: Border.all(color: AppKitColors.windowFrameColor),
+        boxShadow: [BoxShadow(color: AppKitColors.shadowColor.withAlpha(8), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          Text(
+            label,
+            style: theme.typography.callout.copyWith(color: theme.typography.callout.color?.withAlpha(127), fontWeight: FontWeight.w500),
+          ),
           const SizedBox(width: 6),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(value, style: theme.typography.callout.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );

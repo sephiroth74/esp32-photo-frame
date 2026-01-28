@@ -78,6 +78,7 @@ class _FileSelectionSection extends StatelessWidget {
                   const SizedBox(width: 100, child: Text('Input:')),
                   Expanded(
                     child: AppKitTextField(
+                      borderStyle: AppKitTextFieldBorderStyle.rounded,
                       controller: TextEditingController(text: config.inputPath),
                       maxLines: 1,
                       placeholder: 'Select input directory...',
@@ -106,6 +107,7 @@ class _FileSelectionSection extends StatelessWidget {
                   const SizedBox(width: 100, child: Text('Output:')),
                   Expanded(
                     child: AppKitTextField(
+                      borderStyle: AppKitTextFieldBorderStyle.rounded,
                       maxLines: 1,
                       controller: TextEditingController(text: config.outputPath),
                       placeholder: 'Select output directory...',
@@ -162,6 +164,7 @@ class _ProcessorBinarySection extends StatelessWidget {
                   const SizedBox(width: 100, child: Text('Binary Path:')),
                   Expanded(
                     child: AppKitTextField(
+                      borderStyle: AppKitTextFieldBorderStyle.rounded,
                       maxLines: 1,
                       controller: TextEditingController(text: config.processorBinaryPath ?? ''),
                       placeholder: 'Path to photoframe-processor binary (optional)',
@@ -322,6 +325,8 @@ class _PeopleDetectionSection extends StatelessWidget {
                           Text('Confidence: ${config.confidenceThreshold.toStringAsFixed(2)}'),
                           AppKitSlider(
                             value: config.confidenceThreshold,
+                            style: AppKitSliderStyle.discreteFixed,
+                            stops: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
                             min: 0.3,
                             max: 0.95,
                             onChanged: (value) {
@@ -373,12 +378,8 @@ class _DitheringSettingsSection extends StatelessWidget {
                     },
                   ),
                   const SizedBox(width: 8),
-                  const Text('Auto-color correction (remove color casts, enhance quality)'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
+                  const Text('Auto-color correction'),
+                  const SizedBox(height: 8, width: 16),
                   AppKitSwitch(
                     checked: config.autoOptimize,
                     onChanged: (value) {
@@ -386,53 +387,59 @@ class _DitheringSettingsSection extends StatelessWidget {
                     },
                   ),
                   const SizedBox(width: 8),
-                  const Text('Auto-optimize (automatic per-image optimization)'),
+                  const Text('Auto-optimize'),
                 ],
               ),
               if (!config.autoOptimize) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Method:'),
-                    const SizedBox(height: 4, width: 4),
-                    AppKitPopupButton<DitherMethod>(
-                      style: AppKitPopupButtonStyle.bevel,
-                      selectedItem: config.ditherMethod,
-                      onItemSelected: (value) {
-                        if (value != null) {
-                          provider.updateConfig(config.copyWith(ditherMethod: value));
-                        }
-                      },
-                      items: const [
-                        AppKitContextMenuItem(value: DitherMethod.floydSteinberg, child: Text('Floyd-Steinberg')),
-                        AppKitContextMenuItem(value: DitherMethod.atkinson, child: Text('Atkinson')),
-                        AppKitContextMenuItem(value: DitherMethod.stucki, child: Text('Stucki')),
-                        AppKitContextMenuItem(value: DitherMethod.jarvisJudiceNinke, child: Text('Jarvis')),
-                        AppKitContextMenuItem(value: DitherMethod.ordered, child: Text('Ordered/Bayer')),
-                      ],
-                    ),
-                  ],
+                const SizedBox(height: 24),
+                AppKitGroupBox(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      const Text('Method:'),
+                      const SizedBox(height: 4, width: 8),
+                      AppKitPopupButton<DitherMethod>(
+                        style: AppKitPopupButtonStyle.bevel,
+                        selectedItem: config.ditherMethod,
+                        onItemSelected: (value) {
+                          if (value != null) {
+                            provider.updateConfig(config.copyWith(ditherMethod: value));
+                          }
+                        },
+                        items: const [
+                          AppKitContextMenuItem(value: DitherMethod.floydSteinberg, child: Text('Floyd-Steinberg')),
+                          AppKitContextMenuItem(value: DitherMethod.atkinson, child: Text('Atkinson')),
+                          AppKitContextMenuItem(value: DitherMethod.stucki, child: Text('Stucki')),
+                          AppKitContextMenuItem(value: DitherMethod.jarvisJudiceNinke, child: Text('Jarvis')),
+                          AppKitContextMenuItem(value: DitherMethod.ordered, child: Text('Ordered/Bayer')),
+                        ],
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Text('Strength: ${config.ditherStrength.toStringAsFixed(2)}'),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: AppKitSlider(
+                                value: config.ditherStrength.clamp(0.5, 1.5),
+                                min: 0.5,
+                                max: 1.5,
+                                onChanged: (value) {
+                                  provider.updateConfig(config.copyWith(ditherStrength: value));
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Strength: ${config.ditherStrength.toStringAsFixed(2)}'),
-                          AppKitSlider(
-                            value: config.ditherStrength,
-                            min: 0.5,
-                            max: 1.5,
-                            onChanged: (value) {
-                              provider.updateConfig(config.copyWith(ditherStrength: value));
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,6 +677,7 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                     SizedBox(
                       width: 80,
                       child: AppKitTextField(
+                        borderStyle: AppKitTextFieldBorderStyle.rounded,
                         controller: TextEditingController(text: config.pointsize.toString()),
                         placeholder: '22',
                         keyboardType: TextInputType.number,
@@ -687,6 +695,7 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                     SizedBox(
                       width: 120,
                       child: AppKitTextField(
+                        borderStyle: AppKitTextFieldBorderStyle.rounded,
                         controller: TextEditingController(text: config.annotateBackground),
                         placeholder: '#00000040',
                         onChanged: (value) {
@@ -735,6 +744,7 @@ class _DividerSettingsSection extends StatelessWidget {
                         const Text('Width:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
+                          borderStyle: AppKitTextFieldBorderStyle.rounded,
                           controller: TextEditingController(text: config.dividerWidth.toString()),
                           placeholder: '3',
                           keyboardType: TextInputType.number,
@@ -756,6 +766,7 @@ class _DividerSettingsSection extends StatelessWidget {
                         const Text('Color:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
+                          borderStyle: AppKitTextFieldBorderStyle.rounded,
                           controller: TextEditingController(text: config.dividerColor),
                           placeholder: '#FFFFFF',
                           onChanged: (value) {
@@ -807,6 +818,7 @@ class _AdvancedOptionsSection extends StatelessWidget {
                         const Text('Parallel Jobs:'),
                         const SizedBox(height: 4),
                         AppKitTextField(
+                          borderStyle: AppKitTextFieldBorderStyle.rounded,
                           controller: TextEditingController(text: config.jobs == 0 ? 'Auto' : config.jobs.toString()),
                           placeholder: 'Auto',
                           keyboardType: TextInputType.number,
@@ -829,9 +841,10 @@ class _AdvancedOptionsSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('File Extensions:'),
+                        const Text('File Extensions: (comma separated)'),
                         const SizedBox(height: 4),
                         AppKitTextField(
+                          borderStyle: AppKitTextFieldBorderStyle.rounded,
                           controller: TextEditingController(text: config.extensions),
                           placeholder: 'jpg,jpeg,png,heic',
                           onChanged: (value) {

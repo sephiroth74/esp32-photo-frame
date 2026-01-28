@@ -493,25 +493,22 @@ class ImageProcessingState extends ChangeNotifier {
       logger.warning('No binary data available to save');
       return null;
     }
-    
+
     if (_image == null) {
       logger.warning('No original image available for naming');
       return null;
     }
-    
+
     try {
       final originalImageName = _image!.name; // Get filename from XFile
       logger.info('Saving .pfr1 file to gallery with name: $originalImageName');
-      
-      final savedFile = await GalleryService.savePfr1File(
-        binaryData: _binaryData!,
-        originalImageName: originalImageName,
-      );
-      
+
+      final savedFile = await GalleryService.savePfr1File(binaryData: _binaryData!, originalImageName: originalImageName);
+
       if (savedFile != null) {
         logger.info('Successfully saved .pfr1 file to gallery: ${savedFile.path}');
       }
-      
+
       return savedFile;
     } catch (e, stackTrace) {
       logger.severe('Failed to save .pfr1 file to gallery', e, stackTrace);
@@ -519,4 +516,3 @@ class ImageProcessingState extends ChangeNotifier {
     }
   }
 }
-

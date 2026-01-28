@@ -85,9 +85,7 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Input Directory...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final path = await FilePicker.getDirectoryPath(
-                  initialDirectory: FilePickerHistory.initialDir('inputDir'),
-                );
+                final path = await FilePicker.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
                 if (path != null) {
                   await FilePickerHistory.rememberDirectory('inputDir', path);
                   provider.updateConfig(provider.config.copyWith(inputPath: path));
@@ -98,9 +96,7 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Output Directory...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final path = await FilePicker.getDirectoryPath(
-                  initialDirectory: FilePickerHistory.initialDir('outputDir'),
-                );
+                final path = await FilePicker.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
                 if (path != null) {
                   await FilePickerHistory.rememberDirectory('outputDir', path);
                   provider.updateConfig(provider.config.copyWith(outputPath: path));
