@@ -224,7 +224,6 @@ bool checkFactoryResetButton(esp_sleep_wakeup_cause_t wakeup_reason,
     return true;
 }
 
-
 } // namespace bt_utils
 } // namespace photo_frame
 

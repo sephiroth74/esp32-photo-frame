@@ -501,7 +501,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 #ifndef BT_LISTEN_TIMEOUT_MS
 #define BT_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
-#endif                                       // BT_LISTEN_TIMEOUT_MS
+#endif                                        // BT_LISTEN_TIMEOUT_MS
 
 #ifndef BT_BATTERY_CHECK_INTERVAL_MS
 #define BT_BATTERY_CHECK_INTERVAL_MS 60000 // Check battery every 60 seconds
@@ -509,11 +509,11 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 #ifndef BT_DEFAULT_IMAGE_FILENAME
 #define BT_DEFAULT_IMAGE_FILENAME "/default.pfr1" // Default image filename in LittleFS
-#endif                                           // BT_DEFAULT_IMAGE_FILENAME
+#endif                                            // BT_DEFAULT_IMAGE_FILENAME
 
 #ifndef BT_CURRENT_IMAGE_FILENAME
 #define BT_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
-#endif                                           // BT_CURRENT_IMAGE_FILENAME
+#endif                                            // BT_CURRENT_IMAGE_FILENAME
 
 #endif // ENABLE_BT_IMAGE
 

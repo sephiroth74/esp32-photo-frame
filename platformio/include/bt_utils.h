@@ -35,7 +35,6 @@ namespace bt_utils {
  * @brief Battery management utilities for Bluetooth mode
  */
 
-
 /**
  * @brief Display battery critical error and sleep
  *
@@ -66,7 +65,6 @@ void displayBatteryWarning(const battery_info_t& battery_info);
  * Shows "Premere next e riprovare" message on display.
  */
 void displayFirstBootTimeout();
-
 
 /**
  * @brief Perform factory reset for Bluetooth mode

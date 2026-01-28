@@ -26,17 +26,16 @@
 namespace photo_frame {
 namespace io_utils {
 
-    bool is_binary_format(const char* filename)
-    {
-        if (!filename)
-            return false;
+bool is_binary_format(const char* filename) {
+    if (!filename)
+        return false;
 
-        const char* extension = strrchr(filename, '.');
-        if (!extension)
-            return false;
+    const char* extension = strrchr(filename, '.');
+    if (!extension)
+        return false;
 
-        return strcmp(extension, ".bin") == 0;
-    }
+    return strcmp(extension, ".bin") == 0;
+}
 
 } // namespace io_utils
 } // namespace photo_frame

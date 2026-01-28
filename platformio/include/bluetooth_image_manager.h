@@ -50,12 +50,12 @@ namespace photo_frame {
  * - Error classification and recovery
  */
 class BluetoothImageManager {
-public:
+  public:
     /**
      * @brief Error severity levels for classification
      */
     enum ErrorSeverity {
-        SEVERITY_IGNORE, // Only log, continue operation
+        SEVERITY_IGNORE,  // Only log, continue operation
         SEVERITY_WARNING, // Log + show icon, use fallback
         SEVERITY_CRITICAL // Log + display full error
     };
@@ -94,7 +94,7 @@ public:
      * @param timeout_callback Optional callback on timeout (shows message on display)
      */
     photo_frame_error_t waitForImageWithBatteryCheck(uint32_t timeout_ms,
-        bool (*timeout_callback)() = nullptr);
+                                                     bool (*timeout_callback)() = nullptr);
 
     /**
      * @brief Get received configuration
@@ -125,15 +125,16 @@ public:
      *
      * @return Pointer to image buffer (nullptr if not available)
      */
-    const uint8_t* getImageBuffer() const { return image_file_ ? image_file_->getBuffer() : nullptr; }
+    const uint8_t* getImageBuffer() const {
+        return image_file_ ? image_file_->getBuffer() : nullptr;
+    }
 
     /**
      * @brief Get pointer to image payload (without PFR1 header)
      *
      * @return Pointer to payload data (nullptr if not available)
      */
-    const uint8_t* getImagePayload() const
-    {
+    const uint8_t* getImagePayload() const {
         return image_file_ ? image_file_->getPayload() : nullptr;
     }
 
@@ -264,7 +265,7 @@ public:
      */
     static const char* getErrorSuggestion(photo_frame_error_t error);
 
-private:
+  private:
     BLEServer* server_;
     BLEService* service_;
     BLECharacteristic* char_config_;

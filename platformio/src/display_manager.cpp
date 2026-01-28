@@ -187,7 +187,9 @@ bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size) {
     }
 
     if (size != imageBuffer_.getSize()) {
-        log_e("[DisplayManager] Image size mismatch: expected %u, got %u", imageBuffer_.getSize(), size);
+        log_e("[DisplayManager] Image size mismatch: expected %u, got %u",
+              imageBuffer_.getSize(),
+              size);
         return false;
     }
 
@@ -222,7 +224,7 @@ void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
 void DisplayManager::drawImageInfo(uint32_t index,
                                    uint32_t total_images,
                                    image_source_t image_source) {
-                                    log_i("[DisplayManager] Drawing image info on canvas");
+    log_i("[DisplayManager] Drawing image info on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
@@ -306,7 +308,8 @@ void DisplayManager::hibernate() {
 }
 
 void DisplayManager::refresh(bool partial_update) {
-    log_i("[DisplayManager] Refreshing display (partial_update=%s)", partial_update ? "true" : "false");
+    log_i("[DisplayManager] Refreshing display (partial_update=%s)",
+          partial_update ? "true" : "false");
     if (displayDriver_) {
         displayDriver_->refresh(partial_update);
     }

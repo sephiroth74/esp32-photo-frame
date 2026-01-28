@@ -53,8 +53,10 @@
 // BLUETOOTH MODE IMPLEMENTATION
 // ============================================================================
 
-photo_frame::photo_frame_error_t load_littlefs_file(const char* filename, photo_frame::littlefs_manager::LittleFsManager& littleFs, photo_frame::DisplayManager& display)
-{
+photo_frame::photo_frame_error_t
+load_littlefs_file(const char* filename,
+                   photo_frame::littlefs_manager::LittleFsManager& littleFs,
+                   photo_frame::DisplayManager& display) {
     log_i("[BT] Loading %s image from LittleFS", filename);
 
     // Create PFR1 wrapper with display dimensions
@@ -82,12 +84,17 @@ photo_frame::photo_frame_error_t load_littlefs_file(const char* filename, photo_
     // Apply rotation from header (0-3)
     display.setRotation(wrapper.header.rotation % 4);
 
-    log_i("[BT] Successfully loaded %s (PFR1) width=%u height=%u rotation=%u", filename, wrapper.header.width, wrapper.header.height, wrapper.header.rotation);
+    log_i("[BT] Successfully loaded %s (PFR1) width=%u height=%u rotation=%u",
+          filename,
+          wrapper.header.width,
+          wrapper.header.height,
+          wrapper.header.rotation);
     return photo_frame::error_type::None;
 }
 
-void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs, photo_frame::DisplayManager& display, unsigned long delay_ms = 0)
-{
+void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
+              photo_frame::DisplayManager& display,
+              unsigned long delay_ms = 0) {
     log_i("[BT] Shutting down");
 
     if (delay_ms > 0) {
@@ -107,8 +114,7 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs, photo_fr
  * Handles both first boot and subsequent wakeups in Bluetooth mode.
  * This function never returns - it either loops or enters deep sleep.
  */
-void setup_bluetooth_mode()
-{
+void setup_bluetooth_mode() {
     log_i("[BT] Entering Bluetooth mode setup");
 
     auto& prefs = photo_frame::PreferencesHelper::getInstance();
@@ -119,7 +125,7 @@ void setup_bluetooth_mode()
 
     // Get wakeup reason
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
-    bool is_first_boot = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+    bool is_first_boot                     = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
     char wakeup_reason_string[32];
     photo_frame::board_utils::get_wakeup_reason_string(
         wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
@@ -169,7 +175,8 @@ void setup_bluetooth_mode()
     // Determine timeout based on boot type
     uint32_t timeout_ms = is_first_boot ? BT_FIRST_BOOT_TIMEOUT_MS : BT_LISTEN_TIMEOUT_MS;
 
-    log_d("[BT] Starting image wait: %s", is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");
+    log_d("[BT] Starting image wait: %s",
+          is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");
     log_d("[BT] Timeout set to %u ms", timeout_ms);
 
     // ========================================================================
@@ -207,17 +214,11 @@ void setup_bluetooth_mode()
     sprintf(timeout_message, TXT_BT_TIMEOUT_MIN, timeout_ms / 60000);
 
     char full_message[128];
-    sprintf(full_message,
-        "%s: %s\n%s",
-        TXT_BT_SEARCHING_DEVICE,
-        device_name.c_str(),
-        timeout_message);
+    sprintf(
+        full_message, "%s: %s\n%s", TXT_BT_SEARCHING_DEVICE, device_name.c_str(), timeout_message);
 
-    display.drawCenteredMessageWithIcon(display.getCanvas(),
-        icon_name::bluetooth_0deg,
-        TXT_BT_WAITING_IMAGE,
-        full_message,
-        196);
+    display.drawCenteredMessageWithIcon(
+        display.getCanvas(), icon_name::bluetooth_0deg, TXT_BT_WAITING_IMAGE, full_message, 196);
 
     // Render waiting message
     display.render();
@@ -261,7 +262,8 @@ void setup_bluetooth_mode()
             return;
         }
 
-        log_i("[BT] First boot timeout - attempting to load %s from littlefs", BT_CURRENT_IMAGE_FILENAME);
+        log_i("[BT] First boot timeout - attempting to load %s from littlefs",
+              BT_CURRENT_IMAGE_FILENAME);
 
         error = load_littlefs_file(BT_CURRENT_IMAGE_FILENAME, littleFs, display);
         if (error != photo_frame::error_type::None) {
@@ -289,7 +291,8 @@ void setup_bluetooth_mode()
 
     // Get image file wrapper from BT manager
     auto image_file = bt_manager.getImageFile();
-    if (!image_file || !image_file->getBuffer() || image_file->getBufferSize() == 0 || image_file->isValidated() == false) {
+    if (!image_file || !image_file->getBuffer() || image_file->getBufferSize() == 0 ||
+        image_file->isValidated() == false) {
         log_e("[BT] No image data available");
         display.clear(DISPLAY_COLOR_WHITE);
         display.drawError(photo_frame::error_type::BtImageValidationFailed, nullptr);
@@ -305,7 +308,7 @@ void setup_bluetooth_mode()
 
     // Apply rotation from BLE config and persist it
     uint8_t rotation = bt_manager.getConfig().rotation;
-    rotation = rotation % 4; // ensure 0-3
+    rotation         = rotation % 4; // ensure 0-3
     log_i("[BT] Applying rotation: %u", rotation);
     display.setRotation(rotation);
     display_rotation = rotation; // update global state for other screens
@@ -321,8 +324,12 @@ void setup_bluetooth_mode()
     log_i("[BT] Saving complete PFR1 file to littlefs as %s", BT_CURRENT_IMAGE_FILENAME);
     if (!littleFs.init()) {
         log_e("[BT] Failed to initialize littlefs for saving");
-    } else if (littleFs.write_file(BT_CURRENT_IMAGE_FILENAME, image_file->getBuffer(), image_file->getBufferSize())) {
-        log_i("[BT] Successfully saved %s (%u bytes)", BT_CURRENT_IMAGE_FILENAME, image_file->getBufferSize());
+    } else if (littleFs.write_file(BT_CURRENT_IMAGE_FILENAME,
+                                   image_file->getBuffer(),
+                                   image_file->getBufferSize())) {
+        log_i("[BT] Successfully saved %s (%u bytes)",
+              BT_CURRENT_IMAGE_FILENAME,
+              image_file->getBufferSize());
     } else {
         log_e("[BT] Failed to save %s to littlefs", BT_CURRENT_IMAGE_FILENAME);
     }
@@ -336,16 +343,16 @@ void setup_bluetooth_mode()
     tzset();
 
     uint32_t image_timestamp = bt_manager.getConfig().timestamp;
-    time_t timestamp_time = (time_t)image_timestamp;
+    time_t timestamp_time    = (time_t)image_timestamp;
     struct tm timeinfo;
     localtime_r(&timestamp_time, &timeinfo);
 
     DateTime image_time = DateTime(timeinfo.tm_year + 1900,
-        timeinfo.tm_mon + 1,
-        timeinfo.tm_mday,
-        timeinfo.tm_hour,
-        timeinfo.tm_min,
-        timeinfo.tm_sec);
+                                   timeinfo.tm_mon + 1,
+                                   timeinfo.tm_mday,
+                                   timeinfo.tm_hour,
+                                   timeinfo.tm_min,
+                                   timeinfo.tm_sec);
 
     // Draw overlay elements
     display.drawOverlay();
@@ -372,8 +379,7 @@ void setup_bluetooth_mode()
 // SETUP & LOOP
 // ============================================================================
 
-void bt_main_setup()
-{
+void bt_main_setup() {
     Serial.begin(115200);
     delay(5000);
 
@@ -389,8 +395,7 @@ void bt_main_setup()
     // setup_bluetooth_mode never returns (enters sleep/loops)
 }
 
-void bt_main_loop()
-{
+void bt_main_loop() {
     delay(1000); // Just to avoid watchdog reset
 }
 
