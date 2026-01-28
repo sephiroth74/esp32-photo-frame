@@ -8,13 +8,14 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
+				<string>public.image</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Itsuki File Type</string>
+			<string>pfr1 File Type</string>
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>itsuki.enjoy.itsukiText</string>
+			<string>it.sephiroth.photoframe.pfr1</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -22,6 +23,21 @@
 					<string>pfr1</string>
 				</array>
 			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>PFR1 Image</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>it.sephiroth.photoframe.pfr1</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
 		</dict>
 	</array>
 </dict>

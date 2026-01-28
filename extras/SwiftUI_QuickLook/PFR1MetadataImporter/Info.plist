@@ -2,21 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CSExtensionLabel</key>
+	<string>PFR1MetadataImporterImporter</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
 		<dict>
-			<key>QLSupportedContentTypes</key>
+			<key>SupportedContentTypes</key>
 			<array>
 				<string>it.sephiroth.photoframe.pfr1</string>
+				<string>it.sephiroth.pfr1</string>
+				<string>itsuki.enjoy.itsukiText</string>
 			</array>
-			<key>QLThumbnailMinimumDimension</key>
-			<integer>32</integer>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.quicklook.thumbnail</string>
+		<string>com.apple.metadata-importer</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).ThumbnailProvider</string>
+		<string>$(PRODUCT_MODULE_NAME).ImportExtension</string>
 	</dict>
 </dict>
 </plist>

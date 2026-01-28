@@ -180,6 +180,48 @@ final class PFR1Decoder {
                 headerCRC32: headerCRC32)
         )
     }
+    
+    static func decodeHeader(from data: Data) throws -> PFR1Header {
+        guard data.count >= headerSize else { throw PFR1DecoderError.tooSmall }
+
+        let magic = data.readUInt32LE(at: 0)
+        guard magic == self.magic else { throw PFR1DecoderError.badMagic }
+
+        let version = data[4]
+        let headerLen = data.readUInt16LE(at: 5)
+        let width = data.readUInt16LE(at: 7)
+        let height = data.readUInt16LE(at: 9)
+        let rotation = data[11]
+        let colorMode = data[12]
+        let payloadLen = data.readUInt32LE(at: 13)
+        let headerCRC32 = data.readUInt32LE(at: 17)
+
+        // Validate header CRC32 (over first headerLen-4 bytes)
+        let headerSlice = data.prefix(Int(headerLen - 4))
+        let crc = headerSlice.crc32()
+        guard crc == headerCRC32 else { throw PFR1DecoderError.badHeaderCRC }
+
+        let payloadStart = Int(headerLen)
+        guard data.count >= payloadStart + Int(payloadLen) else {
+            throw PFR1DecoderError.payloadTooShort
+        }
+
+        let payload = data.subdata(in: payloadStart..<payloadStart + Int(payloadLen))
+
+        // Payload must have exactly width * height bytes (1 byte per pixel)
+        let pixelCount = Int(width) * Int(height)
+        guard payload.count == pixelCount else {
+            throw PFR1DecoderError.payloadTooShort
+        }
+
+
+        return
+            PFR1Header(
+                magic: magic, version: version, headerLen: headerLen, width: width, height: height,
+                rotation: rotation, colorMode: colorMode, payloadLen: payloadLen,
+                headerCRC32: headerCRC32)
+        
+    }
 }
 
 extension Data {

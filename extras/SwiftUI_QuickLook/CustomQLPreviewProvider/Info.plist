@@ -12,7 +12,7 @@
 			<true/>
 			<key>QLSupportedContentTypes</key>
 			<array>
-				<string>itsuki.enjoy.itsukiText</string>
+				<string>it.sephiroth.photoframe.pfr1</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>
