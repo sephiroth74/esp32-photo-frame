@@ -22,7 +22,12 @@ class PreviewProvider: QLPreviewProvider, QLPreviewingController {
         logger.info("providePreview for: \(request.fileURL, privacy: .public)")
         do {
             let data = try Data(contentsOf: request.fileURL)
-            let (image, _) = try PFR1Decoder.decode(from: data)
+            let (image, header) = try PFR1Decoder.decode(from: data)
+            
+            logger.debug("image size: \(header.width)x\(header.height)")
+            logger.debug("color mode: \(header.colorMode), rotation: \(header.rotation)")
+            logger.debug("version: \(header.version), headerLen: \(header.headerLen)")
+            logger.debug("magic: \(header.magic), payloadLen: \(header.payloadLen)")
 
             guard let tiff = image.tiffRepresentation,
                 let rep = NSBitmapImageRep(data: tiff),

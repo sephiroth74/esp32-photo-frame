@@ -211,20 +211,57 @@ extension Data {
     }
 }
 
+//extension NSImage {
+//    fileprivate func rotated(byDegrees degrees: Double) -> NSImage? {
+//        guard degrees.truncatingRemainder(dividingBy: 360) != 0 else { return self }
+//        let imageRotated = NSImage(size: size)
+//        imageRotated.lockFocus()
+//        let transform = NSAffineTransform()
+//        transform.translateX(by: size.width / 2, yBy: size.height / 2)
+//        transform.rotate(byDegrees: CGFloat(degrees))
+//        transform.translateX(by: -size.width / 2, yBy: -size.height / 2)
+//        transform.concat()
+//        draw(
+//            at: NSZeroPoint, from: NSRect(origin: .zero, size: size), operation: .copy,
+//            fraction: 1.0)
+//        imageRotated.unlockFocus()
+//        return imageRotated
+//    }
+//}
+
 extension NSImage {
     fileprivate func rotated(byDegrees degrees: Double) -> NSImage? {
-        guard degrees.truncatingRemainder(dividingBy: 360) != 0 else { return self }
-        let imageRotated = NSImage(size: size)
-        imageRotated.lockFocus()
-        let transform = NSAffineTransform()
-        transform.translateX(by: size.width / 2, yBy: size.height / 2)
-        transform.rotate(byDegrees: CGFloat(degrees))
-        transform.translateX(by: -size.width / 2, yBy: -size.height / 2)
-        transform.concat()
-        draw(
-            at: NSZeroPoint, from: NSRect(origin: .zero, size: size), operation: .copy,
-            fraction: 1.0)
-        imageRotated.unlockFocus()
-        return imageRotated
+        let angle = (Int(degrees) % 360 + 360) % 360
+        guard angle != 0 else { return self }
+
+        let canvasSize: CGSize
+        switch angle {
+        case 90, 270:
+            canvasSize = CGSize(width: self.size.height, height: self.size.width)
+        case 180:
+            canvasSize = self.size
+        default:
+            // fallback per angoli non multipli di 90°
+            let radians = CGFloat(degrees * .pi / 180)
+            let originalRect = CGRect(origin: .zero, size: self.size)
+            let rotatedBounds = originalRect.applying(CGAffineTransform(rotationAngle: radians))
+            canvasSize = CGSize(width: abs(rotatedBounds.width), height: abs(rotatedBounds.height))
+        }
+
+        let rotatedImage = NSImage(size: canvasSize)
+        rotatedImage.lockFocus()
+        let ctx = NSGraphicsContext.current?.cgContext
+
+        ctx?.translateBy(x: canvasSize.width / 2, y: canvasSize.height / 2)
+        ctx?.rotate(by: CGFloat(degrees * .pi / 180))
+
+        let drawRect = CGRect(x: -self.size.width / 2,
+                              y: -self.size.height / 2,
+                              width: self.size.width,
+                              height: self.size.height)
+        self.draw(in: drawRect)
+
+        rotatedImage.unlockFocus()
+        return rotatedImage
     }
 }
