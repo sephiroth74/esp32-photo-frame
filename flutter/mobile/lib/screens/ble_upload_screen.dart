@@ -217,7 +217,7 @@ class _BleUploadScreenState extends State<BleUploadScreen> {
             ),
             const SizedBox(height: 8),
             if (header == null)
-              const Text('Header non disponibile: genera prima il file (.bin).')
+              const Text('Header not available: generate the .bin file first.')
             else ...[
               _headerRow('Magic', 'PFR1 (0x50465231)'),
               _headerRow('Versione', header.version.toString()),
@@ -402,7 +402,7 @@ class _BleUploadScreenState extends State<BleUploadScreen> {
       binary ??= await state.generateBinaryData();
       if (binary == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossibile generare il file .bin')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .bin file')));
         }
         return;
       }

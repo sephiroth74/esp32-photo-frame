@@ -54,7 +54,7 @@ class ReviewStep extends StatelessWidget {
     if (savedFile != null) {
       _logger.info('File saved to gallery: ${savedFile.path}');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File salvato nella galleria: ${savedFile.path}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File saved to gallery: ${savedFile.path}')));
       }
     } else {
       _logger.warning('Failed to save file to gallery, but continuing with upload');

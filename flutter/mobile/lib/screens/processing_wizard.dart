@@ -60,7 +60,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
             padding: EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Generazione file .pfr1...')],
+              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Generating .pfr1 file...')],
             ),
           ),
         ),
@@ -76,7 +76,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       Navigator.of(context).pop(); // Close loading dialog
 
       if (binaryData == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossibile generare il file .pfr1')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .pfr1 file')));
         return;
       }
 
@@ -84,12 +84,12 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       final savedFile = await state.savePfr1ToGallery();
       if (savedFile != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File salvato nella galleria: ${savedFile.path}')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File saved to gallery: ${savedFile.path}')));
           logger.info('Wizard: File saved successfully to gallery');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Errore nel salvataggio del file')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error saving file')));
         }
         return;
       }
@@ -117,7 +117,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
             padding: EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Preparazione file .bin...')],
+              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Preparing .bin file...')],
             ),
           ),
         ),
@@ -130,7 +130,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
     Navigator.of(context).pop();
 
     if (binaryData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossibile generare il file .bin')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .bin file')));
       return;
     }
 
@@ -139,7 +139,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       await tempFile.writeAsBytes(binaryData, flush: true);
       await Share.shareXFiles([XFile(tempFile.path)], text: 'PhotoFrame .bin ready for desktop test');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Condivisione fallita: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sharing failed: $e')));
     }
   }
 
