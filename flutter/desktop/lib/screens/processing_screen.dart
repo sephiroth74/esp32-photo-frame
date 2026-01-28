@@ -90,7 +90,7 @@ class _FileSelectionSection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
+                      final path = await FilePicker.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('inputDir', path);
                         provider.updateConfig(config.copyWith(inputPath: path));
@@ -118,7 +118,7 @@ class _FileSelectionSection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
+                      final path = await FilePicker.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('outputDir', path);
                         provider.updateConfig(config.copyWith(outputPath: path));
@@ -174,7 +174,7 @@ class _ProcessorBinarySection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final result = await FilePicker.platform.pickFiles(initialDirectory: FilePickerHistory.initialDir('processorBinary'));
+                      final result = await FilePicker.pickFiles(initialDirectory: FilePickerHistory.initialDir('processorBinary'));
                       if (result != null && result.files.single.path != null) {
                         final selectedPath = result.files.single.path!;
                         FilePickerHistory.rememberFile('processorBinary', selectedPath);
@@ -549,7 +549,7 @@ class _OutputFormatsSection extends StatelessWidget {
                         },
                       ),
                       const SizedBox(width: 8),
-                      const Text('Binary (BIN)'),
+                      const Text('Binary (PFR1)'),
                     ],
                   ),
                   Row(

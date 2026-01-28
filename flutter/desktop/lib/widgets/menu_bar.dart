@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../providers/processing_provider.dart';
+import '../services/file_picker_history.dart';
 
 class AppMenuBar extends StatelessWidget {
   final Widget child;
@@ -84,8 +85,11 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Input Directory...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final path = await FilePicker.platform.getDirectoryPath();
+                final path = await FilePicker.getDirectoryPath(
+                  initialDirectory: FilePickerHistory.initialDir('inputDir'),
+                );
                 if (path != null) {
+                  await FilePickerHistory.rememberDirectory('inputDir', path);
                   provider.updateConfig(provider.config.copyWith(inputPath: path));
                 }
               },
@@ -94,8 +98,11 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Output Directory...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final path = await FilePicker.platform.getDirectoryPath();
+                final path = await FilePicker.getDirectoryPath(
+                  initialDirectory: FilePickerHistory.initialDir('outputDir'),
+                );
                 if (path != null) {
+                  await FilePickerHistory.rememberDirectory('outputDir', path);
                   provider.updateConfig(provider.config.copyWith(outputPath: path));
                 }
               },
@@ -104,12 +111,14 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Processor Binary...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final result = await FilePicker.platform.pickFiles(
+                final result = await FilePicker.pickFiles(
                   type: FileType.custom,
                   allowedExtensions: [''],
                   dialogTitle: 'Select photoframe-processor binary',
+                  initialDirectory: FilePickerHistory.initialDir('processorBinary'),
                 );
                 if (result != null && result.files.single.path != null) {
+                  await FilePickerHistory.rememberFile('processorBinary', result.files.single.path!);
                   provider.updateConfig(provider.config.copyWith(processorBinaryPath: result.files.single.path));
                 }
               },
@@ -154,10 +163,17 @@ class AppMenuBar extends StatelessWidget {
       if (!shouldContinue) return;
     }
 
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pfconfig'], dialogTitle: 'Open Configuration');
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pfconfig'],
+      dialogTitle: 'Open Configuration',
+      initialDirectory: FilePickerHistory.initialDir('configFile'),
+    );
 
     if (result != null && result.files.single.path != null) {
-      await provider.loadProfile(result.files.single.path!);
+      final filePath = result.files.single.path!;
+      await FilePickerHistory.rememberFile('configFile', filePath);
+      await provider.loadProfile(filePath);
     }
   }
 
@@ -175,14 +191,16 @@ class AppMenuBar extends StatelessWidget {
   Future<void> _handleSaveConfigurationAs(BuildContext context) async {
     final provider = context.read<ProcessingProvider>();
 
-    final result = await FilePicker.platform.saveFile(
+    final result = await FilePicker.saveFile(
       dialogTitle: 'Save Configuration As',
       fileName: '${provider.currentProfileName ?? 'config'}.pfconfig',
       type: FileType.custom,
       allowedExtensions: ['pfconfig'],
+      initialDirectory: FilePickerHistory.initialDir('configFile'),
     );
 
     if (result != null) {
+      await FilePickerHistory.rememberFile('configFile', result);
       await provider.saveProfile(filePath: result);
       if (context.mounted) {
         // show confirmation dialog
@@ -193,14 +211,16 @@ class AppMenuBar extends StatelessWidget {
   Future<void> _handleExportConfiguration(BuildContext context) async {
     final provider = context.read<ProcessingProvider>();
 
-    final result = await FilePicker.platform.saveFile(
+    final result = await FilePicker.saveFile(
       dialogTitle: 'Export Configuration',
       fileName: '${provider.currentProfileName ?? 'config'}.pfconfig',
       type: FileType.custom,
       allowedExtensions: ['pfconfig'],
+      initialDirectory: FilePickerHistory.initialDir('configFile'),
     );
 
     if (result != null) {
+      await FilePickerHistory.rememberFile('configFile', result);
       await provider.saveProfile(filePath: result);
       if (context.mounted) {
         // show confirmation dialog

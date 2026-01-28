@@ -24,84 +24,37 @@
 
 #include "errors.h"
 #include "sd_card.h"
+#include "binary_utils.h"
 #include <Arduino.h>
 #include <FS.h>
 
 namespace photo_frame {
 namespace io_utils {
 
-/**
- * @brief Validate an image file before processing
- *
- * Performs comprehensive validation of an image file including:
- * - File accessibility and basic properties
- * - File size validation (not zero, within reasonable bounds)
- * - Basic file format validation (header checks)
- * - Image dimension validation for binary files
- * - File integrity checks
- *
- * @param sourceFile Open file to validate (file position may be modified)
- * @param filename Filename for error reporting
- * @param expectedWidth Expected image width (for binary files, 0 to skip)
- * @param expectedHeight Expected image height (for binary files, 0 to skip)
- * @return photo_frame_error_t Error code (None if valid)
- */
-photo_frame_error_t validate_image_file(fs::File& sourceFile,
-                                        const char* filename,
-                                        int expectedWidth  = 0,
-                                        int expectedHeight = 0);
-
-/**
- * @brief Validate binary image file size is exactly correct
- *
- * Binary images (.bin files) must be exactly EPD_WIDTH * EPD_HEIGHT bytes.
- * For an 800x480 display, this is exactly 384,000 bytes.
- * Any deviation means the file is incomplete or corrupted.
- *
- * @param fileSize The actual file size in bytes
- * @param expectedWidth The display width in pixels
- * @param expectedHeight The display height in pixels
- * @return photo_frame_error_t Error code (None if exact match)
- *                             ImageFileTruncated if size mismatch
- *
- * @note This is a strict validation - file size must match exactly
- * @example
- * ```cpp
- * size_t actualSize = file.size();
- * auto error = validate_image_size_exact(actualSize, DISP_WIDTH, DISP_HEIGHT);
- * if (error != error_type::None) {
- *     log_e("Image size mismatch: %s", error.message);
- *     return error;
- * }
- * ```
- */
-photo_frame_error_t
-validate_image_size_exact(size_t fileSize, int expectedWidth, int expectedHeight);
-
-/**
- * @brief Detect binary format based on filename extension for runtime rendering selection
- *
- * This function checks if a file is in binary format (.bin extension) used by the
- * ESP32 photo frame for optimized e-paper rendering.
- *
- * @param filename The filename to examine (must include extension)
- * @return true if binary format (.bin) - uses optimized binary renderer
- * @return false if filename is null, has no extension, or is not a .bin file
- *
- * @note Only binary format (.bin) is supported - other formats will return false
- *
- * @example
- * ```cpp
- * if (photo_frame::io_utils::is_binary_format("image.bin")) {
- *     // Use binary rendering engine
- *     draw_binary_from_file(...);
- * } else {
- *     // Format not supported
- *     log_e("Unsupported file format");
- * }
- * ```
- */
-bool is_binary_format(const char* filename);
+    /**
+     * @brief Detect binary format based on filename extension for runtime rendering selection
+     *
+     * This function checks if a file is in binary format (.bin extension) used by the
+     * ESP32 photo frame for optimized e-paper rendering.
+     *
+     * @param filename The filename to examine (must include extension)
+     * @return true if binary format (.bin) - uses optimized binary renderer
+     * @return false if filename is null, has no extension, or is not a .bin file
+     *
+     * @note Only binary format (.bin) is supported - other formats will return false
+     *
+     * @example
+     * ```cpp
+     * if (photo_frame::io_utils::is_binary_format("image.bin")) {
+     *     // Use binary rendering engine
+     *     draw_binary_from_file(...);
+     * } else {
+     *     // Format not supported
+     *     log_e("Unsupported file format");
+     * }
+     * ```
+     */
+    bool is_binary_format(const char* filename);
 
 } // namespace io_utils
 } // namespace photo_frame

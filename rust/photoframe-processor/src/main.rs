@@ -1,12 +1,13 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use photoframe_lib::{DitheringMethod, DisplayType};
+use photoframe_lib::{photoframe_validate_bin, validate_bin_file, DisplayType, DitheringMethod};
 use serde_json;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+use std::{fs, path::Path};
 
 mod cli;
 mod config_file;
@@ -30,12 +31,50 @@ impl From<ColorType> for DisplayType {
     }
 }
 
+fn run_validation(path: &Path) -> Result<()> {
+    let data =
+        fs::read(path).with_context(|| format!("Failed to read file: {}", path.display()))?;
+    let res = unsafe { photoframe_validate_bin(data.as_ptr(), data.len()) };
+    if res.success {
+        println!("Valid PFR1 file: {}", path.display());
+        println!(
+            "Header -> version={}, size={}x{}, rotation={}, color_mode={}, payload_len={}",
+            res.version, res.width, res.height, res.rotation, res.color_mode, res.payload_len
+        );
+        println!("Payload CRC32: 0x{:08X}", res.payload_crc32);
+        Ok(())
+    } else {
+        let detail = match validate_bin_file(&data) {
+            Ok(_) => "Unknown validation failure".to_string(),
+            Err(err) => err.to_string(),
+        };
+        let preview: String = data
+            .iter()
+            .take(16)
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        bail!(
+            "Invalid PFR1 file {}: {} (len={}, first bytes: [{}])",
+            path.display(),
+            detail,
+            data.len(),
+            preview
+        )
+    }
+}
+
 fn main() -> Result<()> {
     let start_time = Instant::now();
     let mut args = Args::parse();
 
     // Load config file if specified
     args.load_and_merge_config()?;
+
+    // If --validate is provided, validate the .pfr1 file and exit
+    if let Some(path) = args.validate.clone() {
+        return run_validation(&path);
+    }
 
     // Print banner
     println!(

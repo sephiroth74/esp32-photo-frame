@@ -6,6 +6,14 @@ pub const BIN_MAGIC: u32 = 0x5046_5231;
 /// Header size: magic(4) + ver(1) + hlen(2) + w(2) + h(2) + rot(1) + color(1) + payload_len(4) + header_crc32(4)
 pub const BIN_HEADER_SIZE: usize = 21;
 
+/// Successful validation result containing the parsed header and payload slice.
+#[derive(Debug)]
+pub struct BinValidation<'a> {
+    pub header: BinHeader,
+    pub payload: &'a [u8],
+    pub payload_crc32: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C, packed)]
 pub struct BinHeader {
@@ -19,7 +27,7 @@ pub struct BinHeader {
     pub header_crc32: u32,
 }
 
-/// Build full .bin file bytes: header + payload + payload_crc32
+/// Build full .pfr1 file bytes: header + payload + payload_crc32
 pub fn build_bin_file(
     payload: &[u8],
     width: u16,
@@ -56,7 +64,7 @@ pub fn build_bin_file(
     file
 }
 
-/// Parse a .bin file into header, payload slice, and payload CRC32
+/// Parse a .pfr1 file into header, payload slice, and payload CRC32
 pub fn parse_bin_file(data: &[u8]) -> Result<(BinHeader, &[u8], u32)> {
     if data.len() < BIN_HEADER_SIZE + 4 {
         return Err(anyhow!(
@@ -139,6 +147,28 @@ pub fn parse_bin_file(data: &[u8]) -> Result<(BinHeader, &[u8], u32)> {
     ))
 }
 
+/// Validate a full .pfr1 file: magic, header CRC, payload length, and payload CRC.
+pub fn validate_bin_file(data: &[u8]) -> Result<BinValidation<'_>> {
+    let (header, payload, payload_crc32) = parse_bin_file(data)?;
+
+    let mut hasher = Crc32Hasher::new();
+    hasher.update(payload);
+    let calc_payload_crc = hasher.finalize();
+    if calc_payload_crc != payload_crc32 {
+        return Err(anyhow!(
+            "Payload CRC mismatch: expected 0x{:08x}, got 0x{:08x}",
+            payload_crc32,
+            calc_payload_crc
+        ));
+    }
+
+    Ok(BinValidation {
+        header,
+        payload,
+        payload_crc32,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,5 +199,31 @@ mod tests {
         let want = ph.finalize();
         assert_eq!(crc, want);
         assert_eq!(pl, &payload[..]);
+    }
+
+    #[test]
+    fn validate_bin_file_ok() {
+        let payload: Vec<u8> = (0..32u8).collect();
+        let file = build_bin_file(&payload, 16, 2, 0, 1, 1);
+
+        let validation = validate_bin_file(&file).expect("validation should succeed");
+        let width = validation.header.width;
+        let height = validation.header.height;
+        assert_eq!(width, 16);
+        assert_eq!(height, 2);
+        assert_eq!(validation.payload, &payload[..]);
+    }
+
+    #[test]
+    fn validate_bin_file_bad_payload_crc() {
+        let payload: Vec<u8> = (0..8u8).collect();
+        let mut file = build_bin_file(&payload, 4, 2, 0, 1, 1);
+
+        // Corrupt one payload byte to break CRC
+        let payload_start = BIN_HEADER_SIZE;
+        file[payload_start] ^= 0xFF;
+
+        let err = validate_bin_file(&file).expect_err("validation must fail");
+        assert!(err.to_string().contains("Payload CRC mismatch"));
     }
 }

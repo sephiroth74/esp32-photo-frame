@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ESP32 Photo Frame requires images to be processed into a specific binary format (`.bin`) optimized for e-paper displays. This guide covers the image processing pipeline and the available tools.
+The ESP32 Photo Frame requires images to be processed into a specific binary format (`.pfr1`) optimized for e-paper displays. This guide covers the image processing pipeline and the available tools.
 
 ## Why Image Processing is Required
 
@@ -69,8 +69,8 @@ Both tools support common image formats:
 - BMP (.bmp)
 
 ### Output Format
-The ESP32 firmware requires binary format (`.bin`) files:
-- **File Extension**: `.bin`
+The ESP32 firmware requires binary format (`.pfr1`) files:
+- **File Extension**: `.pfr1`
 - **Resolution**: Must match your display exactly (e.g., 800×480)
 - **Color Depth**: 8-bit per pixel (RRRGGGBB format)
 - **Size**: Approximately 375KB for 800×480 resolution
@@ -99,7 +99,7 @@ The ESP32 firmware requires binary format (`.bin`) files:
 5. **Color Quantization** - Convert to target color palette
 6. **Dithering** - Apply Floyd-Steinberg or ordered dithering
 7. **Binary Encoding** - Convert to ESP32 binary format
-8. **Save Output** - Write `.bin` file with appropriate naming
+8. **Save Output** - Write `.pfr1` file with appropriate naming
 
 ## Portrait Pairing
 
@@ -107,7 +107,7 @@ Portrait-oriented images (height > width) are automatically paired for landscape
 
 - Two portrait images are combined side-by-side
 - A customizable divider separates the images
-- Output filename: `combined_[mode]_[hash1]_[hash2].bin`
+- Output filename: `combined_[mode]_[hash1]_[hash2].pfr1`
 - Unpaired portraits are processed individually
 
 ## File Naming Convention
@@ -115,13 +115,13 @@ Portrait-oriented images (height > width) are automatically paired for landscape
 Processed files use a systematic naming scheme:
 
 ```
-Single images:     [mode]_[base64_filename].bin
-Combined images:   combined_[mode]_[hash1]_[hash2].bin
+Single images:     [mode]_[base64_filename].pfr1
+Combined images:   combined_[mode]_[hash1]_[hash2].pfr1
 
 Examples:
-- bw_cGhvdG8x.bin         (black & white single image)
-- 6c_aW1hZ2Uy.bin         (6-color single image)
-- combined_bw_YWJj_ZGVm.bin (combined black & white portraits)
+- bw_cGhvdG8x.pfr1         (black & white single image)
+- 6c_aW1hZ2Uy.pfr1         (6-color single image)
+- combined_bw_YWJj_ZGVm.pfr1 (combined black & white portraits)
 ```
 
 ## Best Practices
@@ -149,11 +149,11 @@ Examples:
 ### Display Matching
 Ensure your processing parameters match your display:
 
-| Display Model | Resolution | Recommended Size Parameter |
-|--------------|------------|---------------------------|
-| 7.5" Waveshare | 800×480 | `-s 800x480` |
-| 7.5" Waveshare (Portrait) | 480×800 | `-s 480x800` |
-| Other displays | Check specs | `-s WIDTHxHEIGHT` |
+| Display Model             | Resolution  | Recommended Size Parameter |
+| ------------------------- | ----------- | -------------------------- |
+| 7.5" Waveshare            | 800×480     | `-s 800x480`               |
+| 7.5" Waveshare (Portrait) | 480×800     | `-s 480x800`               |
+| Other displays            | Check specs | `-s WIDTHxHEIGHT`          |
 
 ## Troubleshooting
 
@@ -188,7 +188,7 @@ Ensure your processing parameters match your display:
 
 1. Choose your preferred processing tool (Rust CLI or Flutter GUI)
 2. Process your image collection
-3. Copy `.bin` files to SD card or upload to Google Drive
+3. Copy `.pfr1` files to SD card or upload to Google Drive
 4. Configure your ESP32 photo frame to use the appropriate image source
 
 For tool-specific details and advanced features, see:

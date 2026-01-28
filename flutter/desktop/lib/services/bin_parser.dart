@@ -1,5 +1,8 @@
 import 'dart:typed_data';
 
+/// FFI validation result (used when validation succeeds)
+import 'bin_validator_ffi.dart' show PhotoframeValidator, BinValidationResult;
+
 class BinHeader {
   final int version;
   final int headerLen;
@@ -20,6 +23,20 @@ class BinHeader {
     required this.payloadLen,
     required this.headerCrc32,
   });
+
+  /// Create BinHeader from FFI validation result
+  factory BinHeader.fromValidationResult(BinValidationResult result) {
+    return BinHeader(
+      version: result.version,
+      headerLen: result.headerLen,
+      width: result.width,
+      height: result.height,
+      rotation: result.rotation,
+      colorMode: result.colorMode,
+      payloadLen: result.payloadLen,
+      headerCrc32: 0, // Not available from validation result
+    );
+  }
 }
 
 class ParsedBin {
@@ -32,6 +49,27 @@ class ParsedBin {
 class BinParser {
   static const int _magic = 0x50465231; // 'PFR1' LE
   static const int _headerSize = 21;
+
+  /// Parse using C FFI validation (preferred on desktop)
+  static ParsedBin parseWithValidation(Uint8List data) {
+    final result = PhotoframeValidator.validate(data);
+    if (!result.success) {
+      throw FormatException('BIN validation failed');
+    }
+
+    // Extract header
+    final header = BinHeader.fromValidationResult(result);
+
+    // Extract payload
+    final payloadStart = _headerSize;
+    final payloadEnd = payloadStart + result.payloadLen;
+    if (data.length < payloadEnd + 4) {
+      throw FormatException('BIN truncated: insufficient data');
+    }
+    final payload = Uint8List.sublistView(data, payloadStart, payloadEnd);
+
+    return ParsedBin(header, payload, result.payloadCrc32);
+  }
 
   static ParsedBin parse(Uint8List data) {
     if (data.lengthInBytes < _headerSize + 4) {

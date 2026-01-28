@@ -161,7 +161,7 @@ pub fn upload_image_with_dimensions(
         .with_context(|| format!("Failed to read binary image: {}", bin_path.display()))?;
 
     let (bin_header, payload, payload_crc) =
-        parse_bin_file(&raw_data).context("Failed to parse .bin header")?;
+        parse_bin_file(&raw_data).context("Failed to parse file header")?;
     validate_payload_crc(payload, payload_crc)?;
     // Own the payload for the async block
     let payload: Vec<u8> = payload.to_vec();

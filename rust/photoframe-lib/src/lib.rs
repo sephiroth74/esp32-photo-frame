@@ -33,6 +33,20 @@ pub struct DitheringResult {
     pub data_len: usize,
 }
 
+/// FFI-safe validation result for PFR1 .pfr1 files.
+#[repr(C)]
+pub struct BinValidationResult {
+    pub success: bool,
+    pub version: u8,
+    pub header_len: u16,
+    pub width: u16,
+    pub height: u16,
+    pub rotation: u8,
+    pub color_mode: u8,
+    pub payload_len: u32,
+    pub payload_crc32: u32,
+}
+
 /// Free memory allocated by Rust and returned across the FFI boundary.
 ///
 /// Safety: `ptr` must be a pointer previously returned by this crate and `len` must
@@ -200,10 +214,8 @@ pub unsafe extern "C" fn photoframe_convert_with_processing(
             } else {
                 1
             };
-            // Build .bin file with PFR1 header
-            let mut buf = build_bin_file(
-                &payload, w as u16, h as u16, rotation, color_mode, 1u8,
-            );
+            // Build .pfr1 file with PFR1 header
+            let mut buf = build_bin_file(&payload, w as u16, h as u16, rotation, color_mode, 1u8);
             let len = buf.len();
             let ptr = buf.as_mut_ptr();
             std::mem::forget(buf);
@@ -221,6 +233,54 @@ pub unsafe extern "C" fn photoframe_convert_with_processing(
             height: 0,
             data_ptr: std::ptr::null_mut(),
             data_len: 0,
+        },
+    }
+}
+
+/// Validate a PFR1 .pfr1 file (C ABI).
+/// Returns metadata on success; on failure, success=false and other fields are zeroed.
+#[no_mangle]
+pub unsafe extern "C" fn photoframe_validate_bin(
+    data_ptr: *const u8,
+    data_len: usize,
+) -> BinValidationResult {
+    if data_ptr.is_null() || data_len == 0 {
+        return BinValidationResult {
+            success: false,
+            version: 0,
+            header_len: 0,
+            width: 0,
+            height: 0,
+            rotation: 0,
+            color_mode: 0,
+            payload_len: 0,
+            payload_crc32: 0,
+        };
+    }
+
+    let data = unsafe { slice::from_raw_parts(data_ptr, data_len) };
+    match validate_bin_file(data) {
+        Ok(v) => BinValidationResult {
+            success: true,
+            version: v.header.version,
+            header_len: v.header.header_len,
+            width: v.header.width,
+            height: v.header.height,
+            rotation: v.header.rotation,
+            color_mode: v.header.color_mode,
+            payload_len: v.header.payload_len,
+            payload_crc32: v.payload_crc32,
+        },
+        Err(_) => BinValidationResult {
+            success: false,
+            version: 0,
+            header_len: 0,
+            width: 0,
+            height: 0,
+            rotation: 0,
+            color_mode: 0,
+            payload_len: 0,
+            payload_crc32: 0,
         },
     }
 }

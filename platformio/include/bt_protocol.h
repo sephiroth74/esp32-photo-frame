@@ -25,6 +25,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "pfr1_config.h"
 
 // BT Protocol constants (must be outside namespace for use in macros)
 // Protocol version
@@ -39,8 +40,9 @@
 #define BT_ROTATION_180 2 // 180° - Landscape inverted
 #define BT_ROTATION_270 3 // 270° CW - Portrait inverted
 
-// Maximum image size (10MB)
-#define BT_MAX_IMAGE_SIZE (10 * 1024 * 1024)
+// Maximum image size (use PFR1 config for consistency with binary_utils)
+// Allows flexibility if display dimensions change in the future
+#define BT_MAX_IMAGE_SIZE PFR1_MAX_IMAGE_SIZE_ABSOLUTE
 
 // Transfer chunk size - increased to 2048 for faster transfers
 // Max payload in BLE is 247 bytes per notification, but buffering allows larger chunks
@@ -156,15 +158,6 @@ namespace bt_protocol {
     uint16_t calculateCRC16(const uint8_t* data, size_t length);
 
     /**
-     * @brief Calculate CRC32 for data validation (for PFR1 format)
-     *
-     * @param data Pointer to data
-     * @param length Length of data in bytes
-     * @return CRC32 value
-     */
-    uint32_t calculateCRC32(const uint8_t* data, size_t length);
-
-    /**
      * @brief Validate BTImageConfig structure
      *
      * @param config Configuration to validate
@@ -180,51 +173,7 @@ namespace bt_protocol {
      */
     const char* getRotationName(uint8_t rotation);
 
-    /**
-     * @brief PFR1 Binary Format Header
-     *
-     * This is the new header format for .bin files sent via BLE.
-     * Magic: 'PFR1' (0x50465231 little-endian)
-     * Total header size: 21 bytes
-     */
-    struct PFR1Header {
-        uint32_t magic; // 'PFR1' (0x50465231 LE)
-        uint8_t version; // Format version (currently 1)
-        uint16_t header_len; // Header length in bytes (21)
-        uint16_t width; // Image width
-        uint16_t height; // Image height
-        uint8_t rotation; // Display rotation (0-3)
-        uint8_t color_mode; // 0=BW, 1=6C
-        uint32_t payload_len; // Payload size (excludes header and CRC)
-        uint32_t header_crc32; // CRC32 of header (bytes 0-16)
-        // After header: payload data
-        // After payload: uint32_t payload_crc32
-    } __attribute__((packed));
-
-// PFR1 format constants
-#define PFR1_MAGIC 0x50465231 // 'PFR1' in little-endian
-#define PFR1_VERSION 1
-#define PFR1_HEADER_SIZE 21
-
-    /**
-     * @brief Parse and validate PFR1 header from buffer
-     *
-     * @param buffer Pointer to buffer containing PFR1 data
-     * @param buffer_size Size of buffer
-     * @param header Output parameter for parsed header
-     * @return true if header is valid, false otherwise
-     */
-    bool parsePFR1Header(const uint8_t* buffer, size_t buffer_size, PFR1Header& header);
-
-    /**
-     * @brief Validate PFR1 payload CRC
-     *
-     * @param payload Pointer to payload data (after header)
-     * @param payload_len Length of payload
-     * @param expected_crc32 Expected CRC32 value
-     * @return true if CRC matches, false otherwise
-     */
-    bool validatePFR1PayloadCRC(const uint8_t* payload, size_t payload_len, uint32_t expected_crc32);
+    // PFR1 header and validation moved to binary_utils.h (global)
 
 } // namespace bt_protocol
 } // namespace photo_frame

@@ -29,7 +29,9 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <FS.h>
+#include <memory>
 
+#include "binary_utils.h"
 #include "bt_protocol.h"
 #include "errors.h"
 
@@ -112,11 +114,18 @@ public:
     bt_protocol::BTDeviceConfig buildDeviceConfig() const;
 
     /**
+     * @brief Get received image as PFR1BinaryFile wrapper
+     *
+     * @return Pointer to PFR1BinaryFile (nullptr if not available)
+     */
+    binary_utils::PFR1BinaryFile* getImageFile() { return image_file_.get(); }
+
+    /**
      * @brief Get pointer to received image buffer
      *
      * @return Pointer to image buffer (nullptr if not available)
      */
-    const uint8_t* getImageBuffer() const { return image_buffer_; }
+    const uint8_t* getImageBuffer() const { return image_file_ ? image_file_->getBuffer() : nullptr; }
 
     /**
      * @brief Get pointer to image payload (without PFR1 header)
@@ -125,7 +134,7 @@ public:
      */
     const uint8_t* getImagePayload() const
     {
-        return image_buffer_ ? &image_buffer_[pfr1_payload_offset_] : nullptr;
+        return image_file_ ? image_file_->getPayload() : nullptr;
     }
 
     /**
@@ -133,31 +142,31 @@ public:
      *
      * @return Payload size in bytes
      */
-    uint32_t getPayloadSize() const { return pfr1_payload_len_; }
+    uint32_t getPayloadSize() const { return image_file_ ? image_file_->header.payload_len : 0; }
 
     /**
      * @brief Get image width from PFR1 header
      *
      * @return Image width
      */
-    uint16_t getImageWidth() const { return pfr1_width_; }
+    uint16_t getImageWidth() const { return image_file_ ? image_file_->getWidth() : 0; }
 
     /**
      * @brief Get image height from PFR1 header
      *
      * @return Image height
      */
-    uint16_t getImageHeight() const { return pfr1_height_; }
+    uint16_t getImageHeight() const { return image_file_ ? image_file_->getHeight() : 0; }
 
     /**
      * @brief Get rotation from PFR1 header
      *
-     * This is the rotation value embedded in the .bin file header.
+     * This is the rotation value embedded in the .pfr1 file header.
      * May differ from the requested rotation in config.
      *
      * @return Rotation value (0-3) from file header
      */
-    uint8_t getImageRotation() const { return pfr1_rotation_; }
+    uint8_t getImageRotation() const { return image_file_ ? image_file_->header.rotation : 0; }
 
     /**
      * @brief Get requested rotation from client config
@@ -174,7 +183,7 @@ public:
      *
      * @return Color mode (0=BW, 1=6C)
      */
-    uint8_t getImageColorMode() const { return pfr1_color_mode_; }
+    uint8_t getImageColorMode() const { return image_file_ ? image_file_->header.color_mode : 0; }
 
     /**
      * @brief Get size of received image
@@ -276,18 +285,9 @@ private:
     unsigned long connection_start_ms_;
     unsigned long last_chunk_ms_;
 
-    // Image data buffer for accumulating received chunks
-    uint8_t* image_buffer_;
-    size_t image_buffer_size_;
-    bool image_buffer_allocated_;
-
-    // PFR1 header info (extracted after transfer complete)
-    uint16_t pfr1_width_;
-    uint16_t pfr1_height_;
-    uint8_t pfr1_rotation_;
-    uint8_t pfr1_color_mode_;
-    uint32_t pfr1_payload_offset_; // Offset to payload in buffer (after header)
-    uint32_t pfr1_payload_len_; // Payload length
+    // Image data - PFR1BinaryFile wrapper with header + payload + CRC
+    std::unique_ptr<binary_utils::PFR1BinaryFile> image_file_;
+    size_t bytes_written_to_buffer_; // Tracks how many bytes written to buffer
 
     /**
      * @brief Process received configuration

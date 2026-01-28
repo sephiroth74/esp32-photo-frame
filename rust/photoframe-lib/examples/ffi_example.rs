@@ -23,7 +23,7 @@ fn main() {
             );
             // Save
             std::fs::create_dir_all("examples/output").ok();
-            std::fs::write("examples/output/ffi_bw.bin", payload).expect("write");
+            std::fs::write("examples/output/ffi_bw.pfr1", payload).expect("write");
             // Free
             photoframe_dithering_free(res.data_ptr, res.data_len);
         } else {
@@ -52,7 +52,7 @@ fn main() {
             } else {
                 payload
             };
-            std::fs::write("examples/output/ffi_6c.bin", data_to_write).expect("write");
+            std::fs::write("examples/output/ffi_6c.pfr1", data_to_write).expect("write");
             photoframe_dithering_free(res2.data_ptr, res2.data_len);
         } else {
             eprintln!("Conversion failed (6C)");

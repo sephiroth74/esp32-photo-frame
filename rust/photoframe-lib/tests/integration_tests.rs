@@ -257,7 +257,7 @@ fn test_convert_after_dithering_sixcolors_and_bw() {
         }
 
         std::fs::write(
-            out_dir.join(format!("post_dither_{:?}_6c.bin", method)),
+            out_dir.join(format!("post_dither_{:?}_6c.pfr1", method)),
             &bin6,
         )
         .expect("write bin6");
@@ -311,7 +311,7 @@ fn test_convert_after_dithering_sixcolors_and_bw() {
         }
 
         std::fs::write(
-            out_dir.join(format!("post_dither_{:?}_bw.bin", method)),
+            out_dir.join(format!("post_dither_{:?}_bw.pfr1", method)),
             &binbw,
         )
         .expect("write binbw");

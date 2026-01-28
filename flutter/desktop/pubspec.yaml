@@ -24,6 +24,9 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.5
 
+  # Persistent local storage
+  shared_preferences: ^2.3.2
+
   # Bluetooth (macOS)
   flutter_blue_plus: ^1.19.5
 

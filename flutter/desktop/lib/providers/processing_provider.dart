@@ -315,7 +315,7 @@ class ProcessingProvider with ChangeNotifier {
     // Output formats
     final formats = <String>[];
     if (_config.outputBmp) formats.add('bmp');
-    if (_config.outputBin) formats.add('bin');
+    if (_config.outputBin) formats.add('pfr1');
     if (_config.outputJpg) formats.add('jpg');
     if (_config.outputPng) formats.add('png');
     if (formats.isNotEmpty) {

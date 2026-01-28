@@ -18,8 +18,8 @@ pub enum OutputType {
     #[value(name = "bmp")]
     Bmp,
     /// Generate only binary files for ESP32
-    #[value(name = "bin")]
-    Bin,
+    #[value(name = "pfr1")]
+    Pfr1,
     /// Generate only JPG files
     #[value(name = "jpg")]
     Jpg,
@@ -34,6 +34,15 @@ pub enum TargetOrientation {
     Landscape,
     /// Portrait display (90°/270°) - pairs landscapes top-bottom
     Portrait,
+}
+
+impl Into<u8> for TargetOrientation {
+    fn into(self) -> u8 {
+        match self {
+            TargetOrientation::Landscape => 0,
+            TargetOrientation::Portrait => 1,
+        }
+    }
 }
 
 impl TargetOrientation {
@@ -161,16 +170,20 @@ pub struct Args {
     #[arg(
         short = 'i',
         long = "input",
-        required_unless_present_any = ["config_file"],
+        required_unless_present_any = ["config_file", "validate"],
         value_name = "DIR|FILE"
     )]
     pub input_paths: Vec<PathBuf>,
+
+    /// Validate a .pfr1 file and exit (bypasses normal processing)
+    #[arg(long = "validate", value_name = "FILE", conflicts_with_all = ["input_paths", "config_file"])]
+    pub validate: Option<PathBuf>,
 
     /// Output directory for processed images
     #[arg(
         short = 'o',
         long = "output",
-        required_unless_present_any = ["config_file"],
+        required_unless_present_any = ["config_file", "validate"],
         value_name = "DIR",
         default_value = "."
     )]
@@ -181,8 +194,8 @@ pub struct Args {
     #[arg(short = 't', long = "type", default_value = "bw")]
     pub processing_type: ColorType,
 
-    /// Output formats: comma-separated list of bmp, bin, jpg, png (e.g., "bmp,bin" or "jpg")
-    #[arg(long = "output-format", default_value = "bin")]
+    /// Output formats: comma-separated list of bmp, pfr1, jpg, png (e.g., "bmp,pfr1" or "jpg")
+    #[arg(long = "output-format", default_value = "pfr1")]
     pub output_formats_str: String,
 
     /// Display orientation (how the physical display is mounted)
@@ -315,10 +328,6 @@ pub struct Args {
     #[arg(long = "json-progress")]
     pub json_progress: bool,
 
-    /// Skip processing and only validate input files
-    #[arg(long = "validate-only")]
-    pub validate_only: bool,
-
     /// Enable people detection for smart cropping using embedded YOLO11 model
     #[cfg(feature = "ai")]
     #[arg(long = "detect-people")]
@@ -404,12 +413,12 @@ impl Args {
 
             let format = match format_str.as_str() {
                 "bmp" => OutputType::Bmp,
-                "bin" => OutputType::Bin,
+                "pfr1" => OutputType::Pfr1,
                 "jpg" => OutputType::Jpg,
                 "png" => OutputType::Png,
                 _ => {
                     return Err(format!(
-                        "Invalid output format: '{}'. Valid formats are: bmp, bin, jpg, png",
+                        "Invalid output format: '{}'. Valid formats are: bmp, pfr1, jpg, png",
                         format_str
                     ))
                 }

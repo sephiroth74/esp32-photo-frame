@@ -112,7 +112,7 @@ impl ProcessingEngine {
         for format in &self.config.output_formats {
             let format_dir = match format {
                 crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
-                crate::cli::OutputType::Bin => base_output_dir.join("bin"),
+                crate::cli::OutputType::Pfr1 => base_output_dir.join("pfr1"),
                 crate::cli::OutputType::Jpg => base_output_dir.join("jpg"),
                 crate::cli::OutputType::Png => base_output_dir.join("png"),
             };
@@ -142,14 +142,14 @@ impl ProcessingEngine {
     ) -> PathBuf {
         let format_dir = match format {
             crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
-            crate::cli::OutputType::Bin => base_output_dir.join("bin"),
+            crate::cli::OutputType::Pfr1 => base_output_dir.join("pfr1"),
             crate::cli::OutputType::Jpg => base_output_dir.join("jpg"),
             crate::cli::OutputType::Png => base_output_dir.join("png"),
         };
 
         let extension = match format {
             crate::cli::OutputType::Bmp => "bmp",
-            crate::cli::OutputType::Bin => "bin",
+            crate::cli::OutputType::Pfr1 => "pfr1",
             crate::cli::OutputType::Jpg => "jpg",
             crate::cli::OutputType::Png => "png",
         };
@@ -207,14 +207,14 @@ impl ProcessingEngine {
     ) -> PathBuf {
         let format_dir = match format {
             crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
-            crate::cli::OutputType::Bin => base_output_dir.join("bin"),
+            crate::cli::OutputType::Pfr1 => base_output_dir.join("pfr1"),
             crate::cli::OutputType::Jpg => base_output_dir.join("jpg"),
             crate::cli::OutputType::Png => base_output_dir.join("png"),
         };
 
         let extension = match format {
             crate::cli::OutputType::Bmp => "bmp",
-            crate::cli::OutputType::Bin => "bin",
+            crate::cli::OutputType::Pfr1 => "pfr1",
             crate::cli::OutputType::Jpg => "jpg",
             crate::cli::OutputType::Png => "png",
         };
@@ -991,7 +991,7 @@ impl ProcessingEngine {
         for (_, format) in self.config.output_formats.iter().enumerate() {
             let format_name = match format {
                 crate::cli::OutputType::Bmp => "BMP",
-                crate::cli::OutputType::Bin => "Binary",
+                crate::cli::OutputType::Pfr1 => "PFR1",
                 crate::cli::OutputType::Jpg => "JPG",
                 crate::cli::OutputType::Png => "PNG",
             };
@@ -1019,7 +1019,7 @@ impl ProcessingEngine {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
-                    crate::cli::OutputType::Bin => {
+                    crate::cli::OutputType::Pfr1 => {
                         let payload = process_image_with_display_type(
                             &final_img,
                             self.config.processing_type,
@@ -1030,10 +1030,12 @@ impl ProcessingEngine {
                             &payload,
                             w as u16,
                             h as u16,
-                            0,
+                            self.config.target_orientation.orientation.into(),
                             color_mode,
                             1u8,
                         );
+                        photoframe_lib::validate_bin_file(&bin)
+                            .context("Generated binary failed validation")?;
                         std::fs::write(&output_path, bin).with_context(|| {
                             format!("Failed to save binary: {}", output_path.display())
                         })?;
@@ -1316,7 +1318,7 @@ impl ProcessingEngine {
         for format in &self.config.output_formats {
             let format_name = match format {
                 crate::cli::OutputType::Bmp => "portrait BMP",
-                crate::cli::OutputType::Bin => "portrait Binary",
+                crate::cli::OutputType::Pfr1 => "portrait PFR1",
                 crate::cli::OutputType::Jpg => "portrait JPG",
                 crate::cli::OutputType::Png => "portrait PNG",
             };
@@ -1345,21 +1347,24 @@ impl ProcessingEngine {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
-                    crate::cli::OutputType::Bin => {
+                    crate::cli::OutputType::Pfr1 => {
                         let payload = process_image_with_display_type(
                             &final_img,
                             self.config.processing_type,
                         )?;
                         let (w, h) = final_img.dimensions();
                         let color_mode = infer_color_mode(&payload);
+                        verbose_println(true, "build_bin_file[2]");
                         let bin = photoframe_lib::build_bin_file(
                             &payload,
                             w as u16,
                             h as u16,
-                            0,
+                            self.config.target_orientation.orientation.into(),
                             color_mode,
                             1u8,
                         );
+                        photoframe_lib::validate_bin_file(&bin)
+                            .context("Generated portrait binary failed validation")?;
                         std::fs::write(&output_path, bin).with_context(|| {
                             format!("Failed to save portrait binary: {}", output_path.display())
                         })?;
@@ -2018,7 +2023,7 @@ impl ProcessingEngine {
         for format in &self.config.output_formats {
             let format_name = match format {
                 crate::cli::OutputType::Bmp => "combined BMP",
-                crate::cli::OutputType::Bin => "combined Binary",
+                crate::cli::OutputType::Pfr1 => "combined PFR1",
                 crate::cli::OutputType::Jpg => "combined JPG",
                 crate::cli::OutputType::Png => "combined PNG",
             };
@@ -2051,7 +2056,7 @@ impl ProcessingEngine {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
-                    crate::cli::OutputType::Bin => {
+                    crate::cli::OutputType::Pfr1 => {
                         let payload = process_image_with_display_type(
                             &final_combined_img,
                             self.config.processing_type,
@@ -2062,10 +2067,12 @@ impl ProcessingEngine {
                             &payload,
                             w as u16,
                             h as u16,
-                            0,
+                            self.config.target_orientation.orientation.into(),
                             color_mode,
                             1u8,
                         );
+                        photoframe_lib::validate_bin_file(&bin)
+                            .context("Generated combined binary failed validation")?;
                         std::fs::write(&output_path, &bin).with_context(|| {
                             format!("Failed to save combined binary: {}", output_path.display())
                         })?;
@@ -2749,7 +2756,7 @@ impl ProcessingEngine {
         for format in &self.config.output_formats {
             let format_name = match format {
                 crate::cli::OutputType::Bmp => "combined BMP",
-                crate::cli::OutputType::Bin => "combined Binary",
+                crate::cli::OutputType::Pfr1 => "combined PFR1",
                 crate::cli::OutputType::Jpg => "combined JPG",
                 crate::cli::OutputType::Png => "combined PNG",
             };
@@ -2782,13 +2789,25 @@ impl ProcessingEngine {
                             format!("Failed to save {}: {}", format_name, output_path.display())
                         })?;
                     }
-                    crate::cli::OutputType::Bin => {
+                    crate::cli::OutputType::Pfr1 => {
                         // Use appropriate binary format based on display type
-                        let binary_data = process_image_with_display_type(
+                        let payload = process_image_with_display_type(
                             &combined,
                             self.config.processing_type,
                         )?;
-                        std::fs::write(&output_path, &binary_data).with_context(|| {
+                        let (w, h) = combined.dimensions();
+                        let color_mode = infer_color_mode(&payload);
+                        let bin = photoframe_lib::build_bin_file(
+                            &payload,
+                            w as u16,
+                            h as u16,
+                            self.config.target_orientation.orientation.into(),
+                            color_mode,
+                            1u8,
+                        );
+                        photoframe_lib::validate_bin_file(&bin)
+                            .context("Generated combined landscape binary failed validation")?;
+                        std::fs::write(&output_path, &bin).with_context(|| {
                             format!("Failed to save combined binary: {}", output_path.display())
                         })?;
                     }
@@ -3000,7 +3019,7 @@ impl ProcessingEngine {
         for format in &self.config.output_formats {
             // Debug mode always saves as image format (no binary)
             let actual_format = match format {
-                crate::cli::OutputType::Bin => &crate::cli::OutputType::Png, // Convert bin to PNG for debug
+                crate::cli::OutputType::Pfr1 => &crate::cli::OutputType::Png, // Convert pfr1 to PNG for debug
                 _ => format,
             };
 

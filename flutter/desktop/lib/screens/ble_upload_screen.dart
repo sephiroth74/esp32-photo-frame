@@ -96,7 +96,7 @@ class BleUploadScreen extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  ble.status.isNotEmpty ? ble.status : 'Select a device and choose a .bin file to upload',
+                                  ble.status.isNotEmpty ? ble.status : 'Select a device and choose a .pfr1 file to upload',
                                   style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -122,9 +122,9 @@ class BleUploadScreen extends StatelessWidget {
                               AppKitButton(
                                 size: AppKitControlSize.regular,
                                 onTap: () async {
-                                  final result = await FilePicker.platform.pickFiles(
+                                  final result = await FilePicker.pickFiles(
                                     type: FileType.custom,
-                                    allowedExtensions: const ['bin'],
+                                    allowedExtensions: const ['pfr1'],
                                     initialDirectory: FilePickerHistory.initialDir('bleBin'),
                                   );
                                   if (result != null && result.files.single.path != null) {
@@ -133,7 +133,7 @@ class BleUploadScreen extends StatelessWidget {
                                     await ble.pickBin(selectedPath);
                                   }
                                 },
-                                child: const Text('Choose .bin'),
+                                child: const Text('Choose .pfr1'),
                               ),
                             ],
                           ),

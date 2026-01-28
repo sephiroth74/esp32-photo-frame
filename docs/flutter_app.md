@@ -86,7 +86,7 @@ Settings → Display → Portrait Mode
 
 The app uses Base64 encoding for filenames to handle special characters:
 - Original: `photo (1).jpg`
-- Encoded: `bw_cGhvdG8gKDEp.bin`
+- Encoded: `bw_cGhvdG8gKDEp.pfr1`
 
 #### Batch Processing Optimizations
 
@@ -114,7 +114,7 @@ Settings are stored in platform-specific locations:
     "portrait": false
   },
   "processing": {
-    "output_formats": ["bin"],
+    "output_formats": ["pfr1"],
     "crop_mode": "auto",
     "dithering": "floyd_steinberg",
     "quality": 85
@@ -128,7 +128,7 @@ Settings are stored in platform-specific locations:
 
 ## Output Formats
 
-### Binary Format (.bin)
+### Binary Format (.pfr1)
 
 Optimized format for ESP32 firmware:
 - Compact file size (50-70% smaller than BMP)
@@ -174,16 +174,16 @@ Lossless compression:
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+O | Open files |
-| Ctrl+S | Save processed images |
-| Ctrl+P | Process batch |
-| Ctrl+Q | Quit application |
-| Space | Preview selected image |
-| Delete | Remove from queue |
-| Ctrl+A | Select all |
-| F1 | Show help |
+| Shortcut | Action                 |
+| -------- | ---------------------- |
+| Ctrl+O   | Open files             |
+| Ctrl+S   | Save processed images  |
+| Ctrl+P   | Process batch          |
+| Ctrl+Q   | Quit application       |
+| Space    | Preview selected image |
+| Delete   | Remove from queue      |
+| Ctrl+A   | Select all             |
+| F1       | Show help              |
 
 ## Troubleshooting
 
@@ -223,33 +223,33 @@ The Flutter app also supports command-line operation:
 
 ```bash
 # Process single image
-photoframe_flutter --input photo.jpg --output processed.bin --mode bw --size 800x480
+photoframe_flutter --input photo.jpg --output processed.pfr1 --mode bw --size 800x480
 
 # Batch process directory
 photoframe_flutter --input-dir ~/photos --output-dir ~/processed --mode 6c --format bin,bmp
 
 # With options
-photoframe_flutter --input photo.jpg --output photo.bin \
+photoframe_flutter --input photo.jpg --output photo.pfr1 \
   --mode bw --size 800x480 --crop center --dither floyd
 ```
 
 ### CLI Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--input` | Input image file | Required |
-| `--input-dir` | Input directory for batch | - |
-| `--output` | Output file path | Required |
-| `--output-dir` | Output directory | - |
-| `--mode` | Color mode (bw, 6c) | bw |
-| `--size` | Display size (WIDTHxHEIGHT) | 800x480 |
-| `--format` | Output formats (comma-separated) | bin |
-| `--crop` | Crop mode (auto, center, none) | auto |
-| `--dither` | Dithering algorithm | floyd |
-| `--quality` | JPEG quality (1-100) | 85 |
-| `--portrait` | Enable portrait mode | false |
-| `--skip-existing` | Skip already processed files | false |
-| `--verbose` | Verbose output | false |
+| Option            | Description                      | Default  |
+| ----------------- | -------------------------------- | -------- |
+| `--input`         | Input image file                 | Required |
+| `--input-dir`     | Input directory for batch        | -        |
+| `--output`        | Output file path                 | Required |
+| `--output-dir`    | Output directory                 | -        |
+| `--mode`          | Color mode (bw, 6c)              | bw       |
+| `--size`          | Display size (WIDTHxHEIGHT)      | 800x480  |
+| `--format`        | Output formats (comma-separated) | bin      |
+| `--crop`          | Crop mode (auto, center, none)   | auto     |
+| `--dither`        | Dithering algorithm              | floyd    |
+| `--quality`       | JPEG quality (1-100)             | 85       |
+| `--portrait`      | Enable portrait mode             | false    |
+| `--skip-existing` | Skip already processed files     | false    |
+| `--verbose`       | Verbose output                   | false    |
 
 ## Development
 

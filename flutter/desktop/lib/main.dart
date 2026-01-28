@@ -9,6 +9,7 @@ import 'providers/ble_provider.dart';
 import 'providers/processing_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/window_preferences.dart';
+import 'services/file_picker_history.dart';
 import 'widgets/menu_bar.dart';
 
 Future<void> _configureMacosWindowUtils() async {
@@ -35,6 +36,9 @@ void main() async {
 
   // Restore window size and position
   await WindowPreferences.restoreWindowSize();
+
+  // Initialize file picker history (persistent storage for last used directories)
+  await FilePickerHistory.initialize();
 
   // Set minimum window size
   await windowManager.setMinimumSize(const Size(800, 600));

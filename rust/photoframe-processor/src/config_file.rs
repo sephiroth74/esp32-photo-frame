@@ -114,13 +114,13 @@ impl Args {
         }
 
         // Output formats - build from individual booleans if using default
-        if self.output_formats_str == "bin" {
+        if self.output_formats_str == "pfr1" {
             let mut formats = Vec::new();
             if config.output_bmp.unwrap_or(false) {
                 formats.push("bmp");
             }
             if config.output_bin.unwrap_or(false) {
-                formats.push("bin");
+                formats.push("pfr1");
             }
             if config.output_jpg.unwrap_or(false) {
                 formats.push("jpg");

@@ -124,10 +124,10 @@ The WiFi configuration supports up to 3 networks. The system will attempt to con
 }
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `ssid` | string | Yes | WiFi network name |
-| `password` | string | Yes | WiFi network password |
+| Parameter  | Type   | Required | Description           |
+| ---------- | ------ | -------- | --------------------- |
+| `ssid`     | string | Yes      | WiFi network name     |
+| `password` | string | Yes      | WiFi network password |
 
 ### Google Drive Configuration
 
@@ -146,9 +146,9 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 }
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enabled` | boolean | true | Enable or disable Google Drive as image source |
+| Parameter | Type    | Default | Description                                    |
+| --------- | ------- | ------- | ---------------------------------------------- |
+| `enabled` | boolean | true    | Enable or disable Google Drive as image source |
 
 #### Authentication Section
 
@@ -164,11 +164,11 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 }
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `service_account_email` | string | Yes* | Google service account email |
-| `private_key_pem` | string | Yes* | Private key in PEM format (include BEGIN/END markers) |
-| `client_id` | string | Yes* | Client ID from service account |
+| Parameter               | Type   | Required | Description                                           |
+| ----------------------- | ------ | -------- | ----------------------------------------------------- |
+| `service_account_email` | string | Yes*     | Google service account email                          |
+| `private_key_pem`       | string | Yes*     | Private key in PEM format (include BEGIN/END markers) |
+| `client_id`             | string | Yes*     | Client ID from service account                        |
 
 *Required only if Google Drive is enabled
 
@@ -187,12 +187,12 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 }
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `folder_id` | string | Required | Google Drive folder ID containing images |
-| `root_ca_path` | string | "" | Path to root CA certificate (optional if using insecure TLS) |
-| `list_page_size` | integer | 100 | Number of files per API request (max 1000) |
-| `use_insecure_tls` | boolean | true | Skip TLS certificate verification (use true for simplicity) |
+| Parameter          | Type    | Default  | Description                                                  |
+| ------------------ | ------- | -------- | ------------------------------------------------------------ |
+| `folder_id`        | string  | Required | Google Drive folder ID containing images                     |
+| `root_ca_path`     | string  | ""       | Path to root CA certificate (optional if using insecure TLS) |
+| `list_page_size`   | integer | 100      | Number of files per API request (max 1000)                   |
+| `use_insecure_tls` | boolean | true     | Skip TLS certificate verification (use true for simplicity)  |
 
 #### Caching Section
 
@@ -207,10 +207,10 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 }
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `local_path` | string | "/gdrive" | SD card path for cache storage |
-| `toc_max_age_seconds` | integer | 604800 | Table of contents max age (7 days) |
+| Parameter             | Type    | Default   | Description                        |
+| --------------------- | ------- | --------- | ---------------------------------- |
+| `local_path`          | string  | "/gdrive" | SD card path for cache storage     |
+| `toc_max_age_seconds` | integer | 604800    | Table of contents max age (7 days) |
 
 #### Rate Limiting Section
 
@@ -229,14 +229,14 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 }
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `max_requests_per_window` | integer | 100 | Maximum API requests per time window |
-| `rate_limit_window_seconds` | integer | 100 | Time window for rate limiting (seconds) |
-| `min_request_delay_ms` | integer | 500 | Minimum delay between requests (ms) |
-| `max_retry_attempts` | integer | 3 | Maximum retry attempts for failed requests |
-| `backoff_base_delay_ms` | integer | 5000 | Base delay for exponential backoff (ms) |
-| `max_wait_time_ms` | integer | 30000 | Maximum wait time before giving up (ms) |
+| Parameter                   | Type    | Default | Description                                |
+| --------------------------- | ------- | ------- | ------------------------------------------ |
+| `max_requests_per_window`   | integer | 100     | Maximum API requests per time window       |
+| `rate_limit_window_seconds` | integer | 100     | Time window for rate limiting (seconds)    |
+| `min_request_delay_ms`      | integer | 500     | Minimum delay between requests (ms)        |
+| `max_retry_attempts`        | integer | 3       | Maximum retry attempts for failed requests |
+| `backoff_base_delay_ms`     | integer | 5000    | Base delay for exponential backoff (ms)    |
+| `max_wait_time_ms`          | integer | 30000   | Maximum wait time before giving up (ms)    |
 
 ### SD Card Configuration
 
@@ -256,12 +256,12 @@ The SD Card configuration allows using local SD card directory as an image sourc
 }
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enabled` | boolean | false | Enable/disable SD card as image source |
-| `images_directory` | string | "/images" | Directory path containing image files |
-| `use_toc_cache` | boolean | true | Enable TOC caching for performance |
-| `toc_max_age_seconds` | integer | 86400 | Maximum TOC cache age (24 hours default) |
+| Parameter             | Type    | Default   | Description                              |
+| --------------------- | ------- | --------- | ---------------------------------------- |
+| `enabled`             | boolean | false     | Enable/disable SD card as image source   |
+| `images_directory`    | string  | "/images" | Directory path containing image files    |
+| `use_toc_cache`       | boolean | true      | Enable TOC caching for performance       |
+| `toc_max_age_seconds` | integer | 86400     | Maximum TOC cache age (24 hours default) |
 
 **Note**: At least one image source (Google Drive or SD Card) must be enabled. If both are enabled, SD Card takes precedence.
 
@@ -287,21 +287,21 @@ The SD Card configuration allows using local SD card directory as an image sourc
 }
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `portrait_mode` | boolean | false | Enable portrait (vertical) display orientation |
-| `day_start_hour` | integer | 6 | Hour when display updates start (0-23) |
-| `day_end_hour` | integer | 23 | Hour when display updates stop (0-23) |
+| Parameter        | Type    | Default | Description                                    |
+| ---------------- | ------- | ------- | ---------------------------------------------- |
+| `portrait_mode`  | boolean | false   | Enable portrait (vertical) display orientation |
+| `day_start_hour` | integer | 6       | Hour when display updates start (0-23)         |
+| `day_end_hour`   | integer | 23      | Hour when display updates stop (0-23)          |
 
 #### Refresh Settings
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `min_seconds` | integer | 600 | Minimum refresh interval (seconds) |
-| `max_seconds` | integer | 14400 | Maximum refresh interval (seconds) |
-| `step` | integer | 300 | Step size for potentiometer adjustment (seconds) |
-| `default` | integer | 1800 | Default interval when potentiometer is not used |
-| `low_battery_multiplier` | integer | 3 | Multiplier for refresh interval when battery is low |
+| Parameter                | Type    | Default | Description                                         |
+| ------------------------ | ------- | ------- | --------------------------------------------------- |
+| `min_seconds`            | integer | 600     | Minimum refresh interval (seconds)                  |
+| `max_seconds`            | integer | 14400   | Maximum refresh interval (seconds)                  |
+| `step`                   | integer | 300     | Step size for potentiometer adjustment (seconds)    |
+| `default`                | integer | 1800    | Default interval when potentiometer is not used     |
+| `low_battery_multiplier` | integer | 3       | Multiplier for refresh interval when battery is low |
 
 **Note**: The `default` value is used when `USE_POTENTIOMETER` is not defined in the firmware. When using a potentiometer, the `min_seconds`, `max_seconds`, and `step` values control the potentiometer range.
 
@@ -323,11 +323,11 @@ The SD Card configuration allows using local SD card directory as an image sourc
 #### v0.7.0
 If you have an existing configuration file using the old key names, you must update them:
 
-| Old Key (v0.6.x and earlier) | New Key (v0.7.0+) |
-|------------------------------|-------------------|
-| `"google_drive"` | `"google_drive_config"` |
-| `"weather"` | `"weather_config"` (removed in v0.12.0) |
-| `"board"` | `"board_config"` |
+| Old Key (v0.6.x and earlier) | New Key (v0.7.0+)                       |
+| ---------------------------- | --------------------------------------- |
+| `"google_drive"`             | `"google_drive_config"`                 |
+| `"weather"`                  | `"weather_config"` (removed in v0.12.0) |
+| `"board"`                    | `"board_config"`                        |
 
 ## Minimal Configuration Examples
 
@@ -427,7 +427,7 @@ Check the serial console output for configuration validation messages:
 1. Verify at least one image source is enabled (`google_drive_config.enabled` or `sd_card_config.enabled`)
 2. For SD Card: Check that images exist in the configured `images_directory`
 3. For Google Drive: Verify authentication credentials and folder_id
-4. Check that image files are in binary format (`.bin` extension)
+4. Check that image files are in binary format (`.pfr1` extension)
 
 ### Google Drive Authentication Failing
 
@@ -455,7 +455,7 @@ Check the serial console output for configuration validation messages:
 - **Image Source Priority**: If both Google Drive and SD Card are enabled, SD Card takes precedence
 - **Portrait Mode**: This is a runtime configuration - no firmware recompilation needed
 - **WiFi Networks**: System tries networks in order until successful connection
-- **Binary Format Only**: ESP32 firmware only supports `.bin` image format (v0.12.0+)
+- **Binary Format Only**: ESP32 firmware only supports `.pfr1` image format (v0.12.0+)
 - **Configuration Validation**: At least one image source must be enabled for valid configuration
 
 ## See Also

@@ -147,13 +147,10 @@ photoframe-processor -i ~/Photos -o ~/processed \
 photoframe-processor --find-hash a1b2c3d4
 
 # Decode combined portrait filename to show original filenames
-photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.bin"
+photoframe-processor --find-original "combined_bw_aW1hZ2Ux_aW1hZ2Uy.pfr1"
 
 # Dry run: simulate processing without creating files
 photoframe-processor -i ~/Photos -o ~/processed --auto --dry-run --verbose
-
-# Validate images without processing
-photoframe-processor -i ~/Photos --validate-only --verbose
 
 # Debug mode: visualize detection boxes and crop areas
 photoframe-processor -i ~/Photos -o ~/processed --detect-people \
@@ -186,7 +183,6 @@ photoframe-processor -i ~/Photos -o ~/processed --detect-people \
 - `--find-hash` - Find original filename from an 8-character hash
 - `--find-original` - Decode combined portrait filename to show original filenames
 - `--dry-run` - Simulate processing without creating files
-- `--validate-only` - Skip processing and only validate input files
 - `--debug` - Enable debug mode with visualization of detection boxes
 - `--annotate` - Enable filename annotations on processed images
 - `--auto-color` - Enable automatic color correction before processing
@@ -198,13 +194,13 @@ photoframe-processor -i ~/Photos -o ~/processed --detect-people \
 
 ## 📊 Performance Characteristics
 
-| Feature | Specification |
-|---------|---------------|
-| **Processing Speed** | ~0.3s per image |
-| **Memory Usage** | ~45MB peak |
+| Feature                 | Specification                            |
+| ----------------------- | ---------------------------------------- |
+| **Processing Speed**    | ~0.3s per image                          |
+| **Memory Usage**        | ~45MB peak                               |
 | **Parallel Processing** | Full CPU utilization with N-core scaling |
-| **Font Rendering** | True font support with system fonts |
-| **People Detection** | YOLO11-based smart cropping |
+| **Font Rendering**      | True font support with system fonts      |
+| **People Detection**    | YOLO11-based smart cropping              |
 
 ## 🧠 AI Features Deep Dive
 

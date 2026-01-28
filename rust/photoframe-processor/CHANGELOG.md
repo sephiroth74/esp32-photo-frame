@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Progress monitoring exits cleanly when `processing_complete` flag is set
 
 ### Removed
-- **Validate Only from GUI**: Removed from GUI interface (still available in CLI with `--validate-only`)
+- **Validate Only**: Removed from GUI and CLI (flag `--validate-only` deleted)
 
 ### Technical Details
 - **GUI Dependencies** (optional, enabled with `gui` feature):

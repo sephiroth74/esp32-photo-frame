@@ -29,8 +29,10 @@
 #ifdef ENABLE_BT_IMAGE
 
 #include <Arduino.h>
+#include <memory>
 
 #include "battery.h"
+#include "binary_utils.h"
 #include "bluetooth_image_manager.h"
 #include "board_util.h"
 #include "bt_protocol.h"
@@ -51,39 +53,36 @@
 // BLUETOOTH MODE IMPLEMENTATION
 // ============================================================================
 
-photo_frame::photo_frame_error_t load_littlefs_file(const char* filename, photo_frame::littlefs_manager::LittleFsManager& littleFs, photo_frame::DisplayManager& display) {
+photo_frame::photo_frame_error_t load_littlefs_file(const char* filename, photo_frame::littlefs_manager::LittleFsManager& littleFs, photo_frame::DisplayManager& display)
+{
     log_i("[BT] Loading %s image from LittleFS", filename);
 
-    // Try to open default.bin
-    File default_file = littleFs.open_file(filename, "r");
-    if (!default_file) {
+    // Create PFR1 wrapper with display dimensions
+    photo_frame::binary_utils::PFR1BinaryFile wrapper(display.getWidth(), display.getHeight());
+
+    // Try to open file
+    File file = littleFs.open_file(filename, "r");
+    if (!file) {
         return photo_frame::error_type::FileNotFound;
     }
 
-    // Read default.bin size and content
-    uint32_t file_size = default_file.size();
-    photo_frame::photo_frame_error_t error = photo_frame::io_utils::validate_image_size_exact(file_size, display.getWidth(), display.getHeight());
+    // Load and validate file into wrapper
+    bool valid = photo_frame::binary_utils::validatePFR1File(file, wrapper);
+    file.close();
 
-    if (error != photo_frame::error_type::None) {
-        log_e("[BT] %s image validation failed: %s", filename, error.message);
-        default_file.close();
-        return error;
-    }
-
-    // Read file into display buffer
-    log_i("[BT] Loading %u bytes from %s", file_size, filename);
-    size_t bytes_read = default_file.readBytes((char*)display.getBuffer(), file_size);
-    default_file.close();
-
-    if (bytes_read != file_size) {
-        log_e("[BT] Failed to read %s completely: read %u of %u bytes",
-            filename,
-            bytes_read,
-            file_size);
+    if (!valid || !wrapper.isValidated()) {
+        log_e("[BT] %s PFR1 validation failed", filename);
         return photo_frame::error_type::BtImageValidationFailed;
     }
 
-    log_i("[BT] Successfully loaded %s, displaying...", filename);
+    // Copy payload into display buffer
+    log_i("[BT] Loading %u payload bytes from %s", wrapper.header.payload_len, filename);
+    memcpy(display.getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
+
+    // Apply rotation from header (0-3)
+    display.setRotation(wrapper.header.rotation % 4);
+
+    log_i("[BT] Successfully loaded %s (PFR1) width=%u height=%u rotation=%u", filename, wrapper.header.width, wrapper.header.height, wrapper.header.rotation);
     return photo_frame::error_type::None;
 }
 
@@ -253,7 +252,6 @@ void setup_bluetooth_mode()
     if (wait_error != photo_frame::error_type::None) {
         log_w("[BT] Image wait failed: %s", wait_error.message);
         log_v("[BT] is first boot: %s", is_first_boot ? "Yes" : "No");
-        
 
         // Initialize littlefs if not already done
         if (!littleFs.init()) {
@@ -266,10 +264,10 @@ void setup_bluetooth_mode()
         log_i("[BT] First boot timeout - attempting to load %s from littlefs", BT_CURRENT_IMAGE_FILENAME);
 
         error = load_littlefs_file(BT_CURRENT_IMAGE_FILENAME, littleFs, display);
-        if(error != photo_frame::error_type::None) {
+        if (error != photo_frame::error_type::None) {
             error = load_littlefs_file(BT_DEFAULT_IMAGE_FILENAME, littleFs, display);
 
-            if(error != photo_frame::error_type::None) {
+            if (error != photo_frame::error_type::None) {
                 log_w("[BT] %s not found or invalid in littlefs", BT_DEFAULT_IMAGE_FILENAME);
                 photo_frame::bt_utils::displayFirstBootTimeout();
                 shutdown(littleFs, display, 0);
@@ -289,13 +287,10 @@ void setup_bluetooth_mode()
     // Image received successfully - Render directly from memory
     log_i("[BT] Image received successfully, rendering to display");
 
-    // Get image buffer from BT manager
-    const uint8_t* image_buffer = bt_manager.getImageBuffer();
-    uint32_t image_size = bt_manager.getImageSize();
-
-    if (!image_buffer || image_size == 0 || photo_frame::io_utils::validate_image_size_exact(image_size, display.getWidth(), display.getHeight()) != photo_frame::error_type::None) {
+    // Get image file wrapper from BT manager
+    auto image_file = bt_manager.getImageFile();
+    if (!image_file || !image_file->getBuffer() || image_file->getBufferSize() == 0 || image_file->isValidated() == false) {
         log_e("[BT] No image data available");
-        // TODO: We need to show an error message here
         display.clear(DISPLAY_COLOR_WHITE);
         display.drawError(photo_frame::error_type::BtImageValidationFailed, nullptr);
         display.render();
@@ -304,9 +299,9 @@ void setup_bluetooth_mode()
         return;
     }
 
-    // Copy image data to display buffer
-    log_i("[BT] Copying %u bytes to display buffer", image_size);
-    memcpy(display.getBuffer(), image_buffer, image_size);
+    // Copy payload (without header) to display buffer
+    log_i("[BT] Copying %u bytes to display buffer", image_file->header.payload_len);
+    memcpy(display.getBuffer(), image_file->getPayload(), image_file->header.payload_len);
 
     // Apply rotation from BLE config and persist it
     uint8_t rotation = bt_manager.getConfig().rotation;
@@ -322,11 +317,12 @@ void setup_bluetooth_mode()
         log_w("[BT] Failed to save display rotation to preferences");
     }
 
-    log_i("[BT] Saving image to littlefs as %s", BT_CURRENT_IMAGE_FILENAME);
+    // Save complete PFR1 file (header + payload + CRC) to littlefs
+    log_i("[BT] Saving complete PFR1 file to littlefs as %s", BT_CURRENT_IMAGE_FILENAME);
     if (!littleFs.init()) {
         log_e("[BT] Failed to initialize littlefs for saving");
-    } else if (littleFs.write_file(BT_CURRENT_IMAGE_FILENAME, image_buffer, image_size)) {
-        log_i("[BT] Successfully saved %s (%u bytes)", BT_CURRENT_IMAGE_FILENAME, image_size);
+    } else if (littleFs.write_file(BT_CURRENT_IMAGE_FILENAME, image_file->getBuffer(), image_file->getBufferSize())) {
+        log_i("[BT] Successfully saved %s (%u bytes)", BT_CURRENT_IMAGE_FILENAME, image_file->getBufferSize());
     } else {
         log_e("[BT] Failed to save %s to littlefs", BT_CURRENT_IMAGE_FILENAME);
     }

@@ -32,7 +32,7 @@ fn main() {
                 }
             };
 
-            let out_path = format!("examples/output/demo_6c_{}x{}.bin", w, h);
+            let out_path = format!("examples/output/demo_6c_{}x{}.pfr1", w, h);
             fs::write(&out_path, data_to_write).expect("failed to write output");
             println!("Wrote {} bytes to {}", data_to_write.len(), out_path);
         }
@@ -43,7 +43,7 @@ fn main() {
     }
 
     if let Some((payload6, w, h)) = convert_image_from_bytes(&bytes, DisplayType::SixColors) {
-        let out_path = format!("examples/output/demo_6c_{}x{}.bin", w, h);
+        let out_path = format!("examples/output/demo_6c_{}x{}.pfr1", w, h);
         fs::write(&out_path, &payload6).expect("failed to write output");
         println!("Wrote {} bytes to {}", payload6.len(), out_path);
     } else {
@@ -51,7 +51,7 @@ fn main() {
     }
 
     if let Some((payload_bw, w, h)) = convert_image_from_bytes(&bytes, DisplayType::BlackAndWhite) {
-        let out_path = format!("examples/output/demo_bw_{}x{}.bin", w, h);
+        let out_path = format!("examples/output/demo_bw_{}x{}.pfr1", w, h);
         fs::write(&out_path, &payload_bw).expect("failed to write output");
         println!("Wrote {} bytes to {}", payload_bw.len(), out_path);
     } else {

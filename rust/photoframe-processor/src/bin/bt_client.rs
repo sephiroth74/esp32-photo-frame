@@ -30,16 +30,16 @@ Example Usage:
   bt_client scan
 
   # Upload a binary file to a specific device
-  bt_client upload -f image.bin -d PhotoFrame-ABC123
+  bt_client upload -f image.pfr1 -d PhotoFrame-ABC123
 
   # Upload to first available device
-  bt_client upload -f image.bin
+  bt_client upload -f image.pfr1
 
   # Specify device by MAC address
-  bt_client upload -f image.bin -d AA:BB:CC:DD:EE:FF
+  bt_client upload -f image.pfr1 -d AA:BB:CC:DD:EE:FF
 
   # Set display orientation during upload (0-3)
-  bt_client upload -f image.bin -d PhotoFrame-ABC123 --orientation 1
+  bt_client upload -f image.pfr1 -d PhotoFrame-ABC123 --orientation 1
 "
 )]
 struct Args {
@@ -54,7 +54,7 @@ enum Commands {
 
     /// Upload a binary file to a PhotoFrame device
     Upload {
-        /// Binary file to upload (must be .bin format)
+        /// Binary file to upload (must be .pfr1 format)
         #[arg(short = 'f', long = "file", value_name = "FILE")]
         file: PathBuf,
 
@@ -101,9 +101,9 @@ fn main() -> Result<()> {
                 return Err(anyhow::anyhow!("File not found: {}", file.display()));
             }
 
-            if file.extension().and_then(|s| s.to_str()) != Some("bin") {
+            if file.extension().and_then(|s| s.to_str()) != Some("pfr1") {
                 return Err(anyhow::anyhow!(
-                    "File must have .bin extension: {}",
+                    "File must have .pfr1 extension: {}",
                     file.display()
                 ));
             }

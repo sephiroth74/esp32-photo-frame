@@ -1202,7 +1202,7 @@ class ImageProcessor(private val context: Context) {
     @Suppress("unused")
     fun clearProcessedFiles() {
         outputDir.listFiles()?.forEach { file ->
-            if (file.extension == "bin" || file.extension == "bmp") {
+            if (file.extension == "pfr1" || file.extension == "bmp") {
                 file.delete()
             }
         }
