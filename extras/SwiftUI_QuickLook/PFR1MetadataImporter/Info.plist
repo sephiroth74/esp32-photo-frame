@@ -11,8 +11,6 @@
 			<key>SupportedContentTypes</key>
 			<array>
 				<string>it.sephiroth.photoframe.pfr1</string>
-				<string>it.sephiroth.pfr1</string>
-				<string>itsuki.enjoy.itsukiText</string>
 			</array>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>

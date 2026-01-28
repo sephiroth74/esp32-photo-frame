@@ -499,7 +499,8 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
+				PRODUCT_NAME = "PFR1 QuickLook";
+				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -556,7 +557,8 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				SDKROOT = iphoneos;
+				PRODUCT_NAME = "PFR1 QuickLook";
+				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -589,7 +591,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook;
 				PRODUCT_NAME = "PFR1 QuickLook";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -632,7 +634,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook;
 				PRODUCT_NAME = "PFR1 QuickLook";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -668,7 +670,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo.CustomQLPreviewProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook.CustomQLPreviewProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
@@ -701,7 +703,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo.CustomQLPreviewProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook.CustomQLPreviewProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -736,7 +738,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo.CustomQLThumbnailProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook.CustomQLThumbnailProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
@@ -769,7 +771,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo.CustomQLThumbnailProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook.CustomQLThumbnailProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -804,7 +806,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo.PFR1MetadataImporter;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook.PFR1MetadataImporter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -836,7 +838,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = itsuki.enjoy.QuickLookDemo.PFR1MetadataImporter;
+				PRODUCT_BUNDLE_IDENTIFIER = it.sephiroth.PFR1QuickLook.PFR1MetadataImporter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
