@@ -28,6 +28,7 @@
 #include "config.h"
 #include "display_driver.h"
 #include "errors.h"
+#include "geometry.h"
 #include "google_drive.h"
 #include "image_buffer.h"
 #include <Adafruit_GFX.h>
@@ -209,6 +210,31 @@ class DisplayManager {
      * @param battery_info Battery information
      */
     void drawBatteryStatus(battery_info_t battery_info);
+
+    /**
+     * @brief Draw a side message on the display
+     * @param gravity Position on screen (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
+     * TOP_CENTER)
+     * @param message Message text to display
+     * @param xOffset Optional X offset
+     * @param yOffset Optional Y offset
+     */
+    void drawSideMessage(gravity_t gravity,
+                         const char* message,
+                         int32_t xOffset = 0,
+                         int32_t yOffset = 0);
+
+    /**
+     * @brief Draw a side message for an error
+     * @param gravity Position on screen (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
+     * TOP_CENTER)
+     * @param error Error information
+     * @param xOffset Optional X offset
+     */
+    void drawSideMessageError(gravity_t gravity,
+                              photo_frame::photo_frame_error_t error,
+                              int32_t xOffset = 0,
+                              int32_t yOffset = 0);
 
     /**
      * @brief Set the image source for status reporting

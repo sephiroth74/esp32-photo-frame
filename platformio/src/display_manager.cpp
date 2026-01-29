@@ -205,6 +205,31 @@ void DisplayManager::drawOverlay() {
     photo_frame::drawOverlay(imageBuffer_.getCanvas());
 }
 
+void DisplayManager::drawSideMessage(gravity_t gravity,
+                                     const char* message,
+                                     int32_t xOffset,
+                                     int32_t yOffset) {
+    log_i("[DisplayManager] Drawing side message on canvas");
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
+        return;
+    photo_frame::drawSideMessage(imageBuffer_.getCanvas(), gravity, message, xOffset, yOffset);
+}
+
+void DisplayManager::drawSideMessageError(gravity_t gravity,
+                                          photo_frame_error_t error,
+                                          int32_t xOffset,
+                                          int32_t yOffset) {
+    log_i("[DisplayManager] Drawing side message error on canvas");
+    // Only need buffer to be initialized for drawing to canvas
+    if (!imageBuffer_.isInitialized())
+        return;
+
+    const char* errorMsg = error.message ? error.message : TXT_UNKNOWN_ERROR;
+    photo_frame::drawSideMessageWithIcon(
+        imageBuffer_.getCanvas(), gravity, icon_name::warning_icon, errorMsg, xOffset, yOffset);
+}
+
 void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_seconds) {
     log_i("[DisplayManager] Drawing last update time on canvas");
     // Only need buffer to be initialized for drawing to canvas

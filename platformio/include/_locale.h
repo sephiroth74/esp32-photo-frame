@@ -26,6 +26,7 @@
 #include <Arduino.h>
 
 extern const char TXT_NO_ERROR[];
+extern const char TXT_UNKNOWN_ERROR[];
 extern const char TXT_CARD_MOUNT_FAILED[];
 extern const char TXT_NO_SD_CARD_ATTACHED[];
 extern const char TXT_UNKNOWN_SD_CARD_TYPE[];

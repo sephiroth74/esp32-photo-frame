@@ -257,7 +257,8 @@ void setup_bluetooth_mode() {
         // Initialize littlefs if not already done
         if (!littleFs.init()) {
             log_e("[BT] Failed to initialize littlefs");
-            photo_frame::bt_utils::displayFirstBootTimeout();
+            photo_frame::bt_utils::displayFirstBootTimeout(
+                photo_frame::error_type::LittleFSInitFailed);
             shutdown(littleFs, display, 0);
             return;
         }
@@ -271,7 +272,7 @@ void setup_bluetooth_mode() {
 
             if (error != photo_frame::error_type::None) {
                 log_w("[BT] %s not found or invalid in littlefs", BT_DEFAULT_IMAGE_FILENAME);
-                photo_frame::bt_utils::displayFirstBootTimeout();
+                photo_frame::bt_utils::displayFirstBootTimeout(error);
                 shutdown(littleFs, display, 0);
                 return;
             }

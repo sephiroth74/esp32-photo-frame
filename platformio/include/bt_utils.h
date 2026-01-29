@@ -64,7 +64,7 @@ void displayBatteryWarning(const battery_info_t& battery_info);
  *
  * Shows "Premere next e riprovare" message on display.
  */
-void displayFirstBootTimeout();
+void displayFirstBootTimeout(const photo_frame::photo_frame_error_t error);
 
 /**
  * @brief Perform factory reset for Bluetooth mode

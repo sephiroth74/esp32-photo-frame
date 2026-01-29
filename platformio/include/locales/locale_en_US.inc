@@ -2,6 +2,7 @@
 #include "_locale.h"
 
 const char TXT_NO_ERROR[] PROGMEM = "No error";
+const char TXT_UNKNOWN_ERROR[] PROGMEM = "Unknown error";
 const char TXT_CARD_MOUNT_FAILED[] PROGMEM = "Failed to mount SD card";
 const char TXT_NO_SD_CARD_ATTACHED[] PROGMEM = "No SD card attached";
 const char TXT_UNKNOWN_SD_CARD_TYPE[] PROGMEM = "Unknown SD card type";

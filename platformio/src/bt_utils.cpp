@@ -119,7 +119,7 @@ void displayBatteryWarning(const battery_info_t& battery_info) {
     display.powerOff();
 }
 
-void displayFirstBootTimeout() {
+void displayFirstBootTimeout(photo_frame::photo_frame_error_t error) {
     log_i("[BT] Timeout on first boot - displaying message");
     auto& display = photo_frame::DisplayManager::getInstance();
 
@@ -142,6 +142,12 @@ void displayFirstBootTimeout() {
                                         TXT_BT_TIMEOUT_EXPIRED,    // Message: "Timeout scaduto"
                                         TXT_BT_PRESS_BUTTON_RETRY, // Title: "In attesa di immagine"
                                         196);
+
+    if (error != photo_frame::error_type::None) {
+        // Also draw the error below the main message
+        display.drawOverlay();
+        display.drawSideMessageError(gravity_t::TOP_RIGHT, error);
+    }
 
     // Render
     display.render();

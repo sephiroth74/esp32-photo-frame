@@ -2,6 +2,7 @@
 #include "_locale.h"
 
 const char TXT_NO_ERROR[] PROGMEM = "Nessun errore";
+const char TXT_UNKNOWN_ERROR[] PROGMEM = "Errore sconosciuto";
 const char TXT_CARD_MOUNT_FAILED[] PROGMEM = "Scheda SD non trovata";
 const char TXT_NO_SD_CARD_ATTACHED[] PROGMEM = "Nessuna scheda SD collegata";
 const char TXT_UNKNOWN_SD_CARD_TYPE[] PROGMEM = "Tipo di scheda SD sconosciuto";
