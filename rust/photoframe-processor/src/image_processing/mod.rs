@@ -1354,7 +1354,6 @@ impl ProcessingEngine {
                         )?;
                         let (w, h) = final_img.dimensions();
                         let color_mode = infer_color_mode(&payload);
-                        verbose_println(true, "build_bin_file[2]");
                         let bin = photoframe_lib::build_bin_file(
                             &payload,
                             w as u16,
