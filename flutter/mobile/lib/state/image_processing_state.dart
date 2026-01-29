@@ -340,26 +340,35 @@ class ImageProcessingState extends ChangeNotifier {
       canvas.drawImageRect(uiImage, srcRect, srcRect, Paint());
 
       // Draw annotation text at bottom-right
+      // Match PreviewCard layout, scaling to target image resolution
+      final scale = uiImage.height / 480.0;
+      final paddingRight = 5.0 * scale;
+      final paddingBottom = 5.0 * scale;
+      final textPaddingH = 10.0 * scale;
+      final textPaddingV = 6.0 * scale;
+      final cornerRadius = 8.0 * scale;
+
       final textSpan = TextSpan(
         text: _job.annotation.text,
-        style: TextStyle(color: _job.annotation.textColor, fontSize: _job.annotation.fontSize, fontFamily: _job.annotation.fontFamily),
+        style: TextStyle(color: _job.annotation.textColor, fontSize: _job.annotation.fontSize * scale, fontFamily: _job.annotation.fontFamily),
       );
 
       final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 3, textAlign: TextAlign.right);
-      textPainter.layout(maxWidth: uiImage.width - 20.0);
+      textPainter.layout(maxWidth: uiImage.width - paddingRight - textPaddingH * 2);
 
-      // Position at bottom-right with padding
-      final textX = uiImage.width - textPainter.width - 5.0;
-      final textY = uiImage.height - textPainter.height - 5.0;
+      // Position at bottom-right with padding (matching PreviewCard)
+      final bgWidth = textPainter.width + textPaddingH * 2;
+      final bgHeight = textPainter.height + textPaddingV * 2;
+      final bgX = uiImage.width - bgWidth - paddingRight;
+      final bgY = uiImage.height - bgHeight - paddingBottom;
 
       // Draw background
-      final bgRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(textX - 10, textY - 6, textPainter.width + 20, textPainter.height + 12),
-        const Radius.circular(8),
-      );
+      final bgRect = RRect.fromRectAndRadius(Rect.fromLTWH(bgX, bgY, bgWidth, bgHeight), Radius.circular(cornerRadius));
       canvas.drawRRect(bgRect, Paint()..color = _job.annotation.backgroundColor);
 
-      // Draw text
+      // Draw text (centered in background)
+      final textX = bgX + textPaddingH;
+      final textY = bgY + textPaddingV;
       textPainter.paint(canvas, Offset(textX, textY));
 
       final picture = recorder.endRecording();

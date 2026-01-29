@@ -16,7 +16,7 @@ class AnnotationSettings {
   const AnnotationSettings({
     this.text = '',
     this.fontFamily = 'Roboto',
-    this.fontSize = 8,
+    this.fontSize = 10,
     this.textColor = Colors.white,
     this.backgroundColor = Colors.black,
   });
