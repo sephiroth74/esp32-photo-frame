@@ -57,17 +57,32 @@ class ReviewStep extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File saved to gallery: ${savedFile.path}')));
       }
     } else {
-      _logger.warning('Failed to save file to gallery, but continuing with upload');
+      _logger.warning('Failed to save file to gallery, creating a temporary .pfr1 file for upload');
     }
 
-    // Navigate to Bluetooth upload wizard
-    final intermediateFile = state.intermediateFile;
-    if (intermediateFile != null && context.mounted) {
+    // Ensure we pass a .pfr1 file to the upload screen
+    final pfr1File = savedFile ?? await _writeTempPfr1(binaryData);
+    if (pfr1File != null && context.mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => BleUploadScreen(image: intermediateFile, job: job),
+          builder: (context) => BleUploadScreen(pfr1File: pfr1File, job: job),
         ),
       );
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to prepare .pfr1 file for upload')));
+    }
+  }
+
+  Future<File?> _writeTempPfr1(Uint8List binaryData) async {
+    try {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/pf_upload_${DateTime.now().millisecondsSinceEpoch}.pfr1');
+      await tempFile.writeAsBytes(binaryData, flush: true);
+      _logger.info('Temporary .pfr1 created: ${tempFile.path}');
+      return tempFile;
+    } catch (e) {
+      _logger.warning('Failed to create temporary .pfr1: $e');
+      return null;
     }
   }
 

@@ -251,8 +251,7 @@ class BleService {
             await _ble.writeCharacteristicWithResponse(imageChar, value: slice);
           } else {
             await _ble.writeCharacteristicWithResponse(imageChar, value: slice);
-            // Small delay to allow BLE stack processing (2ms matches bt_client.rs performance)
-            // await Future.delayed(const Duration(milliseconds: 10));
+            await Future.delayed(const Duration(milliseconds: 10));
           }
         } catch (e) {
           logger.severe('Failed to send chunk ${sent + 1}/$totalChunks: $e');

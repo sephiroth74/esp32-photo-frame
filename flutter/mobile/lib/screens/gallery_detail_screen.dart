@@ -24,11 +24,20 @@ class GalleryDetailScreen extends StatefulWidget {
 
 class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
   late Future<(BinHeader?, Uint8List?)?> _imageDataFuture;
+  late Future<ui.Image?> _previewImageFuture;
 
   @override
   void initState() {
     super.initState();
     _imageDataFuture = _loadImageData();
+    _previewImageFuture = _imageDataFuture.then((data) async {
+      if (data == null || data.$1 == null || data.$2 == null) {
+        return null;
+      }
+      final header = data.$1!;
+      final rgba = _decodeRgba(header, data.$2!);
+      return _rgbaToImage(rgba, header.width, header.height);
+    });
   }
 
   Future<(BinHeader?, Uint8List?)?> _loadImageData() async {
@@ -50,10 +59,10 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
       displayType: header.colorMode == 0 ? DisplayType.blackAndWhite : DisplayType.sixColors,
     );
 
-    // Use the intermediate file from gallery
+    // Use the .pfr1 file from gallery
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BleUploadScreen(image: widget.image.file, job: job),
+        builder: (context) => BleUploadScreen(pfr1File: widget.image.file, job: job),
       ),
     );
   }
@@ -133,23 +142,20 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                   child: Column(
                     children: [
                       // Image preview
-                      FutureBuilder<Uint8List>(
-                        future: Future.value(_decodeRgba(header, imageBytes)),
-                        builder: (context, rgbaSnapshot) {
-                          if (rgbaSnapshot.hasData) {
-                            final rgba = rgbaSnapshot.data!;
-                            return FutureBuilder<ui.Image?>(
-                              future: _rgbaToImage(rgba, header.width, header.height),
-                              builder: (context, imgSnapshot) {
-                                if (imgSnapshot.hasData && imgSnapshot.data != null) {
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image(image: _UiImageProvider(imgSnapshot.data!), fit: BoxFit.contain, width: double.infinity),
-                                  );
-                                }
-                                return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
-                              },
+                      FutureBuilder<ui.Image?>(
+                        future: _previewImageFuture,
+                        builder: (context, imgSnapshot) {
+                          if (imgSnapshot.hasData && imgSnapshot.data != null) {
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: RotatedBox(
+                                quarterTurns: (4 - (header.rotation % 4)) % 4,
+                                child: RawImage(image: imgSnapshot.data, fit: BoxFit.contain),
+                              ),
                             );
+                          }
+                          if (imgSnapshot.connectionState == ConnectionState.done) {
+                            return const SizedBox(height: 200, child: Center(child: Text('Unable to load preview')));
                           }
                           return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
                         },
@@ -174,7 +180,7 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                               _infoRow('Filename', widget.image.displayName),
                               _infoRow('Dimensions', '${header.width} × ${header.height}'),
                               _infoRow('Color Mode', header.colorMode == 0 ? 'Black & White' : '6 Colors'),
-                              _infoRow('Rotation', '${header.rotation}°'),
+                              _infoRow('Rotation', '${header.rotation}'),
                               _infoRow('File Size', '${(imageBytes.length / 1024).toStringAsFixed(2)} KB'),
                               _infoRow('Created', _formatDate(widget.image.createdAt)),
                             ],
@@ -194,8 +200,6 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                               Text('File Details', style: Theme.of(context).textTheme.titleSmall),
                               const SizedBox(height: 8),
                               Text('Path: ${widget.image.file.path}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                              const SizedBox(height: 8),
-                              Text('Payload: ${header.payloadLen} bytes', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),

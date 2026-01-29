@@ -348,7 +348,7 @@ class _HeaderCard extends StatelessWidget {
             children: const [
               Icon(Icons.description_outlined, size: 18),
               SizedBox(width: 6),
-              Text('Header PFR1', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('Header', style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 8),
