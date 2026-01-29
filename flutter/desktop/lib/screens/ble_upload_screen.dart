@@ -218,7 +218,18 @@ class BleUploadScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (ble.uploading) ...[AppKitProgressBar(value: ble.progress)] else ...[const SizedBox.shrink()],
+                      if (ble.uploading) ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Expanded(child: AppKitProgressBar(value: ble.progress)),
+                            const SizedBox(width: 8),
+                            Text('${(ble.progress * 100).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ] else ...[
+                        const SizedBox.shrink(),
+                      ],
                     ],
                   ),
                 ),

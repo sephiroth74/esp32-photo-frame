@@ -251,7 +251,7 @@ class BleService {
             await _ble.writeCharacteristicWithResponse(imageChar, value: slice);
           } else {
             await _ble.writeCharacteristicWithResponse(imageChar, value: slice);
-            await Future.delayed(const Duration(milliseconds: 10));
+            // await Future.delayed(const Duration(milliseconds: 10));
           }
         } catch (e) {
           logger.severe('Failed to send chunk ${sent + 1}/$totalChunks: $e');
