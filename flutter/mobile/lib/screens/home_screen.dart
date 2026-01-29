@@ -20,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<GeneratedImage>> _galleryFuture;
+  bool _selectionMode = false;
+  final Set<String> _selectedFilenames = {};
 
   @override
   void initState() {
@@ -31,6 +33,63 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _galleryFuture = GalleryService.getGalleryImages();
     });
+  }
+
+  void _enterSelection(GeneratedImage image) {
+    setState(() {
+      _selectionMode = true;
+      _selectedFilenames.add(image.filename);
+    });
+  }
+
+  void _toggleSelection(GeneratedImage image) {
+    setState(() {
+      if (_selectedFilenames.contains(image.filename)) {
+        _selectedFilenames.remove(image.filename);
+      } else {
+        _selectedFilenames.add(image.filename);
+      }
+
+      if (_selectedFilenames.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedFilenames.clear();
+    });
+  }
+
+  Future<void> _confirmDeleteSelected(BuildContext context) async {
+    if (_selectedFilenames.isEmpty) return;
+
+    final count = _selectedFilenames.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete selected images?'),
+        content: Text('This will permanently delete $count item${count == 1 ? '' : 's'}.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton.icon(onPressed: () => Navigator.of(context).pop(true), icon: const Icon(Icons.delete), label: const Text('Delete')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final images = await GalleryService.getGalleryImages();
+    final toDelete = images.where((image) => _selectedFilenames.contains(image.filename)).toList();
+    for (final image in toDelete) {
+      await GalleryService.deleteImage(image);
+    }
+
+    if (!mounted) return;
+    _exitSelectionMode();
+    _refreshGallery();
   }
 
   Future<void> _pickImageAndStartWizard(BuildContext context) async {
@@ -50,8 +109,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PhotoFrame Gallery'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshGallery, tooltip: 'Refresh gallery')],
+        title: Text(_selectionMode ? 'Multiple selection' : 'PhotoFrame Gallery'),
+        leading: _selectionMode ? IconButton(icon: const Icon(Icons.close), tooltip: 'Exit selection', onPressed: _exitSelectionMode) : null,
+        actions: _selectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  tooltip: 'Delete selected',
+                  onPressed: _selectedFilenames.isEmpty ? null : () => _confirmDeleteSelected(context),
+                ),
+              ]
+            : [IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshGallery, tooltip: 'Refresh gallery')],
       ),
       body: FutureBuilder<List<GeneratedImage>>(
         future: _galleryFuture,
@@ -92,16 +160,40 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: images.length,
             itemBuilder: (context, index) {
               final image = images[index];
-              return _GalleryGridItem(image: image, onImageDeleted: _refreshGallery);
+              final isSelected = _selectedFilenames.contains(image.filename);
+              return _GalleryGridItem(
+                image: image,
+                onImageDeleted: _refreshGallery,
+                selectionMode: _selectionMode,
+                selected: isSelected,
+                onTap: () {
+                  if (_selectionMode) {
+                    _toggleSelection(image);
+                  } else {
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (context) => GalleryDetailScreen(image: image))).then((_) => _refreshGallery());
+                  }
+                },
+                onLongPress: () {
+                  if (_selectionMode) {
+                    _toggleSelection(image);
+                  } else {
+                    _enterSelection(image);
+                  }
+                },
+              );
             },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _pickImageAndStartWizard(context),
-        icon: const Icon(Icons.add_photo_alternate),
-        label: const Text('New Image'),
-      ),
+      floatingActionButton: _selectionMode
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _pickImageAndStartWizard(context),
+              icon: const Icon(Icons.add_photo_alternate),
+              label: const Text('New Image'),
+            ),
     );
   }
 }
@@ -109,8 +201,19 @@ class _HomeScreenState extends State<HomeScreen> {
 class _GalleryGridItem extends StatefulWidget {
   final GeneratedImage image;
   final VoidCallback onImageDeleted;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
-  const _GalleryGridItem({required this.image, required this.onImageDeleted});
+  const _GalleryGridItem({
+    required this.image,
+    required this.onImageDeleted,
+    required this.selectionMode,
+    required this.selected,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   @override
   State<_GalleryGridItem> createState() => _GalleryGridItemState();
@@ -141,14 +244,8 @@ class _GalleryGridItemState extends State<_GalleryGridItem> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => GalleryDetailScreen(image: widget.image))).then((_) => widget.onImageDeleted());
-      },
-      onLongPress: () {
-        // TODO: Implement multi-select mode for batch deletion
-      },
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -205,6 +302,31 @@ class _GalleryGridItemState extends State<_GalleryGridItem> {
                   );
                 },
               ),
+              if (widget.selectionMode)
+                Positioned.fill(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      color: widget.selected ? Colors.black.withOpacity(0.35) : Colors.transparent,
+                      border: Border.all(color: widget.selected ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
+                    ),
+                  ),
+                ),
+              if (widget.selectionMode)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: widget.selected ? Theme.of(context).colorScheme.primary : Colors.white70,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: widget.selected ? const Icon(Icons.check, size: 16, color: Colors.white) : const SizedBox.shrink(),
+                  ),
+                ),
             ],
           ),
         ),
