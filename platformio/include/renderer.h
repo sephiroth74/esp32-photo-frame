@@ -29,6 +29,7 @@
 
 #include "FS.h"
 #include "battery.h"
+#include "binary_utils.h"
 #include "config.h"
 #include "display_driver.h"
 #include "errors.h"
@@ -196,15 +197,18 @@ void rendererDrawImageInfo(Adafruit_GFX& gfx,
  * provided buffer. This allows the SD card to be closed before display operations begin.
  *
  * @param buffer Pointer to buffer (must be at least width * height bytes)
- * @param file Open file handle (SD card or other filesystem)
+ * @param file Open file handle (SD card or google drive cached file)
  * @param filename Original filename for logging and validation
  * @param width Expected image width (should match display width, 800)
  * @param height Expected image height (should match display height, 480)
  * @return Error code (0 = success, non-zero = error)
  * @note File can be closed after this function returns
  */
-uint16_t
-loadImageToBuffer(uint8_t* buffer, File& file, const char* filename, int width, int height);
+uint16_t loadImageToBuffer(uint8_t* buffer,
+                           photo_frame::binary_utils::PFR1BinaryFile& file,
+                           const char* filename,
+                           int width,
+                           int height);
 
 } // namespace photo_frame
 

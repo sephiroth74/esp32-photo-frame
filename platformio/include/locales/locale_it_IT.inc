@@ -95,10 +95,10 @@ const char TXT_HTTP_BAD_REQUEST[] PROGMEM = "HTTP 400: Richiesta non valida";
 
 // Image Processing Specific Errors (80-99)
 const char TXT_IMAGE_FILE_CORRUPTED[] PROGMEM = "File immagine corrotto o non valido";
-const char TXT_IMAGE_FILE_TOO_LARGE[] PROGMEM = "File immagine troppo grande per l'elaborazione";
-const char TXT_IMAGE_DIMENSIONS_INVALID[] PROGMEM = "Dimensioni immagine non valide o non supportate";
+const char TXT_IMAGE_FILE_TOO_LARGE[] PROGMEM = "File immagine troppo grande";
+const char TXT_IMAGE_DIMENSIONS_INVALID[] PROGMEM = "Dimensioni immagine non valide";
 const char TXT_IMAGE_SIZE_INVALID[] PROGMEM = "Dimensioni file non valide";
-const char TXT_IMAGE_COLOR_DEPTH_UNSUPPORTED[] PROGMEM = "Profondità colore immagine non supportata";
+const char TXT_IMAGE_COLOR_DEPTH_UNSUPPORTED[] PROGMEM = "Profondità colore non supportata";
 const char TXT_IMAGE_PIXEL_DATA_CORRUPTED[] PROGMEM = "Dati pixel corrotti o illeggibili";
 const char TXT_IMAGE_FILE_SEEK_FAILED[] PROGMEM = "Posizionamento nel file immagine fallito";
 const char TXT_IMAGE_FILE_READ_FAILED[] PROGMEM = "Lettura dati da file immagine fallita";
@@ -107,7 +107,7 @@ const char TXT_IMAGE_DISPLAY_WRITE_FAILED[] PROGMEM = "Scrittura dati pixel su d
 const char TXT_IMAGE_FILE_HEADER_INVALID[] PROGMEM = "Header file immagine non valido o mancante";
 const char TXT_IMAGE_FILE_EMPTY[] PROGMEM = "File immagine vuoto o senza contenuto";
 const char TXT_IMAGE_FILE_TRUNCATED[] PROGMEM = "File immagine sembra troncato";
-const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[] PROGMEM = "Allocazione memoria per elaborazione immagine fallita";
+const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[] PROGMEM = "Allocazione memoria fallita";
 const char TXT_IMAGE_CONVERSION_FAILED[] PROGMEM = "Conversione dati immagine per display fallita";
 const char TXT_IMAGE_RESOLUTION_TOO_HIGH[] PROGMEM = "Risoluzione immagine supera capacità display";
 const char TXT_IMAGE_PROCESSING_ABORTED[] PROGMEM = "Elaborazione immagine interrotta per errore";

@@ -347,12 +347,10 @@ handle_google_drive_operations(bool is_reset,
                         photo_frame::binary_utils::PFR1BinaryFile wrapper(DISP_WIDTH, DISP_HEIGHT);
                         auto validationError =
                             photo_frame::binary_utils::validatePFR1File(file, wrapper);
+                        file.close(); // Close file after validation
 
                         if (validationError != photo_frame::error_type::None) {
                             log_e("Image validation FAILED: %s", validationError.message);
-
-                            // Close file before deletion
-                            file.close();
 
                             // Delete corrupted file from SD card
                             if (sdCard.fileExists(filePath.c_str())) {
@@ -376,13 +374,10 @@ handle_google_drive_operations(bool is_reset,
                             log_i("Loading binary image to PSRAM buffer from SD card...");
                             uint16_t loadError = photo_frame::loadImageToBuffer(
                                 photo_frame::DisplayManager::getInstance().getBuffer(),
-                                file,
+                                wrapper,
                                 filename,
                                 DISP_WIDTH,
                                 DISP_HEIGHT);
-
-                            // Close the SD card file after loading
-                            file.close();
 
                             // Sample first few bytes to verify buffer has data
                             auto& display = photo_frame::DisplayManager::getInstance();
@@ -415,7 +410,7 @@ handle_google_drive_operations(bool is_reset,
                 }
 
                 // Check if file was successfully processed (binary in buffer)
-                if (error == photo_frame::error_type::None && (fileProcessedSuccessfully || file)) {
+                if (error == photo_frame::error_type::None && (fileProcessedSuccessfully)) {
                     log_i("File downloaded and ready for display!");
                 } else {
                     log_e("Failed to download file from Google Drive! Error code: %d", error.code);
@@ -490,35 +485,30 @@ handle_sd_card_operations(bool is_reset,
         return photo_frame::error_type::NoImagesFound;
     }
 
-    // Build or validate TOC if caching is enabled
-    if (systemConfig.sd_card.use_toc_cache) {
-        // Only rebuild TOC on reset or if TOC doesn't exist/is invalid
-        bool rebuild_toc = is_reset || !sdCard.isTocValid(images_dir, BINARY_FILE_EXTENSION);
+    // Only rebuild TOC on reset or if TOC doesn't exist/is invalid
+    bool rebuild_toc = is_reset || !sdCard.isTocValid(images_dir, BINARY_FILE_EXTENSION);
 
-        if (rebuild_toc) {
-            if (is_reset) {
-                log_i("Reset detected - rebuilding SD card TOC for directory: %s", images_dir);
-            } else {
-                log_i("TOC invalid - building SD card TOC for directory: %s", images_dir);
-            }
-            photo_frame::photo_frame_error_t tocError;
-            if (sdCard.buildDirectoryToc(images_dir, BINARY_FILE_EXTENSION, &tocError)) {
-                log_i("SD card TOC built successfully");
-            } else {
-                log_w(
-                    "Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
-                    tocError.message,
-                    tocError.code);
-            }
+    if (rebuild_toc) {
+        if (is_reset) {
+            log_i("Reset detected - rebuilding SD card TOC for directory: %s", images_dir);
         } else {
-            log_i("Using existing SD card TOC cache (no reset, TOC valid)");
+            log_i("TOC invalid - building SD card TOC for directory: %s", images_dir);
         }
+        photo_frame::photo_frame_error_t tocError;
+        if (sdCard.buildDirectoryToc(images_dir, BINARY_FILE_EXTENSION, &tocError)) {
+            log_i("SD card TOC built successfully");
+        } else {
+            log_w("Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
+                  tocError.message,
+                  tocError.code);
+        }
+    } else {
+        log_i("Using existing SD card TOC cache (no reset, TOC valid)");
     }
 
     // Count total files in directory (uses TOC cache if enabled)
-    total_files = systemConfig.sd_card.use_toc_cache
-                      ? sdCard.countFilesCached(images_dir, BINARY_FILE_EXTENSION, true)
-                      : sdCard.countFilesInDirectory(images_dir, BINARY_FILE_EXTENSION);
+    total_files = sdCard.countFilesCached(images_dir, BINARY_FILE_EXTENSION, true);
+
     if (total_files == 0) {
         log_e("No %s files found in directory: %s", BINARY_FILE_EXTENSION, images_dir);
         sdCard.end();
@@ -533,9 +523,7 @@ handle_sd_card_operations(bool is_reset,
 
     // Get the file path at the selected index (uses TOC cache if enabled)
     String file_path =
-        systemConfig.sd_card.use_toc_cache
-            ? sdCard.getFileAtIndexCached(images_dir, image_index, BINARY_FILE_EXTENSION, true)
-            : sdCard.getFileAtIndex(images_dir, image_index, BINARY_FILE_EXTENSION);
+        sdCard.getFileAtIndexCached(images_dir, image_index, BINARY_FILE_EXTENSION, true);
     if (file_path.isEmpty()) {
         log_e("Failed to get file at index %d", image_index);
         sdCard.end();
@@ -564,12 +552,12 @@ handle_sd_card_operations(bool is_reset,
     log_i("Validating image file dimensions and size...");
     photo_frame::binary_utils::PFR1BinaryFile wrapper(DISP_WIDTH, DISP_HEIGHT);
     auto validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
+    file.close();
 
     if (validationError != photo_frame::error_type::None) {
         log_e("Image validation failed for: %s - %s",
               original_filename.c_str(),
               validationError.message);
-        file.close();
         sdCard.end();
         return validationError;
     }
@@ -580,12 +568,10 @@ handle_sd_card_operations(bool is_reset,
     log_i("Loading binary image to PSRAM buffer...");
     uint16_t loadError =
         photo_frame::loadImageToBuffer(photo_frame::DisplayManager::getInstance().getBuffer(),
-                                       file,
+                                       wrapper,
                                        original_filename.c_str(),
                                        DISP_WIDTH,
                                        DISP_HEIGHT);
-
-    file.close();
 
     if (loadError != 0) {
         log_e("Failed to load image to buffer, error code: %d", loadError);
@@ -612,13 +598,23 @@ handle_sd_card_operations(bool is_reset,
                 return photo_frame::error_type::CardOpenFileFailed;
             }
 
+            wrapper.reset(); // Reset wrapper before re-validation
+            validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
+            file.close();
+
+            if (validationError != photo_frame::error_type::None) {
+                log_e("Image validation FAILED after SD reinitialization: %s",
+                      validationError.message);
+                sdCard.end();
+                return validationError;
+            }
+
             loadError = photo_frame::loadImageToBuffer(
                 photo_frame::DisplayManager::getInstance().getBuffer(),
-                file,
+                wrapper,
                 original_filename.c_str(),
                 DISP_WIDTH,
                 DISP_HEIGHT);
-            file.close();
 
             if (loadError != 0) {
                 log_e("Failed to load image after SD reinitialization, error code: %d", loadError);

@@ -96,9 +96,9 @@ const char TXT_HTTP_GATEWAY_TIMEOUT[] PROGMEM = "HTTP 504: Gateway timeout";
 const char TXT_HTTP_BAD_REQUEST[] PROGMEM = "HTTP 400: Bad request";
 
 // Image Processing Specific Errors (80-99)
-const char TXT_IMAGE_FILE_CORRUPTED[] PROGMEM = "Image file appears to be corrupted or invalid";
-const char TXT_IMAGE_FILE_TOO_LARGE[] PROGMEM = "Image file is too large for processing";
-const char TXT_IMAGE_DIMENSIONS_INVALID[] PROGMEM = "Image dimensions are invalid or unsupported";
+const char TXT_IMAGE_FILE_CORRUPTED[] PROGMEM = "Image file appears to be invalid";
+const char TXT_IMAGE_FILE_TOO_LARGE[] PROGMEM = "Image file is too large";
+const char TXT_IMAGE_DIMENSIONS_INVALID[] PROGMEM = "Image dimensions are invalid";
 const char TXT_IMAGE_SIZE_INVALID[] PROGMEM = "File size invalid";
 const char TXT_IMAGE_COLOR_DEPTH_UNSUPPORTED[] PROGMEM = "Image color depth is not supported";
 const char TXT_IMAGE_PIXEL_DATA_CORRUPTED[] PROGMEM = "Pixel data is corrupted or unreadable";
@@ -109,7 +109,7 @@ const char TXT_IMAGE_DISPLAY_WRITE_FAILED[] PROGMEM = "Failed to write pixel dat
 const char TXT_IMAGE_FILE_HEADER_INVALID[] PROGMEM = "Image file header is invalid or missing";
 const char TXT_IMAGE_FILE_EMPTY[] PROGMEM = "Image file is empty or has no content";
 const char TXT_IMAGE_FILE_TRUNCATED[] PROGMEM = "Image file appears to be truncated";
-const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[] PROGMEM = "Failed to allocate memory for image processing";
+const char TXT_IMAGE_MEMORY_ALLOCATION_FAILED[] PROGMEM = "Failed to allocate memory";
 const char TXT_IMAGE_CONVERSION_FAILED[] PROGMEM = "Failed to convert image data to display format";
 const char TXT_IMAGE_RESOLUTION_TOO_HIGH[] PROGMEM = "Image resolution exceeds display capabilities";
 const char TXT_IMAGE_PROCESSING_ABORTED[] PROGMEM = "Image processing was aborted due to error";

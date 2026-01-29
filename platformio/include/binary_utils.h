@@ -48,6 +48,18 @@ struct PFR1Header {
     uint32_t header_crc32; // CRC32 of header (bytes 0-16)
 } __attribute__((packed));
 
+void PFR1Header_reset(PFR1Header& header);
+
+/**
+ * Return the width from a PFR1 header (taken into account the rotation)
+ */
+uint16_t PFR1Header_getWidth(const PFR1Header& header);
+
+/**
+ * Return the height from a PFR1 header (taken into account the rotation)
+ */
+uint16_t PFR1Header_getHeight(const PFR1Header& header);
+
 // PFR1 format constants (now imported from pfr1_config.h)
 #define PFR1_MAGIC   0x50465231 // 'PFR1' in little-endian
 #define PFR1_VERSION 1
@@ -109,6 +121,11 @@ class PFR1BinaryFile {
     uint8_t* getPayload() const { return buffer_.get() + PFR1_HEADER_SIZE; }
 
     /**
+     * Get payload size (excluding header)
+     */
+    size_t getPayloadSize() const { return header.payload_len; }
+
+    /**
      * Get display width
      */
     uint16_t getWidth() const { return width_; }
@@ -132,6 +149,15 @@ class PFR1BinaryFile {
      * Reset validation state
      */
     void resetValidation() { is_validated_ = false; }
+
+    /**
+     * Reset entire wrapper (clear buffer and header)
+     */
+    void reset() {
+        memset(buffer_.get(), 0, buffer_size_);
+        PFR1Header_reset(header);
+        is_validated_ = false;
+    }
 };
 
 /**

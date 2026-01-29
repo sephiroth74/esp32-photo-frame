@@ -149,14 +149,14 @@ photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
     }
 
     // Check dimensions match those used during wrapper construction
-    if (wrapper.header.width != wrapper.getWidth()) {
+    if (PFR1Header_getWidth(wrapper.header) != wrapper.getWidth()) {
         log_e(
-            "[PFR1] Width mismatch: got %u, expected %u", wrapper.header.width, wrapper.getWidth());
+            "[PFR1] Width mismatch: got %u, expected %u", PFR1Header_getWidth(wrapper.header), wrapper.getWidth());
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
-    if (wrapper.header.height != wrapper.getHeight()) {
+    if (PFR1Header_getHeight(wrapper.header) != wrapper.getHeight()) {
         log_e("[PFR1] Height mismatch: got %u, expected %u",
-              wrapper.header.height,
+              PFR1Header_getHeight(wrapper.header),
               wrapper.getHeight());
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
@@ -207,6 +207,33 @@ photo_frame_error validatePFR1File(fs::File& file, PFR1BinaryFile& wrapper) {
 
     // Validate wrapper (which includes payload CRC check)
     return validatePFR1Wrapper(wrapper);
+}
+
+void PFR1Header_reset(PFR1Header& header) {
+    header.magic        = 0;
+    header.version      = 0;
+    header.header_len   = 0;
+    header.width        = 0;
+    header.height       = 0;
+    header.rotation     = 0;
+    header.color_mode   = 0;
+    header.payload_len  = 0;
+    header.header_crc32 = 0;
+}
+
+uint16_t PFR1Header_getWidth(const PFR1Header& header) {
+    // width must be swapped with height if rotation is 1 or 3
+    if (header.rotation == 1 || header.rotation == 3) {
+        return header.height;
+    }
+    return header.width;
+}
+
+uint16_t PFR1Header_getHeight(const PFR1Header& header) {
+    if (header.rotation == 1 || header.rotation == 3) {
+        return header.width;
+    }
+    return header.height;
 }
 
 } // namespace binary_utils

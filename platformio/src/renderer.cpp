@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "binary_utils.h"
 #include "canvas_renderer.h"
 #include "config.h"
 #include "display_driver_6c.h"
@@ -183,13 +184,16 @@ bool rendererHasColor() { return displayDriver.has_color(); }
 
 // ========== Image loading functions ==========
 
-uint16_t
-loadImageToBuffer(uint8_t* buffer, File& file, const char* filename, int width, int height) {
+uint16_t loadImageToBuffer(uint8_t* buffer,
+                           photo_frame::binary_utils::PFR1BinaryFile& file,
+                           const char* filename,
+                           int width,
+                           int height) {
     log_i("load_image_to_buffer: %s, width: %d, height: %d", filename, width, height);
 
     // Validate basic parameters
-    if (!file) {
-        log_e("File not open or invalid");
+    if (file.isValidated() == false) {
+        log_e("File not validated");
         return 1;
     }
 
@@ -198,66 +202,27 @@ loadImageToBuffer(uint8_t* buffer, File& file, const char* filename, int width, 
         return 2;
     }
 
-    // Mode 1 format file size validation: width * height bytes (1 byte per pixel)
-    size_t expectedSize = width * height;
-    if (file.size() != expectedSize) {
-        log_e("ERROR: Mode 1 format file size mismatch");
-        log_e("Expected: %d bytes, Got: %d bytes", expectedSize, file.size());
-        return 3;
-    }
+    // now copy the payload into the buffer
+    size_t expectedSize = file.getPayloadSize();
+    uint8_t* payload    = file.getPayload();
 
-    log_i("Mode 1 format file size: %d bytes (1 byte per pixel)", expectedSize);
-
-    // Read the entire file into provided buffer with retry logic
-    auto startTime = millis();
-    file.seek(0);
-
-    // Try reading in chunks if the file is large
-    const size_t CHUNK_SIZE   = 32768; // 32KB chunks
-    size_t totalBytesRead     = 0;
-    uint8_t retryCount        = 0;
-    const uint8_t MAX_RETRIES = 3;
-
-    while (totalBytesRead < expectedSize && retryCount < MAX_RETRIES) {
-        size_t remainingBytes = expectedSize - totalBytesRead;
-        size_t chunkSize      = (remainingBytes > CHUNK_SIZE) ? CHUNK_SIZE : remainingBytes;
-
-        size_t bytesRead      = file.read(buffer + totalBytesRead, chunkSize);
-
-        if (bytesRead > 0) {
-            totalBytesRead += bytesRead;
-            retryCount = 0; // Reset retry count on successful read
-
-            // Small delay between chunks to let SD card recover
-            if (totalBytesRead < expectedSize) {
-                delay(1);
-            }
-        } else {
-            // Read failed, try again
-            retryCount++;
-            log_w("Read failed at offset %d, retry %d/%d", totalBytesRead, retryCount, MAX_RETRIES);
-            delay(10 * retryCount); // Exponential backoff
-
-            // Try to reposition the file pointer
-            if (!file.seek(totalBytesRead)) {
-                log_e("Failed to seek to position %d", totalBytesRead);
-                break;
-            }
-        }
-    }
-
-    auto readTime = millis() - startTime;
-
-    if (totalBytesRead != expectedSize) {
-        log_e(
-            "ERROR: Failed to read file (got %d bytes, expected %d)", totalBytesRead, expectedSize);
+    if (file.getWidth() != width || file.getHeight() != height) {
+        log_e("File dimensions do not match expected size");
         return 4;
     }
 
-    log_i("Image loaded to buffer in %lu ms (%d bytes in %d chunks)",
-          readTime,
-          totalBytesRead,
-          (totalBytesRead + CHUNK_SIZE - 1) / CHUNK_SIZE);
+    if (expectedSize == 0) {
+        log_e("ERROR: Expected size is zero!");
+        return 2;
+    }
+
+    if (!payload) {
+        log_e("ERROR: Payload pointer is null!");
+        return 3;
+    }
+
+    memcpy(buffer, payload, expectedSize);
+
     return 0; // Success
 }
 

@@ -147,6 +147,8 @@ void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
     if (!enabled || !pixels)
         return;
 
+    log_i("Setting state to %d", (int)state);
+
     // Find configuration for this state
     const StatusConfig* config = nullptr;
     for (size_t i = 0; i < NUM_STATUS_CONFIGS; i++) {
