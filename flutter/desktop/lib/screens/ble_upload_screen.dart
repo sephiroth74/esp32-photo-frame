@@ -243,13 +243,46 @@ class BleUploadScreen extends StatelessWidget {
                       onTap: ble.canUpload && !ble.uploading
                           ? () async {
                               final errorMsg = await ble.upload();
-                              if (errorMsg != null && context.mounted) {
+                              if (!context.mounted) return;
+
+                              if (errorMsg != null) {
                                 showAppKitDialog(
                                   context: context,
                                   barrierDismissible: true,
                                   builder: (context) => AppKitDialog(
                                     title: const Text('Errore Upload'),
                                     message: (context) => SelectableText(errorMsg, style: const TextStyle(fontSize: 13)),
+                                    primaryButton: AppKitButton(
+                                      size: AppKitControlSize.regular,
+                                      type: AppKitButtonType.primary,
+                                      onTap: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text('Ok'),
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                // Success dialog
+                                showAppKitDialog(
+                                  context: context,
+                                  barrierDismissible: true,
+                                  builder: (context) => AppKitDialog(
+                                    title: const Text('Upload Completato'),
+                                    message: (context) => Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle, color: Colors.green[600], size: 48),
+                                        const SizedBox(height: 16),
+                                        Text('Upload completato con successo', style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Durata: ${ble.uploadDuration}s',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
                                     primaryButton: AppKitButton(
                                       size: AppKitControlSize.regular,
                                       type: AppKitButtonType.primary,

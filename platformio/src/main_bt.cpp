@@ -249,6 +249,8 @@ void setup_bluetooth_mode() {
     // Shutdown BLE
     bt_manager.shutdown();
 
+    RGB_SET_STATE(IDLE); // Back to idle LED state
+
     // Timeout expired or error occurred
     if (wait_error != photo_frame::error_type::None) {
         log_w("[BT] Image wait failed: %s", wait_error.message);

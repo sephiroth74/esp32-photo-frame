@@ -416,8 +416,6 @@ photo_frame_error_t BluetoothImageManager::init(uint32_t timeout_ms) {
     log_i("[BT Manager] BLE device initialized with address: %s",
           BLEDevice::getAddress().toString().c_str());
 
-    esp_task_wdt_add(nullptr); // Add current task to watchdog
-
     return error_type::None;
 }
 
@@ -426,10 +424,15 @@ photo_frame_error_t BluetoothImageManager::waitForImage(uint32_t timeout_ms) {
 
     unsigned long start_time = millis();
 
+    // esp_task_wdt_add(nullptr); // Add current task to watchdog
+
     while (!transfer_complete_) {
+        // esp_task_wdt_reset();
+
         // print a message every minutes to show we are still waiting
         if ((millis() - start_time) % 60000 < 100) {
-            log_i("[BT Manager] Still waiting for image...");
+            log_i("[BT Manager] Still waiting for image... (%u minutes elapsed)",
+                  (millis() - start_time) / 60000);
         }
 
         // Check timeout
@@ -450,6 +453,8 @@ photo_frame_error_t BluetoothImageManager::waitForImage(uint32_t timeout_ms) {
         delay(100);
         yield();
     }
+
+    // esp_task_wdt_delete(nullptr); // Remove current task from watchdog
 
     // Transfer complete - image is ready in memory buffer
     log_i("[BT Manager] ✓ Transfer complete, image ready in memory");

@@ -48,6 +48,7 @@ class BleUploadState with ChangeNotifier {
   double progress = 0;
   String status = '';
   String? error;
+  int uploadDuration = 0; // Duration in seconds
 
   List<ScanResult> devices = [];
   BluetoothDevice? connected;
@@ -160,8 +161,7 @@ class BleUploadState with ChangeNotifier {
     await _scanSub?.cancel();
     connected = null;
     deviceInfo = null;
-    previewImage = null;
-    binHeader = null;
+    // Don't reset previewImage and binHeader to keep preview visible
     status = '';
     notifyListeners();
   }
@@ -214,9 +214,11 @@ class BleUploadState with ChangeNotifier {
       print('⚠ Failed to enable wakelock: $e');
     }
 
+    final uploadStartTime = DateTime.now();
     uploading = true;
     progress = 0;
     error = null;
+    uploadDuration = 0;
     notifyListeners();
     try {
       final data = await File(binPath!).readAsBytes();
@@ -278,6 +280,7 @@ class BleUploadState with ChangeNotifier {
       }
       print('✓ Upload complete');
       status = 'Upload complete';
+      uploadDuration = DateTime.now().difference(uploadStartTime).inSeconds;
     } catch (e) {
       error = 'Upload failed: $e';
       print('❌ BLE Upload Error: $e');

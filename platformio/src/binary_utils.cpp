@@ -2,6 +2,7 @@
 // (see header for details)
 
 #include "binary_utils.h"
+#include "config.h"
 #include "errors.h"
 
 namespace photo_frame {
@@ -148,17 +149,21 @@ photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
         return photo_frame::error_type::ImageFileHeaderInvalid;
     }
 
-    // Check dimensions match those used during wrapper construction
-    if (PFR1Header_getWidth(wrapper.header) != wrapper.getWidth()) {
-        log_e("[PFR1] Width mismatch: got %u, expected %u",
-              PFR1Header_getWidth(wrapper.header),
-              wrapper.getWidth());
+    // Validate payload size against width * height
+    size_t expected_payload_size =
+        static_cast<size_t>(wrapper.header.width) * static_cast<size_t>(wrapper.header.height);
+    if (wrapper.header.payload_len != expected_payload_size) {
+        log_e("[PFR1] Payload size mismatch: header=%u bytes, expected=%u bytes",
+              wrapper.header.payload_len,
+              expected_payload_size);
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
-    if (PFR1Header_getHeight(wrapper.header) != wrapper.getHeight()) {
-        log_e("[PFR1] Height mismatch: got %u, expected %u",
-              PFR1Header_getHeight(wrapper.header),
-              wrapper.getHeight());
+
+    if (wrapper.header.payload_len != EXPECTED_IMAGE_SIZE_BYTES) {
+        log_e("[PFR1] Payload size does not match expected display size: header=%u bytes, "
+              "expected=%u bytes",
+              wrapper.header.payload_len,
+              EXPECTED_IMAGE_SIZE_BYTES);
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
 
