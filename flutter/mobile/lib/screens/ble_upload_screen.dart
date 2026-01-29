@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/processing_models.dart';
@@ -564,7 +565,26 @@ class _UploadProgressDialogState extends State<_UploadProgressDialog> {
   @override
   void initState() {
     super.initState();
+    _enableWakelock();
     _startUpload();
+  }
+
+  Future<void> _enableWakelock() async {
+    try {
+      await WakelockPlus.enable();
+      logger.fine('Wakelock enabled during upload');
+    } catch (e) {
+      logger.warning('Failed to enable wakelock: $e');
+    }
+  }
+
+  Future<void> _disableWakelock() async {
+    try {
+      await WakelockPlus.disable();
+      logger.fine('Wakelock disabled after upload');
+    } catch (e) {
+      logger.warning('Failed to disable wakelock: $e');
+    }
   }
 
   Future<void> _cancel() async {
@@ -590,6 +610,7 @@ class _UploadProgressDialogState extends State<_UploadProgressDialog> {
   @override
   void dispose() {
     // Ensure proper cleanup
+    _disableWakelock();
     widget.bleService.disconnect();
     widget.bleService.dispose();
     super.dispose();
@@ -635,6 +656,7 @@ class _UploadProgressDialogState extends State<_UploadProgressDialog> {
           _status = 'Upload complete!';
           _progress = 1.0;
         });
+        await _disableWakelock();
       }
     } catch (e) {
       logger.severe('Upload error: $e');
@@ -643,6 +665,7 @@ class _UploadProgressDialogState extends State<_UploadProgressDialog> {
           _error = e.toString();
           _status = 'Upload failed';
         });
+        await _disableWakelock();
       }
     }
   }

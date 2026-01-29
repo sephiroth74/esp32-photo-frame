@@ -39,6 +39,9 @@ dependencies:
   # Window management
   window_manager: ^0.5.0
 
+  # Keep screen awake during upload
+  wakelock_plus: ^1.2.8
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

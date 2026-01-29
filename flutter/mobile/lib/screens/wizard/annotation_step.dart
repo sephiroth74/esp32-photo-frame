@@ -132,8 +132,8 @@ class _AnnotationStepState extends State<AnnotationStep> {
                     AdjustmentSlider(
                       label: 'Font Size',
                       value: widget.job.annotation.fontSize,
-                      min: 10.0,
-                      max: 20.0,
+                      min: 12.0,
+                      max: 26.0,
                       onChanged: (value) {
                         state.updateAnnotation(fontSize: value.toInt());
                       },

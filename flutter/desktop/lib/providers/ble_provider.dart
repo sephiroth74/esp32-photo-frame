@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:path/path.dart' as p;
@@ -203,6 +205,15 @@ class BleUploadState with ChangeNotifier {
       notifyListeners();
       return error;
     }
+
+    // Enable wakelock during upload
+    try {
+      await WakelockPlus.enable();
+      print('✓ Wakelock enabled');
+    } catch (e) {
+      print('⚠ Failed to enable wakelock: $e');
+    }
+
     uploading = true;
     progress = 0;
     error = null;
@@ -271,6 +282,14 @@ class BleUploadState with ChangeNotifier {
       error = 'Upload failed: $e';
       print('❌ BLE Upload Error: $e');
     } finally {
+      // Disable wakelock after upload
+      try {
+        await WakelockPlus.disable();
+        print('✓ Wakelock disabled');
+      } catch (e) {
+        print('⚠ Failed to disable wakelock: $e');
+      }
+
       uploading = false;
       notifyListeners();
     }
