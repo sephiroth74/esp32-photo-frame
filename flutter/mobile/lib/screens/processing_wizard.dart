@@ -117,7 +117,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
             padding: EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Preparing .bin file...')],
+              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Preparing .pfr1 file...')],
             ),
           ),
         ),
@@ -130,14 +130,14 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
     Navigator.of(context).pop();
 
     if (binaryData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .bin file')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .pfr1 file')));
       return;
     }
 
     try {
-      final tempFile = File('${Directory.systemTemp.path}/photoframe_${DateTime.now().millisecondsSinceEpoch}.bin');
+      final tempFile = File('${Directory.systemTemp.path}/photoframe_${DateTime.now().millisecondsSinceEpoch}.pfr1');
       await tempFile.writeAsBytes(binaryData, flush: true);
-      await Share.shareXFiles([XFile(tempFile.path)], text: 'PhotoFrame .bin ready for desktop test');
+      await Share.shareXFiles([XFile(tempFile.path)], text: 'PhotoFrame .pfr1 ready for desktop test');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sharing failed: $e')));
     }
@@ -157,7 +157,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
             actions: _currentStep == 3
-                ? [IconButton(icon: const Icon(Icons.share), tooltip: 'Condividi .bin', onPressed: () => _onShareBin(state))]
+                ? [IconButton(icon: const Icon(Icons.share), tooltip: 'Share .pfr1', onPressed: () => _onShareBin(state))]
                 : [],
           ),
           body: Column(

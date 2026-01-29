@@ -204,7 +204,7 @@ class SdCard {
     bool isFile(const char* path) const;
 
     /**
-     * Lists all files in the root directory of the SD card with allowed extensions (.bin, .bmp).
+     * Lists all files in the root directory of the SD card with allowed extensions (.pfr1, .bmp).
      * @note This function only lists files in the root directory, not in subdirectories.
      * @note If the SD card is not initialized, it will not list any files.
      */
@@ -221,7 +221,7 @@ class SdCard {
     void printStats() const;
 
     /**
-     * Counts the number of files with allowed extensions (.bin, .bmp) in the root directory of the
+     * Counts the number of files with allowed extensions (.pfr1, .bmp) in the root directory of the
      * SD card.
      * @return The number of files with allowed extensions.
      * If the SD card is not initialized, it returns 0.
@@ -294,32 +294,34 @@ class SdCard {
     /**
      * Lists all files in a directory with the specified extension.
      * @param dir_path The directory path to list files from.
-     * @param extension The file extension to filter (e.g., ".bin"). Default is ".bin".
+     * @param extension The file extension to filter (e.g., ".pfr1"). Default is ".pfr1".
      * @return Vector of file paths matching the extension.
      * @note If the SD card is not initialized or directory doesn't exist, returns empty vector.
      */
     std::vector<String> listFilesInDirectory(const char* dir_path,
-                                             const char* extension = ".bin") const;
+                                             const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Gets a file at a specific index from a directory.
      * @param dir_path The directory path to get file from.
      * @param index The index of the file to get (0-based).
-     * @param extension The file extension to filter (e.g., ".bin"). Default is ".bin".
+     * @param extension The file extension to filter (e.g., ".pfr1"). Default is ".pfr1".
      * @return Full path to the file, or empty string if not found.
      * @note Files are sorted alphabetically before indexing.
      */
-    String
-    getFileAtIndex(const char* dir_path, uint32_t index, const char* extension = ".bin") const;
+    String getFileAtIndex(const char* dir_path,
+                          uint32_t index,
+                          const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Counts the number of files with specified extension in a directory.
      * @param dir_path The directory path to count files in.
-     * @param extension The file extension to filter (e.g., ".bin"). Default is ".bin".
+     * @param extension The file extension to filter (e.g., ".pfr1"). Default is ".pfr1".
      * @return Number of files with the specified extension.
      * @note If the SD card is not initialized or directory doesn't exist, returns 0.
      */
-    uint32_t countFilesInDirectory(const char* dir_path, const char* extension = ".bin") const;
+    uint32_t countFilesInDirectory(const char* dir_path,
+                                   const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Gets the amount of used space in bytes on the SD card.
@@ -346,12 +348,12 @@ class SdCard {
      * This creates an index of all files matching the extension, allowing
      * for fast random access without directory iteration.
      * @param dir_path The directory path to build TOC for.
-     * @param extension The file extension to include (e.g., ".bin"). Default is ".bin".
+     * @param extension The file extension to include (e.g., ".pfr1"). Default is ".pfr1".
      * @param error Optional pointer to store error details if build fails.
      * @return true if TOC was built successfully, false otherwise.
      */
     bool buildDirectoryToc(const char* dir_path,
-                           const char* extension      = ".bin",
+                           const char* extension      = BINARY_FILE_EXTENSION,
                            photo_frame_error_t* error = nullptr);
 
     /**
@@ -361,7 +363,7 @@ class SdCard {
      * @param extension The file extension filter.
      * @return true if TOC is valid and can be used, false if it needs rebuilding.
      */
-    bool isTocValid(const char* dir_path, const char* extension = ".bin") const;
+    bool isTocValid(const char* dir_path, const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Invalidates the cached TOC, forcing a rebuild on next access.
@@ -378,7 +380,7 @@ class SdCard {
      * @return Number of files matching the extension.
      */
     uint32_t countFilesCached(const char* dir_path,
-                              const char* extension = ".bin",
+                              const char* extension = BINARY_FILE_EXTENSION,
                               bool use_toc          = true) const;
 
     /**
@@ -392,7 +394,7 @@ class SdCard {
      */
     String getFileAtIndexCached(const char* dir_path,
                                 uint32_t index,
-                                const char* extension = ".bin",
+                                const char* extension = BINARY_FILE_EXTENSION,
                                 bool use_toc          = true) const;
 
   private:

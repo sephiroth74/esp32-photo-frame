@@ -177,7 +177,7 @@ void setup() {
             File entry = root.openNextFile();
             while (entry) {
                 String name = entry.name();
-                if (name.endsWith(".bin") && entry.size() == IMAGE_BUFFER_SIZE) {
+                if (name.endsWith(BINARY_FILE_EXTENSION) && entry.size() == IMAGE_BUFFER_SIZE) {
                     log_i("Found test image: %s", name.c_str());
 
                     size_t bytesRead = entry.read(test_image_buffer, IMAGE_BUFFER_SIZE);

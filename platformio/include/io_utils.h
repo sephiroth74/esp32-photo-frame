@@ -34,18 +34,18 @@ namespace io_utils {
 /**
  * @brief Detect binary format based on filename extension for runtime rendering selection
  *
- * This function checks if a file is in binary format (.bin extension) used by the
+ * This function checks if a file is in binary format (.pfr1 extension) used by the
  * ESP32 photo frame for optimized e-paper rendering.
  *
  * @param filename The filename to examine (must include extension)
- * @return true if binary format (.bin) - uses optimized binary renderer
- * @return false if filename is null, has no extension, or is not a .bin file
+ * @return true if binary format (.pfr1) - uses optimized binary renderer
+ * @return false if filename is null, has no extension, or is not a .pfr1 file
  *
- * @note Only binary format (.bin) is supported - other formats will return false
+ * @note Only binary format (.pfr1) is supported - other formats will return false
  *
  * @example
  * ```cpp
- * if (photo_frame::io_utils::is_binary_format("image.bin")) {
+ * if (photo_frame::io_utils::is_binary_format("image.pfr1")) {
  *     // Use binary rendering engine
  *     draw_binary_from_file(...);
  * } else {

@@ -290,7 +290,7 @@ class GoogleDriveClient {
      *
      * Parses Google Drive API JSON response and writes file entries to TOC file.
      * Automatically filters files based on allowed extensions at runtime, supporting
-     * both binary (.bin) and bitmap (.bmp) formats.
+     * both binary (.pfr1) and bitmap (.bmp) formats.
      *
      * @param jsonBody JSON response body to parse
      * @param sdCard Reference to the SD card instance for file operations

@@ -632,7 +632,7 @@ class _UploadProgressDialogState extends State<_UploadProgressDialog> {
 
       // Note: imageData now contains PFR1 header (21 bytes) + payload + CRC32 (4 bytes)
       // No need to validate pixel count since header contains dimensions
-      logger.info('Uploading .bin file: ${widget.imageData.length} bytes total');
+      logger.info('Uploading .pfr1 file: ${widget.imageData.length} bytes total');
 
       // Upload
       if (mounted) setState(() => _status = 'Uploading...');

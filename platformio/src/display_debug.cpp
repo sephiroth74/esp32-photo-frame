@@ -24,7 +24,7 @@
 #define DISPLAY_POWER_ACTIVE_LOW 0  // ProS3 LDO2: HIGH = ON, LOW = OFF
 
 const char images_directory[]      = "/6c/portrait/bin";
-static const char image_filename[] = "/6c/bin/6c_MjAyMjA3MjBfMTk1NjEz__portrait.bin";
+static const char image_filename[] = "/6c/bin/6c_MjAyMjA3MjBfMTk1NjEz__portrait.pfr1";
 // Note: display_debug uses the DisplayManager singleton via DisplayManager::getInstance()
 static photo_frame::SdCard sdCard; // Use same SD card class as main.cpp
 
@@ -214,10 +214,10 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
 
     // Build or validate TOC
     if (use_toc) {
-        if (!sdCard.isTocValid(images_directory, ".bin")) {
+        if (!sdCard.isTocValid(images_directory, ".pfr1")) {
             log_i("Building SD card TOC for directory: %s", images_directory);
             photo_frame::photo_frame_error_t tocError;
-            if (sdCard.buildDirectoryToc(images_directory, ".bin", &tocError)) {
+            if (sdCard.buildDirectoryToc(images_directory, BINARY_FILE_EXTENSION, &tocError)) {
                 log_i("SD card TOC built successfully");
             } else {
                 log_w(
@@ -233,15 +233,16 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
 
     // Count files using TOC or direct iteration
     if (use_toc) {
-        fileCount = sdCard.countFilesCached(images_directory, ".bin", true);
+        fileCount = sdCard.countFilesCached(images_directory, BINARY_FILE_EXTENSION, true);
         log_i("Found %lu files using TOC cache", fileCount);
     } else {
-        fileCount = sdCard.countFilesInDirectory(images_directory, ".bin");
+        fileCount = sdCard.countFilesInDirectory(images_directory, BINARY_FILE_EXTENSION);
         log_i("Found %lu files using direct iteration", fileCount);
     }
 
     auto elapsed = millis() - ts;
-    log_v("Total .bin file count inside %s is %lu", images_directory, fileCount);
+    log_v(
+        "Total %s file count inside %s is %lu", BINARY_FILE_EXTENSION, images_directory, fileCount);
     log_v("Elapsed time for counting: %lu ms", elapsed);
 
     if (fileCount < 1) {
@@ -258,10 +259,11 @@ bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, si
     ts = millis();
 
     if (use_toc) {
-        fullPath = sdCard.getFileAtIndexCached(images_directory, targetIndex, ".bin", true);
+        fullPath =
+            sdCard.getFileAtIndexCached(images_directory, targetIndex, BINARY_FILE_EXTENSION, true);
         log_i("Selected file from TOC: %s", fullPath.c_str());
     } else {
-        fullPath = sdCard.getFileAtIndex(images_directory, targetIndex, ".bin");
+        fullPath = sdCard.getFileAtIndex(images_directory, targetIndex, BINARY_FILE_EXTENSION);
         log_i("Selected file from iteration: %s", fullPath.c_str());
     }
 

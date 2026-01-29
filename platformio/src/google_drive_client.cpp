@@ -1492,7 +1492,7 @@ size_t GoogleDriveClient::parse_file_list_to_toc(const String& jsonBody,
             const char* id   = f["id"];
             const char* name = f["name"];
 
-            // Check file extension filter - accept both .bin and .bmp
+            // Check file extension filter - accept both .pfr1 and .bmp
             const char* fileExtension = strrchr(name, '.');
             bool extensionAllowed     = false;
             if (fileExtension) {

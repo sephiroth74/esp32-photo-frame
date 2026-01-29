@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "io_utils.h"
+#include "config.h"
 #include "renderer.h"
 
 namespace photo_frame {
@@ -34,7 +35,7 @@ bool is_binary_format(const char* filename) {
     if (!extension)
         return false;
 
-    return strcmp(extension, ".bin") == 0;
+    return strcmp(extension, BINARY_FILE_EXTENSION) == 0;
 }
 
 } // namespace io_utils

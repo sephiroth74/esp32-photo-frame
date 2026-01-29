@@ -51,7 +51,7 @@ namespace photo_frame {
  * // Store values
  * prefs.putULong("last_cleanup", time(NULL));
  * prefs.putInt("refresh_interval", 3600);
- * prefs.putString("last_image", "image_123.bin");
+ * prefs.putString("last_image", "image_123.pfr1");
  *
  * // Retrieve values with defaults
  * time_t last_cleanup = prefs.getULong("last_cleanup", 0);

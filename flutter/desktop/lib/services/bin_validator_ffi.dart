@@ -85,7 +85,7 @@ typedef ValidateBinNative = BinValidationResultNative Function(ffi.Pointer<ffi.U
 
 typedef ValidateBinDart = BinValidationResultNative Function(ffi.Pointer<ffi.Uint8> dataPtr, int dataLen);
 
-/// FFI wrapper for PFR1 .bin file validation
+/// FFI wrapper for PFR1 .pfr1 file validation
 class PhotoframeValidator {
   static final ffi.DynamicLibrary _dylib = _loadLibrary();
 
@@ -102,7 +102,7 @@ class PhotoframeValidator {
 
   static final ValidateBinDart _validateBin = _dylib.lookup<ffi.NativeFunction<ValidateBinNative>>('photoframe_validate_bin').asFunction();
 
-  /// Validate a PFR1 .bin file
+  /// Validate a PFR1 .pfr1 file
   ///
   /// Returns [BinValidationResult] with header metadata if valid.
   /// On error, success=false.
@@ -122,7 +122,7 @@ class PhotoframeValidator {
     }
   }
 
-  /// Validate a PFR1 .bin file from file path
+  /// Validate a PFR1 .pfr1 file from file path
   static BinValidationResult validateFile(String filePath) {
     try {
       final file = File(filePath);

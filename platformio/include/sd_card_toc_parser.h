@@ -19,7 +19,7 @@ class SdCard;
  * TOC data file format (optimized for speed - no size):
  * - Line 1: timestamp = <unix_timestamp>
  * - Line 2: fileCount = <number>
- * - Lines 3+: path (e.g., "/6c/portrait/bin/image.bin")
+ * - Lines 3+: path (e.g., "/6c/portrait/bin/image.pfr1")
  *
  * TOC meta file format:
  * - directoryModTime = <unix_timestamp>
@@ -60,7 +60,7 @@ class SdCardTocParser {
     /**
      * Get the file extension filter used for this TOC
      * @param error Optional error output
-     * @return Extension (e.g., ".bin"), or empty string on error
+     * @return Extension (e.g., ".pfr1"), or empty string on error
      */
     String get_extension(photo_frame_error_t* error = nullptr);
 

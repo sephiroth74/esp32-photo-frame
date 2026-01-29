@@ -174,7 +174,7 @@ class BleUploadScreen extends StatelessWidget {
                                     )
                                   : Center(
                                       child: Text(
-                                        'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                        'Preview will appear after selecting a .pfr1 file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                                       ),
@@ -189,7 +189,7 @@ class BleUploadScreen extends StatelessWidget {
                               width: double.infinity,
                               child: Center(
                                 child: Text(
-                                  'Preview will appear after selecting a .bin file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                  'Preview will appear after selecting a .pfr1 file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                                 ),
@@ -364,7 +364,7 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (h == null)
-            const Text('Select a .bin file to see header details.', style: TextStyle(fontSize: 12))
+            const Text('Select a .pfr1 file to see header details.', style: TextStyle(fontSize: 12))
           else ...[
             _row('Magic', 'PFR1 (0x50465231)'),
             _row('Version', h.version.toString()),

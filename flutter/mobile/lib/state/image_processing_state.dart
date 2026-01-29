@@ -476,7 +476,7 @@ class ImageProcessingState extends ChangeNotifier {
         }
       }
 
-      // Convert to .bin with PFR1 header using Rust FFI (header rotation=0)
+      // Convert to .pfr1 with PFR1 header using Rust FFI (header rotation=0)
       final binary = PhotoframeDithering.convertWithProcessing(imageBytes: bytes, processingType: processingType, rotation: rotationValue);
 
       stopwatch.stop();

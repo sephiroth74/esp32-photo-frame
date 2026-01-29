@@ -493,7 +493,7 @@ handle_sd_card_operations(bool is_reset,
     // Build or validate TOC if caching is enabled
     if (systemConfig.sd_card.use_toc_cache) {
         // Only rebuild TOC on reset or if TOC doesn't exist/is invalid
-        bool rebuild_toc = is_reset || !sdCard.isTocValid(images_dir, ".bin");
+        bool rebuild_toc = is_reset || !sdCard.isTocValid(images_dir, BINARY_FILE_EXTENSION);
 
         if (rebuild_toc) {
             if (is_reset) {
@@ -502,7 +502,7 @@ handle_sd_card_operations(bool is_reset,
                 log_i("TOC invalid - building SD card TOC for directory: %s", images_dir);
             }
             photo_frame::photo_frame_error_t tocError;
-            if (sdCard.buildDirectoryToc(images_dir, ".bin", &tocError)) {
+            if (sdCard.buildDirectoryToc(images_dir, BINARY_FILE_EXTENSION, &tocError)) {
                 log_i("SD card TOC built successfully");
             } else {
                 log_w(
@@ -517,10 +517,10 @@ handle_sd_card_operations(bool is_reset,
 
     // Count total files in directory (uses TOC cache if enabled)
     total_files = systemConfig.sd_card.use_toc_cache
-                      ? sdCard.countFilesCached(images_dir, ".bin", true)
-                      : sdCard.countFilesInDirectory(images_dir, ".bin");
+                      ? sdCard.countFilesCached(images_dir, BINARY_FILE_EXTENSION, true)
+                      : sdCard.countFilesInDirectory(images_dir, BINARY_FILE_EXTENSION);
     if (total_files == 0) {
-        log_e("No .bin files found in directory: %s", images_dir);
+        log_e("No %s files found in directory: %s", BINARY_FILE_EXTENSION, images_dir);
         sdCard.end();
         return photo_frame::error_type::NoImagesFound;
     }
@@ -532,9 +532,10 @@ handle_sd_card_operations(bool is_reset,
     log_i("Selected random image index: %d", image_index);
 
     // Get the file path at the selected index (uses TOC cache if enabled)
-    String file_path = systemConfig.sd_card.use_toc_cache
-                           ? sdCard.getFileAtIndexCached(images_dir, image_index, ".bin", true)
-                           : sdCard.getFileAtIndex(images_dir, image_index, ".bin");
+    String file_path =
+        systemConfig.sd_card.use_toc_cache
+            ? sdCard.getFileAtIndexCached(images_dir, image_index, BINARY_FILE_EXTENSION, true)
+            : sdCard.getFileAtIndex(images_dir, image_index, BINARY_FILE_EXTENSION);
     if (file_path.isEmpty()) {
         log_e("Failed to get file at index %d", image_index);
         sdCard.end();

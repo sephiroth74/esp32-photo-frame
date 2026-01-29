@@ -75,8 +75,8 @@
 // #define BT_FIRST_BOOT_TIMEOUT_MS     (2 * 60 * 1000) // minutes timeout for first boot
 // #define BT_LISTEN_TIMEOUT_MS         (5 * 60 * 1000) // 5 minutes timeout for subsequent boots
 // #define BT_BATTERY_CHECK_INTERVAL_MS 60000           // Check battery every 60 seconds
-// #define BT_DEFAULT_IMAGE_FILENAME    "/default.bin"  // Default image filename in LittleFS
-// #define BT_CURRENT_IMAGE_FILENAME    "/current.bin"  // Current image filename in LittleFS
+// #define BT_DEFAULT_IMAGE_FILENAME    "/default.pfr1"  // Default image filename in LittleFS
+// #define BT_CURRENT_IMAGE_FILENAME    "/current.pfr1"  // Current image filename in LittleFS
 // #endif                                               // ENABLE_BT_IMAGE
 
 // ----------------------------------------------------------------------------
@@ -166,6 +166,11 @@
 // #define WAKEUP_PIN        GPIO_NUM_7        // GPIO pin for wakeup functionality
 // #define WAKEUP_PIN_MODE   INPUT_PULLDOWN    // Pin mode (INPUT_PULLUP/INPUT_PULLDOWN)
 // #define WAKEUP_LEVEL      ESP_EXT1_WAKEUP_ANY_HIGH  // Wakeup trigger level
+
+// ============================================================================
+// FILE FORMATS AND EXTENSIONS
+// ============================================================================
+#define BINARY_FILE_EXTENSION ".pfr1"
 
 // ============================================================================
 // TIMING AND POWER MANAGEMENT
@@ -259,7 +264,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // ============================================================================
 
 /// Binary image size validation (calculated from EPD dimensions)
-/// All binary images (.bin) must be exactly EPD_WIDTH * EPD_HEIGHT bytes
+/// All binary images (.pfr1) must be exactly EPD_WIDTH * EPD_HEIGHT bytes
 /// For 800x480 displays: 800 * 480 = 384,000 bytes (384 KB)
 /// This must be validated for:
 /// - Google Drive images: after download from cloud
@@ -303,7 +308,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // Standard ESP32: 40KB JSON buffer, 64KB body reserve, 100KB safety limit
 
 /// Development and testing
-// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.bin"  // Force specific test file
+// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.pfr1"  // Force specific test file
 
 // ============================================================================
 // ============================================================================

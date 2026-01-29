@@ -358,7 +358,7 @@
  * formats to coexist in the same directory or Google Drive folder.
  *
  * Supported formats:
- * - ".bin": Binary format optimized for ESP32 e-paper displays (compressed, fast rendering)
+ * - ".pfr1": Binary format optimized for ESP32 e-paper displays (compressed, fast rendering)
  * - ".bmp": Standard bitmap format for viewing/debugging (uncompressed, compatible)
  *
  * @note The rendering engine automatically selects the appropriate decoder based on
@@ -367,7 +367,7 @@
  * @see ALLOWED_EXTENSIONS_COUNT for the number of elements in this array
  */
 const char* ALLOWED_FILE_EXTENSIONS[] = {
-    ".bin", ///< Binary format for optimized e-paper rendering
+    BINARY_FILE_EXTENSION, ///< Binary format for optimized e-paper rendering
 };
 
 /**
