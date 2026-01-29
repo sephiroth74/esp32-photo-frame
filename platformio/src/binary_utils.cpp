@@ -150,8 +150,9 @@ photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
 
     // Check dimensions match those used during wrapper construction
     if (PFR1Header_getWidth(wrapper.header) != wrapper.getWidth()) {
-        log_e(
-            "[PFR1] Width mismatch: got %u, expected %u", PFR1Header_getWidth(wrapper.header), wrapper.getWidth());
+        log_e("[PFR1] Width mismatch: got %u, expected %u",
+              PFR1Header_getWidth(wrapper.header),
+              wrapper.getWidth());
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
     if (PFR1Header_getHeight(wrapper.header) != wrapper.getHeight()) {
