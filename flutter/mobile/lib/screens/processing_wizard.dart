@@ -8,7 +8,6 @@ import '../state/image_processing_state.dart';
 import '../utils/app_logger.dart';
 import 'wizard/rotation_crop_step.dart';
 import 'wizard/dithering_step.dart';
-import 'wizard/annotation_step.dart';
 import 'wizard/review_step.dart';
 
 class ProcessingWizardScreen extends StatefulWidget {
@@ -39,9 +38,9 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
   }
 
   String _getTitleForStep(int step) {
-    const titles = ['Crop & Rotate', 'Dithering', 'Annotation', 'Review'];
+    const titles = ['Crop & Rotate', 'Dithering', 'Review'];
     if (step >= 0 && step < titles.length) {
-      return '${titles[step]} (${step + 1} of 4)';
+      return '${titles[step]} (${step + 1} of 3)';
     }
     return '';
   }
@@ -156,13 +155,13 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
             elevation: 0,
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            actions: _currentStep == 3
+            actions: _currentStep == 2
                 ? [IconButton(icon: const Icon(Icons.share), tooltip: 'Share .pfr1', onPressed: () => _onShareBin(state))]
                 : [],
           ),
           body: Column(
             children: [
-              LinearProgressIndicator(value: (_currentStep + 1) / 4, minHeight: 4),
+              LinearProgressIndicator(value: (_currentStep + 1) / 3, minHeight: 4),
               Expanded(
                 child: PageView(
                   controller: _pageController,
@@ -175,7 +174,6 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                   children: [
                     RotationCropStep(job: job, file: widget.imageFile),
                     DitheringStep(job: job, file: processed),
-                    AnnotationStep(job: job, file: processed),
                     ReviewStep(job: job, file: processed),
                   ],
                 ),
@@ -204,7 +202,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                 ),
                 FilledButton.icon(
                   onPressed: () async {
-                    if (_currentStep < 3) {
+                    if (_currentStep < 2) {
                       logger.fine('Wizard: Next pressed from step $_currentStep');
                       if (_currentStep == 0) {
                         logger.fine('Wizard: Rendering intermediate crop');
@@ -214,15 +212,6 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                         logger.fine('Wizard: Saving dithering preview');
                         // Save dithering preview as intermediate for next steps
                         await context.read<ImageProcessingState>().saveDitherPreview();
-                      } else if (_currentStep == 2) {
-                        logger.fine('Wizard: Applying annotation to dithered image');
-                        // Apply annotation to the dithered image
-                        final annotatedFile = await context.read<ImageProcessingState>().renderIntermediateWithAnnotation();
-                        if (annotatedFile == null) {
-                          logger.warning('Wizard: Failed to apply annotation - no annotated file returned');
-                        } else {
-                          logger.info('Wizard: Annotation applied successfully: ${annotatedFile.path}');
-                        }
                       }
                       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                     } else {
@@ -230,8 +219,8 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                       _finishWizard();
                     }
                   },
-                  icon: Icon(_currentStep < 3 ? Icons.arrow_forward : Icons.check),
-                  label: Text(_currentStep < 3 ? 'Next' : 'Finish'),
+                  icon: Icon(_currentStep < 2 ? Icons.arrow_forward : Icons.check),
+                  label: Text(_currentStep < 2 ? 'Next' : 'Finish'),
                 ),
               ],
             ),
