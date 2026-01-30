@@ -24,6 +24,7 @@
 #define COMMON_MAIN_H
 
 #include "battery.h"
+#include "binary_utils.h"
 #include "config.h"
 #include "display_manager.h"
 #include "errors.h"
@@ -139,14 +140,15 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
  * @param battery_info Battery information
  * @return Updated error state after rendering attempt
  */
-photo_frame::photo_frame_error_t render_image(fs::File& file,
-                                              const char* original_filename,
-                                              photo_frame::photo_frame_error_t current_error,
-                                              const DateTime& now,
-                                              const refresh_delay_t& refresh_delay,
-                                              uint32_t image_index,
-                                              uint32_t total_files,
-                                              photo_frame::GoogleDrive& drive,
-                                              const photo_frame::battery_info_t& battery_info);
+photo_frame::photo_frame_error_t
+render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
+             const char* original_filename,
+             photo_frame::photo_frame_error_t current_error,
+             const DateTime& now,
+             const refresh_delay_t& refresh_delay,
+             uint32_t image_index,
+             uint32_t total_files,
+             photo_frame::GoogleDrive& drive,
+             const photo_frame::battery_info_t& battery_info);
 
 #endif // COMMON_MAIN_H

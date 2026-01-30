@@ -103,6 +103,7 @@ class SdCard {
     mutable bool toc_valid_;              ///< Whether TOC is currently valid
 
   public:
+    static constexpr const char* SD_TOC_BASE_PATH = "/.cache/sdcard/toc";
     /**
      * @brief Constructor for SdCard using SD_MMC (SDIO interface).
      * SD_MMC uses fixed pins that cannot be configured:
@@ -397,11 +398,53 @@ class SdCard {
                                 const char* extension = BINARY_FILE_EXTENSION,
                                 bool use_toc          = true) const;
 
+    /**
+     * Builds TOC files for all configured directories.
+     * @param directories List of directories to build TOC for.
+     * @param extension File extension filter.
+     * @param error Optional pointer to store error details.
+     * @return true if all TOCs were built successfully.
+     */
+    bool buildMultiDirectoryToc(const std::vector<String>& directories,
+                                const char* extension      = BINARY_FILE_EXTENSION,
+                                photo_frame_error_t* error = nullptr);
+
+    /**
+     * Validates TOC cache consistency for all configured directories.
+     * @param directories List of directories configured.
+     * @param extension File extension filter.
+     * @return true if all cached TOCs are valid and match the config list.
+     */
+    bool isMultiDirectoryTocValid(const std::vector<String>& directories,
+                                  const char* extension = BINARY_FILE_EXTENSION) const;
+
+    /**
+     * Select a random image from the configured directories.
+     * The directory list is shuffled before selection. If a directory has
+     * fileCount == 0, it moves to the next element.
+     * @param directories Configured directories list.
+     * @param out_directory Selected directory.
+     * @param out_file_path Selected file path.
+     * @param out_total_files Total files counted in the selected directory.
+     * @param out_selected_index Selected index within the directory.
+     * @param extension File extension filter.
+     * @return true if an image was selected.
+     */
+    bool selectRandomImageFromDirectories(const std::vector<String>& directories,
+                                          String& out_directory,
+                                          String& out_file_path,
+                                          uint32_t& out_total_files,
+                                          uint32_t& out_selected_index,
+                                          const char* extension = BINARY_FILE_EXTENSION) const;
+
   private:
     // Helper methods for TOC operations
-    String getTocDataPath() const { return "/sd_toc_data.txt"; }
-    String getTocMetaPath() const { return "/sd_toc_meta.txt"; }
+    String getTocDirectoryPath(const char* dir_path) const;
+    String getTocDataPath(const char* dir_path) const;
+    String getTocMetaPath(const char* dir_path) const;
     bool shouldUseToc(const char* dir_path, const char* extension) const;
+    void collectTocDirectoriesWithFiles(const char* base_path,
+                                        std::vector<String>& out_paths) const;
 };
 
 } // namespace photo_frame

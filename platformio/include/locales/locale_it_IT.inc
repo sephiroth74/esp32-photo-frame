@@ -157,3 +157,5 @@ const char TXT_BT_CHUNK_TIMEOUT[] PROGMEM = "Timeout ricezione chunk";
 const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Premi un pulsante per riprovare";
 
 #endif // ENABLE_BT_IMAGE
+
+const char TXT_DATA_PROVIDER_NOT_CONFIGURED[] PROGMEM = "Fonte dati non configurata";

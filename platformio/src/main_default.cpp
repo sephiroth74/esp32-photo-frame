@@ -34,9 +34,13 @@
 #include "binary_utils.h"
 #include "board_util.h"
 #include "config.h"
+#include "data_provider_gdrive.h"
+#include "data_provider_manager.h"
+#include "data_provider_sd.h"
 #include "errors.h"
 #include "google_drive.h"
 #include "google_drive_client.h"
+#include "image_load_result.h"
 #include "io_utils.h"
 #include "littlefs_manager.h"
 #include "preferences_helper.h"
@@ -60,6 +64,9 @@ photo_frame::SdCard sdCard; // SD_MMC uses fixed SDIO pins
 photo_frame::WifiManager wifiManager;
 photo_frame::unified_config systemConfig; // Unified configuration system
 
+// Data provider instances (created locally in setup, no dynamic allocation needed)
+// Removed - created as stack objects in default_main_setup()
+
 // ============================================================================
 // FORWARD DECLARATIONS (from original main.cpp)
 // ============================================================================
@@ -68,24 +75,6 @@ photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
                             bool is_reset,
                             DateTime& now);
-
-photo_frame::photo_frame_error_t
-handle_google_drive_operations(bool is_reset,
-                               fs::File& file,
-                               String& original_filename,
-                               uint32_t& image_index,
-                               uint32_t& total_files,
-                               const photo_frame::battery_info_t& battery_info,
-                               bool& file_ready);
-
-photo_frame::photo_frame_error_t
-handle_sd_card_operations(bool is_reset,
-                          fs::File& file,
-                          String& original_filename,
-                          uint32_t& image_index,
-                          uint32_t& total_files,
-                          const photo_frame::battery_info_t& battery_info,
-                          bool& file_ready);
 
 // ============================================================================
 // MODE-SPECIFIC IMPLEMENTATIONS
@@ -194,454 +183,6 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
     return error;
 }
 
-photo_frame::photo_frame_error_t
-handle_google_drive_operations(bool is_reset,
-                               fs::File& file,
-                               String& original_filename,
-                               uint32_t& image_index,
-                               uint32_t& total_files,
-                               const photo_frame::battery_info_t& battery_info,
-                               bool& file_ready) {
-    photo_frame::photo_frame_error_t error    = photo_frame::error_type::None;
-    photo_frame::photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
-    file_ready                                = false; // Initialize to false
-    bool write_toc                            = is_reset;
-
-    log_i("--------------------------------------");
-    log_i(" - Find the next image from the SD...");
-    log_i("--------------------------------------");
-
-    // Ensure display is OFF for SD card operations
-    photo_frame::board_utils::display_power_off();
-
-    error = sdCard.begin(); // Initialize the SD card
-
-    if (error == photo_frame::error_type::None) {
-#if DEBUG_MODE
-        sdCard.printStats(); // Print SD card statistics
-#endif
-
-        // Initialize Google Drive from unified configuration
-        log_i("Initializing Google Drive from unified config...");
-        error = drive.initialize_from_unified_config(systemConfig.GoogleDrive);
-
-        if (error != photo_frame::error_type::None) {
-            log_e("Failed to initialize Google Drive from unified config! Error: %d", error.code);
-        } else {
-            log_i("Google Drive initialized successfully from unified config");
-        }
-
-        if (error == photo_frame::error_type::None) {
-            // Clean up any temporary files from previous incomplete downloads
-            // Only run cleanup once per day to save battery
-            bool shouldCleanup = write_toc; // Always cleanup if forced
-
-            if (!shouldCleanup) {
-                // Check if we need to run cleanup based on time interval
-                auto& prefs        = photo_frame::PreferencesHelper::getInstance();
-                time_t now         = time(NULL);
-                time_t lastCleanup = prefs.getLastCleanup();
-
-                if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
-                    shouldCleanup = true;
-                    log_i("Time since last cleanup: %ld seconds", now - lastCleanup);
-                } else {
-                    log_i("Skipping cleanup, only %ld seconds since last cleanup (need %d seconds)",
-                          now - lastCleanup,
-                          CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
-                }
-            }
-
-            if (shouldCleanup) {
-                uint32_t cleanedFiles = drive.cleanup_temporary_files(sdCard, write_toc);
-                if (cleanedFiles > 0) {
-                    log_i("Cleaned up %u temporary files from previous session", cleanedFiles);
-                }
-
-                // Update last cleanup time
-                auto& prefs = photo_frame::PreferencesHelper::getInstance();
-                if (prefs.setLastCleanup(time(NULL))) {
-                    log_i("Updated last cleanup time");
-                } else {
-                    log_w("Failed to save cleanup time to preferences");
-                }
-            }
-
-            // Retrieve Table of Contents (with caching)
-            // If battery is critical, use cached TOC even if expired to save power
-            bool batteryConservationMode = battery_info.is_critical();
-            if (batteryConservationMode) {
-                log_w("Battery critical (%d%%) - using cached TOC to preserve power",
-                      battery_info.percent);
-            }
-
-            if (error == photo_frame::error_type::None) {
-                error = drive.create_directories(sdCard);
-            }
-
-            if (error == photo_frame::error_type::None) {
-                // Retrieve TOC and get file count directly
-                total_files = drive.retrieve_toc(sdCard, batteryConservationMode);
-            } else {
-                log_w("Google Drive not initialized - skipping");
-                total_files = 0;
-            }
-
-            if (total_files > 0) {
-                log_i("Total files in Google Drive folder: %u", total_files);
-
-                photo_frame::GoogleDriveFile selectedFile;
-
-#ifdef GOOGLE_DRIVE_TEST_FILE
-                // Use specific test file if defined
-                log_i("Using test file: %s", GOOGLE_DRIVE_TEST_FILE);
-                selectedFile = drive.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
-                if (tocError != photo_frame::error_type::None) {
-                    log_w("Test file not found in TOC, falling back to random selection. Error: %d",
-                          tocError.code);
-                    // Fallback to random selection
-                    image_index  = random(0, drive.get_toc_file_count());
-                    selectedFile = drive.get_toc_file_by_index(image_index, &tocError);
-                }
-#else
-                // Generate a random index to start from
-                image_index = random(0, drive.get_toc_file_count(sdCard));
-
-                // Get the specific file by index efficiently
-                selectedFile = drive.get_toc_file_by_index(sdCard, image_index, &tocError);
-#endif // GOOGLE_DRIVE_TEST_FILE
-
-                // Track if file was successfully processed (binary loaded to PSRAM buffer)
-                bool fileProcessedSuccessfully = false;
-
-                if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
-                    log_i("Selected file: %s", selectedFile.name.c_str());
-
-                    // Always download to SD card first for better caching
-                    String localFilePath = drive.get_cached_file_path(selectedFile.name);
-                    if (sdCard.fileExists(localFilePath.c_str()) &&
-                        sdCard.getFileSize(localFilePath.c_str()) > 0) {
-                        log_i("File already exists in SD card, using cached version");
-                        file = sdCard.open(localFilePath.c_str(), FILE_READ);
-                        drive.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
-                    } else {
-                        // Check battery level before downloading file
-                        if (batteryConservationMode) {
-                            log_w("Skipping file download due to critical battery level (%d%%) - "
-                                  "will use cached files if available",
-                                  battery_info.percent);
-                            error = photo_frame::error_type::BatteryLevelCritical;
-                        } else {
-                            // Download the selected file to SD card
-                            file = drive.download_file(sdCard, selectedFile, &error);
-                        }
-                    }
-
-                    // Validate and load image file directly to PSRAM buffer
-                    if (error == photo_frame::error_type::None && file) {
-                        const char* filename = file.name();
-                        String filePath      = String(filename);
-                        original_filename    = String(filename);
-
-                        log_i("Validating downloaded image file...");
-                        photo_frame::binary_utils::PFR1BinaryFile wrapper(DISP_WIDTH, DISP_HEIGHT);
-                        auto validationError =
-                            photo_frame::binary_utils::validatePFR1File(file, wrapper);
-                        file.close(); // Close file after validation
-
-                        if (validationError != photo_frame::error_type::None) {
-                            log_e("Image validation FAILED: %s", validationError.message);
-
-                            // Delete corrupted file from SD card
-                            if (sdCard.fileExists(filePath.c_str())) {
-                                log_w("Deleting corrupted file from SD card: %s", filePath.c_str());
-                                if (sdCard.remove(filePath.c_str())) {
-                                    log_i("Corrupted file successfully deleted");
-                                } else {
-                                    log_e("Failed to delete corrupted file");
-                                }
-                            }
-
-                            error = validationError;
-
-                            // Close SD card after validation error to prevent SPI conflicts
-                            log_i("Closing SD card after validation error");
-                            sdCard.end();
-                        } else {
-                            log_i("Image validation PASSED");
-
-                            // Binary format only: Load to PSRAM buffer, then close SD card
-                            log_i("Loading binary image to PSRAM buffer from SD card...");
-                            uint16_t loadError = photo_frame::loadImageToBuffer(
-                                photo_frame::DisplayManager::getInstance().getBuffer(),
-                                wrapper,
-                                filename,
-                                DISP_WIDTH,
-                                DISP_HEIGHT);
-
-                            // Sample first few bytes to verify buffer has data
-                            auto& display = photo_frame::DisplayManager::getInstance();
-                            log_d("Buffer check - First 8 bytes: %02X %02X %02X %02X %02X %02X "
-                                  "%02X %02X",
-                                  display.getBuffer()[0],
-                                  display.getBuffer()[1],
-                                  display.getBuffer()[2],
-                                  display.getBuffer()[3],
-                                  display.getBuffer()[4],
-                                  display.getBuffer()[5],
-                                  display.getBuffer()[6],
-                                  display.getBuffer()[7]);
-
-                            if (loadError != 0) {
-                                log_e("Failed to load image to buffer, error code: %d", loadError);
-                                error = photo_frame::error_type::BinaryRenderingFailed;
-                            } else {
-                                log_i("Binary image loaded to PSRAM buffer");
-                                // Mark as successfully processed
-                                fileProcessedSuccessfully = true;
-                                file_ready                = true; // Binary image loaded to buffer
-                            }
-                            sdCard.end();
-                        }
-                    }
-                } else {
-                    log_e("Failed to get file by index. Error code: %d", tocError.code);
-                    error = tocError;
-                }
-
-                // Check if file was successfully processed (binary in buffer)
-                if (error == photo_frame::error_type::None && (fileProcessedSuccessfully)) {
-                    log_i("File downloaded and ready for display!");
-                } else {
-                    log_e("Failed to download file from Google Drive! Error code: %d", error.code);
-                }
-            } else {
-                // Check if there was an error during TOC retrieval (e.g., access token failure)
-                photo_frame::photo_frame_error_t lastDriveError = drive.get_last_error();
-                if (lastDriveError != photo_frame::error_type::None) {
-                    log_e("Failed to retrieve TOC. Error code: %d", lastDriveError.code);
-                    error = lastDriveError;
-                } else if (tocError != photo_frame::error_type::None) {
-                    log_e("Failed to read TOC file count. Error code: %d", tocError.code);
-                    error = tocError;
-                } else {
-                    log_w("No files found in Google Drive folder!");
-                    error = photo_frame::error_type::NoImagesFound;
-                }
-
-                // CRITICAL: Close SD card on error to prevent SPI conflicts with display
-                log_i("Closing SD card after Google Drive error to prevent SPI conflicts");
-                sdCard.end();
-            }
-        }
-    } else {
-        log_e("Failed to initialize SD card. Error code: %d", error.code);
-    }
-
-    // CRITICAL: Ensure SD card is closed on any error before display initialization
-    // This prevents SPI bus conflicts that cause "Busy Timeout!" on the display
-    if (error != photo_frame::error_type::None && sdCard.isInitialized()) {
-        log_w("Closing SD card due to error (code %d) to prevent SPI conflicts", error.code);
-        sdCard.end();
-    }
-
-    return error;
-}
-
-photo_frame::photo_frame_error_t
-handle_sd_card_operations(bool is_reset,
-                          fs::File& file,
-                          String& original_filename,
-                          uint32_t& image_index,
-                          uint32_t& total_files,
-                          const photo_frame::battery_info_t& battery_info,
-                          bool& file_ready) {
-    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
-    file_ready                             = false;
-
-    log_i("--------------------------------------");
-    log_i(" - SD Card Only Mode - Local Images");
-    log_i("--------------------------------------");
-
-    // Ensure display is OFF for SD card operations
-    photo_frame::board_utils::display_power_off();
-
-    // Initialize SD card
-    error = sdCard.begin();
-    if (error != photo_frame::error_type::None) {
-        log_e("Failed to initialize SD card for image source");
-        return error;
-    }
-
-#if DEBUG_MODE
-    sdCard.printStats(); // Print SD card statistics
-#endif
-
-    // Check if the configured directory exists
-    const char* images_dir = systemConfig.sd_card.images_directory.c_str();
-    if (!sdCard.isDirectory(images_dir)) {
-        log_e("Images directory does not exist: %s", images_dir);
-        sdCard.end();
-        return photo_frame::error_type::NoImagesFound;
-    }
-
-    // Only rebuild TOC on reset or if TOC doesn't exist/is invalid
-    bool rebuild_toc = is_reset || !sdCard.isTocValid(images_dir, BINARY_FILE_EXTENSION);
-
-    if (rebuild_toc) {
-        if (is_reset) {
-            log_i("Reset detected - rebuilding SD card TOC for directory: %s", images_dir);
-        } else {
-            log_i("TOC invalid - building SD card TOC for directory: %s", images_dir);
-        }
-        photo_frame::photo_frame_error_t tocError;
-        if (sdCard.buildDirectoryToc(images_dir, BINARY_FILE_EXTENSION, &tocError)) {
-            log_i("SD card TOC built successfully");
-        } else {
-            log_w("Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
-                  tocError.message,
-                  tocError.code);
-        }
-    } else {
-        log_i("Using existing SD card TOC cache (no reset, TOC valid)");
-    }
-
-    // Count total files in directory (uses TOC cache if enabled)
-    total_files = sdCard.countFilesCached(images_dir, BINARY_FILE_EXTENSION, true);
-
-    if (total_files == 0) {
-        log_e("No %s files found in directory: %s", BINARY_FILE_EXTENSION, images_dir);
-        sdCard.end();
-        return photo_frame::error_type::NoImagesFound;
-    }
-
-    log_i("Found %d image files in %s", total_files, images_dir);
-
-    // Select a random image
-    image_index = random(0, total_files);
-    log_i("Selected random image index: %d", image_index);
-
-    // Get the file path at the selected index (uses TOC cache if enabled)
-    String file_path =
-        sdCard.getFileAtIndexCached(images_dir, image_index, BINARY_FILE_EXTENSION, true);
-    if (file_path.isEmpty()) {
-        log_e("Failed to get file at index %d", image_index);
-        sdCard.end();
-        return photo_frame::error_type::SdCardFileNotFound;
-    }
-
-    // Store the original filename for display
-    int lastSlash = file_path.lastIndexOf('/');
-    if (lastSlash >= 0) {
-        original_filename = file_path.substring(lastSlash + 1);
-    } else {
-        original_filename = file_path;
-    }
-
-    log_i("Selected image: %s", original_filename.c_str());
-
-    // Open the file
-    file = sdCard.open(file_path.c_str());
-    if (!file) {
-        log_e("Failed to open image file: %s", file_path.c_str());
-        sdCard.end();
-        return photo_frame::error_type::SdCardFileOpenFailed;
-    }
-
-    // Validate the binary file
-    log_i("Validating image file dimensions and size...");
-    photo_frame::binary_utils::PFR1BinaryFile wrapper(DISP_WIDTH, DISP_HEIGHT);
-    auto validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
-    file.close();
-
-    if (validationError != photo_frame::error_type::None) {
-        log_e("Image validation failed for: %s - %s",
-              original_filename.c_str(),
-              validationError.message);
-        sdCard.end();
-        return validationError;
-    }
-
-    log_i("✓ Image validation PASSED");
-
-    // Load binary image to PSRAM buffer
-    log_i("Loading binary image to PSRAM buffer...");
-    uint16_t loadError =
-        photo_frame::loadImageToBuffer(photo_frame::DisplayManager::getInstance().getBuffer(),
-                                       wrapper,
-                                       original_filename.c_str(),
-                                       DISP_WIDTH,
-                                       DISP_HEIGHT);
-
-    if (loadError != 0) {
-        log_e("Failed to load image to buffer, error code: %d", loadError);
-
-        // If read failed, try to reinitialize SD card once
-        if (loadError == 4) { // Read error
-            log_w("SD card read error detected, attempting to reinitialize SD card...");
-            sdCard.end();
-            delay(100);
-
-            // Try to reinitialize SD card
-            photo_frame::photo_frame_error_t reinit_error = sdCard.begin();
-            if (reinit_error != photo_frame::error_type::None) {
-                log_e("Failed to reinitialize SD card");
-                return photo_frame::error_type::CardMountFailed;
-            }
-
-            // Try to open and read the file again
-            log_i("Retrying file read after SD card reinitialization...");
-            file = sdCard.open(original_filename.c_str(), FILE_READ);
-            if (!file) {
-                log_e("Failed to reopen file after SD reinitialization");
-                sdCard.end();
-                return photo_frame::error_type::CardOpenFileFailed;
-            }
-
-            wrapper.reset(); // Reset wrapper before re-validation
-            validationError = photo_frame::binary_utils::validatePFR1File(file, wrapper);
-            file.close();
-
-            if (validationError != photo_frame::error_type::None) {
-                log_e("Image validation FAILED after SD reinitialization: %s",
-                      validationError.message);
-                sdCard.end();
-                return validationError;
-            }
-
-            loadError = photo_frame::loadImageToBuffer(
-                photo_frame::DisplayManager::getInstance().getBuffer(),
-                wrapper,
-                original_filename.c_str(),
-                DISP_WIDTH,
-                DISP_HEIGHT);
-
-            if (loadError != 0) {
-                log_e("Failed to load image after SD reinitialization, error code: %d", loadError);
-                sdCard.end();
-                return photo_frame::error_type::BinaryRenderingFailed;
-            }
-
-            log_i("Successfully loaded image after SD reinitialization");
-        } else {
-            sdCard.end();
-            return photo_frame::error_type::BinaryRenderingFailed;
-        }
-    }
-
-    log_i("Binary image loaded to PSRAM buffer");
-    file_ready = true;
-
-    // Store last displayed index in preferences
-    auto& prefs = photo_frame::PreferencesHelper::getInstance();
-    prefs.setImageIndex(image_index);
-
-    // Keep SD card mounted for potential next image
-    // It will be closed later if needed
-
-    return error;
-}
-
 // ============================================================================
 // SETUP & LOOP
 // ============================================================================
@@ -716,40 +257,30 @@ void default_main_setup() {
         return;
     }
 
-    // Handle Google Drive operations
-    fs::File file;
-    uint32_t image_index = 0, total_files = 0;
-    String original_filename; // Store original filename for format detection
-    bool file_ready = false;  // Track if file is ready (buffer loaded or file open)
+    // Handle image loading via data provider
+    photo_frame::ImageLoadResult image_result;
 
     if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
-        // Choose image source based on configuration
-        if (systemConfig.GoogleDrive.enabled) {
-            log_i("Using Google Drive as image source");
-            RGB_SET_STATE(GOOGLE_DRIVE); // Show Google Drive operations
-            error = handle_google_drive_operations(is_reset,
-                                                   file,
-                                                   original_filename,
-                                                   image_index,
-                                                   total_files,
-                                                   battery_info,
-                                                   file_ready);
-        } else if (systemConfig.sd_card.enabled) {
-            log_i("Using SD Card as image source (Google Drive disabled)");
-            RGB_SET_STATE(SD_READING); // Show SD Card operations
-            error = handle_sd_card_operations(is_reset,
-                                              file,
-                                              original_filename,
-                                              image_index,
-                                              total_files,
-                                              battery_info,
-                                              file_ready);
-        } else {
-            // This should not happen as config validation ensures at least one source is enabled
-            log_e("No image source enabled!");
-            error = photo_frame::error_type::InvalidConfigNoImageSource;
-        }
+        // Create data providers as stack objects (no dynamic allocation)
+        photo_frame::SdCardDataProvider sdcard_provider;
+        photo_frame::GoogleDriveDataProvider gdrive_provider(drive);
+
+        // Create and configure provider manager
+        photo_frame::DataProviderManager provider_manager(sdCard, systemConfig);
+        provider_manager.register_provider(&sdcard_provider);
+        provider_manager.register_provider(&gdrive_provider);
+
+        // Load image using manager wrapper (passes config and sdcard automatically)
+        log_i("Using data provider: %s",
+              provider_manager.get_active_provider()
+                  ? provider_manager.get_active_provider()->name()
+                  : "none");
+        RGB_SET_STATE(GOOGLE_DRIVE); // Default to Google Drive status LED
+        image_result = provider_manager.load_next_image(is_reset);
+        error        = image_result.error;
     }
+
+    // Cleanup data provider resources (automatic with unique_ptr)
 
     // Safely disconnect WiFi with proper cleanup
     if (wifiManager.isConnected()) {
@@ -802,9 +333,9 @@ void default_main_setup() {
     // fillScreen() redundant
     log_i("Preparing display for rendering...");
 
-    // Check if file is ready (binary image loaded to buffer)
-    if (error == photo_frame::error_type::None && !file_ready) {
-        log_e("File is not ready! (buffer not loaded)");
+    // Check if image was loaded successfully
+    if (error == photo_frame::error_type::None && !image_result.is_success()) {
+        log_e("Image file is not ready!");
         error = photo_frame::error_type::SdCardFileOpenFailed;
     }
 
@@ -815,7 +346,10 @@ void default_main_setup() {
         auto& display = photo_frame::DisplayManager::getInstance();
         // Clear display and draw error (include filename if available)
         display.clear(DISPLAY_COLOR_WHITE);
-        display.drawError(error, original_filename.isEmpty() ? nullptr : original_filename.c_str());
+        display.drawError(error,
+                          image_result.original_filename.isEmpty()
+                              ? nullptr
+                              : image_result.original_filename.c_str());
 
         if (error != photo_frame::error_type::BatteryLevelCritical && now.isValid()) {
             display.drawLastUpdate(now, refresh_delay.refresh_seconds);
@@ -825,22 +359,17 @@ void default_main_setup() {
         display.render();
     } else {
         // Render the image if it was successfully loaded
-        if (error == photo_frame::error_type::None && file_ready) {
-            log_i("Rendering validated binary image from buffer...");
-            error = render_image(file,
-                                 original_filename.c_str(),
+        if (error == photo_frame::error_type::None && image_result.is_success()) {
+            log_i("Rendering validated binary image...");
+            error = render_image(*image_result.image_file,
+                                 image_result.original_filename.c_str(),
                                  error,
                                  now,
                                  refresh_delay,
-                                 image_index,
-                                 total_files,
+                                 image_result.file_index,
+                                 image_result.total_files,
                                  drive,
                                  battery_info);
-        }
-
-        // Ensure file is closed (should already be closed after buffer load)
-        if (file) {
-            file.close();
         }
     }
 

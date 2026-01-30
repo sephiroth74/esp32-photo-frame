@@ -346,15 +346,16 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
     photo_frame::board_utils::enter_deep_sleep(wakeup_reason, refresh_delay.refresh_microseconds);
 }
 
-photo_frame::photo_frame_error_t render_image(fs::File& file,
-                                              const char* original_filename,
-                                              photo_frame::photo_frame_error_t current_error,
-                                              const DateTime& now,
-                                              const refresh_delay_t& refresh_delay,
-                                              uint32_t image_index,
-                                              uint32_t total_files,
-                                              photo_frame::GoogleDrive& drive,
-                                              const photo_frame::battery_info_t& battery_info) {
+photo_frame::photo_frame_error_t
+render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
+             const char* original_filename,
+             photo_frame::photo_frame_error_t current_error,
+             const DateTime& now,
+             const refresh_delay_t& refresh_delay,
+             uint32_t image_index,
+             uint32_t total_files,
+             photo_frame::GoogleDrive& drive,
+             const photo_frame::battery_info_t& battery_info) {
     photo_frame::photo_frame_error_t error = current_error;
 
     // Get display capabilities
@@ -463,8 +464,6 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
             display.render();
         }
 
-        file.close(); // Close the file after drawing
-
     } else if (error == photo_frame::error_type::None) {
         // -------------------------------
         // Display has partial update - NOT SUPPORTED IN NEW SYSTEM
@@ -481,8 +480,6 @@ photo_frame::photo_frame_error_t render_image(fs::File& file,
 
         // Render to display
         display.render();
-
-        file.close(); // Close the file after drawing
     }
 
     return error;

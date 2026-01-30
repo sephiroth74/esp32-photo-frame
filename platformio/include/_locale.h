@@ -227,4 +227,6 @@ extern const char TXT_BT_PRESS_BUTTON_RETRY[];
 
 #endif // ENABLE_BT_IMAGE
 
+extern const char TXT_DATA_PROVIDER_NOT_CONFIGURED[];
+
 #endif

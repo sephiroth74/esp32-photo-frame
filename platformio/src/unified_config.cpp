@@ -347,18 +347,31 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
         JsonObject sd_obj                  = doc["sd_card_config"];
 
         config.sd_card.enabled             = sd_obj["enabled"] | false;
-        config.sd_card.images_directory    = sd_obj["images_directory"] | "/images";
         config.sd_card.toc_max_age_seconds = sd_obj["toc_max_age_seconds"] | 86400;
+        config.sd_card.directories.clear();
+
+        if (sd_obj.containsKey("directories") && sd_obj["directories"].is<JsonArray>()) {
+            JsonArray dirs = sd_obj["directories"].as<JsonArray>();
+            for (JsonVariant dir : dirs) {
+                String dirPath = dir.as<String>();
+                if (dirPath.length() > 0) {
+                    config.sd_card.directories.push_back(dirPath);
+                }
+            }
+        }
 
         log_i("SD Card: %s", config.sd_card.enabled ? "enabled" : "disabled");
         if (config.sd_card.enabled) {
-            log_i("SD Card images directory: %s", config.sd_card.images_directory.c_str());
+            log_i("SD Card directories: %u", (unsigned int)config.sd_card.directories.size());
             log_i("SD Card TOC max age: %u seconds", config.sd_card.toc_max_age_seconds);
+            if (config.sd_card.directories.empty()) {
+                log_w("SD Card enabled but no directories configured");
+            }
         }
     } else {
         // Default SD card config
-        config.sd_card.enabled             = false;
-        config.sd_card.images_directory    = "/images";
+        config.sd_card.enabled = false;
+        config.sd_card.directories.clear();
         config.sd_card.toc_max_age_seconds = 86400;
         log_d("SD Card configuration not found, using defaults");
     }

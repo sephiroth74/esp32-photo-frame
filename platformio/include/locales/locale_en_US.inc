@@ -158,3 +158,5 @@ const char TXT_BT_CLIENT_DISCONNECTED[] PROGMEM = "Bluetooth client disconnected
 const char TXT_BT_CHUNK_TIMEOUT[] PROGMEM = "Bluetooth chunk receive timeout";
 const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Press button to retry";
 #endif
+
+const char TXT_DATA_PROVIDER_NOT_CONFIGURED[] PROGMEM = "Data provider not configured";

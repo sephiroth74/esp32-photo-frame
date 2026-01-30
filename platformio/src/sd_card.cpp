@@ -743,6 +743,47 @@ uint32_t SdCard::countFilesInDirectory(const char* dir_path, const char* extensi
 
 // ========== TOC (Table of Contents) Caching System Implementation ==========
 
+String SdCard::getTocDirectoryPath(const char* dir_path) const {
+    String base = SD_TOC_BASE_PATH;
+    String dir  = String(dir_path);
+    if (!dir.startsWith("/")) {
+        dir = "/" + dir;
+    }
+    return base + dir;
+}
+
+String SdCard::getTocDataPath(const char* dir_path) const {
+    return this->getTocDirectoryPath(dir_path) + "/toc_data.txt";
+}
+
+String SdCard::getTocMetaPath(const char* dir_path) const {
+    return this->getTocDirectoryPath(dir_path) + "/toc_meta.txt";
+}
+
+void SdCard::collectTocDirectoriesWithFiles(const char* base_path,
+                                            std::vector<String>& out_paths) const {
+    File dir = SD_CARD_LIB.open(base_path, FILE_READ);
+    if (!dir || !dir.isDirectory()) {
+        return;
+    }
+
+    bool isDir      = false;
+    String fileName = dir.getNextFileName(&isDir);
+
+    while (!fileName.isEmpty()) {
+        if (isDir) {
+            String dataPath = fileName + "/toc_data.txt";
+            String metaPath = fileName + "/toc_meta.txt";
+            if (SD_CARD_LIB.exists(dataPath.c_str()) && SD_CARD_LIB.exists(metaPath.c_str())) {
+                out_paths.push_back(fileName);
+            }
+            collectTocDirectoriesWithFiles(fileName.c_str(), out_paths);
+        }
+        fileName = dir.getNextFileName(&isDir);
+    }
+    dir.close();
+}
+
 bool SdCard::buildDirectoryToc(const char* dir_path,
                                const char* extension,
                                photo_frame_error_t* error) {
@@ -765,9 +806,18 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     // Create timestamp for TOC
     time_t timestamp = time(nullptr);
 
+    // Ensure TOC directory exists
+    String tocDir = this->getTocDirectoryPath(dir_path);
+    if (!this->createDirectories(tocDir.c_str())) {
+        log_e("Failed to create TOC directory: %s", tocDir.c_str());
+        if (error)
+            *error = error_type::TocBuildFailed;
+        return false;
+    }
+
     // Use temporary file names to avoid conflicts
-    String tempDataPath = this->getTocDataPath() + ".tmp";
-    String tempMetaPath = this->getTocMetaPath() + ".tmp";
+    String tempDataPath = this->getTocDataPath(dir_path) + ".tmp";
+    String tempMetaPath = this->getTocMetaPath(dir_path) + ".tmp";
 
     // First, open the temporary TOC data file for writing
     File tocDataFile = open(tempDataPath.c_str(), "w", true);
@@ -914,17 +964,17 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     log_d("Temporary TOC meta file written and closed");
 
     // Remove old TOC files if they exist (rename won't overwrite)
-    if (SD_CARD_LIB.exists(this->getTocDataPath().c_str())) {
+    if (SD_CARD_LIB.exists(this->getTocDataPath(dir_path).c_str())) {
         log_d("Removing existing TOC data file");
-        SD_CARD_LIB.remove(this->getTocDataPath().c_str());
+        SD_CARD_LIB.remove(this->getTocDataPath(dir_path).c_str());
     }
-    if (SD_CARD_LIB.exists(this->getTocMetaPath().c_str())) {
+    if (SD_CARD_LIB.exists(this->getTocMetaPath(dir_path).c_str())) {
         log_d("Removing existing TOC meta file");
-        SD_CARD_LIB.remove(this->getTocMetaPath().c_str());
+        SD_CARD_LIB.remove(this->getTocMetaPath(dir_path).c_str());
     }
 
     // Now rename temporary files to final names
-    if (!SD_CARD_LIB.rename(tempDataPath.c_str(), this->getTocDataPath().c_str())) {
+    if (!SD_CARD_LIB.rename(tempDataPath.c_str(), this->getTocDataPath(dir_path).c_str())) {
         log_e("Failed to rename temporary TOC data file");
         remove(tempDataPath.c_str());
         remove(tempMetaPath.c_str());
@@ -934,9 +984,9 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     }
     log_d("Renamed TOC data file successfully");
 
-    if (!SD_CARD_LIB.rename(tempMetaPath.c_str(), this->getTocMetaPath().c_str())) {
+    if (!SD_CARD_LIB.rename(tempMetaPath.c_str(), this->getTocMetaPath(dir_path).c_str())) {
         log_e("Failed to rename temporary TOC meta file");
-        remove(this->getTocDataPath().c_str()); // Remove the renamed data file
+        remove(this->getTocDataPath(dir_path).c_str()); // Remove the renamed data file
         remove(tempMetaPath.c_str());
         if (error)
             *error = error_type::TocWriteFailed;
@@ -963,8 +1013,9 @@ bool SdCard::isTocValid(const char* dir_path, const char* extension) const {
     }
 
     // First, check if TOC files exist on disk
-    SdCardTocParser parser(
-        const_cast<SdCard&>(*this), this->getTocDataPath().c_str(), this->getTocMetaPath().c_str());
+    SdCardTocParser parser(const_cast<SdCard&>(*this),
+                           this->getTocDataPath(dir_path).c_str(),
+                           this->getTocMetaPath(dir_path).c_str());
 
     if (!parser.toc_exists()) {
         log_i("TOC rebuild reason: TOC files don't exist on SD card");
@@ -1009,8 +1060,8 @@ bool SdCard::shouldUseToc(const char* dir_path, const char* extension) const {
 uint32_t SdCard::countFilesCached(const char* dir_path, const char* extension, bool use_toc) const {
     if (use_toc && this->shouldUseToc(dir_path, extension)) {
         SdCardTocParser parser(const_cast<SdCard&>(*this),
-                               this->getTocDataPath().c_str(),
-                               this->getTocMetaPath().c_str());
+                               this->getTocDataPath(dir_path).c_str(),
+                               this->getTocMetaPath(dir_path).c_str());
 
         photo_frame_error_t error; // Default constructor sets code to 0 (no error)
         size_t count = parser.get_file_count(&error);
@@ -1035,8 +1086,8 @@ String SdCard::getFileAtIndexCached(const char* dir_path,
                                     bool use_toc) const {
     if (use_toc && this->shouldUseToc(dir_path, extension)) {
         SdCardTocParser parser(const_cast<SdCard&>(*this),
-                               this->getTocDataPath().c_str(),
-                               this->getTocMetaPath().c_str());
+                               this->getTocDataPath(dir_path).c_str(),
+                               this->getTocMetaPath(dir_path).c_str());
 
         photo_frame_error_t error; // Default constructor sets code to 0 (no error)
         String filePath = parser.get_file_by_index(index, &error);
@@ -1053,6 +1104,141 @@ String SdCard::getFileAtIndexCached(const char* dir_path,
 
     // Fall back to original implementation
     return this->getFileAtIndex(dir_path, index, extension);
+}
+
+bool SdCard::buildMultiDirectoryToc(const std::vector<String>& directories,
+                                    const char* extension,
+                                    photo_frame_error_t* error) {
+    if (!initialized) {
+        if (error)
+            *error = error_type::NoSdCardAttached;
+        return false;
+    }
+
+    if (directories.empty()) {
+        if (error)
+            *error = error_type::NoImagesFound;
+        return false;
+    }
+
+    if (!this->createDirectories(SD_TOC_BASE_PATH)) {
+        log_e("Failed to create TOC base directory: %s", SD_TOC_BASE_PATH);
+        if (error)
+            *error = error_type::TocBuildFailed;
+        return false;
+    }
+
+    for (const auto& dir : directories) {
+        photo_frame_error_t tocError;
+        if (!this->buildDirectoryToc(dir.c_str(), extension, &tocError)) {
+            log_e("Failed to build TOC for directory: %s", dir.c_str());
+            if (error)
+                *error = tocError;
+            return false;
+        }
+    }
+
+    if (error)
+        *error = error_type::None;
+
+    return true;
+}
+
+bool SdCard::isMultiDirectoryTocValid(const std::vector<String>& directories,
+                                      const char* extension) const {
+    if (!initialized) {
+        return false;
+    }
+
+    if (directories.empty()) {
+        return false;
+    }
+
+    if (!this->isDirectory(SD_TOC_BASE_PATH)) {
+        log_i("TOC base directory missing: %s", SD_TOC_BASE_PATH);
+        return false;
+    }
+
+    std::vector<String> expectedPaths;
+    expectedPaths.reserve(directories.size());
+    for (const auto& dir : directories) {
+        expectedPaths.push_back(this->getTocDirectoryPath(dir.c_str()));
+    }
+
+    std::vector<String> cachedPaths;
+    collectTocDirectoriesWithFiles(SD_TOC_BASE_PATH, cachedPaths);
+
+    if (cachedPaths.size() != expectedPaths.size()) {
+        log_i("TOC cache mismatch: expected %u directories, found %u",
+              (unsigned int)expectedPaths.size(),
+              (unsigned int)cachedPaths.size());
+        return false;
+    }
+
+    for (const auto& expected : expectedPaths) {
+        bool found = false;
+        for (const auto& cached : cachedPaths) {
+            if (cached == expected) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            log_i("TOC cache mismatch: missing directory %s", expected.c_str());
+            return false;
+        }
+    }
+
+    for (const auto& dir : directories) {
+        if (!this->isTocValid(dir.c_str(), extension)) {
+            log_i("TOC invalid for directory: %s", dir.c_str());
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool SdCard::selectRandomImageFromDirectories(const std::vector<String>& directories,
+                                              String& out_directory,
+                                              String& out_file_path,
+                                              uint32_t& out_total_files,
+                                              uint32_t& out_selected_index,
+                                              const char* extension) const {
+    out_directory      = "";
+    out_file_path      = "";
+    out_total_files    = 0;
+    out_selected_index = 0;
+
+    if (!initialized || directories.empty()) {
+        return false;
+    }
+
+    std::vector<String> shuffled = directories;
+    for (int i = (int)shuffled.size() - 1; i > 0; --i) {
+        int j = random(0, i + 1);
+        std::swap(shuffled[i], shuffled[j]);
+    }
+
+    for (const auto& dir : shuffled) {
+        uint32_t fileCount = this->countFilesCached(dir.c_str(), extension, true);
+        if (fileCount == 0) {
+            continue;
+        }
+
+        out_total_files    = fileCount;
+        out_selected_index = random(0, fileCount);
+        String file_path =
+            this->getFileAtIndexCached(dir.c_str(), out_selected_index, extension, true);
+        if (!file_path.isEmpty()) {
+            out_directory = dir;
+            out_file_path = file_path;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 } // namespace photo_frame

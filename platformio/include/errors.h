@@ -472,6 +472,9 @@ const photo_frame_error ChargeCurrentTooHigh{TXT_CHARGE_CURRENT_TOO_HIGH, 655, E
 const photo_frame_error ChargeCurrentTooLow{TXT_CHARGE_CURRENT_TOO_LOW, 656, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_BATTERY};
 const photo_frame_error ChargingCircuitFault{TXT_CHARGING_CIRCUIT_FAULT, 657, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_BATTERY};
 
+// Data Provider Errors (700-799)
+const photo_frame_error DataProviderNotConfigured{TXT_DATA_PROVIDER_NOT_CONFIGURED, 700, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
+
 // clang-format on
 } // namespace error_type
 

@@ -27,6 +27,7 @@
 #include "sd_card.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <vector>
 
 namespace photo_frame {
 
@@ -137,13 +138,13 @@ struct unified_config {
 
     // SD Card Configuration
     struct sd_card_config {
-        bool enabled                 = false;     // Enable/disable SD card as image source
-        String images_directory      = "/images"; // Directory on SD card containing images
-        uint32_t toc_max_age_seconds = 86400;     // Max TOC age (24 hours)
+        bool enabled = false;                 // Enable/disable SD card as image source
+        std::vector<String> directories;      // Directories on SD card containing images
+        uint32_t toc_max_age_seconds = 86400; // Max TOC age (24 hours)
 
         bool is_valid() const {
-            // SD card is valid if disabled OR if enabled with valid directory
-            return !enabled || images_directory.length() > 0;
+            // SD card is valid if disabled OR if enabled with valid directories list
+            return !enabled || !directories.empty();
         }
     } sd_card;
 
