@@ -149,10 +149,7 @@ Example Usage:
     photoframe-processor -i ~/Photos -o ~/processed --output-format png
 {}
     # Process images with filename annotations enabled
-    photoframe-processor -i ~/Photos -o ~/processed --annotate
-
-    # Dry run mode: simulate processing without creating files
-    photoframe-processor -i ~/Photos -o ~/processed --dry-run --verbose",
+    photoframe-processor -i ~/Photos -o ~/processed --annotate",
                 features_str,
                 ai_feature_desc,
         )
@@ -345,10 +342,6 @@ pub struct Args {
     #[arg(long = "auto-color")]
     pub auto_color_correct: bool,
 
-    /// Perform a dry run: simulate processing and show what would be generated without creating files
-    #[arg(long = "dry-run")]
-    pub dry_run: bool,
-
     /// Confidence threshold for people detection (0.0-1.0, requires --detect-people)
     #[cfg(feature = "ai")]
     #[arg(long = "confidence", default_value = "0.6", value_name = "THRESHOLD")]
@@ -420,7 +413,7 @@ impl Args {
                     return Err(format!(
                         "Invalid output format: '{}'. Valid formats are: bmp, pfr1, jpg, png",
                         format_str
-                    ))
+                    ));
                 }
             };
 

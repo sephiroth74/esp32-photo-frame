@@ -18,7 +18,7 @@ impl ColorStats {
 
         let most_common_color = color_counts
             .iter()
-            .max_by_key(|(_, &count)| count)
+            .max_by_key(|&(_, &count)| count)
             .map(|(&color, &count)| (color, count));
 
         Self {

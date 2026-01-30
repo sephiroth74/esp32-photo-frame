@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::{Rgb, RgbImage};
 
 /// Use canonical helpers from core module to avoid duplication
-use crate::{DitheringMethod, DisplayType};
+use crate::{DisplayType, DitheringMethod};
 
 /// Provide thin local wrappers that forward to the canonical implementations in `core`.
 /// Wrappers avoid potential ordering/circular import issues while keeping call sites unchanged.
@@ -31,10 +31,14 @@ pub fn apply_dithering(
     let palette_ref = palette.as_slice();
 
     match method {
-        DitheringMethod::FloydSteinberg => apply_enhanced_floyd_steinberg_dithering(img, palette_ref, dither_strength),
+        DitheringMethod::FloydSteinberg => {
+            apply_enhanced_floyd_steinberg_dithering(img, palette_ref, dither_strength)
+        }
         DitheringMethod::Atkinson => apply_atkinson_dithering(img, palette_ref, dither_strength),
         DitheringMethod::Stucki => apply_stucki_dithering(img, palette_ref, dither_strength),
-        DitheringMethod::JarvisJudiceNinke => apply_jarvis_judice_ninke_dithering(img, palette_ref, dither_strength),
+        DitheringMethod::JarvisJudiceNinke => {
+            apply_jarvis_judice_ninke_dithering(img, palette_ref, dither_strength)
+        }
         DitheringMethod::Ordered => apply_ordered_dithering(img, palette_ref),
     }
 }

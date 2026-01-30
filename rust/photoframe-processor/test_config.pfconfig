@@ -26,7 +26,6 @@
     "dividerWidth": 5,
     "dividerColor": "#FF0000",
     "force": true,
-    "dryRun": false,
     "debug": false,
     "report": true,
     "jobs": 4,

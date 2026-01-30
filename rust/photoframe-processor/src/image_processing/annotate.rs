@@ -146,7 +146,7 @@ fn load_font(font_spec: &str) -> Result<FontRef<'static>> {
     }
 
     Err(anyhow::anyhow!(
-        "No suitable fonts found for '{}'. Please ensure system fonts are available or specify a valid font path.", 
+        "No suitable fonts found for '{}'. Please ensure system fonts are available or specify a valid font path.",
         font_spec
     ))
 }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use image::{imageops, Rgb, RgbImage};
+use image::{Rgb, RgbImage, imageops};
 use std::fs;
 use std::process::Command;
 

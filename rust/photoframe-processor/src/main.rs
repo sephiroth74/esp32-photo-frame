@@ -1,11 +1,11 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use photoframe_lib::{photoframe_validate_bin, validate_bin_file, DisplayType, DitheringMethod};
+use photoframe_lib::{DisplayType, DitheringMethod, photoframe_validate_bin, validate_bin_file};
 use serde_json;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 use std::{fs, path::Path};
 
@@ -16,11 +16,9 @@ mod json_output;
 mod utils;
 
 use cli::{Args, ColorType};
-use image_processing::{
-    color_correction, ImageType, ProcessingConfig, ProcessingEngine, ProcessingResult,
-};
+use image_processing::{ImageType, ProcessingConfig, ProcessingEngine, color_correction};
 use json_output::JsonMessage;
-use utils::{create_progress_bar, format_duration, validate_inputs, verbose_println};
+use utils::{create_progress_bar, format_duration, validate_inputs};
 
 impl From<ColorType> for DisplayType {
     fn from(color_type: ColorType) -> Self {
@@ -125,8 +123,6 @@ fn main() -> Result<()> {
         annotate: args.annotate,
         // Color correction
         auto_color_correct: args.auto_color_correct,
-        // Dry run mode
-        dry_run: args.dry_run,
         // Confidence threshold for people detection
         confidence_threshold: args.confidence_threshold(),
         // Portrait combination divider settings
@@ -250,11 +246,6 @@ fn main() -> Result<()> {
             }
         }
 
-        // Dry run mode status
-        if config.dry_run {
-            println!("  Dry run mode: enabled (simulation only - no files will be created)");
-        }
-
         println!();
     }
 
@@ -274,27 +265,18 @@ fn main() -> Result<()> {
             println!(
                 "  ImageMagick not found. Auto color correction will use custom implementation."
             );
-            println!("  For best results, install ImageMagick: brew install imagemagick (macOS) or apt-get install imagemagick (Linux)");
+            println!(
+                "  For best results, install ImageMagick: brew install imagemagick (macOS) or apt-get install imagemagick (Linux)"
+            );
             println!();
         }
     }
 
-    // Create output directory (skip in dry-run mode)
-    if !config.dry_run {
-        std::fs::create_dir_all(&args.output_dir).context("Failed to create output directory")?;
-    } else {
-        verbose_println(
-            config.verbose,
-            "Dry run mode: Skipping output directory creation",
-        );
-    }
+    fs::create_dir_all(&args.output_dir).context("Failed to create output directory")?;
 
     // Store values before moving config
     let parallel_jobs = config.parallel_jobs;
-    let debug_mode = config.debug;
-    let dry_run_mode = config.dry_run;
     let json_progress = config.json_progress;
-    let output_formats = config.output_formats.clone();
 
     // Initialize processing engine
     let engine = ProcessingEngine::new(config.clone())?;
@@ -303,7 +285,7 @@ fn main() -> Result<()> {
     let multi_progress = MultiProgress::new();
 
     // Create discovery progress bar (hidden in debug/JSON mode)
-    let discovery_pb = if debug_mode || json_progress {
+    let discovery_pb = if json_progress {
         ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(ProgressBar::new(args.input_paths.len() as u64));
@@ -321,8 +303,6 @@ fn main() -> Result<()> {
     if json_progress {
         // JSON mode: emit initial progress
         JsonMessage::progress(0, image_files.len(), "Discovered images");
-    } else if debug_mode {
-        verbose_println(true, &format!("Found {} image files", image_files.len()));
     } else {
         discovery_pb.finish_with_message(format!("✓ Found {} images", image_files.len()));
     }
@@ -347,8 +327,6 @@ fn main() -> Result<()> {
         // Wrap with callback to emit JSON on progress
         // Note: We'll emit JSON manually based on results count
         pb
-    } else if debug_mode {
-        ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(create_progress_bar(image_files.len() as u64));
         pb.set_message("Processing images");
@@ -359,7 +337,7 @@ fn main() -> Result<()> {
     let thread_count = parallel_jobs.min(image_files.len());
     let mut thread_progress_bars = Vec::new();
 
-    if debug_mode || json_progress {
+    if json_progress {
         // In debug mode, create hidden progress bars
         for _ in 0..thread_count {
             thread_progress_bars.push(ProgressBar::hidden());
@@ -380,7 +358,7 @@ fn main() -> Result<()> {
     }
 
     // Create completion progress bar (only if not in debug mode)
-    let completion_pb = if debug_mode || json_progress {
+    let completion_pb = if json_progress {
         ProgressBar::hidden()
     } else {
         let pb = multi_progress.add(ProgressBar::new(100));
@@ -437,27 +415,13 @@ fn main() -> Result<()> {
     };
 
     // Process images based on mode
-    let results = if debug_mode {
-        verbose_println(true, "Debug mode: visualizing detection boxes...");
-
-        // In debug mode, process all images as a flat list (no pairing)
-        let debug_results = engine.process_debug_batch(image_files.clone(), &args.output_dir)?;
-
-        // Convert to the expected format
-        let ok_results: Vec<Result<ProcessingResult, anyhow::Error>> =
-            debug_results.into_iter().map(|r| Ok(r)).collect();
-
-        ok_results
-    } else {
-        // Normal processing with smart portrait pairing
-        engine.process_batch_with_smart_pairing(
-            &image_files,
-            &args.output_dir,
-            &main_progress,
-            &thread_progress_bars,
-            &completion_pb,
-        )?
-    };
+    let results = engine.process_batch_with_smart_pairing(
+        &image_files,
+        &args.output_dir,
+        &main_progress,
+        &thread_progress_bars,
+        &completion_pb,
+    )?;
 
     // Signal processing completion and wait for JSON monitor thread to finish
     processing_complete.store(true, Ordering::Relaxed);
@@ -469,8 +433,6 @@ fn main() -> Result<()> {
     if json_progress {
         // JSON mode: Don't emit any more progress messages here
         // The complete message will be sent later with full report
-    } else if debug_mode {
-        verbose_println(true, "✓ Processing complete!");
     } else {
         main_progress.finish_with_message("✓ Processing complete!");
         completion_pb.finish_with_message("✓ All tasks completed");
@@ -597,18 +559,9 @@ fn main() -> Result<()> {
     }
     // Skip all console output in JSON mode (only JSON events are emitted)
     else {
-        let header = if dry_run_mode {
-            style("Dry Run Results Summary:").bold().cyan()
-        } else {
-            style("Results Summary:").bold().green()
-        };
+        let header = style("Results Summary:").bold().green();
         println!("{}", header);
-
-        let processed_label = if dry_run_mode {
-            "Would be processed:"
-        } else {
-            "Successfully processed:"
-        };
+        let processed_label = "Successfully processed:";
         // Show total images processed, not output count
         println!(
             "  {}: {} images",
@@ -727,11 +680,7 @@ fn main() -> Result<()> {
         } else if successful > 0 {
             // Show simple detailed results only if report is not enabled
             println!();
-            let detailed_header = if dry_run_mode {
-                style("Detailed Simulation Results:").bold().blue()
-            } else {
-                style("Detailed Processing Results:").bold().blue()
-            };
+            let detailed_header = style("Detailed Processing Results:").bold().blue();
             println!("{}", detailed_header);
             let mut success_count = 0;
             for (i, result) in results.iter().enumerate() {
@@ -766,23 +715,7 @@ fn main() -> Result<()> {
                     };
 
                     // Show destination filenames in dry-run mode
-                    let destination_info = if dry_run_mode {
-                        // Get the first output path as an example (they all have the same stem)
-                        if let Some((_, first_path)) = processing_result.output_paths.iter().next()
-                        {
-                            if let Some(dest_filename) =
-                                first_path.file_stem().and_then(|s| s.to_str())
-                            {
-                                format!(" → {}", style(dest_filename).cyan())
-                            } else {
-                                String::new()
-                            }
-                        } else {
-                            String::new()
-                        }
-                    } else {
-                        String::new()
-                    };
+                    let destination_info = String::new();
 
                     println!(
                         "  {}: {} [{}] - {}{}",
@@ -849,26 +782,10 @@ fn main() -> Result<()> {
             );
 
             println!();
-            let output_header = if dry_run_mode {
-                style("Output files (would be created):").bold().cyan()
-            } else {
-                style("Output files:").bold().green()
-            };
+            let output_header = style("Output files:").bold().green();
             println!("{}", output_header);
-            let location_label = if dry_run_mode {
-                "Would be saved to:"
-            } else {
-                "All files:"
-            };
+            let location_label = "All files:";
             println!("  {}: {}", location_label, args.output_dir.display());
-        }
-
-        if dry_run_mode {
-            println!();
-            println!("{}", style("💡 Dry Run Mode:").bold().yellow());
-            println!("  • No files were created during this simulation");
-            println!("  • Remove --dry-run to actually process the images");
-            println!("  • Output formats: {:?}", output_formats);
         }
 
         if failed > 0 {

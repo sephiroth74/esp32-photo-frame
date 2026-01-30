@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use btleplug::api::{
     Central, Characteristic, Manager as _, Peripheral as _, PeripheralProperties, ScanFilter,
     WriteType,
@@ -6,7 +6,7 @@ use btleplug::api::{
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use crc32fast::Hasher as Crc32Hasher;
 use indicatif::{ProgressBar, ProgressStyle};
-use photoframe_lib::{parse_bin_file, BinHeader};
+use photoframe_lib::{BinHeader, parse_bin_file};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::runtime::Runtime;

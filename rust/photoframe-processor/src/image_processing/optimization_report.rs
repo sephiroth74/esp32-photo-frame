@@ -1,6 +1,6 @@
 use crate::cli::ReportFormat;
 use photoframe_lib::DitheringMethod;
-use prettytable::{format, Cell, Row, Table};
+use prettytable::{Cell, Row, Table, format};
 use serde::{Deserialize, Serialize};
 /// Optimization report generation for auto-optimize feature
 ///
@@ -247,9 +247,15 @@ impl OptimizationReport {
 
     /// Print the complete report as a formatted table (rich format)
     pub fn print_rich(&self) {
-        println!("\n╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗");
-        println!("║                                                    REPORT                                                ║");
-        println!("╚══════════════════════════════════════════════════════════════════════════════════════════════════════════╝\n");
+        println!(
+            "\n╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗"
+        );
+        println!(
+            "║                                                    REPORT                                                ║"
+        );
+        println!(
+            "╚══════════════════════════════════════════════════════════════════════════════════════════════════════════╝\n"
+        );
 
         // Print landscape images
         if !self.landscape_entries.is_empty() {

@@ -25,7 +25,7 @@ use image::{Rgb, RgbImage};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use indicatif::ProgressBar;
-use photoframe_lib::{process_image_with_display_type, DisplayType, DitheringMethod};
+use photoframe_lib::{DisplayType, DitheringMethod, process_image_with_display_type};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -64,8 +64,6 @@ pub struct ProcessingConfig {
     pub annotate: bool,
     // Color correction
     pub auto_color_correct: bool,
-    // Dry run mode
-    pub dry_run: bool,
     // Confidence threshold for people detection
     pub confidence_threshold: f32,
     // Portrait combination divider settings
@@ -101,14 +99,6 @@ pub struct ProcessingEngine {
 impl ProcessingEngine {
     /// Create output subdirectories for each format and return format-specific paths
     fn create_format_directories(&self, base_output_dir: &Path) -> Result<()> {
-        if self.config.dry_run {
-            verbose_println(
-                self.config.verbose,
-                "Dry run mode: Skipping directory creation",
-            );
-            return Ok(());
-        }
-
         for format in &self.config.output_formats {
             let format_dir = match format {
                 crate::cli::OutputType::Bmp => base_output_dir.join("bmp"),
@@ -522,11 +512,14 @@ impl ProcessingEngine {
             } else {
                 "landscape"
             };
-            println!(
-                "⚠️  {} {} image{} will be skipped (unpaired)",
-                skipped_count,
-                skipped_type,
-                if skipped_count > 1 { "s" } else { "" }
+            verbose_println(
+                self.config.verbose,
+                &format!(
+                    "⚠️  {} {} image{} will be skipped (unpaired)",
+                    skipped_count,
+                    skipped_type,
+                    if skipped_count > 1 { "s" } else { "" }
+                ),
             );
         }
 
@@ -734,7 +727,8 @@ impl ProcessingEngine {
         progress_bar.set_message(format!("{} - Applying rotation", filename));
         std::thread::yield_now();
         progress_bar.set_position(35);
-        let rotated_img = orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation)?;
+        let mut rotated_img =
+            orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation)?;
         progress_bar.set_position(40);
 
         // Stage 5: People detection (40-50%)
@@ -751,7 +745,7 @@ impl ProcessingEngine {
         let processing_result = if is_portrait {
             progress_bar.set_message(format!("{} - Processing portrait", filename));
             self.process_portrait_image_with_progress(
-                &rotated_img,
+                &mut rotated_img,
                 input_path,
                 output_dir,
                 index,
@@ -763,7 +757,7 @@ impl ProcessingEngine {
         } else {
             progress_bar.set_message(format!("{} - Processing landscape", filename));
             self.process_landscape_image_with_progress(
-                &rotated_img,
+                &mut rotated_img,
                 input_path,
                 output_dir,
                 index,
@@ -782,7 +776,7 @@ impl ProcessingEngine {
     /// Process a landscape image (full size) with detailed progress tracking
     fn process_landscape_image_with_progress(
         &self,
-        img: &RgbImage,
+        img: &mut RgbImage,
         input_path: &Path,
         output_dir: &Path,
         _index: usize,
@@ -809,6 +803,14 @@ impl ProcessingEngine {
         }
 
         std::thread::yield_now();
+
+        if self.config.debug
+            && let Some(detection) = people_detection.as_ref()
+        {
+            progress_bar.set_position(61);
+            self.draw_debug_annotations(img, &detection)?;
+        }
+
         progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
             img,
@@ -1000,46 +1002,32 @@ impl ProcessingEngine {
 
             let output_path = self.get_format_output_path(output_dir, input_path, format, None);
 
-            if self.config.dry_run {
-                verbose_println(
-                    self.config.verbose,
-                    &format!(
-                        "Dry run: Would save {} '{}' to {}",
-                        format_name,
-                        filename,
-                        output_path.display()
-                    ),
-                );
-            } else {
-                match format {
-                    crate::cli::OutputType::Bmp
-                    | crate::cli::OutputType::Jpg
-                    | crate::cli::OutputType::Png => {
-                        final_img.save(&output_path).with_context(|| {
-                            format!("Failed to save {}: {}", format_name, output_path.display())
-                        })?;
-                    }
-                    crate::cli::OutputType::Pfr1 => {
-                        let payload = process_image_with_display_type(
-                            &final_img,
-                            self.config.processing_type,
-                        )?;
-                        let (w, h) = final_img.dimensions();
-                        let color_mode = infer_color_mode(&payload);
-                        let bin = photoframe_lib::build_bin_file(
-                            &payload,
-                            w as u16,
-                            h as u16,
-                            self.config.target_orientation.orientation.into(),
-                            color_mode,
-                            1u8,
-                        );
-                        photoframe_lib::validate_bin_file(&bin)
-                            .context("Generated binary failed validation")?;
-                        std::fs::write(&output_path, bin).with_context(|| {
-                            format!("Failed to save binary: {}", output_path.display())
-                        })?;
-                    }
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    final_img.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
+                }
+                crate::cli::OutputType::Pfr1 => {
+                    let payload =
+                        process_image_with_display_type(&final_img, self.config.processing_type)?;
+                    let (w, h) = final_img.dimensions();
+                    let color_mode = infer_color_mode(&payload);
+                    let bin = photoframe_lib::build_bin_file(
+                        &payload,
+                        w as u16,
+                        h as u16,
+                        self.config.target_orientation.orientation.into(),
+                        color_mode,
+                        1u8,
+                    );
+                    photoframe_lib::validate_bin_file(&bin)
+                        .context("Generated binary failed validation")?;
+                    std::fs::write(&output_path, bin).with_context(|| {
+                        format!("Failed to save binary: {}", output_path.display())
+                    })?;
                 }
             }
 
@@ -1102,7 +1090,7 @@ impl ProcessingEngine {
     /// Process a portrait image (individual portrait as half-width landscape)
     fn process_portrait_image_with_progress(
         &self,
-        img: &RgbImage,
+        img: &mut RgbImage,
         input_path: &Path,
         output_dir: &Path,
         _index: usize,
@@ -1142,6 +1130,12 @@ impl ProcessingEngine {
             self.config.target_width
         };
         std::thread::yield_now();
+
+        if self.config.debug
+            && let Some(detection) = people_detection.as_ref()
+        {
+            self.draw_debug_annotations(img, &detection)?;
+        }
 
         progress_bar.set_position(62); // Show progress during resize
         let resized_img = resize::smart_resize_with_people_detection(
@@ -1328,46 +1322,32 @@ impl ProcessingEngine {
             let output_path =
                 self.get_format_output_path(output_dir, input_path, format, Some("portrait"));
 
-            if self.config.dry_run {
-                verbose_println(
-                    self.config.verbose,
-                    &format!(
-                        "Dry run: Would save {} '{}' to {}",
-                        format_name,
-                        filename,
-                        output_path.display()
-                    ),
-                );
-            } else {
-                match format {
-                    crate::cli::OutputType::Bmp
-                    | crate::cli::OutputType::Jpg
-                    | crate::cli::OutputType::Png => {
-                        final_img.save(&output_path).with_context(|| {
-                            format!("Failed to save {}: {}", format_name, output_path.display())
-                        })?;
-                    }
-                    crate::cli::OutputType::Pfr1 => {
-                        let payload = process_image_with_display_type(
-                            &final_img,
-                            self.config.processing_type,
-                        )?;
-                        let (w, h) = final_img.dimensions();
-                        let color_mode = infer_color_mode(&payload);
-                        let bin = photoframe_lib::build_bin_file(
-                            &payload,
-                            w as u16,
-                            h as u16,
-                            self.config.target_orientation.orientation.into(),
-                            color_mode,
-                            1u8,
-                        );
-                        photoframe_lib::validate_bin_file(&bin)
-                            .context("Generated portrait binary failed validation")?;
-                        std::fs::write(&output_path, bin).with_context(|| {
-                            format!("Failed to save portrait binary: {}", output_path.display())
-                        })?;
-                    }
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    final_img.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
+                }
+                crate::cli::OutputType::Pfr1 => {
+                    let payload =
+                        process_image_with_display_type(&final_img, self.config.processing_type)?;
+                    let (w, h) = final_img.dimensions();
+                    let color_mode = infer_color_mode(&payload);
+                    let bin = photoframe_lib::build_bin_file(
+                        &payload,
+                        w as u16,
+                        h as u16,
+                        self.config.target_orientation.orientation.into(),
+                        color_mode,
+                        1u8,
+                    );
+                    photoframe_lib::validate_bin_file(&bin)
+                        .context("Generated portrait binary failed validation")?;
+                    std::fs::write(&output_path, bin).with_context(|| {
+                        format!("Failed to save portrait binary: {}", output_path.display())
+                    })?;
                 }
             }
 
@@ -1449,7 +1429,10 @@ impl ProcessingEngine {
                     verbose_println(self.config.verbose, "  ✅ Python detection completed");
 
                     if self.config.verbose {
-                        println!("📊 People Detection Results:");
+                        verbose_println(
+                            self.config.verbose,
+                            &"📊 People Detection Results:".to_string(),
+                        );
                         println!("   • People found: {}", result.person_count);
 
                         if result.person_count > 0 {
@@ -1476,7 +1459,9 @@ impl ProcessingEngine {
 
                             // Provide cropping advice
                             if offset_x_pct.abs() > 10.0 || offset_y_pct.abs() > 10.0 {
-                                println!("   • 🎯 Smart cropping recommended: significant people offset detected");
+                                println!(
+                                    "   • 🎯 Smart cropping recommended: significant people offset detected"
+                                );
                             } else {
                                 println!("   • ✓ People well-centered, standard cropping suitable");
                             }
@@ -1706,12 +1691,15 @@ impl ProcessingEngine {
                 Ok(orientation_info) => {
                     let exif_orient = orientation_info.exif_orientation;
                     (
-                        orientation::apply_rotation(&left_img, exif_orient)
+                        &mut orientation::apply_rotation(&left_img, exif_orient)
                             .unwrap_or_else(|_| left_img.clone()),
                         exif_orient,
                     )
                 }
-                Err(_) => (left_img.clone(), orientation::ExifOrientation::Undefined),
+                Err(_) => (
+                    &mut left_img.clone(),
+                    orientation::ExifOrientation::Undefined,
+                ),
             };
 
         progress_bar.set_position(22);
@@ -1720,12 +1708,15 @@ impl ProcessingEngine {
                 Ok(orientation_info) => {
                     let exif_orient = orientation_info.exif_orientation;
                     (
-                        orientation::apply_rotation(&right_img, exif_orient)
+                        &mut orientation::apply_rotation(&right_img, exif_orient)
                             .unwrap_or_else(|_| right_img.clone()),
                         exif_orient,
                     )
                 }
-                Err(_) => (right_img.clone(), orientation::ExifOrientation::Undefined),
+                Err(_) => (
+                    &mut right_img.clone(),
+                    orientation::ExifOrientation::Undefined,
+                ),
             };
         progress_bar.set_position(25);
 
@@ -1751,11 +1742,18 @@ impl ProcessingEngine {
             None
         };
         progress_bar.set_position(35);
-
-        // Stage 4: Resize to half-width (35-45%)
-        progress_bar.set_position(35);
         progress_bar.set_message(format!("Resizing {} + {}", left_filename, right_filename));
         std::thread::yield_now();
+
+        if self.config.debug {
+            if let Some(detection) = left_detection.as_ref() {
+                self.draw_debug_annotations(left_rotated, &detection)?;
+            }
+            if let Some(detection) = right_detection.as_ref() {
+                self.draw_debug_annotations(right_rotated, &detection)?;
+            }
+            progress_bar.set_position(36);
+        }
 
         let half_width = self.config.target_width / 2;
 
@@ -2035,47 +2033,34 @@ impl ProcessingEngine {
             let output_path =
                 self.get_combined_format_output_path(output_dir, left_path, right_path, format);
 
-            if self.config.dry_run {
-                verbose_println(
-                    self.config.verbose,
-                    &format!(
-                        "Dry run: Would save {} '{}' + '{}' to {}",
-                        format_name,
-                        left_filename,
-                        right_filename,
-                        output_path.display()
-                    ),
-                );
-            } else {
-                match format {
-                    crate::cli::OutputType::Bmp
-                    | crate::cli::OutputType::Jpg
-                    | crate::cli::OutputType::Png => {
-                        final_combined_img.save(&output_path).with_context(|| {
-                            format!("Failed to save {}: {}", format_name, output_path.display())
-                        })?;
-                    }
-                    crate::cli::OutputType::Pfr1 => {
-                        let payload = process_image_with_display_type(
-                            &final_combined_img,
-                            self.config.processing_type,
-                        )?;
-                        let (w, h) = final_combined_img.dimensions();
-                        let color_mode = infer_color_mode(&payload);
-                        let bin = photoframe_lib::build_bin_file(
-                            &payload,
-                            w as u16,
-                            h as u16,
-                            self.config.target_orientation.orientation.into(),
-                            color_mode,
-                            1u8,
-                        );
-                        photoframe_lib::validate_bin_file(&bin)
-                            .context("Generated combined binary failed validation")?;
-                        std::fs::write(&output_path, &bin).with_context(|| {
-                            format!("Failed to save combined binary: {}", output_path.display())
-                        })?;
-                    }
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    final_combined_img.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
+                }
+                crate::cli::OutputType::Pfr1 => {
+                    let payload = process_image_with_display_type(
+                        &final_combined_img,
+                        self.config.processing_type,
+                    )?;
+                    let (w, h) = final_combined_img.dimensions();
+                    let color_mode = infer_color_mode(&payload);
+                    let bin = photoframe_lib::build_bin_file(
+                        &payload,
+                        w as u16,
+                        h as u16,
+                        self.config.target_orientation.orientation.into(),
+                        color_mode,
+                        1u8,
+                    );
+                    photoframe_lib::validate_bin_file(&bin)
+                        .context("Generated combined binary failed validation")?;
+                    std::fs::write(&output_path, &bin).with_context(|| {
+                        format!("Failed to save combined binary: {}", output_path.display())
+                    })?;
                 }
             }
 
@@ -2415,12 +2400,15 @@ impl ProcessingEngine {
                 Ok(orientation_info) => {
                     let exif_orient = orientation_info.exif_orientation;
                     (
-                        orientation::apply_rotation(&top_img, exif_orient)
+                        &mut orientation::apply_rotation(&top_img, exif_orient)
                             .unwrap_or_else(|_| top_img.clone()),
                         exif_orient,
                     )
                 }
-                Err(_) => (top_img.clone(), orientation::ExifOrientation::Undefined),
+                Err(_) => (
+                    &mut top_img.clone(),
+                    orientation::ExifOrientation::Undefined,
+                ),
             };
 
         progress_bar.set_position(22);
@@ -2429,12 +2417,15 @@ impl ProcessingEngine {
                 Ok(orientation_info) => {
                     let exif_orient = orientation_info.exif_orientation;
                     (
-                        orientation::apply_rotation(&bottom_img, exif_orient)
+                        &mut orientation::apply_rotation(&bottom_img, exif_orient)
                             .unwrap_or_else(|_| bottom_img.clone()),
                         exif_orient,
                     )
                 }
-                Err(_) => (bottom_img.clone(), orientation::ExifOrientation::Undefined),
+                Err(_) => (
+                    &mut bottom_img.clone(),
+                    orientation::ExifOrientation::Undefined,
+                ),
             };
         progress_bar.set_position(25);
 
@@ -2460,9 +2451,6 @@ impl ProcessingEngine {
             None
         };
         progress_bar.set_position(35);
-
-        // Stage 4: Resize landscapes for combination (35-45%)
-        progress_bar.set_position(35);
         progress_bar.set_message(format!("Resizing {} + {}", top_filename, bottom_filename));
         std::thread::yield_now();
 
@@ -2482,6 +2470,17 @@ impl ProcessingEngine {
             // Landscape mode: standard full-width × half-height, combine top-bottom
             (self.config.target_width, self.config.target_height / 2) // e.g., 800×240
         };
+
+        if self.config.debug {
+            progress_bar.set_position(36);
+            if let Some(det1) = &top_detection {
+                self.draw_debug_annotations(top_rotated, det1)?;
+            }
+
+            if let Some(det2) = &bottom_detection {
+                self.draw_debug_annotations(bottom_rotated, det2)?;
+            }
+        }
 
         progress_bar.set_position(38);
         let top_resized = resize::smart_resize_with_people_detection(
@@ -2768,52 +2767,37 @@ impl ProcessingEngine {
             let output_path =
                 self.get_combined_format_output_path(output_dir, top_path, bottom_path, format);
 
-            if self.config.dry_run {
-                verbose_println(
-                    self.config.verbose,
-                    &format!(
-                        "Dry run: Would save {} '{}' + '{}' to {}",
-                        format_name,
-                        top_filename,
-                        bottom_filename,
-                        output_path.display()
-                    ),
-                );
-            } else {
-                match format {
-                    crate::cli::OutputType::Bmp
-                    | crate::cli::OutputType::Jpg
-                    | crate::cli::OutputType::Png => {
-                        combined.save(&output_path).with_context(|| {
-                            format!("Failed to save {}: {}", format_name, output_path.display())
-                        })?;
-                    }
-                    crate::cli::OutputType::Pfr1 => {
-                        // Use appropriate binary format based on display type
-                        let payload = process_image_with_display_type(
-                            &combined,
-                            self.config.processing_type,
-                        )?;
-                        let (w, h) = combined.dimensions();
-                        let color_mode = infer_color_mode(&payload);
-                        let bin = photoframe_lib::build_bin_file(
-                            &payload,
-                            w as u16,
-                            h as u16,
-                            self.config.target_orientation.orientation.into(),
-                            color_mode,
-                            1u8,
-                        );
-                        photoframe_lib::validate_bin_file(&bin)
-                            .context("Generated combined landscape binary failed validation")?;
-                        std::fs::write(&output_path, &bin).with_context(|| {
-                            format!("Failed to save combined binary: {}", output_path.display())
-                        })?;
-                    }
+            match format {
+                crate::cli::OutputType::Bmp
+                | crate::cli::OutputType::Jpg
+                | crate::cli::OutputType::Png => {
+                    combined.save(&output_path).with_context(|| {
+                        format!("Failed to save {}: {}", format_name, output_path.display())
+                    })?;
                 }
-
-                saved_paths.insert(format.clone(), output_path);
+                crate::cli::OutputType::Pfr1 => {
+                    // Use appropriate binary format based on display type
+                    let payload =
+                        process_image_with_display_type(&combined, self.config.processing_type)?;
+                    let (w, h) = combined.dimensions();
+                    let color_mode = infer_color_mode(&payload);
+                    let bin = photoframe_lib::build_bin_file(
+                        &payload,
+                        w as u16,
+                        h as u16,
+                        self.config.target_orientation.orientation.into(),
+                        color_mode,
+                        1u8,
+                    );
+                    photoframe_lib::validate_bin_file(&bin)
+                        .context("Generated combined landscape binary failed validation")?;
+                    std::fs::write(&output_path, &bin).with_context(|| {
+                        format!("Failed to save combined binary: {}", output_path.display())
+                    })?;
+                }
             }
+
+            saved_paths.insert(format.clone(), output_path);
 
             current_progress += progress_per_format;
             progress_bar.set_position(current_progress as u64);
@@ -2924,228 +2908,14 @@ impl ProcessingEngine {
         })
     }
 
-    /// Process images in debug mode - visualize detection boxes and crop area
-    pub fn process_debug_batch(
-        &self,
-        input_files: Vec<PathBuf>,
-        output_dir: &Path,
-    ) -> Result<Vec<ProcessingResult>> {
-        if !self.config.debug {
-            return Err(anyhow::anyhow!(
-                "Debug processing called but debug mode not enabled"
-            ));
-        }
-
-        let subject_detector = self
-            .subject_detector
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Debug mode requires people detection"))?;
-
-        let mut results = Vec::new();
-
-        for input_path in input_files {
-            let result = self.process_debug_single(&input_path, output_dir, subject_detector)?;
-            results.push(result);
-        }
-
-        Ok(results)
-    }
-
-    /// Process a single image in debug mode
-    fn process_debug_single(
-        &self,
-        input_path: &Path,
-        output_dir: &Path,
-        subject_detector: &subject_detection::SubjectDetector,
-    ) -> Result<ProcessingResult> {
-        let filename = input_path
-            .file_name()
-            .and_then(|f| f.to_str())
-            .unwrap_or("unknown");
-
-        verbose_println(
-            self.config.verbose,
-            &format!("🔍 Debug processing: {}", filename),
-        );
-
-        // Load original image
-        let rgb_img = image::open(input_path)
-            .with_context(|| format!("Failed to load image: {}", input_path.display()))?
-            .to_rgb8();
-
-        // Apply orientation correction (same as main processing pipeline)
-        // This ensures debug images are saved with correct orientation and
-        // detection boxes align properly with the displayed image
-        let orientation_info = orientation::detect_orientation(input_path, &rgb_img)?;
-        let img = orientation::apply_rotation(&rgb_img, orientation_info.exif_orientation)?;
-
-        verbose_println(
-            self.config.verbose,
-            &format!(
-                "📱 Debug orientation: {:?} ({})",
-                orientation_info.exif_orientation,
-                if orientation_info.exif_orientation == orientation::ExifOrientation::TopLeft {
-                    "no rotation needed"
-                } else {
-                    "rotation applied for correct display"
-                }
-            ),
-        );
-
-        verbose_println(
-            self.config.verbose,
-            &format!(
-                "   • Original dimensions: {}x{}",
-                rgb_img.width(),
-                rgb_img.height()
-            ),
-        );
-
-        // Run people detection on correctly oriented image
-        let detection_result =
-            subject_detector.detect_people(&img, self.config.confidence_threshold)?;
-
-        // For debug mode, we also need the raw JSON data from find_subject.py to draw all boxes
-        let raw_detection_data = self.get_raw_detection_data(&img, subject_detector)?;
-
-        // Create annotated image with detection boxes
-        let mut annotated_img = img.clone();
-        self.draw_debug_annotations(&mut annotated_img, &detection_result, &raw_detection_data)?;
-
-        // Save debug images to multiple formats
-        let mut saved_paths = std::collections::HashMap::new();
-
-        for format in &self.config.output_formats {
-            // Debug mode always saves as image format (no binary)
-            let actual_format = match format {
-                crate::cli::OutputType::Pfr1 => &crate::cli::OutputType::Png, // Convert pfr1 to PNG for debug
-                _ => format,
-            };
-
-            let output_path =
-                self.get_format_output_path(output_dir, input_path, actual_format, Some("debug"));
-
-            if self.config.dry_run {
-                verbose_println(
-                    self.config.verbose,
-                    &format!(
-                        "Dry run: Would save debug image '{}' to {}",
-                        filename,
-                        output_path.display()
-                    ),
-                );
-            } else {
-                // Ensure the debug output directory exists
-                if let Some(parent_dir) = output_path.parent() {
-                    std::fs::create_dir_all(parent_dir).with_context(|| {
-                        format!(
-                            "Failed to create debug output directory: {}",
-                            parent_dir.display()
-                        )
-                    })?;
-                }
-
-                // Save annotated image (no processing, just the annotations)
-                annotated_img.save(&output_path).with_context(|| {
-                    format!("Failed to save debug image: {}", output_path.display())
-                })?;
-
-                verbose_println(
-                    self.config.verbose,
-                    &format!(
-                        "✅ Debug image saved: {}",
-                        output_path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                    ),
-                );
-            }
-
-            saved_paths.insert(format.clone(), output_path.clone());
-        }
-
-        // Determine correct image type based on oriented dimensions
-        let image_type = if img.height() > img.width() {
-            ImageType::Portrait
-        } else {
-            ImageType::Landscape
-        };
-
-        Ok(ProcessingResult {
-            input_path: input_path.to_path_buf(),
-            output_paths: saved_paths,
-            image_type,
-            processing_time: std::time::Duration::from_millis(0),
-            people_detected: detection_result.person_count > 0,
-            people_count: detection_result.person_count,
-            individual_portraits: None,
-        })
-    }
-
-    /// Get raw detection data from ONNX detector for debug visualization
-    fn get_raw_detection_data(
-        &self,
-        img: &RgbImage,
-        subject_detector: &subject_detection::SubjectDetector,
-    ) -> Result<subject_detection::python_yolo_integration::FindSubjectResult> {
-        // Use ONNX detection to get results
-        let detection_result =
-            subject_detector.detect_people(img, self.config.confidence_threshold)?;
-
-        // Convert ONNX detection result to FindSubjectResult for compatibility with debug rendering
-        let image_dimensions = img.dimensions();
-
-        // Convert individual detections to Detection format
-        let detections: Vec<subject_detection::python_yolo_integration::Detection> =
-            detection_result
-                .individual_detections
-                .iter()
-                .map(|(x_min, y_min, x_max, y_max, confidence)| {
-                    subject_detection::python_yolo_integration::Detection {
-                        bounding_box: [*x_min as i32, *y_min as i32, *x_max as i32, *y_max as i32],
-                        confidence: *confidence,
-                        class: "person".to_string(),
-                        class_id: 0,
-                    }
-                })
-                .collect();
-
-        // Create combined bounding box
-        let combined_box = if let Some((x_min, y_min, x_max, y_max)) = detection_result.bounding_box
-        {
-            [x_min as i32, y_min as i32, x_max as i32, y_max as i32]
-        } else {
-            [0, 0, image_dimensions.0 as i32, image_dimensions.1 as i32]
-        };
-
-        Ok(
-            subject_detection::python_yolo_integration::FindSubjectResult {
-                image: "onnx_detection".to_string(),
-                imagesize: subject_detection::python_yolo_integration::ImageSize {
-                    width: image_dimensions.0,
-                    height: image_dimensions.1,
-                },
-                bounding_box: combined_box,
-                center: [detection_result.center.0, detection_result.center.1],
-                offset: [
-                    detection_result.offset_from_center.0,
-                    detection_result.offset_from_center.1,
-                ],
-                detections,
-                error: None,
-            },
-        )
-    }
-
     /// Draw debug annotations on the image
     fn draw_debug_annotations(
         &self,
         img: &mut RgbImage,
         detection_result: &subject_detection::SubjectDetectionResult,
-        raw_data: &subject_detection::python_yolo_integration::FindSubjectResult,
     ) -> Result<()> {
         let (img_width, img_height) = img.dimensions();
+        let raw_data = &detection_result.get_raw_detection_data()?;
 
         // Colors for different box types
         let green = Rgb([0u8, 255u8, 0u8]); // Individual detections (green boxes)

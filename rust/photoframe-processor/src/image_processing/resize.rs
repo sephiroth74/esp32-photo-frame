@@ -1,5 +1,5 @@
 use anyhow::Result;
-use fast_image_resize::{images::Image, ResizeOptions, Resizer};
+use fast_image_resize::{ResizeOptions, Resizer, images::Image};
 use image::{ImageBuffer, Rgb, RgbImage};
 use std::num::NonZeroU32;
 
@@ -707,6 +707,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1100, 1000),
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -749,6 +750,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (300, 500),
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -778,6 +780,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (100, 100),
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -803,6 +806,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -831,6 +835,7 @@ mod tests {
             confidence: 0.0,
             person_count: 0, // No people detected
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -856,6 +861,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_left, crop_top) = calculate_people_aware_crop_offset(
@@ -881,6 +887,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -916,6 +923,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         // Image is large enough, but detection box needs to fit with padding into smaller target
@@ -958,6 +966,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (_crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -988,6 +997,7 @@ mod tests {
             confidence: 0.0,
             person_count: 0,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -1017,6 +1027,7 @@ mod tests {
             confidence: 0.9,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(
@@ -1061,6 +1072,7 @@ mod tests {
             confidence: 0.73,
             person_count: 1,
             individual_detections: vec![],
+            original_dimensions: (1000, 1000),
         };
 
         let (crop_x, crop_y, scale_factor) = calculate_enhanced_smart_crop(

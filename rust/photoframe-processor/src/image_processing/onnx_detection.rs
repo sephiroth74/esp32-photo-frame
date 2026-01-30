@@ -1,8 +1,9 @@
+use crate::image_processing::subject_detection;
 /// Complete ONNX-based people detection module with embedded YOLO11 model
 /// This module is completely self-contained and replaces Python-based detection
 use anyhow::Result;
 use image::RgbImage;
-use ort::session::{builder::GraphOptimizationLevel, Session};
+use ort::session::{Session, builder::GraphOptimizationLevel};
 use ort::value::Value;
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -61,6 +62,7 @@ pub struct SubjectDetectionResult {
     pub person_count: usize,
     /// Individual detections for debug visualization (only populated in debug mode)
     pub individual_detections: Vec<(u32, u32, u32, u32, f32)>, // (x_min, y_min, x_max, y_max, confidence)
+    pub original_dimensions: (u32, u32), // (width, height) original image dimensions
 }
 
 /// Internal detection structure
@@ -196,6 +198,7 @@ impl SubjectDetector {
                 confidence: highest_confidence,
                 person_count: person_detections.len(),
                 individual_detections: individual_boxes,
+                original_dimensions: (original_dimensions.0, original_dimensions.1),
             })
         } else {
             // No people detected - return center of image
@@ -209,8 +212,55 @@ impl SubjectDetector {
                 confidence: 0.0,
                 person_count: 0,
                 individual_detections: Vec::new(),
+                original_dimensions: (original_dimensions.0, original_dimensions.1),
             })
         }
+    }
+}
+
+impl SubjectDetectionResult {
+    /// Get raw detection data from ONNX detector for debug visualization
+    pub fn get_raw_detection_data(&self) -> Result<python_yolo_integration::FindSubjectResult> {
+        // Convert individual detections to Detection format
+        let detections: Vec<subject_detection::python_yolo_integration::Detection> = self
+            .individual_detections
+            .iter()
+            .map(|(x_min, y_min, x_max, y_max, confidence)| {
+                subject_detection::python_yolo_integration::Detection {
+                    bounding_box: [*x_min as i32, *y_min as i32, *x_max as i32, *y_max as i32],
+                    confidence: *confidence,
+                    class: "person".to_string(),
+                    class_id: 0,
+                }
+            })
+            .collect();
+
+        // Create combined bounding box
+        let combined_box = if let Some((x_min, y_min, x_max, y_max)) = self.bounding_box {
+            [x_min as i32, y_min as i32, x_max as i32, y_max as i32]
+        } else {
+            [
+                0,
+                0,
+                self.original_dimensions.0 as i32,
+                self.original_dimensions.1 as i32,
+            ]
+        };
+
+        Ok(
+            subject_detection::python_yolo_integration::FindSubjectResult {
+                image: "onnx_detection".to_string(),
+                imagesize: subject_detection::python_yolo_integration::ImageSize {
+                    width: self.original_dimensions.0,
+                    height: self.original_dimensions.1,
+                },
+                bounding_box: combined_box,
+                center: [self.center.0, self.center.1],
+                offset: [self.offset_from_center.0, self.offset_from_center.1],
+                detections,
+                error: None,
+            },
+        )
     }
 }
 

@@ -330,4 +330,3 @@ pub fn process_image_with_display_type(
         DisplayType::SixColors => convert_to_demo_bitmap_mode1(img),
     }
 }
-

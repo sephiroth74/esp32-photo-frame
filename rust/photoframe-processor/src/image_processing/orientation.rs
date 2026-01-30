@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use exif::{In, Reader, Tag, Value};
-use image::{imageops, RgbImage};
+use image::{RgbImage, imageops};
 use std::path::Path;
 
 /// EXIF orientation values

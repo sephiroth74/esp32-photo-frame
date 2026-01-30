@@ -1,7 +1,7 @@
 use anyhow::Result;
 use image::{Rgb, RgbImage};
 use photoframe_lib::dithering::apply_floyd_steinberg_dithering;
-use photoframe_lib::{apply_dithering, DisplayType, DitheringMethod};
+use photoframe_lib::{DisplayType, DitheringMethod, apply_dithering};
 
 /// Process an image with color conversion and dithering
 ///
