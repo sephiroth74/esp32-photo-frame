@@ -190,6 +190,46 @@ class BinParser {
     return (c ^ 0xFFFFFFFF) & 0xFFFFFFFF;
   }
 
+  /// Parse header from .pfr1 file bytes
+  static BinHeader? parseHeader(Uint8List data) {
+    try {
+      if (data.lengthInBytes < _headerSize + 4) {
+        return null;
+      }
+
+      final magic = _le32(data, 0);
+      if (magic != _magic) {
+        return null;
+      }
+
+      final version = data[4];
+      final headerLen = _le16(data, 5);
+      if (headerLen != _headerSize) {
+        return null;
+      }
+
+      final width = _le16(data, 7);
+      final height = _le16(data, 9);
+      final rotation = data[11];
+      final color = data[12];
+      final payloadLen = _le32(data, 13);
+      final headerCrc = _le32(data, 17);
+
+      return BinHeader(
+        version: version,
+        headerLen: headerLen,
+        width: width,
+        height: height,
+        rotation: rotation,
+        colorMode: color,
+        payloadLen: payloadLen,
+        headerCrc32: headerCrc,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Decode a .pfr1 file to a Flutter Image
   static Future<ui.Image?> decodeToImage(Uint8List data) async {
     try {

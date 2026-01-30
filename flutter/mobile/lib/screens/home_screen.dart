@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../services/gallery_service.dart';
 import '../services/bin_parser.dart';
+import '../services/thumbnail_cache_service.dart';
 import '../state/image_processing_state.dart';
 import 'processing_wizard.dart';
 import 'gallery_detail_screen.dart';
@@ -230,15 +231,57 @@ class _GalleryGridItemState extends State<_GalleryGridItem> {
 
   Future<Image?> _loadPreview() async {
     try {
+      // Try to load from cache first
+      final cachedThumbnail = await ThumbnailCacheService.getCachedThumbnail(widget.image.file);
+      if (cachedThumbnail != null) {
+        final cachedBytes = await cachedThumbnail.readAsBytes();
+        return Image.memory(cachedBytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+      }
+
+      // Load from .pfr1 file
       final bytes = await widget.image.file.readAsBytes();
+      final header = BinParser.parseHeader(bytes);
       final decodedImage = await BinParser.decodeToImage(bytes);
-      if (decodedImage != null) {
-        return Image(image: _UiImageProvider(decodedImage), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+
+      if (decodedImage != null && header != null) {
+        // Apply rotation from header
+        final rotatedImage = await _applyRotation(decodedImage, header.rotation);
+
+        // Cache the thumbnail
+        final rotatedBytes = await rotatedImage.toByteData(format: ui.ImageByteFormat.png);
+        if (rotatedBytes != null) {
+          await ThumbnailCacheService.saveThumbnail(widget.image.file, rotatedBytes.buffer.asUint8List());
+        }
+
+        return Image(image: _UiImageProvider(rotatedImage), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
       }
     } catch (e) {
       // Fallback to placeholder if decoding fails
     }
     return null;
+  }
+
+  Future<ui.Image> _applyRotation(ui.Image image, int rotation) async {
+    final quarterTurns = (4 - (rotation % 4)) % 4; // Counter-clockwise rotation
+
+    if (quarterTurns == 0) {
+      return image;
+    }
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+
+    // Calculate dimensions after rotation
+    final width = quarterTurns % 2 == 0 ? image.width : image.height;
+    final height = quarterTurns % 2 == 0 ? image.height : image.width;
+
+    canvas.translate(width / 2, height / 2);
+    canvas.rotate(quarterTurns * 1.5708); // π/2 radians per quarter turn
+    canvas.translate(-image.width / 2, -image.height / 2);
+    canvas.drawImage(image, ui.Offset.zero, ui.Paint());
+
+    final picture = recorder.endRecording();
+    return picture.toImage(width.toInt(), height.toInt());
   }
 
   @override
