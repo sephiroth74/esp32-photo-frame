@@ -203,7 +203,7 @@
 
 /// Battery level thresholds (percentages)
 #define BATTERY_CHARGING_MILLIVOLTS 4300 // Voltage above which battery is considered charging
-#define BATTERY_PERCENT_EMPTY       10    // Battery percentage considered empty
+#define BATTERY_PERCENT_EMPTY       10   // Battery percentage considered empty
 #define BATTERY_PERCENT_CRITICAL    25   // Battery percentage considered critical
 #define BATTERY_PERCENT_LOW         40   // Battery percentage considered low
 
@@ -238,11 +238,13 @@
 // ============================================================================
 
 /// File system paths and names
-#define PREFS_NAMESPACE          "photo_frame"       // Preferences namespace for settings
-#define TOC_DATA_FILENAME        "toc_data.txt"      // Table of contents data file
-#define TOC_META_FILENAME        "toc_meta.txt"      // Table of contents metadata file
-#define ACCESS_TOKEN_FILENAME    "access_token.json" // OAuth access token cache file
-#define LITTLEFS_TEMP_IMAGE_FILE "/temp_image.tmp"   // Temporary image file in LittleFS
+#define PREFS_NAMESPACE       "photo_frame"       // Preferences namespace for settings
+#define TOC_DATA_FILENAME     "toc_data.txt"      // Table of contents data file
+#define TOC_META_FILENAME     "toc_meta.txt"      // Table of contents metadata file
+#define ACCESS_TOKEN_FILENAME "access_token.json" // OAuth access token cache file
+
+// SD Card cache directory
+#define SD_CARD_CACHE_DIR "/.cache"
 
 /// Storage cleanup settings
 #define SD_CARD_FREE_SPACE_THRESHOLD        (1024 * 1024 * 16)     // 16 MB threshold for cleanup

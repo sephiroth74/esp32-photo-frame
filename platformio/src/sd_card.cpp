@@ -753,11 +753,11 @@ String SdCard::getTocDirectoryPath(const char* dir_path) const {
 }
 
 String SdCard::getTocDataPath(const char* dir_path) const {
-    return this->getTocDirectoryPath(dir_path) + "/toc_data.txt";
+    return this->getTocDirectoryPath(dir_path) + "/" + TOC_DATA_FILENAME;
 }
 
 String SdCard::getTocMetaPath(const char* dir_path) const {
-    return this->getTocDirectoryPath(dir_path) + "/toc_meta.txt";
+    return this->getTocDirectoryPath(dir_path) + "/" + TOC_META_FILENAME;
 }
 
 void SdCard::collectTocDirectoriesWithFiles(const char* base_path,

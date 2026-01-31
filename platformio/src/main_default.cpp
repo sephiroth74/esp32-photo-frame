@@ -73,8 +73,8 @@ photo_frame::unified_config systemConfig; // Unified configuration system
 
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-    bool is_reset,
-    DateTime& now);
+                            bool is_reset,
+                            DateTime& now);
 
 // ============================================================================
 // MODE-SPECIFIC IMPLEMENTATIONS
@@ -82,9 +82,8 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 
 photo_frame::photo_frame_error_t
 setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
-    bool is_reset,
-    DateTime& now)
-{
+                            bool is_reset,
+                            DateTime& now) {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
     log_i("==============================================");
@@ -105,7 +104,8 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
     // Load unified configuration from SD card
     if (error == photo_frame::error_type::None) {
         log_d("Loading unified configuration...");
-        error = photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
+        error =
+            photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
 
         if (error != photo_frame::error_type::None) {
             log_w("Failed to load unified configuration: %d", error.code);
@@ -155,7 +155,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
                     }
                 } else {
                     log_d("Successfully fetched time from NTP: %s",
-                        now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+                          now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
                 }
             }
         } else {
@@ -185,8 +185,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 // SETUP & LOOP
 // ============================================================================
 
-void default_main_setup()
-{
+void default_main_setup() {
     Serial.begin(115200);
     delay(5000);
 
@@ -233,7 +232,7 @@ void default_main_setup()
 
     // If config loading failed, try to get from preferences
     if (!systemConfig.is_valid()) {
-        auto& prefs = photo_frame::PreferencesHelper::getInstance();
+        auto& prefs      = photo_frame::PreferencesHelper::getInstance();
         display_rotation = prefs.getDisplayRotation(); // Default to 0 (landscape) if not set
         log_w("Config invalid, using rotation from preferences: %u", display_rotation);
     }
@@ -252,7 +251,7 @@ void default_main_setup()
 
         const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
         photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-            emergency_sleep_duration);
+                                                   emergency_sleep_duration);
         return;
     }
 
@@ -272,12 +271,12 @@ void default_main_setup()
 
         // Load image using manager wrapper (passes config and sdcard automatically)
         log_d("Using data provider: %s",
-            provider_manager.get_active_provider()
-                ? provider_manager.get_active_provider()->name()
-                : "none");
+              provider_manager.get_active_provider()
+                  ? provider_manager.get_active_provider()->name()
+                  : "none");
         RGB_SET_STATE(GOOGLE_DRIVE); // Default to Google Drive status LED
         image_result = provider_manager.load_next_image(is_reset);
-        error = image_result.error;
+        error        = image_result.error;
     }
 
     // Cleanup data provider resources (automatic with unique_ptr)
@@ -316,7 +315,7 @@ void default_main_setup()
 
         const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
         photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-            emergency_sleep_duration);
+                                                   emergency_sleep_duration);
         return;
     }
 
@@ -345,9 +344,9 @@ void default_main_setup()
         // Clear display and draw error (include filename if available)
         display.clear(DISPLAY_COLOR_WHITE);
         display.drawError(error,
-            image_result.original_filename.isEmpty()
-                ? nullptr
-                : image_result.original_filename.c_str());
+                          image_result.original_filename.isEmpty()
+                              ? nullptr
+                              : image_result.original_filename.c_str());
 
         if (error != photo_frame::error_type::BatteryLevelCritical && now.isValid()) {
             display.drawLastUpdate(now, refresh_delay.refresh_seconds);
@@ -363,8 +362,8 @@ void default_main_setup()
         if (image_result.is_success()) {
             if (image_result.image_file->header.payload_len > display.getBufferSize()) {
                 log_e("Image payload size (%u bytes) exceeds display buffer size (%u bytes)!",
-                    image_result.image_file->header.payload_len,
-                    display.getBufferSize());
+                      image_result.image_file->header.payload_len,
+                      display.getBufferSize());
                 error = photo_frame::error_type::ImageBufferOverflow;
             }
         }
@@ -373,25 +372,24 @@ void default_main_setup()
         if (error == photo_frame::error_type::None && image_result.is_success()) {
             log_i("Rendering validated binary image...");
             error = render_image(*image_result.image_file,
-                image_result.original_filename.c_str(),
-                error,
-                now,
-                refresh_delay,
-                image_result.file_index,
-                image_result.total_files,
-                drive,
-                battery_info);
+                                 image_result.original_filename.c_str(),
+                                 error,
+                                 now,
+                                 refresh_delay,
+                                 image_result.file_index,
+                                 image_result.total_files,
+                                 drive,
+                                 battery_info);
         }
     }
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
-    delay(2500); // Allow sleep preparation animation to complete
+    delay(2500);               // Allow sleep preparation animation to complete
     finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
 }
 
-void default_main_loop()
-{
+void default_main_loop() {
     delay(1000); // Just to avoid watchdog reset
 }
 

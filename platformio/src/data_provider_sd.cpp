@@ -77,8 +77,8 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
         }
 
         // Clear existing TOC cache
-        sd_card.cleanupDir(SdCard::SD_TOC_BASE_PATH);
-        sd_card.createDirectories(SdCard::SD_TOC_BASE_PATH);
+        sd_card.cleanupDir(SD_TOC_BASE_PATH);
+        sd_card.createDirectories(SD_TOC_BASE_PATH);
 
         photo_frame::photo_frame_error_t tocError;
         if (!sd_card.buildMultiDirectoryToc(

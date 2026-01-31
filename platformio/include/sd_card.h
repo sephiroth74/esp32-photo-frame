@@ -38,6 +38,8 @@
 #define SD_CARD_LIB SD_MMC // Use SDIO SD_MMC library
 #endif
 
+#define SD_TOC_BASE_PATH SD_CARD_CACHE_DIR "/sdcard/toc"
+
 namespace photo_frame {
 
 /**
@@ -103,7 +105,6 @@ class SdCard {
     mutable bool toc_valid_;              ///< Whether TOC is currently valid
 
   public:
-    static constexpr const char* SD_TOC_BASE_PATH = "/.cache/sdcard/toc";
     /**
      * @brief Constructor for SdCard using SD_MMC (SDIO interface).
      * SD_MMC uses fixed pins that cannot be configured:

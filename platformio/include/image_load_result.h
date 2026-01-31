@@ -83,7 +83,9 @@ struct ImageLoadResult {
     ImageLoadResult& operator=(const ImageLoadResult&) = delete;
 
     // Check if load was successful
-    bool is_success() const { return error == error_type::None && image_file != nullptr && image_file->isValidated(); }
+    bool is_success() const {
+        return error == error_type::None && image_file != nullptr && image_file->isValidated();
+    }
 };
 
 } // namespace photo_frame
