@@ -101,30 +101,87 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
             }
 
             if (error == photo_frame::error_type::None) {
-                // Battery conservation will be decided by main, provider just loads
-                total_files = drive_.retrieve_toc(sd_card, false);
+                if (config.GoogleDrive.drive.folder_ids.empty()) {
+                    log_e("Google Drive enabled but no folder IDs configured");
+                    sd_card.end();
+                    return ImageLoadResult(photo_frame::error_type::InvalidConfigNoImageSource);
+                }
+
+                bool rebuild_toc = is_reset || !drive_.isMultiDirectoryTocValid(
+                                                   sd_card, config.GoogleDrive.drive.folder_ids);
+
+                if (rebuild_toc) {
+                    if (is_reset) {
+                        log_i("Reset detected - rebuilding all Google Drive TOC files");
+                    } else {
+                        log_i("TOC mismatch - rebuilding all Google Drive TOC files");
+                    }
+
+                    sd_card.cleanupDir(GOOGLE_DRIVE_TOC_BASE_PATH);
+                    sd_card.createDirectories(GOOGLE_DRIVE_TOC_BASE_PATH);
+
+                    if (!drive_.buildMultiDirectoryToc(
+                            sd_card, config.GoogleDrive.drive.folder_ids, false, &tocError)) {
+                        log_e("Failed to build Google Drive TOC cache: %s (code: %u)",
+                              tocError.message,
+                              tocError.code);
+                        sd_card.end();
+                        return ImageLoadResult(tocError);
+                    }
+                } else {
+                    log_i("Using existing Google Drive TOC cache");
+                }
             } else {
                 log_w("Google Drive not initialized - skipping");
-                total_files = 0;
             }
 
-            if (total_files > 0) {
-                log_i("Total files in Google Drive folder: %u", total_files);
-
+            if (error == photo_frame::error_type::None) {
                 photo_frame::GoogleDriveFile selectedFile;
+                String selected_folder_id;
 
 #ifdef GOOGLE_DRIVE_TEST_FILE
                 log_i("Using test file: %s", GOOGLE_DRIVE_TEST_FILE);
-                selectedFile = drive_.get_toc_file_by_name(GOOGLE_DRIVE_TEST_FILE, &tocError);
-                if (tocError != photo_frame::error_type::None) {
+                bool found_test = false;
+                for (const auto& folder_id : config.GoogleDrive.drive.folder_ids) {
+                    String tocPath = drive_.get_toc_file_path_for_folder(folder_id);
+                    selectedFile   = drive_.get_toc_file_by_name(
+                        sd_card, tocPath, GOOGLE_DRIVE_TEST_FILE, &tocError);
+                    if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
+                        selected_folder_id = folder_id;
+                        found_test         = true;
+                        total_files        = drive_.get_toc_file_count(sd_card, tocPath);
+                        image_index        = 0;
+                        break;
+                    }
+                }
+
+                if (!found_test) {
                     log_w("Test file not found in TOC, falling back to random selection. Error: %d",
                           tocError.code);
-                    image_index  = random(0, drive_.get_toc_file_count());
-                    selectedFile = drive_.get_toc_file_by_index(image_index, &tocError);
+                    if (!drive_.selectRandomImageFromFolders(sd_card,
+                                                             config.GoogleDrive.drive.folder_ids,
+                                                             selected_folder_id,
+                                                             selectedFile,
+                                                             total_files,
+                                                             image_index,
+                                                             &tocError)) {
+                        log_e("No files found in configured Google Drive folders");
+                        sd_card.end();
+                        return ImageLoadResult(photo_frame::error_type::NoImagesFound);
+                    }
                 }
 #else
-                image_index  = random(0, drive_.get_toc_file_count(sd_card));
-                selectedFile = drive_.get_toc_file_by_index(sd_card, image_index, &tocError);
+                if (!drive_.selectRandomImageFromFolders(sd_card,
+                                                         config.GoogleDrive.drive.folder_ids,
+                                                         selected_folder_id,
+                                                         selectedFile,
+                                                         total_files,
+                                                         image_index,
+                                                         &tocError)) {
+                    log_e("No files found in configured Google Drive folders");
+                    sd_card.end();
+                    return ImageLoadResult(photo_frame::error_type::NoImagesFound);
+                }
 #endif
 
                 if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {

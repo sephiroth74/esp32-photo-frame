@@ -285,10 +285,18 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 /// Google Drive integration settings (configured in board-specific config or system defaults
 /// section)
-#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY) // TOC cache expiry (30 days)
-#define GOOGLE_DRIVE_TEMP_DIR            "temp"                // Temporary files directory
-#define GOOGLE_DRIVE_CACHE_DIR           "cache"               // Cache directory
-#define GOOGLE_DRIVE_CACHING_LOCAL_PATH  "/gdrive"             // Local cache path on SD card
+
+// TOC cache expiry (30 days)
+#define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)
+
+// Local cache path on SD card
+#define GOOGLE_DRIVE_CACHING_LOCAL_PATH SD_CARD_CACHE_DIR "/gdrive"
+
+// Temporary files directory
+#define GOOGLE_DRIVE_TEMP_DIR GOOGLE_DRIVE_CACHING_LOCAL_PATH "/temp"
+
+// TOC files base path for multi-folder support
+#define GOOGLE_DRIVE_TOC_BASE_PATH GOOGLE_DRIVE_CACHING_LOCAL_PATH "/toc"
 
 /// API rate limiting and request management (configured in board-specific config or system defaults
 /// section)

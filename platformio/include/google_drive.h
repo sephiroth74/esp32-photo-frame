@@ -85,6 +85,46 @@ class GoogleDrive {
     size_t retrieve_toc(SdCard& sdCard, bool batteryConservationMode = false);
 
     /**
+     * @brief Build TOC files for all configured Google Drive folders.
+     * @param sdCard Reference to the SD card object
+     * @param folder_ids List of Google Drive folder IDs
+     * @param batteryConservationMode If true, uses cached TOC even if expired
+     * @param error Optional pointer to store error details
+     * @return true if all TOCs were built successfully
+     */
+    bool buildMultiDirectoryToc(SdCard& sdCard,
+                                const std::vector<String>& folder_ids,
+                                bool batteryConservationMode = false,
+                                photo_frame_error_t* error   = nullptr);
+
+    /**
+     * @brief Validates TOC cache consistency for all configured folders.
+     * @param sdCard Reference to the SD card object
+     * @param folder_ids List of configured folder IDs
+     * @return true if all cached TOCs are valid and match the config list
+     */
+    bool isMultiDirectoryTocValid(SdCard& sdCard, const std::vector<String>& folder_ids) const;
+
+    /**
+     * @brief Select a random image from configured folders.
+     * @param sdCard Reference to the SD card object
+     * @param folder_ids Configured folder IDs list
+     * @param out_folder_id Selected folder ID
+     * @param out_file Selected file entry
+     * @param out_total_files Total files in the selected folder
+     * @param out_selected_index Selected index within the folder
+     * @param error Optional pointer to store error details
+     * @return true if an image was selected
+     */
+    bool selectRandomImageFromFolders(SdCard& sdCard,
+                                      const std::vector<String>& folder_ids,
+                                      String& out_folder_id,
+                                      GoogleDriveFile& out_file,
+                                      uint32_t& out_total_files,
+                                      uint32_t& out_selected_index,
+                                      photo_frame_error_t* error = nullptr);
+
+    /**
      * @brief Download a file from Google Drive to the SD card.
      *
      * @param sdCard Reference to the SD card object
@@ -145,6 +185,13 @@ class GoogleDrive {
      * @return String containing the full path to the TOC file
      */
     String get_toc_file_path() const;
+
+    /**
+     * @brief Get the full path to the TOC file for a specific folder on SD card
+     * @param folder_id Google Drive folder ID
+     * @return String containing the full path to the folder-specific TOC file
+     */
+    String get_toc_file_path_for_folder(const String& folder_id) const;
 
     /**
      * @brief Get the full path to the TOC metadata file on SD card
@@ -232,6 +279,19 @@ class GoogleDrive {
                                          photo_frame_error_t* error = nullptr);
 
     /**
+     * @brief Find a file by name in the TOC file at the specified path
+     * @param sdCard Reference to the SD card object
+     * @param filePath Path to the TOC data file
+     * @param filename Name of the file to search for
+     * @param error Pointer to error code (optional)
+     * @return GoogleDriveFile with the specified name, or empty file if not found
+     */
+    GoogleDriveFile get_toc_file_by_name(SdCard& sdCard,
+                                         const String& filePath,
+                                         const char* filename,
+                                         photo_frame_error_t* error = nullptr);
+
+    /**
      * @brief Get the last error that occurred during operations
      * @return Last error code
      */
@@ -257,6 +317,19 @@ class GoogleDrive {
      * @return Number of files removed
      */
     uint32_t cleanup_all_cached_images(SdCard& sdCard);
+
+    size_t retrieve_toc_for_folder(SdCard& sdCard,
+                                   const String& folder_id,
+                                   const String& tocDataPath,
+                                   const String& tocMetaPath,
+                                   bool batteryConservationMode);
+
+    String get_toc_directory_path(const String& folder_id) const;
+    String get_toc_meta_file_path_for_folder(const String& folder_id) const;
+    String get_toc_meta_file_path_from_data_path(const String& tocDataPath) const;
+    void collect_toc_directories_with_files(SdCard& sdCard,
+                                            const char* base_path,
+                                            std::vector<String>& out_paths) const;
 
     GoogleDriveClient client; ///< Google Drive client for API operations
     unified_config::GoogleDrive_config

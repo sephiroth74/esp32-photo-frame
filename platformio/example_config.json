@@ -32,7 +32,6 @@
             "use_insecure_tls": false
         },
         "caching": {
-            "local_path": "/gdrive",
             "toc_max_age_seconds": 604800
         },
         "rate_limiting": {

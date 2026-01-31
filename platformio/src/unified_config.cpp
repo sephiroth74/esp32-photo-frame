@@ -49,11 +49,9 @@ void load_fallback_config(unified_config& config) {
     config.GoogleDrive.auth.service_account_email  = "";
     config.GoogleDrive.auth.private_key_pem        = "";
     config.GoogleDrive.auth.client_id              = "";
-    config.GoogleDrive.drive.folder_id             = "";
     config.GoogleDrive.drive.root_ca_path          = "";
     config.GoogleDrive.drive.list_page_size        = GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE;
     config.GoogleDrive.drive.use_insecure_tls      = true;
-    config.GoogleDrive.caching.local_path          = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
     config.GoogleDrive.caching.toc_max_age_seconds = GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
 }
 
@@ -291,16 +289,36 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
         }
 
         if (gd_obj.containsKey("drive")) {
-            JsonObject drive_obj                  = gd_obj["drive"];
-            config.GoogleDrive.drive.folder_id    = drive_obj["folder_id"].as<String>();
+            JsonObject drive_obj = gd_obj["drive"];
+            config.GoogleDrive.drive.folder_ids.clear();
             config.GoogleDrive.drive.root_ca_path = drive_obj["root_ca_path"].as<String>();
             config.GoogleDrive.drive.list_page_size =
                 min(drive_obj["list_page_size"] | GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE,
                     GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE);
             config.GoogleDrive.drive.use_insecure_tls = drive_obj["use_insecure_tls"] | true;
 
-            log_d("Google Drive configuration - folder ID: %s",
-                  config.GoogleDrive.drive.folder_id.c_str());
+            // Parse folder_ids array
+            if (drive_obj.containsKey("folder_ids")) {
+                JsonArray folders_array = drive_obj["folder_ids"];
+                for (JsonVariant folder : folders_array) {
+                    String folder_id = folder.as<String>();
+                    if (folder_id.length() > 0) {
+                        config.GoogleDrive.drive.folder_ids.push_back(folder_id);
+                        log_d("Google Drive configuration - folder ID: %s", folder_id.c_str());
+                    }
+                }
+                log_d("Google Drive configuration - total folders: %d",
+                      config.GoogleDrive.drive.folder_ids.size());
+            } else {
+                // Backward compatibility: try single folder_id
+                String legacy_folder_id = drive_obj["folder_id"].as<String>();
+                if (legacy_folder_id.length() > 0) {
+                    config.GoogleDrive.drive.folder_ids.push_back(legacy_folder_id);
+                    log_w(
+                        "Google Drive: using legacy folder_id, please migrate to folder_ids array");
+                    log_d("Google Drive configuration - folder ID: %s", legacy_folder_id.c_str());
+                }
+            }
             log_d("Google Drive configuration - root CA path: %s",
                   config.GoogleDrive.drive.root_ca_path.c_str());
             log_d("Google Drive configuration - list page size: %d",
@@ -313,8 +331,7 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
         }
 
         if (gd_obj.containsKey("caching")) {
-            JsonObject cache_obj                  = gd_obj["caching"];
-            config.GoogleDrive.caching.local_path = cache_obj["local_path"] | "/gdrive";
+            JsonObject cache_obj = gd_obj["caching"];
             config.GoogleDrive.caching.toc_max_age_seconds =
                 cache_obj["toc_max_age_seconds"] | GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS;
         } else {

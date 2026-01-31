@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include <ArduinoJson.h>
+#include <algorithm>
 #include <time.h>
 #include <unistd.h> // For fsync()
 
@@ -62,14 +63,32 @@ bool checkMemoryAvailable(size_t requiredBytes) {
 namespace photo_frame {
 
 size_t GoogleDrive::retrieve_toc(SdCard& sdCard, bool batteryConservationMode) {
+    if (config.drive.folder_ids.empty()) {
+        log_e("Google Drive enabled but no folder IDs configured");
+        last_error = error_type::InvalidConfigNoImageSource;
+        return 0;
+    }
+
+    const String& folder_id = config.drive.folder_ids[0];
+    return retrieve_toc_for_folder(sdCard,
+                                   folder_id,
+                                   get_toc_file_path_for_folder(folder_id),
+                                   get_toc_meta_file_path_for_folder(folder_id),
+                                   batteryConservationMode);
+}
+
+size_t GoogleDrive::retrieve_toc_for_folder(SdCard& sdCard,
+                                            const String& folder_id,
+                                            const String& tocDataPath,
+                                            const String& tocMetaPath,
+                                            bool batteryConservationMode) {
     logMemoryUsage("TOC Retrieve Start");
 
     // Clear any previous error
     last_error = error_type::None;
 
     // Build TOC path using optimized utility function
-    String tocFullPath        = get_toc_file_path();
-    String tocDataPath        = get_toc_file_path();
+    String tocFullPath        = tocDataPath;
     bool shouldFetchFromDrive = false;
     bool localTocExists =
         sdCard.fileExists(tocFullPath.c_str()) && sdCard.getFileAge(tocDataPath.c_str()) >= 0;
@@ -174,9 +193,6 @@ size_t GoogleDrive::retrieve_toc(SdCard& sdCard, bool batteryConservationMode) {
         log_i("Fetching TOC from Google Drive...");
 
         // Create paths for the 2-file TOC system
-        String tocDataPath = get_toc_file_path();
-        String tocMetaPath = get_toc_meta_file_path();
-
         log_i(
             "Using 2-file TOC system: data=%s, meta=%s", tocDataPath.c_str(), tocMetaPath.c_str());
 
@@ -187,10 +203,8 @@ size_t GoogleDrive::retrieve_toc(SdCard& sdCard, bool batteryConservationMode) {
         }
 
         // Stream files directly from Google Drive to TOC file to save memory
-        size_t totalFiles = client.list_files_streaming(config.drive.folder_id.c_str(),
-                                                        sdCard,
-                                                        tocDataPath.c_str(),
-                                                        config.drive.list_page_size);
+        size_t totalFiles = client.list_files_streaming(
+            folder_id.c_str(), sdCard, tocDataPath.c_str(), config.drive.list_page_size);
 
         if (totalFiles == 0) {
             log_e("Failed to retrieve files from Google Drive");
@@ -290,22 +304,22 @@ photo_frame_error_t GoogleDrive::create_directories(SdCard& sdCard) {
     // first make sure the directory doesn't exists and it's not a file, in which case we will try
     // to delete the file and continue otherwise, if the directory already exists, continue to check
     // subdirectories.
-    if (sdCard.fileExists(config.caching.local_path.c_str())) {
-        if (sdCard.isFile(config.caching.local_path.c_str())) {
-            log_i("Removing file at path: %s", config.caching.local_path.c_str());
-            if (!sdCard.remove(config.caching.local_path.c_str())) {
-                log_e("Failed to remove file at path: %s", config.caching.local_path.c_str());
+    if (sdCard.fileExists(GOOGLE_DRIVE_CACHING_LOCAL_PATH)) {
+        if (sdCard.isFile(GOOGLE_DRIVE_CACHING_LOCAL_PATH)) {
+            log_i("Removing file at path: %s", GOOGLE_DRIVE_CACHING_LOCAL_PATH);
+            if (!sdCard.remove(GOOGLE_DRIVE_CACHING_LOCAL_PATH)) {
+                log_e("Failed to remove file at path: %s", GOOGLE_DRIVE_CACHING_LOCAL_PATH);
                 return photo_frame::error_type::SdCardDirCreateFailed;
             }
         } else {
-            log_i("Root directory already exists: %s", config.caching.local_path.c_str());
+            log_i("Root directory already exists: %s", GOOGLE_DRIVE_CACHING_LOCAL_PATH);
         }
     }
 
     // Create root directory
-    if (!sdCard.createDirectories(config.caching.local_path.c_str())) {
+    if (!sdCard.createDirectories(GOOGLE_DRIVE_CACHING_LOCAL_PATH)) {
         log_e("Failed to create root directory for Google Drive local cache: %s",
-              config.caching.local_path.c_str());
+              GOOGLE_DRIVE_CACHING_LOCAL_PATH);
         return photo_frame::error_type::SdCardDirCreateFailed;
     }
 
@@ -328,20 +342,48 @@ photo_frame_error_t GoogleDrive::create_directories(SdCard& sdCard) {
     return photo_frame::error_type::None;
 }
 
+String GoogleDrive::get_toc_directory_path(const String& folder_id) const {
+    String sanitized = folder_id;
+    if (sanitized.startsWith("/")) {
+        sanitized = sanitized.substring(1);
+    }
+    return string_utils::build_path(GOOGLE_DRIVE_TOC_BASE_PATH, sanitized);
+}
+
+String GoogleDrive::get_toc_file_path_for_folder(const String& folder_id) const {
+    return string_utils::build_path(get_toc_directory_path(folder_id), TOC_DATA_FILENAME);
+}
+
+String GoogleDrive::get_toc_meta_file_path_for_folder(const String& folder_id) const {
+    return string_utils::build_path(get_toc_directory_path(folder_id), TOC_META_FILENAME);
+}
+
+String GoogleDrive::get_toc_meta_file_path_from_data_path(const String& tocDataPath) const {
+    int lastSlash = tocDataPath.lastIndexOf('/');
+    if (lastSlash >= 0) {
+        return tocDataPath.substring(0, lastSlash + 1) + TOC_META_FILENAME;
+    }
+    return get_toc_meta_file_path();
+}
+
 String GoogleDrive::get_toc_file_path() const {
-    return string_utils::build_path(config.caching.local_path, TOC_DATA_FILENAME);
+    if (!config.drive.folder_ids.empty()) {
+        return get_toc_file_path_for_folder(config.drive.folder_ids[0]);
+    }
+    return string_utils::build_path(GOOGLE_DRIVE_TOC_BASE_PATH, TOC_DATA_FILENAME);
 }
 
 String GoogleDrive::get_toc_meta_file_path() const {
-    return string_utils::build_path(config.caching.local_path, TOC_META_FILENAME);
+    if (!config.drive.folder_ids.empty()) {
+        return get_toc_meta_file_path_for_folder(config.drive.folder_ids[0]);
+    }
+    return string_utils::build_path(GOOGLE_DRIVE_TOC_BASE_PATH, TOC_META_FILENAME);
 }
 
-String GoogleDrive::get_temp_dir_path() const {
-    return string_utils::build_path(config.caching.local_path, GOOGLE_DRIVE_TEMP_DIR);
-}
+String GoogleDrive::get_temp_dir_path() const { return GOOGLE_DRIVE_TEMP_DIR; }
 
 String GoogleDrive::get_cache_dir_path() const {
-    return string_utils::build_path(config.caching.local_path, GOOGLE_DRIVE_CACHE_DIR);
+    return GOOGLE_DRIVE_CACHING_LOCAL_PATH; // /.cache/gdrive
 }
 
 String GoogleDrive::get_cached_file_path(const String& filename) const {
@@ -360,7 +402,7 @@ size_t GoogleDrive::get_toc_file_count(SdCard& sdCard,
     }
 
     // Build path to metadata file
-    String tocMetaPath = get_toc_meta_file_path();
+    String tocMetaPath = get_toc_meta_file_path_from_data_path(filePath);
 
     log_i("Reading TOC metadata from: %s", tocMetaPath.c_str());
 
@@ -435,7 +477,7 @@ size_t GoogleDrive::get_toc_file_count(SdCard& sdCard,
 
     // Verify data file integrity if size information is available
     if (expectedDataFileSize > 0) {
-        String tocDataPath = get_toc_file_path();
+        String tocDataPath = filePath;
         if (sdCard.fileExists(tocDataPath.c_str())) {
             fs::File dataFile = sdCard.open(tocDataPath.c_str(), FILE_READ);
             if (dataFile) {
@@ -476,7 +518,7 @@ GoogleDriveFile GoogleDrive::get_toc_file_by_index(SdCard& sdCard,
     }
 
     // Build path to data file
-    String tocDataPath = get_toc_file_path();
+    String tocDataPath = filePath;
 
     log_i("Reading TOC data from: %s", tocDataPath.c_str());
 
@@ -530,6 +572,205 @@ GoogleDriveFile GoogleDrive::get_toc_file_by_index(SdCard& sdCard,
     log_i("Retrieved file at index %zu: %s", index, name.c_str());
 
     return GoogleDriveFile(id, name);
+}
+
+bool GoogleDrive::buildMultiDirectoryToc(SdCard& sdCard,
+                                         const std::vector<String>& folder_ids,
+                                         bool batteryConservationMode,
+                                         photo_frame_error_t* error) {
+    if (folder_ids.empty()) {
+        if (error) {
+            *error = error_type::InvalidConfigNoImageSource;
+        }
+        return false;
+    }
+
+    if (!sdCard.createDirectories(GOOGLE_DRIVE_TOC_BASE_PATH)) {
+        log_e("Failed to create TOC base directory: %s", GOOGLE_DRIVE_TOC_BASE_PATH);
+        if (error) {
+            *error = error_type::SdCardDirCreateFailed;
+        }
+        return false;
+    }
+
+    for (const auto& folder_id : folder_ids) {
+        if (folder_id.isEmpty()) {
+            continue;
+        }
+
+        String tocDir = get_toc_directory_path(folder_id);
+        if (!sdCard.createDirectories(tocDir.c_str())) {
+            log_e("Failed to create TOC directory for folder: %s", folder_id.c_str());
+            if (error) {
+                *error = error_type::SdCardDirCreateFailed;
+            }
+            return false;
+        }
+
+        size_t count = retrieve_toc_for_folder(sdCard,
+                                               folder_id,
+                                               get_toc_file_path_for_folder(folder_id),
+                                               get_toc_meta_file_path_for_folder(folder_id),
+                                               batteryConservationMode);
+        if (count == 0 && last_error != error_type::None) {
+            if (error) {
+                *error = last_error;
+            }
+            return false;
+        }
+    }
+
+    if (error) {
+        *error = error_type::None;
+    }
+    return true;
+}
+
+bool GoogleDrive::isMultiDirectoryTocValid(SdCard& sdCard,
+                                           const std::vector<String>& folder_ids) const {
+    if (folder_ids.empty()) {
+        return false;
+    }
+
+    if (!sdCard.isDirectory(GOOGLE_DRIVE_TOC_BASE_PATH)) {
+        log_i("TOC base directory missing: %s", GOOGLE_DRIVE_TOC_BASE_PATH);
+        return false;
+    }
+
+    std::vector<String> expectedPaths;
+    expectedPaths.reserve(folder_ids.size());
+    for (const auto& folder_id : folder_ids) {
+        if (!folder_id.isEmpty()) {
+            expectedPaths.push_back(get_toc_directory_path(folder_id));
+        }
+    }
+
+    std::vector<String> cachedPaths;
+    collect_toc_directories_with_files(sdCard, GOOGLE_DRIVE_TOC_BASE_PATH, cachedPaths);
+
+    if (cachedPaths.size() != expectedPaths.size()) {
+        log_i("TOC cache mismatch: expected %u directories, found %u",
+              (unsigned int)expectedPaths.size(),
+              (unsigned int)cachedPaths.size());
+        return false;
+    }
+
+    for (const auto& expected : expectedPaths) {
+        bool found = false;
+        for (const auto& cached : cachedPaths) {
+            if (cached == expected) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            log_i("TOC cache mismatch: missing directory %s", expected.c_str());
+            return false;
+        }
+    }
+
+    for (const auto& folder_id : folder_ids) {
+        if (folder_id.isEmpty()) {
+            continue;
+        }
+        String tocDataPath = get_toc_file_path_for_folder(folder_id);
+        String tocMetaPath = get_toc_meta_file_path_for_folder(folder_id);
+        if (!sdCard.fileExists(tocDataPath.c_str()) || !sdCard.fileExists(tocMetaPath.c_str())) {
+            log_i("TOC invalid for folder: %s", folder_id.c_str());
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool GoogleDrive::selectRandomImageFromFolders(SdCard& sdCard,
+                                               const std::vector<String>& folder_ids,
+                                               String& out_folder_id,
+                                               GoogleDriveFile& out_file,
+                                               uint32_t& out_total_files,
+                                               uint32_t& out_selected_index,
+                                               photo_frame_error_t* error) {
+    out_folder_id      = "";
+    out_total_files    = 0;
+    out_selected_index = 0;
+    out_file           = GoogleDriveFile();
+
+    if (folder_ids.empty()) {
+        if (error) {
+            *error = error_type::InvalidConfigNoImageSource;
+        }
+        return false;
+    }
+
+    std::vector<String> shuffled = folder_ids;
+    for (int i = (int)shuffled.size() - 1; i > 0; --i) {
+        int j = random(0, i + 1);
+        std::swap(shuffled[i], shuffled[j]);
+    }
+
+    for (const auto& folder_id : shuffled) {
+        if (folder_id.isEmpty()) {
+            continue;
+        }
+
+        photo_frame_error_t countError = error_type::None;
+        String tocDataPath             = get_toc_file_path_for_folder(folder_id);
+        size_t fileCount               = get_toc_file_count(sdCard, tocDataPath, &countError);
+        if (countError != error_type::None || fileCount == 0) {
+            continue;
+        }
+
+        uint32_t selected_index       = random(0, (long)fileCount);
+        photo_frame_error_t fileError = error_type::None;
+        GoogleDriveFile selected =
+            get_toc_file_by_index(sdCard, tocDataPath, selected_index, &fileError);
+        if (fileError != error_type::None || selected.id.length() == 0) {
+            if (error) {
+                *error = fileError;
+            }
+            continue;
+        }
+
+        out_folder_id      = folder_id;
+        out_file           = selected;
+        out_total_files    = (uint32_t)fileCount;
+        out_selected_index = selected_index;
+        if (error) {
+            *error = error_type::None;
+        }
+        return true;
+    }
+
+    if (error) {
+        *error = error_type::NoImagesFound;
+    }
+    return false;
+}
+
+void GoogleDrive::collect_toc_directories_with_files(SdCard& sdCard,
+                                                     const char* base_path,
+                                                     std::vector<String>& out_paths) const {
+    fs::File dir = sdCard.open(base_path, FILE_READ);
+    if (!dir || !dir.isDirectory()) {
+        return;
+    }
+
+    bool isDir      = false;
+    String fileName = dir.getNextFileName(&isDir);
+
+    while (!fileName.isEmpty()) {
+        if (isDir) {
+            String dataPath = fileName + "/" + TOC_DATA_FILENAME;
+            String metaPath = fileName + "/" + TOC_META_FILENAME;
+            if (sdCard.fileExists(dataPath.c_str()) && sdCard.fileExists(metaPath.c_str())) {
+                out_paths.push_back(fileName);
+            }
+            collect_toc_directories_with_files(sdCard, fileName.c_str(), out_paths);
+        }
+        fileName = dir.getNextFileName(&isDir);
+    }
+    dir.close();
 }
 
 fs::File
@@ -708,7 +949,7 @@ String GoogleDrive::load_root_ca_certificate(SdCard& sdCard, const char* rootCaP
 
 uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
     log_i("Cleaning up temporary files... (Local path: %s, Force: %d)",
-          config.caching.local_path.c_str(),
+          GOOGLE_DRIVE_CACHING_LOCAL_PATH,
           force);
 
     uint32_t cleanedCount = 0;
@@ -733,7 +974,7 @@ uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
 
     // Always clean up temporary files from temp directory first
     log_i("Cleaning temp directory...");
-    String tempDir = string_utils::build_path(config.caching.local_path, GOOGLE_DRIVE_TEMP_DIR);
+    String tempDir = GOOGLE_DRIVE_TEMP_DIR;
     if (sdCard.fileExists(tempDir.c_str())) {
         fs::File tempRoot = sdCard.open(tempDir.c_str(), FILE_READ);
         if (tempRoot && tempRoot.isDirectory()) {
@@ -757,22 +998,29 @@ uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
 
         // 1. Remove access token
         String accessTokenPath =
-            string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
+            string_utils::build_path(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
         if (sdCard.fileExists(accessTokenPath.c_str()) && sdCard.remove(accessTokenPath.c_str())) {
             cleanedCount++;
             log_i("Removed access token");
         }
 
         // 2. Remove TOC files
-        String tocDataPath = get_toc_file_path();
-        String tocMetaPath = get_toc_meta_file_path();
-        if (sdCard.fileExists(tocDataPath.c_str()) && sdCard.remove(tocDataPath.c_str())) {
-            cleanedCount++;
-            log_i("Removed TOC data file");
-        }
-        if (sdCard.fileExists(tocMetaPath.c_str()) && sdCard.remove(tocMetaPath.c_str())) {
-            cleanedCount++;
-            log_i("Removed TOC meta file");
+        if (sdCard.isDirectory(GOOGLE_DRIVE_TOC_BASE_PATH)) {
+            if (sdCard.cleanupDir(GOOGLE_DRIVE_TOC_BASE_PATH)) {
+                cleanedCount++;
+                log_i("Removed TOC directory: %s", GOOGLE_DRIVE_TOC_BASE_PATH);
+            }
+        } else {
+            String tocDataPath = get_toc_file_path();
+            String tocMetaPath = get_toc_meta_file_path();
+            if (sdCard.fileExists(tocDataPath.c_str()) && sdCard.remove(tocDataPath.c_str())) {
+                cleanedCount++;
+                log_i("Removed TOC data file");
+            }
+            if (sdCard.fileExists(tocMetaPath.c_str()) && sdCard.remove(tocMetaPath.c_str())) {
+                cleanedCount++;
+                log_i("Removed TOC meta file");
+            }
         }
 
         // 3. Remove all cached images
@@ -785,38 +1033,42 @@ uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
     } else {
         log_i("NORMAL CLEANUP: Checking TOC file conditions");
 
-        String tocDataPath = get_toc_file_path();
-        String tocMetaPath = get_toc_meta_file_path();
-        bool tocDataExists = sdCard.fileExists(tocDataPath.c_str());
-        bool tocMetaExists = sdCard.fileExists(tocMetaPath.c_str());
-
-        if (!tocDataExists || !tocMetaExists) {
-            log_i("TOC INTEGRITY: One file missing, removing both");
-            if (tocDataExists && sdCard.remove(tocDataPath.c_str())) {
-                cleanedCount++;
-                log_i("Removed TOC data file");
-            }
-            if (tocMetaExists && sdCard.remove(tocMetaPath.c_str())) {
-                cleanedCount++;
-                log_i("Removed TOC meta file");
-            }
+        if (sdCard.isDirectory(GOOGLE_DRIVE_TOC_BASE_PATH)) {
+            log_i("TOC integrity check skipped for multi-folder cache");
         } else {
-            // Both TOC files exist - check if expired
-            time_t tocAge = sdCard.getFileAge(tocMetaPath.c_str());
-            log_i("TOC age: %ld seconds, max: %lu", tocAge, config.caching.toc_max_age_seconds);
+            String tocDataPath = get_toc_file_path();
+            String tocMetaPath = get_toc_meta_file_path();
+            bool tocDataExists = sdCard.fileExists(tocDataPath.c_str());
+            bool tocMetaExists = sdCard.fileExists(tocMetaPath.c_str());
 
-            if (tocAge > config.caching.toc_max_age_seconds) {
-                log_i("TOC EXPIRED: Removing TOC files");
-                if (sdCard.remove(tocDataPath.c_str())) {
+            if (!tocDataExists || !tocMetaExists) {
+                log_i("TOC INTEGRITY: One file missing, removing both");
+                if (tocDataExists && sdCard.remove(tocDataPath.c_str())) {
                     cleanedCount++;
-                    log_i("Removed expired TOC data file");
+                    log_i("Removed TOC data file");
                 }
-                if (sdCard.remove(tocMetaPath.c_str())) {
+                if (tocMetaExists && sdCard.remove(tocMetaPath.c_str())) {
                     cleanedCount++;
-                    log_i("Removed expired TOC meta file");
+                    log_i("Removed TOC meta file");
                 }
             } else {
-                log_i("TOC files are fresh, keeping them");
+                // Both TOC files exist - check if expired
+                time_t tocAge = sdCard.getFileAge(tocMetaPath.c_str());
+                log_i("TOC age: %ld seconds, max: %lu", tocAge, config.caching.toc_max_age_seconds);
+
+                if (tocAge > config.caching.toc_max_age_seconds) {
+                    log_i("TOC EXPIRED: Removing TOC files");
+                    if (sdCard.remove(tocDataPath.c_str())) {
+                        cleanedCount++;
+                        log_i("Removed expired TOC data file");
+                    }
+                    if (sdCard.remove(tocMetaPath.c_str())) {
+                        cleanedCount++;
+                        log_i("Removed expired TOC meta file");
+                    }
+                } else {
+                    log_i("TOC files are fresh, keeping them");
+                }
             }
         }
     }
@@ -828,7 +1080,7 @@ uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
 
 uint32_t GoogleDrive::cleanup_all_cached_images(SdCard& sdCard) {
     uint32_t cleanedCount = 0;
-    String cacheDir = string_utils::build_path(config.caching.local_path, GOOGLE_DRIVE_CACHE_DIR);
+    String cacheDir       = GOOGLE_DRIVE_CACHING_LOCAL_PATH;
 
     if (!sdCard.fileExists(cacheDir.c_str())) {
         log_i("Cache directory doesn't exist");
@@ -869,7 +1121,8 @@ photo_frame_error_t GoogleDrive::save_access_token_to_file() {
         return error_type::TokenMissing;
     }
 
-    String tokenPath   = string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
+    String tokenPath =
+        string_utils::build_path(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
 
     fs::File tokenFile = SD_CARD_LIB.open(tokenPath.c_str(), FILE_WRITE);
     if (!tokenFile) {
@@ -896,7 +1149,8 @@ photo_frame_error_t GoogleDrive::save_access_token_to_file() {
 photo_frame_error_t GoogleDrive::load_access_token_from_file() {
     log_i("Loading access token from file...");
 
-    String tokenPath = string_utils::build_path(config.caching.local_path, ACCESS_TOKEN_FILENAME);
+    String tokenPath =
+        string_utils::build_path(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
 
     if (!SD_CARD_LIB.exists(tokenPath.c_str())) {
         log_i("Token file does not exist: %s", tokenPath.c_str());
@@ -1010,7 +1264,14 @@ GoogleDriveFile GoogleDrive::get_toc_file_by_name(SdCard& sdCard,
                                                   const char* filename,
                                                   photo_frame_error_t* error) {
     String tocPath = get_toc_file_path();
-    GoogleDriveTocParser parser(sdCard, tocPath.c_str());
+    return get_toc_file_by_name(sdCard, tocPath, filename, error);
+}
+
+GoogleDriveFile GoogleDrive::get_toc_file_by_name(SdCard& sdCard,
+                                                  const String& filePath,
+                                                  const char* filename,
+                                                  photo_frame_error_t* error) {
+    GoogleDriveTocParser parser(sdCard, filePath.c_str());
     return parser.get_file_by_name(filename, error);
 }
 

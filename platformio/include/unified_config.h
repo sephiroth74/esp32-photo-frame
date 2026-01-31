@@ -108,16 +108,15 @@ struct unified_config {
         } auth;
 
         struct drive_settings {
-            String folder_id;
+            std::vector<String> folder_ids;
             String root_ca_path;
             uint16_t list_page_size = 200;
             bool use_insecure_tls   = true;
 
-            bool is_valid() const { return folder_id.length() > 0; }
+            bool is_valid() const { return !folder_ids.empty(); }
         } drive;
 
         struct caching_settings {
-            String local_path            = "/gdrive";
             uint32_t toc_max_age_seconds = 604800; // 7 days
         } caching;
 
@@ -205,13 +204,15 @@ struct unified_config {
             GoogleDrive.auth.private_key_pem;
         doc["google_drive_config"]["authentication"]["client_id"] = GoogleDrive.auth.client_id;
 
-        doc["google_drive_config"]["drive"]["folder_id"]          = GoogleDrive.drive.folder_id;
-        doc["google_drive_config"]["drive"]["root_ca_path"]       = GoogleDrive.drive.root_ca_path;
+        JsonArray folderIds = doc["google_drive_config"]["drive"].createNestedArray("folder_ids");
+        for (const auto& folder_id : GoogleDrive.drive.folder_ids) {
+            folderIds.add(folder_id);
+        }
+        doc["google_drive_config"]["drive"]["root_ca_path"]   = GoogleDrive.drive.root_ca_path;
         doc["google_drive_config"]["drive"]["list_page_size"] = GoogleDrive.drive.list_page_size;
         doc["google_drive_config"]["drive"]["use_insecure_tls"] =
             GoogleDrive.drive.use_insecure_tls;
 
-        doc["google_drive_config"]["caching"]["local_path"] = GoogleDrive.caching.local_path;
         doc["google_drive_config"]["caching"]["toc_max_age_seconds"] =
             GoogleDrive.caching.toc_max_age_seconds;
 
