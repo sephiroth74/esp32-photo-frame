@@ -91,14 +91,13 @@ class _MyAppState extends State<MyApp> with WindowListener {
         ChangeNotifierProvider(create: (_) => ProcessingProvider()),
         ChangeNotifierProvider(create: (_) => BleUploadState()),
       ],
-      child: AppMenuBar(
-        child: AppKitMacosApp(
-          debugShowCheckedModeBanner: false,
-          theme: AppKitThemeData.light(),
-          darkTheme: AppKitThemeData.dark(),
-          themeMode: ThemeMode.system,
-          home: const HomeScreen(),
-        ),
+      child: AppKitMacosApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppKitThemeData.light(),
+        darkTheme: AppKitThemeData.dark(),
+        themeMode: ThemeMode.system,
+        builder: (context, child) => AppMenuBar(child: child ?? const SizedBox.shrink()),
+        home: const HomeScreen(),
       ),
     );
   }

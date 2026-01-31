@@ -42,6 +42,9 @@ dependencies:
   # Keep screen awake during upload
   wakelock_plus: ^1.2.8
 
+  # Package info for version display
+  package_info_plus: ^8.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

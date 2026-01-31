@@ -23,7 +23,10 @@
             "client_id": "your-client-id"
         },
         "drive": {
-            "folder_id": "your-google-drive-folder-id",
+            "folder_ids": [
+                "your-google-drive-folder-id-1",
+                "your-google-drive-folder-id-2"
+            ],
             "root_ca_path": "/certs/google_root_ca.pem",
             "list_page_size": 100,
             "use_insecure_tls": false
@@ -43,7 +46,9 @@
     },
     "sd_card_config": {
         "enabled": true,
-        "images_directory": "/6c/portrait/bin"
+        "directories": [
+            "/6c/portrait/bin"
+        ]
     },
     "board_config": {
         "display_rotation": 1,

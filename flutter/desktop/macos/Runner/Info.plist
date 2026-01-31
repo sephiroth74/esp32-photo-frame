@@ -13,7 +13,9 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>$(PRODUCT_NAME)</string>
+		<string>ESP32 - PhotoFrame</string>
+		<key>CFBundleDisplayName</key>
+		<string>ESP32 - PhotoFrame</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
