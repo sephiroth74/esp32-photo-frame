@@ -304,6 +304,9 @@ extern RGBStatus rgbStatus;
 #define RGB_OFF()                      rgbStatus.turnOff()
 #define RGB_ENABLE()                   rgbStatus.enable()
 #define RGB_DISABLE()                  rgbStatus.disable()
+#define RGB_BEGIN()                    rgbStatus.begin()
+#define RGB_END()                      rgbStatus.end()
+#define RGB_SET_BRIGHTNESS(brightness) rgbStatus.setBrightness(brightness)
 #else
 // RGB system disabled - all macros become no-ops
 #define RGB_SET_STATE(state)                                                                       \
@@ -322,6 +325,15 @@ extern RGBStatus rgbStatus;
     do {                                                                                           \
     } while (0)
 #define RGB_DISABLE()                                                                              \
+    do {                                                                                           \
+    } while (0)
+#define RGB_BEGIN()                                                                                \
+    do {                                                                                           \
+    } while (0)
+#define RGB_END()                                                                                  \
+    do {                                                                                           \
+    } while (0)
+#define RGB_SET_BRIGHTNESS(brightness)                                                             \
     do {                                                                                           \
     } while (0)
 #endif // RGB_STATUS_ENABLED

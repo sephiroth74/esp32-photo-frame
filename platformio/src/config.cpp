@@ -213,12 +213,6 @@
 #error "REFRESH_STEP_SECONDS must be between 1 minute and 1 hour"
 #endif
 
-/// Ensure critical battery refresh interval is reasonable (1-24 hours)
-#if REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY < SECONDS_IN_HOUR ||                                 \
-    REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY > SECONDS_IN_DAY
-#error "REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY must be between 1 hour and 24 hours"
-#endif
-
 // ----------------------------------------------------------------------------
 // Battery Threshold Validation
 // ----------------------------------------------------------------------------

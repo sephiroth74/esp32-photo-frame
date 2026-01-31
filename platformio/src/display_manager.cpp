@@ -90,6 +90,7 @@ bool DisplayManager::initDisplay() {
 
     if (!imageBuffer_.isInitialized()) {
         log_e("[DisplayManager] Buffer not initialized! Call initBuffer() first");
+        imageBuffer_.getCanvas().setRotation(rotation_);
         return false;
     }
 

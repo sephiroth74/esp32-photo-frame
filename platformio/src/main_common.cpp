@@ -101,21 +101,16 @@ bool initialize_hardware() {
         }
     }
 
-#ifdef RGB_STATUS_ENABLED
     // Initialize RGB status system (FeatherS3 NeoPixel)
-    log_i("[RGB] Initializing RGB status system...");
-    if (!rgbStatus.begin()) {
+    if (!RGB_BEGIN()) {
         log_w("[RGB] Warning: Failed to initialize RGB status system");
     } else {
         RGB_SET_STATE(STARTING); // Show startup indication
     }
-#else
-    log_i("[RGB] RGB status system disabled");
-#endif // RGB_STATUS_ENABLED
 
-    log_i("------------------------------");
+    log_i("=======================================");
     log_i("Photo Frame %s", FIRMWARE_VERSION_STRING);
-    log_i("------------------------------");
+    log_i("=======================================");
 
     photo_frame::board_utils::print_board_stats();
 
@@ -166,9 +161,9 @@ void cleanup_image_buffer() {
 
 photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
                                                          esp_sleep_wakeup_cause_t wakeup_reason) {
-    log_i("--------------------------------------");
+    log_i("=======================================");
     log_i("- Reading battery level...");
-    log_i("--------------------------------------");
+    log_i("=======================================");
 
     battery_reader.init();
     battery_info = battery_reader.read();
@@ -183,32 +178,32 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
     log_i("Battery level: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
 #endif // DEBUG_BATTERY_READER
 
+    // check battery status
+    // if the battery is empty, enter deep sleep immediately to preserve battery
     if (battery_info.is_empty()) {
         log_e("Battery is empty!");
 #ifdef BATTERY_POWER_SAVING
+        // Battery too low to continue
         unsigned long elapsed = millis() - startupTime;
         log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
-
         log_i("Entering deep sleep to preserve battery...");
         photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
-                                                                   // Battery too low to continue
-#endif                                                             // BATTERY_POWER_SAVING
-#ifdef RGB_STATUS_ENABLED
-        rgbStatus.disable();
-        log_i("[RGB] Disabled RGB LED to conserve battery power");
-#endif // RGB_STATUS_ENABLED
+#endif / BATTERY_POWER_SAVING
+
+        RGB_DISABLE();
+
         return photo_frame::error_type::BatteryEmpty;
     } else if (battery_info.is_critical()) {
         log_w("Battery level is critical!");
+
+        RGB_SET_BRIGHTNESS(12);                 // Dim RGB to save power
         RGB_SET_STATE_TIMED(BATTERY_LOW, 3000); // Show battery critical warning briefly
 
         // Disable RGB after warning to save maximum power
-        delay(3500);
-#ifdef RGB_STATUS_ENABLED
-        rgbStatus.disable();
-        log_i("[RGB] Disabled RGB LED to conserve battery power");
-#endif // RGB_STATUS_ENABLED
-       // Indicate critical battery error
+        delay(1000);
+        RGB_DISABLE();
+
+        // Indicate critical battery error
         return photo_frame::error_type::BatteryLevelCritical;
     }
 
@@ -217,32 +212,26 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
 }
 
 refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now) {
-    refresh_delay_t refresh_delay = {0, 0};
+    refresh_delay_t refresh_delay = {0};
 
-    if (battery_info.is_critical()) {
-        log_w("Battery is critical, using low battery refresh interval");
-        refresh_delay.refresh_seconds = REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY;
-        refresh_delay.refresh_microseconds =
-            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+    // if the battery level is low, use the battery low multiplier to reduce refresh rate
+    // if the battery level is critical the device should just display the critical warning and not
+    // reach this point and it should go to sleep indefinitely
+
+    if (!now.isValid() && !battery_info.is_critical()) {
+        log_w("Time is invalid, using default refresh interval as fallback");
+        refresh_delay.refresh_seconds = REFRESH_DEFAULT_INTERVAL_SECONDS;
         return refresh_delay;
     }
 
-    if (!now.isValid()) {
-        log_w("Time is invalid, using minimum refresh interval as fallback");
-        refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-        refresh_delay.refresh_microseconds =
-            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
-        return refresh_delay;
-    }
+    // NOTE: systemConfig must be available in the calling main file
+    extern photo_frame::unified_config systemConfig;
 
-    if (true) { // Changed from the original condition to always execute
-        // NOTE: systemConfig must be available in the calling main file
-        extern photo_frame::unified_config systemConfig;
+    refresh_delay.refresh_seconds =
+        photo_frame::board_utils::read_refresh_seconds(systemConfig, battery_info);
 
-        refresh_delay.refresh_seconds =
-            photo_frame::board_utils::read_refresh_seconds(systemConfig, battery_info.is_low());
-
-        log_i("Refresh seconds: %ld", refresh_delay.refresh_seconds);
+    if (refresh_delay.refresh_seconds > 0) {
+        log_d("Refresh seconds: %ld", refresh_delay.refresh_seconds);
 
         // add the refresh time to the current time
         // Update the current time with the refresh interval
@@ -275,37 +264,21 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
         if (refresh_delay.refresh_seconds <= 0) {
             log_w("Warning: Invalid refresh interval, using minimum interval as fallback");
             refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-            refresh_delay.refresh_microseconds =
-                (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
         } else if (refresh_delay.refresh_seconds > MAX_DEEP_SLEEP_SECONDS) {
-            refresh_delay.refresh_microseconds =
-                (uint64_t)MAX_DEEP_SLEEP_SECONDS * MICROSECONDS_IN_SECOND;
             log_w("Warning: Refresh interval capped to %d seconds to prevent overflow",
                   MAX_DEEP_SLEEP_SECONDS);
-        } else {
-            // Safe calculation using 64-bit arithmetic
-            refresh_delay.refresh_microseconds =
-                (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
+            refresh_delay.refresh_seconds = MAX_DEEP_SLEEP_SECONDS;
         }
 
         char humanReadable[64];
         photo_frame::string_utils::seconds_to_human(
             humanReadable, sizeof(humanReadable), refresh_delay.refresh_seconds);
-
-        log_i("Refresh interval in: %s", humanReadable);
+        log_d("Refresh interval in: %s", humanReadable);
     }
 
-    // Final validation - ensure we never return 0 microseconds
-    if (refresh_delay.refresh_microseconds == 0) {
-        log_e("CRITICAL: refresh_microseconds is 0, forcing minimum interval");
-        refresh_delay.refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS;
-        refresh_delay.refresh_microseconds =
-            (uint64_t)refresh_delay.refresh_seconds * MICROSECONDS_IN_SECOND;
-    }
-
-    log_i("Final refresh delay: %ld seconds (%lu microseconds)",
+    log_d("Final refresh delay: %ld seconds (%lu microseconds)",
           refresh_delay.refresh_seconds,
-          (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
+          (unsigned long)(refresh_delay.get_refresh_microseconds() / 1000000ULL));
 
     return refresh_delay;
 }
@@ -314,36 +287,22 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
                               DateTime& now,
                               esp_sleep_wakeup_cause_t wakeup_reason,
                               const refresh_delay_t& refresh_delay) {
-#ifdef RGB_STATUS_ENABLED
-    // Shutdown RGB status system to save power during sleep
-    log_i("[RGB] Shutting down RGB status system for sleep");
-    rgbStatus.end(); // Properly shutdown NeoPixel and FreeRTOS task
-#endif               // RGB_STATUS_ENABLED
+
+    log_i("=======================================");
+    log_i("- Finalizing and entering deep sleep...");
+    log_i("=======================================");
+
+    RGB_END();
 
     // Power off display and release resources before sleep
     photo_frame::DisplayManager::getInstance().powerOff();
     cleanup_image_buffer();
-
     delay(100);
-
-    // now go to sleep using the pre-calculated refresh delay
-    if (!battery_info.is_critical() &&
-        refresh_delay.refresh_microseconds > MICROSECONDS_IN_SECOND) {
-        log_i("Going to sleep for %ld seconds (%lu seconds from microseconds)",
-              refresh_delay.refresh_seconds,
-              (unsigned long)(refresh_delay.refresh_microseconds / 1000000ULL));
-    } else {
-        if (battery_info.is_critical()) {
-            log_w("Battery is critical, entering indefinite sleep");
-        } else {
-            log_w("Sleep time too short or invalid, entering default sleep");
-        }
-    }
 
     unsigned long elapsed = millis() - startupTime;
     log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
-
-    photo_frame::board_utils::enter_deep_sleep(wakeup_reason, refresh_delay.refresh_microseconds);
+    photo_frame::board_utils::enter_deep_sleep(wakeup_reason,
+                                               refresh_delay.get_refresh_microseconds());
 }
 
 photo_frame::photo_frame_error_t
@@ -358,34 +317,22 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
              const photo_frame::battery_info_t& battery_info) {
     photo_frame::photo_frame_error_t error = current_error;
 
-    // Get display capabilities
-    bool has_partial_update = photo_frame::rendererHasPartialUpdate();
-
-    if (error == photo_frame::error_type::None && !has_partial_update) {
-        // ----------------------------------------------
-        // the display does not support partial update
-        // ----------------------------------------------
-        log_w("Display does not support partial update!");
-
+    if (error == photo_frame::error_type::None) {
         bool rendering_failed = false;
         uint16_t error_code   = 0;
 
-#if defined(DISP_6C)
-        // ============================================
-        // 6C/7C displays: Non-paged rendering
-        // ============================================
-        // These displays render from PSRAM buffer (binary format only)
-        // Binary format - render from PSRAM buffer (already loaded)
-        // For 6C/7C displays: Use GFXcanvas8 to draw overlays on buffer with proper renderer
-        // functions
         log_i("[main] Rendering Mode 1 format from PSRAM buffer with overlays");
 
         // Check portrait mode from config (or preferences fallback)
         extern photo_frame::unified_config systemConfig;
         uint8_t rotation = systemConfig.board.display_rotation;
+
+        log_d("Configured display rotation: %d", rotation);
+
         if (!systemConfig.is_valid()) {
             auto& prefs = photo_frame::PreferencesHelper::getInstance();
             rotation    = prefs.getDisplayRotation();
+            log_w("Config invalid, using rotation from preferences: %u", rotation);
         }
 
         // Set rotation for portrait mode if needed
@@ -408,34 +355,7 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
         } else {
             log_i("Display render complete with overlays");
         }
-#else
-        // ============================================
-        // B/W displays: Same system as 6C, no paged rendering
-        // ============================================
-        auto& display = photo_frame::DisplayManager::getInstance();
 
-        // Set rotation for portrait mode if needed
-        display.setRotation(display_rotation);
-
-        // Draw overlay based on portrait mode
-        display.drawOverlay();
-
-        // Draw status information
-        display.drawLastUpdate(now, refresh_delay.refresh_seconds);
-        display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-        display.drawBatteryStatus(battery_info);
-
-        // Render the image with overlays to the display
-        log_i("Rendering B/W image to display...");
-        if (!display.render()) {
-            log_e("Failed to render B/W image!");
-            rendering_failed = true;
-        } else {
-            log_i("B/W display render complete with overlays");
-        }
-#endif
-
-#if defined(DISP_6C)
         // Power recovery delay after page refresh for 6-color displays
         // Increased from 400ms to 1000ms in v0.11.1 to improve power stability
         // Helps prevent:
@@ -443,7 +363,6 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
         // - Washout from incomplete capacitor recharge
         // - Display artifacts from power supply instability
         delay(1000);
-#endif
 
         // Handle rendering errors
         if (rendering_failed) {

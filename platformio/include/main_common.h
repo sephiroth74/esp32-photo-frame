@@ -36,7 +36,9 @@
 // ============================================================================
 typedef struct {
     long refresh_seconds;
-    uint64_t refresh_microseconds;
+    uint64_t get_refresh_microseconds() const {
+        return (uint64_t)refresh_seconds * MICROSECONDS_IN_SECOND;
+    };
 } refresh_delay_t;
 
 // ============================================================================

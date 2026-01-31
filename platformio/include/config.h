@@ -192,8 +192,6 @@
 #define REFRESH_DEFAULT_INTERVAL_SECONDS                                                           \
     (30 *                                                                                          \
      SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
-#define REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY                                                  \
-    (6 * SECONDS_IN_HOUR)                         // Critical battery refresh interval
 #define REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER 3 // Multiplier for low battery refresh interval
 
 /// Daily operation schedule
@@ -205,9 +203,9 @@
 
 /// Battery level thresholds (percentages)
 #define BATTERY_CHARGING_MILLIVOLTS 4300 // Voltage above which battery is considered charging
-#define BATTERY_PERCENT_EMPTY       5    // Battery percentage considered empty
-#define BATTERY_PERCENT_CRITICAL    10   // Battery percentage considered critical
-#define BATTERY_PERCENT_LOW         25   // Battery percentage considered low
+#define BATTERY_PERCENT_EMPTY       10    // Battery percentage considered empty
+#define BATTERY_PERCENT_CRITICAL    25   // Battery percentage considered critical
+#define BATTERY_PERCENT_LOW         40   // Battery percentage considered low
 
 // ============================================================================
 // NETWORK AND CONNECTIVITY

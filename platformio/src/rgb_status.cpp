@@ -76,6 +76,8 @@ bool RGBStatus::begin() {
     delay(50);                       // Wait for power stabilization
 #endif
 
+    log_i("[RGB] Initializing RGB status system...");
+
     // Initialize NeoPixel
     pixels = new Adafruit_NeoPixel(RGB_LED_COUNT, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
     if (!pixels) {

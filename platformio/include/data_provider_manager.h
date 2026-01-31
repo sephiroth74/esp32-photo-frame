@@ -32,12 +32,25 @@
 
 namespace photo_frame {
 
+/**
+ * @brief Manager for multiple data providers
+ *
+ * Handles registration and selection of data providers based on configuration.
+ */
 class DataProviderManager {
   public:
     explicit DataProviderManager(SdCard& sd_card, const unified_config& config);
 
+    /**
+     * @brief Register a data provider
+     * @param provider Pointer to the DataProvider instance
+     */
     void register_provider(DataProvider* provider);
 
+    /**
+     * @brief Get the currently active data provider based on configuration
+     * @return Pointer to the active DataProvider, or nullptr if none active
+     */
     DataProvider* get_active_provider() const;
 
     /**

@@ -33,6 +33,11 @@
 
 namespace photo_frame {
 
+/**
+ * @brief Abstract base class for data providers
+ * Data providers supply images to the photo frame from various sources
+ * (e.g., SD card, Google Drive,...).
+ */
 class DataProvider {
   public:
     virtual ~DataProvider()          = default;

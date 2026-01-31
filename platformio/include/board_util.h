@@ -22,6 +22,7 @@
 
 #ifndef __FOTO_FRAME_BOARD_UTIL_H__
 #define __FOTO_FRAME_BOARD_UTIL_H__
+#include "battery.h"
 #include "config.h"
 #include "errors.h"
 #include "unified_config.h"
@@ -161,11 +162,11 @@ void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_m
  * The interval can be adjusted based on battery level to conserve power when the battery is low.
  *
  * @param config The unified configuration containing refresh settings
- * @param is_battery_low If true, may increase the refresh interval to save power
+ * @param battery_info The current battery information for level checking
  * @return The refresh interval in seconds
  * @note Actual implementation depends on USE_POTENTIOMETER definition
  */
-long read_refresh_seconds(const unified_config& config, bool is_battery_low = false);
+long read_refresh_seconds(const unified_config& config, photo_frame::battery_info_t& battery_info);
 
 } // namespace board_utils
 

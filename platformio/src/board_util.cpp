@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "board_util.h"
+#include "battery.h"
 #include "string_utils.h"
 
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -212,7 +213,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
 #endif
 
     // Configure timer wakeup if refresh microseconds is provided
-    if (refresh_microseconds > 0) {
+    if (refresh_microseconds > MICROSECONDS_IN_SECOND) {
         log_i("Configuring timer wakeup for %lu seconds",
               (unsigned long)(refresh_microseconds / 1000000ULL));
         esp_sleep_enable_timer_wakeup(refresh_microseconds);
@@ -350,11 +351,13 @@ void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
 #endif
 } // blink_builtin_led
 
-long read_refresh_seconds(const unified_config& config, bool is_battery_low) {
-    if (is_battery_low) {
-        log_i("Battery level is low, using critical battery interval");
-        return REFRESH_INTERVAL_SECONDS_CRITICAL_BATTERY;
+long read_refresh_seconds(const unified_config& config, photo_frame::battery_info_t& battery_info) {
+    if (battery_info.is_critical()) {
+        log_w("Battery is critical, board should not wake up - returning 0 seconds");
+        return 0;
     }
+
+    long refresh_seconds;
 
 #ifdef USE_POTENTIOMETER
     log_i("Reading potentiometer...");
@@ -417,9 +420,9 @@ long read_refresh_seconds(const unified_config& config, bool is_battery_low) {
 #endif // DEBUG_BOARD
 
     // Map the exponential position to refresh seconds
-    long refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS +
-                           (long)(exponential_position *
-                                  (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS));
+    refresh_seconds = REFRESH_MIN_INTERVAL_SECONDS +
+                      (long)(exponential_position *
+                             (REFRESH_MAX_INTERVAL_SECONDS - REFRESH_MIN_INTERVAL_SECONDS));
 
     char buffer[64];
     photo_frame::string_utils::seconds_to_human(buffer, sizeof(buffer), refresh_seconds);
@@ -435,22 +438,20 @@ long read_refresh_seconds(const unified_config& config, bool is_battery_low) {
             (refresh_seconds / (long)REFRESH_STEP_SECONDS + 1) * (long)REFRESH_STEP_SECONDS;
     }
 
-    log_i("Final refresh seconds: %ld", refresh_seconds);
-
-    return refresh_seconds;
 #else
     // USE_POTENTIOMETER not defined - use default value from config
-    long refresh_seconds = config.board.refresh.default_seconds;
+    refresh_seconds = config.board.refresh.default_seconds;
+#endif // USE_POTENTIOMETER
 
     // Apply low battery multiplier if needed
-    if (is_battery_low) {
+    if (battery_info.is_low()) {
         refresh_seconds *= config.board.refresh.low_battery_multiplier;
     }
 
     log_i("Using default refresh interval from config: %ld seconds", refresh_seconds);
 
     return refresh_seconds;
-#endif
+
 } // read_refresh_seconds
 
 void print_board_pins() {
