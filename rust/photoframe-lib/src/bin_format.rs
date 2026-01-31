@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crc32fast::Hasher as Crc32Hasher;
 
 /// Magic 'PFR1' little-endian (0x50465231)

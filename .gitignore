@@ -69,3 +69,4 @@ rust/photoframe-lib/target/
 rust/photoframe-lib/tests/output/
 extras/SwiftUI_QuickLook/Build/
 flutter/desktop/macos/Build/
+rust/photoframe-processor2/target

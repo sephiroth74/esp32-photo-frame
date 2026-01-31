@@ -51,7 +51,7 @@ pub struct BinValidationResult {
 ///
 /// Safety: `ptr` must be a pointer previously returned by this crate and `len` must
 /// match the original allocation length.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn photoframe_dithering_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() {
         unsafe {
@@ -82,7 +82,7 @@ pub extern "C" fn photoframe_dithering_free(ptr: *mut u8, len: usize) {
 /// The function returns a `DitheringResult` with `data_ptr` pointing to a heap
 /// allocated PNG buffer; callers MUST call `photoframe_dithering_free(ptr, len)`
 /// to avoid memory leaks.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn photoframe_dithering_apply(
     image_data: *const u8,
     image_len: usize,
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn photoframe_dithering_apply(
                 height: 0,
                 data_ptr: std::ptr::null_mut(),
                 data_len: 0,
-            }
+            };
         }
     };
 
@@ -190,7 +190,7 @@ pub unsafe extern "C" fn photoframe_dithering_apply(
 /// - image_len: Length of image data
 /// - processing_type: 0 = BlackAndWhite, 1 = SixColors
 /// - rotation: Display rotation (0-3)
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn photoframe_convert_with_processing(
     image_data: *const u8,
     image_len: usize,
@@ -239,7 +239,7 @@ pub unsafe extern "C" fn photoframe_convert_with_processing(
 
 /// Validate a PFR1 .pfr1 file (C ABI).
 /// Returns metadata on success; on failure, success=false and other fields are zeroed.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn photoframe_validate_bin(
     data_ptr: *const u8,
     data_len: usize,

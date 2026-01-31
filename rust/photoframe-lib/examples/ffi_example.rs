@@ -1,5 +1,5 @@
 use photoframe_lib::{
-    photoframe_convert_with_processing, photoframe_dithering_free, DitheringResult,
+    DitheringResult, photoframe_convert_with_processing, photoframe_dithering_free,
 };
 use std::slice;
 

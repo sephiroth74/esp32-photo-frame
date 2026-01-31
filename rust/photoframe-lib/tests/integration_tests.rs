@@ -1,10 +1,9 @@
 use image::ImageReader;
 use image::RgbImage;
 use photoframe_lib::{
-    apply_color_adjustments, apply_dithering, convert_bw_to_demo_bitmap_mode1,
-    convert_image_from_bytes, convert_to_demo_bitmap_mode1, convert_to_esp32_binary,
-    photoframe_convert_with_processing, photoframe_dithering_free, DisplayType, DitheringMethod,
-    SIX_COLOR_PALETTE,
+    DisplayType, DitheringMethod, SIX_COLOR_PALETTE, apply_color_adjustments, apply_dithering,
+    convert_bw_to_demo_bitmap_mode1, convert_image_from_bytes, convert_to_demo_bitmap_mode1,
+    convert_to_esp32_binary, photoframe_convert_with_processing, photoframe_dithering_free,
 };
 use std::fs;
 
