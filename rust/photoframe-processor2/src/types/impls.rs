@@ -1,7 +1,7 @@
 use crate::types::{ColorType, HexColor, Orientation, ReportFormat, Size};
 use image::{Rgb, Rgba};
-use std::fmt::{Display, Formatter};
 use photoframe_lib::DisplayType;
+use std::fmt::{Display, Formatter};
 
 impl Display for ReportFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

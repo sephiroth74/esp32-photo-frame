@@ -220,7 +220,7 @@ pub fn apply_color_correction(
         if is_imagemagick_available() {
             match apply_imagemagick_auto_correction(img) {
                 Ok(corrected) => return Ok(corrected),
-                Err(e) => apply_fallback_auto_correction(img),
+                Err(_) => apply_fallback_auto_correction(img),
             }?
         } else {
             // Fall back to photoframe-lib
@@ -230,7 +230,7 @@ pub fn apply_color_correction(
         img.clone()
     };
 
-    if(brightness == 0 && contrast == 0 && saturation == 100) {
+    if brightness == 0 && contrast == 0 && saturation == 100 {
         // No manual adjustments needed
         eprintln!("No manual adjustments specified, skipping further color correction.");
         return Ok(processed_image);
@@ -239,7 +239,7 @@ pub fn apply_color_correction(
     // Try ImageMagick first for manual correction
     if is_imagemagick_available() {
         if let Ok(corrected) =
-                apply_imagemagick_manual_correction(&processed_image, brightness, contrast, saturation)
+            apply_imagemagick_manual_correction(&processed_image, brightness, contrast, saturation)
         {
             return Ok(corrected);
         }

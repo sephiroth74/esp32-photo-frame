@@ -30,7 +30,7 @@ pub enum ReportFormat {
     Json,
 }
 
-#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq, Hash)]
 pub enum OutputType {
     /// Generate only BMP files
     #[value(name = "bmp")]

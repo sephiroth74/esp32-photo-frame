@@ -103,6 +103,7 @@ pub struct Args {
 
     /// Output formats: comma-separated list of bmp, pfr1, jpg, png (e.g., "bmp,pfr1" or "jpg")
     #[arg(
+        short = 'f',
         long = "output-format",
         default_value = "pfr1",
         conflicts_with = "validate"

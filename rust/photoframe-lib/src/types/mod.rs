@@ -10,6 +10,16 @@ pub enum DisplayType {
     BlackAndWhite,
 }
 
+// Color mode used in the output .pfr1 binary file header.
+/// - `SixColors`: indicates 6-color mode (color_mode = 1).
+/// - `BlackAndWhite`: indicates black-and-white mode (color_mode = 0).
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[repr(u8)]
+pub enum ColorMode {
+    SixColors,
+    BlackAndWhite,
+}
+
 /// Available dithering algorithms implemented in this crate.
 ///
 /// Choose a method depending on the image characteristics and desired result:
@@ -25,6 +35,43 @@ pub enum DitheringMethod {
     Stucki,
     JarvisJudiceNinke,
     Ordered,
+}
+
+impl Into<u8> for ColorMode {
+    fn into(self) -> u8 {
+        match self {
+            ColorMode::BlackAndWhite => 0,
+            ColorMode::SixColors => 1,
+        }
+    }
+}
+
+impl From<u8> for ColorMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ColorMode::BlackAndWhite,
+            1 => ColorMode::SixColors,
+            _ => ColorMode::BlackAndWhite, // Default case
+        }
+    }
+}
+
+impl Into<ColorMode> for DisplayType {
+    fn into(self) -> ColorMode {
+        match self {
+            DisplayType::BlackAndWhite => ColorMode::BlackAndWhite,
+            DisplayType::SixColors => ColorMode::SixColors,
+        }
+    }
+}
+
+impl Into<DisplayType> for ColorMode {
+    fn into(self) -> DisplayType {
+        match self {
+            ColorMode::BlackAndWhite => DisplayType::BlackAndWhite,
+            ColorMode::SixColors => DisplayType::SixColors,
+        }
+    }
 }
 
 impl DisplayType {

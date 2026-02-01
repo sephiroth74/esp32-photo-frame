@@ -194,26 +194,17 @@ pub unsafe extern "C" fn photoframe_dithering_apply(
 pub unsafe extern "C" fn photoframe_convert_with_processing(
     image_data: *const u8,
     image_len: usize,
-    processing_type: u8,
     rotation: u8,
+    color_mode: ColorMode,
 ) -> DitheringResult {
     // Convert input to slice
     let input_slice = unsafe { slice::from_raw_parts(image_data, image_len) };
 
-    let ptype = match processing_type {
-        0 => DisplayType::BlackAndWhite,
-        1 => DisplayType::SixColors,
-        _ => DisplayType::SixColors,
-    };
+    
 
-    match convert_image_from_bytes(input_slice, ptype) {
+    match convert_image_from_bytes(input_slice, color_mode.into()) {
         Some((payload, w, h)) => {
             // Infer color mode: 0 if all bytes are 0x00 or 0xFF (BW), else 1 (6C)
-            let color_mode = if payload.iter().all(|&b| b == 0x00 || b == 0xFF) {
-                0
-            } else {
-                1
-            };
             // Build .pfr1 file with PFR1 header
             let mut buf = build_bin_file(&payload, w as u16, h as u16, rotation, color_mode, 1u8);
             let len = buf.len();

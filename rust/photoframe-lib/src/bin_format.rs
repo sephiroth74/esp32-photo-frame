@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use crc32fast::Hasher as Crc32Hasher;
+use crate::ColorMode;
 
 /// Magic 'PFR1' little-endian (0x50465231)
 pub const BIN_MAGIC: u32 = 0x5046_5231;
@@ -33,7 +34,7 @@ pub fn build_bin_file(
     width: u16,
     height: u16,
     rotation: u8,
-    color_mode: u8,
+    color_mode: ColorMode,
     version: u8,
 ) -> Vec<u8> {
     let mut header = Vec::with_capacity(BIN_HEADER_SIZE);
@@ -43,7 +44,7 @@ pub fn build_bin_file(
     header.extend_from_slice(&width.to_le_bytes());
     header.extend_from_slice(&height.to_le_bytes());
     header.push(rotation);
-    header.push(color_mode);
+    header.push(Into::<u8>::into(color_mode));
     header.extend_from_slice(&(payload.len() as u32).to_le_bytes());
 
     // CRC32 over header bytes excluding the CRC itself
@@ -178,7 +179,7 @@ mod tests {
         let w = 800u16;
         let h = 480u16;
         let rot = 1u8;
-        let color = 1u8;
+        let color = ColorMode::SixColors;
         let ver = 1u8;
         let payload: Vec<u8> = (0..64u8).collect();
 
@@ -191,7 +192,7 @@ mod tests {
         assert_eq!(hw, w);
         assert_eq!(hh, h);
         assert_eq!(hdr.rotation, rot);
-        assert_eq!(hdr.color_mode, color);
+        assert_eq!(hdr.color_mode, color.into());
         assert_eq!(hdr.payload_len as usize, payload.len());
 
         let mut ph = Crc32Hasher::new();
@@ -204,7 +205,7 @@ mod tests {
     #[test]
     fn validate_bin_file_ok() {
         let payload: Vec<u8> = (0..32u8).collect();
-        let file = build_bin_file(&payload, 16, 2, 0, 1, 1);
+        let file = build_bin_file(&payload, 16, 2, 0, ColorMode::SixColors, 1);
 
         let validation = validate_bin_file(&file).expect("validation should succeed");
         let width = validation.header.width;
@@ -217,7 +218,7 @@ mod tests {
     #[test]
     fn validate_bin_file_bad_payload_crc() {
         let payload: Vec<u8> = (0..8u8).collect();
-        let mut file = build_bin_file(&payload, 4, 2, 0, 1, 1);
+        let mut file = build_bin_file(&payload, 4, 2, 0, ColorMode::SixColors, 1);
 
         // Corrupt one payload byte to break CRC
         let payload_start = BIN_HEADER_SIZE;

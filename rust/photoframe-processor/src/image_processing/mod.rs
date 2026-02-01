@@ -35,14 +35,6 @@ use crate::utils::{create_readable_combined_filename, has_valid_extension, verbo
 use combine::combine_processed_portraits;
 use orientation::get_effective_target_dimensions;
 
-fn infer_color_mode(payload: &[u8]) -> u8 {
-    if payload.iter().all(|&b| b == 0x00 || b == 0xFF) {
-        0
-    } else {
-        1
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ProcessingConfig {
     pub processing_type: DisplayType,
@@ -1014,13 +1006,12 @@ impl ProcessingEngine {
                     let payload =
                         process_image_with_display_type(&final_img, self.config.processing_type)?;
                     let (w, h) = final_img.dimensions();
-                    let color_mode = infer_color_mode(&payload);
                     let bin = photoframe_lib::build_bin_file(
                         &payload,
                         w as u16,
                         h as u16,
                         self.config.target_orientation.orientation.into(),
-                        color_mode,
+                        self.config.processing_type.into(),
                         1u8,
                     );
                     photoframe_lib::validate_bin_file(&bin)
@@ -1334,13 +1325,12 @@ impl ProcessingEngine {
                     let payload =
                         process_image_with_display_type(&final_img, self.config.processing_type)?;
                     let (w, h) = final_img.dimensions();
-                    let color_mode = infer_color_mode(&payload);
                     let bin = photoframe_lib::build_bin_file(
                         &payload,
                         w as u16,
                         h as u16,
                         self.config.target_orientation.orientation.into(),
-                        color_mode,
+                        self.config.processing_type.into(),
                         1u8,
                     );
                     photoframe_lib::validate_bin_file(&bin)
@@ -2047,13 +2037,12 @@ impl ProcessingEngine {
                         self.config.processing_type,
                     )?;
                     let (w, h) = final_combined_img.dimensions();
-                    let color_mode = infer_color_mode(&payload);
                     let bin = photoframe_lib::build_bin_file(
                         &payload,
                         w as u16,
                         h as u16,
                         self.config.target_orientation.orientation.into(),
-                        color_mode,
+                        self.config.processing_type.into(),
                         1u8,
                     );
                     photoframe_lib::validate_bin_file(&bin)
@@ -2780,13 +2769,12 @@ impl ProcessingEngine {
                     let payload =
                         process_image_with_display_type(&combined, self.config.processing_type)?;
                     let (w, h) = combined.dimensions();
-                    let color_mode = infer_color_mode(&payload);
                     let bin = photoframe_lib::build_bin_file(
                         &payload,
                         w as u16,
                         h as u16,
                         self.config.target_orientation.orientation.into(),
-                        color_mode,
+                        self.config.processing_type.into(),
                         1u8,
                     );
                     photoframe_lib::validate_bin_file(&bin)

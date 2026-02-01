@@ -1,6 +1,4 @@
-use photoframe_lib::{
-    DitheringResult, photoframe_convert_with_processing, photoframe_dithering_free,
-};
+use photoframe_lib::{DitheringResult, photoframe_convert_with_processing, photoframe_dithering_free, ColorMode};
 use std::slice;
 
 fn main() {
@@ -12,7 +10,7 @@ fn main() {
     unsafe {
         // 0 = BW, rotation = 0
         let res: DitheringResult =
-            photoframe_convert_with_processing(bytes.as_ptr(), bytes.len(), 0, 0);
+            photoframe_convert_with_processing(bytes.as_ptr(), bytes.len(), 0, ColorMode::BlackAndWhite);
         if res.success {
             let payload: &[u8] = slice::from_raw_parts(res.data_ptr, res.data_len);
             println!(
@@ -32,7 +30,7 @@ fn main() {
 
         // 1 = SixColors, rotation = 0
         let res2: DitheringResult =
-            photoframe_convert_with_processing(bytes.as_ptr(), bytes.len(), 1, 0);
+            photoframe_convert_with_processing(bytes.as_ptr(), bytes.len(), 0, ColorMode::SixColors);
         if res2.success {
             let payload: &[u8] = slice::from_raw_parts(res2.data_ptr, res2.data_len);
             println!(
