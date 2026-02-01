@@ -1,5 +1,5 @@
 // rust
-use crate::types::{ColorType, Orientation, OutputType, ReportFormat};
+use crate::types::{ColorType, HexColor, Orientation, OutputType, ReportFormat};
 use clap::Parser;
 use photoframe_lib::DitheringMethod;
 use std::path::PathBuf;
@@ -62,7 +62,7 @@ pub struct Args {
         long = "input",
         required_unless_present_any = ["validate"],
         conflicts_with = "validate",
-        value_name = "DIR"
+        value_name = "DIR|FILE"
     )]
     pub input: Vec<PathBuf>,
 
@@ -109,13 +109,20 @@ pub struct Args {
     )]
     pub output_formats: Vec<OutputType>,
 
+    #[arg(
+        long = "no-pairing",
+        conflicts_with_all = ["validate", "divider_width", "divider_color"],
+        help = "Disable automatic pairing of images into combined files"
+    )]
+    pub no_pairing: bool,
+
     /// Comma-separated list of image extensions to process
     #[arg(
         long = "extensions",
         default_value = "jpg,jpeg,png,webp,tiff",
         conflicts_with = "validate"
     )]
-    pub extensions: Vec<String>,
+    pub extensions: String,
 
     /// Enable filename annotations on processed images (default: false)
     #[arg(long = "annotate", conflicts_with = "validate")]
@@ -142,14 +149,15 @@ pub struct Args {
     )]
     pub font: String,
 
-    /// Background color for text annotations (hex with alpha, e.g., #00000040)
+    /// Background color for text annotations (ARGB hex, e.g., #40000000 for semi-transparent black)
     #[arg(
         long = "annotation_background",
-        default_value = "#00000040",
+        default_value = "#40000000",
         value_name = "COLOR",
+        value_parser = HexColor::parse,
         conflicts_with = "validate"
     )]
-    pub annotation_background: String,
+    pub annotation_background: HexColor,
 
     /// Width of the divider line between combined portrait images in pixels
     #[arg(
@@ -160,14 +168,15 @@ pub struct Args {
     )]
     pub divider_width: u32,
 
-    /// Color of the divider line between combined portrait images (hex RGB, e.g., #FFFFFF for white)
+    /// Color of the divider line between combined portrait images (hex ARGB, e.g., #FFFFFF for white)
     #[arg(
         long = "divider-color",
-        default_value = "#FFFFFF",
+        default_value = "#FFFFFFFF",
         value_name = "COLOR",
+        value_parser = HexColor::parse,
         conflicts_with = "validate"
     )]
-    pub divider_color: String,
+    pub divider_color: HexColor,
 
     /// Dithering method for color quantization
     #[arg(

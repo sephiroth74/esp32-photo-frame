@@ -1,30 +1,86 @@
+use crate::cli::Args;
 use clap::Parser;
 use std::fs;
 use std::process;
 
 mod cli;
+mod discovery;
+mod fs_utils;
+mod logging;
 mod types;
 
+fn main() {
+    let args = cli::Args::parse();
+    let logger = logging::Logger::new(args.verbose, false);
+
+    // Handle validation mode early exit
+    if let Some(ref validate_path) = args.validate {
+        match run_validation(validate_path, &logger) {
+            Ok(_) => process::exit(0),
+            Err(e) => {
+                logger.error(&format!("Validation error: {}", e));
+                process::exit(1);
+            }
+        }
+    }
+
+    print_configuration(&args, &logger);
+
+    // Create output directories for all requested formats
+    logger.info("Creating output directories...");
+
+    if let Err(e) = fs_utils::create_format_directories(&args.output, &args.output_formats) {
+        logger.error(&format!("Failed to create output directories: {}", e));
+        process::exit(1);
+    }
+
+    logger.success("Output directories created successfully");
+    logger.info("");
+    logger.info("Discovering input files...");
+
+    let extensions = args
+        .extensions
+        .split(',')
+        .map(|x| x.trim())
+        .collect::<Vec<_>>();
+    let discovery = discovery::Discovery::new(&extensions, &logger);
+    let input_files = match discovery.discover(&args.input) {
+        Ok(files) => files,
+        Err(e) => {
+            logger.error(&format!("Discovery failed: {}", e));
+            process::exit(1);
+        }
+    };
+
+    logger.success(&format!(
+        "Discovery completed: {} file(s)",
+        input_files.len()
+    ));
+    logger.info("");
+    logger.info("Starting image processing...");
+    logger.info("");
+}
+
 /// Run PFR1 file validation and exit
-fn run_validation(path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    println!("═══════════════════════════════════════════════════════════════");
-    println!("🔍 PFR1 FILE VALIDATION");
-    println!("═══════════════════════════════════════════════════════════════");
-    println!();
-    println!("File: {}", path.display());
-    println!();
+fn run_validation(
+    path: &std::path::Path,
+    logger: &logging::Logger,
+) -> Result<(), Box<dyn std::error::Error>> {
+    logger.section("🔍 PFR1 FILE VALIDATION");
+    logger.info(&format!("File: {}", path.display()));
+    logger.info("");
 
     // Read file
     let data = match fs::read(path) {
         Ok(d) => d,
         Err(e) => {
-            println!("❌ ERROR: Failed to read file: {}", e);
+            logger.error(&format!("Failed to read file: {}", e));
             process::exit(1);
         }
     };
 
-    println!("File size: {} bytes", data.len());
-    println!();
+    logger.info(&format!("File size: {} bytes", data.len()));
+    logger.info("");
 
     // Validate using photoframe-lib
     match photoframe_lib::validate_bin_file(&data) {
@@ -41,224 +97,199 @@ fn run_validation(path: &std::path::Path) -> Result<(), Box<dyn std::error::Erro
             let header_crc32 = header.header_crc32;
             let payload_crc32 = validation.payload_crc32;
 
-            println!("✅ VALIDATION SUCCESSFUL");
-            println!();
-            println!("HEADER INFORMATION:");
-            println!("  Version:            {}", version);
-            println!("  Header length:      {} bytes", header_len);
-            println!(
-                "  Magic:              0x{:08X} ('PFR1')",
-                photoframe_lib::BIN_MAGIC
+            logger.success("VALIDATION SUCCESSFUL");
+            logger.info("");
+            logger.config_section("HEADER INFORMATION");
+            logger.config_item("Version", &version.to_string());
+            logger.config_item("Header length", &format!("{} bytes", header_len));
+            logger.config_item(
+                "Magic",
+                &format!("0x{:08X} ('PFR1')", photoframe_lib::BIN_MAGIC),
             );
-            println!("  Width:              {} px", width);
-            println!("  Height:             {} px", height);
-            println!(
-                "  Rotation:           {} ({}°)",
-                rotation,
-                rotation as u16 * 90
+            logger.config_item("Width", &format!("{} px", width));
+            logger.config_item("Height", &format!("{} px", height));
+            logger.config_item(
+                "Rotation",
+                &format!("{} ({}°)", rotation, rotation as u16 * 90),
             );
-            println!(
-                "  Color mode:         {} ({})",
-                color_mode,
-                if color_mode == 0 {
-                    "Black & White"
-                } else {
-                    "6-Color"
-                }
+            logger.config_item(
+                "Color mode",
+                &format!(
+                    "{} ({})",
+                    color_mode,
+                    if color_mode == 0 {
+                        "Black & White"
+                    } else {
+                        "6-Color"
+                    }
+                ),
             );
-            println!("  Payload length:     {} bytes", payload_len);
-            println!("  Actual payload:     {} bytes", validation.payload.len());
-            println!(
-                "  Expected size:      {} bytes ({}×{})",
-                width as u32 * height as u32,
-                width,
-                height
+            logger.config_item("Payload length", &format!("{} bytes", payload_len));
+            logger.config_item(
+                "Actual payload",
+                &format!("{} bytes", validation.payload.len()),
             );
-            println!("  Header CRC32:       0x{:08X}", header_crc32);
-            println!("  Payload CRC32:      0x{:08X}", payload_crc32);
-            println!();
+            logger.config_item(
+                "Expected size",
+                &format!(
+                    "{} bytes ({}×{})",
+                    width as u32 * height as u32,
+                    width,
+                    height
+                ),
+            );
+            logger.config_item("Header CRC32", &format!("0x{:08X}", header_crc32));
+            logger.config_item("Payload CRC32", &format!("0x{:08X}", payload_crc32));
+            logger.info("");
 
             // Consistency checks
             let expected_payload = width as u32 * height as u32;
             if payload_len != expected_payload {
-                println!("⚠️  WARNING: Payload length mismatch!");
-                println!("   Header says:  {} bytes", payload_len);
-                println!("   Expected:     {} bytes", expected_payload);
+                logger.warning("Payload length mismatch!");
+                logger.verbose(&format!("   Header says:  {} bytes", payload_len));
+                logger.verbose(&format!("   Expected:     {} bytes", expected_payload));
             }
 
             if validation.payload.len() != payload_len as usize {
-                println!("⚠️  WARNING: Actual payload size doesn't match header!");
-                println!("   Header says:  {} bytes", payload_len);
-                println!("   Actual:       {} bytes", validation.payload.len());
+                logger.warning("Actual payload size doesn't match header!");
+                logger.verbose(&format!("   Header says:  {} bytes", payload_len));
+                logger.verbose(&format!(
+                    "   Actual:       {} bytes",
+                    validation.payload.len()
+                ));
             }
 
             if rotation > 3 {
-                println!("⚠️  WARNING: Invalid rotation value: {}", rotation);
+                logger.warning(&format!("Invalid rotation value: {}", rotation));
             }
 
             if color_mode > 1 {
-                println!("⚠️  WARNING: Invalid color mode: {}", color_mode);
+                logger.warning(&format!("Invalid color mode: {}", color_mode));
             }
 
-            println!();
+            logger.info("");
 
             Ok(())
         }
         Err(e) => {
-            println!("❌ VALIDATION FAILED");
-            println!();
-            println!("Error: {}", e);
-            println!();
+            logger.error("VALIDATION FAILED");
+            logger.info("");
+            logger.info(&format!("Error: {}", e));
+            logger.info("");
 
             // Try to provide more details
             if data.len() < photoframe_lib::BIN_HEADER_SIZE {
-                println!("File is too small to contain a valid PFR1 header.");
-                println!("   Minimum size: {} bytes", photoframe_lib::BIN_HEADER_SIZE);
-                println!("   Actual size:  {} bytes", data.len());
+                logger.info("File is too small to contain a valid PFR1 header.");
+                logger.info(&format!(
+                    "   Minimum size: {} bytes",
+                    photoframe_lib::BIN_HEADER_SIZE
+                ));
+                logger.info(&format!("   Actual size:  {} bytes", data.len()));
             } else if data.len() >= 4 {
                 let magic = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 if magic != photoframe_lib::BIN_MAGIC {
-                    println!("Invalid magic number: 0x{:08X}", magic);
-                    println!("   Expected: 0x{:08X} ('PFR1')", photoframe_lib::BIN_MAGIC);
-                    println!("   This file is not a valid PFR1 file.");
+                    logger.info(&format!("Invalid magic number: 0x{:08X}", magic));
+                    logger.info(&format!(
+                        "   Expected: 0x{:08X} ('PFR1')",
+                        photoframe_lib::BIN_MAGIC
+                    ));
+                    logger.info("   This file is not a valid PFR1 file.");
                 }
             }
 
-            println!();
-            println!("═══════════════════════════════════════════════════════════════");
+            logger.info("");
+            logger.divider();
 
             process::exit(1);
         }
     }
 }
 
-fn main() {
-    let args = cli::Args::parse();
-
-    // Handle validation mode early exit
-    if let Some(ref validate_path) = args.validate {
-        match run_validation(validate_path) {
-            Ok(_) => process::exit(0),
-            Err(e) => {
-                eprintln!("Validation error: {}", e);
-                process::exit(1);
-            }
-        }
-    }
-
+fn print_configuration(args: &Args, logger: &logging::Logger) {
     let dither_strength: f32 = (args.dither_strength as f32) / 100f32;
     let saturation: f32 = (args.saturation as f32) / 100f32;
 
-    println!("═══════════════════════════════════════════════════════════════");
-    println!("Configuration Summary");
-    println!("═══════════════════════════════════════════════════════════════");
-    println!();
+    logger.section("Configuration Summary");
 
     // Input/Output
-    println!("INPUT/OUTPUT:");
-    println!("  Input paths:        {:?}", args.input);
-    println!("  Output directory:   {}", args.output.display());
-    println!("  File extensions:    {:?}", args.extensions.join(", "));
-    println!("  Formats:            {:?}", args.output_formats);
-    println!();
+    logger.config_section("INPUT/OUTPUT");
+    logger.config_item("Input paths", &format!("{:?}", args.input));
+    logger.config_item("Output directory", &args.output.display().to_string());
+    logger.config_item("File extensions", &args.extensions);
+    logger.config_item("Formats", &format!("{:?}", args.output_formats));
+    logger.info("");
 
     // Display Configuration
-    println!("DISPLAY CONFIGURATION:");
-    println!("  Color type:         {:?}", args.processing_type);
-    println!("  Target orientation: {:?}", args.target_orientation);
-    println!();
+    logger.config_section("DISPLAY CONFIGURATION");
+    logger.config_item("Color type", &format!("{:?}", args.processing_type));
+    logger.config_item(
+        "Target orientation",
+        &format!("{:?}", args.target_orientation),
+    );
+    logger.info("");
 
     // Processing Options
-    println!("PROCESSING OPTIONS:");
     if args.jobs > 0 {
-        println!("  Parallel jobs:      {} (0 = auto)", args.jobs);
+        logger.config_section("PROCESSING OPTIONS");
+        logger.config_item("Parallel jobs", &format!("{} (0 = auto)", args.jobs));
+        logger.info("");
     }
-    println!();
 
     // Image Adjustments
-    println!("IMAGE ADJUSTMENTS:");
+    logger.config_section("IMAGE ADJUSTMENTS");
     if args.auto_optimize {
-        println!("  Auto optimize:      {}", args.auto_optimize);
+        logger.config_item("Auto optimize", &args.auto_optimize.to_string());
     } else {
-        println!("  Auto color correct: {}", args.auto_color_correct);
-        println!("  Brightness:         {:+} ", args.brightness);
-        println!("  Contrast:           {:+} ", args.contrast);
-        println!("  Saturation:         {} x", saturation);
+        logger.config_item("Auto color correct", &args.auto_color_correct.to_string());
+        logger.config_item("Brightness", &format!("{:+} ", args.brightness));
+        logger.config_item("Contrast", &format!("{:+} ", args.contrast));
+        logger.config_item("Saturation", &format!("{} x", saturation));
     }
-    println!();
+    logger.info("");
 
     // Dithering
-    println!("DITHERING:");
-    println!("  Method:             {:?}", args.dithering_method);
-    println!("  Strength:           {}", dither_strength);
-    println!();
+    logger.config_section("DITHERING");
+    logger.config_item("Method", &format!("{:?}", args.dithering_method));
+    logger.config_item("Strength", &dither_strength.to_string());
+    logger.info("");
 
     // Portrait Pairing
-    println!("PAIRING:");
-    println!("  Divider width:      {} px", args.divider_width);
-    println!("  Divider color:      #{}", args.divider_color);
-    println!();
+    logger.config_section("PAIRING");
+
+    if args.no_pairing {
+        logger.config_item("No-pairing", &args.no_pairing.to_string());
+    } else {
+        logger.config_item("Divider width", &format!("{} px", args.divider_width));
+        logger.config_item("Divider color", &args.divider_color.to_string());
+    }
+    logger.info("");
 
     // AI Features
     #[cfg(feature = "ai")]
     if args.detect_people {
-        println!("AI FEATURES:");
-        println!("  Confidence threshold: {:.2}", args.confidence_threshold);
-        println!();
+        logger.config_section("AI FEATURES");
+        logger.config_item(
+            "Confidence threshold",
+            &format!("{:.2}", args.confidence_threshold),
+        );
+        logger.info("");
     }
 
     // Annotation
     if args.annotate {
-        println!("ANNOTATION:");
-        println!("  Font name:          {:?}", args.font);
-        println!("  Font size:          {} px", args.font_size);
-        println!();
+        logger.config_section("ANNOTATION");
+        logger.config_item("Font name", &format!("{:?}", args.font));
+        logger.config_item("Font size", &format!("{} px", args.font_size));
+        logger.info("");
     }
 
     // Configuration & Mode
-    println!("CONFIGURATION & MODE:");
-    println!("  Verbose:            {}", args.verbose);
-    println!("  Debug mode:         {}", args.debug);
-    println!("  JSON progress:      {}", args.json_progress);
-    println!("  Generate report:    {}", args.report);
-    println!("  Validate PFR1:      {:?}", args.validate);
-    println!();
+    logger.config_section("CONFIGURATION & MODE");
+    logger.config_item("Debug mode", &args.debug.to_string());
+    logger.config_item("Verbose", &args.verbose.to_string());
+    logger.config_item("JSON progress", &args.json_progress.to_string());
+    logger.config_item("Generate report", &args.report.to_string());
+    logger.info("");
 
-    println!("═══════════════════════════════════════════════════════════════");
-    println!();
-
-    // Validation and summary
-    let mut validation_ok = true;
-
-    if args.confidence_threshold < 0.0 || args.confidence_threshold > 1.0 {
-        println!("  ❌ Confidence threshold must be 0.0-1.0");
-        validation_ok = false;
-    } else {
-        println!("  ✓ Confidence threshold valid");
-    }
-
-    if args.input.is_empty() {
-        println!("  ❌ At least one input path required");
-        validation_ok = false;
-    } else {
-        println!("  ✓ Input paths specified");
-    }
-
-    if args.output.as_os_str().is_empty() {
-        println!("  ❌ Output directory required");
-        validation_ok = false;
-    } else {
-        println!("  ✓ Output directory specified");
-    }
-
-    println!();
-
-    if validation_ok {
-        println!("✨ All parameters valid! Ready for processing.");
-    } else {
-        println!("⚠️  Some parameters are invalid. Please review and try again.");
-        std::process::exit(1);
-    }
-
-    println!();
+    logger.divider();
 }

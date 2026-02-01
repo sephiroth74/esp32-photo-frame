@@ -1,8 +1,9 @@
-use crate::types::{Orientation, ReportFormat};
-use std::fmt::Display;
+use crate::types::{HexColor, Orientation, ReportFormat};
+use image::Rgba;
+use std::fmt::{Display, Formatter};
 
 impl Display for ReportFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             ReportFormat::Rich => "rich",
             ReportFormat::Json => "json",
@@ -21,5 +22,70 @@ impl From<&str> for Orientation {
             "3" | "portrait-reverse" | "270°" => Orientation::PortraitReverse,
             _ => Orientation::Landscape, // Default case
         }
+    }
+}
+
+impl TryFrom<&str> for HexColor {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if !value.starts_with('#') {
+            return Err("value string must start with '#'");
+        }
+
+        let hex = &value[1..];
+
+        match hex.len() {
+            3 => {
+                // #RGB -> #RRGGBB
+                let r = u8::from_str_radix(&hex[0..1].repeat(2), 16)
+                    .map_err(|_| "hex color parse error")?;
+                let g = u8::from_str_radix(&hex[1..2].repeat(2), 16)
+                    .map_err(|_| "hex color parse error")?;
+                let b = u8::from_str_radix(&hex[2..3].repeat(2), 16)
+                    .map_err(|_| "hex color parse error")?;
+                Ok(Self(255, r, g, b))
+            }
+            6 => {
+                // #RRGGBB
+                let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "hex color parse error")?;
+                let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "hex color parse error")?;
+                let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "hex color parse error")?;
+                Ok(Self(255, r, g, b))
+            }
+            8 => {
+                // #AARRGGBB
+                let a = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "hex color parse error")?;
+                let r = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "hex color parse error")?;
+                let g = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "hex color parse error")?;
+                let b = u8::from_str_radix(&hex[6..8], 16).map_err(|_| "hex color parse error")?;
+                Ok(Self(a, r, g, b))
+            }
+            _ => Err("Invalid hex color format"),
+        }
+    }
+}
+
+impl HexColor {
+    pub fn parse(value: &str) -> anyhow::Result<Self> {
+        value
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("HexColor parse error"))
+    }
+}
+
+impl Display for HexColor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut rgb = self.0 as u32;
+        rgb = (rgb << 8) + self.1 as u32;
+        rgb = (rgb << 8) + self.2 as u32;
+        rgb = (rgb << 8) + self.3 as u32;
+        write!(f, "{:#06x}", rgb)
+    }
+}
+
+impl Into<Rgba<u8>> for HexColor {
+    fn into(self) -> Rgba<u8> {
+        Rgba::from([self.1, self.2, self.3, self.0])
     }
 }

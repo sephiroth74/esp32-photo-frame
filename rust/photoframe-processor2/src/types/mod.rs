@@ -57,3 +57,6 @@ enum DitheringMethod {
     #[value(name = "error_diffusion")]
     ErrorDiffusion,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HexColor(pub u8, pub u8, pub u8, pub u8);
