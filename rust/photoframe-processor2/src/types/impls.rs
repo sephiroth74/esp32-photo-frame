@@ -1,4 +1,4 @@
-use crate::types::{HexColor, Orientation, ReportFormat};
+use crate::types::{ColorType, HexColor, Orientation, ReportFormat, Size};
 use image::Rgba;
 use std::fmt::{Display, Formatter};
 
@@ -87,5 +87,25 @@ impl Display for HexColor {
 impl Into<Rgba<u8>> for HexColor {
     fn into(self) -> Rgba<u8> {
         Rgba::from([self.1, self.2, self.3, self.0])
+    }
+}
+
+impl Size {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+}
+
+impl ColorType {
+    pub fn into_size(self, orientation: Orientation) -> Size {
+        match orientation {
+            Orientation::Landscape | Orientation::LandscapeReverse => match self {
+                ColorType::BlackWhite | ColorType::SixColor => Size::new(800, 480),
+            },
+
+            Orientation::Portrait | Orientation::PortraitReverse => match self {
+                ColorType::BlackWhite | ColorType::SixColor => Size::new(480, 800),
+            },
+        }
     }
 }

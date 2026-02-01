@@ -92,6 +92,23 @@ fn main() {
 
     logger.info("Starting image processing...");
     logger.info("");
+
+    let processing = match processor.process(&plan, args.json_progress) {
+        Ok(result) => result,
+        Err(e) => {
+            logger.error(&format!("Processing failed: {}", e));
+            process::exit(1);
+        }
+    };
+
+    if !args.json_progress {
+        logger.success(&format!(
+            "Processing completed: {} processed, {} failed",
+            processing.processed.len(),
+            processing.failed.len()
+        ));
+        logger.info("");
+    }
 }
 
 /// Run PFR1 file validation and exit

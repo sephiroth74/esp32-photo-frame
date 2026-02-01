@@ -60,3 +60,9 @@ enum DitheringMethod {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HexColor(pub u8, pub u8, pub u8, pub u8);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Size {
+    pub width: u32,
+    pub height: u32,
+}

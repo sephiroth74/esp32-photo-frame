@@ -1,13 +1,24 @@
 mod pairing;
+mod resize;
 mod types;
 
+use resize::resize_to_cover;
 pub use types::{ProcessingPlan, SingleImage};
 
 use crate::cli::Args;
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
-use crate::types::Orientation;
+use crate::types::{Orientation, Size};
+use anyhow::{Context, Result};
+use image::imageops::FilterType;
+use imageproc::drawing::Canvas;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 use std::io;
+use std::path::PathBuf;
+use std::time::Duration;
+use tempfile::{Builder, TempPath};
 
 pub struct ImageProcessor<'a> {
     args: &'a Args,
@@ -160,4 +171,253 @@ impl<'a> ImageProcessor<'a> {
             .config_item("Total output images", &plan.output_count().to_string());
         self.logger.divider();
     }
+
+    /// Process all images in the plan using multithreading and temporary files
+    pub fn process(&self, plan: &ProcessingPlan, json_progress: bool) -> Result<ProcessingResult> {
+        let jobs = self.build_jobs(plan);
+        if jobs.is_empty() {
+            self.logger.warning("No images to process");
+            return Ok(ProcessingResult {
+                processed: Vec::new(),
+                failed: Vec::new(),
+            });
+        }
+
+        let total_jobs = jobs.len();
+
+        let thread_count = if self.args.jobs == 0 {
+            num_cpus::get()
+        } else {
+            self.args.jobs
+        };
+
+        if !json_progress {
+            self.logger.info(&format!(
+                "Processing with {} thread(s)",
+                thread_count.max(1)
+            ));
+        }
+
+        let pool = ThreadPoolBuilder::new()
+            .num_threads(thread_count.max(1))
+            .build()
+            .context("Failed to create thread pool")?;
+
+        let multi = MultiProgress::new();
+        let global_bar = if json_progress {
+            None
+        } else {
+            let pb = multi.add(ProgressBar::new(total_jobs as u64));
+            pb.set_style(
+                ProgressStyle::with_template("Global [{bar:40.cyan/blue}] {pos}/{len} {eta}")
+                    .unwrap()
+                    .progress_chars("██▌ "),
+            );
+            pb.set_message("Processing images");
+            Some(pb)
+        };
+
+        let thread_bars: Option<Vec<ProgressBar>> = if json_progress {
+            None
+        } else {
+            let bars = (0..thread_count.max(1))
+                .map(|idx| {
+                    let pb = multi.add(ProgressBar::new(4));
+                    pb.set_style(
+                        ProgressStyle::with_template("{msg} [{bar:20.cyan/blue}] {pos}/{len}")
+                            .unwrap()
+                            .progress_chars("██▌ "),
+                    );
+                    pb.set_message(format!("Job {:2}: idle", idx + 1));
+                    pb.enable_steady_tick(Duration::from_millis(120));
+                    pb
+                })
+                .collect();
+            Some(bars)
+        };
+
+        let results: Vec<(Result<ProcessedImage>, PathBuf)> = pool.install(|| {
+            jobs.into_par_iter()
+                .enumerate()
+                .map(|(_idx, job)| {
+                    let mut thread_idx = 0usize;
+                    let pb = thread_bars.as_ref().map(|bars| {
+                        thread_idx = rayon::current_thread_index().unwrap_or(0) % bars.len();
+                        bars[thread_idx].clone()
+                    });
+
+                    if let Some(pb) = &pb {
+                        let filename = job
+                            .image
+                            .path
+                            .file_name()
+                            .map(|v| v.to_string_lossy())
+                            .unwrap_or_else(|| job.image.path.to_string_lossy());
+                        let slice = &filename.as_ref()[..25.min(filename.len())];
+                        pb.set_message(format!("Job {:2}: {:25}", thread_idx + 1, slice));
+                        pb.set_position(0);
+                    }
+
+                    let result = process_job(&job, pb.as_ref());
+
+                    if let Some(pb) = &pb {
+                        match &result {
+                            Ok(_) => pb.set_message(format!("Job {:2}: done", thread_idx + 1)),
+                            Err(_) => pb.set_message(format!("Job {:2}: failed", thread_idx + 1)),
+                        }
+                        pb.set_position(0);
+                    }
+
+                    if let Some(global) = &global_bar {
+                        global.inc(1);
+                    }
+
+                    (result, job.image.path.clone())
+                })
+                .collect()
+        });
+
+        if let Some(global) = global_bar {
+            global.finish_and_clear();
+        }
+
+        let mut processed = Vec::new();
+        let mut failed = Vec::new();
+
+        for (result, path) in results {
+            match result {
+                Ok(item) => processed.push(item),
+                Err(_) => failed.push(path),
+            }
+        }
+
+        Ok(ProcessingResult { processed, failed })
+    }
+
+    fn build_jobs(&self, plan: &ProcessingPlan) -> Vec<ProcessingJob> {
+        let base_size: Size = self
+            .args
+            .processing_type
+            .into_size(self.args.target_orientation);
+        let paired_size = paired_target_size(base_size, self.args.target_orientation);
+
+        let mut jobs = Vec::new();
+
+        for single in &plan.single_images {
+            jobs.push(ProcessingJob {
+                image: single.info.clone(),
+                target_size: base_size,
+                paired: false,
+            });
+        }
+
+        for pair in &plan.paired_images {
+            jobs.push(ProcessingJob {
+                image: pair.first.clone(),
+                target_size: paired_size,
+                paired: true,
+            });
+            jobs.push(ProcessingJob {
+                image: pair.second.clone(),
+                target_size: paired_size,
+                paired: true,
+            });
+        }
+
+        jobs
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ProcessingJob {
+    image: ImageInfo,
+    target_size: Size,
+    paired: bool,
+}
+
+#[derive(Debug)]
+pub struct ProcessingResult {
+    pub processed: Vec<ProcessedImage>,
+    pub failed: Vec<PathBuf>,
+}
+
+#[derive(Debug)]
+pub struct ProcessedImage {
+    pub source: PathBuf,
+    pub temp_path: TempPath,
+    pub target_size: Size,
+    pub paired: bool,
+    pub orientation: ImageOrientation,
+}
+
+fn paired_target_size(base: Size, target_orientation: Orientation) -> Size {
+    let is_landscape = matches!(
+        target_orientation,
+        Orientation::Landscape | Orientation::LandscapeReverse
+    );
+
+    if is_landscape {
+        Size {
+            width: base.width / 2,
+            height: base.height,
+        }
+    } else {
+        Size {
+            width: base.width,
+            height: base.height / 2,
+        }
+    }
+}
+
+fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<ProcessedImage> {
+    let reader = image::ImageReader::open(&job.image.path)
+        .with_context(|| format!("Failed to open image: {}", job.image.path.display()))?
+        .with_guessed_format()
+        .context("Failed to guess image format")?;
+
+    let mut img = reader.decode().context("Failed to decode image")?;
+
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
+    img = match job.image.rotation {
+        crate::report::RotationDegrees::Deg0 => img,
+        crate::report::RotationDegrees::Deg90 => img.rotate90(),
+        crate::report::RotationDegrees::Deg180 => img.rotate180(),
+        crate::report::RotationDegrees::Deg270 => img.rotate270(),
+    };
+
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
+    let resized = resize_to_cover(&img, job.target_size, FilterType::Lanczos3);
+
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
+    let temp_dir = std::env::temp_dir();
+    let mut temp_file = Builder::new()
+        .prefix("pfproc_")
+        .suffix(".png")
+        .tempfile_in(&temp_dir)
+        .context("Failed to create temporary file")?;
+
+    resized
+        .write_to(&mut temp_file, image::ImageFormat::Png)
+        .context("Failed to write temporary image")?;
+
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
+    Ok(ProcessedImage {
+        source: job.image.path.clone(),
+        temp_path: temp_file.into_temp_path(),
+        target_size: job.target_size,
+        paired: job.paired,
+        orientation: job.image.orientation,
+    })
 }
