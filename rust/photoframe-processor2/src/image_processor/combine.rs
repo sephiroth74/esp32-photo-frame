@@ -13,6 +13,7 @@ pub fn combine_paired_images(
     processed: &[ProcessedImage],
     multi: &MultiProgress,
     json_progress: bool,
+    verbose: bool,
     jobs: usize,
     target_orientation: Orientation,
     divider_width: u32,
@@ -60,7 +61,7 @@ pub fn combine_paired_images(
         ));
     }
 
-    let global_bar = if json_progress {
+    let global_bar = if json_progress || verbose {
         None
     } else {
         let pb = multi.add(ProgressBar::new(combine_jobs.len() as u64));
@@ -96,6 +97,7 @@ pub fn combine_paired_images(
                     divider_width,
                     &divider_color,
                     pair_id,
+                    first.target_size,
                 );
 
                 if let Some(global) = &global_bar {
@@ -134,6 +136,7 @@ fn combine_two_images(
     divider_width: u32,
     divider_color: &HexColor,
     pair_id: usize,
+    target_size: Size,
 ) -> Result<ProcessedImage> {
     // Load both images
     let img1 = image::open(&first.temp_path)
@@ -155,10 +158,10 @@ fn combine_two_images(
     // Create combined image
     let (combined_width, combined_height) = if is_landscape {
         // Horizontal combination: [img1 | divider | img2]
-        (width1 + divider_width + width2, height1.max(height2))
+        (width1 + width2, height1.max(height2))
     } else {
         // Vertical combination: [img1] [divider] [img2]
-        (width1.max(width2), height1 + divider_width + height2)
+        (width1.max(width2), height1 + height2)
     };
 
     let mut combined = RgbImage::new(combined_width, combined_height);
@@ -199,17 +202,15 @@ fn combine_two_images(
         .keep()
         .context("Failed to keep combined temporary file")?;
 
-    // Return ProcessedImage with combined dimensions
+    // Return ProcessedImage with exact target size
     Ok(ProcessedImage {
         source: first.source.clone(), // Use first image as source reference
         temp_path,
-        target_size: Size {
-            width: combined_width,
-            height: combined_height,
-        },
-        paired: false, // No longer paired, it's now a single combined image
-        pair_id: None,
+        target_size,
+        paired: true, // Mark as paired so we know it's a combined image
+        pair_id: Some(pair_id),
         pair_index: None,
+        paired_source: Some(second.source.clone()), // Store second image source for naming
         orientation: first.orientation,
         people_count: None,
     })

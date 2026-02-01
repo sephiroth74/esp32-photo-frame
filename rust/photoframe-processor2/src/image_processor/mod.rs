@@ -76,7 +76,16 @@ pub struct ImageProcessor<'a> {
 impl<'a> ImageProcessor<'a> {
     pub fn new(args: &'a Args, logger: &'a Logger) -> Result<Self> {
         let detector = if args.detect_people {
-            Some(create_detector(args.verbose).context("Failed to create subject detector")?)
+            match create_detector(args.verbose) {
+                Ok(det) => Some(det),
+                Err(e) => {
+                    logger.error(&format!(
+                        "Failed to initialize subject detector: {}",
+                        e
+                    ));
+                    return Err(e);
+                }
+            }
         } else {
             None
         };
@@ -266,7 +275,7 @@ impl<'a> ImageProcessor<'a> {
             .context("Failed to create thread pool")?;
 
         let multi = MultiProgress::new();
-        let global_bar = if json_progress {
+        let global_bar = if json_progress || self.args.verbose {
             None
         } else {
             let pb = multi.add(ProgressBar::new(total_jobs as u64));
@@ -279,7 +288,7 @@ impl<'a> ImageProcessor<'a> {
             Some(pb)
         };
 
-        let thread_bars: Option<Vec<ProgressBar>> = if json_progress {
+        let thread_bars: Option<Vec<ProgressBar>> = if json_progress || self.args.verbose {
             None
         } else {
             let bars = (0..thread_count.max(1))
@@ -361,6 +370,7 @@ impl<'a> ImageProcessor<'a> {
             &processed,
             &multi,
             json_progress,
+            self.args.verbose,
             self.args.jobs,
             self.args.target_orientation,
             self.args.divider_width,
@@ -507,6 +517,7 @@ pub struct ProcessedImage {
     pub paired: bool,
     pub pair_id: Option<usize>,
     pub pair_index: Option<usize>,
+    pub paired_source: Option<PathBuf>, // Source of paired image (for combined filenames)
     pub orientation: ImageOrientation,
     pub people_count: Option<usize>,
 }
@@ -577,7 +588,11 @@ fn process_job(
                     let count = result.person_count;
                     (Some(result), Some(count))
                 }
-                Err(_) => (None, None),
+                Err(err) => {
+                    eprintln!("Error: People detection failed for image: {}", job.image.path.display());
+                    eprintln!("Error: {}", err);
+                    (None, None)
+                },
             }
         } else {
             (None, None)
@@ -713,6 +728,7 @@ fn process_job(
         paired: job.paired,
         pair_id: job.pair_id,
         pair_index: job.pair_index,
+        paired_source: None,
         orientation: job.image.orientation,
         people_count,
     })

@@ -143,9 +143,10 @@ fn save_single_output(
         OutputType::Pfr1 => "pfr1",
     };
 
-    let base_name = if img.paired {
-        // For combined images, just use the source name with hash
-        create_readable_filename(&img.source, ext)?
+    let base_name = if img.paired && img.paired_source.is_some() {
+        // For combined images, use format: combined_name1_name2_hash
+        let paired_src = img.paired_source.as_ref().unwrap();
+        create_combined_filename(&img.source, paired_src, ext)?
     } else {
         create_readable_filename(&img.source, ext)?
     };
@@ -218,30 +219,51 @@ fn save_as_pfr1(
     target_orientation: Orientation,
 ) -> Result<()> {
     // Load image
-    let img = image::open(temp_path)
+    let mut img = image::open(temp_path)
         .with_context(|| format!("Failed to open temp image: {}", temp_path.display()))?
         .to_rgb8();
 
+    // Apply inverse rotation of target_orientation to normalize image to rotation 0
+    // This accounts for any rotation that was applied during processing
+    match target_orientation {
+        Orientation::Landscape => {
+            // No rotation needed, already at rotation 0
+        }
+        Orientation::Portrait => {
+            // Inverse of 90° is 270° (rotate3 times)
+            img = image::imageops::rotate90(&img);
+        }
+        Orientation::LandscapeReverse => {
+            // Inverse of 180° is 180°
+            img = image::imageops::rotate180(&img);
+        }
+        Orientation::PortraitReverse => {
+            // Inverse of 270° is 90°
+            img = image::imageops::rotate270(&img);
+        }
+    }
+
+    // Ensure image is in landscape mode (width >= height)
+    let (width, height) = if img.width() < img.height() {
+        // Shouldn't happen if orientation was correct, but rotate to be safe
+        img = image::imageops::rotate90(&img);
+        (img.height(), img.width())
+    } else {
+        (img.width(), img.height())
+    };
+
     // Process image to get indexed pixel data
-    let dimensions = img.dimensions();
     let color_mode: ColorMode = display_type.into();
     let payload = process_image_with_display_type(&img, display_type)
         .context("Failed to process image for PFR1 format")?;
 
-    // Map Orientation to rotation value (0-3)
-    let rotation = match target_orientation {
-        Orientation::Landscape => 0,
-        Orientation::Portrait => 1,
-        Orientation::LandscapeReverse => 2,
-        Orientation::PortraitReverse => 3,
-    };
-
-    // Build binary file
+    // Build binary file with landscape dimensions and rotation 0
+    // The image is now normalized to rotation 0
     let bin_data = build_bin_file(
         &payload,
-        dimensions.0 as u16,
-        dimensions.1 as u16,
-        rotation,
+        width as u16,
+        height as u16,
+        target_orientation.into(),
         color_mode,
         1,
     );
@@ -332,6 +354,44 @@ fn create_readable_filename(input_path: &Path, extension: &str) -> Result<String
     let hash = generate_content_hash(input_path)?;
 
     Ok(format!("{}_{}.{}", sanitized, hash, extension))
+}
+
+/// Create a combined filename for paired images
+/// Format: combined_{name1}_{name2}_{hash8}.{ext}
+fn create_combined_filename(
+    first_path: &Path,
+    second_path: &Path,
+    extension: &str,
+) -> Result<String> {
+    let stem1 = first_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image1");
+
+    let stem2 = second_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image2");
+
+    let sanitized1 = sanitize_filename(stem1);
+    let sanitized2 = sanitize_filename(stem2);
+
+    // Generate hash from both source files
+    let hash1 = generate_content_hash(first_path)?;
+    let hash2 = generate_content_hash(second_path)?;
+
+    // Combine hashes by taking first 4 chars of each
+    let combined_hash = format!(
+        "{}{}",
+        &hash1[..4.min(hash1.len())],
+        &hash2[..4.min(hash2.len())]
+    );
+    let final_hash = &combined_hash[..8.min(combined_hash.len())];
+
+    Ok(format!(
+        "combined_{}_{}{}.{}",
+        sanitized1, sanitized2, final_hash, extension
+    ))
 }
 
 impl OutputType {

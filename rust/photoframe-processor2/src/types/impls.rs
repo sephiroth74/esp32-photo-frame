@@ -26,6 +26,30 @@ impl From<&str> for Orientation {
     }
 }
 
+impl Into<u8> for Orientation {
+    fn into(self) -> u8 {
+        match self {
+            Orientation::Landscape => 0,
+            Orientation::Portrait => 1,
+            Orientation::LandscapeReverse => 2,
+            Orientation::PortraitReverse => 3,
+        }
+    }
+}
+
+impl From<u8> for Orientation {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Orientation::Landscape,
+            1 => Orientation::Portrait,
+            2 => Orientation::LandscapeReverse,
+            3 => Orientation::PortraitReverse,
+            _ => Orientation::Landscape, // Default case
+        }
+    }
+}
+
+
 impl TryFrom<&str> for HexColor {
     type Error = &'static str;
 
