@@ -237,7 +237,9 @@ pub struct Args {
     pub saturation: u32,
 
     /// Enable automatic color correction before processing (uses ImageMagick if available)
-    #[arg(long = "auto-color", conflicts_with = "validate")]
+    #[arg(long = "auto-color",
+        conflicts_with_all = ["validate", "dithering_method", "dither_strength", "contrast", "brightness", "saturation"],
+    )]
     pub auto_color_correct: bool,
 
     /// Enable automatic per-image parameter optimization (overrides manual dithering/contrast settings)

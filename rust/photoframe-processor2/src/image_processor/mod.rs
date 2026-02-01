@@ -1,7 +1,9 @@
+mod color_correction;
 mod pairing;
 mod resize;
 mod types;
 
+use color_correction::apply_color_correction;
 use resize::resize_to_cover;
 pub use types::{ProcessingPlan, SingleImage};
 
@@ -11,7 +13,6 @@ use crate::report::{ImageInfo, ImageOrientation, Report};
 use crate::types::{Orientation, Size};
 use anyhow::{Context, Result};
 use image::imageops::FilterType;
-use imageproc::drawing::Canvas;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
@@ -222,7 +223,7 @@ impl<'a> ImageProcessor<'a> {
         } else {
             let bars = (0..thread_count.max(1))
                 .map(|idx| {
-                    let pb = multi.add(ProgressBar::new(4));
+                    let pb = multi.add(ProgressBar::new(5));
                     pb.set_style(
                         ProgressStyle::with_template("{msg} [{bar:20.cyan/blue}] {pos}/{len}")
                             .unwrap()
@@ -308,6 +309,10 @@ impl<'a> ImageProcessor<'a> {
                 image: single.info.clone(),
                 target_size: base_size,
                 paired: false,
+                auto_color_correct: self.args.auto_color_correct,
+                brightness: self.args.brightness,
+                contrast: self.args.contrast,
+                saturation: self.args.saturation,
             });
         }
 
@@ -316,11 +321,19 @@ impl<'a> ImageProcessor<'a> {
                 image: pair.first.clone(),
                 target_size: paired_size,
                 paired: true,
+                auto_color_correct: self.args.auto_color_correct,
+                brightness: self.args.brightness,
+                contrast: self.args.contrast,
+                saturation: self.args.saturation,
             });
             jobs.push(ProcessingJob {
                 image: pair.second.clone(),
                 target_size: paired_size,
                 paired: true,
+                auto_color_correct: self.args.auto_color_correct,
+                brightness: self.args.brightness,
+                contrast: self.args.contrast,
+                saturation: self.args.saturation,
             });
         }
 
@@ -333,6 +346,10 @@ struct ProcessingJob {
     image: ImageInfo,
     target_size: Size,
     paired: bool,
+    auto_color_correct: bool,
+    brightness: i32,
+    contrast: i32,
+    saturation: u32,
 }
 
 #[derive(Debug)]
@@ -398,6 +415,21 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         pb.inc(1);
     }
 
+    // Apply color correction
+    let resized_rgb = resized.to_rgb8();
+    let corrected = apply_color_correction(
+        &resized_rgb,
+        job.auto_color_correct,
+        job.brightness,
+        job.contrast,
+        job.saturation,
+    )
+    .context("Failed to apply color correction")?;
+
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
     let temp_dir = std::env::temp_dir();
     let mut temp_file = Builder::new()
         .prefix("pfproc_")
@@ -405,8 +437,8 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         .tempfile_in(&temp_dir)
         .context("Failed to create temporary file")?;
 
-    resized
-        .write_to(&mut temp_file, image::ImageFormat::Png)
+    corrected
+        .save(&mut temp_file)
         .context("Failed to write temporary image")?;
 
     if let Some(pb) = progress {
