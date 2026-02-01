@@ -119,7 +119,7 @@ pub struct Args {
     /// Comma-separated list of image extensions to process
     #[arg(
         long = "extensions",
-        default_value = "jpg,jpeg,png,webp,tiff",
+        default_value = "jpg,jpeg,png,webp,tiff,heic",
         conflicts_with = "validate"
     )]
     pub extensions: String,

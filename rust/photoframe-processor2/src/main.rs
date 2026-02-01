@@ -6,7 +6,10 @@ use std::process;
 mod cli;
 mod discovery;
 mod fs_utils;
+mod image_inspector;
+mod image_processor;
 mod logging;
+mod report;
 mod types;
 
 fn main() {
@@ -38,12 +41,7 @@ fn main() {
     logger.info("");
     logger.info("Discovering input files...");
 
-    let extensions = args
-        .extensions
-        .split(',')
-        .map(|x| x.trim())
-        .collect::<Vec<_>>();
-    let discovery = discovery::Discovery::new(&extensions, &logger);
+    let discovery = discovery::Discovery::new(&args.extensions, &logger);
     let input_files = match discovery.discover(&args.input) {
         Ok(files) => files,
         Err(e) => {
@@ -57,6 +55,41 @@ fn main() {
         input_files.len()
     ));
     logger.info("");
+
+    let mut report = report::Report::new(&args, input_files.clone());
+
+    if !args.json_progress {
+        logger.info("Validating image files...");
+    }
+    let inspector = image_inspector::ImageInspector::new(&logger);
+    let inspection = inspector.inspect(&input_files, args.json_progress);
+
+    report.set_image_results(inspection.valid.clone(), inspection.invalid.clone());
+
+    if !args.json_progress {
+        logger.success(&format!(
+            "Image validation completed: {} valid, {} invalid",
+            report.valid_images.len(),
+            report.invalid_images.len()
+        ));
+        logger.info("");
+    }
+
+    // Create processing plan
+    let processor = image_processor::ImageProcessor::new(&args, &logger);
+    let plan = match processor.plan(inspection.valid.clone(), &mut report) {
+        Ok(plan) => plan,
+        Err(e) => {
+            logger.error(&format!("Failed to create processing plan: {}", e));
+            process::exit(1);
+        }
+    };
+
+    if plan.output_count() == 0 {
+        logger.warning("No images to process after planning");
+        process::exit(0);
+    }
+
     logger.info("Starting image processing...");
     logger.info("");
 }

@@ -15,12 +15,15 @@ impl<'a> Discovery<'a> {
     /// Create a new Discovery instance with a list of allowed extensions.
     ///
     /// Extensions are normalized to lowercase and stripped of any leading dots.
-    pub fn new(extensions: &Vec<&str>, logger: &'a Logger) -> Self {
-        let normalized = extensions
-            .iter()
-            .map(|ext| ext.trim().trim_start_matches('.').to_lowercase())
-            .filter(|ext| !ext.is_empty())
-            .collect::<HashSet<_>>();
+    pub fn new(extensions: &str, logger: &'a Logger) -> Self {
+        let mut normalized = HashSet::new();
+
+        for ext in extensions.split(',') {
+            let normalized_ext = ext.trim().trim_start_matches('.').to_lowercase();
+            if !normalized_ext.is_empty() {
+                normalized.insert(normalized_ext);
+            }
+        }
 
         Self {
             extensions: normalized,
@@ -130,7 +133,7 @@ mod tests {
         fs::write(&jpeg, b"d")?;
 
         let logger = Logger::new(false, false);
-        let discovery = Discovery::new(&vec!["jpg".into(), "jpeg".into(), "png".into()], &logger);
+        let discovery = Discovery::new("jpg,jpeg,png", &logger);
 
         let results = discovery.discover(&vec![root.to_path_buf()])?;
         let paths: HashSet<PathBuf> = results.into_iter().collect();
@@ -151,7 +154,7 @@ mod tests {
         fs::write(&file, b"x")?;
 
         let logger = Logger::new(false, false);
-        let discovery = Discovery::new(&vec!["webp".into()], &logger);
+        let discovery = Discovery::new("webp", &logger);
 
         let results = discovery.discover(&vec![file.clone()])?;
         assert_eq!(results.len(), 1);
@@ -168,7 +171,7 @@ mod tests {
         fs::write(&file, b"x")?;
 
         let logger = Logger::new(false, false);
-        let discovery = Discovery::new(&vec!["jpg".into()], &logger);
+        let discovery = Discovery::new("jpg", &logger);
 
         let results = discovery.discover(&vec![file])?;
         assert!(results.is_empty());
