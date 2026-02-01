@@ -22,7 +22,7 @@ pub fn add_date_annotation(
 ) -> Result<RgbImage> {
     let mut annotated_img = img.clone();
 
-    // Extract date from EXIF data
+    // Extract date from EXIF data only
     if let Ok(date_text) = extract_date_from_image(input_path) {
         let bg_r = background_color.red();
         let bg_g = background_color.green();
@@ -84,12 +84,9 @@ pub fn add_date_annotation(
             &font,
             &date_text,
         );
-
-        Ok(annotated_img)
-    } else {
-        // No EXIF date found, skip annotation
-        Ok(img.clone())
     }
+
+    Ok(annotated_img)
 }
 
 /// Load font based on font specification with smart detection
@@ -190,6 +187,7 @@ fn get_platform_font_dirs() -> Vec<String> {
     vec![
         "/System/Library/Fonts".to_string(),
         "/System/Library/Fonts/Supplemental".to_string(),
+        "~/Library/Fonts/NerdFonts/".to_string(),
         "/Library/Fonts".to_string(),
         "~/Library/Fonts".to_string(),
     ]
