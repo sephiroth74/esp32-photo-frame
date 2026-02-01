@@ -1,34 +1,86 @@
+mod annotate;
 mod color_correction;
+mod debug_viz;
+mod imagemagick;
 mod pairing;
 mod resize;
+mod smart_crop;
+mod subject_detection;
 mod types;
 
+use annotate::add_date_annotation;
 use color_correction::apply_color_correction;
-use resize::resize_to_cover;
+use debug_viz::draw_detection_boxes;
+use smart_crop::{compute_crop_area, smart_crop_and_resize};
+use subject_detection::{SubjectDetector, create_detector};
 pub use types::{ProcessingPlan, SingleImage};
 
 use crate::cli::Args;
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
-use crate::types::{Orientation, Size};
+use crate::types::{HexColor, Orientation, Size};
 use anyhow::{Context, Result};
-use image::imageops::FilterType;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
+use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tempfile::{Builder, TempPath};
+use tempfile::Builder;
+
+/// Get the project-relative temp directory
+/// TODO: Change back to std::env::temp_dir() once development is complete
+fn get_temp_dir() -> Result<PathBuf> {
+    let temp_dir = Path::new("./temp");
+    if !temp_dir.exists() {
+        fs::create_dir_all(temp_dir).context("Failed to create temp directory")?;
+    }
+    Ok(temp_dir.to_path_buf())
+}
+
+/// Clean the temp directory at the start of processing
+/// Removes all files except .gitignore and README.md
+#[allow(dead_code)]
+fn clean_temp_dir() -> Result<()> {
+    let temp_dir = get_temp_dir()?;
+
+    if let Ok(entries) = fs::read_dir(&temp_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    // Keep .gitignore and README.md
+                    if name != ".gitignore" && name != "README.md" {
+                        let _ = fs::remove_file(&path);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
 
 pub struct ImageProcessor<'a> {
     args: &'a Args,
     logger: &'a Logger,
+    detector: Option<SubjectDetector>,
 }
 
 impl<'a> ImageProcessor<'a> {
-    pub fn new(args: &'a Args, logger: &'a Logger) -> Self {
-        Self { args, logger }
+    pub fn new(args: &'a Args, logger: &'a Logger) -> Result<Self> {
+        let detector = if args.detect_people {
+            Some(create_detector(args.verbose).context("Failed to create subject detector")?)
+        } else {
+            None
+        };
+
+        Ok(Self {
+            args,
+            logger,
+            detector,
+        })
     }
 
     /// Analyze the validated images and create a processing plan
@@ -175,6 +227,10 @@ impl<'a> ImageProcessor<'a> {
 
     /// Process all images in the plan using multithreading and temporary files
     pub fn process(&self, plan: &ProcessingPlan, json_progress: bool) -> Result<ProcessingResult> {
+        // Note: Skipping temp directory cleanup to allow inspection of intermediate files during development
+        // Uncomment below to enable cleanup if needed
+        // clean_temp_dir().context("Failed to clean temp directory")?;
+
         let jobs = self.build_jobs(plan);
         if jobs.is_empty() {
             self.logger.warning("No images to process");
@@ -223,7 +279,7 @@ impl<'a> ImageProcessor<'a> {
         } else {
             let bars = (0..thread_count.max(1))
                 .map(|idx| {
-                    let pb = multi.add(ProgressBar::new(5));
+                    let pb = multi.add(ProgressBar::new(6));
                     pb.set_style(
                         ProgressStyle::with_template("{msg} [{bar:20.cyan/blue}] {pos}/{len}")
                             .unwrap()
@@ -236,6 +292,9 @@ impl<'a> ImageProcessor<'a> {
                 .collect();
             Some(bars)
         };
+
+        // Clone detector for thread pool (it's cheap - just Arc clones internally)
+        let detector_opt = self.detector.as_ref().cloned();
 
         let results: Vec<(Result<ProcessedImage>, PathBuf)> = pool.install(|| {
             jobs.into_par_iter()
@@ -259,7 +318,7 @@ impl<'a> ImageProcessor<'a> {
                         pb.set_position(0);
                     }
 
-                    let result = process_job(&job, pb.as_ref());
+                    let result = process_job(&job, detector_opt.as_ref(), pb.as_ref());
 
                     if let Some(pb) = &pb {
                         match &result {
@@ -313,6 +372,13 @@ impl<'a> ImageProcessor<'a> {
                 brightness: self.args.brightness,
                 contrast: self.args.contrast,
                 saturation: self.args.saturation,
+                detect_people: self.args.detect_people,
+                confidence_threshold: self.args.confidence_threshold,
+                debug: self.args.debug,
+                annotate: self.args.annotate,
+                font_name: self.args.font.clone(),
+                font_size: self.args.font_size,
+                annotation_background: self.args.annotation_background,
             });
         }
 
@@ -325,6 +391,13 @@ impl<'a> ImageProcessor<'a> {
                 brightness: self.args.brightness,
                 contrast: self.args.contrast,
                 saturation: self.args.saturation,
+                detect_people: self.args.detect_people,
+                confidence_threshold: self.args.confidence_threshold,
+                debug: self.args.debug,
+                annotate: self.args.annotate,
+                font_name: self.args.font.clone(),
+                font_size: self.args.font_size,
+                annotation_background: self.args.annotation_background,
             });
             jobs.push(ProcessingJob {
                 image: pair.second.clone(),
@@ -334,6 +407,13 @@ impl<'a> ImageProcessor<'a> {
                 brightness: self.args.brightness,
                 contrast: self.args.contrast,
                 saturation: self.args.saturation,
+                detect_people: self.args.detect_people,
+                confidence_threshold: self.args.confidence_threshold,
+                debug: self.args.debug,
+                annotate: self.args.annotate,
+                font_name: self.args.font.clone(),
+                font_size: self.args.font_size,
+                annotation_background: self.args.annotation_background,
             });
         }
 
@@ -350,6 +430,13 @@ struct ProcessingJob {
     brightness: i32,
     contrast: i32,
     saturation: u32,
+    detect_people: bool,
+    confidence_threshold: f32,
+    debug: bool,
+    annotate: bool,
+    font_name: String,
+    font_size: u32,
+    annotation_background: HexColor,
 }
 
 #[derive(Debug)]
@@ -359,12 +446,14 @@ pub struct ProcessingResult {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ProcessedImage {
     pub source: PathBuf,
-    pub temp_path: TempPath,
+    pub temp_path: PathBuf,
     pub target_size: Size,
     pub paired: bool,
     pub orientation: ImageOrientation,
+    pub people_count: Option<usize>,
 }
 
 fn paired_target_size(base: Size, target_orientation: Orientation) -> Size {
@@ -386,7 +475,11 @@ fn paired_target_size(base: Size, target_orientation: Orientation) -> Size {
     }
 }
 
-fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<ProcessedImage> {
+fn process_job(
+    job: &ProcessingJob,
+    detector: Option<&SubjectDetector>,
+    progress: Option<&ProgressBar>,
+) -> Result<ProcessedImage> {
     let reader = image::ImageReader::open(&job.image.path)
         .with_context(|| format!("Failed to open image: {}", job.image.path.display()))?
         .with_guessed_format()
@@ -398,6 +491,7 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         pb.inc(1);
     }
 
+    // Apply EXIF rotation
     img = match job.image.rotation {
         crate::report::RotationDegrees::Deg0 => img,
         crate::report::RotationDegrees::Deg90 => img.rotate90(),
@@ -409,16 +503,61 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         pb.inc(1);
     }
 
-    let resized = resize_to_cover(&img, job.target_size, FilterType::Lanczos3);
+    // Convert to RGB for processing
+    let img_rgb = img.to_rgb8();
+
+    // Create single intermediate temporary file at the start - reuse for all operations
+    let temp_dir = get_temp_dir()?;
+    let mut temp_file = Builder::new()
+        .prefix("pfproc_")
+        .suffix(".png")
+        .tempfile_in(&temp_dir)
+        .context("Failed to create temporary file")?;
+
+    // Detect people if enabled
+    let (detection, people_count) = if job.detect_people {
+        if let Some(det) = detector {
+            match det.detect_people(&img_rgb, job.confidence_threshold) {
+                Ok(result) => {
+                    let count = result.person_count;
+                    (Some(result), Some(count))
+                }
+                Err(_) => (None, None),
+            }
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
+    let (crop_x, crop_y, crop_width, crop_height) = compute_crop_area(
+        &img_rgb,
+        job.target_size.width,
+        job.target_size.height,
+        detection.as_ref(),
+    );
+
+    // Smart crop and resize with people detection awareness
+    let mut processing_image = smart_crop_and_resize(
+        &img_rgb,
+        job.target_size.width,
+        job.target_size.height,
+        detection.as_ref(),
+    )
+    .context("Failed to crop and resize image")?;
 
     if let Some(pb) = progress {
         pb.inc(1);
     }
 
     // Apply color correction
-    let resized_rgb = resized.to_rgb8();
-    let corrected = apply_color_correction(
-        &resized_rgb,
+    processing_image = apply_color_correction(
+        &processing_image,
         job.auto_color_correct,
         job.brightness,
         job.contrast,
@@ -426,30 +565,90 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
     )
     .context("Failed to apply color correction")?;
 
+    // Debug visualization: draw detection boxes AFTER color correction
+    // This ensures boxes are visible in the final saved image
+    if job.debug && job.detect_people && detection.is_some() {
+        let det = detection.as_ref().unwrap();
+        if det.person_count > 0 && crop_width > 0 && crop_height > 0 {
+            let scale_x = job.target_size.width as f32 / crop_width as f32;
+            let scale_y = job.target_size.height as f32 / crop_height as f32;
+            let max_out_x = job.target_size.width.saturating_sub(1);
+            let max_out_y = job.target_size.height.saturating_sub(1);
+            let max_crop_x = crop_width.saturating_sub(1);
+            let max_crop_y = crop_height.saturating_sub(1);
+
+            let mut mapped = Vec::new();
+
+            for (det_x_min, det_y_min, det_x_max, det_y_max, confidence) in det.detection_boxes() {
+                let mut x_min = det_x_min.saturating_sub(crop_x).min(max_crop_x);
+                let mut y_min = det_y_min.saturating_sub(crop_y).min(max_crop_y);
+                let mut x_max = det_x_max.saturating_sub(crop_x).min(max_crop_x);
+                let mut y_max = det_y_max.saturating_sub(crop_y).min(max_crop_y);
+
+                if x_max <= x_min || y_max <= y_min {
+                    continue;
+                }
+
+                x_min = (x_min as f32 * scale_x).round() as u32;
+                y_min = (y_min as f32 * scale_y).round() as u32;
+                x_max = (x_max as f32 * scale_x).round() as u32;
+                y_max = (y_max as f32 * scale_y).round() as u32;
+
+                x_min = x_min.min(max_out_x);
+                y_min = y_min.min(max_out_y);
+                x_max = x_max.min(max_out_x);
+                y_max = y_max.min(max_out_y);
+
+                if x_max > x_min && y_max > y_min {
+                    mapped.push((x_min, y_min, x_max, y_max, confidence));
+                }
+            }
+
+            if !mapped.is_empty() {
+                processing_image = draw_detection_boxes(&processing_image, &mapped, false)
+                    .unwrap_or(processing_image);
+            }
+        }
+    }
+
     if let Some(pb) = progress {
         pb.inc(1);
     }
 
-    let temp_dir = std::env::temp_dir();
-    let mut temp_file = Builder::new()
-        .prefix("pfproc_")
-        .suffix(".png")
-        .tempfile_in(&temp_dir)
-        .context("Failed to create temporary file")?;
+    // Add date annotation if enabled
+    if job.annotate {
+        processing_image = add_date_annotation(
+            &processing_image,
+            &job.image.path,
+            &job.font_name,
+            job.font_size,
+            &job.annotation_background,
+        )
+        .unwrap_or(processing_image);
+    }
 
-    corrected
+    if let Some(pb) = progress {
+        pb.inc(1);
+    }
+
+    // Save single intermediate file with all processing applied
+    processing_image
         .save(&mut temp_file)
-        .context("Failed to write temporary image")?;
+        .context("Failed to write intermediate image")?;
 
     if let Some(pb) = progress {
         pb.inc(1);
     }
+
+    // Keep the file so it doesn't get deleted when the temp file is dropped
+    let (_file, temp_path) = temp_file.keep().context("Failed to keep temporary file")?;
 
     Ok(ProcessedImage {
         source: job.image.path.clone(),
-        temp_path: temp_file.into_temp_path(),
+        temp_path,
         target_size: job.target_size,
         paired: job.paired,
         orientation: job.image.orientation,
+        people_count,
     })
 }

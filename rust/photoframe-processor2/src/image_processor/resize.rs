@@ -6,6 +6,7 @@ use imageproc::drawing::Canvas;
 /// The image will be scaled so that both dimensions are at least as large as the target,
 /// using the maximum of the width and height scale factors.
 /// This ensures no dimension is smaller than the target (cover strategy).
+#[allow(dead_code)]
 pub fn resize_to_cover(
     img: &image::DynamicImage,
     target: Size,

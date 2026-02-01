@@ -1,5 +1,5 @@
 use crate::types::{ColorType, HexColor, Orientation, ReportFormat, Size};
-use image::Rgba;
+use image::{Rgb, Rgba};
 use std::fmt::{Display, Formatter};
 
 impl Display for ReportFormat {
@@ -71,6 +71,30 @@ impl HexColor {
         value
             .try_into()
             .map_err(|_| anyhow::anyhow!("HexColor parse error"))
+    }
+
+    pub fn to_rgba(&self) -> Rgba<u8> {
+        Rgba::from([self.1, self.2, self.3, self.0])
+    }
+
+    pub fn to_rgb(&self) -> Rgb<u8> {
+        Rgb::from([self.1, self.2, self.3])
+    }
+
+    pub fn alpha(&self) -> u8 {
+        self.0
+    }
+
+    pub fn red(&self) -> u8 {
+        self.1
+    }
+
+    pub fn green(&self) -> u8 {
+        self.2
+    }
+
+    pub fn blue(&self) -> u8 {
+        self.3
     }
 }
 

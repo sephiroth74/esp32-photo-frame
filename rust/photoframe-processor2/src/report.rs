@@ -41,6 +41,7 @@ pub struct ImageInfo {
     pub path: PathBuf,
     pub rotation: RotationDegrees,
     pub orientation: ImageOrientation,
+    pub people_detected: Option<usize>,
 }
 
 impl Report {

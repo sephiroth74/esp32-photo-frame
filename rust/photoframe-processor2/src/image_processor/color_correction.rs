@@ -1,33 +1,40 @@
+use super::imagemagick::ImageMagickWrapper;
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// Get the project-relative temp directory
+/// TODO: Change back to std::env::temp_dir() once development is complete
+fn get_temp_dir() -> Result<PathBuf> {
+    let temp_dir = Path::new("./temp");
+    if !temp_dir.exists() {
+        fs::create_dir_all(temp_dir).context("Failed to create temp directory")?;
+    }
+    Ok(temp_dir.to_path_buf())
+}
 
 /// Check if ImageMagick is available on the system
 pub fn is_imagemagick_available() -> bool {
-    // Try 'magick' first (ImageMagick v7), then fall back to 'convert' (v6)
-    Command::new("magick")
-        .arg("-version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or_else(|_| {
-            Command::new("convert")
-                .arg("-version")
-                .output()
-                .map(|output| output.status.success())
-                .unwrap_or(false)
-        })
+    ImageMagickWrapper::is_available()
 }
 
 /// Get the appropriate ImageMagick command ('magick' for v7, 'convert' for v6)
+/// This is a helper that queries the wrapper
 fn get_imagemagick_command() -> &'static str {
-    // Try 'magick' first (ImageMagick v7)
-    if Command::new("magick")
-        .arg("-version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
-    {
-        "magick"
+    if ImageMagickWrapper::is_available() {
+        // Try 'magick' first (ImageMagick v7)
+        if Command::new("magick")
+            .arg("-version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+        {
+            "magick"
+        } else {
+            "convert"
+        }
     } else {
         "convert"
     }
@@ -36,7 +43,7 @@ fn get_imagemagick_command() -> &'static str {
 /// Apply automatic color correction using ImageMagick
 /// Applies: auto-white-balance, auto-level, auto-color, auto-saturation, auto-gamma
 fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = get_temp_dir()?;
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -69,8 +76,6 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let _ = std::fs::remove_file(&input_path);
-        let _ = std::fs::remove_file(&output_path);
         return Err(anyhow::anyhow!(
             "ImageMagick auto-correction failed: {}",
             stderr
@@ -82,9 +87,9 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
         .context("Failed to load corrected image")?
         .to_rgb8();
 
-    // Clean up temporary files
-    let _ = std::fs::remove_file(&input_path);
-    let _ = std::fs::remove_file(&output_path);
+    // Clean up temporary files immediately
+    let _ = fs::remove_file(&input_path);
+    let _ = fs::remove_file(&output_path);
 
     Ok(corrected_img)
 }
@@ -97,7 +102,7 @@ fn apply_imagemagick_manual_correction(
     contrast: i32,
     saturation: u32,
 ) -> Result<RgbImage> {
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = get_temp_dir()?;
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -130,8 +135,6 @@ fn apply_imagemagick_manual_correction(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let _ = std::fs::remove_file(&input_path);
-        let _ = std::fs::remove_file(&output_path);
         return Err(anyhow::anyhow!(
             "ImageMagick manual correction failed: {}",
             stderr
@@ -143,9 +146,9 @@ fn apply_imagemagick_manual_correction(
         .context("Failed to load corrected image")?
         .to_rgb8();
 
-    // Clean up temporary files
-    let _ = std::fs::remove_file(&input_path);
-    let _ = std::fs::remove_file(&output_path);
+    // Clean up temporary files immediately
+    let _ = fs::remove_file(&input_path);
+    let _ = fs::remove_file(&output_path);
 
     Ok(corrected_img)
 }

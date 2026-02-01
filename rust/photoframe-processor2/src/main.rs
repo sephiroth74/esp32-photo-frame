@@ -76,7 +76,13 @@ fn main() {
     }
 
     // Create processing plan
-    let processor = image_processor::ImageProcessor::new(&args, &logger);
+    let processor = match image_processor::ImageProcessor::new(&args, &logger) {
+        Ok(p) => p,
+        Err(e) => {
+            logger.error(&format!("Failed to initialize processor: {}", e));
+            process::exit(1);
+        }
+    };
     let plan = match processor.plan(inspection.valid.clone(), &mut report) {
         Ok(plan) => plan,
         Err(e) => {
@@ -330,6 +336,16 @@ fn print_configuration(args: &Args, logger: &logging::Logger) {
         logger.config_section("ANNOTATION");
         logger.config_item("Font name", &format!("{:?}", args.font));
         logger.config_item("Font size", &format!("{} px", args.font_size));
+        logger.config_item(
+            "Background color",
+            &format!(
+                "#{:02X}{:02X}{:02X}{:02X}",
+                args.annotation_background.0,
+                args.annotation_background.1,
+                args.annotation_background.2,
+                args.annotation_background.3
+            ),
+        );
         logger.info("");
     }
 

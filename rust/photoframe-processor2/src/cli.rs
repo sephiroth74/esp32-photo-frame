@@ -287,7 +287,7 @@ pub struct Args {
     #[cfg(feature = "ai")]
     #[arg(
         long = "confidence",
-        default_value = "0.6",
+        default_value = "0.25",
         value_name = "THRESHOLD",
         conflicts_with = "validate"
     )]
