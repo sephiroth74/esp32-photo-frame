@@ -65,6 +65,7 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
     // Apply full auto-correction pipeline
     let output = Command::new(magick_cmd)
         .arg(&input_path)
+        .arg("-separate -contrast-stretch 0.5%x0.5% -combine")
         .arg("-auto-level") // Stretch histogram
         .arg("-auto-gamma") // Adjust gamma
         .arg("-normalize") // Normalize contrast
@@ -214,27 +215,37 @@ pub fn apply_color_correction(
     contrast: i32,
     saturation: u32,
 ) -> Result<RgbImage> {
-    if auto_color_correct {
-        // Try ImageMagick first for full auto-correction
+    let processed_image = if auto_color_correct {
+        // Try ImageMagick first for full auto color correction
         if is_imagemagick_available() {
-            if let Ok(corrected) = apply_imagemagick_auto_correction(img) {
-                return Ok(corrected);
-            }
+            match apply_imagemagick_auto_correction(img) {
+                Ok(corrected) => return Ok(corrected),
+                Err(e) => apply_fallback_auto_correction(img),
+            }?
+        } else {
+            // Fall back to photoframe-lib
+            apply_fallback_auto_correction(img)?
         }
-        // Fall back to photoframe-lib
-        apply_fallback_auto_correction(img)
     } else {
-        // Try ImageMagick first for manual correction
-        if is_imagemagick_available() {
-            if let Ok(corrected) =
-                apply_imagemagick_manual_correction(img, brightness, contrast, saturation)
-            {
-                return Ok(corrected);
-            }
-        }
-        // Fall back to photoframe-lib
-        apply_fallback_manual_correction(img, brightness, contrast, saturation)
+        img.clone()
+    };
+
+    if(brightness == 0 && contrast == 0 && saturation == 100) {
+        // No manual adjustments needed
+        eprintln!("No manual adjustments specified, skipping further color correction.");
+        return Ok(processed_image);
     }
+
+    // Try ImageMagick first for manual correction
+    if is_imagemagick_available() {
+        if let Ok(corrected) =
+                apply_imagemagick_manual_correction(&processed_image, brightness, contrast, saturation)
+        {
+            return Ok(corrected);
+        }
+    }
+    // Fall back to photoframe-lib
+    apply_fallback_manual_correction(&processed_image, brightness, contrast, saturation)
 }
 
 /// Apply automatic levels correction to stretch histogram

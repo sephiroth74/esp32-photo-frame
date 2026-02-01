@@ -296,7 +296,7 @@ fn print_configuration(args: &Args, logger: &logging::Logger) {
     if args.auto_optimize {
         logger.config_item("Auto optimize", &args.auto_optimize.to_string());
     } else {
-        logger.config_item("Auto color correct", &args.auto_color_correct.to_string());
+        logger.config_item("Auto color correct", &args.auto_color.to_string());
         logger.config_item("Brightness", &format!("{:+} ", args.brightness));
         logger.config_item("Contrast", &format!("{:+} ", args.contrast));
         logger.config_item("Saturation", &format!("{} x", saturation));

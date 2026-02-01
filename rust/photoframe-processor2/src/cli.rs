@@ -196,7 +196,7 @@ pub struct Args {
         value_name = "STRENGTH",
         value_parser = clap::value_parser!(u32).range(0..=200),
         conflicts_with = "validate",
-        help = "Dithering strength multiplier. 1.0 = normal, <1.0 = subtle, >1.0 = pronounced"
+        help = "Dithering strength multiplier. 100 = normal, <100 = subtle, >100 = pronounced"
     )]
     pub dither_strength: u32,
 
@@ -238,15 +238,15 @@ pub struct Args {
 
     /// Enable automatic color correction before processing (uses ImageMagick if available)
     #[arg(long = "auto-color",
-        conflicts_with_all = ["validate", "dithering_method", "dither_strength", "contrast", "brightness", "saturation"],
+        conflicts_with_all = ["validate"],
     )]
-    pub auto_color_correct: bool,
+    pub auto_color: bool,
 
     /// Enable automatic per-image parameter optimization (overrides manual dithering/contrast settings)
     #[arg(
         short = 'a',
         long = "auto-optimize",
-        conflicts_with_all = ["dithering_method", "dither_strength", "contrast", "brightness", "saturation", "auto_color_correct", "validate"],
+        conflicts_with_all = ["dithering_method", "dither_strength", "contrast", "brightness", "saturation", "auto_color", "validate"],
         help = "Automatically select optimal dithering, strength, and contrast for each image based on content analysis"
     )]
     pub auto_optimize: bool,

@@ -18,9 +18,10 @@ pub use types::{ProcessingPlan, SingleImage};
 use crate::cli::Args;
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
-use crate::types::{HexColor, Orientation, Size};
+use crate::types::{ColorType, HexColor, Orientation, Size};
 use anyhow::{Context, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use photoframe_lib::{DisplayType, DitheringMethod, apply_dithering};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use std::fs;
@@ -368,10 +369,13 @@ impl<'a> ImageProcessor<'a> {
                 image: single.info.clone(),
                 target_size: base_size,
                 paired: false,
-                auto_color_correct: self.args.auto_color_correct,
+                processing_type: self.args.processing_type,
+                auto_color_correct: self.args.auto_color,
                 brightness: self.args.brightness,
                 contrast: self.args.contrast,
                 saturation: self.args.saturation,
+                dithering_method: self.args.dithering_method,
+                dither_strength: self.args.dither_strength as f32 / 100.0,
                 detect_people: self.args.detect_people,
                 confidence_threshold: self.args.confidence_threshold,
                 debug: self.args.debug,
@@ -387,10 +391,13 @@ impl<'a> ImageProcessor<'a> {
                 image: pair.first.clone(),
                 target_size: paired_size,
                 paired: true,
-                auto_color_correct: self.args.auto_color_correct,
+                processing_type: self.args.processing_type,
+                auto_color_correct: self.args.auto_color,
                 brightness: self.args.brightness,
                 contrast: self.args.contrast,
                 saturation: self.args.saturation,
+                dithering_method: self.args.dithering_method,
+                dither_strength: self.args.dither_strength as f32 / 100.0,
                 detect_people: self.args.detect_people,
                 confidence_threshold: self.args.confidence_threshold,
                 debug: self.args.debug,
@@ -403,10 +410,13 @@ impl<'a> ImageProcessor<'a> {
                 image: pair.second.clone(),
                 target_size: paired_size,
                 paired: true,
-                auto_color_correct: self.args.auto_color_correct,
+                processing_type: self.args.processing_type,
+                auto_color_correct: self.args.auto_color,
                 brightness: self.args.brightness,
                 contrast: self.args.contrast,
                 saturation: self.args.saturation,
+                dithering_method: self.args.dithering_method,
+                dither_strength: self.args.dither_strength as f32 / 100.0,
                 detect_people: self.args.detect_people,
                 confidence_threshold: self.args.confidence_threshold,
                 debug: self.args.debug,
@@ -426,10 +436,13 @@ struct ProcessingJob {
     image: ImageInfo,
     target_size: Size,
     paired: bool,
+    processing_type: ColorType,
     auto_color_correct: bool,
     brightness: i32,
     contrast: i32,
     saturation: u32,
+    dithering_method: DitheringMethod,
+    dither_strength: f32,
     detect_people: bool,
     confidence_threshold: f32,
     debug: bool,
@@ -626,6 +639,14 @@ fn process_job(
         )
         .unwrap_or(processing_image);
     }
+
+    processing_image = apply_dithering(
+        &processing_image,
+        job.dithering_method,
+        job.processing_type.into(),
+        job.dither_strength,
+    )
+    .unwrap_or(processing_image);
 
     if let Some(pb) = progress {
         pb.inc(1);

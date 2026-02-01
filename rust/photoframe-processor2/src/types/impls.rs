@@ -1,6 +1,7 @@
 use crate::types::{ColorType, HexColor, Orientation, ReportFormat, Size};
 use image::{Rgb, Rgba};
 use std::fmt::{Display, Formatter};
+use photoframe_lib::DisplayType;
 
 impl Display for ReportFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -117,6 +118,15 @@ impl Into<Rgba<u8>> for HexColor {
 impl Size {
     pub fn new(width: u32, height: u32) -> Self {
         Self { width, height }
+    }
+}
+
+impl Into<DisplayType> for ColorType {
+    fn into(self) -> DisplayType {
+        match self {
+            ColorType::SixColor => DisplayType::SixColors,
+            ColorType::BlackWhite => DisplayType::BlackAndWhite,
+        }
     }
 }
 
