@@ -51,7 +51,6 @@ pub struct ImageInfo {
     pub path: PathBuf,
     pub rotation: RotationDegrees,
     pub orientation: ImageOrientation,
-    pub faces_detected: Option<usize>,
 }
 
 /// Detailed information about a processed image
@@ -211,6 +210,8 @@ impl Report {
         logger.divider();
         logger.info("");
 
+        self.print_config(logger);
+
         // Calculate total output images
         let total_output = self.processed_count + self.paired_count;
 
@@ -235,6 +236,8 @@ impl Report {
         logger.info("DETAILED PROCESSING REPORT");
         logger.divider();
         logger.info("");
+
+        self.print_config(logger);
 
         if !self.processed_details.is_empty() {
             logger.section("PROCESSED IMAGES");
@@ -297,5 +300,43 @@ impl Report {
     /// Generate JSON report (to be implemented)
     fn generate_json(&self, logger: &Logger) {
         logger.info("JSON report format not yet implemented");
+    }
+
+    fn print_config(&self, logger: &Logger) {
+        logger.section("CONFIG");
+
+        let input_paths = if self.config.input_paths.is_empty() {
+            "-".to_string()
+        } else {
+            self.config
+                .input_paths
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let output_formats = if self.config.output_formats.is_empty() {
+            "-".to_string()
+        } else {
+            self.config
+                .output_formats
+                .iter()
+                .map(|f| match f {
+                    OutputType::Bmp => "bmp",
+                    OutputType::Pfr1 => "pfr1",
+                    OutputType::Jpg => "jpg",
+                    OutputType::Png => "png",
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        logger.config_item("Input paths", &input_paths);
+        logger.config_item("Output dir", &self.config.output_dir.display().to_string());
+        logger.config_item("Extensions", &self.config.extensions);
+        logger.config_item("Output formats", &output_formats);
+        logger.config_item("No pairing", &self.config.no_pairing.to_string());
+        logger.info("");
     }
 }
