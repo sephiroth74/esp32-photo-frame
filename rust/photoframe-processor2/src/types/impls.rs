@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter};
 impl Display for ReportFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ReportFormat::Rich => "rich",
+            ReportFormat::Full => "rich",
             ReportFormat::Json => "json",
             ReportFormat::Plain => "plain",
         };

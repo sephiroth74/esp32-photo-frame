@@ -1,4 +1,4 @@
-use super::detection_new::Face;
+use crate::image_processor::face_detection::Face;
 use ab_glyph::{FontRef, PxScale};
 /// Debug visualization module for drawing detection boxes
 /// Used when --debug flag is active to visualize face detection results
@@ -31,9 +31,6 @@ pub fn draw_detection_boxes(
     let font = match FontRef::try_from_slice(font_data) {
         Ok(f) => f,
         Err(_) => {
-            eprintln!(
-                "Warning: Failed to load font from insightface_rs assets, text rendering may be unavailable"
-            );
             return Ok(annotated);
         }
     };

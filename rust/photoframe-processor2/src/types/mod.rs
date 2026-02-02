@@ -24,8 +24,8 @@ pub enum Orientation {
 pub enum ReportFormat {
     #[value(name = "plain")]
     Plain,
-    #[value(name = "rich")]
-    Rich,
+    #[value(name = "full")]
+    Full,
     #[value(name = "json")]
     Json,
 }

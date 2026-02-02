@@ -1,3 +1,4 @@
+use crate::image_processor::face_detection::Face;
 /// Face detection module using InsightFace
 ///
 /// This module provides face detection using the insightface-rs library,
@@ -10,18 +11,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 /// Global InsightFace detector instance
 static GLOBAL_DETECTOR: OnceLock<Arc<Mutex<FaceAnalysis>>> = OnceLock::new();
-
-/// Face detection result compatible with existing smart crop system
-#[derive(Debug, Clone)]
-pub struct Face {
-    /// Bounding box coordinates
-    pub x1: u32,
-    pub y1: u32,
-    pub x2: u32,
-    pub y2: u32,
-    /// Detection confidence score
-    pub confidence: f32,
-}
 
 /// Initialize the global face detector - returns error on failure
 fn try_get_detector() -> Result<Arc<Mutex<FaceAnalysis>>> {

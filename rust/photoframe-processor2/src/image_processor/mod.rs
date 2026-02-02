@@ -2,7 +2,7 @@ mod annotate;
 mod color_correction;
 mod combine;
 mod debug_viz;
-mod detection_new;
+mod face_detection;
 mod imagemagick;
 mod output;
 mod pairing;
@@ -14,16 +14,17 @@ use annotate::add_date_annotation;
 use color_correction::apply_color_correction;
 use combine::combine_paired_images;
 use debug_viz::draw_detection_boxes;
-use detection_new::Face;
 use output::save_outputs;
 use smart_crop::{crop_image, resize_image};
 pub use types::{ProcessingPlan, SingleImage};
 
 use crate::cli::Args;
+use crate::image_processor::face_detection::Face;
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
 use crate::types::{ColorType, HexColor, Orientation, Size};
 use anyhow::{Context, Result};
+use image::RgbImage;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use photoframe_lib::{DitheringMethod, apply_dithering};
 use rayon::ThreadPoolBuilder;
@@ -169,9 +170,10 @@ impl<'a> ImageProcessor<'a> {
 
         // Add all single-orientation images as individual images
         for image_info in single_images {
+            let orientation = image_info.orientation;
             plan.single_images.push(SingleImage {
                 info: image_info,
-                orientation: single_orientation,
+                orientation,
             });
         }
 
@@ -287,6 +289,8 @@ impl<'a> ImageProcessor<'a> {
             Some(bars)
         };
 
+        let logger = self.logger;
+
         let results: Vec<(Result<ProcessedImage>, PathBuf)> = pool.install(|| {
             jobs.into_par_iter()
                 .enumerate()
@@ -309,7 +313,7 @@ impl<'a> ImageProcessor<'a> {
                         pb.set_position(0);
                     }
 
-                    let result = process_job(&job, pb.as_ref());
+                    let result = process_job(&job, pb.as_ref(), logger);
 
                     if let Some(pb) = &pb {
                         match &result {
@@ -518,7 +522,21 @@ fn paired_target_size(base: Size, target_orientation: Orientation) -> Size {
     }
 }
 
-fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<ProcessedImage> {
+fn process_job(
+    job: &ProcessingJob,
+    progress: Option<&ProgressBar>,
+    logger: &Logger,
+) -> Result<ProcessedImage> {
+    let filename = job
+        .image
+        .path
+        .file_name()
+        .map(|v| v.to_string_lossy())
+        .unwrap_or_else(|| job.image.path.to_string_lossy())
+        .to_string();
+
+    logger.verbose(&format!("Opening image: {}", filename));
+
     let reader = image::ImageReader::open(&job.image.path)
         .with_context(|| format!("Failed to open image: {}", job.image.path.display()))?
         .with_guessed_format()
@@ -526,11 +544,22 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
 
     let mut img = reader.decode().context("Failed to decode image")?;
 
+    logger.verbose(&format!("Image decoded: {}x{}", img.width(), img.height()));
+
     if let Some(pb) = progress {
         pb.inc(1);
     }
 
     // Apply EXIF rotation
+    let rotation_deg = match job.image.rotation {
+        crate::report::RotationDegrees::Deg0 => "0",
+        crate::report::RotationDegrees::Deg90 => "90",
+        crate::report::RotationDegrees::Deg180 => "180",
+        crate::report::RotationDegrees::Deg270 => "270",
+    };
+    if rotation_deg != "0" {
+        logger.verbose(&format!("Applying EXIF rotation: {}°", rotation_deg));
+    }
     img = match job.image.rotation {
         crate::report::RotationDegrees::Deg0 => img,
         crate::report::RotationDegrees::Deg90 => img.rotate90(),
@@ -554,27 +583,17 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         .context("Failed to create temporary file")?;
 
     // Detect faces if enabled
-    let (detection, face_count): (Option<Vec<Face>>, Option<usize>) = if job.detect_people {
-        eprintln!("Detecting people");
-        match detection_new::detect_faces(&img_rgb, job.confidence_threshold) {
-            Ok(faces) => {
-                eprintln!("Detected {} faces", faces.len());
-                let count = faces.len();
-                (Some(faces), Some(count))
-            }
-            Err(err) => {
-                eprintln!("Error detecting faces: {}", err);
-                (None, None)
-            }
-        }
-    } else {
-        eprintln!("Skipping people detection");
-        (None, None)
-    };
+    let (detection, face_count): (Option<Vec<Face>>, Option<usize>) =
+        detect_faces(&job, logger, &img_rgb);
 
     if let Some(pb) = progress {
         pb.inc(1);
     }
+
+    logger.verbose(&format!(
+        "Computing crop area (target: {}x{})",
+        job.target_size.width, job.target_size.height
+    ));
 
     let (crop_x, crop_y, crop_width, crop_height) = compute_crop_area_faces(
         &img_rgb,
@@ -582,8 +601,13 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         job.target_size.height,
         detection.as_ref(),
     );
+    logger.verbose(&format!(
+        "Crop area: [{},{} - {}x{}]",
+        crop_x, crop_y, crop_width, crop_height
+    ));
 
     // Smart crop and resize with face detection awareness
+    logger.verbose("Applying smart crop and resize with face awareness");
     let mut processing_image = smart_crop_and_resize_faces(
         &img_rgb,
         job.target_size.width,
@@ -591,12 +615,31 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         detection.as_ref(),
     )
     .context("Failed to crop and resize image")?;
+    let dims = processing_image.dimensions();
+    logger.verbose(&format!("Crop and resize complete: {}x{}", dims.0, dims.1));
 
     if let Some(pb) = progress {
         pb.inc(1);
     }
 
     // Apply color correction
+    let mut active = Vec::new();
+    if job.auto_color_correct {
+        active.push("auto-color".to_string());
+    }
+    if job.brightness != 0 {
+        active.push(format!("brightness:{}", job.brightness));
+    }
+    if job.contrast != 0 {
+        active.push(format!("contrast:{}", job.contrast));
+    }
+    if job.saturation != 100 {
+        active.push(format!("saturation:{}", job.saturation));
+    }
+    if !active.is_empty() {
+        logger.verbose(&format!("Applying color correction: {}", active.join(", ")));
+    }
+
     processing_image = apply_color_correction(
         &processing_image,
         job.auto_color_correct,
@@ -609,11 +652,8 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
     // Debug visualization: draw detection boxes AFTER color correction
     // This ensures boxes are visible in the final saved image
     if job.debug && job.detect_people && detection.is_some() {
+        logger.verbose("Drawing debug visualization (detection boxes)");
         let faces = detection.as_ref().unwrap();
-        eprintln!(
-            "Drawing {} detection boxes for debug visualization",
-            faces.len()
-        );
         if !faces.is_empty() && crop_width > 0 && crop_height > 0 {
             let scale_x = job.target_size.width as f32 / crop_width as f32;
             let scale_y = job.target_size.height as f32 / crop_height as f32;
@@ -674,15 +714,22 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
 
     // Add date annotation if enabled
     if job.annotate {
+        logger.verbose(&format!("Adding date annotation (font: {})", job.font_name));
         processing_image = add_date_annotation(
             &processing_image,
             &job.image.path,
             &job.font_name,
             job.font_size,
             &job.annotation_background,
+            logger,
         )
         .unwrap_or(processing_image);
     }
+
+    logger.verbose(&format!(
+        "Applying dithering: {:?} (strength: {})",
+        job.dithering_method, job.dither_strength
+    ));
 
     processing_image = apply_dithering(
         &processing_image,
@@ -720,6 +767,62 @@ fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<Pr
         people_count: face_count,
     })
 }
+
+#[cfg(feature = "ai")]
+fn detect_faces(
+    job: &&ProcessingJob,
+    logger: &Logger,
+    img_rgb: &RgbImage,
+) -> (Option<Vec<Face>>, Option<usize>) {
+    if job.detect_people {
+        logger.verbose(&format!(
+            "Running face detection (confidence threshold: {:.2})",
+            job.confidence_threshold
+        ));
+
+        match face_detection::detection::detect_faces(&img_rgb, job.confidence_threshold) {
+            Ok(faces) => {
+                let count = faces.len();
+                if logger.is_verbose() {
+                    logger.verbose(&format!(
+                        "Face detection completed: {} face(s) detected",
+                        count
+                    ));
+                    if !faces.is_empty() {
+                        for (i, face) in faces.iter().enumerate() {
+                            logger.verbose(&format!(
+                                "  Face {}: [{},{} - {},{}] (confidence: {:.2})",
+                                i + 1,
+                                face.x1,
+                                face.y1,
+                                face.x2,
+                                face.y2,
+                                face.confidence
+                            ));
+                        }
+                    }
+                }
+                (Some(faces), Some(count))
+            }
+            Err(err) => {
+                logger.verbose(&format!("Face detection error: {}", err));
+                (None, None)
+            }
+        }
+    } else {
+        (None, None)
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn detect_faces(
+    _job: &&ProcessingJob,
+    _logger: &Logger,
+    _img_rgb: &RgbImage,
+) -> (Option<Vec<Face>>, Option<usize>) {
+    (None, None)
+}
+
 /// Compute crop area based on target dimensions and face detections
 /// Returns (crop_x, crop_y, crop_width, crop_height)
 fn compute_crop_area_faces(

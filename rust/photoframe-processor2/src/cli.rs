@@ -261,7 +261,7 @@ pub struct Args {
         default_value = "plain",
         value_name = "FORMAT",
         conflicts_with = "validate",
-        help = "Report output format: 'plain' (simple text), 'rich' (formatted table), 'json' (structured data)"
+        help = "Report output format: 'plain', 'full', 'json'"
     )]
     pub report: ReportFormat,
 
@@ -286,6 +286,10 @@ pub struct Args {
     #[arg(long = "detect-people", conflicts_with = "validate")]
     pub detect_people: bool,
 
+    #[cfg(not(feature = "ai"))]
+    #[arg(long = "detect-people", hide = true, default_value_t = false)]
+    pub detect_people: bool,
+
     /// Confidence threshold for people detection (0.0-1.0, requires --detect-people)
     #[cfg(feature = "ai")]
     #[arg(
@@ -294,6 +298,10 @@ pub struct Args {
         value_name = "THRESHOLD",
         conflicts_with = "validate"
     )]
+    pub confidence_threshold: f32,
+
+    #[cfg(not(feature = "ai"))]
+    #[arg(long = "confidence", hide = true, default_value_t = 0.50)]
     pub confidence_threshold: f32,
 
     /// Enable debug mode: visualize detection boxes and crop area with correct orientation

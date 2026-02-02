@@ -1,11 +1,11 @@
+use crate::logging::Logger;
+use crate::types::HexColor;
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use imageproc::drawing::{draw_text_mut, text_size};
 use regex::Regex;
 use std::path::Path;
-
-use crate::types::HexColor;
 
 /// Add date annotation to an image (extracted from EXIF data)
 ///
@@ -19,11 +19,18 @@ pub fn add_date_annotation(
     font_name: &str,
     font_size: u32,
     background_color: &HexColor,
+    logger: &Logger,
 ) -> Result<RgbImage> {
     let mut annotated_img = img.clone();
 
     // Extract date from EXIF data only
     if let Ok(date_text) = extract_date_from_image(input_path) {
+        logger.verbose(&format!(
+            "Adding date annotation '{}' to image '{}'",
+            date_text,
+            input_path.display()
+        ));
+
         let bg_r = background_color.red();
         let bg_g = background_color.green();
         let bg_b = background_color.blue();
