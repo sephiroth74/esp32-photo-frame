@@ -5,6 +5,9 @@ use walkdir::WalkDir;
 
 use crate::logging::Logger;
 
+#[cfg(test)]
+use crate::logging::TEST_LOGGER;
+
 /// Discovery class that scans input paths and returns all matching files.
 pub struct Discovery<'a> {
     extensions: HashSet<String>,
@@ -111,7 +114,7 @@ impl<'a> Discovery<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logging::Logger;
+    use crate::logging::TEST_LOGGER;
     use std::fs;
     use tempfile::TempDir;
 
@@ -132,8 +135,7 @@ mod tests {
         fs::write(&txt, b"c")?;
         fs::write(&jpeg, b"d")?;
 
-        let logger = Logger::new(false, false);
-        let discovery = Discovery::new("jpg,jpeg,png", &logger);
+        let discovery = Discovery::new("jpg,jpeg,png", &TEST_LOGGER);
 
         let results = discovery.discover(&vec![root.to_path_buf()])?;
         let paths: HashSet<PathBuf> = results.into_iter().collect();
@@ -153,8 +155,7 @@ mod tests {
         let file = root.join("only.webp");
         fs::write(&file, b"x")?;
 
-        let logger = Logger::new(false, false);
-        let discovery = Discovery::new("webp", &logger);
+        let discovery = Discovery::new("webp", &TEST_LOGGER);
 
         let results = discovery.discover(&vec![file.clone()])?;
         assert_eq!(results.len(), 1);
@@ -170,8 +171,7 @@ mod tests {
         let file = root.join("only.bmp");
         fs::write(&file, b"x")?;
 
-        let logger = Logger::new(false, false);
-        let discovery = Discovery::new("jpg", &logger);
+        let discovery = Discovery::new("jpg", &TEST_LOGGER);
 
         let results = discovery.discover(&vec![file])?;
         assert!(results.is_empty());

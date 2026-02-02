@@ -192,7 +192,7 @@ fn read_exif_rotation(path: &Path) -> Option<RotationDegrees> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logging::Logger;
+    use crate::logging::TEST_LOGGER;
     use image::RgbImage;
     use image::codecs::jpeg::JpegEncoder;
     use std::fs;
@@ -204,8 +204,7 @@ mod tests {
         let file = temp.path().join("not_image.txt");
         fs::write(&file, b"hello").unwrap();
 
-        let logger = Logger::new(false, false);
-        let inspector = ImageInspector::new(&logger);
+        let inspector = ImageInspector::new(&TEST_LOGGER);
 
         let result = inspector.inspect(&vec![file.clone()], false);
         assert!(result.valid.is_empty());
@@ -229,8 +228,7 @@ mod tests {
             write_jpeg_with_exif_orientation(path, *orientation);
         }
 
-        let logger = Logger::new(false, false);
-        let inspector = ImageInspector::new(&logger);
+        let inspector = ImageInspector::new(&TEST_LOGGER);
         let input_paths = files.iter().map(|(p, _, _)| p.clone()).collect::<Vec<_>>();
 
         let result = inspector.inspect(&input_paths, false);

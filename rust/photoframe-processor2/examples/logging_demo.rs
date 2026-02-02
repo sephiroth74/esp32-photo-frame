@@ -6,7 +6,7 @@ fn main() {
 
     // Example 1: Normal mode (no verbose, no debug)
     println!("1. Normal Mode (no flags):");
-    let logger = Logger::new(false, false);
+    let logger = Logger::new(false);
 
     logger.section("Processing Images");
     logger.config_section("Settings");
@@ -28,7 +28,7 @@ fn main() {
 
     // Example 2: Verbose mode
     println!("2. Verbose Mode (--verbose flag):");
-    let logger = Logger::new(true, false);
+    let logger = Logger::new(true);
 
     logger.section("Processing Images");
     logger.config_section("Settings");
@@ -51,7 +51,7 @@ fn main() {
 
     // Example 3: Debug mode
     println!("3. Debug Mode (--debug flag):");
-    let logger = Logger::new(false, true);
+    let logger = Logger::new(false);
 
     logger.section("Debug Information");
     logger.debug("Logger initialized with debug=true");
@@ -62,7 +62,7 @@ fn main() {
 
     // Example 4: All modes enabled
     println!("4. All Modes (--verbose --debug):");
-    let logger = Logger::new(true, true);
+    let logger = Logger::new(true);
 
     logger.section("Complete Processing");
     logger.debug("Initializing processor");
@@ -83,7 +83,7 @@ fn main() {
 
     // Example 5: Error and warning handling
     println!("5. Error Handling:");
-    let logger = Logger::new(true, false);
+    let logger = Logger::new(true);
 
     logger.info("Attempting to process file...");
     logger.file_op("Reading", "/path/to/missing_file.jpg");
@@ -95,7 +95,7 @@ fn main() {
 
     // Example 6: Progress indicators
     println!("6. Progress Indicators:");
-    let logger = Logger::new(false, false);
+    let logger = Logger::new(false);
 
     logger.section("Batch Processing");
 

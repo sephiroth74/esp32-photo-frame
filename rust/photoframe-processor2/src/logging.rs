@@ -25,9 +25,18 @@ pub enum LogLevel {
     Debug,
 }
 
+#[derive(Clone, Copy)]
 pub struct Logger {
     verbose: bool,
 }
+
+/// Test logger instance (silent, no verbose) - should only be used in tests
+#[cfg(test)]
+pub const TEST_LOGGER: Logger = Logger { verbose: false };
+
+/// Test logger instance (verbose mode) - should only be used in tests
+#[cfg(test)]
+pub const TEST_LOGGER_VERBOSE: Logger = Logger { verbose: true };
 
 impl Logger {
     /// Create a new logger with the given verbosity settings
@@ -137,34 +146,30 @@ mod tests {
 
     #[test]
     fn test_logger_creation() {
-        let logger = Logger::new(false);
-        assert!(!logger.is_verbose());
+        assert!(!TEST_LOGGER.is_verbose());
     }
 
     #[test]
     fn test_logger_verbose() {
-        let logger = Logger::new(true);
-        assert!(logger.is_verbose());
+        assert!(TEST_LOGGER_VERBOSE.is_verbose());
     }
 
     #[test]
     fn test_logger_debug() {
-        let logger = Logger::new(false);
-        assert!(!logger.is_verbose());
+        assert!(!TEST_LOGGER.is_verbose());
     }
 
     #[test]
     fn test_logger_all_modes() {
-        let logger = Logger::new(true);
-        assert!(logger.is_verbose());
+        assert!(TEST_LOGGER_VERBOSE.is_verbose());
 
         // Just ensure methods don't panic
-        logger.error("test error");
-        logger.warning("test warning");
-        logger.info("test info");
-        logger.success("test success");
-        logger.verbose("test verbose");
-        logger.debug("test debug");
+        TEST_LOGGER_VERBOSE.error("test error");
+        TEST_LOGGER_VERBOSE.warning("test warning");
+        TEST_LOGGER_VERBOSE.info("test info");
+        TEST_LOGGER_VERBOSE.success("test success");
+        TEST_LOGGER_VERBOSE.verbose("test verbose");
+        TEST_LOGGER_VERBOSE.debug("test debug");
         logger.section("test section");
         logger.divider();
         logger.config_item("key", "value");

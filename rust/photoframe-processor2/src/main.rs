@@ -115,6 +115,19 @@ fn main() {
         ));
         logger.info("");
     }
+
+    // Update report with processing results
+    let paired_count = plan.paired_images.len();
+    report.set_processing_results(
+        processing.processed.len(),
+        processing.failed.len(),
+        paired_count,
+    );
+
+    // Generate final report
+    if !args.json_progress {
+        report.generate(&logger, args.report.clone());
+    }
 }
 
 /// Run PFR1 file validation and exit
