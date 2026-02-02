@@ -22,12 +22,21 @@ fn main() {
     let logger =
         logging::Logger::new_with_silent(args.verbose && !args.json_progress, args.json_progress);
 
+    if args.json_progress {
+        JsonMessage::progress("startup", 0, 1, "Starting");
+    }
+
     // Handle validation mode early exit
     if let Some(ref validate_path) = args.validate {
-        match run_validation(validate_path, &logger) {
+        match run_validation(validate_path, &logger, args.json_progress) {
             Ok(_) => process::exit(0),
             Err(e) => {
-                logger.error(&format!("Validation error: {}", e));
+                let msg = format!("Validation error: {}", e);
+                if args.json_progress {
+                    JsonMessage::error("validation", msg);
+                } else {
+                    logger.error(&msg);
+                }
                 process::exit(1);
             }
         }
@@ -39,7 +48,12 @@ fn main() {
     logger.info("Creating output directories...");
 
     if let Err(e) = fs_utils::create_format_directories(&args.output, &args.output_formats) {
-        logger.error(&format!("Failed to create output directories: {}", e));
+        let msg = format!("Failed to create output directories: {}", e);
+        if args.json_progress {
+            JsonMessage::error("output", msg);
+        } else {
+            logger.error(&msg);
+        }
         process::exit(1);
     }
 
@@ -48,10 +62,15 @@ fn main() {
     logger.info("Discovering input files...");
 
     let discovery = discovery::Discovery::new(&args.extensions, &logger);
-    let input_files = match discovery.discover(&args.input) {
+    let input_files = match discovery.discover(&args.input, args.json_progress) {
         Ok(files) => files,
         Err(e) => {
-            logger.error(&format!("Discovery failed: {}", e));
+            let msg = format!("Discovery failed: {}", e);
+            if args.json_progress {
+                JsonMessage::error("discovery", msg);
+            } else {
+                logger.error(&msg);
+            }
             process::exit(1);
         }
     };
@@ -85,14 +104,24 @@ fn main() {
     let processor = match image_processor::ImageProcessor::new(&args, &logger) {
         Ok(p) => p,
         Err(e) => {
-            logger.error(&format!("Failed to initialize processor: {}", e));
+            let msg = format!("Failed to initialize processor: {}", e);
+            if args.json_progress {
+                JsonMessage::error("processing", msg);
+            } else {
+                logger.error(&msg);
+            }
             process::exit(1);
         }
     };
     let plan = match processor.plan(inspection.valid.clone(), &mut report) {
         Ok(plan) => plan,
         Err(e) => {
-            logger.error(&format!("Failed to create processing plan: {}", e));
+            let msg = format!("Failed to create processing plan: {}", e);
+            if args.json_progress {
+                JsonMessage::error("planning", msg);
+            } else {
+                logger.error(&msg);
+            }
             process::exit(1);
         }
     };
@@ -108,7 +137,12 @@ fn main() {
     let processing = match processor.process(&plan, args.json_progress) {
         Ok(result) => result,
         Err(e) => {
-            logger.error(&format!("Processing failed: {}", e));
+            let msg = format!("Processing failed: {}", e);
+            if args.json_progress {
+                JsonMessage::error("processing", msg);
+            } else {
+                logger.error(&msg);
+            }
             process::exit(1);
         }
     };
@@ -150,6 +184,8 @@ fn main() {
             Some(report.to_json_value()),
             summary,
         );
+
+        JsonMessage::progress("complete", 1, 1, "Complete");
     } else {
         report.generate(&logger, args.report.clone());
     }
@@ -159,6 +195,7 @@ fn main() {
 fn run_validation(
     path: &std::path::Path,
     logger: &logging::Logger,
+    json_progress: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     logger.section("🔍 PFR1 FILE VALIDATION");
     logger.info(&format!("File: {}", path.display()));
@@ -168,7 +205,12 @@ fn run_validation(
     let data = match fs::read(path) {
         Ok(d) => d,
         Err(e) => {
-            logger.error(&format!("Failed to read file: {}", e));
+            let msg = format!("Failed to read file: {}", e);
+            if json_progress {
+                JsonMessage::error("validation", msg);
+            } else {
+                logger.error(&msg);
+            }
             process::exit(1);
         }
     };
@@ -270,6 +312,10 @@ fn run_validation(
             logger.info("");
             logger.info(&format!("Error: {}", e));
             logger.info("");
+
+            if json_progress {
+                JsonMessage::error("validation", format!("Validation failed: {}", e));
+            }
 
             // Try to provide more details
             if data.len() < photoframe_lib::BIN_HEADER_SIZE {

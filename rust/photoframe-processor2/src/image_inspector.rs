@@ -160,7 +160,7 @@ impl<'a> ImageInspector<'a> {
 
 fn emit_json_progress(current: usize, total: usize, path: &Path) {
     let message = format!("Validating {}", path.display());
-    JsonMessage::progress(current, total, message);
+    JsonMessage::progress("inspection", current, total, message);
 }
 
 fn read_exif_rotation(path: &Path) -> Option<RotationDegrees> {

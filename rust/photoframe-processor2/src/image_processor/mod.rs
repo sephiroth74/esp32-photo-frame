@@ -320,7 +320,7 @@ impl<'a> ImageProcessor<'a> {
                     if json_progress {
                         let current = json_counter.fetch_add(1, Ordering::Relaxed) + 1;
                         let message = format!("Processing {}", job.image.path.display());
-                        JsonMessage::progress(current, total_jobs, message);
+                        JsonMessage::progress("processing", current, total_jobs, message);
 
                         if let Err(err) = &result {
                             JsonMessage::file_failed(&job.image.path, err.to_string());

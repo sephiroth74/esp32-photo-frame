@@ -17,6 +17,7 @@ static LAST_PROGRESS_MS: AtomicU64 = AtomicU64::new(0);
 pub enum JsonMessage {
     /// Progress update
     Progress {
+        phase: String,
         current: usize,
         total: usize,
         message: String,
@@ -29,6 +30,8 @@ pub enum JsonMessage {
     },
     /// File processing failed
     FileFailed { input_path: String, error: String },
+    /// Fatal error
+    Error { phase: String, message: String },
     /// Processing summary
     Summary {
         total_files: usize,
@@ -59,7 +62,12 @@ impl JsonMessage {
     ///
     /// Progress updates are throttled to emit at most every 40ms (25 FPS target).
     /// The final progress (current == total) is always emitted to ensure 100% completion.
-    pub fn progress(current: usize, total: usize, message: impl Into<String>) {
+    pub fn progress(
+        phase: impl Into<String>,
+        current: usize,
+        total: usize,
+        message: impl Into<String>,
+    ) {
         // Get current time in milliseconds
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -74,6 +82,7 @@ impl JsonMessage {
         if now_ms - last_ms >= 40 || current == total {
             LAST_PROGRESS_MS.store(now_ms, Ordering::Relaxed);
             Self::Progress {
+                phase: phase.into(),
                 current,
                 total,
                 message: message.into(),
@@ -104,6 +113,15 @@ impl JsonMessage {
         Self::FileFailed {
             input_path: input_path.display().to_string(),
             error: error.into(),
+        }
+        .emit();
+    }
+
+    /// Create and emit fatal error message
+    pub fn error(phase: impl Into<String>, message: impl Into<String>) {
+        Self::Error {
+            phase: phase.into(),
+            message: message.into(),
         }
         .emit();
     }

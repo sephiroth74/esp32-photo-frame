@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+use crate::json_output::JsonMessage;
 use crate::logging::Logger;
 
 /// Discovery class that scans input paths and returns all matching files.
@@ -33,7 +34,7 @@ impl<'a> Discovery<'a> {
 
     /// Scan all input paths (files or directories) and return a full list of
     /// matching files found recursively.
-    pub fn discover(&self, inputs: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    pub fn discover(&self, inputs: &[PathBuf], json_progress: bool) -> Result<Vec<PathBuf>> {
         let mut files: HashSet<PathBuf> = HashSet::new();
 
         if inputs.is_empty() {
@@ -41,7 +42,8 @@ impl<'a> Discovery<'a> {
             return Ok(Vec::new());
         }
 
-        for input in inputs {
+        let total = inputs.len();
+        for (idx, input) in inputs.iter().enumerate() {
             if input.is_file() {
                 self.process_file(input, &mut files);
             } else if input.is_dir() {
@@ -52,6 +54,11 @@ impl<'a> Discovery<'a> {
                     "Input path is neither file nor directory: {}",
                     input.display()
                 ));
+            }
+
+            if json_progress {
+                let message = format!("Discovery {}", input.display());
+                JsonMessage::progress("discovery", idx + 1, total, message);
             }
         }
 
@@ -134,7 +141,7 @@ mod tests {
 
         let discovery = Discovery::new("jpg,jpeg,png", &TEST_LOGGER);
 
-        let results = discovery.discover(&vec![root.to_path_buf()])?;
+        let results = discovery.discover(&vec![root.to_path_buf()], false)?;
         let paths: HashSet<PathBuf> = results.into_iter().collect();
 
         assert!(paths.contains(&jpg));
@@ -154,7 +161,7 @@ mod tests {
 
         let discovery = Discovery::new("webp", &TEST_LOGGER);
 
-        let results = discovery.discover(&vec![file.clone()])?;
+        let results = discovery.discover(&vec![file.clone()], false)?;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], file);
 
@@ -170,7 +177,7 @@ mod tests {
 
         let discovery = Discovery::new("jpg", &TEST_LOGGER);
 
-        let results = discovery.discover(&vec![file])?;
+        let results = discovery.discover(&vec![file], false)?;
         assert!(results.is_empty());
 
         Ok(())
