@@ -1,6 +1,11 @@
-# photoframe-processor2
+# PhotoFrame Processor
 
-High‑performance CLI for converting images into formats compatible with ESP32 e‑paper displays. Supports parallel processing, automatic pairing, optional AI face detection, and detailed reports.
+High‑performance CLI for converting images into formats compatible with ESP32 e‑paper displays. 
+
+The main purpose is to prepare images for the ESP32 photoframe arduino board. It will convert images into the
+required **pfr1** format, as well as other common formats like **bmp**, **jpg**, and **png**.
+
+Supports parallel processing, automatic pairing, optional AI face detection, and detailed reports, and more...
 
 ## Key features
 
@@ -13,8 +18,8 @@ High‑performance CLI for converting images into formats compatible with ESP32 
 ## Build
 
 ```
-cd rust/photoframe-processor2
-cargo build --bin processor
+cd rust/processor
+cargo build 
 ```
 
 ## Run
@@ -39,4 +44,8 @@ Types: `progress`, `filecompleted`, `filefailed`, `error`, `complete`.
 
 ## Documentation
 
-- CLI: [CLI_GUIDE.md](CLI_GUIDE.md)
+See the full documentation for the cli arguments:
+
+```
+./target/debug/processor --help
+```

@@ -2,15 +2,13 @@
 
 Rust library for face detection and recognition using ONNX models
 
-## ✨ Features
+## Features
 
-- 🎯 **Face Detection** - RetinaFace-based detection with high accuracy
-- 🔄 **EXIF Orientation Support** - Automatic handling of rotated images from smartphones
-- 🎨 **Bounding Box Visualization** - Draw detection results on images
-- ⚡ **High Performance** - Optimized with ONNX Runtime
-- 🛠️ **Easy to Use** - Simple API accepting both image objects and file paths
+- **Face Detection** - RetinaFace-based detection with high accuracy
+- **EXIF Orientation Support** - Automatic handling of rotated images from smartphones
+- **Bounding Box Visualization** - Draw detection results on images
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Basic Usage - From Image Object
 
@@ -79,13 +77,12 @@ insightface-rs = { path = "/path/to/insightface_rs" }
 # insightface-rs = "0.1.0"
 ```
 
-## 📋 Requirements
+## Requirements
 
 - Rust 1.70+
-- ONNX Runtime
 - Pre-trained models (buffalo_l)
 
-## 📦 Model Setup
+## Model Setup
 
 The models must be placed in an accessible directory. You have several options:
 
@@ -144,7 +141,7 @@ The buffalo_l package includes:
 - `genderage.onnx` - Gender and age estimation (optional)
 - Other auxiliary models
 
-## 📦 Installation
+## Installation
 
 Add the dependency to your `Cargo.toml`:
 
@@ -154,7 +151,7 @@ insightface-rs = { path = "../path/to/insightface_rs" }
 image = "0.25"
 ```
 
-## 💡 Usage Examples
+## Usage Examples
 
 ### Basic Example
 
@@ -206,7 +203,7 @@ app.set_nms_thresh(0.3);
 app.prepare(0, 0.5, (512, 512))?;
 ```
 
-## 🏗️ Library Structure
+## Library Structure
 
 - `app.rs` - Main API (`FaceAnalysis`)
 - `face.rs` - `Face` structure and utilities
@@ -214,7 +211,7 @@ app.prepare(0, 0.5, (512, 512))?;
 - `model_zoo.rs` - ONNX model management
 - `utils.rs` - Utility functions (NMS, embedding distance, etc.)
 
-## 📊 Result Structure
+## Result Structure
 
 Each `Face` contains:
 
@@ -230,7 +227,7 @@ pub struct Face {
 }
 ```
 
-## 🔧 Face Methods
+## Face Methods
 
 ```rust
 // Bounding box dimensions
@@ -246,7 +243,7 @@ face.normed_embedding()   // Normalized embedding (unit vector)
 face.sex()                // "M" or "F"
 ```
 
-## 🛠️ Utility Functions
+## 🛠Utility Functions
 
 ```rust
 use insightface_rs::utils::*;
@@ -262,7 +259,7 @@ let distance = embedding_distance(&emb1, &emb2);
 let similarity = cosine_similarity(&emb1, &emb2);
 ```
 
-## 📁 Process Directory Example
+## Process Directory Example
 
 ```rust
 use std::fs;
@@ -292,22 +289,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## ⚡ Performance Notes
-
-The Rust library is generally faster than the Python version for core operations because:
-- No Python interpreter overhead
-- Tensors are allocated in native Rust memory
-- ONNX inference is the same in both cases
-- Better memory management and zero-cost abstractions
-
-## 🗺️ Roadmap
-
-- [ ] Full ArcFace embedding support
-- [ ] Attribute recognition (age/gender)
-- [ ] GPU support (CUDA/TensorRT)
-- [ ] Batch processing
-
-## 📄 License
+## License
 
 This project follows the license of the original InsightFace project.
 
