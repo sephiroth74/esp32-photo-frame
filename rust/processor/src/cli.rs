@@ -27,22 +27,22 @@ Compiled features: {}
 
 Example Usage:
     # Basic black & white processing (800x480 landscape by default)
-    photoframe-processor -i ~/Photos -o ~/processed -t bw --output-format pfr1
+    processor -i ~/Photos -o ~/processed -t bw --output-format pfr1
 
     # Process single image file
-    photoframe-processor -i ~/Photos/IMG_001.jpg -o ~/processed -t bw --output-format pfr1
+    processor -i ~/Photos/IMG_001.jpg -o ~/processed -t bw --output-format pfr1
 
     # 6-color processing with only binary output (hardware 800x480)
-    photoframe-processor -i ~/Photos -o ~/processed -t 6c --output-format pfr1 --verbose
+    processor -i ~/Photos -o ~/processed -t 6c --output-format pfr1 --verbose
 
     # Multiple output formats (creates subdirectories: bmp/, pfr1/, jpg/)
-    photoframe-processor -i ~/Photos -o ~/processed --output-format bmp,pfr1,jpg
+    processor -i ~/Photos -o ~/processed --output-format bmp,pfr1,jpg
 
     # PNG output format only
-    photoframe-processor -i ~/Photos -o ~/processed --output-format png
+    processor -i ~/Photos -o ~/processed --output-format png
 {}
     # Process images with filename annotations enabled
-    photoframe-processor -i ~/Photos -o ~/processed --annotate",
+    processor -i ~/Photos -o ~/processed --annotate",
         features_str,
         ai_feature_desc,
     )
@@ -62,7 +62,8 @@ pub struct Args {
         long = "input",
         required_unless_present_any = ["validate"],
         conflicts_with = "validate",
-        value_name = "DIR|FILE"
+        value_name = "DIR|FILE",
+        help = "Input directories or image files to process (can be specified multiple times)"
     )]
     pub input: Vec<PathBuf>,
 
@@ -73,7 +74,8 @@ pub struct Args {
         required_unless_present_any = ["validate"],
         conflicts_with = "validate",
         value_name = "DIR",
-        default_value = "."
+        default_value = ".",
+        help = "Output directory for processed images"
     )]
     pub output: PathBuf,
 
@@ -97,7 +99,8 @@ pub struct Args {
         short = 't',
         long = "type",
         default_value = "bw",
-        conflicts_with = "validate"
+        conflicts_with = "validate",
+        help = "Display type: 'bw' for black & white, '6c' for 6-color"
     )]
     pub processing_type: ColorType,
 
@@ -108,7 +111,8 @@ pub struct Args {
         default_value = "pfr1,jpg",
         conflicts_with = "validate",
         num_args = 1,
-        value_delimiter = ','
+        value_delimiter = ',',
+        help = "Output formats: bmp, pfr1, jpg, png (comma-separated list)"
     )]
     pub output_formats: Vec<OutputType>,
 
@@ -123,12 +127,17 @@ pub struct Args {
     #[arg(
         long = "extensions",
         default_value = "jpg,jpeg,png,webp,tiff,heic",
-        conflicts_with = "validate"
+        conflicts_with = "validate",
+        help = "Comma-separated list of image file extensions to process (e.g., 'jpg,png,bmp,tiff')"
     )]
     pub extensions: String,
 
     /// Enable filename annotations on processed images (default: false)
-    #[arg(long = "annotate", conflicts_with = "validate")]
+    #[arg(
+        long = "annotate",
+        conflicts_with = "validate",
+        help = "Enable annotations on processed images (it will look for the EXIF image creation date by default)"
+    )]
     pub annotate: bool,
 
     /// Font size for filename annotations
@@ -136,7 +145,9 @@ pub struct Args {
         long = "font-size",
         default_value = "22",
         value_name = "SIZE",
-        conflicts_with = "validate"
+        conflicts_with = "validate",
+        requires = "annotate",
+        help = "Font size for text annotations in pixels"
     )]
     pub font_size: u32,
 
@@ -148,7 +159,9 @@ pub struct Args {
         long = "font",
         default_value = "Arial",
         value_name = "FONT",
-        conflicts_with = "validate"
+        conflicts_with = "validate",
+        requires = "annotate",
+        help = "Font for text annotations (name, filename, or full path"
     )]
     pub font: String,
 
@@ -158,7 +171,9 @@ pub struct Args {
         default_value = "#40000000",
         value_name = "COLOR",
         value_parser = HexColor::parse,
-        conflicts_with = "validate"
+        conflicts_with = "validate",
+        requires = "annotate",
+        help = "Background color for text annotations (hex ARGB format, e.g., #40000000 (semi-transparent black)"
     )]
     pub annotation_background: HexColor,
 
@@ -167,7 +182,8 @@ pub struct Args {
         long = "divider-width",
         default_value = "3",
         value_name = "WIDTH",
-        conflicts_with = "validate"
+        conflicts_with_all = ["validate", "no_pairing"],
+        help = "Width of the divider line between combined images in pixels"
     )]
     pub divider_width: u32,
 
@@ -177,7 +193,8 @@ pub struct Args {
         default_value = "#FFFFFFFF",
         value_name = "COLOR",
         value_parser = HexColor::parse,
-        conflicts_with = "validate"
+        conflicts_with_all = ["validate", "no_pairing"],
+        help = "Color of the divider line between combined images (hex ARGB format, e.g., #FFFFFFFF for white"
     )]
     pub divider_color: HexColor,
 
@@ -192,7 +209,6 @@ pub struct Args {
     )]
     pub dithering_method: DitheringMethod,
 
-    /// Dithering strength (0.0-2.0, default 1.0). Higher values = stronger dithering effect
     #[arg(
         long = "dither-strength",
         default_value = "100",
@@ -233,15 +249,16 @@ pub struct Args {
         long = "saturation",
         default_value = "100",
         value_name = "MULTIPLIER",
-        value_parser = clap::value_parser!(u32).range(50..=200),
+        value_parser = clap::value_parser!(u32).range(0..=200),
         conflicts_with = "validate",
-        help = "Saturation boost: 50 (desaturated) to 200 (highly saturated), 100 = no change"
+        help = "Saturation boost: 0 (desaturated) to 200 (highly saturated), 100 = no change"
     )]
     pub saturation: u32,
 
     /// Enable automatic color correction before processing (uses ImageMagick if available)
     #[arg(long = "auto-color",
         conflicts_with_all = ["validate"],
+        help = "Automatically enhance colors using ImageMagick's auto-level and auto-gamma functions (requires ImageMagick installed)"
     )]
     pub auto_color: bool,
 
@@ -266,11 +283,22 @@ pub struct Args {
     pub report: ReportFormat,
 
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
-    #[arg(short = 'j', long = "jobs", default_value = "0", value_name = "N")]
+    #[arg(
+        short = 'j',
+        long = "jobs",
+        default_value = "0",
+        value_name = "N",
+        help = "Number of parallel processing jobs (0 = auto-detect CPU cores)"
+    )]
     pub jobs: usize,
 
     /// Enable verbose output with detailed progress information
-    #[arg(short = 'v', long = "verbose")]
+    #[arg(
+        short = 'v',
+        long = "verbose",
+        help = "Enable verbose output with detailed progress information",
+        conflicts_with_all = ["json_progress", "validate"]
+    )]
     pub verbose: bool,
 
     /// Output progress as JSON lines (for GUI integration, suppresses all other output)
@@ -278,12 +306,17 @@ pub struct Args {
         short = 'J',
         long = "json-progress",
         conflicts_with_all = ["verbose", "validate"],
+        help = "Output progress as JSON lines for GUI integration (suppresses all other output)"
     )]
     pub json_progress: bool,
 
     /// Enable people detection for smart cropping using embedded YOLO11 model
     #[cfg(feature = "ai")]
-    #[arg(long = "detect-people", conflicts_with = "validate")]
+    #[arg(
+        long = "detect-people",
+        conflicts_with = "validate",
+        help = "Enable AI-powered people detection for smart cropping (uses downloaded model)"
+    )]
     pub detect_people: bool,
 
     #[cfg(not(feature = "ai"))]
@@ -296,7 +329,9 @@ pub struct Args {
         long = "confidence",
         default_value = "0.50",
         value_name = "THRESHOLD",
-        conflicts_with = "validate"
+        conflicts_with = "validate",
+        requires = "detect_people",
+        help = "Confidence threshold for people detection (0.0 to 1.0)"
     )]
     pub confidence_threshold: f32,
 

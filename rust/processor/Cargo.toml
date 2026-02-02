@@ -1,6 +1,6 @@
 [package]
-name = "photoframe-processor2"
-version = "3.2.0"
+name = "processor"
+version = "4.0.0"
 edition = "2024"
 authors = ["Alessandro Crugnola"]
 description = "High-performance image processor for converting images to binary or bitmaps ready files to be displayed on ESP32 board with e-paper display."
@@ -16,8 +16,8 @@ name = "processor"
 path = "src/main.rs"
 
 [dependencies]
-photoframe-lib = { path = "../photoframe-lib" }
 insightface-rs = { path = "../insightface_rs", optional = true }
+photoframe-lib = { path = "../photoframe_lib" }
 
 anyhow = "1.0.100"
 clap = { version = "4.5.56", features = ["derive"] }
@@ -34,7 +34,7 @@ serde_json = "1.0.134"
 tempfile = "3.14.0"
 ab_glyph = "0.2.32"
 num_cpus = "1.17.0"
-sha2 = "0.11.0-rc.4"
+sha2 = "0.10.9"
 tabled = { version = "0.20.0", features = ["ansi"] }
 
 [dev-dependencies]

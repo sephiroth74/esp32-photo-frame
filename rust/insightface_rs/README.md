@@ -1,6 +1,6 @@
 # InsightFace Rust Library
 
-A high-performance Rust library for face detection and recognition using ONNX models, replicating the functionality of the Python InsightFace project.
+Rust library for face detection and recognition using ONNX models
 
 ## ✨ Features
 
@@ -9,7 +9,6 @@ A high-performance Rust library for face detection and recognition using ONNX mo
 - 🎨 **Bounding Box Visualization** - Draw detection results on images
 - ⚡ **High Performance** - Optimized with ONNX Runtime
 - 🛠️ **Easy to Use** - Simple API accepting both image objects and file paths
-- 📦 **Standalone** - No Python dependencies required
 
 ## 🚀 Quick Start
 
@@ -83,82 +82,71 @@ insightface-rs = { path = "/path/to/insightface_rs" }
 ## 📋 Requirements
 
 - Rust 1.70+
-- ONNX Runtime (system installed)
-- ONNX models in specified directory (e.g., `~/.insightface/models/buffalo_l/`)
+- ONNX Runtime
+- Pre-trained models (buffalo_l)
 
-### Installazione ONNX Runtime
+## 📦 Model Setup
 
-#### macOS (con Homebrew)
-```bash
-brew install onnxruntime
-```
+The models must be placed in an accessible directory. You have several options:
 
-#### Linux (Ubuntu/Debian)
-```bash
-# Scarica da https://github.com/microsoft/onnxruntime/releases
-# oppure compila dal sorgente
-```
+### Option 1: Download from GitHub Releases (Recommended)
 
-#### Configurazione alternativa
-
-Se ONNX Runtime è in una posizione non standard, modifica `.cargo/config.toml`:
-```toml
-[env]
-ORT_STRATEGY = "system"
-ORT_LIB_LOCATION = "/path/to/onnxruntime/lib"
-```
-
-### Download dei modelli
-
-### Download dei modelli
-
-I modelli devono essere collocati in una directory accessibile. L'approccio consigliato:
-
-#### Scarica i modelli dal progetto Python
+Download the buffalo_l models directly:
 
 ```bash
-# Installa Python InsightFace
+# Download and extract the models
+wget https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip
+unzip buffalo_l.zip -d ~/.insightface/models/
+
+# Or use curl
+curl -L https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip -o buffalo_l.zip
+unzip buffalo_l.zip -d ~/.insightface/models/
+```
+
+### Option 2: Using Python InsightFace
+
+```bash
+# Install Python InsightFace
 pip install insightface
 
-# Scarica i modelli (verranno salvati in ~/.insightface/models/)
-python -c "from insightface.app import FaceAnalysis; app = FaceAnalysis('buffalo_l')"
+# Download models (saved to ~/.insightface/models/)
+python -c "from insightface.app import FaceAnalysis; app = FaceAnalysis('buffalo_l'); app.prepare(ctx_id=0)"
 ```
 
-Puoi usare i modelli in due modi:
+### Using the Models
 
-#### 1. **Dalla directory Python** (Consigliato)
+#### From Default Directory (Recommended)
 
-La libreria cerca automaticamente in `~/.insightface/models/buffalo_l/`:
+The library automatically searches in `~/.insightface/models/buffalo_l/`:
 
 ```rust
 let models_dir = Path::new(&std::env::var("HOME")?).join(".insightface/models/buffalo_l");
 let mut app = FaceAnalysis::new(&models_dir, None)?;
 ```
 
-#### 2. **Da una directory personalizzata**
+#### From Custom Directory
 
 ```bash
-# Copia i modelli dove preferisci
+# Copy models to your preferred location
 mkdir -p ./models/buffalo_l
 cp ~/.insightface/models/buffalo_l/*.onnx ./models/buffalo_l/
 ```
 
 ```rust
-let mut app = FaceAnalysis::new(Path::new("./models/buffalo_l"), None)?; 
-```rust
 let mut app = FaceAnalysis::new(Path::new("./models/buffalo_l"), None)?;
 ```
 
-Oppure scarica i modelli manualmente da [InsightFace Model Zoo](https://github.com/deepinsight/insightface/wiki/Model-Zoo).
+### Required Model Files
 
-I modelli necessari sono:
-- `retinaface_resnet50_batch.onnx` o `detection_scrfd_*.onnx` - Rilevamento volti
-- `arcface_w600k_r50.onnx` - Riconoscimento volti (opzionale)
-- `genderage.onnx` - Stima genere ed età (opzionale)
+The buffalo_l package includes:
+- `det_10g.onnx` - Face detection (SCRFD-10G)
+- `w600k_r50.onnx` - Face recognition (ArcFace)
+- `genderage.onnx` - Gender and age estimation (optional)
+- Other auxiliary models
 
-## Installazione
+## 📦 Installation
 
-Aggiungi la dipendenza al tuo `Cargo.toml`:
+Add the dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -166,34 +154,34 @@ insightface-rs = { path = "../path/to/insightface_rs" }
 image = "0.25"
 ```
 
-## Utilizzo
+## 💡 Usage Examples
 
-### Esempio base
+### Basic Example
 
 ```rust
 use insightface_rs::FaceAnalysis;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Specifica la directory dei modelli
+    // Specify the models directory
     let models_dir = Path::new(&std::env::var("HOME")?)
         .join(".insightface/models/buffalo_l");
     
-    // Inizializza FaceAnalysis
+    // Initialize FaceAnalysis
     let mut app = FaceAnalysis::new(&models_dir, None)?;
     
-    // Prepara il modello
+    // Prepare the model: ctx_id, detection_threshold, input_size
     app.prepare(0, 0.5, (640, 640))?;
     
-    // Carica e elabora un'immagine
+    // Load and process an image
     let img = image::open("face.jpg")?;
     let faces = app.get(&img)?;
     
-    // Elabora i risultati
+    // Process results
     for (i, face) in faces.iter().enumerate() {
         println!("Face {}: bbox={:?}, score={:.3}", i, face.bbox, face.det_score);
         
-        // Accedi ai keypoints se disponibili
+        // Access keypoints if available
         if let Some(kps) = &face.kps {
             for (j, kp) in kps.iter().enumerate() {
                 println!("  Landmark {}: x={:.1}, y={:.1}", j, kp[0], kp[1]);
@@ -203,106 +191,78 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
-    
-    Ok(())
-}
 ```
 
-### Con modelli da percorso esterno (fallback)
-
-Se i modelli non sono embedded, puoi anche usare:
+### Configuration Options
 
 ```rust
-use insightface_rs::FaceAnalysis;
-use std::path::Path;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Fallback a modelli da ~/.insightface/models/
-    let mut app = FaceAnalysis::new(Path::new("ignored"), None)?;
-    app.prepare(0, 0.5, (640, 640))?;
-    
-    // Resto del codice...
-    Ok(())
-}
-```
-    }
-    
-    Ok(())
-}
-```
-
-### Configurazione
-
-```rust
-// Cambia la soglia di rilevamento
+// Change detection threshold
 app.set_det_thresh(0.6);
 
-// Cambia la soglia NMS
+// Change NMS threshold
 app.set_nms_thresh(0.3);
 
-// Cambia la dimensione dell'input
+// Change input size
 app.prepare(0, 0.5, (512, 512))?;
 ```
 
-## Struttura della libreria
+## 🏗️ Library Structure
 
-- `app.rs` - API principale (`FaceAnalysis`)
-- `face.rs` - Struttura `Face` e utilities
-- `error.rs` - Tipi di errore
-- `model_zoo.rs` - Gestione dei modelli ONNX
-- `utils.rs` - Funzioni di utility (NMS, embedding distance, etc.)
+- `app.rs` - Main API (`FaceAnalysis`)
+- `face.rs` - `Face` structure and utilities
+- `error.rs` - Error types
+- `model_zoo.rs` - ONNX model management
+- `utils.rs` - Utility functions (NMS, embedding distance, etc.)
 
-## Struttura dei risultati
+## 📊 Result Structure
 
-Ogni `Face` contiene:
+Each `Face` contains:
 
 ```rust
 pub struct Face {
     pub bbox: [f32; 4],              // [x1, y1, x2, y2]
     pub det_score: f32,              // Confidence score (0-1)
-    pub kps: Option<Vec<[f32; 2]>>, // 5 Keypoints facoltativi
-    pub embedding: Option<Vec<f32>>, // Face embedding (futuro)
-    pub gender: Option<i32>,         // 0=Female, 1=Male (futuro)
-    pub age: Option<i32>,            // Età stimata (futuro)
+    pub kps: Option<Vec<[f32; 2]>>, // 5 optional keypoints
+    pub embedding: Option<Vec<f32>>, // Face embedding (future)
+    pub gender: Option<i32>,         // 0=Female, 1=Male (future)
+    pub age: Option<i32>,            // Estimated age (future)
     pub attributes: Option<HashMap<String, serde_json::Value>>,
 }
 ```
 
-## Metodi di Face
+## 🔧 Face Methods
 
 ```rust
-// Dimensioni bounding box
-face.width()              // Larghezza
-face.height()             // Altezza
+// Bounding box dimensions
+face.width()              // Width
+face.height()             // Height
 face.area()               // Area
 
-// Embedding (se disponibile)
-face.embedding_norm()     // Norma L2 dell'embedding
-face.normed_embedding()   // Embedding normalizzato (unit vector)
+// Embedding (if available)
+face.embedding_norm()     // L2 norm of embedding
+face.normed_embedding()   // Normalized embedding (unit vector)
 
-// Genere
-face.sex()                // "M" o "F"
+// Gender
+face.sex()                // "M" or "F"
 ```
 
-## Utility functions
+## 🛠️ Utility Functions
 
 ```rust
 use insightface_rs::utils::*;
 
 // NMS - Non-Maximum Suppression
 let dets = [[x1, y1, x2, y2, score], ...];
-let keep = nms(&dets, 0.4);  // Soglia IoU
+let keep = nms(&dets, 0.4);  // IoU threshold
 
-// Distanza embedding (L2)
+// Embedding distance (L2)
 let distance = embedding_distance(&emb1, &emb2);
 
-// Similarità coseno
+// Cosine similarity
 let similarity = cosine_similarity(&emb1, &emb2);
 ```
 
-## Esempi
-
-### Processare una directory di immagini
+## 📁 Process Directory Example
 
 ```rust
 use std::fs;
@@ -310,11 +270,12 @@ use insightface_rs::FaceAnalysis;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let model_dir = Path::new("/Users/alessandro/.insightface/models");
-    let mut app = FaceAnalysis::new(model_dir, None)?;
+    let model_dir = Path::new(&std::env::var("HOME")?)
+        .join(".insightface/models/buffalo_l");
+    let mut app = FaceAnalysis::new(&model_dir, None)?;
     app.prepare(0, 0.5, (640, 640))?;
     
-    // Processa tutte le immagini in una directory
+    // Process all images in a directory
     for entry in fs::read_dir("./images")? {
         let entry = entry?;
         let path = entry.path();
@@ -331,37 +292,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Confronto con la versione Python
+## ⚡ Performance Notes
 
-| Feature                | Rust | Python |
-| ---------------------- | ---- | ------ |
-| Rilevamento            | ✅    | ✅      |
-| Embedding              | 🚧    | ✅      |
-| Attributi (age/gender) | 🚧    | ✅      |
-| Visualizzazione        | -    | ✅      |
-| Performance            | ⚡    | ⚡      |
+The Rust library is generally faster than the Python version for core operations because:
+- No Python interpreter overhead
+- Tensors are allocated in native Rust memory
+- ONNX inference is the same in both cases
+- Better memory management and zero-cost abstractions
 
-## Nota sulla performance
+## 🗺️ Roadmap
 
-La libreria Rust è generalmente più veloce della versione Python per le operazioni core, poiché:
-- Non ha overhead di interpretazione Python
-- I tensor sono allocati in memoria Rust nativa
-- L'inferenza ONNX è la stessa in entrambi i casi
-
-## Roadmap
-
-- [ ] Supporto embedding ArcFace
-- [ ] Riconoscimento attributi (age/gender)
-- [ ] Supporto GPU (CUDA/TensorRT)
+- [ ] Full ArcFace embedding support
+- [ ] Attribute recognition (age/gender)
+- [ ] GPU support (CUDA/TensorRT)
 - [ ] Batch processing
-- [ ] Binding Python per la libreria Rust
 
-## Licenza
+## 📄 License
 
-Questo progetto segue la licenza del progetto InsightFace originale.
+This project follows the license of the original InsightFace project.
 
-## Riferimenti
+## 🔗 References
 
 - [InsightFace GitHub](https://github.com/deepinsight/insightface)
+- [InsightFace Models (v0.7)](https://github.com/deepinsight/insightface/releases/tag/v0.7)
 - [ONNX Runtime Rust](https://github.com/nbz0/onnxruntime-rs)
-- [Documentazione RetinaFace](https://github.com/biubug6/Pytorch_Retinaface)
+- [RetinaFace Documentation](https://github.com/biubug6/Pytorch_Retinaface)

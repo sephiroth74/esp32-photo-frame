@@ -53,11 +53,13 @@ impl TryFrom<&str> for HexColor {
     type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if !value.starts_with('#') {
-            return Err("value string must start with '#'");
-        }
-
-        let hex = &value[1..];
+        let hex = if value.starts_with("0x") {
+            &value[2..]
+        } else if value.starts_with('#') {
+            &value[1..]
+        } else {
+            &value
+        };
 
         match hex.len() {
             3 => {

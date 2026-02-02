@@ -74,3 +74,9 @@ rust/photoframe-processor2/temp
 rust/insightface_rs/target/
 rust/insightface_rs/output
 rust/insightface_rs/.cargo/config.toml
+rust/bt_uploader/target/
+rust/photoframe_lib/target/
+assets/3d model/*.stl
+rust/photoframe_lib/tests/
+rust/processor/target/
+rust/processor/temp/

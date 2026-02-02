@@ -51,10 +51,14 @@ struct BtDeviceConfig {
 }
 
 pub struct DeviceInfo {
+    #[allow(dead_code)]
     pub version: u8,
     pub display_type: u8,
+    #[allow(dead_code)]
     pub width: u16,
+    #[allow(dead_code)]
     pub height: u16,
+    #[allow(dead_code)]
     pub current_rotation: u8,
     pub mtu_size: u16,
 }

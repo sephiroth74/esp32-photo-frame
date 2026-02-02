@@ -7,8 +7,8 @@ This is the main CLI for image processing. The binary prints parameters in a rea
 ## Build
 
 ```bash
-cd rust/photoframe-processor2
-cargo build --bin processor
+cd rust/processor
+cargo build
 ```
 
 The compiled binary will be at: `target/debug/processor`.
@@ -18,7 +18,7 @@ The compiled binary will be at: `target/debug/processor`.
 ### Print parameters (no processing)
 
 ```bash
-./target/debug/processor /path/to/images -o /path/to/output
+./target/debug/processor -i /path/to/images -o /path/to/output
 ```
 
 ### Full parameters
@@ -53,9 +53,7 @@ When using `--json-progress`, output is JSON lines only. Each message includes `
 ### Example 1: Simple BW conversion
 
 ```bash
-./target/debug/processor /tmp/images -o /tmp/output \
-  --width 800 \
-  --height 480 \
+./target/debug/processor -i /tmp/images -o /tmp/output \
   --color bw \
   --format pfr1 \
   --jobs 4
@@ -64,16 +62,14 @@ When using `--json-progress`, output is JSON lines only. Each message includes `
 ### Example 2: 6‑color with portrait pairing
 
 ```bash
-./target/debug/processor /tmp/images -o /tmp/output \
-  --width 1200 \
-  --height 825 \
+./target/debug/processor -i /tmp/images -o /tmp/output \
   --color 6c \
   --target-orientation portrait \
   --format pfr1 jpg \
   --detect-people \
   --annotate \
   --auto-color-correct \
-  --divider-width 15 \
+  --divider-width 5 \
   --divider-color CCCCCC \
   --jobs 8
 ```
@@ -81,15 +77,13 @@ When using `--json-progress`, output is JSON lines only. Each message includes `
 ### Example 3: With optimizations
 
 ```bash
-./target/debug/processor /tmp/images -o /tmp/output \
-  --width 800 \
-  --height 480 \
+./target/debug/processor -i /tmp/images -o /tmp/output \
   --color 6c \
   --format pfr1 \
   --auto-optimize \
   --brightness 10 \
-  --contrast 5 \
-  --saturation 1.1 \
+  --contrast 15 \
+  --saturation 110 \
   --dithering ordered \
   --verbose
 ```
@@ -103,32 +97,30 @@ When using `--json-progress`, output is JSON lines only. Each message includes `
 ### Example 5: JSON Progress
 
 ```bash
-./target/debug/processor /tmp/images -o /tmp/output --json-progress --report json
+./target/debug/processor -i /tmp/images -o /tmp/output --json-progress --report json
 ```
 
 ## Main parameters
 
 ### I/O
 
-- `input PATH` - Input path (file or directory)
+- `-i PATH` - Input path (file or directory)
 - `-o, --output DIR` - Output directory (required)
 
 ### Display
 
-- `-w, --width PIXELS` - Display width (default: 800)
-- `-h, --height PIXELS` - Display height (default: 480)
 - `-c, --color [bw|6c]` - Color type (default: 6c)
 - `--target-orientation [landscape|portrait]` - Target orientation (default: landscape)
 
 ### Output
 
-- `--format [bmp|pfr1|jpg|png]` - Output formats (default: pfr1)
+- `--output-format [bmp|pfr1|jpg|png]` - Comma separated list of output formats (default: pfr1)
 
 ### Image adjustments
 
 - `--brightness [-100..100]` - Brightness (default: 0)
 - `--contrast [-100..100]` - Contrast (default: 0)
-- `--saturation [0.0..2.0]` - Saturation (default: 1.0)
+- `--saturation [0..200]` - Saturation (default: 100)
 - `--auto-color-correct` - Automatic color correction
 - `--auto-optimize` - Automatic optimization
 

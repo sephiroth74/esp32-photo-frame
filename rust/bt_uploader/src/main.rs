@@ -1,3 +1,5 @@
+mod bluetooth;
+
 /// PhotoFrame BLE Client - Bluetooth operations for ESP32 Photo Frame
 ///
 /// This standalone tool handles all Bluetooth communication with PhotoFrame devices:
@@ -9,9 +11,6 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use console::style;
 use std::path::PathBuf;
-
-// Re-use the bluetooth module from the library
-use photoframe_processor::bluetooth;
 
 #[derive(Parser, Debug)]
 #[command(
