@@ -1,20 +1,26 @@
 use crate::cli::Args;
+use crate::json_output::JsonMessage;
 use clap::Parser;
+use serde_json::json;
 use std::fs;
 use std::process;
+use std::time::Instant;
 
 mod cli;
 mod discovery;
 mod fs_utils;
 mod image_inspector;
 mod image_processor;
+mod json_output;
 mod logging;
 mod report;
 mod types;
 
 fn main() {
+    let start_time = Instant::now();
     let args = cli::Args::parse();
-    let logger = logging::Logger::new(args.verbose && !args.json_progress);
+    let logger =
+        logging::Logger::new_with_silent(args.verbose && !args.json_progress, args.json_progress);
 
     // Handle validation mode early exit
     if let Some(ref validate_path) = args.validate {
@@ -126,7 +132,25 @@ fn main() {
     report.set_processing_details(processing.processed_details, processing.paired_details);
 
     // Generate final report
-    if !args.json_progress {
+    if args.json_progress {
+        let duration_secs = start_time.elapsed().as_secs_f64();
+        let summary = json!({
+            "total_files": report.discovered_files.len(),
+            "processed": report.processed_count,
+            "failed": report.failed_count,
+            "paired": report.paired_count,
+            "total_output_images": report.processed_count + report.paired_count
+        });
+
+        JsonMessage::complete(
+            report.discovered_files.len(),
+            report.processed_count,
+            report.failed_count,
+            duration_secs,
+            Some(report.to_json_value()),
+            summary,
+        );
+    } else {
         report.generate(&logger, args.report.clone());
     }
 }

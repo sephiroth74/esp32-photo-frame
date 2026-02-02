@@ -2,12 +2,12 @@ use anyhow::Result;
 use exif::{In, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
-use serde_json::json;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::json_output::JsonMessage;
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, RotationDegrees};
 use image::GenericImageView;
@@ -160,13 +160,7 @@ impl<'a> ImageInspector<'a> {
 
 fn emit_json_progress(current: usize, total: usize, path: &Path) {
     let message = format!("Validating {}", path.display());
-    let payload = json!({
-        "type": "progress",
-        "current": current,
-        "total": total,
-        "message": message
-    });
-    println!("{}", payload);
+    JsonMessage::progress(current, total, message);
 }
 
 fn read_exif_rotation(path: &Path) -> Option<RotationDegrees> {

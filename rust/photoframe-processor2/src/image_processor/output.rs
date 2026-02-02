@@ -1,5 +1,6 @@
 use super::ProcessedImage;
 use crate::fs_utils::get_format_extension;
+use crate::json_output::JsonMessage;
 use crate::types::{ColorType, Orientation, OutputType};
 use anyhow::{Context, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
@@ -7,9 +8,11 @@ use photoframe_lib::{ColorMode, DisplayType, build_bin_file, process_image_with_
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Save processed images to output directory in requested formats
 pub fn save_outputs(
@@ -36,6 +39,16 @@ pub fn save_outputs(
     } else {
         vec![None; processed.len()]
     };
+
+    let output_paths_all: Vec<Vec<PathBuf>> = processed
+        .iter()
+        .map(|img| {
+            output_formats
+                .iter()
+                .map(|format| build_output_path(img, output_dir, *format))
+                .collect::<Result<Vec<_>>>()
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     // Create output subdirectories for each format
     for format in output_formats {
@@ -91,7 +104,8 @@ pub fn save_outputs(
 
     let output_dir = output_dir.to_path_buf();
 
-    let results: Vec<Result<()>> = pool.install(|| {
+    let json_counter = AtomicUsize::new(0);
+    let results: Vec<(usize, Result<()>)> = pool.install(|| {
         save_jobs
             .into_par_iter()
             .map(|(idx, img, format)| {
@@ -108,7 +122,13 @@ pub fn save_outputs(
                     global.inc(1);
                 }
 
-                result
+                if json_progress {
+                    let current = json_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    let message = format!("Saving {} ({})", img.source.display(), format.as_str());
+                    JsonMessage::progress(current, total_jobs, message);
+                }
+
+                (idx, result)
             })
             .collect()
     });
@@ -119,9 +139,11 @@ pub fn save_outputs(
 
     // Check for errors
     let mut error_count = 0;
-    for (i, result) in results.iter().enumerate() {
+    let mut error_by_index: HashMap<usize, String> = HashMap::new();
+    for (i, result) in results.iter() {
         if let Err(e) = result {
             error_count += 1;
+            error_by_index.entry(*i).or_insert_with(|| e.to_string());
             if !json_progress {
                 logger.warning(&format!("Failed to save output {}: {}", i, e));
             }
@@ -130,6 +152,17 @@ pub fn save_outputs(
 
     if error_count > 0 && !json_progress {
         logger.warning(&format!("{} output(s) failed to save", error_count));
+    }
+
+    if json_progress {
+        for (idx, img) in processed.iter().enumerate() {
+            if let Some(err) = error_by_index.get(&idx) {
+                JsonMessage::file_failed(&img.source, err.clone());
+            } else {
+                let outputs = output_paths_all.get(idx).cloned().unwrap_or_default();
+                JsonMessage::file_completed(&img.source, &outputs, img.processing_time_ms);
+            }
+        }
     }
 
     Ok(output_paths)

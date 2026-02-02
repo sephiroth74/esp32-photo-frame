@@ -3,6 +3,7 @@ pub mod discovery;
 pub mod fs_utils;
 pub mod image_inspector;
 pub mod image_processor;
+pub mod json_output;
 pub mod logging;
 pub mod report;
 pub mod types;

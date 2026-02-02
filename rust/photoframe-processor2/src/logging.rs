@@ -20,44 +20,75 @@ pub enum LogLevel {
 #[derive(Clone, Copy)]
 pub struct Logger {
     verbose: bool,
+    silent: bool,
 }
 
 /// Test logger instance (silent, no verbose) - should only be used in tests
 #[cfg(test)]
-pub const TEST_LOGGER: Logger = Logger { verbose: false };
+pub const TEST_LOGGER: Logger = Logger {
+    verbose: false,
+    silent: false,
+};
 
 /// Test logger instance (verbose mode) - should only be used in tests
 #[cfg(test)]
-pub const TEST_LOGGER_VERBOSE: Logger = Logger { verbose: true };
+pub const TEST_LOGGER_VERBOSE: Logger = Logger {
+    verbose: true,
+    silent: false,
+};
 
 impl Logger {
     /// Create a new logger with the given verbosity settings
+    #[allow(dead_code)]
     pub fn new(verbose: bool) -> Self {
-        Logger { verbose }
+        Logger {
+            verbose,
+            silent: false,
+        }
+    }
+
+    /// Create a new logger with verbosity and silent mode
+    pub fn new_with_silent(verbose: bool, silent: bool) -> Self {
+        Logger { verbose, silent }
     }
 
     /// Print an error message (always shown)
     pub fn error(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
         eprintln!("❌ {}", msg);
     }
 
     /// Print a warning message (always shown)
     pub fn warning(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
         println!("⚠️  {}", msg);
     }
 
     /// Print an info message (always shown)
     pub fn info(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
         println!("{}", msg);
     }
 
     /// Print a success message (always shown)
     pub fn success(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
         println!("✓ {}", msg);
     }
 
     /// Print a verbose message (only when verbose is enabled)
     pub fn verbose(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
         if self.verbose {
             println!("  → {}", msg);
         }
@@ -66,6 +97,9 @@ impl Logger {
     /// Print a debug message (only when debug is enabled)
     #[allow(dead_code)]
     pub fn debug(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
         println!("  [DEBUG] {}", msg);
     }
 
@@ -95,6 +129,33 @@ impl Logger {
     /// Print a configuration section header
     pub fn config_section(&self, section: &str) {
         self.info(format!("{}:", section).as_str());
+    }
+
+    /// Print a file operation message
+    #[allow(dead_code)]
+    pub fn file_op(&self, operation: &str, path: &str) {
+        if self.silent {
+            return;
+        }
+        println!("  {}: {}", operation, path);
+    }
+
+    /// Print analysis message
+    #[allow(dead_code)]
+    pub fn analysis(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
+        println!("  [ANALYSIS] {}", msg);
+    }
+
+    /// Print processing message
+    #[allow(dead_code)]
+    pub fn processing(&self, msg: &str) {
+        if self.silent {
+            return;
+        }
+        println!("  [PROCESS] {}", msg);
     }
 
     /// Check if verbose mode is enabled

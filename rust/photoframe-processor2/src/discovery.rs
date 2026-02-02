@@ -5,9 +5,6 @@ use walkdir::WalkDir;
 
 use crate::logging::Logger;
 
-#[cfg(test)]
-use crate::logging::TEST_LOGGER;
-
 /// Discovery class that scans input paths and returns all matching files.
 pub struct Discovery<'a> {
     extensions: HashSet<String>,

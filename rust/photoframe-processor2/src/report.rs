@@ -348,6 +348,22 @@ impl Report {
 
     /// Generate JSON report (to be implemented)
     fn generate_json(&self, logger: &Logger) {
+        let report = self.build_json_report();
+        match serde_json::to_string_pretty(&report) {
+            Ok(json) => {
+                for line in json.lines() {
+                    logger.info(line);
+                }
+            }
+            Err(err) => logger.error(&format!("Failed to generate JSON report: {}", err)),
+        }
+    }
+
+    pub fn to_json_value(&self) -> serde_json::Value {
+        serde_json::to_value(self.build_json_report()).unwrap_or_else(|_| serde_json::Value::Null)
+    }
+
+    fn build_json_report(&self) -> JsonReport {
         let output_formats = self
             .config
             .output_formats
@@ -362,7 +378,7 @@ impl Report {
 
         let total_output = self.processed_count + self.paired_count;
 
-        let report = JsonReport {
+        JsonReport {
             config: JsonConfig {
                 input_paths: self
                     .config
@@ -408,15 +424,6 @@ impl Report {
                     detect_ms: d.detection_time_ms,
                 })
                 .collect(),
-        };
-
-        match serde_json::to_string_pretty(&report) {
-            Ok(json) => {
-                for line in json.lines() {
-                    logger.info(line);
-                }
-            }
-            Err(err) => logger.error(&format!("Failed to generate JSON report: {}", err)),
         }
     }
 

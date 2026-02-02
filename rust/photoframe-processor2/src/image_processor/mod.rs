@@ -20,6 +20,7 @@ pub use types::{ProcessingPlan, SingleImage};
 
 use crate::cli::Args;
 use crate::image_processor::face_detection::Face;
+use crate::json_output::JsonMessage;
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
 use crate::types::{ColorType, HexColor, Orientation, Size};
@@ -33,6 +34,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tempfile::Builder;
 
@@ -143,7 +145,9 @@ impl<'a> ImageProcessor<'a> {
             )
         };
 
-        self.logger.info(message);
+        if self.logger.is_verbose() {
+            self.logger.info(message);
+        }
 
         let mut plan = ProcessingPlan::new();
         let mut single_images = Vec::new();
@@ -278,7 +282,7 @@ impl<'a> ImageProcessor<'a> {
                         .unwrap()
                         .progress_chars("=>-"),
                     );
-                    pb.set_message(format!("Job {:2}: {:25}", "idle", idx + 1));
+                    pb.set_message(format!("Job {:2}: {:25}", idx + 1, "idle"));
                     pb.enable_steady_tick(Duration::from_millis(120));
                     pb
                 })
@@ -287,6 +291,7 @@ impl<'a> ImageProcessor<'a> {
         };
 
         let logger = self.logger;
+        let json_counter = AtomicUsize::new(0);
 
         let results: Vec<(Result<ProcessedImage>, PathBuf)> = pool.install(|| {
             jobs.into_par_iter()
@@ -312,13 +317,23 @@ impl<'a> ImageProcessor<'a> {
 
                     let result = process_job(&job, pb.as_ref(), logger);
 
+                    if json_progress {
+                        let current = json_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                        let message = format!("Processing {}", job.image.path.display());
+                        JsonMessage::progress(current, total_jobs, message);
+
+                        if let Err(err) = &result {
+                            JsonMessage::file_failed(&job.image.path, err.to_string());
+                        }
+                    }
+
                     if let Some(pb) = &pb {
                         match &result {
                             Ok(_) => {
-                                pb.set_message(format!("[{:2}] {:25}", "done", thread_idx + 1))
+                                pb.set_message(format!("[{:2}] {:25}", thread_idx + 1, "done"))
                             }
                             Err(_) => {
-                                pb.set_message(format!("[{:2}] {:25}", "failed", thread_idx + 1))
+                                pb.set_message(format!("[{:2}] {:25}", thread_idx + 1, "failed"))
                             }
                         }
                         pb.set_position(0);

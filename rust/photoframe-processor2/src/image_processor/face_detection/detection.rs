@@ -8,7 +8,6 @@ use image::RgbImage;
 use insightface_rs::FaceAnalysis;
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::Instant;
 
 /// Global InsightFace detector instance
 static GLOBAL_DETECTOR: OnceLock<Arc<Mutex<FaceAnalysis>>> = OnceLock::new();
@@ -66,15 +65,10 @@ pub fn detect_faces(img: &RgbImage, confidence_threshold: f32) -> Result<Vec<Fac
 
     // Convert RgbImage to DynamicImage
     let dynamic_img = image::DynamicImage::ImageRgb8(img.clone());
-
-    let start = Instant::now();
-
     // Detect faces
     let faces = detector_lock
         .get(&dynamic_img)
         .context("Failed to detect faces")?;
-    let duration = start.elapsed();
-    eprintln!("Face detection took: {:?}", duration);
 
     // Convert to our Face format
     let result: Vec<Face> = faces

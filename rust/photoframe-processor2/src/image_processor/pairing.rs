@@ -38,7 +38,6 @@ mod tests {
             path: PathBuf::from(name),
             rotation: RotationDegrees::Deg0,
             orientation: ImageOrientation::Landscape,
-            faces_detected: None,
         }
     }
 

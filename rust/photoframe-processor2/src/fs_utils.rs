@@ -64,6 +64,59 @@ pub fn get_format_extension(format: &OutputType) -> &'static str {
     }
 }
 
+/// Get output path for a given input image and format
+/// Optional suffix will be appended to the filename stem.
+#[allow(dead_code)]
+pub fn get_format_output_path(
+    base_output_dir: &Path,
+    input_path: &Path,
+    format: &OutputType,
+    suffix: Option<&str>,
+) -> PathBuf {
+    let format_dir = get_format_directory(base_output_dir, format);
+    let stem = input_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image");
+    let ext = get_format_extension(format);
+
+    let filename = if let Some(suffix) = suffix {
+        format!("{}_{}.{}", stem, suffix, ext)
+    } else {
+        format!("{}.{}", stem, ext)
+    };
+
+    format_dir.join(filename)
+}
+
+/// Get output path for a combined image (paired images)
+#[allow(dead_code)]
+pub fn get_combined_format_output_path(
+    base_output_dir: &Path,
+    left_path: &Path,
+    right_path: &Path,
+    format: &OutputType,
+) -> PathBuf {
+    let format_dir = get_format_directory(base_output_dir, format);
+    let left = left_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("left");
+    let right = right_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("right");
+    let ext = get_format_extension(format);
+
+    format_dir.join(format!("combined_{}_{}.{}", left, right, ext))
+}
+
+/// Check if a path exists and is a directory
+#[allow(dead_code)]
+pub fn is_directory(path: &Path) -> bool {
+    path.is_dir()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
