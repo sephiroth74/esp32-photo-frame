@@ -3,7 +3,56 @@ use std::path::PathBuf;
 use crate::cli::Args;
 use crate::logging::Logger;
 use crate::types::{OutputType, ReportFormat};
+use serde::Serialize;
 use tabled::{Table, settings::Style};
+
+#[derive(Debug, Serialize)]
+struct JsonReport {
+    config: JsonConfig,
+    summary: JsonSummary,
+    processed_images: Vec<JsonProcessingDetail>,
+    paired_images: Vec<JsonPairedDetail>,
+}
+
+#[derive(Debug, Serialize)]
+struct JsonConfig {
+    input_paths: Vec<String>,
+    output_dir: String,
+    extensions: String,
+    output_formats: Vec<String>,
+    no_pairing: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct JsonSummary {
+    total_files_discovered: usize,
+    invalid_files: usize,
+    unpaired_images: usize,
+    images_processed: usize,
+    image_pairs_created: usize,
+    total_output_images: usize,
+    failed_images: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct JsonProcessingDetail {
+    source: String,
+    output: String,
+    size: String,
+    faces: usize,
+    total_ms: u128,
+    detect_ms: u128,
+}
+
+#[derive(Debug, Serialize)]
+struct JsonPairedDetail {
+    source: String,
+    output: String,
+    size: String,
+    faces: usize,
+    total_ms: u128,
+    detect_ms: u128,
+}
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -299,7 +348,76 @@ impl Report {
 
     /// Generate JSON report (to be implemented)
     fn generate_json(&self, logger: &Logger) {
-        logger.info("JSON report format not yet implemented");
+        let output_formats = self
+            .config
+            .output_formats
+            .iter()
+            .map(|f| match f {
+                OutputType::Bmp => "bmp".to_string(),
+                OutputType::Pfr1 => "pfr1".to_string(),
+                OutputType::Jpg => "jpg".to_string(),
+                OutputType::Png => "png".to_string(),
+            })
+            .collect::<Vec<_>>();
+
+        let total_output = self.processed_count + self.paired_count;
+
+        let report = JsonReport {
+            config: JsonConfig {
+                input_paths: self
+                    .config
+                    .input_paths
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect(),
+                output_dir: self.config.output_dir.display().to_string(),
+                extensions: self.config.extensions.clone(),
+                output_formats,
+                no_pairing: self.config.no_pairing,
+            },
+            summary: JsonSummary {
+                total_files_discovered: self.discovered_files.len(),
+                invalid_files: self.invalid_images.len(),
+                unpaired_images: self.unpaired_images.len(),
+                images_processed: self.processed_count,
+                image_pairs_created: self.paired_count,
+                total_output_images: total_output,
+                failed_images: self.failed_count,
+            },
+            processed_images: self
+                .processed_details
+                .iter()
+                .map(|d| JsonProcessingDetail {
+                    source: d.source_path.clone(),
+                    output: d.output_path.clone(),
+                    size: d.size.clone(),
+                    faces: d.faces_detected,
+                    total_ms: d.processing_time_ms,
+                    detect_ms: d.detection_time_ms,
+                })
+                .collect(),
+            paired_images: self
+                .paired_details
+                .iter()
+                .map(|d| JsonPairedDetail {
+                    source: d.source_path.clone(),
+                    output: d.output_path.clone(),
+                    size: d.size.clone(),
+                    faces: d.faces_detected,
+                    total_ms: d.processing_time_ms,
+                    detect_ms: d.detection_time_ms,
+                })
+                .collect(),
+        };
+
+        match serde_json::to_string_pretty(&report) {
+            Ok(json) => {
+                for line in json.lines() {
+                    logger.info(line);
+                }
+            }
+            Err(err) => logger.error(&format!("Failed to generate JSON report: {}", err)),
+        }
     }
 
     fn print_config(&self, logger: &Logger) {

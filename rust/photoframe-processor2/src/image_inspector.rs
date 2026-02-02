@@ -154,7 +154,6 @@ impl<'a> ImageInspector<'a> {
             path: path.to_path_buf(),
             rotation,
             orientation,
-            faces_detected: None, // Will be set during processing if detect-people is enabled
         })
     }
 }
