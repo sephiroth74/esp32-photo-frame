@@ -68,7 +68,7 @@ pub fn combine_paired_images(
         pb.set_style(
             ProgressStyle::with_template("Combining [{bar:40.cyan/blue}] {pos}/{len} {eta}")
                 .unwrap()
-                .progress_chars("██▌ "),
+                .progress_chars("=>-"),
         );
         pb.set_message("Combining paired images");
         Some(pb)
@@ -213,5 +213,9 @@ fn combine_two_images(
         paired_source: Some(second.source.clone()), // Store second image source for naming
         orientation: first.orientation,
         people_count: None,
+        width: combined_width,
+        height: combined_height,
+        processing_time_ms: first.processing_time_ms + second.processing_time_ms,
+        detection_time_ms: first.detection_time_ms + second.detection_time_ms,
     })
 }

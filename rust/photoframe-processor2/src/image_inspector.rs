@@ -45,7 +45,7 @@ impl<'a> ImageInspector<'a> {
                     "{msg}\n[{bar:40.cyan/blue}] {pos}/{len} {percent:>3}% {eta}",
                 )
                 .unwrap()
-                .progress_chars("██▌ "),
+                .progress_chars("=>-"),
             );
             pb.set_message("Validating images");
             Some(pb)

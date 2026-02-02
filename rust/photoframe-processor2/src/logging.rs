@@ -5,18 +5,10 @@
 /// - warning(): Always printed, for warnings
 /// - info(): Always printed, for important information
 /// - verbose(): Only printed when verbose mode is enabled
-/// - debug(): Only printed when verbose mode is enabled
-///
-/// Messages can be formatted with color codes using special prefixes:
-/// - "✓" for success (green)
-/// - "✗" or "❌" for errors (red)
-/// - "⚠️ " for warnings (yellow)
-/// - "📁" for file operations
-/// - "🔍" for searches/analysis
-/// - "⏳" for processing
-use std::io::Write;
+/// - debug(): Always printed (for development/debugging purposes)
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub enum LogLevel {
     Error,
     Warning,
@@ -72,6 +64,7 @@ impl Logger {
     }
 
     /// Print a debug message (only when debug is enabled)
+    #[allow(dead_code)]
     pub fn debug(&self, msg: &str) {
         println!("  [DEBUG] {}", msg);
     }
@@ -102,36 +95,6 @@ impl Logger {
     /// Print a configuration section header
     pub fn config_section(&self, section: &str) {
         self.info(format!("{}:", section).as_str());
-    }
-
-    /// Start a progress indicator
-    pub fn progress_start(&self, msg: &str) {
-        print!("  {} ", msg);
-        let _ = std::io::stdout().flush();
-    }
-
-    /// Complete a progress indicator
-    pub fn progress_done(&self) {
-        println!("done");
-    }
-
-    /// Print a file operation message
-    pub fn file_op(&self, operation: &str, path: &str) {
-        if self.verbose {
-            println!("  📁 {}: {}", operation, path);
-        }
-    }
-
-    /// Print a search/analysis message
-    pub fn analysis(&self, msg: &str) {
-        if self.verbose {
-            println!("  🔍 {}", msg);
-        }
-    }
-
-    /// Print a processing message
-    pub fn processing(&self, msg: &str) {
-        self.verbose(&format!("⏳ {}", msg));
     }
 
     /// Check if verbose mode is enabled
@@ -170,12 +133,12 @@ mod tests {
         TEST_LOGGER_VERBOSE.success("test success");
         TEST_LOGGER_VERBOSE.verbose("test verbose");
         TEST_LOGGER_VERBOSE.debug("test debug");
-        logger.section("test section");
-        logger.divider();
-        logger.config_item("key", "value");
-        logger.config_section("section");
-        logger.file_op("operation", "path");
-        logger.analysis("analysis");
-        logger.processing("processing");
+        TEST_LOGGER_VERBOSE.section("test section");
+        TEST_LOGGER_VERBOSE.divider();
+        TEST_LOGGER_VERBOSE.config_item("key", "value");
+        TEST_LOGGER_VERBOSE.config_section("section");
+        TEST_LOGGER_VERBOSE.file_op("operation", "path");
+        TEST_LOGGER_VERBOSE.analysis("analysis");
+        TEST_LOGGER_VERBOSE.processing("processing");
     }
 }

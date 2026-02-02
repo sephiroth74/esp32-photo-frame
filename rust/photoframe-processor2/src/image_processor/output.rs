@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Save processed images to output directory in requested formats
 pub fn save_outputs(
@@ -22,10 +22,20 @@ pub fn save_outputs(
     json_progress: bool,
     jobs: usize,
     logger: &crate::logging::Logger,
-) -> Result<()> {
+) -> Result<Vec<Option<PathBuf>>> {
     if processed.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
+
+    let primary_format = output_formats.first().copied();
+    let output_paths: Vec<Option<PathBuf>> = if let Some(format) = primary_format {
+        processed
+            .iter()
+            .map(|img| build_output_path(img, output_dir, format).map(Some))
+            .collect::<Result<Vec<_>>>()?
+    } else {
+        vec![None; processed.len()]
+    };
 
     // Create output subdirectories for each format
     for format in output_formats {
@@ -54,7 +64,7 @@ pub fn save_outputs(
         pb.set_style(
             ProgressStyle::with_template("Saving [{bar:40.cyan/blue}] {pos}/{len} {eta}")
                 .unwrap()
-                .progress_chars("██▌ "),
+                .progress_chars("=>-"),
         );
         pb.set_message("Saving output files");
         Some(pb)
@@ -122,7 +132,7 @@ pub fn save_outputs(
         logger.warning(&format!("{} output(s) failed to save", error_count));
     }
 
-    Ok(())
+    Ok(output_paths)
 }
 
 /// Save a single image in a specific format
@@ -134,6 +144,35 @@ fn save_single_output(
     target_orientation: Orientation,
     _index: usize,
 ) -> Result<()> {
+    let output_path = build_output_path(img, output_dir, format)?;
+
+    match format {
+        OutputType::Bmp => {
+            save_as_bmp(&img.temp_path, &output_path)?;
+        }
+        OutputType::Jpg => {
+            save_as_jpg(&img.temp_path, &output_path)?;
+        }
+        OutputType::Png => {
+            save_as_png(&img.temp_path, &output_path)?;
+        }
+        OutputType::Pfr1 => save_as_pfr1(
+            &img.temp_path,
+            &output_path,
+            display_type,
+            target_orientation,
+        )?,
+    }
+
+    Ok(())
+}
+
+/// Build output path for a processed image and format
+fn build_output_path(
+    img: &ProcessedImage,
+    output_dir: &Path,
+    format: OutputType,
+) -> Result<PathBuf> {
     let format_dir = output_dir.join(format.as_str());
 
     let ext = get_format_extension(&format);
@@ -145,31 +184,7 @@ fn save_single_output(
         create_readable_filename(&img.source, ext)?
     };
 
-    match format {
-        OutputType::Bmp => {
-            let output_path = format_dir.join(&base_name);
-            save_as_bmp(&img.temp_path, &output_path)?;
-        }
-        OutputType::Jpg => {
-            let output_path = format_dir.join(&base_name);
-            save_as_jpg(&img.temp_path, &output_path)?;
-        }
-        OutputType::Png => {
-            let output_path = format_dir.join(&base_name);
-            save_as_png(&img.temp_path, &output_path)?;
-        }
-        OutputType::Pfr1 => {
-            let output_path = format_dir.join(&base_name);
-            save_as_pfr1(
-                &img.temp_path,
-                &output_path,
-                display_type,
-                target_orientation,
-            )?
-        }
-    }
-
-    Ok(())
+    Ok(format_dir.join(base_name))
 }
 
 /// Save image as BMP

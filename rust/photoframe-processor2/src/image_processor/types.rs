@@ -1,10 +1,9 @@
-use crate::report::{ImageInfo, ImageOrientation};
+use crate::report::ImageInfo;
 
 /// A single image to be processed individually
 #[derive(Debug, Clone)]
 pub struct SingleImage {
     pub info: ImageInfo,
-    pub orientation: ImageOrientation,
 }
 
 /// A pair of portrait images to be combined into one landscape image
@@ -23,6 +22,12 @@ pub struct ProcessingPlan {
     pub paired_images: Vec<PairedImages>,
     /// Portrait images that couldn't be paired (only when no_pairing is false)
     pub unpaired_images: Vec<ImageInfo>,
+}
+
+impl SingleImage {
+    pub fn new(info: ImageInfo) -> Self {
+        Self { info }
+    }
 }
 
 impl ProcessingPlan {

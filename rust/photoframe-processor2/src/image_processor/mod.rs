@@ -29,10 +29,11 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use photoframe_lib::{DitheringMethod, apply_dithering};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tempfile::Builder;
 
 /// Get the project-relative temp directory
@@ -108,11 +109,7 @@ impl<'a> ImageProcessor<'a> {
         let mut plan = ProcessingPlan::new();
 
         for image_info in images {
-            let orientation = image_info.orientation;
-            plan.single_images.push(SingleImage {
-                info: image_info,
-                orientation,
-            });
+            plan.single_images.push(SingleImage::new(image_info));
         }
 
         Ok(plan)
@@ -170,11 +167,7 @@ impl<'a> ImageProcessor<'a> {
 
         // Add all single-orientation images as individual images
         for image_info in single_images {
-            let orientation = image_info.orientation;
-            plan.single_images.push(SingleImage {
-                info: image_info,
-                orientation,
-            });
+            plan.single_images.push(SingleImage::new(image_info));
         }
 
         // Pair the pair-orientation images
@@ -233,6 +226,8 @@ impl<'a> ImageProcessor<'a> {
             return Ok(ProcessingResult {
                 processed: Vec::new(),
                 failed: Vec::new(),
+                processed_details: Vec::new(),
+                paired_details: Vec::new(),
             });
         }
 
@@ -264,7 +259,7 @@ impl<'a> ImageProcessor<'a> {
             pb.set_style(
                 ProgressStyle::with_template("Global [{bar:40.cyan/blue}] {pos}/{len} {eta}")
                     .unwrap()
-                    .progress_chars("██▌ "),
+                    .progress_chars("=>-"),
             );
             pb.set_message("Processing images");
             Some(pb)
@@ -277,11 +272,13 @@ impl<'a> ImageProcessor<'a> {
                 .map(|idx| {
                     let pb = multi.add(ProgressBar::new(6));
                     pb.set_style(
-                        ProgressStyle::with_template("{msg} [{bar:20.cyan/blue}] {pos}/{len}")
-                            .unwrap()
-                            .progress_chars("██▌ "),
+                        ProgressStyle::with_template(
+                            "{spinner:.red} {msg} [{bar:20.cyan/blue}] {pos}/{len}",
+                        )
+                        .unwrap()
+                        .progress_chars("=>-"),
                     );
-                    pb.set_message(format!("Job {:2}: idle", idx + 1));
+                    pb.set_message(format!("Job {:2}: {:25}", "idle", idx + 1));
                     pb.enable_steady_tick(Duration::from_millis(120));
                     pb
                 })
@@ -309,7 +306,7 @@ impl<'a> ImageProcessor<'a> {
                             .map(|v| v.to_string_lossy())
                             .unwrap_or_else(|| job.image.path.to_string_lossy());
                         let slice = &filename.as_ref()[..25.min(filename.len())];
-                        pb.set_message(format!("Job {:2}: {:25}", thread_idx + 1, slice));
+                        pb.set_message(format!("[{:2}] {:25}", thread_idx + 1, slice));
                         pb.set_position(0);
                     }
 
@@ -317,8 +314,12 @@ impl<'a> ImageProcessor<'a> {
 
                     if let Some(pb) = &pb {
                         match &result {
-                            Ok(_) => pb.set_message(format!("Job {:2}: done", thread_idx + 1)),
-                            Err(_) => pb.set_message(format!("Job {:2}: failed", thread_idx + 1)),
+                            Ok(_) => {
+                                pb.set_message(format!("[{:2}] {:25}", "done", thread_idx + 1))
+                            }
+                            Err(_) => {
+                                pb.set_message(format!("[{:2}] {:25}", "failed", thread_idx + 1))
+                            }
                         }
                         pb.set_position(0);
                     }
@@ -360,7 +361,7 @@ impl<'a> ImageProcessor<'a> {
         )?;
 
         // Save outputs in requested formats
-        save_outputs(
+        let output_paths = save_outputs(
             &combined,
             &self.args.output,
             &self.args.output_formats,
@@ -372,9 +373,88 @@ impl<'a> ImageProcessor<'a> {
             self.logger,
         )?;
 
+        // Build report details for single and paired images
+        let processed_details = combined
+            .iter()
+            .enumerate()
+            .filter(|(_, img)| !img.paired)
+            .map(|(idx, img)| {
+                let output_path = output_paths
+                    .get(idx)
+                    .and_then(|p| p.clone())
+                    .unwrap_or_else(|| img.source.clone());
+                crate::report::ProcessingDetail::new(
+                    img.source.clone(),
+                    output_path,
+                    img.width,
+                    img.height,
+                    img.people_count.unwrap_or(0),
+                    img.processing_time_ms,
+                    img.detection_time_ms,
+                )
+            })
+            .collect();
+
+        let mut pair_output_paths: BTreeMap<usize, Option<PathBuf>> = BTreeMap::new();
+        for (idx, img) in combined
+            .iter()
+            .enumerate()
+            .filter(|(_, img)| img.paired && img.pair_index.is_none())
+        {
+            if let Some(pair_id) = img.pair_id {
+                let output_path = output_paths.get(idx).and_then(|p| p.clone());
+                pair_output_paths.insert(pair_id, output_path);
+            }
+        }
+
+        let mut paired_details = Vec::new();
+        let mut paired_groups: BTreeMap<usize, Vec<&ProcessedImage>> = BTreeMap::new();
+
+        for img in processed.iter().filter(|img| img.paired) {
+            if let Some(pair_id) = img.pair_id {
+                paired_groups.entry(pair_id).or_default().push(img);
+            } else {
+                paired_details.push(crate::report::PairedImageDetail::new(
+                    None,
+                    img.source.clone(),
+                    img.width,
+                    img.height,
+                    img.people_count.unwrap_or(0),
+                    img.processing_time_ms,
+                    img.detection_time_ms,
+                ));
+            }
+        }
+
+        for (pair_id, mut imgs) in paired_groups {
+            imgs.sort_by_key(|img| img.pair_index.unwrap_or(0));
+            let last_index = imgs.len().saturating_sub(1);
+            let pair_output_path = pair_output_paths.get(&pair_id).and_then(|p| p.clone());
+
+            for (idx, img) in imgs.iter().enumerate() {
+                let output_path = if idx == last_index {
+                    pair_output_path.clone()
+                } else {
+                    None
+                };
+
+                paired_details.push(crate::report::PairedImageDetail::new(
+                    output_path,
+                    img.source.clone(),
+                    img.width,
+                    img.height,
+                    img.people_count.unwrap_or(0),
+                    img.processing_time_ms,
+                    img.detection_time_ms,
+                ));
+            }
+        }
+
         Ok(ProcessingResult {
             processed: combined,
             failed,
+            processed_details,
+            paired_details,
         })
     }
 
@@ -487,6 +567,8 @@ struct ProcessingJob {
 pub struct ProcessingResult {
     pub processed: Vec<ProcessedImage>,
     pub failed: Vec<PathBuf>,
+    pub processed_details: Vec<crate::report::ProcessingDetail>,
+    pub paired_details: Vec<crate::report::PairedImageDetail>,
 }
 
 #[derive(Debug, Clone)]
@@ -501,6 +583,10 @@ pub struct ProcessedImage {
     pub paired_source: Option<PathBuf>, // Source of paired image (for combined filenames)
     pub orientation: ImageOrientation,
     pub people_count: Option<usize>,
+    pub width: u32,
+    pub height: u32,
+    pub processing_time_ms: u128,
+    pub detection_time_ms: u128,
 }
 
 fn paired_target_size(base: Size, target_orientation: Orientation) -> Size {
@@ -527,6 +613,7 @@ fn process_job(
     progress: Option<&ProgressBar>,
     logger: &Logger,
 ) -> Result<ProcessedImage> {
+    let processing_start = Instant::now();
     let filename = job
         .image
         .path
@@ -583,7 +670,7 @@ fn process_job(
         .context("Failed to create temporary file")?;
 
     // Detect faces if enabled
-    let (detection, face_count): (Option<Vec<Face>>, Option<usize>) =
+    let (detection, face_count, detection_time_ms): (Option<Vec<Face>>, Option<usize>, u128) =
         detect_faces(&job, logger, &img_rgb);
 
     if let Some(pb) = progress {
@@ -755,6 +842,8 @@ fn process_job(
     // Keep the file so it doesn't get deleted when the temp file is dropped
     let (_file, temp_path) = temp_file.keep().context("Failed to keep temporary file")?;
 
+    let processing_time_ms = processing_start.elapsed().as_millis();
+
     Ok(ProcessedImage {
         source: job.image.path.clone(),
         temp_path,
@@ -765,6 +854,10 @@ fn process_job(
         paired_source: None,
         orientation: job.image.orientation,
         people_count: face_count,
+        width: dims.0,
+        height: dims.1,
+        processing_time_ms,
+        detection_time_ms,
     })
 }
 
@@ -773,15 +866,17 @@ fn detect_faces(
     job: &&ProcessingJob,
     logger: &Logger,
     img_rgb: &RgbImage,
-) -> (Option<Vec<Face>>, Option<usize>) {
+) -> (Option<Vec<Face>>, Option<usize>, u128) {
     if job.detect_people {
         logger.verbose(&format!(
             "Running face detection (confidence threshold: {:.2})",
             job.confidence_threshold
         ));
 
+        let detection_start = Instant::now();
         match face_detection::detection::detect_faces(&img_rgb, job.confidence_threshold) {
             Ok(faces) => {
+                let detection_elapsed = detection_start.elapsed().as_millis();
                 let count = faces.len();
                 if logger.is_verbose() {
                     logger.verbose(&format!(
@@ -802,15 +897,15 @@ fn detect_faces(
                         }
                     }
                 }
-                (Some(faces), Some(count))
+                (Some(faces), Some(count), detection_elapsed)
             }
             Err(err) => {
                 logger.verbose(&format!("Face detection error: {}", err));
-                (None, None)
+                (None, None, detection_start.elapsed().as_millis())
             }
         }
     } else {
-        (None, None)
+        (None, None, 0)
     }
 }
 
@@ -819,8 +914,8 @@ fn detect_faces(
     _job: &&ProcessingJob,
     _logger: &Logger,
     _img_rgb: &RgbImage,
-) -> (Option<Vec<Face>>, Option<usize>) {
-    (None, None)
+) -> (Option<Vec<Face>>, Option<usize>, u128) {
+    (None, None, 0)
 }
 
 /// Compute crop area based on target dimensions and face detections

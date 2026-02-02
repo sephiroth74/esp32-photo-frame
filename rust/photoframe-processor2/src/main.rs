@@ -116,13 +116,14 @@ fn main() {
         logger.info("");
     }
 
-    // Update report with processing results
+    // Update report with processing results and details
     let paired_count = plan.paired_images.len();
     report.set_processing_results(
         processing.processed.len(),
         processing.failed.len(),
         paired_count,
     );
+    report.set_processing_details(processing.processed_details, processing.paired_details);
 
     // Generate final report
     if !args.json_progress {
