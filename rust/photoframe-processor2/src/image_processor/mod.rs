@@ -71,18 +71,20 @@ fn clean_temp_dir() -> Result<()> {
     Ok(())
 }
 
+/// Coordinates planning and processing of images.
 pub struct ImageProcessor<'a> {
     args: &'a Args,
     logger: &'a Logger,
 }
 
 impl<'a> ImageProcessor<'a> {
+    /// Create a new processor bound to CLI args and logger.
     pub fn new(args: &'a Args, logger: &'a Logger) -> Result<Self> {
         Ok(Self { args, logger })
     }
 
-    /// Analyze the validated images and create a processing plan
-    /// Updates the report with unpaired images if any
+    /// Analyze validated images and build a processing plan.
+    /// Updates the report with unpaired images, if any.
     pub fn plan(&self, images: Vec<ImageInfo>, report: &mut Report) -> io::Result<ProcessingPlan> {
         self.logger.section("Image Processing Plan");
 
@@ -218,7 +220,7 @@ impl<'a> ImageProcessor<'a> {
         self.logger.divider();
     }
 
-    /// Process all images in the plan using multithreading and temporary files
+    /// Process all images in the plan using multithreading and temporary files.
     pub fn process(&self, plan: &ProcessingPlan, json_progress: bool) -> Result<ProcessingResult> {
         // Note: Skipping temp directory cleanup to allow inspection of intermediate files during development
         // Uncomment below to enable cleanup if needed
@@ -578,6 +580,7 @@ struct ProcessingJob {
     annotation_background: HexColor,
 }
 
+/// Processing results and report details.
 #[derive(Debug)]
 pub struct ProcessingResult {
     pub processed: Vec<ProcessedImage>,
@@ -586,6 +589,7 @@ pub struct ProcessingResult {
     pub paired_details: Vec<crate::report::PairedImageDetail>,
 }
 
+/// Processed image output and metadata used by later stages.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct ProcessedImage {

@@ -54,6 +54,7 @@ struct JsonPairedDetail {
     detect_ms: u128,
 }
 
+/// Report configuration captured at startup.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct ReportConfig {
@@ -64,6 +65,7 @@ pub struct ReportConfig {
     pub no_pairing: bool,
 }
 
+/// Runtime report state and aggregated results.
 #[derive(Debug, Clone)]
 pub struct Report {
     pub config: ReportConfig,
@@ -95,6 +97,7 @@ pub enum ImageOrientation {
     Portrait,
 }
 
+/// Minimal image metadata used during planning.
 #[derive(Debug, Clone)]
 pub struct ImageInfo {
     pub path: PathBuf,
@@ -102,7 +105,7 @@ pub struct ImageInfo {
     pub orientation: ImageOrientation,
 }
 
-/// Detailed information about a processed image
+/// Detailed information about a single processed image.
 #[derive(Debug, Clone, tabled::Tabled)]
 pub struct ProcessingDetail {
     #[tabled(rename = "Source")]
@@ -119,7 +122,7 @@ pub struct ProcessingDetail {
     pub detection_time_ms: u128,
 }
 
-/// Detailed information about a paired image output
+/// Detailed information about a paired image row.
 #[derive(Debug, Clone, tabled::Tabled)]
 pub struct PairedImageDetail {
     #[tabled(rename = "Source")]
@@ -202,6 +205,7 @@ impl PairedImageDetail {
 }
 
 impl Report {
+    /// Create a new report from CLI args and discovered files.
     pub fn new(args: &Args, discovered_files: Vec<PathBuf>) -> Self {
         Self {
             config: ReportConfig {
@@ -223,17 +227,20 @@ impl Report {
         }
     }
 
+    /// Store validation results (valid and invalid images).
     pub fn set_image_results(&mut self, valid: Vec<ImageInfo>, invalid: Vec<PathBuf>) {
         self.valid_images = valid;
         self.invalid_images = invalid;
     }
 
+    /// Store high‑level processing counts.
     pub fn set_processing_results(&mut self, processed: usize, failed: usize, paired: usize) {
         self.processed_count = processed;
         self.failed_count = failed;
         self.paired_count = paired;
     }
 
+    /// Store detailed per‑image results for reports.
     pub fn set_processing_details(
         &mut self,
         processed_details: Vec<ProcessingDetail>,
@@ -243,7 +250,7 @@ impl Report {
         self.paired_details = paired_details;
     }
 
-    /// Generate and display report based on format
+    /// Generate and display report based on format.
     pub fn generate(&self, logger: &Logger, format: ReportFormat) {
         match format {
             ReportFormat::Plain => self.generate_plain(logger),

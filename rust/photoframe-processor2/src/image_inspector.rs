@@ -23,10 +23,12 @@ pub struct ImageInspector<'a> {
 }
 
 impl<'a> ImageInspector<'a> {
+    /// Create a new inspector instance.
     pub fn new(logger: &'a Logger) -> Self {
         Self { logger }
     }
 
+    /// Validate images, extract EXIF rotation, and classify orientation.
     pub fn inspect(&self, files: &[PathBuf], json_progress: bool) -> InspectionResult {
         if files.is_empty() {
             self.logger.warning("No files to inspect");

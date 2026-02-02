@@ -6,16 +6,16 @@ use walkdir::WalkDir;
 use crate::json_output::JsonMessage;
 use crate::logging::Logger;
 
-/// Discovery class that scans input paths and returns all matching files.
+/// Scans input paths and returns all matching files.
 pub struct Discovery<'a> {
     extensions: HashSet<String>,
     logger: &'a Logger,
 }
 
 impl<'a> Discovery<'a> {
-    /// Create a new Discovery instance with a list of allowed extensions.
+    /// Create a new discovery scanner from a comma‑separated extensions list.
     ///
-    /// Extensions are normalized to lowercase and stripped of any leading dots.
+    /// Extensions are normalized to lowercase and stripped of leading dots.
     pub fn new(extensions: &str, logger: &'a Logger) -> Self {
         let mut normalized = HashSet::new();
 
@@ -32,8 +32,7 @@ impl<'a> Discovery<'a> {
         }
     }
 
-    /// Scan all input paths (files or directories) and return a full list of
-    /// matching files found recursively.
+    /// Scan all input paths (files or directories) and return all matching files.
     pub fn discover(&self, inputs: &[PathBuf], json_progress: bool) -> Result<Vec<PathBuf>> {
         let mut files: HashSet<PathBuf> = HashSet::new();
 
