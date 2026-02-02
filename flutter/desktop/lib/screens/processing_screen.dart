@@ -91,7 +91,7 @@ class _FileSelectionSection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final path = await FilePicker.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
+                      final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('inputDir', path);
                         provider.updateConfig(config.copyWith(inputPath: path));
@@ -120,7 +120,7 @@ class _FileSelectionSection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final path = await FilePicker.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
+                      final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('outputDir', path);
                         provider.updateConfig(config.copyWith(outputPath: path));
@@ -167,7 +167,7 @@ class _ProcessorBinarySection extends StatelessWidget {
                       borderStyle: AppKitTextFieldBorderStyle.rounded,
                       maxLines: 1,
                       controller: TextEditingController(text: config.processorBinaryPath ?? ''),
-                      placeholder: 'Path to photoframe-processor binary (optional)',
+                      placeholder: 'Path to processor binary (optional)',
                       onChanged: (value) {
                         provider.updateConfig(config.copyWith(processorBinaryPath: value.isEmpty ? null : value));
                       },
@@ -177,7 +177,7 @@ class _ProcessorBinarySection extends StatelessWidget {
                   AppKitButton(
                     size: AppKitControlSize.regular,
                     onTap: () async {
-                      final result = await FilePicker.pickFiles(initialDirectory: FilePickerHistory.initialDir('processorBinary'));
+                      final result = await FilePicker.platform.pickFiles(initialDirectory: FilePickerHistory.initialDir('processorBinary'));
                       if (result != null && result.files.single.path != null) {
                         final selectedPath = result.files.single.path!;
                         FilePickerHistory.rememberFile('processorBinary', selectedPath);
@@ -259,6 +259,8 @@ class _DisplaySettingsSection extends StatelessWidget {
                           items: const [
                             AppKitContextMenuItem(value: TargetOrientation.landscape, child: Text('Landscape')),
                             AppKitContextMenuItem(value: TargetOrientation.portrait, child: Text('Portrait')),
+                            AppKitContextMenuItem(value: TargetOrientation.landscapeReverse, child: Text('Landscape Reverse')),
+                            AppKitContextMenuItem(value: TargetOrientation.portraitReverse, child: Text('Portrait Reverse')),
                           ],
                         ),
                       ],
@@ -326,9 +328,9 @@ class _PeopleDetectionSection extends StatelessWidget {
                           AppKitSlider(
                             value: config.confidenceThreshold,
                             style: AppKitSliderStyle.discreteFixed,
-                            stops: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
+                            stops: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9],
                             min: 0.3,
-                            max: 0.95,
+                            max: 0.9,
                             onChanged: (value) {
                               provider.updateConfig(config.copyWith(confidenceThreshold: value));
                             },
@@ -419,15 +421,15 @@ class _DitheringSettingsSection extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.max,
                           children: [
-                            Text('Strength: ${config.ditherStrength.toStringAsFixed(2)}'),
+                            Text('Strength: ${config.ditherStrength}'),
                             const SizedBox(width: 8),
                             Expanded(
                               child: AppKitSlider(
-                                value: config.ditherStrength.clamp(0.5, 1.5),
-                                min: 0.5,
-                                max: 1.5,
+                                value: config.ditherStrength.toDouble(),
+                                min: 0.0,
+                                max: 200.0,
                                 onChanged: (value) {
-                                  provider.updateConfig(config.copyWith(ditherStrength: value));
+                                  provider.updateConfig(config.copyWith(ditherStrength: value.round()));
                                 },
                               ),
                             ),
@@ -482,13 +484,13 @@ class _DitheringSettingsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Saturation Boost: ${config.saturationBoost.toStringAsFixed(1)}'),
+                          Text('Saturation: ${config.saturation}'),
                           AppKitSlider(
-                            value: config.saturationBoost,
-                            min: 0.5,
-                            max: 2.0,
+                            value: config.saturation.toDouble(),
+                            min: 0.0,
+                            max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(saturationBoost: value));
+                              provider.updateConfig(config.copyWith(saturation: value.round()));
                             },
                           ),
                         ],
@@ -678,13 +680,13 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                       width: 80,
                       child: AppKitTextField(
                         borderStyle: AppKitTextFieldBorderStyle.rounded,
-                        controller: TextEditingController(text: config.pointsize.toString()),
+                        controller: TextEditingController(text: config.fontSize.toString()),
                         placeholder: '22',
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
                           final size = int.tryParse(value);
                           if (size != null) {
-                            provider.updateConfig(config.copyWith(pointsize: size));
+                            provider.updateConfig(config.copyWith(fontSize: size));
                           }
                         },
                       ),
@@ -696,10 +698,10 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                       width: 120,
                       child: AppKitTextField(
                         borderStyle: AppKitTextFieldBorderStyle.rounded,
-                        controller: TextEditingController(text: config.annotateBackground),
-                        placeholder: '#00000040',
+                        controller: TextEditingController(text: config.annotationBackground),
+                        placeholder: '#40000000',
                         onChanged: (value) {
-                          provider.updateConfig(config.copyWith(annotateBackground: value));
+                          provider.updateConfig(config.copyWith(annotationBackground: value));
                         },
                       ),
                     ),
@@ -727,7 +729,7 @@ class _DividerSettingsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text('Divider Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          child: Text('Pairing Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         AppKitGroupBox(
           style: AppKitGroupBoxStyle.standardScrollBox,
@@ -737,49 +739,64 @@ class _DividerSettingsSection extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Width:'),
-                        const SizedBox(height: 4),
-                        AppKitTextField(
-                          borderStyle: AppKitTextFieldBorderStyle.rounded,
-                          controller: TextEditingController(text: config.dividerWidth.toString()),
-                          placeholder: '3',
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            final width = int.tryParse(value);
-                            if (width != null) {
-                              provider.updateConfig(config.copyWith(dividerWidth: width));
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                  AppKitSwitch(
+                    checked: config.noPairing,
+                    onChanged: (value) {
+                      provider.updateConfig(config.copyWith(noPairing: value));
+                    },
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Color:'),
-                        const SizedBox(height: 4),
-                        AppKitTextField(
-                          borderStyle: AppKitTextFieldBorderStyle.rounded,
-                          controller: TextEditingController(text: config.dividerColor),
-                          placeholder: '#FFFFFF',
-                          onChanged: (value) {
-                            provider.updateConfig(config.copyWith(dividerColor: value));
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(width: 8),
+                  const Text('Disable automatic pairing of images'),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text('ℹ Divider is drawn between paired portrait images', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              if (!config.noPairing) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Divider Width:'),
+                          const SizedBox(height: 4),
+                          AppKitTextField(
+                            borderStyle: AppKitTextFieldBorderStyle.rounded,
+                            controller: TextEditingController(text: config.dividerWidth.toString()),
+                            placeholder: '3',
+                            keyboardType: TextInputType.number,
+                            onChanged: (value) {
+                              final width = int.tryParse(value);
+                              if (width != null) {
+                                provider.updateConfig(config.copyWith(dividerWidth: width));
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Divider Color:'),
+                          const SizedBox(height: 4),
+                          AppKitTextField(
+                            borderStyle: AppKitTextFieldBorderStyle.rounded,
+                            controller: TextEditingController(text: config.dividerColor),
+                            placeholder: '#FFFFFF',
+                            onChanged: (value) {
+                              provider.updateConfig(config.copyWith(dividerColor: value));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('ℹ Divider is drawn between paired portrait images', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
             ],
           ),
         ),
@@ -938,6 +955,17 @@ class _ProcessingDialog extends StatelessWidget {
   void _showReportDialog(BuildContext context, ProcessingProvider provider) {
     final bool hasReport = provider.lastReport != null;
     final bool hasSummary = provider.lastSummary != null;
+
+    // Debug logging
+    debugPrint('=== REPORT DIALOG DEBUG ===');
+    debugPrint('Has report: $hasReport');
+    debugPrint('Has summary: $hasSummary');
+    debugPrint('Summary data: ${provider.lastSummary}');
+    debugPrint('Report data keys: ${(provider.lastReport as Map?)?.keys.toList()}');
+    if (hasReport && provider.lastReport is Map) {
+      debugPrint('Processed images count: ${((provider.lastReport as Map)['processed_images'] as List?)?.length ?? 0}');
+      debugPrint('Paired images count: ${((provider.lastReport as Map)['paired_images'] as List?)?.length ?? 0}');
+    }
 
     showAppKitDialog(
       context: context,

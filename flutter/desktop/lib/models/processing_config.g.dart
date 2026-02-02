@@ -13,21 +13,22 @@ ProcessingConfig _$ProcessingConfigFromJson(Map<String, dynamic> json) => Proces
   orientation: $enumDecodeNullable(_$TargetOrientationEnumMap, json['orientation']) ?? TargetOrientation.landscape,
   autoColorCorrect: json['autoColorCorrect'] as bool? ?? false,
   ditherMethod: $enumDecodeNullable(_$DitherMethodEnumMap, json['ditherMethod']) ?? DitherMethod.floydSteinberg,
-  ditherStrength: (json['ditherStrength'] as num?)?.toDouble() ?? 1.0,
+  ditherStrength: (json['ditherStrength'] as num?)?.toInt() ?? 100,
   contrast: (json['contrast'] as num?)?.toInt() ?? 0,
   brightness: (json['brightness'] as num?)?.toInt() ?? 0,
-  saturationBoost: (json['saturationBoost'] as num?)?.toDouble() ?? 1.1,
+  saturation: (json['saturation'] as num?)?.toInt() ?? 100,
   autoOptimize: json['autoOptimize'] as bool? ?? false,
   outputBmp: json['outputBmp'] as bool? ?? false,
   outputBin: json['outputBin'] as bool? ?? true,
   outputJpg: json['outputJpg'] as bool? ?? false,
   outputPng: json['outputPng'] as bool? ?? false,
   detectPeople: json['detectPeople'] as bool? ?? false,
-  confidenceThreshold: (json['confidenceThreshold'] as num?)?.toDouble() ?? 0.6,
+  confidenceThreshold: (json['confidenceThreshold'] as num?)?.toDouble() ?? 0.5,
   annotate: json['annotate'] as bool? ?? false,
   font: json['font'] as String? ?? 'Arial',
-  pointsize: (json['pointsize'] as num?)?.toInt() ?? 22,
-  annotateBackground: json['annotateBackground'] as String? ?? '#00000040',
+  fontSize: (json['fontSize'] as num?)?.toInt() ?? 22,
+  annotationBackground: json['annotationBackground'] as String? ?? '#40000000',
+  noPairing: json['noPairing'] as bool? ?? false,
   dividerWidth: (json['dividerWidth'] as num?)?.toInt() ?? 3,
   dividerColor: json['dividerColor'] as String? ?? '#FFFFFF',
   report: json['report'] as bool? ?? false,
@@ -46,7 +47,7 @@ Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) => <Str
   'ditherStrength': instance.ditherStrength,
   'contrast': instance.contrast,
   'brightness': instance.brightness,
-  'saturationBoost': instance.saturationBoost,
+  'saturation': instance.saturation,
   'autoOptimize': instance.autoOptimize,
   'outputBmp': instance.outputBmp,
   'outputBin': instance.outputBin,
@@ -56,8 +57,9 @@ Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) => <Str
   'confidenceThreshold': instance.confidenceThreshold,
   'annotate': instance.annotate,
   'font': instance.font,
-  'pointsize': instance.pointsize,
-  'annotateBackground': instance.annotateBackground,
+  'fontSize': instance.fontSize,
+  'annotationBackground': instance.annotationBackground,
+  'noPairing': instance.noPairing,
   'dividerWidth': instance.dividerWidth,
   'dividerColor': instance.dividerColor,
   'report': instance.report,
@@ -68,7 +70,12 @@ Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) => <Str
 
 const _$DisplayTypeEnumMap = {DisplayType.blackWhite: 'bw', DisplayType.sixColor: '6c'};
 
-const _$TargetOrientationEnumMap = {TargetOrientation.landscape: 'landscape', TargetOrientation.portrait: 'portrait'};
+const _$TargetOrientationEnumMap = {
+  TargetOrientation.landscape: '0',
+  TargetOrientation.portrait: '1',
+  TargetOrientation.landscapeReverse: '2',
+  TargetOrientation.portraitReverse: '3',
+};
 
 const _$DitherMethodEnumMap = {
   DitherMethod.floydSteinberg: 'floyd-steinberg',

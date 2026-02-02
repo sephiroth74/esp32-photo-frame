@@ -80,3 +80,4 @@ assets/3d model/*.stl
 rust/photoframe_lib/tests/
 rust/processor/target/
 rust/processor/temp/
+flutter/desktop/temp/

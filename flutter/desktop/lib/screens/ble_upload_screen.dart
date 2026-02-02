@@ -13,7 +13,6 @@ class BleUploadScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BleUploadState>(
       builder: (context, ble, _) {
-        final theme = AppKitTheme.of(context);
         final fileLabel = ble.binPath != null ? ble.binPath!.split('/').last : 'No file selected';
         final deviceLabel = ble.deviceInfo?.name ?? ble.connected?.platformName ?? 'No device selected';
 
@@ -123,7 +122,7 @@ class BleUploadScreen extends StatelessWidget {
                               AppKitButton(
                                 size: AppKitControlSize.regular,
                                 onTap: () async {
-                                  final result = await FilePicker.pickFiles(
+                                  final result = await FilePicker.platform.pickFiles(
                                     type: FileType.custom,
                                     allowedExtensions: const ['pfr1'],
                                     initialDirectory: FilePickerHistory.initialDir('bleBin'),
@@ -379,7 +378,6 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = ble.binHeader;
-    final theme = AppKitTheme.of(context);
 
     return AppKitGroupBox(
       style: AppKitGroupBoxStyle.roundedScrollBox,

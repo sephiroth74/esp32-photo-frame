@@ -157,10 +157,10 @@ class ProcessingProvider with ChangeNotifier {
       // Build command arguments
       final args = _buildCommandArgs();
 
-      // Find photoframe-processor binary
+      // Find processor binary
       final binary = await _findProcessorBinary();
       if (binary == null) {
-        throw Exception('photoframe-processor binary not found');
+        throw Exception('processor binary not found');
       }
 
       // Log the full command for debugging
@@ -197,6 +197,7 @@ class ProcessingProvider with ChangeNotifier {
             final failed = json['failed'] ?? 0;
             final totalFiles = json['total_files'] ?? 0;
 
+            // Extract summary and full report
             _lastSummary = json['summary'];
             _lastReport = json['report'];
 
@@ -235,6 +236,62 @@ class ProcessingProvider with ChangeNotifier {
               _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
             } else {
               _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
+            }
+          } else if (type == null) {
+            // Handle raw JSON report (no "type" field) - sent by processor as final report
+            debugPrint('=== RAW REPORT JSON RECEIVED ===');
+            debugPrint('Full report JSON: ${jsonEncode(json)}');
+
+            // Check if this looks like a report (has config, summary, processed_images fields)
+            if (json['config'] != null && json['summary'] != null) {
+              debugPrint('✓ Detected report JSON with config and summary');
+
+              // Store the full report
+              _lastReport = json;
+
+              // Extract and transform summary data
+              final processorSummary = json['summary'];
+              final processedImages = json['processed_images'] as List? ?? [];
+              final pairedImages = json['paired_images'] as List? ?? [];
+
+              debugPrint('📊 Summary from processor: ${jsonEncode(processorSummary)}');
+              debugPrint('🖼️ Processed images count: ${processedImages.length}');
+              debugPrint('📸 Paired images count: ${pairedImages.length}');
+
+              // Transform processor summary into Flutter summary format
+              if (processorSummary != null) {
+                final totalImages = processorSummary['total_files_discovered'] ?? 0;
+                final processedCount = processorSummary['images_processed'] ?? 0;
+                final failedCount = processorSummary['failed_images'] ?? 0;
+                final pairCount = processorSummary['image_pairs_created'] ?? 0;
+                final unpairedCount = processorSummary['unpaired_images'] ?? 0;
+
+                _lastSummary = {
+                  'total_images': totalImages,
+                  'processed_images': processedCount,
+                  'failed_images': failedCount,
+                  'image_pairs': pairCount,
+                  'unpaired_images': unpairedCount,
+                  'images_with_people': processedImages.where((img) => (img['faces'] as List?)?.isNotEmpty ?? false).length,
+                  'people_detection_rate': processedCount > 0
+                      ? (processedImages.where((img) => (img['faces'] as List?)?.isNotEmpty ?? false).length / processedCount * 100).toStringAsFixed(
+                          1,
+                        )
+                      : '0.0',
+                  'images_with_pastel': 0,
+                  'pastel_rate': '0.0',
+                  'landscape_images': 0,
+                  'portrait_pairs': pairCount,
+                  'individual_portraits': unpairedCount,
+                };
+
+                debugPrint('✓ Transformed summary: $_lastSummary');
+              }
+
+              debugPrint('✓ Report fully processed');
+              notifyListeners();
+            } else {
+              debugPrint('✗ JSON does not contain required report fields (config/summary)');
             }
           }
         } catch (e) {
@@ -326,14 +383,18 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.autoOptimize) {
       args.add('--auto-optimize');
     } else {
-      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation-boost=${_config.saturationBoost}');
+      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation=${_config.saturation}');
       args.addAll([
         '--dithering',
         _ditherMethodToString(_config.ditherMethod),
-        '--dither-strength=${_config.ditherStrength}',
-        '--contrast=${_config.contrast}',
-        '--brightness=${_config.brightness}',
-        '--saturation-boost=${_config.saturationBoost}',
+        '--dither-strength',
+        _config.ditherStrength.toString(),
+        '--contrast',
+        _config.contrast.toString(),
+        '--brightness',
+        _config.brightness.toString(),
+        '--saturation',
+        _config.saturation.toString(),
       ]);
     }
 
@@ -345,12 +406,22 @@ class ProcessingProvider with ChangeNotifier {
     }
     if (_config.annotate) {
       args.add('--annotate');
-      args.addAll(['--font', _config.font, '--pointsize=${_config.pointsize}', '--annotate_background', _config.annotateBackground]);
+      args.addAll(['--font', _config.font, '--font-size', _config.fontSize.toString(), '--annotation_background', _config.annotationBackground]);
     }
-    // Report is now always generated in JSON mode, no need for --report flag
+    // Add report generation
+    args.add('--report');
+    args.add('json');
+
     if (_config.jobs > 0) args.add('--jobs=${_config.jobs}');
 
-    args.addAll(['--divider-width=${_config.dividerWidth}', '--divider-color', _config.dividerColor, '--extensions', _config.extensions]);
+    // Pairing options
+    if (_config.noPairing) {
+      args.add('--no-pairing');
+    } else {
+      args.addAll(['--divider-width', _config.dividerWidth.toString(), '--divider-color', _config.dividerColor]);
+    }
+
+    args.addAll(['--extensions', _config.extensions]);
 
     return args;
   }
@@ -367,11 +438,9 @@ class ProcessingProvider with ChangeNotifier {
     // Try common locations
     final locations = [
       // Relative to Flutter app
-      '../rust/photoframe-processor/target/release/photoframe-processor',
-      // Absolute path in project
-      '/Users/alessandro/Documents/git/sephiroth74/arduino/esp32-photo-frame/rust/photoframe-processor/target/release/photoframe-processor',
+      '../rust/processor/target/release/processor',
       // System PATH
-      'photoframe-processor',
+      'processor',
     ];
 
     for (final location in locations) {
@@ -406,9 +475,13 @@ class ProcessingProvider with ChangeNotifier {
   String _targetOrientationToString(TargetOrientation orientation) {
     switch (orientation) {
       case TargetOrientation.landscape:
-        return 'landscape';
+        return '0';
       case TargetOrientation.portrait:
-        return 'portrait';
+        return '1';
+      case TargetOrientation.landscapeReverse:
+        return '2';
+      case TargetOrientation.portraitReverse:
+        return '3';
     }
   }
 

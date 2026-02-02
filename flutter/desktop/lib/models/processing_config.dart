@@ -10,10 +10,14 @@ enum DisplayType {
 }
 
 enum TargetOrientation {
-  @JsonValue('landscape')
+  @JsonValue('0')
   landscape,
-  @JsonValue('portrait')
+  @JsonValue('1')
   portrait,
+  @JsonValue('2')
+  landscapeReverse,
+  @JsonValue('3')
+  portraitReverse,
 }
 
 enum DitherMethod {
@@ -37,10 +41,10 @@ class ProcessingConfig {
   final TargetOrientation orientation;
   final bool autoColorCorrect;
   final DitherMethod ditherMethod;
-  final double ditherStrength;
+  final int ditherStrength;
   final int contrast;
   final int brightness;
-  final double saturationBoost;
+  final int saturation;
   final bool autoOptimize;
   final bool outputBmp;
   final bool outputBin;
@@ -50,8 +54,9 @@ class ProcessingConfig {
   final double confidenceThreshold;
   final bool annotate;
   final String font;
-  final int pointsize;
-  final String annotateBackground;
+  final int fontSize;
+  final String annotationBackground;
+  final bool noPairing;
   final int dividerWidth;
   final String dividerColor;
   final bool report;
@@ -66,21 +71,22 @@ class ProcessingConfig {
     this.orientation = TargetOrientation.landscape,
     this.autoColorCorrect = false,
     this.ditherMethod = DitherMethod.floydSteinberg,
-    this.ditherStrength = 1.0,
+    this.ditherStrength = 100,
     this.contrast = 0,
     this.brightness = 0,
-    this.saturationBoost = 1.1,
+    this.saturation = 100,
     this.autoOptimize = false,
     this.outputBmp = false,
     this.outputBin = true,
     this.outputJpg = false,
     this.outputPng = false,
     this.detectPeople = false,
-    this.confidenceThreshold = 0.6,
+    this.confidenceThreshold = 0.5,
     this.annotate = false,
     this.font = 'Arial',
-    this.pointsize = 22,
-    this.annotateBackground = '#00000040',
+    this.fontSize = 22,
+    this.annotationBackground = '#40000000',
+    this.noPairing = false,
     this.dividerWidth = 3,
     this.dividerColor = '#FFFFFF',
     this.report = false,
@@ -100,10 +106,10 @@ class ProcessingConfig {
     TargetOrientation? orientation,
     bool? autoColorCorrect,
     DitherMethod? ditherMethod,
-    double? ditherStrength,
+    int? ditherStrength,
     int? contrast,
     int? brightness,
-    double? saturationBoost,
+    int? saturation,
     bool? autoOptimize,
     bool? outputBmp,
     bool? outputBin,
@@ -113,8 +119,9 @@ class ProcessingConfig {
     double? confidenceThreshold,
     bool? annotate,
     String? font,
-    int? pointsize,
-    String? annotateBackground,
+    int? fontSize,
+    String? annotationBackground,
+    bool? noPairing,
     int? dividerWidth,
     String? dividerColor,
     bool? report,
@@ -132,7 +139,7 @@ class ProcessingConfig {
       ditherStrength: ditherStrength ?? this.ditherStrength,
       contrast: contrast ?? this.contrast,
       brightness: brightness ?? this.brightness,
-      saturationBoost: saturationBoost ?? this.saturationBoost,
+      saturation: saturation ?? this.saturation,
       autoOptimize: autoOptimize ?? this.autoOptimize,
       outputBmp: outputBmp ?? this.outputBmp,
       outputBin: outputBin ?? this.outputBin,
@@ -142,8 +149,9 @@ class ProcessingConfig {
       confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
       annotate: annotate ?? this.annotate,
       font: font ?? this.font,
-      pointsize: pointsize ?? this.pointsize,
-      annotateBackground: annotateBackground ?? this.annotateBackground,
+      fontSize: fontSize ?? this.fontSize,
+      annotationBackground: annotationBackground ?? this.annotationBackground,
+      noPairing: noPairing ?? this.noPairing,
       dividerWidth: dividerWidth ?? this.dividerWidth,
       dividerColor: dividerColor ?? this.dividerColor,
       report: report ?? this.report,
