@@ -3,7 +3,6 @@ use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// Get the project-relative temp directory
 /// TODO: Change back to std::env::temp_dir() once development is complete
@@ -18,26 +17,6 @@ fn get_temp_dir() -> Result<PathBuf> {
 /// Check if ImageMagick is available on the system
 pub fn is_imagemagick_available() -> bool {
     ImageMagickWrapper::is_available()
-}
-
-/// Get the appropriate ImageMagick command ('magick' for v7, 'convert' for v6)
-/// This is a helper that queries the wrapper
-fn get_imagemagick_command() -> &'static str {
-    if ImageMagickWrapper::is_available() {
-        // Try 'magick' first (ImageMagick v7)
-        if Command::new("magick")
-            .arg("-version")
-            .output()
-            .map(|output| output.status.success())
-            .unwrap_or(false)
-        {
-            "magick"
-        } else {
-            "convert"
-        }
-    } else {
-        "convert"
-    }
 }
 
 /// Apply automatic color correction using ImageMagick
@@ -60,28 +39,8 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
     img.save(&input_path)
         .context("Failed to save temporary input image")?;
 
-    let magick_cmd = get_imagemagick_command();
-
-    // Apply full auto-correction pipeline
-    let output = Command::new(magick_cmd)
-        .arg(&input_path)
-        .arg("-separate -contrast-stretch 0.5%x0.5% -combine")
-        .arg("-auto-level") // Stretch histogram
-        .arg("-auto-gamma") // Adjust gamma
-        .arg("-normalize") // Normalize contrast
-        .arg("-modulate")
-        .arg("100,120,100") // brightness,saturation,hue (boost saturation by 20%)
-        .arg(&output_path)
-        .output()
-        .context("Failed to execute ImageMagick")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!(
-            "ImageMagick auto-correction failed: {}",
-            stderr
-        ));
-    }
+    ImageMagickWrapper::apply_auto_correction(&input_path, &output_path)
+        .context("Failed to apply auto correction using ImageMagick")?;
 
     // Load the corrected image
     let corrected_img = image::open(&output_path)
@@ -120,27 +79,14 @@ fn apply_imagemagick_manual_correction(
     img.save(&input_path)
         .context("Failed to save temporary input image")?;
 
-    let magick_cmd = get_imagemagick_command();
-
-    // Apply auto white balance and levels, then manual adjustments
-    let output = Command::new(magick_cmd)
-        .arg(&input_path)
-        .arg("-auto-level") // Stretch histogram
-        .arg("-brightness-contrast")
-        .arg(format!("{}x{}", brightness, contrast))
-        .arg("-modulate")
-        .arg(format!("100,{},100", saturation)) // brightness,saturation,hue
-        .arg(&output_path)
-        .output()
-        .context("Failed to execute ImageMagick")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!(
-            "ImageMagick manual correction failed: {}",
-            stderr
-        ));
-    }
+    ImageMagickWrapper::apply_color_correction(
+        &input_path,
+        &output_path,
+        brightness,
+        contrast,
+        saturation as f32 / 100.0,
+    )
+    .context("Failed to apply color correction using ImageMagick")?;
 
     // Load the corrected image
     let corrected_img = image::open(&output_path)
@@ -232,7 +178,6 @@ pub fn apply_color_correction(
 
     if brightness == 0 && contrast == 0 && saturation == 100 {
         // No manual adjustments needed
-        eprintln!("No manual adjustments specified, skipping further color correction.");
         return Ok(processed_image);
     }
 

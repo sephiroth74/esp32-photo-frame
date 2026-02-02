@@ -49,7 +49,6 @@ impl From<u8> for Orientation {
     }
 }
 
-
 impl TryFrom<&str> for HexColor {
     type Error = &'static str;
 
@@ -98,10 +97,12 @@ impl HexColor {
             .map_err(|_| anyhow::anyhow!("HexColor parse error"))
     }
 
+    #[allow(dead_code)]
     pub fn to_rgba(&self) -> Rgba<u8> {
         Rgba::from([self.1, self.2, self.3, self.0])
     }
 
+    #[allow(dead_code)]
     pub fn to_rgb(&self) -> Rgb<u8> {
         Rgb::from([self.1, self.2, self.3])
     }

@@ -2,21 +2,21 @@ mod annotate;
 mod color_correction;
 mod combine;
 mod debug_viz;
+mod detection_new;
 mod imagemagick;
 mod output;
 mod pairing;
 mod resize;
 mod smart_crop;
-mod subject_detection;
 mod types;
 
 use annotate::add_date_annotation;
 use color_correction::apply_color_correction;
 use combine::combine_paired_images;
 use debug_viz::draw_detection_boxes;
+use detection_new::Face;
 use output::save_outputs;
-use smart_crop::{compute_crop_area, smart_crop_and_resize};
-use subject_detection::{SubjectDetector, create_detector};
+use smart_crop::{crop_image, resize_image};
 pub use types::{ProcessingPlan, SingleImage};
 
 use crate::cli::Args;
@@ -70,31 +70,11 @@ fn clean_temp_dir() -> Result<()> {
 pub struct ImageProcessor<'a> {
     args: &'a Args,
     logger: &'a Logger,
-    detector: Option<SubjectDetector>,
 }
 
 impl<'a> ImageProcessor<'a> {
     pub fn new(args: &'a Args, logger: &'a Logger) -> Result<Self> {
-        let detector = if args.detect_people {
-            match create_detector(args.verbose) {
-                Ok(det) => Some(det),
-                Err(e) => {
-                    logger.error(&format!(
-                        "Failed to initialize subject detector: {}",
-                        e
-                    ));
-                    return Err(e);
-                }
-            }
-        } else {
-            None
-        };
-
-        Ok(Self {
-            args,
-            logger,
-            detector,
-        })
+        Ok(Self { args, logger })
     }
 
     /// Analyze the validated images and create a processing plan
@@ -307,9 +287,6 @@ impl<'a> ImageProcessor<'a> {
             Some(bars)
         };
 
-        // Clone detector for thread pool (it's cheap - just Arc clones internally)
-        let detector_opt = self.detector.as_ref().cloned();
-
         let results: Vec<(Result<ProcessedImage>, PathBuf)> = pool.install(|| {
             jobs.into_par_iter()
                 .enumerate()
@@ -332,7 +309,7 @@ impl<'a> ImageProcessor<'a> {
                         pb.set_position(0);
                     }
 
-                    let result = process_job(&job, detector_opt.as_ref(), pb.as_ref());
+                    let result = process_job(&job, pb.as_ref());
 
                     if let Some(pb) = &pb {
                         match &result {
@@ -541,11 +518,7 @@ fn paired_target_size(base: Size, target_orientation: Orientation) -> Size {
     }
 }
 
-fn process_job(
-    job: &ProcessingJob,
-    detector: Option<&SubjectDetector>,
-    progress: Option<&ProgressBar>,
-) -> Result<ProcessedImage> {
+fn process_job(job: &ProcessingJob, progress: Option<&ProgressBar>) -> Result<ProcessedImage> {
     let reader = image::ImageReader::open(&job.image.path)
         .with_context(|| format!("Failed to open image: {}", job.image.path.display()))?
         .with_guessed_format()
@@ -580,24 +553,22 @@ fn process_job(
         .tempfile_in(&temp_dir)
         .context("Failed to create temporary file")?;
 
-    // Detect people if enabled
-    let (detection, people_count) = if job.detect_people {
-        if let Some(det) = detector {
-            match det.detect_people(&img_rgb, job.confidence_threshold) {
-                Ok(result) => {
-                    let count = result.person_count;
-                    (Some(result), Some(count))
-                }
-                Err(err) => {
-                    eprintln!("Error: People detection failed for image: {}", job.image.path.display());
-                    eprintln!("Error: {}", err);
-                    (None, None)
-                },
+    // Detect faces if enabled
+    let (detection, face_count): (Option<Vec<Face>>, Option<usize>) = if job.detect_people {
+        eprintln!("Detecting people");
+        match detection_new::detect_faces(&img_rgb, job.confidence_threshold) {
+            Ok(faces) => {
+                eprintln!("Detected {} faces", faces.len());
+                let count = faces.len();
+                (Some(faces), Some(count))
             }
-        } else {
-            (None, None)
+            Err(err) => {
+                eprintln!("Error detecting faces: {}", err);
+                (None, None)
+            }
         }
     } else {
+        eprintln!("Skipping people detection");
         (None, None)
     };
 
@@ -605,15 +576,15 @@ fn process_job(
         pb.inc(1);
     }
 
-    let (crop_x, crop_y, crop_width, crop_height) = compute_crop_area(
+    let (crop_x, crop_y, crop_width, crop_height) = compute_crop_area_faces(
         &img_rgb,
         job.target_size.width,
         job.target_size.height,
         detection.as_ref(),
     );
 
-    // Smart crop and resize with people detection awareness
-    let mut processing_image = smart_crop_and_resize(
+    // Smart crop and resize with face detection awareness
+    let mut processing_image = smart_crop_and_resize_faces(
         &img_rgb,
         job.target_size.width,
         job.target_size.height,
@@ -638,8 +609,12 @@ fn process_job(
     // Debug visualization: draw detection boxes AFTER color correction
     // This ensures boxes are visible in the final saved image
     if job.debug && job.detect_people && detection.is_some() {
-        let det = detection.as_ref().unwrap();
-        if det.person_count > 0 && crop_width > 0 && crop_height > 0 {
+        let faces = detection.as_ref().unwrap();
+        eprintln!(
+            "Drawing {} detection boxes for debug visualization",
+            faces.len()
+        );
+        if !faces.is_empty() && crop_width > 0 && crop_height > 0 {
             let scale_x = job.target_size.width as f32 / crop_width as f32;
             let scale_y = job.target_size.height as f32 / crop_height as f32;
             let max_out_x = job.target_size.width.saturating_sub(1);
@@ -649,7 +624,13 @@ fn process_job(
 
             let mut mapped = Vec::new();
 
-            for (det_x_min, det_y_min, det_x_max, det_y_max, confidence) in det.detection_boxes() {
+            for face in faces {
+                let det_x_min = face.x1;
+                let det_y_min = face.y1;
+                let det_x_max = face.x2;
+                let det_y_max = face.y2;
+                let confidence = face.confidence;
+
                 let mut x_min = det_x_min.saturating_sub(crop_x).min(max_crop_x);
                 let mut y_min = det_y_min.saturating_sub(crop_y).min(max_crop_y);
                 let mut x_max = det_x_max.saturating_sub(crop_x).min(max_crop_x);
@@ -670,7 +651,13 @@ fn process_job(
                 y_max = y_max.min(max_out_y);
 
                 if x_max > x_min && y_max > y_min {
-                    mapped.push((x_min, y_min, x_max, y_max, confidence));
+                    mapped.push(Face {
+                        x1: x_min,
+                        y1: y_min,
+                        x2: x_max,
+                        y2: y_max,
+                        confidence,
+                    });
                 }
             }
 
@@ -730,6 +717,114 @@ fn process_job(
         pair_index: job.pair_index,
         paired_source: None,
         orientation: job.image.orientation,
-        people_count,
+        people_count: face_count,
     })
+}
+/// Compute crop area based on target dimensions and face detections
+/// Returns (crop_x, crop_y, crop_width, crop_height)
+fn compute_crop_area_faces(
+    img: &image::RgbImage,
+    target_width: u32,
+    target_height: u32,
+    faces: Option<&Vec<Face>>,
+) -> (u32, u32, u32, u32) {
+    let (src_width, src_height) = img.dimensions();
+
+    // Calculate crop dimensions to maintain aspect ratio
+    let target_aspect = target_width as f64 / target_height as f64;
+    let source_aspect = src_width as f64 / src_height as f64;
+
+    let (crop_width, crop_height) = if source_aspect > target_aspect {
+        // Source is wider - crop width
+        let new_width = (src_height as f64 * target_aspect) as u32;
+        (new_width.min(src_width), src_height)
+    } else {
+        // Source is taller - crop height
+        let new_height = (src_width as f64 / target_aspect) as u32;
+        (src_width, new_height.min(src_height))
+    };
+
+    // Determine crop position
+    let (crop_x, crop_y) = if let Some(face_list) = faces {
+        if !face_list.is_empty() {
+            // Use smart cropping based on largest face
+            let largest_face = face_list.first().unwrap(); // Already sorted by confidence
+            calculate_crop_offset_from_face(
+                src_width,
+                src_height,
+                crop_width,
+                crop_height,
+                largest_face,
+            )
+        } else {
+            // No faces detected, use center crop
+            standard_crop_offset(src_width, src_height, crop_width, crop_height)
+        }
+    } else {
+        // No detection available, use center crop
+        standard_crop_offset(src_width, src_height, crop_width, crop_height)
+    };
+
+    (crop_x, crop_y, crop_width, crop_height)
+}
+
+/// Calculate crop offset based on face position
+fn calculate_crop_offset_from_face(
+    src_width: u32,
+    src_height: u32,
+    crop_width: u32,
+    crop_height: u32,
+    face: &Face,
+) -> (u32, u32) {
+    // Get face bounding box
+    let face_x_min = face.x1 as u32;
+    let face_y_min = face.y1 as u32;
+    let face_x_max = face.x2 as u32;
+    let face_y_max = face.y2 as u32;
+
+    // Calculate face center
+    let face_center_x = (face_x_min + face_x_max) / 2;
+    let face_center_y = (face_y_min + face_y_max) / 2;
+
+    // Try to keep the entire face within the crop
+    let ideal_left = face_center_x.saturating_sub(crop_width / 2);
+    let ideal_top = face_center_y.saturating_sub(crop_height / 2);
+
+    let crop_left = ideal_left.min(src_width.saturating_sub(crop_width));
+    let crop_top = ideal_top.min(src_height.saturating_sub(crop_height));
+
+    (crop_left, crop_top)
+}
+
+/// Standard center crop offset
+fn standard_crop_offset(
+    src_width: u32,
+    src_height: u32,
+    crop_width: u32,
+    crop_height: u32,
+) -> (u32, u32) {
+    let crop_x = src_width.saturating_sub(crop_width) / 2;
+    let crop_y = src_height.saturating_sub(crop_height) / 2;
+    (crop_x, crop_y)
+}
+
+/// Smart crop and resize with face detection awareness
+fn smart_crop_and_resize_faces(
+    img: &image::RgbImage,
+    target_width: u32,
+    target_height: u32,
+    faces: Option<&Vec<Face>>,
+) -> Result<image::RgbImage> {
+    let (crop_x, crop_y, crop_width, crop_height) =
+        compute_crop_area_faces(img, target_width, target_height, faces);
+
+    // Crop the image
+    let cropped = crop_image(img, crop_x, crop_y, crop_width, crop_height)?;
+
+    // Resize to exact target dimensions if needed
+    if cropped.width() != target_width || cropped.height() != target_height {
+        resize_image(&cropped, target_width, target_height)
+    } else {
+        Ok(cropped)
+    }
 }

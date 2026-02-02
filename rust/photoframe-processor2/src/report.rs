@@ -13,6 +13,7 @@ pub struct ReportConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Report {
     pub config: ReportConfig,
     pub discovered_files: Vec<PathBuf>,
@@ -41,7 +42,8 @@ pub struct ImageInfo {
     pub path: PathBuf,
     pub rotation: RotationDegrees,
     pub orientation: ImageOrientation,
-    pub people_detected: Option<usize>,
+    #[allow(dead_code)]
+    pub faces_detected: Option<usize>,
 }
 
 impl Report {

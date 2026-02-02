@@ -1,6 +1,6 @@
+use crate::ColorMode;
 use anyhow::{Result, anyhow};
 use crc32fast::Hasher as Crc32Hasher;
-use crate::ColorMode;
 
 /// Magic 'PFR1' little-endian (0x50465231)
 pub const BIN_MAGIC: u32 = 0x5046_5231;

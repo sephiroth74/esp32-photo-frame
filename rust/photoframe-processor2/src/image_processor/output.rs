@@ -1,4 +1,5 @@
 use super::ProcessedImage;
+use crate::fs_utils::get_format_extension;
 use crate::types::{ColorType, Orientation, OutputType};
 use anyhow::{Context, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
@@ -135,14 +136,7 @@ fn save_single_output(
 ) -> Result<()> {
     let format_dir = output_dir.join(format.as_str());
 
-    // Generate output filename
-    let ext = match format {
-        OutputType::Bmp => "bmp",
-        OutputType::Jpg => "jpg",
-        OutputType::Png => "png",
-        OutputType::Pfr1 => "pfr1",
-    };
-
+    let ext = get_format_extension(&format);
     let base_name = if img.paired && img.paired_source.is_some() {
         // For combined images, use format: combined_name1_name2_hash
         let paired_src = img.paired_source.as_ref().unwrap();

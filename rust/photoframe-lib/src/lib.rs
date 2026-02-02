@@ -200,8 +200,6 @@ pub unsafe extern "C" fn photoframe_convert_with_processing(
     // Convert input to slice
     let input_slice = unsafe { slice::from_raw_parts(image_data, image_len) };
 
-    
-
     match convert_image_from_bytes(input_slice, color_mode.into()) {
         Some((payload, w, h)) => {
             // Infer color mode: 0 if all bytes are 0x00 or 0xFF (BW), else 1 (6C)

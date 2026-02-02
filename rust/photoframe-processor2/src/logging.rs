@@ -27,13 +27,12 @@ pub enum LogLevel {
 
 pub struct Logger {
     verbose: bool,
-    debug: bool,
 }
 
 impl Logger {
     /// Create a new logger with the given verbosity settings
-    pub fn new(verbose: bool, debug: bool) -> Self {
-        Logger { verbose, debug }
+    pub fn new(verbose: bool) -> Self {
+        Logger { verbose }
     }
 
     /// Print an error message (always shown)
@@ -65,9 +64,7 @@ impl Logger {
 
     /// Print a debug message (only when debug is enabled)
     pub fn debug(&self, msg: &str) {
-        if self.debug {
-            println!("  [DEBUG] {}", msg);
-        }
+        println!("  [DEBUG] {}", msg);
     }
 
     /// Print a section header
@@ -132,11 +129,6 @@ impl Logger {
     pub fn is_verbose(&self) -> bool {
         self.verbose
     }
-
-    /// Check if debug mode is enabled
-    pub fn is_debug(&self) -> bool {
-        self.debug
-    }
 }
 
 #[cfg(test)]
@@ -145,30 +137,26 @@ mod tests {
 
     #[test]
     fn test_logger_creation() {
-        let logger = Logger::new(false, false);
+        let logger = Logger::new(false);
         assert!(!logger.is_verbose());
-        assert!(!logger.is_debug());
     }
 
     #[test]
     fn test_logger_verbose() {
-        let logger = Logger::new(true, false);
+        let logger = Logger::new(true);
         assert!(logger.is_verbose());
-        assert!(!logger.is_debug());
     }
 
     #[test]
     fn test_logger_debug() {
-        let logger = Logger::new(false, true);
+        let logger = Logger::new(false);
         assert!(!logger.is_verbose());
-        assert!(logger.is_debug());
     }
 
     #[test]
     fn test_logger_all_modes() {
-        let logger = Logger::new(true, true);
+        let logger = Logger::new(true);
         assert!(logger.is_verbose());
-        assert!(logger.is_debug());
 
         // Just ensure methods don't panic
         logger.error("test error");

@@ -14,7 +14,7 @@ mod types;
 
 fn main() {
     let args = cli::Args::parse();
-    let logger = logging::Logger::new(args.verbose, false);
+    let logger = logging::Logger::new(args.verbose);
 
     // Handle validation mode early exit
     if let Some(ref validate_path) = args.validate {

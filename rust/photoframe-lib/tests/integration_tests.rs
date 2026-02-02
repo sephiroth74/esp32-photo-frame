@@ -1,6 +1,11 @@
 use image::ImageReader;
 use image::RgbImage;
-use photoframe_lib::{DisplayType, DitheringMethod, SIX_COLOR_PALETTE, apply_color_adjustments, apply_dithering, convert_bw_to_demo_bitmap_mode1, convert_image_from_bytes, convert_to_demo_bitmap_mode1, convert_to_esp32_binary, photoframe_convert_with_processing, photoframe_dithering_free, ColorMode};
+use photoframe_lib::{
+    ColorMode, DisplayType, DitheringMethod, SIX_COLOR_PALETTE, apply_color_adjustments,
+    apply_dithering, convert_bw_to_demo_bitmap_mode1, convert_image_from_bytes,
+    convert_to_demo_bitmap_mode1, convert_to_esp32_binary, photoframe_convert_with_processing,
+    photoframe_dithering_free,
+};
 use std::fs;
 
 // Helper: ensure output directory exists and return its path
@@ -419,7 +424,12 @@ fn test_ffi_convert_and_free() {
 
     // Call FFI wrapper for BlackAndWhite (0)
     unsafe {
-        let res = photoframe_convert_with_processing(bytes.as_ptr(), bytes.len(),  0u8, ColorMode::BlackAndWhite);
+        let res = photoframe_convert_with_processing(
+            bytes.as_ptr(),
+            bytes.len(),
+            0u8,
+            ColorMode::BlackAndWhite,
+        );
         assert!(res.success, "ffi convert BW failed");
         assert!(res.width > 0 && res.height > 0, "invalid dims");
         assert!(
@@ -432,7 +442,12 @@ fn test_ffi_convert_and_free() {
 
     // Call FFI wrapper for SixColors (1)
     unsafe {
-        let res = photoframe_convert_with_processing(bytes.as_ptr(), bytes.len(), 0u8, ColorMode::SixColors);
+        let res = photoframe_convert_with_processing(
+            bytes.as_ptr(),
+            bytes.len(),
+            0u8,
+            ColorMode::SixColors,
+        );
         assert!(res.success, "ffi convert 6c failed");
         assert!(res.width > 0 && res.height > 0, "invalid dims");
         assert!(

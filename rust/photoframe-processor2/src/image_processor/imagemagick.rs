@@ -21,7 +21,7 @@ impl ImageMagickWrapper {
     }
 
     /// Get the appropriate ImageMagick command ('magick' for v7, 'convert' for v6)
-    fn get_command() -> &'static str {
+    pub fn get_command() -> &'static str {
         if Self::command_works("magick") {
             "magick"
         } else {
@@ -38,62 +38,40 @@ impl ImageMagickWrapper {
             .unwrap_or(false)
     }
 
-    /// Add text annotation to an image using ImageMagick
+    /// Apply automatic color correction using ImageMagick
     ///
     /// # Arguments
     /// * `input_path` - Path to input image
     /// * `output_path` - Path to output image
-    /// * `text` - Text to annotate
-    /// * `font_name` - Font name or path
-    /// * `font_size` - Font size in pixels
-    /// * `gravity` - Gravity position (NorthWest, North, NorthEast, West, Center, East, SouthWest, South, SouthEast)
-    /// * `offset_x` - Horizontal offset in pixels
-    /// * `offset_y` - Vertical offset in pixels
-    pub fn annotate_text(
-        input_path: &Path,
-        output_path: &Path,
-        text: &str,
-        font_name: &str,
-        font_size: u32,
-        gravity: &str,
-        offset_x: i32,
-        offset_y: i32,
-    ) -> Result<()> {
-        if !Self::is_available() {
-            return Err(anyhow::anyhow!("ImageMagick is not available"));
-        }
+    pub fn apply_auto_correction(input_path: &Path, output_path: &Path) -> Result<()> {
+        if Self::is_available() {
+            let cmd = Self::get_command();
 
-        let cmd = Self::get_command();
+            let output = Command::new(cmd)
+                .arg(input_path.to_string_lossy().as_ref())
+                .arg("-separate -contrast-stretch 0.5%x0.5% -combine")
+                .arg("-auto-level") // Stretch histogram
+                .arg("-auto-gamma") // Adjust gamma
+                .arg("-auto-contrast") // Adjust contrast
+                .arg("-normalize") // Normalize contrast
+                .arg("-modulate")
+                .arg("100,120,100") // brightness,saturation,hue (boost saturation by 20%)
+                .arg(output_path.to_string_lossy().as_ref())
+                .output()
+                .context("Failed to execute ImageMagick auto-correction command")?;
 
-        let offset_str = if offset_x >= 0 && offset_y >= 0 {
-            format!("+{}+{}", offset_x, offset_y)
+            if !output.status.success() {
+                let err_msg = String::from_utf8_lossy(&output.stderr);
+                return Err(anyhow::anyhow!(
+                    "ImageMagick auto-correction failed: {}",
+                    err_msg
+                ));
+            }
+
+            Ok(())
         } else {
-            format!("{}+{}", offset_x, offset_y)
-        };
-
-        let output = Command::new(cmd)
-            .arg(input_path.to_string_lossy().as_ref())
-            .arg("-fill")
-            .arg("white")
-            .arg("-pointsize")
-            .arg(font_size.to_string())
-            .arg("-font")
-            .arg(font_name)
-            .arg("-gravity")
-            .arg(gravity)
-            .arg("-annotate")
-            .arg(offset_str)
-            .arg(text)
-            .arg(output_path.to_string_lossy().as_ref())
-            .output()
-            .context("Failed to execute ImageMagick annotate command")?;
-
-        if !output.status.success() {
-            let err_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("ImageMagick annotate failed: {}", err_msg));
+            Err(anyhow::anyhow!("ImageMagick is not available"))
         }
-
-        Ok(())
     }
 
     /// Apply color correction (brightness/contrast/saturation) using ImageMagick
@@ -119,6 +97,8 @@ impl ImageMagickWrapper {
 
         let mut command = Command::new(cmd);
         command.arg(input_path.to_string_lossy().as_ref());
+
+        command.arg("-auto-level"); // Stretch histogram
 
         // Apply brightness
         if brightness != 0 {
@@ -168,6 +148,7 @@ impl ImageMagickWrapper {
     /// * `width` - Target width
     /// * `height` - Target height
     /// * `filter` - Resize filter (Lanczos, Cubic, Gaussian, etc.)
+    #[allow(dead_code)]
     pub fn resize(
         input_path: &Path,
         output_path: &Path,
@@ -202,6 +183,7 @@ impl ImageMagickWrapper {
     }
 
     /// Load an image file and convert to RgbImage
+    #[allow(dead_code)]
     pub fn load_image(path: &Path) -> Result<RgbImage> {
         Ok(image::open(path).context("Failed to open image")?.to_rgb8())
     }
@@ -212,6 +194,7 @@ impl ImageMagickWrapper {
     /// * `image` - RgbImage to save
     /// * `output_path` - Path to save to
     /// * `quality` - JPEG quality (1-100), default is 90
+    #[allow(dead_code)]
     pub fn save_image(image: &RgbImage, output_path: &Path, quality: Option<u32>) -> Result<()> {
         if !Self::is_available() {
             // Fallback to standard image crate

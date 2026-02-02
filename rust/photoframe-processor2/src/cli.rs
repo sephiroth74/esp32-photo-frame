@@ -105,8 +105,10 @@ pub struct Args {
     #[arg(
         short = 'f',
         long = "output-format",
-        default_value = "pfr1",
-        conflicts_with = "validate"
+        default_value = "pfr1,jpg",
+        conflicts_with = "validate",
+        num_args = 1,
+        value_delimiter = ','
     )]
     pub output_formats: Vec<OutputType>,
 
@@ -288,7 +290,7 @@ pub struct Args {
     #[cfg(feature = "ai")]
     #[arg(
         long = "confidence",
-        default_value = "0.25",
+        default_value = "0.50",
         value_name = "THRESHOLD",
         conflicts_with = "validate"
     )]

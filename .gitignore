@@ -71,3 +71,6 @@ extras/SwiftUI_QuickLook/Build/
 flutter/desktop/macos/Build/
 rust/photoframe-processor2/target
 rust/photoframe-processor2/temp
+rust/insightface_rs/target/
+rust/insightface_rs/output
+rust/insightface_rs/.cargo/config.toml
