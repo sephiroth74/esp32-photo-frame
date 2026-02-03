@@ -35,22 +35,6 @@ class ReportSummaryWidget extends StatelessWidget {
           const Text('Processing Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _buildSummaryFromReport(),
-          if (report != null && report!['processed_images'] != null && (report!['processed_images'] as List).isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text('Processed Images', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 8),
-            _buildProcessedImagesTable(report!['processed_images'] as List),
-          ],
-          if (report != null && report!['paired_images'] != null && (report!['paired_images'] as List).isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text('Paired Images', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 8),
-            _buildPairedImagesTable(report!['paired_images'] as List),
-          ],
         ],
       ),
     );
@@ -69,6 +53,12 @@ class ReportSummaryWidget extends StatelessWidget {
           _buildSummaryRow('Image pairs created', s['image_pairs_created']?.toString() ?? '0'),
           _buildSummaryRow('Total output images', s['total_output_images']?.toString() ?? '0'),
           _buildSummaryRow('Failed images', s['failed_images']?.toString() ?? '0'),
+          if (summary != null && summary!['total_execution_time'] != null) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 16),
+            const SizedBox(height: 8),
+            _buildSummaryRow('Total execution time', summary!['total_execution_time']?.toString() ?? 'N/A'),
+          ],
         ],
       );
     }
@@ -85,67 +75,17 @@ class ReportSummaryWidget extends StatelessWidget {
           _buildSummaryRow('Landscape images', summary!['landscape_images']?.toString() ?? '0'),
           _buildSummaryRow('Portrait pairs', summary!['portrait_pairs']?.toString() ?? '0'),
           _buildSummaryRow('Individual portraits', summary!['individual_portraits']?.toString() ?? '0'),
+          if (summary!['total_execution_time'] != null) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 16),
+            const SizedBox(height: 8),
+            _buildSummaryRow('Total execution time', summary!['total_execution_time']?.toString() ?? 'N/A'),
+          ],
         ],
       );
     }
 
     return const Text('No summary data available');
-  }
-
-  Widget _buildProcessedImagesTable(List images) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Source')),
-          DataColumn(label: Text('Output')),
-          DataColumn(label: Text('Size')),
-          DataColumn(label: Text('Faces')),
-          DataColumn(label: Text('Total (ms)')),
-          DataColumn(label: Text('Detect (ms)')),
-        ],
-        rows: images.map((image) {
-          return DataRow(
-            cells: [
-              DataCell(Text(_truncateFilename(image['source']))),
-              DataCell(Text(_truncateFilename(image['output']))),
-              DataCell(Text(image['size'] ?? '')),
-              DataCell(Text((image['faces'] ?? 0).toString())),
-              DataCell(Text((image['total_ms'] ?? 0).toString())),
-              DataCell(Text((image['detect_ms'] ?? 0).toString())),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildPairedImagesTable(List pairs) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Source')),
-          DataColumn(label: Text('Output')),
-          DataColumn(label: Text('Size')),
-          DataColumn(label: Text('Faces')),
-          DataColumn(label: Text('Total (ms)')),
-          DataColumn(label: Text('Detect (ms)')),
-        ],
-        rows: pairs.map((image) {
-          return DataRow(
-            cells: [
-              DataCell(Text(_truncateFilename(image['source']))),
-              DataCell(Text(_truncateFilename(image['output']))),
-              DataCell(Text(image['size'] ?? '')),
-              DataCell(Text((image['faces'] ?? 0).toString())),
-              DataCell(Text((image['total_ms'] ?? 0).toString())),
-              DataCell(Text((image['detect_ms'] ?? 0).toString())),
-            ],
-          );
-        }).toList(),
-      ),
-    );
   }
 
   Widget _buildSummaryRow(String label, String value) {
@@ -159,12 +99,6 @@ class ReportSummaryWidget extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _truncateFilename(String? filename) {
-    if (filename == null) return '';
-    if (filename.length <= 20) return filename;
-    return '${filename.substring(0, 17)}...';
   }
 
   String _formatPercentage(dynamic value) {

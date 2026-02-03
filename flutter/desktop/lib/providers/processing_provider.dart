@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/processing_config.dart';
 import '../models/config_profile.dart';
+import '../models/processor_report.dart';
+import '../models/processor_message.dart';
 import '../services/config_profile_service.dart';
 
 class ProcessingProvider with ChangeNotifier {
@@ -22,6 +24,8 @@ class ProcessingProvider with ChangeNotifier {
   String _errorMessage = '';
   Map<String, dynamic>? _lastSummary;
   Map<String, dynamic>? _lastReport;
+  DateTime? _processingStartTime;
+  String _currentPhase = 'Starting';
 
   ProcessingConfig get config => _config;
   String? get currentProfilePath => _currentProfilePath;
@@ -37,6 +41,7 @@ class ProcessingProvider with ChangeNotifier {
   String get errorMessage => _errorMessage;
   Map<String, dynamic>? get lastSummary => _lastSummary;
   Map<String, dynamic>? get lastReport => _lastReport;
+  String get currentPhase => _currentPhase;
 
   ProcessingProvider() {
     _loadConfig();
@@ -151,6 +156,7 @@ class ProcessingProvider with ChangeNotifier {
     _currentFile = '';
     _lastSummary = null;
     _lastReport = null;
+    _processingStartTime = DateTime.now();
     notifyListeners();
 
     try {
@@ -177,121 +183,152 @@ class ProcessingProvider with ChangeNotifier {
         debugPrint('STDOUT: $line'); // Debug all output
         try {
           final json = jsonDecode(line);
-          final type = json['type'];
-          debugPrint('Parsed JSON type: $type');
 
-          if (type == 'progress') {
-            _processedCount = json['current'] ?? 0;
-            _totalCount = json['total'] ?? 0;
-            _currentFile = json['message'] ?? '';
-            if (_totalCount > 0) {
-              _progress = _processedCount / _totalCount;
-            }
-            notifyListeners();
-          } else if (type == 'complete') {
-            // New complete message format with report data
-            debugPrint('=== COMPLETE MESSAGE RECEIVED ===');
-            debugPrint('JSON: $json');
+          // Try to parse as ProcessorMessage first
+          try {
+            final message = ProcessorMessage.fromJson(json);
+            debugPrint('✓ Parsed processor message: ${message.type}');
 
-            final processed = json['processed'] ?? 0;
-            final failed = json['failed'] ?? 0;
-            final totalFiles = json['total_files'] ?? 0;
-
-            // Extract summary and full report
-            _lastSummary = json['summary'];
-            _lastReport = json['report'];
-
-            debugPrint('Summary: $_lastSummary');
-            debugPrint('Report available: ${_lastReport != null}');
-
-            if (failed == 0) {
-              _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
-            } else {
-              _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
-            }
-          } else if (type == 'summary') {
-            // Legacy summary format (backwards compatibility)
-            debugPrint('=== LEGACY SUMMARY MESSAGE RECEIVED ===');
-            debugPrint('JSON: $json');
-
-            final processed = json['processed'] ?? 0;
-            final failed = json['failed'] ?? 0;
-            final totalFiles = json['total_files'] ?? 0;
-
-            // Create a basic summary from legacy format
-            _lastSummary = {
-              'total_images': totalFiles,
-              'images_with_people': 0,
-              'people_detection_rate': 0.0,
-              'images_with_pastel': 0,
-              'pastel_rate': 0.0,
-              'landscape_images': 0,
-              'portrait_pairs': 0,
-              'individual_portraits': 0,
-            };
-
-            debugPrint('Created basic summary from legacy format');
-
-            if (failed == 0) {
-              _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
-            } else {
-              _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
-            }
-          } else if (type == null) {
-            // Handle raw JSON report (no "type" field) - sent by processor as final report
-            debugPrint('=== RAW REPORT JSON RECEIVED ===');
-            debugPrint('Full report JSON: ${jsonEncode(json)}');
-
-            // Check if this looks like a report (has config, summary, processed_images fields)
-            if (json['config'] != null && json['summary'] != null) {
-              debugPrint('✓ Detected report JSON with config and summary');
-
-              // Store the full report
-              _lastReport = json;
-
-              // Extract and transform summary data
-              final processorSummary = json['summary'];
-              final processedImages = json['processed_images'] as List? ?? [];
-              final pairedImages = json['paired_images'] as List? ?? [];
-
-              debugPrint('📊 Summary from processor: ${jsonEncode(processorSummary)}');
-              debugPrint('🖼️ Processed images count: ${processedImages.length}');
-              debugPrint('📸 Paired images count: ${pairedImages.length}');
-
-              // Transform processor summary into Flutter summary format
-              if (processorSummary != null) {
-                final totalImages = processorSummary['total_files_discovered'] ?? 0;
-                final processedCount = processorSummary['images_processed'] ?? 0;
-                final failedCount = processorSummary['failed_images'] ?? 0;
-                final pairCount = processorSummary['image_pairs_created'] ?? 0;
-                final unpairedCount = processorSummary['unpaired_images'] ?? 0;
-
-                _lastSummary = {
-                  'total_images': totalImages,
-                  'processed_images': processedCount,
-                  'failed_images': failedCount,
-                  'image_pairs': pairCount,
-                  'unpaired_images': unpairedCount,
-                  'images_with_people': processedImages.where((img) => (img['faces'] as List?)?.isNotEmpty ?? false).length,
-                  'people_detection_rate': processedCount > 0
-                      ? (processedImages.where((img) => (img['faces'] as List?)?.isNotEmpty ?? false).length / processedCount * 100).toStringAsFixed(
-                          1,
-                        )
-                      : '0.0',
-                  'images_with_pastel': 0,
-                  'pastel_rate': '0.0',
-                  'landscape_images': 0,
-                  'portrait_pairs': pairCount,
-                  'individual_portraits': unpairedCount,
-                };
-
-                debugPrint('✓ Transformed summary: $_lastSummary');
+            if (message is ProgressMessage) {
+              debugPrint('Progress: ${message.phaseName} (${message.current}/${message.total})');
+              _currentPhase = message.phaseName;
+              _processedCount = message.current;
+              _totalCount = message.total;
+              _currentFile = message.message;
+              if (_totalCount > 0) {
+                _progress = _processedCount / _totalCount;
               }
-
-              debugPrint('✓ Report fully processed');
               notifyListeners();
-            } else {
-              debugPrint('✗ JSON does not contain required report fields (config/summary)');
+            } else if (message is FileCompletedMessage) {
+              debugPrint('File completed: ${message.inputPath} in ${message.processingTimeMs}ms');
+            }
+          } catch (e) {
+            debugPrint('Failed to parse as ProcessorMessage: $e');
+
+            // Fallback to legacy parsing
+            final type = json['type'];
+            debugPrint('Trying legacy parsing with type: $type');
+
+            if (type == 'progress') {
+              _processedCount = json['current'] ?? 0;
+              _totalCount = json['total'] ?? 0;
+              _currentFile = json['message'] ?? '';
+              if (_totalCount > 0) {
+                _progress = _processedCount / _totalCount;
+              }
+              notifyListeners();
+            } else if (type == 'complete') {
+              // New complete message format with report data
+              debugPrint('=== COMPLETE MESSAGE RECEIVED ===');
+              debugPrint('JSON: $json');
+
+              final processed = json['processed'] ?? 0;
+              final failed = json['failed'] ?? 0;
+              final totalFiles = json['total_files'] ?? 0;
+
+              // Extract summary and full report
+              _lastSummary = json['summary'];
+              _lastReport = json['report'];
+
+              debugPrint('Summary: $_lastSummary');
+              debugPrint('Report available: ${_lastReport != null}');
+
+              if (failed == 0) {
+                _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
+              } else {
+                _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
+              }
+            } else if (type == 'summary') {
+              // Legacy summary format (backwards compatibility)
+              debugPrint('=== LEGACY SUMMARY MESSAGE RECEIVED ===');
+              debugPrint('JSON: $json');
+
+              final processed = json['processed'] ?? 0;
+              final failed = json['failed'] ?? 0;
+              final totalFiles = json['total_files'] ?? 0;
+
+              // Create a basic summary from legacy format
+              _lastSummary = {
+                'total_images': totalFiles,
+                'images_with_people': 0,
+                'people_detection_rate': 0.0,
+                'images_with_pastel': 0,
+                'pastel_rate': 0.0,
+                'landscape_images': 0,
+                'portrait_pairs': 0,
+                'individual_portraits': 0,
+              };
+
+              debugPrint('Created basic summary from legacy format');
+
+              if (failed == 0) {
+                _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
+              } else {
+                _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
+              }
+            } else if (type == null) {
+              // Handle raw JSON report (no "type" field) - sent by processor as final report
+              debugPrint('=== RAW REPORT JSON RECEIVED ===');
+              debugPrint('Full report JSON: ${jsonEncode(json)}');
+
+              // Check if this looks like a report (has config, summary, processed_images fields)
+              if (json['config'] != null && json['summary'] != null) {
+                debugPrint('✓ Detected report JSON with config and summary');
+
+                try {
+                  // Deserialize the report using the ProcessorReport class
+                  final report = ProcessorReport.fromJson(json);
+                  debugPrint('✓ Report deserialized successfully');
+
+                  // Store the full report as Map for backward compatibility
+                  _lastReport = json;
+
+                  // Extract summary data from the deserialized report
+                  debugPrint('📊 Summary: ${report.summary}');
+                  debugPrint('🖼️ Processed images count: ${report.processed_images.length}');
+                  debugPrint('📸 Paired images count: ${report.paired_images.length}');
+
+                  // Build summary dictionary for display
+                  final summary = report.summary;
+
+                  // Calculate total execution time
+                  Duration executionTime = Duration.zero;
+                  if (_processingStartTime != null) {
+                    executionTime = DateTime.now().difference(_processingStartTime!);
+                  }
+                  final totalSeconds = executionTime.inSeconds;
+                  final minutes = totalSeconds ~/ 60;
+                  final seconds = totalSeconds % 60;
+                  final executionTimeStr = minutes > 0 ? '${minutes}m ${seconds}s' : '${seconds}s';
+
+                  _lastSummary = {
+                    'total_images': summary.total_files_discovered ?? 0,
+                    'processed_images': summary.images_processed ?? 0,
+                    'failed_images': summary.failed_images ?? 0,
+                    'image_pairs': summary.image_pairs_created ?? 0,
+                    'unpaired_images': summary.unpaired_images ?? 0,
+                    'images_with_people': report.processed_images.where((img) => (img.faces?.isNotEmpty ?? false)).length,
+                    'people_detection_rate': report.processed_images.isNotEmpty
+                        ? (report.processed_images.where((img) => (img.faces?.isNotEmpty ?? false)).length / report.processed_images.length * 100)
+                              .toStringAsFixed(1)
+                        : '0.0',
+                    'images_with_pastel': 0,
+                    'pastel_rate': '0.0',
+                    'landscape_images': 0,
+                    'portrait_pairs': summary.image_pairs_created ?? 0,
+                    'individual_portraits': summary.unpaired_images ?? 0,
+                    'total_execution_time': executionTimeStr,
+                    'total_execution_time_seconds': totalSeconds,
+                  };
+
+                  debugPrint('✓ Summary transformed: $_lastSummary');
+                  notifyListeners();
+                } catch (e) {
+                  debugPrint('✗ Failed to deserialize report: $e');
+                }
+              } else {
+                debugPrint('✗ JSON does not contain required report fields (config/summary)');
+              }
             }
           }
         } catch (e) {

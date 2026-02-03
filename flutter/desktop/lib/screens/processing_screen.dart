@@ -954,12 +954,10 @@ class _ProcessingDialog extends StatelessWidget {
 
   void _showReportDialog(BuildContext context, ProcessingProvider provider) {
     final bool hasReport = provider.lastReport != null;
-    final bool hasSummary = provider.lastSummary != null;
 
     // Debug logging
     debugPrint('=== REPORT DIALOG DEBUG ===');
     debugPrint('Has report: $hasReport');
-    debugPrint('Has summary: $hasSummary');
     debugPrint('Summary data: ${provider.lastSummary}');
     debugPrint('Report data keys: ${(provider.lastReport as Map?)?.keys.toList()}');
     if (hasReport && provider.lastReport is Map) {
@@ -972,94 +970,10 @@ class _ProcessingDialog extends StatelessWidget {
       barrierDismissible: true,
       builder: (context) {
         return AppKitDialog(
-          constraints: const BoxConstraints(minWidth: 800, maxWidth: 800, maxHeight: 600),
+          constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
           title: const Text('Processing Report'),
-          message: (context) => SizedBox(
-            height: 500,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (hasSummary) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withAlpha(13),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withAlpha(51)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Processing Complete',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _buildReportRow('Total images processed', provider.lastSummary!['total_images']?.toString() ?? '0'),
-                          _buildReportRow(
-                            'Images with people',
-                            '${provider.lastSummary!['images_with_people'] ?? 0} (${(provider.lastSummary!['people_detection_rate'] ?? 0).toStringAsFixed(1)}%)',
-                          ),
-                          _buildReportRow(
-                            'Images with pastel tones',
-                            '${provider.lastSummary!['images_with_pastel'] ?? 0} (${(provider.lastSummary!['pastel_rate'] ?? 0).toStringAsFixed(1)}%)',
-                          ),
-                          _buildReportRow('Landscape images', provider.lastSummary!['landscape_images']?.toString() ?? '0'),
-                          _buildReportRow('Portrait pairs', provider.lastSummary!['portrait_pairs']?.toString() ?? '0'),
-                          _buildReportRow('Individual portraits', provider.lastSummary!['individual_portraits']?.toString() ?? '0'),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (hasReport && provider.lastReport != null) ...[
-                    const SizedBox(height: 20),
-                    const Text('Processing Details', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
-                  ] else if (!hasReport) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withAlpha(13),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withAlpha(51)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Processing Complete',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            provider.resultsMessage.isNotEmpty ? provider.resultsMessage : 'Image processing completed successfully',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          if (provider.processedCount > 0) ...[
-                            const SizedBox(height: 8),
-                            Text('Processed: ${provider.processedCount} images', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          message: (context) => SizedBox.expand(
+            child: ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
           ),
           primaryButton: AppKitButton(
             size: AppKitControlSize.large,
@@ -1098,6 +1012,11 @@ class _ProcessingDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 8),
+              Text(
+                'Phase: ${provider.currentPhase}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
+              ),
               const SizedBox(height: 8),
               AppKitProgressBar(value: provider.progress),
               const SizedBox(height: 12),
