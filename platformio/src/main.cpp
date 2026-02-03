@@ -60,6 +60,14 @@ void setup() { bt_main_setup(); }
 
 void loop() { bt_main_loop(); }
 
+#elif defined(ENABLE_WEBSERVER_DATAPROVIDER)
+
+#include "main_ws.h"
+
+void setup() { main_webserver_setup(); }
+
+void loop() { main_webserver_loop(); }
+
 #else
 // ============================================================================
 // NORMAL MODE (DEFAULT)

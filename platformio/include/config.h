@@ -528,6 +528,40 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #define BT_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
 #endif                                            // BT_CURRENT_IMAGE_FILENAME
 
-#endif // ENABLE_BT_IMAGE
+#elif defined(ENABLE_WEBSERVER_DATAPROVIDER)
+/// Webserver mode constants
+#ifndef WS_FIRST_BOOT_TIMEOUT_MS
+#define WS_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
+#endif                                            // WS_FIRST_BOOT_TIMEOUT_MS
+
+#ifndef WS_LISTEN_TIMEOUT_MS
+#define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
+#endif                                        // WS_LISTEN_TIMEOUT_MS
+
+#ifndef WS_BATTERY_CHECK_INTERVAL_MS
+#define WS_BATTERY_CHECK_INTERVAL_MS 60000 // Check battery every 60 seconds
+#endif                                     // WS_BATTERY_CHECK_INTERVAL_MS
+
+#ifndef WS_DEFAULT_IMAGE_FILENAME
+#define WS_DEFAULT_IMAGE_FILENAME "/default.pfr1" // Default image filename in LittleFS
+#endif                                            // WS_DEFAULT_IMAGE_FILENAME
+#ifndef WS_CURRENT_IMAGE_FILENAME
+#define WS_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
+#endif                                            // WS_CURRENT_IMAGE_FILENAME
+
+/// WiFi Access Point Configuration
+#ifndef WS_AP_SSID_PREFIX
+#define WS_AP_SSID_PREFIX "PhotoFrame" // SSID prefix (will append MAC last 4 digits)
+#endif                                 // WS_AP_SSID_PREFIX
+
+#ifndef WS_AP_CHANNEL
+#define WS_AP_CHANNEL 6 // WiFi channel for AP
+#endif                  // WS_AP_CHANNEL
+
+#ifndef WS_AP_IP
+#define WS_AP_IP 0xC0A80401 // 192.168.4.1 in hex
+#endif                      // WS_AP_IP
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 #endif // __PHOTO_FRAME_CONFIG_H__

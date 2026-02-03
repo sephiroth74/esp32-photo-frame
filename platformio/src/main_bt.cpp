@@ -159,8 +159,6 @@ void setup_bluetooth_mode() {
     display_rotation = prefs.getDisplayRotation();
     log_d("[BT] Loaded display rotation from preferences: %u", display_rotation);
 
-    // is_first_boot = false; // TEMPORARY DISABLE FOR TESTING
-
     // Check battery status
     photo_frame::battery_info_t battery_info;
     photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
