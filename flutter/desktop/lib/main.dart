@@ -29,7 +29,6 @@ Future<void> _configureMacosWindowUtils() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  assert(Platform.isMacOS && !kIsWeb, 'This example is intended to run on macOS desktop only.');
 
   // Initialize window manager
   // Get platform-specific configuration
@@ -46,9 +45,6 @@ void main() async {
   } else {
     await windowManager.ensureInitialized();
   }
-
-  await _configureMacosWindowUtils();
-  await AppKitUiElements.ensureInitialized(debug: true, useWindowManager: true);
 
   // Restore window size and position
   await WindowPreferences.restoreWindowSize();
@@ -102,20 +98,29 @@ class _MyAppState extends State<MyApp> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    final platform = PlatformDetector.current;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ProcessingProvider()),
         ChangeNotifierProvider(create: (_) => BleUploadState()),
         ChangeNotifierProvider(create: (_) => WidgetFactoryProvider()),
       ],
-      child: AppKitMacosApp(
-        debugShowCheckedModeBanner: false,
-        theme: AppKitThemeData.light(),
-        darkTheme: AppKitThemeData.dark(),
-        themeMode: ThemeMode.system,
-        builder: (context, child) => AppMenuBar(child: child ?? const SizedBox.shrink()),
-        home: const HomeScreen(),
-      ),
+      child: platform == AppPlatform.macos
+          ? AppKitMacosApp(
+              debugShowCheckedModeBanner: false,
+              theme: AppKitThemeData.light(),
+              darkTheme: AppKitThemeData.dark(),
+              themeMode: ThemeMode.system,
+              builder: (context, child) => AppMenuBar(child: child ?? const SizedBox.shrink()),
+              home: const HomeScreen(),
+            )
+          : MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData.light(useMaterial3: true),
+              darkTheme: ThemeData.dark(useMaterial3: true),
+              themeMode: ThemeMode.system,
+              home: const HomeScreen(),
+            ),
     );
   }
 }
