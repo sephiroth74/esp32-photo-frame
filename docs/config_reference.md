@@ -20,8 +20,6 @@ The configuration file uses the following top-level keys:
 - `sd_card_config` - SD card image source settings
 - `board_config` - Board-specific settings including display orientation
 
-**Important**: The weather system has been removed as of v0.12.0. The `weather_config` section is no longer supported.
-
 ## Complete Configuration Example
 
 ```json
@@ -52,7 +50,10 @@ The configuration file uses the following top-level keys:
       "client_id": "your-client-id"
     },
     "drive": {
-      "folder_id": "your-google-drive-folder-id",
+      "folder_ids": [
+        "your-google-drive-folder-id-1",
+        "your-google-drive-folder-id-2",
+      ],
       "root_ca_path": "/certs/google_root_ca.pem",
       "list_page_size": 100,
       "use_insecure_tls": false
@@ -73,13 +74,13 @@ The configuration file uses the following top-level keys:
 
   "sd_card_config": {
     "enabled": false,
-    "images_directory": "/images",
+    "directories": ["/images"],
     "use_toc_cache": true,
     "toc_max_age_seconds": 86400
   },
 
   "board_config": {
-    "portrait_mode": false,
+    "display_rotation": 1,
     "day_start_hour": 6,
     "day_end_hour": 23,
     "refresh": {
@@ -111,16 +112,6 @@ The WiFi configuration supports up to 3 networks. The system will attempt to con
     {"ssid": "Network2", "password": "password2"},
     {"ssid": "Network3", "password": "password3"}
   ]
-}
-```
-
-#### Legacy Format (v0.10.0 and earlier - still supported)
-```json
-{
-  "wifi": {
-    "ssid": "YourWiFiNetwork",
-    "password": "YourWiFiPassword"
-  }
 }
 ```
 
@@ -178,7 +169,7 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 {
   "google_drive_config": {
     "drive": {
-      "folder_id": "1ABC...XYZ",
+      "folder_ids": ["1ABC...XYZ", "xxxxxx"],
       "root_ca_path": "/certs/google_root_ca.pem",
       "list_page_size": 100,
       "use_insecure_tls": false
@@ -189,7 +180,7 @@ The Google Drive configuration allows using Google Drive as an image source. It 
 
 | Parameter          | Type    | Default  | Description                                                  |
 | ------------------ | ------- | -------- | ------------------------------------------------------------ |
-| `folder_id`        | string  | Required | Google Drive folder ID containing images                     |
+| `folder_ids`        | array  | Required | Google Drive folder IDs containing images                     |
 | `root_ca_path`     | string  | ""       | Path to root CA certificate (optional if using insecure TLS) |
 | `list_page_size`   | integer | 100      | Number of files per API request (max 1000)                   |
 | `use_insecure_tls` | boolean | true     | Skip TLS certificate verification (use true for simplicity)  |
@@ -249,7 +240,7 @@ The SD Card configuration allows using local SD card directory as an image sourc
 {
   "sd_card_config": {
     "enabled": false,
-    "images_directory": "/images",
+    "directories": ["/images"],
     "use_toc_cache": true,
     "toc_max_age_seconds": 86400
   }
@@ -259,7 +250,7 @@ The SD Card configuration allows using local SD card directory as an image sourc
 | Parameter             | Type    | Default   | Description                              |
 | --------------------- | ------- | --------- | ---------------------------------------- |
 | `enabled`             | boolean | false     | Enable/disable SD card as image source   |
-| `images_directory`    | string  | "/images" | Directory path containing image files    |
+| `directories`         | array   | ["/images"] | List of directories containing image files    |
 | `use_toc_cache`       | boolean | true      | Enable TOC caching for performance       |
 | `toc_max_age_seconds` | integer | 86400     | Maximum TOC cache age (24 hours default) |
 
@@ -289,7 +280,7 @@ The SD Card configuration allows using local SD card directory as an image sourc
 
 | Parameter        | Type    | Default | Description                                    |
 | ---------------- | ------- | ------- | ---------------------------------------------- |
-| `display_rotation`  | int | 0   | display orientation (0 - 90 - 180 or 270°) |
+| `display_rotation`  | int | 0   | display orientation (0, 1, 2, 3) where 1=90° portrait |
 | `day_start_hour` | integer | 6       | Hour when display updates start (0-23)         |
 | `day_end_hour`   | integer | 23      | Hour when display updates stop (0-23)          |
 
@@ -305,96 +296,6 @@ The SD Card configuration allows using local SD card directory as an image sourc
 
 **Note**: The `default` value is used when `USE_POTENTIOMETER` is not defined in the firmware. When using a potentiometer, the `min_seconds`, `max_seconds`, and `step` values control the potentiometer range.
 
-## Migration Notes
-
-### Version Changes
-
-#### v0.13.0
-- Added `portrait_mode` to `board_config` for dynamic display orientation
-- Added `sd_card_config` section for local image source support
-
-#### v0.12.0
-- **Removed** `weather_config` section entirely (weather system removed)
-
-#### v0.11.0
-- WiFi configuration now supports array format for multiple networks (up to 3)
-- Legacy single network format still supported for backward compatibility
-
-#### v0.7.0
-If you have an existing configuration file using the old key names, you must update them:
-
-| Old Key (v0.6.x and earlier) | New Key (v0.7.0+)                       |
-| ---------------------------- | --------------------------------------- |
-| `"google_drive"`             | `"google_drive_config"`                 |
-| `"weather"`                  | `"weather_config"` (removed in v0.12.0) |
-| `"board"`                    | `"board_config"`                        |
-
-## Minimal Configuration Examples
-
-### Using Google Drive as Image Source
-
-```json
-{
-  "wifi": [
-    {
-      "ssid": "YourWiFiNetwork",
-      "password": "YourWiFiPassword"
-    }
-  ],
-  "google_drive_config": {
-    "enabled": true,
-    "authentication": {
-      "service_account_email": "photoframe@myproject.iam.gserviceaccount.com",
-      "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-      "client_id": "123456789"
-    },
-    "drive": {
-      "folder_id": "1ABC...XYZ",
-      "use_insecure_tls": true
-    }
-  }
-}
-```
-
-### Using SD Card as Image Source
-
-```json
-{
-  "wifi": [
-    {
-      "ssid": "YourWiFiNetwork",
-      "password": "YourWiFiPassword"
-    }
-  ],
-  "sd_card_config": {
-    "enabled": true,
-    "images_directory": "/images"
-  },
-  "google_drive_config": {
-    "enabled": false
-  }
-}
-```
-
-### Portrait Mode Configuration
-
-```json
-{
-  "wifi": [
-    {
-      "ssid": "YourWiFiNetwork",
-      "password": "YourWiFiPassword"
-    }
-  ],
-  "board_config": {
-    "portrait_mode": true
-  },
-  "sd_card_config": {
-    "enabled": true,
-    "images_directory": "/6c/portrait/bin"
-  }
-}
-```
 
 All other settings will use firmware defaults.
 
@@ -425,7 +326,7 @@ Check the serial console output for configuration validation messages:
 ### No Images Displaying
 
 1. Verify at least one image source is enabled (`google_drive_config.enabled` or `sd_card_config.enabled`)
-2. For SD Card: Check that images exist in the configured `images_directory`
+2. For SD Card: Check that images exist in the configured `directories`
 3. For Google Drive: Verify authentication credentials and folder_id
 4. Check that image files are in binary format (`.pfr1` extension)
 
@@ -446,14 +347,14 @@ Check the serial console output for configuration validation messages:
 
 ### Display Orientation Wrong
 
-1. Check `board_config.portrait_mode` setting matches your display mounting
-2. Portrait mode requires images processed for vertical orientation
+1. Check `board_config.display_rotation` setting (0=0°, 1=90°, 2=180°, 3=270°)
+2. Portrait mode (1 or 3) requires images processed for vertical orientation
 3. Verify image directory contains appropriately oriented images
 
 ## Important Notes
 
 - **Image Source Priority**: If both Google Drive and SD Card are enabled, SD Card takes precedence
-- **Portrait Mode**: This is a runtime configuration - no firmware recompilation needed
+- **Rotation**: `display_rotation` controls orientation at runtime (0-3)
 - **WiFi Networks**: System tries networks in order until successful connection
 - **Binary Format Only**: ESP32 firmware only supports `.pfr1` image format (v0.12.0+)
 - **Configuration Validation**: At least one image source must be enabled for valid configuration
@@ -461,5 +362,4 @@ Check the serial console output for configuration validation messages:
 ## See Also
 
 - [example_config.json](example_config.json) - Complete example configuration
-- [Google Drive API Documentation](../docs/google_drive_api.md)
 - [README.md](../README.md) - Project overview

@@ -4,7 +4,7 @@ set -e
 # Build Rust library for Android
 echo "Building photoframe-lib for Android..."
 
-cd "$(dirname "$0")/../../../rust/photoframe-lib"
+cd "$(dirname "$0")/../../../rust/photoframe_lib"
 
 # Install targets if not already installed
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android

@@ -2,303 +2,81 @@
 
 ## Introduction
 
-This project implements a battery-powered digital photo frame using an ESP32 microcontroller and e-paper display technology. The system displays images from multiple sources (Google Drive cloud storage or local SD card) achieving months of battery life through intelligent power management and the inherent low-power characteristics of e-paper displays.
+**ESP32 E-Paper Photo Frame** is an open-source project designed to turn a low-power e-paper display into a smart, battery-efficient digital photo frame. Built around the ESP32 ecosystem, it offers a seamless way to display your memories using modern connectivity or local storage.
 
-The photo frame features automatic image synchronization, configurable refresh intervals, and a comprehensive configuration system that allows runtime customization without firmware recompilation. Images are processed through dedicated tools (Rust processor, Android app, or Flutter app) to optimize them for e-paper display characteristics before being uploaded to storage.
+Unlike traditional LCD photo frames, this project leverages **e-paper technology** to achieve months of battery life on a single charge, providing a paper-like aesthetic that blends naturally into any home environment.
 
-<img src="assets/screenshot-001.jpg" alt="ESP32 Photo Frame - Front View" width="746" />
-<img src="assets/screenshot-002.jpg" alt="ESP32 Photo Frame - Back View" width="746" />
-<img src="assets/screenshot-003.jpg" alt="ESP32 Photo Frame - Back View" width="746" />
+The system is designed as a complete ecosystem containing:
+- **Smart Firmware**: An efficient ESP32 firmware that manages power, WiFi, and display rendering.
+- **Cross-Platform Tools**: A suite of powerful tools (Rust CLI, Flutter Desktop & Mobile Apps) to process and optimize images specifically for e-paper displays.
+- **Flexible Data Sources**: Fetch images from the cloud (Google Drive), local SD card, or upload them directly via Bluetooth.
 
-## Features
+The project also provides a **complete hardware solution**:
+- **3D Printable Enclosure**: A custom-designed case available in `assets/3d model`.
+- **Hardware Guides**: Comprehensive instructions for building the device, including the [Assembly Guide](docs/assembly_guide.pdf) and [Wiring Schematics](docs/pros3d_schematics.pdf).
 
-### Core Firmware Features
-- Dual image source support: Google Drive cloud storage or local SD card directory (v0.13.0)
-- Native display driver integration replacing GxEPD2 library for better color display support (v0.13.0)
-- Multiple WiFi network support (v0.11.0) with automatic failover between up to 3 configured networks
-- Exponential potentiometer control (v0.9.3) using cubic curve mapping for precise refresh interval adjustment
-- Battery monitoring with power-saving modes and adaptive refresh scheduling
-- Deep sleep operation between updates for extended battery life (2-3 months on 5000mAh)
-- Binary image format (.bin) support optimized for e-paper displays
-- Unified configuration system via single JSON file
-- Multi-language support (English and Italian localization)
-- Day/night scheduling to prevent overnight updates
-- Comprehensive debug mode for hardware troubleshooting
-- Portrait mode support for vertical display orientation (v0.13.0)
+## Hardware Requirements
 
-### Image Processing Tools
+To build this project, you will need the following core components. A detailed bill of materials is available in the [Assembly Guide](docs/assembly_guide.pdf).
 
-#### Rust Processor (rust/photoframe-processor)
-- High-performance batch processing with 5-10x speed improvement over shell scripts
-- AI-powered person detection with YOLO11 built directly into the binary
-- Multiple dithering algorithms: Floyd-Steinberg, Ordered (Bayer), Sierra, Atkinson
-- Automatic portrait pairing for landscape displays
-- Multi-format output support (BMP, binary, JPEG, PNG)
-- EXIF metadata extraction for date annotation
-- Font customization for image overlays
-- Filename encoding with Base64 for special character support
+### Essential Components
+| Component | Recommendation | Notes |
+|-----------|----------------|-------|
+| **Microcontroller** | [Unexpected Maker ProS3-D](https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737) | ESP32-S3 with PSRAM (Required for image buffer) |
+| **Display** | [Good Display 7.3" ACeP](https://www.good-display.com/blank7.html?productId=533) | 800×480, 6-Color (GDEP073E01) |
+| **Adapter** | [DESPI-C73](https://www.good-display.com/product/522.html) | Connection interface for the display |
+| **Storage** | [Adafruit MicroSD SPI/SDIO](https://learn.adafruit.com/adafruit-microsd-spi-sdio) | High-speed SDIO support for faster image loading |
+| **Battery** | 3.7V LiPo (5000mAh+) | Required for portable operation |
 
-#### Android Application (android/PhotoFrameProcessor)
-- Graphical user interface for image selection and processing
-- Real-time preview of processed images
-- Touch-based crop selection
-- Batch processing with progress tracking
-- Direct Google Drive upload integration
-- Person detection and smart cropping
+### Supported Hardware
+The firmware is flexible and supports multiple configurations:
+- **MCU**: Unexpected Maker FeatherS3, ProS3.
+- **Displays**: 
+  - **7.3" 6-Color (GDEP073E01)**: Logic for dithering and palette mapping included.
+  - **7.5" Black & White (GDEY075T7)**: Fully supported for high-contrast monochrome images.
 
-#### Flutter Application (photoframe_flutter)
-- Cross-platform desktop application for Windows, macOS, and Linux
-- Modern Material Design interface
-- Batch image processing with preview
-- Multiple output format support
-- EXIF metadata handling
-- Drag-and-drop file selection
+## Key Features
+
+- **🔋 Ultra-Low Power**: Designed for longevity, the frame enters deep sleep between updates, lasting months on a standard LiPo battery.
+- **🎨 E-Paper Optimized**: Leverages multiple dithering algorithms (Floyd-Steinberg, Atkinson, etc.) and a custom 6-color palette (via `.pfr1` format) to transform any image into a stunning e-ink display.
+- **🤖 Smart & Autonomous**:
+    - **Cloud Mode**: Connects to Google Drive to fetch and display random images at set intervals.
+    - **Offline Mode**: Cycles through images stored locally on the SD Card.
+    - **Bluetooth Mode**: Functions as a static display, updated instantly via the mobile app (no WiFi required).
+    - **Night Mode**: Automatically pauses updates during sleeping hours to save energy.
+    - **Smart Cropping**: Integrated AI (InsightFace) detects faces to automatically center and crop images for the best composition.
+- **🛠️ Zero-Recompile Config**: All settings (WiFi, schedules, refresh intervals) are managed via a simple `config.json` file on the SD card—no programming knowledge required to tweak settings.
+- **📱 Cross-Platform Ecosystem**:
+    - **Desktop**: Drag-and-drop processing tool for macOS/Windows/Linux.
+    - **Mobile**: Dedicated companion app for managing and uploading photos directly from your phone via Bluetooth.
+
+## Architecture Overview
+
+The system operates on a clear pipeline:
+1.  **Input**: Images are taken from your phone, computer, or cloud storage.
+2.  **Processing**: Images are resized, dithered, and converted into the efficient `.pfr1` binary format by the provided tools (Rust CLI / Desktop App / Mobile App).
+3.  **Transfer**: Processed files are moved to the frame via SD Card, Google Drive, or Bluetooth.
+4.  **Display**: The ESP32 wakes up, loads the image, renders it to the e-paper screen, and returns to deep sleep.
 
 ## Project Structure
 
-```
-esp32-photo-frame/
-├── platformio/                 # ESP32 firmware (PlatformIO project)
-│   ├── src/                   # Source code files
-│   ├── include/               # Header files and board configurations
-│   ├── lib/                   # External libraries
-│   ├── data/                  # SD card files (config.json.template)
-│   └── platformio.ini         # PlatformIO configuration
-├── rust/                      # Rust-based tools
-│   ├── photoframe-processor/  # Main image processing tool
-├── android/                   # Android companion app
-│   └── PhotoFrameProcessor/   # Kotlin-based image processor
-├── photoframe_flutter/        # Flutter desktop application
-│   ├── lib/                  # Dart source code
-│   ├── windows/              # Windows platform files
-│   ├── macos/                # macOS platform files
-│   └── linux/                # Linux platform files
-├── docs/                      # Technical documentation
-├── assets/                    # Images and resources
-│   └── 3d model/             # 3D printable enclosure files
-├── scripts/                   # Shell scripts (deprecated)
-└── icons/                     # Icon generation scripts
-```
+| Directory | Description |
+|-----------|-------------|
+| **`platformio/`** | The ESP32 firmware source code (C++). Handles WiFi, display driving, and power management. |
+| **`rust/`** | High-performance tools handling the `.pfr1` format logic. [👉 **Overview**](docs/RUST_OVERVIEW.md) of the core library, CLI processor, and InsightFace integration. |
+| **`flutter/`** | Cross-platform applications. <br>• `desktop/`: GUI for the Rust processor (macOS/Windows/Linux).<br>• `mobile/`: iOS/Android app for Bluetooth transfers. |
+| **`assets/`** | Resources including the **3D printable enclosure** (`3d model/`) and screenshots. |
+| **`docs/`** | Detailed technical documentation, API references, and assembly guides. |
+| **`extras/`** | Additional utilities, such as macOS QuickLook plugins for previewing `.pfr1` files. |
 
-## Recent Changes
+## Getting Started
 
-For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG.md).
+Ready to build your own? Follow these steps:
 
-## Required Hardware
+1.  **Hardware**: Order the generic components listed above.
+2.  **Assembly**: 3D print the case and assemble the electronics using the [Assembly Guide](docs/assembly_guide.pdf).
+3.  **Firmware**: Flash the ESP32 using PlatformIO.
+4.  **Configuration**: Copy the `config.json` to your SD card (See the [Configuration Reference](docs/CONFIG_REFERENCE.md) for more details).
+5.  **Processing**: Download the desktop app or mobile app to start putting photos on your frame!
 
-### Essential Components
-
-| Component | Specification | Purchase Link |
-|-----------|--------------|---------------|
-| Microcontroller | Unexpected Maker ProS3(D) (ESP32-S3, 8MB PSRAM, 16MB Flash) | [Unexpected Maker](https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737) |
-| E-Paper Display | Good Display 7.3" (800×480 pixels, 6 color) | [Good Display](https://www.good-display.com/blank7.html?productId=533) |
-| Display Connector | Good Display DESPI-C73 | [Good Display](https://www.good-display.com/product/522.html) |
-| SD Card Module | Adafruit MicroSD Breakout Board | [Adafruit #4682](https://www.adafruit.com/product/4682) |
-| Battery | 3.7V 5000mAh LiPo with JST connector | Various suppliers |
-| Push Buttons | 6x6x13mm Momentary switch | Various suppliers |
-| MicroSD Card | 8GB or larger, FAT32 formatted | Various suppliers |
-| Capacitor | 100uF 16V | Various suppliers |
-| Heat breass threaded inserts | 4x5 | Various suppliers |
-| Screws | M2.5x5 M3x5 M3x6 | Various suppliers |
-
-
-### Required Tools
-
-- Soldering iron with fine tip (15-25W)
-- Solder wire (0.6-0.8mm rosin core)
-- Wire strippers
-- Multimeter for continuity testing
-- USB-C cable for programming
-- MicroSD card reader
-- 3D printer or access to printing service
-- Small screwdriver
-- Flush cutters for wire trimming
-
-## Supported Hardware
-
-### Microcontroller Boards
-
-| Board | Support Level | Notes |
-|-------|--------------|-------|
-| Unexpected Maker FeatherS3 | Full | Default configuration, full feature support |
-| Unexpected Maker ProS3 | Full | Extended GPIO, MAX1704X battery monitor |
-
-### Display Support
-
-| Display Type | Resolution | Color Support | Status |
-|-------------|------------|---------------|--------|
-| Good Display 7.5" GDEY075T7 | 800×480 | Black/White | Fully Supported |
-| Good Display 7.3" GDEP073E01 | 800×480 | 6-Color ACeP | Fully Supported |
-
-
-## Wiring
-
-The project uses separate communication buses to avoid conflicts between the SD card and e-paper display. The SD card utilizes the high-speed SDIO interface while the display uses a dedicated SPI bus.
-
-For detailed pin connections and wiring diagrams, see [Wiring Diagram Schematics](docs/pros3d_schematics.pdf).
-
-
-## Setup
-
-### Development Environment
-
-1. **Install Visual Studio Code**
-   - Download from [code.visualstudio.com](https://code.visualstudio.com/)
-   - Install the PlatformIO IDE extension from the marketplace
-
-2. **Clone the Repository**
-   ```bash
-   git clone https://github.com/sephiroth74/esp32-photo-frame.git
-   cd esp32-photo-frame/platformio
-   ```
-
-3. **Configure PlatformIO**
-   - Open the project in VS Code
-   - PlatformIO will automatically install required packages
-   - Select your board environment in `platformio.ini` (default: pros3_unexpectedmaker)
-
-### Configuration
-
-The photo frame uses a JSON configuration file (`/config.json`) on the SD card root. The configuration supports:
-
-- **Multiple WiFi networks** - Up to 3 networks with automatic failover
-- **Dual image sources** - Google Drive cloud storage or local SD card directory
-- **Display settings** - Portrait/landscape mode, refresh intervals, day/night scheduling
-- **Power management** - Battery-aware refresh adjustments
-
-#### Quick Configuration Examples
-
-**Using SD Card as image source:**
-```json
-{
-  "wifi": [{"ssid": "YourNetwork", "password": "YourPassword"}],
-  "sd_card_config": {
-    "enabled": true,
-    "images_directory": "/images"
-  }
-}
-```
-
-**Using Google Drive as image source:**
-```json
-{
-  "wifi": [{"ssid": "YourNetwork", "password": "YourPassword"}],
-  "google_drive_config": {
-    "enabled": true,
-    "authentication": {
-      "service_account_email": "photoframe@project.iam.gserviceaccount.com",
-      "private_key_pem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-      "client_id": "123456789"
-    },
-    "drive": {
-      "folder_id": "YOUR_FOLDER_ID",
-      "use_insecure_tls": true
-    }
-  }
-}
-```
-
-📖 **[Complete Configuration Reference →](docs/config_reference.md)**
-
-Details on all configuration options including WiFi failover, portrait mode, refresh intervals, and advanced Google Drive settings.
-
-## Image Processing
-
-Images must be processed into a specific binary format optimized for e-paper displays. The firmware supports only `.bin` files that match your display's resolution and color mode.
-
-### Processing Tools
-
-Two main tools are available for image processing:
-
-#### 🦀 Rust Processor (Command Line)
-High-performance batch processing with AI features:
-```bash
-cd rust/photoframe-processor
-cargo build --release
-
-# Process for black & white display
-./target/release/photoframe-processor -i ~/photos -o ~/processed -t bw -s 800x480 --auto
-
-# Process with AI person detection for 6-color display
-./target/release/photoframe-processor -i ~/photos -o ~/processed -t 6c -s 800x480 --detect-people --auto
-```
-
-#### 🎨 Flutter App (Desktop GUI)
-Cross-platform desktop application with graphical interface:
-```bash
-cd photoframe_flutter
-flutter pub get
-flutter run -d [windows/macos/linux]
-```
-
-📖 **[Complete Image Processing Guide →](docs/image_processing.md)**
-
-Details on color modes, dithering algorithms, portrait pairing, and batch processing.
-
-## Setup Guide
-
-### Google Drive Setup (Optional)
-
-If using Google Drive as your image source:
-
-1. **Create Service Account** - Set up authentication in [Google Cloud Console](https://console.cloud.google.com/)
-2. **Share Folder** - Grant access to the service account email
-3. **Process Images** - Use the tools above to prepare your photos
-4. **Configure** - Add credentials to `config.json`
-
-📖 **[Google Drive Setup Guide →](docs/google_drive_api.md)**
-
-## Documentation Index
-
-### Firmware Documentation
-- [Technical Specifications](docs/tech_specs.md) - System architecture and API documentation
-- [Schematics](docs/pros3d_schematics.pdf) - Detailed hardware connections
-- [Google Drive API](docs/google_drive_api.md) - Google Drive integration and setup
-
-### Image Processing
-- [Rust Processor Guide](docs/rust-photoframe-processor.md) - Advanced image processing with AI features
-- [Image Processing Pipeline](docs/image_processing.md) - Image format and processing details
-
-### Development
-- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
-
-## 3D Printable Enclosure
-
-A complete 3D printable enclosure design is available at [`/assets/3d model/ESP32-Photo-Frame.3mf`](assets/3d%20model/ESP32-Photo-Frame.3mf).
-
-The enclosure features:
-- Integrated mounting points for all components
-- Cable management channels
-- Ventilation for battery safety
-- Easy access to SD card and USB port
-- Stand for desktop display
-
-Recommended print settings:
-- Layer height: 0.2mm
-- Infill: 20%
-- Support: Required for some parts
-- Material: PLA or PETG
-
-## License
-
-MIT License
-
-Copyright (c) 2025 Alessandro Crugnola
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+For detailed technical documentation, please refer to the `docs/` folder.

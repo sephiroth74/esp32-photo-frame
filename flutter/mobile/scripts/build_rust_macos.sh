@@ -4,7 +4,7 @@ set -e
 # Build Rust library for macOS development/testing
 echo "Building photoframe-lib for macOS..."
 
-cd "$(dirname "$0")/../../../rust/photoframe-lib"
+cd "$(dirname "$0")/../../../rust/photoframe_lib"
 
 # Build for macOS (x86_64 and arm64)
 cargo build --release
