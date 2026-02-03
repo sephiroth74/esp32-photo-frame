@@ -69,14 +69,47 @@ The system operates on a clear pipeline:
 | **`docs/`** | Detailed technical documentation, API references, and assembly guides. |
 | **`extras/`** | Additional utilities, such as macOS QuickLook plugins for previewing `.pfr1` files. |
 
-## Getting Started
+## Quick Start
 
-Ready to build your own? Follow these steps:
+Follow these steps to get your frame running:
 
-1.  **Hardware**: Order the generic components listed above.
-2.  **Assembly**: 3D print the case and assemble the electronics using the [Assembly Guide](docs/assembly_guide.pdf).
-3.  **Firmware**: Flash the ESP32 using PlatformIO.
-4.  **Configuration**: Copy the `config.json` to your SD card (See the [Configuration Reference](docs/CONFIG_REFERENCE.md) for more details).
-5.  **Processing**: Download the desktop app or mobile app to start putting photos on your frame!
+### 1. Firmware & Hardware
+1.  **Assemble**: Follow the [Assembly Guide](docs/assembly_guide.pdf) to build the hardware.
+2.  **Flash Firmware**:
+    - Install **Visual Studio Code** and the **PlatformIO** extension.
+    - Open the `platformio/` folder.
+    - Select your board (e.g., `pros3d_unexpectedmaker`) and click **Build** and **Upload**.
+    - *See [Firmware Overview](docs/FIRMWARE_OVERVIEW.md) for detailed instructions.*
+
+### 2. Configuration (SD Card)
+1.  Format a microSD card (FAT32).
+2.  Create a `config.json` file in the root.
+3.  Add your WiFi and Component settings.
+    ```json
+    {
+      "wifi": [{"ssid": "MyWifi", "password": "pass"}],
+      "sd_card_config": {"enabled": true, "directories": ["/images"]},
+      "google_drive_config": {"enabled": false}
+    }
+    ```
+    *See [Configuration Reference](docs/CONFIG_REFERENCE.md) for all options.*
+
+### 3. Image Processing
+The frame requires images in the custom `.pfr1` format. Use one of our tools:
+
+- **Desktop App (GUI)**: Drag-and-drop tool for macOS/Windows/Linux.  
+  [👉 Desktop App Guide](flutter/desktop/README.md)
+- **Mobile App**: Process and upload directly from your phone.  
+  [👉 Mobile App Guide](flutter/mobile/README.md)
+- **CLI Tool**: Power-user tool for batch processing.  
+  [👉 Rust Tools Overview](docs/RUST_OVERVIEW.md)
+
+### 4. Upload Images
+Choose your preferred method:
+- **💾 SD Card**: Copy `.pfr1` files directly to the SD card.
+- **☁️ Google Drive**: Upload files to your Drive folder.  
+  [👉 Google Drive Setup](docs/GOOGLE_DRIVE.md)
+- **📡 Bluetooth**: Use the Mobile App to upload images wirelessly (requires `ENABLE_BT_IMAGE` firmware build).  
+  [👉 Bluetooth Guide](docs/BLUETOOTH.md)
 
 For detailed technical documentation, please refer to the `docs/` folder.
