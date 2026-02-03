@@ -1,11 +1,12 @@
-import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../core/providers/processing_provider.dart';
 import '../core/providers/widget_factory_provider.dart';
+import '../platform/platform_detector.dart';
 import 'ble_upload_screen.dart';
 import 'processing_screen.dart';
+import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,13 +16,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final SegmentedControllerSingle _tabController;
+  SegmentedControllerSingle? _tabController;
+  int _tabIndex = 0;
   String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = SegmentedControllerSingle(initialIndex: 0, length: 2);
+    if (PlatformDetector.current == AppPlatform.macos) {
+      _tabController = SegmentedControllerSingle(initialIndex: 0, length: 2);
+    }
     _loadAppVersion();
   }
 
@@ -34,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -46,31 +50,57 @@ class _HomeScreenState extends State<HomeScreen> {
         ? 'ESP32 Photo Frame Processor$versionSuffix - ${provider.currentProfileName}${provider.hasUnsavedChanges ? '*' : ''}'
         : 'ESP32 Photo Frame Processor$versionSuffix';
 
-    return AppKitScaffold(
-      toolBar: AppKitToolBar(title: Text(profileTitle), titleWidth: 400),
-      children: [
-        AppKitContentArea(
-          builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppKitSegmentedControl(
-                    controller: _tabController,
-                    labels: const ['Process Images', 'Bluetooth Upload'],
-                    onSelectionChanged: (_, _) => setState(() {}),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: IndexedStack(index: _tabController.index, children: const [ProcessingScreen(), BleUploadScreen()]),
-                  ),
-                ],
-              ),
-            );
-          },
+    if (PlatformDetector.current == AppPlatform.macos) {
+      return AppKitScaffold(
+        toolBar: AppKitToolBar(title: Text(profileTitle), titleWidth: 400),
+        children: [
+          AppKitContentArea(
+            builder: (context, scrollController) {
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppKitSegmentedControl(
+                      controller: _tabController!,
+                      labels: const ['Process Images', 'Bluetooth Upload'],
+                      onSelectionChanged: (_, _) => setState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: IndexedStack(index: _tabController!.index, children: const [ProcessingScreen(), BleUploadScreen()]),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(profileTitle)),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ToggleButtons(
+              isSelected: [_tabIndex == 0, _tabIndex == 1],
+              onPressed: (index) => setState(() => _tabIndex = index),
+              children: const [
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Process Images')),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Bluetooth Upload')),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: IndexedStack(index: _tabIndex, children: const [ProcessingScreen(), BleUploadScreen()]),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
