@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 
 import '../core/models/processing_config.dart';
 import '../core/providers/processing_provider.dart';
+import '../core/providers/widget_factory_provider.dart';
 import '../core/services/file_picker_history.dart';
 import '../core/services/font_service.dart';
+import '../presentation/abstractions/widget_abstractions.dart';
 import '../widgets/report_summary_widget.dart';
 
 class ProcessingScreen extends StatelessWidget {
@@ -55,6 +57,21 @@ class ProcessingScreen extends StatelessWidget {
 class _FileSelectionSection extends StatelessWidget {
   const _FileSelectionSection();
 
+  Widget _buildButton(BuildContext context, {required String label, required VoidCallback? onPressed}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.button(label: label, onPressed: onPressed, size: PlatformButtonSize.medium);
+  }
+
+  Widget _buildTextField(BuildContext context, {String? placeholder, TextEditingController? controller, ValueChanged<String>? onChanged}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1);
+  }
+
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -67,8 +84,8 @@ class _FileSelectionSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('File Selection', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -77,27 +94,26 @@ class _FileSelectionSection extends StatelessWidget {
                 children: [
                   const SizedBox(width: 100, child: Text('Input:')),
                   Expanded(
-                    child: AppKitTextField(
-                      borderStyle: AppKitTextFieldBorderStyle.rounded,
-                      controller: TextEditingController(text: config.inputPath),
-                      maxLines: 1,
+                    child: _buildTextField(
+                      context,
                       placeholder: 'Select input directory...',
+                      controller: TextEditingController(text: config.inputPath),
                       onChanged: (value) {
                         provider.updateConfig(config.copyWith(inputPath: value));
                       },
                     ),
                   ),
                   const SizedBox(width: 8),
-                  AppKitButton(
-                    size: AppKitControlSize.regular,
-                    onTap: () async {
+                  _buildButton(
+                    context,
+                    label: 'Browse...',
+                    onPressed: () async {
                       final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('inputDir', path);
                         provider.updateConfig(config.copyWith(inputPath: path));
                       }
                     },
-                    child: const Text('Browse...'),
                   ),
                 ],
               ),
@@ -106,27 +122,26 @@ class _FileSelectionSection extends StatelessWidget {
                 children: [
                   const SizedBox(width: 100, child: Text('Output:')),
                   Expanded(
-                    child: AppKitTextField(
-                      borderStyle: AppKitTextFieldBorderStyle.rounded,
-                      maxLines: 1,
-                      controller: TextEditingController(text: config.outputPath),
+                    child: _buildTextField(
+                      context,
                       placeholder: 'Select output directory...',
+                      controller: TextEditingController(text: config.outputPath),
                       onChanged: (value) {
                         provider.updateConfig(config.copyWith(outputPath: value));
                       },
                     ),
                   ),
                   const SizedBox(width: 8),
-                  AppKitButton(
-                    size: AppKitControlSize.regular,
-                    onTap: () async {
+                  _buildButton(
+                    context,
+                    label: 'Browse...',
+                    onPressed: () async {
                       final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
                       if (path != null) {
                         FilePickerHistory.rememberDirectory('outputDir', path);
                         provider.updateConfig(config.copyWith(outputPath: path));
                       }
                     },
-                    child: const Text('Browse...'),
                   ),
                 ],
               ),
@@ -141,6 +156,21 @@ class _FileSelectionSection extends StatelessWidget {
 class _ProcessorBinarySection extends StatelessWidget {
   const _ProcessorBinarySection();
 
+  Widget _buildButton(BuildContext context, {required String label, required VoidCallback? onPressed}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.button(label: label, onPressed: onPressed, size: PlatformButtonSize.medium);
+  }
+
+  Widget _buildTextField(BuildContext context, {String? placeholder, TextEditingController? controller, ValueChanged<String>? onChanged}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1);
+  }
+
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -153,8 +183,8 @@ class _ProcessorBinarySection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Processor Binary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -163,20 +193,20 @@ class _ProcessorBinarySection extends StatelessWidget {
                 children: [
                   const SizedBox(width: 100, child: Text('Binary Path:')),
                   Expanded(
-                    child: AppKitTextField(
-                      borderStyle: AppKitTextFieldBorderStyle.rounded,
-                      maxLines: 1,
-                      controller: TextEditingController(text: config.processorBinaryPath ?? ''),
+                    child: _buildTextField(
+                      context,
                       placeholder: 'Path to processor binary (optional)',
+                      controller: TextEditingController(text: config.processorBinaryPath ?? ''),
                       onChanged: (value) {
                         provider.updateConfig(config.copyWith(processorBinaryPath: value.isEmpty ? null : value));
                       },
                     ),
                   ),
                   const SizedBox(width: 8),
-                  AppKitButton(
-                    size: AppKitControlSize.regular,
-                    onTap: () async {
+                  _buildButton(
+                    context,
+                    label: 'Browse...',
+                    onPressed: () async {
                       final result = await FilePicker.platform.pickFiles(initialDirectory: FilePickerHistory.initialDir('processorBinary'));
                       if (result != null && result.files.single.path != null) {
                         final selectedPath = result.files.single.path!;
@@ -184,7 +214,6 @@ class _ProcessorBinarySection extends StatelessWidget {
                         provider.updateConfig(config.copyWith(processorBinaryPath: selectedPath));
                       }
                     },
-                    child: const Text('Browse...'),
                   ),
                 ],
               ),
@@ -201,6 +230,11 @@ class _ProcessorBinarySection extends StatelessWidget {
 class _DisplaySettingsSection extends StatelessWidget {
   const _DisplaySettingsSection();
 
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -213,8 +247,8 @@ class _DisplaySettingsSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Display Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -284,6 +318,11 @@ class _DisplaySettingsSection extends StatelessWidget {
 class _PeopleDetectionSection extends StatelessWidget {
   const _PeopleDetectionSection();
 
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -296,8 +335,8 @@ class _PeopleDetectionSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('People Detection (AI)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -353,6 +392,11 @@ class _PeopleDetectionSection extends StatelessWidget {
 class _DitheringSettingsSection extends StatelessWidget {
   const _DitheringSettingsSection();
 
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -365,8 +409,8 @@ class _DitheringSettingsSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Dithering Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.standardScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -394,7 +438,8 @@ class _DitheringSettingsSection extends StatelessWidget {
               ),
               if (!config.autoOptimize) ...[
                 const SizedBox(height: 24),
-                AppKitGroupBox(
+                _buildGroupBox(
+                  context,
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -513,6 +558,11 @@ class _DitheringSettingsSection extends StatelessWidget {
 class _OutputFormatsSection extends StatelessWidget {
   const _OutputFormatsSection();
 
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -525,8 +575,8 @@ class _OutputFormatsSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Output Formats', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -623,6 +673,22 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
     });
   }
 
+  Widget _buildTextField(
+    BuildContext context, {
+    String? placeholder,
+    TextEditingController? controller,
+    ValueChanged<String>? onChanged,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1, keyboardType: keyboardType);
+  }
+
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -635,8 +701,8 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Annotation Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -678,10 +744,10 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 80,
-                      child: AppKitTextField(
-                        borderStyle: AppKitTextFieldBorderStyle.rounded,
-                        controller: TextEditingController(text: config.fontSize.toString()),
+                      child: _buildTextField(
+                        context,
                         placeholder: '22',
+                        controller: TextEditingController(text: config.fontSize.toString()),
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
                           final size = int.tryParse(value);
@@ -696,10 +762,10 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 120,
-                      child: AppKitTextField(
-                        borderStyle: AppKitTextFieldBorderStyle.rounded,
-                        controller: TextEditingController(text: config.annotationBackground),
+                      child: _buildTextField(
+                        context,
                         placeholder: '#40000000',
+                        controller: TextEditingController(text: config.annotationBackground),
                         onChanged: (value) {
                           provider.updateConfig(config.copyWith(annotationBackground: value));
                         },
@@ -719,6 +785,22 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
 class _DividerSettingsSection extends StatelessWidget {
   const _DividerSettingsSection();
 
+  Widget _buildTextField(
+    BuildContext context, {
+    String? placeholder,
+    TextEditingController? controller,
+    ValueChanged<String>? onChanged,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1, keyboardType: keyboardType);
+  }
+
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -731,8 +813,8 @@ class _DividerSettingsSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Pairing Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.standardScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -759,10 +841,10 @@ class _DividerSettingsSection extends StatelessWidget {
                         children: [
                           const Text('Divider Width:'),
                           const SizedBox(height: 4),
-                          AppKitTextField(
-                            borderStyle: AppKitTextFieldBorderStyle.rounded,
-                            controller: TextEditingController(text: config.dividerWidth.toString()),
+                          _buildTextField(
+                            context,
                             placeholder: '3',
+                            controller: TextEditingController(text: config.dividerWidth.toString()),
                             keyboardType: TextInputType.number,
                             onChanged: (value) {
                               final width = int.tryParse(value);
@@ -781,10 +863,10 @@ class _DividerSettingsSection extends StatelessWidget {
                         children: [
                           const Text('Divider Color:'),
                           const SizedBox(height: 4),
-                          AppKitTextField(
-                            borderStyle: AppKitTextFieldBorderStyle.rounded,
-                            controller: TextEditingController(text: config.dividerColor),
+                          _buildTextField(
+                            context,
                             placeholder: '#FFFFFF',
+                            controller: TextEditingController(text: config.dividerColor),
                             onChanged: (value) {
                               provider.updateConfig(config.copyWith(dividerColor: value));
                             },
@@ -808,6 +890,22 @@ class _DividerSettingsSection extends StatelessWidget {
 class _AdvancedOptionsSection extends StatelessWidget {
   const _AdvancedOptionsSection();
 
+  Widget _buildTextField(
+    BuildContext context, {
+    String? placeholder,
+    TextEditingController? controller,
+    ValueChanged<String>? onChanged,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1, keyboardType: keyboardType);
+  }
+
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -820,8 +918,8 @@ class _AdvancedOptionsSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 8),
           child: Text('Advanced Options', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
-        AppKitGroupBox(
-          style: AppKitGroupBoxStyle.roundedScrollBox,
+        _buildGroupBox(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -834,10 +932,10 @@ class _AdvancedOptionsSection extends StatelessWidget {
                       children: [
                         const Text('Parallel Jobs:'),
                         const SizedBox(height: 4),
-                        AppKitTextField(
-                          borderStyle: AppKitTextFieldBorderStyle.rounded,
-                          controller: TextEditingController(text: config.jobs == 0 ? 'Auto' : config.jobs.toString()),
+                        _buildTextField(
+                          context,
                           placeholder: 'Auto',
+                          controller: TextEditingController(text: config.jobs == 0 ? 'Auto' : config.jobs.toString()),
                           keyboardType: TextInputType.number,
                           onChanged: (value) {
                             if (value.toLowerCase() == 'auto' || value.isEmpty) {
@@ -860,10 +958,10 @@ class _AdvancedOptionsSection extends StatelessWidget {
                       children: [
                         const Text('File Extensions: (comma separated)'),
                         const SizedBox(height: 4),
-                        AppKitTextField(
-                          borderStyle: AppKitTextFieldBorderStyle.rounded,
-                          controller: TextEditingController(text: config.extensions),
+                        _buildTextField(
+                          context,
                           placeholder: 'jpg,jpeg,png,heic',
+                          controller: TextEditingController(text: config.extensions),
                           onChanged: (value) {
                             provider.updateConfig(config.copyWith(extensions: value));
                           },
@@ -904,6 +1002,11 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
     });
   }
 
+  Widget _buildButton(BuildContext context, {required String label, required VoidCallback? onPressed}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.button(label: label, onPressed: onPressed, size: PlatformButtonSize.large);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
@@ -918,14 +1021,14 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
       children: [
         Spacer(flex: 1),
         Center(
-          child: AppKitButton(
-            size: AppKitControlSize.large,
-            onTap: provider.isProcessing
+          child: _buildButton(
+            context,
+            label: provider.isProcessing ? 'Processing...' : 'Process Images',
+            onPressed: provider.isProcessing
                 ? null
                 : () {
                     provider.startProcessing();
                   },
-            child: Text(provider.isProcessing ? 'Processing...' : 'Process Images'),
           ),
         ),
       ],
@@ -987,7 +1090,8 @@ class _ProcessingDialog extends StatelessWidget {
       },
     );
   }
-    @override
+
+  @override
   Widget build(BuildContext context) {
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {

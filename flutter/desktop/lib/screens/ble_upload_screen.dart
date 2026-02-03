@@ -4,10 +4,28 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/providers/ble_provider.dart';
+import '../core/providers/widget_factory_provider.dart';
 import '../core/services/file_picker_history.dart';
+import '../presentation/abstractions/widget_abstractions.dart';
 
 class BleUploadScreen extends StatelessWidget {
   const BleUploadScreen({super.key});
+
+  Widget _buildButton(
+    BuildContext context, {
+    required String label,
+    required VoidCallback? onPressed,
+    PlatformButtonSize size = PlatformButtonSize.medium,
+    PlatformButtonStyle style = PlatformButtonStyle.primary,
+  }) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.button(label: label, onPressed: onPressed, size: size, style: style);
+  }
+
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,17 +46,18 @@ class BleUploadScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(left: 12, bottom: 8),
                       child: Text('Bluetooth Upload', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
-                    AppKitGroupBox(
-                      style: AppKitGroupBoxStyle.roundedScrollBox,
+                    _buildGroupBox(
+                      context,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              AppKitButton(
-                                size: AppKitControlSize.regular,
-                                onTap: ble.scanning
+                              _buildButton(
+                                context,
+                                label: ble.scanning ? 'Scanning…' : 'Scan for Devices',
+                                onPressed: ble.scanning
                                     ? null
                                     : () async {
                                         try {
@@ -84,14 +103,13 @@ class BleUploadScreen extends StatelessWidget {
                                           }
                                         }
                                       },
-                                child: Text(ble.scanning ? 'Scanning…' : 'Scan for Devices'),
                               ),
                               const SizedBox(width: 8),
-                              AppKitButton(
-                                size: AppKitControlSize.regular,
-                                type: AppKitButtonType.secondary,
-                                onTap: ble.connected != null ? ble.disconnect : null,
-                                child: const Text('Disconnect'),
+                              _buildButton(
+                                context,
+                                label: 'Disconnect',
+                                style: PlatformButtonStyle.secondary,
+                                onPressed: ble.connected != null ? ble.disconnect : null,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -119,9 +137,10 @@ class BleUploadScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              AppKitButton(
-                                size: AppKitControlSize.regular,
-                                onTap: () async {
+                              _buildButton(
+                                context,
+                                label: 'Choose .pfr1',
+                                onPressed: () async {
                                   final result = await FilePicker.platform.pickFiles(
                                     type: FileType.custom,
                                     allowedExtensions: const ['pfr1'],
@@ -133,7 +152,6 @@ class BleUploadScreen extends StatelessWidget {
                                     await ble.pickBin(selectedPath);
                                   }
                                 },
-                                child: const Text('Choose .pfr1'),
                               ),
                             ],
                           ),
@@ -162,35 +180,39 @@ class BleUploadScreen extends StatelessWidget {
                           const SizedBox(height: 12),
 
                           if (ble.previewImage != null) ...[
-                            AppKitGroupBox(
-                              style: AppKitGroupBoxStyle.roundedScrollBox,
-                              height: ble.rotation % 2 == 0 ? ble.binHeader!.height.toDouble() : ble.binHeader!.width.toDouble(),
-                              width: double.infinity,
-                              child: ble.previewImage != null
-                                  ? RotatedBox(
-                                      quarterTurns: -ble.rotation,
-                                      child: RawImage(image: ble.previewImage, fit: BoxFit.contain),
-                                    )
-                                  : Center(
-                                      child: Text(
-                                        'Preview will appear after selecting a .pfr1 file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                            _buildGroupBox(
+                              context,
+                              child: SizedBox(
+                                height: ble.rotation % 2 == 0 ? ble.binHeader!.height.toDouble() : ble.binHeader!.width.toDouble(),
+                                width: double.infinity,
+                                child: ble.previewImage != null
+                                    ? RotatedBox(
+                                        quarterTurns: -ble.rotation,
+                                        child: RawImage(image: ble.previewImage, fit: BoxFit.contain),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          'Preview will appear after selecting a .pfr1 file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                        ),
                                       ),
-                                    ),
+                              ),
                             ),
                             const SizedBox(height: 12),
                             _HeaderCard(ble: ble),
                           ] else ...[
-                            AppKitGroupBox(
-                              style: AppKitGroupBoxStyle.roundedScrollBox,
-                              height: 480,
-                              width: double.infinity,
-                              child: Center(
-                                child: Text(
-                                  'Preview will appear after selecting a .pfr1 file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                            _buildGroupBox(
+                              context,
+                              child: SizedBox(
+                                height: 480,
+                                width: double.infinity,
+                                child: Center(
+                                  child: Text(
+                                    'Preview will appear after selecting a .pfr1 file (uses device dimensions ${ble.deviceInfo?.width ?? 800}x${ble.deviceInfo?.height ?? 480}).',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                  ),
                                 ),
                               ),
                             ),
@@ -236,10 +258,12 @@ class BleUploadScreen extends StatelessWidget {
                 Row(
                   children: [
                     Spacer(flex: 1),
-                    AppKitButton(
-                      type: AppKitButtonType.primary,
-                      size: AppKitControlSize.large,
-                      onTap: ble.canUpload && !ble.uploading
+                    _buildButton(
+                      context,
+                      label: ble.uploading ? 'Uploading…' : 'Upload to Device',
+                      size: PlatformButtonSize.large,
+                      style: PlatformButtonStyle.primary,
+                      onPressed: ble.canUpload && !ble.uploading
                           ? () async {
                               final errorMsg = await ble.upload();
                               if (!context.mounted) return;
@@ -295,7 +319,6 @@ class BleUploadScreen extends StatelessWidget {
                               }
                             }
                           : null,
-                      child: Text(ble.uploading ? 'Uploading…' : 'Upload to Device'),
                     ),
                   ],
                 ),
@@ -314,20 +337,36 @@ class _DeviceList extends StatelessWidget {
 
   const _DeviceList({required this.ble});
 
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
+  Widget _buildButton(
+    BuildContext context, {
+    required String label,
+    required VoidCallback? onPressed,
+    PlatformButtonSize size = PlatformButtonSize.medium,
+  }) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.button(label: label, onPressed: onPressed, size: size);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = AppKitTheme.of(context);
     if (ble.devices.isEmpty) {
-      return AppKitGroupBox(
-        style: AppKitGroupBoxStyle.roundedScrollBox,
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            if (ble.scanning) ...[const AppKitProgressCircle(size: 16), const SizedBox(width: 8, height: 16)],
-            const SizedBox(width: 0, height: 16),
-            const Text('No devices found yet. Tap Scan to refresh.', style: TextStyle(fontSize: 12)),
-          ],
+      return _buildGroupBox(
+        context,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              if (ble.scanning) ...[const AppKitProgressCircle(size: 16), const SizedBox(width: 8, height: 16)],
+              const SizedBox(width: 0, height: 16),
+              const Text('No devices found yet. Tap Scan to refresh.', style: TextStyle(fontSize: 12)),
+            ],
+          ),
         ),
       );
     }
@@ -358,10 +397,11 @@ class _DeviceList extends StatelessWidget {
               ),
               Text('RSSI ${result.rssi}', style: const TextStyle(fontSize: 12)),
               const SizedBox(width: 8),
-              AppKitButton(
-                size: AppKitControlSize.small,
-                onTap: (ble.connecting || ble.connected != null) ? null : () => ble.selectDevice(result),
-                child: Text(isConnected ? 'Connected' : 'Connect'),
+              _buildButton(
+                context,
+                label: isConnected ? 'Connected' : 'Connect',
+                onPressed: (ble.connecting || ble.connected != null) ? null : () => ble.selectDevice(result),
+                size: PlatformButtonSize.small,
               ),
             ],
           ),
@@ -375,39 +415,45 @@ class _HeaderCard extends StatelessWidget {
   final BleUploadState ble;
   const _HeaderCard({required this.ble});
 
+  Widget _buildGroupBox(BuildContext context, {required Widget child}) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.groupBox(child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final h = ble.binHeader;
 
-    return AppKitGroupBox(
-      style: AppKitGroupBoxStyle.roundedScrollBox,
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Icon(Icons.description_outlined, size: 18),
-              SizedBox(width: 6),
-              Text('Header', style: TextStyle(fontWeight: FontWeight.w600)),
+    return _buildGroupBox(
+      context,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.description_outlined, size: 18),
+                SizedBox(width: 6),
+                Text('Header', style: TextStyle(fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (h == null)
+              const Text('Select a .pfr1 file to see header details.', style: TextStyle(fontSize: 12))
+            else ...[
+              _row('Magic', 'PFR1 (0x50465231)'),
+              _row('Version', h.version.toString()),
+              _row('Header len', '${h.headerLen} bytes'),
+              _row('Size', '${h.width} x ${h.height}'),
+              _row('Rotation', _rotationLabel(h.rotation)),
+              _row('Color mode', _colorModeLabel(h.colorMode)),
+              _row('Image size', '${h.payloadLen} bytes'),
+              _row('Header CRC32', '0x${h.headerCrc32.toRadixString(16).padLeft(8, '0')}'),
+              _row('Total file size', '${h.headerLen + h.payloadLen + 4} bytes'),
             ],
-          ),
-          const SizedBox(height: 8),
-          if (h == null)
-            const Text('Select a .pfr1 file to see header details.', style: TextStyle(fontSize: 12))
-          else ...[
-            _row('Magic', 'PFR1 (0x50465231)'),
-            _row('Version', h.version.toString()),
-            _row('Header len', '${h.headerLen} bytes'),
-            _row('Size', '${h.width} x ${h.height}'),
-            _row('Rotation', _rotationLabel(h.rotation)),
-            _row('Color mode', _colorModeLabel(h.colorMode)),
-            _row('Image size', '${h.payloadLen} bytes'),
-            _row('Header CRC32', '0x${h.headerCrc32.toRadixString(16).padLeft(8, '0')}'),
-            _row('Total file size', '${h.headerLen + h.payloadLen + 4} bytes'),
           ],
-        ],
+        ),
       ),
     );
   }

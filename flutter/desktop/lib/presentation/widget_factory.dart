@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../platform/platform_detector.dart';
 import 'abstractions/widget_abstractions.dart';
+import 'macos/macos_widgets.dart';
 
 /// Factory for creating platform-specific widgets.
 abstract class WidgetFactory {
@@ -65,7 +66,7 @@ class MacOSWidgetFactory extends WidgetFactory {
     bool isLoading = false,
     String? tooltip,
   }) {
-    return PlatformButton.create(
+    return MacOSButton(
       label: label,
       onPressed: onPressed,
       size: size,
@@ -93,7 +94,7 @@ class MacOSWidgetFactory extends WidgetFactory {
     int? maxLength,
     bool enabled = true,
   }) {
-    return PlatformTextField.create(
+    return MacOSTextField(
       label: label,
       placeholder: placeholder,
       controller: controller,
@@ -118,7 +119,7 @@ class MacOSWidgetFactory extends WidgetFactory {
     Color? backgroundColor,
     Color? borderColor,
   }) {
-    return PlatformGroupBox.create(title: title, padding: padding, backgroundColor: backgroundColor, borderColor: borderColor, child: child);
+    return MacOSGroupBox(title: title, padding: padding, backgroundColor: backgroundColor, borderColor: borderColor, child: child);
   }
 
   @override
@@ -130,7 +131,7 @@ class MacOSWidgetFactory extends WidgetFactory {
     bool barrierDismissible = true,
     VoidCallback? onDismissed,
   }) {
-    return PlatformDialog.create(
+    return MacOSDialog(
       title: title,
       message: message,
       content: content,
@@ -142,12 +143,12 @@ class MacOSWidgetFactory extends WidgetFactory {
 
   @override
   PlatformProgressIndicator progress({double? value, String? label, bool visible = true}) {
-    return PlatformProgressIndicator.create(value: value, label: label, visible: visible);
+    return MacOSProgressIndicator(value: value, label: label, visible: visible);
   }
 
   @override
   PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true}) {
-    return PlatformCircularProgressIndicator.create(value: value, label: label, visible: visible);
+    return MacOSCircularProgressIndicator(value: value, label: label, visible: visible);
   }
 }
 
