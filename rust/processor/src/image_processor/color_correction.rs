@@ -2,17 +2,7 @@ use super::imagemagick::ImageMagickWrapper;
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use std::fs;
-use std::path::{Path, PathBuf};
-
-/// Get the project-relative temp directory
-/// TODO: Change back to std::env::temp_dir() once development is complete
-fn get_temp_dir() -> Result<PathBuf> {
-    let temp_dir = Path::new("./temp");
-    if !temp_dir.exists() {
-        fs::create_dir_all(temp_dir).context("Failed to create temp directory")?;
-    }
-    Ok(temp_dir.to_path_buf())
-}
+use tempfile::NamedTempFile;
 
 /// Check if ImageMagick is available on the system
 pub fn is_imagemagick_available() -> bool {
@@ -22,24 +12,26 @@ pub fn is_imagemagick_available() -> bool {
 /// Apply automatic color correction using ImageMagick
 /// Applies: auto-white-balance, auto-level, auto-color, auto-saturation, auto-gamma
 fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
-    let temp_dir = get_temp_dir()?;
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let thread_id = std::thread::current().id();
 
-    let input_path = temp_dir.join(format!("pfproc_color_in_{}_{:?}.png", timestamp, thread_id));
-    let output_path = temp_dir.join(format!(
+    let input_path =
+        NamedTempFile::with_prefix(format!("pfproc_color_in_{}_{:?}_", timestamp, thread_id))
+            .context("Failed to create temporary input image file")?;
+    let output_path = NamedTempFile::with_prefix(format!(
         "pfproc_color_out_{}_{:?}.png",
         timestamp, thread_id
-    ));
+    ))
+    .context("Failed to create temporary output image file")?;
 
     // Save input image
     img.save(&input_path)
         .context("Failed to save temporary input image")?;
 
-    ImageMagickWrapper::apply_auto_correction(&input_path, &output_path)
+    ImageMagickWrapper::apply_auto_correction(&input_path.path(), &output_path.path())
         .context("Failed to apply auto correction using ImageMagick")?;
 
     // Load the corrected image
@@ -62,26 +54,28 @@ fn apply_imagemagick_manual_correction(
     contrast: i32,
     saturation: u32,
 ) -> Result<RgbImage> {
-    let temp_dir = get_temp_dir()?;
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let thread_id = std::thread::current().id();
 
-    let input_path = temp_dir.join(format!("pfproc_color_in_{}_{:?}.png", timestamp, thread_id));
-    let output_path = temp_dir.join(format!(
+    let input_path =
+        NamedTempFile::with_prefix(format!("pfproc_color_in_{}_{:?}.png", timestamp, thread_id))
+            .context("Failed to create temporary input image file")?;
+    let output_path = NamedTempFile::with_prefix(format!(
         "pfproc_color_out_{}_{:?}.png",
         timestamp, thread_id
-    ));
+    ))
+    .context("Failed to create temporary output image file")?;
 
     // Save input image
     img.save(&input_path)
         .context("Failed to save temporary input image")?;
 
     ImageMagickWrapper::apply_color_correction(
-        &input_path,
-        &output_path,
+        &input_path.path(),
+        &output_path.path(),
         brightness,
         contrast,
         saturation as f32 / 100.0,

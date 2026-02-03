@@ -185,7 +185,12 @@ fn main() {
             summary,
         );
 
-        JsonMessage::progress("complete", 1, 1, "Complete");
+        JsonMessage::progress(
+            "complete",
+            report.processed_count,
+            report.processed_count,
+            "Complete",
+        );
     } else {
         report.generate(&logger, args.report.clone());
     }

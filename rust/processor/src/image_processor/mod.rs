@@ -33,26 +33,16 @@ use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
-use tempfile::Builder;
-
-/// Get the project-relative temp directory
-/// TODO: Change back to std::env::temp_dir() once development is complete
-fn get_temp_dir() -> Result<PathBuf> {
-    let temp_dir = Path::new("./temp");
-    if !temp_dir.exists() {
-        fs::create_dir_all(temp_dir).context("Failed to create temp directory")?;
-    }
-    Ok(temp_dir.to_path_buf())
-}
+use tempfile::{Builder, TempDir};
 
 /// Clean the temp directory at the start of processing
 /// Removes all files except .gitignore and README.md
 #[allow(dead_code)]
 fn clean_temp_dir() -> Result<()> {
-    let temp_dir = get_temp_dir()?;
+    let temp_dir = TempDir::new()?;
 
     if let Ok(entries) = fs::read_dir(&temp_dir) {
         for entry in entries.flatten() {
@@ -100,7 +90,9 @@ impl<'a> ImageProcessor<'a> {
         };
 
         // Print summary
-        self.print_plan_summary(&plan);
+        if !self.args.json_progress {
+            self.print_plan_summary(&plan);
+        }
 
         Ok(plan)
     }
@@ -681,7 +673,7 @@ fn process_job(
     let img_rgb = img.to_rgb8();
 
     // Create single intermediate temporary file at the start - reuse for all operations
-    let temp_dir = get_temp_dir()?;
+    let temp_dir = TempDir::new().context("Failed to create temporary directory")?;
     let mut temp_file = Builder::new()
         .prefix("pfproc_")
         .suffix(".png")

@@ -1,4 +1,4 @@
-use super::{ProcessedImage, get_temp_dir};
+use super::ProcessedImage;
 use crate::types::{HexColor, Orientation, Size};
 use anyhow::{Context, Result};
 use image::RgbImage;
@@ -187,11 +187,10 @@ fn combine_two_images(
     }
 
     // Save combined image to temp file
-    let temp_dir = get_temp_dir()?;
     let mut temp_file = Builder::new()
         .prefix(&format!("pfproc_combined_{}_", pair_id))
         .suffix(".png")
-        .tempfile_in(&temp_dir)
+        .tempfile()
         .context("Failed to create temporary file for combined image")?;
 
     combined
