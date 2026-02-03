@@ -7,6 +7,7 @@ import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/providers/ble_provider.dart';
 import 'core/providers/processing_provider.dart';
+import 'core/providers/widget_factory_provider.dart';
 import 'screens/home_screen.dart';
 import 'platform/platform_detector.dart';
 import 'platform/window_config.dart';
@@ -105,6 +106,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
       providers: [
         ChangeNotifierProvider(create: (_) => ProcessingProvider()),
         ChangeNotifierProvider(create: (_) => BleUploadState()),
+        ChangeNotifierProvider(create: (_) => WidgetFactoryProvider()),
       ],
       child: AppKitMacosApp(
         debugShowCheckedModeBanner: false,
