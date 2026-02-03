@@ -76,7 +76,7 @@ class BinValidationResult {
     if (!success) {
       return 'BinValidationResult(failed)';
     }
-    return 'BinValidationResult(v$version, ${width}x${height}, colorMode=$colorMode, rotation=$rotation)';
+    return 'BinValidationResult(v$version, ${width}x$height, colorMode=$colorMode, rotation=$rotation)';
   }
 }
 

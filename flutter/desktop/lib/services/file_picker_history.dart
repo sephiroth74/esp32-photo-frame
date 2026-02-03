@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +17,7 @@ class FilePickerHistory {
       _prefs = await SharedPreferences.getInstance();
       _initialized = true;
     } catch (e) {
-      print('Failed to initialize FilePickerHistory: $e');
+      debugPrint('Failed to initialize FilePickerHistory: $e');
     }
   }
 
@@ -51,7 +52,7 @@ class FilePickerHistory {
       try {
         await _prefs!.setString(_keyPrefix + key, directoryPath);
       } catch (e) {
-        print('Failed to save directory to preferences: $e');
+        debugPrint('Failed to save directory to preferences: $e');
       }
     }
   }
@@ -75,7 +76,7 @@ class FilePickerHistory {
           }
         }
       } catch (e) {
-        print('Failed to clear preferences: $e');
+        debugPrint('Failed to clear preferences: $e');
       }
     }
   }
@@ -88,7 +89,7 @@ class FilePickerHistory {
       try {
         await _prefs!.remove(_keyPrefix + key);
       } catch (e) {
-        print('Failed to clear preference for key $key: $e');
+        debugPrint('Failed to clear preference for key $key: $e');
       }
     }
   }

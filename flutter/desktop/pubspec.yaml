@@ -31,7 +31,7 @@ dependencies:
   flutter_blue_plus: ^1.19.5
 
   # JSON serialization
-  json_annotation: ^4.9.0
+  json_annotation: ^4.10.0
 
   # Process execution for calling Rust binary
   process_run: ^1.2.1
@@ -45,6 +45,7 @@ dependencies:
   # Package info for version display
   package_info_plus: ^8.1.1
 
+  ffi: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

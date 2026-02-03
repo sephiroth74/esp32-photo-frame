@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../core/models/processing_config.dart';
 import '../core/providers/processing_provider.dart';
-import '../core/services/font_service.dart';
 import '../core/services/file_picker_history.dart';
+import '../core/services/font_service.dart';
 import '../widgets/report_summary_widget.dart';
 
 class ProcessingScreen extends StatelessWidget {
@@ -987,21 +987,7 @@ class _ProcessingDialog extends StatelessWidget {
       },
     );
   }
-
-  Widget _buildReportRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 13)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  @override
+    @override
   Widget build(BuildContext context) {
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {

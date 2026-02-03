@@ -8,6 +8,8 @@ import 'package:window_manager/window_manager.dart';
 import 'core/providers/ble_provider.dart';
 import 'core/providers/processing_provider.dart';
 import 'screens/home_screen.dart';
+import 'platform/platform_detector.dart';
+import 'platform/window_config.dart';
 import 'core/services/window_preferences.dart';
 import 'core/services/file_picker_history.dart';
 import 'widgets/menu_bar.dart';
@@ -29,7 +31,20 @@ void main() async {
   assert(Platform.isMacOS && !kIsWeb, 'This example is intended to run on macOS desktop only.');
 
   // Initialize window manager
+  // Get platform-specific configuration
+  final platform = PlatformDetector.current;
+  final windowConfig = PlatformWindowConfig.forPlatform(platform);
+  debugPrint('🖥️ Running on: $platform');
+
+  // Initialize window manager
   await windowManager.ensureInitialized();
+
+  if (platform == AppPlatform.macos) {
+    await _configureMacosWindowUtils();
+    await AppKitUiElements.ensureInitialized(debug: true, useWindowManager: true);
+  } else {
+    await windowManager.ensureInitialized();
+  }
 
   await _configureMacosWindowUtils();
   await AppKitUiElements.ensureInitialized(debug: true, useWindowManager: true);

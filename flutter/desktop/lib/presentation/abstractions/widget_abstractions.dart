@@ -1,6 +1,6 @@
 /// Abstract widget interfaces for platform-agnostic UI components.
 /// Each platform (macOS, Windows, Linux) will provide concrete implementations.
-library presentation_abstractions;
+library;
 
 import 'package:flutter/material.dart';
 
@@ -9,34 +9,16 @@ import 'package:flutter/material.dart';
 // ============================================================================
 
 /// Button size variants
-enum PlatformButtonSize {
-  small,
-  medium,
-  large,
-}
+enum PlatformButtonSize { small, medium, large }
 
 /// Button style variants
-enum PlatformButtonStyle {
-  primary,
-  secondary,
-  danger,
-  outline,
-}
+enum PlatformButtonStyle { primary, secondary, danger, outline }
 
 /// Text field border style
-enum PlatformTextFieldBorderStyle {
-  rounded,
-  square,
-  none,
-}
+enum PlatformTextFieldBorderStyle { rounded, square, none }
 
 /// Dialog action button style
-enum PlatformDialogActionStyle {
-  primary,
-  secondary,
-  cancel,
-  destructive,
-}
+enum PlatformDialogActionStyle { primary, secondary, cancel, destructive }
 
 // ============================================================================
 // ABSTRACT CLASSES
@@ -62,8 +44,8 @@ abstract class PlatformButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.tooltip,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   /// Factory constructor to create platform-specific implementation
   factory PlatformButton.create({
@@ -110,8 +92,8 @@ abstract class PlatformTextField extends StatefulWidget {
     this.errorText,
     this.maxLength,
     this.enabled = true,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   /// Factory constructor to create platform-specific implementation
   factory PlatformTextField.create({
@@ -147,8 +129,8 @@ abstract class PlatformGroupBox extends StatelessWidget {
     this.padding = const EdgeInsets.all(16.0),
     this.backgroundColor,
     this.borderColor,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   /// Factory constructor to create platform-specific implementation
   factory PlatformGroupBox.create({
@@ -170,23 +152,10 @@ abstract class PlatformCheckbox extends StatelessWidget {
   final bool enabled;
   final String? tooltip;
 
-  const PlatformCheckbox({
-    required this.value,
-    this.onChanged,
-    this.label,
-    this.enabled = true,
-    this.tooltip,
-    Key? key,
-  }) : super(key: key);
+  const PlatformCheckbox({required this.value, this.onChanged, this.label, this.enabled = true, this.tooltip, super.key});
 
   /// Factory constructor to create platform-specific implementation
-  factory PlatformCheckbox.create({
-    required bool value,
-    ValueChanged<bool?>? onChanged,
-    String? label,
-    bool enabled = true,
-    String? tooltip,
-  }) {
+  factory PlatformCheckbox.create({required bool value, ValueChanged<bool?>? onChanged, String? label, bool enabled = true, String? tooltip}) {
     throw UnimplementedError('Use platform-specific factory');
   }
 }
@@ -200,18 +169,10 @@ abstract class PlatformDropdown<T> extends StatefulWidget {
   final String? label;
   final bool enabled;
 
-  const PlatformDropdown({
-    required this.items,
-    required this.itemLabel,
-    this.value,
-    this.onChanged,
-    this.label,
-    this.enabled = true,
-    Key? key,
-  }) : super(key: key);
+  const PlatformDropdown({required this.items, required this.itemLabel, this.value, this.onChanged, this.label, this.enabled = true, super.key});
 
   /// Factory constructor to create platform-specific implementation
-  factory PlatformDropdown.create<T>({
+  factory PlatformDropdown.create({
     required List<T> items,
     required String Function(T) itemLabel,
     T? value,
@@ -241,8 +202,8 @@ abstract class PlatformSlider extends StatefulWidget {
     this.onChanged,
     this.label,
     this.enabled = true,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   /// Factory constructor to create platform-specific implementation
   factory PlatformSlider.create({
@@ -265,12 +226,7 @@ class PlatformDialogAction {
   final PlatformDialogActionStyle style;
   final bool isDestructive;
 
-  PlatformDialogAction({
-    required this.label,
-    this.onPressed,
-    this.style = PlatformDialogActionStyle.secondary,
-    this.isDestructive = false,
-  });
+  PlatformDialogAction({required this.label, this.onPressed, this.style = PlatformDialogActionStyle.secondary, this.isDestructive = false});
 }
 
 /// Platform-agnostic dialog/alert
@@ -289,8 +245,8 @@ abstract class PlatformDialog extends StatelessWidget {
     this.actions = const [],
     this.barrierDismissible = true,
     this.onDismissed,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   /// Factory constructor to create platform-specific implementation
   factory PlatformDialog.create({
@@ -313,28 +269,17 @@ class PlatformMenuItem {
   final bool enabled;
   final List<PlatformMenuItem>? submenu;
 
-  PlatformMenuItem({
-    required this.label,
-    this.onPressed,
-    this.shortcut,
-    this.enabled = true,
-    this.submenu,
-  });
+  PlatformMenuItem({required this.label, this.onPressed, this.shortcut, this.enabled = true, this.submenu});
 }
 
 /// Platform-agnostic application menu bar
 abstract class PlatformMenuBar extends StatelessWidget {
   final List<PlatformMenuItem> items;
 
-  const PlatformMenuBar({
-    required this.items,
-    Key? key,
-  }) : super(key: key);
+  const PlatformMenuBar({required this.items, super.key});
 
   /// Factory constructor to create platform-specific implementation
-  factory PlatformMenuBar.create({
-    required List<PlatformMenuItem> items,
-  }) {
+  factory PlatformMenuBar.create({required List<PlatformMenuItem> items}) {
     throw UnimplementedError('Use platform-specific factory');
   }
 }
@@ -345,11 +290,7 @@ abstract class PlatformNotification {
   final Duration duration;
   final VoidCallback? onDismissed;
 
-  const PlatformNotification({
-    required this.message,
-    this.duration = const Duration(seconds: 3),
-    this.onDismissed,
-  });
+  const PlatformNotification({required this.message, this.duration = const Duration(seconds: 3), this.onDismissed});
 
   /// Show the notification
   void show(BuildContext context);
@@ -364,19 +305,10 @@ abstract class PlatformProgressIndicator extends StatelessWidget {
   final String? label;
   final bool visible;
 
-  const PlatformProgressIndicator({
-    this.value,
-    this.label,
-    this.visible = true,
-    Key? key,
-  }) : super(key: key);
+  const PlatformProgressIndicator({this.value, this.label, this.visible = true, super.key});
 
   /// Factory constructor to create platform-specific implementation
-  factory PlatformProgressIndicator.create({
-    double? value,
-    String? label,
-    bool visible = true,
-  }) {
+  factory PlatformProgressIndicator.create({double? value, String? label, bool visible = true}) {
     throw UnimplementedError('Use platform-specific factory');
   }
 }
@@ -387,19 +319,10 @@ abstract class PlatformCircularProgressIndicator extends StatelessWidget {
   final String? label;
   final bool visible;
 
-  const PlatformCircularProgressIndicator({
-    this.value,
-    this.label,
-    this.visible = true,
-    Key? key,
-  }) : super(key: key);
+  const PlatformCircularProgressIndicator({this.value, this.label, this.visible = true, super.key});
 
   /// Factory constructor to create platform-specific implementation
-  factory PlatformCircularProgressIndicator.create({
-    double? value,
-    String? label,
-    bool visible = true,
-  }) {
+  factory PlatformCircularProgressIndicator.create({double? value, String? label, bool visible = true}) {
     throw UnimplementedError('Use platform-specific factory');
   }
 }
@@ -407,42 +330,22 @@ abstract class PlatformCircularProgressIndicator extends StatelessWidget {
 /// Platform-agnostic file picker
 abstract class PlatformFilePicker {
   /// Pick a single file
-  Future<String?> pickFile({
-    String? initialDirectory,
-    List<String>? allowedExtensions,
-    String dialogTitle = 'Pick a file',
-  });
+  Future<String?> pickFile({String? initialDirectory, List<String>? allowedExtensions, String dialogTitle = 'Pick a file'});
 
   /// Pick multiple files
-  Future<List<String>?> pickFiles({
-    String? initialDirectory,
-    List<String>? allowedExtensions,
-    String dialogTitle = 'Pick files',
-  });
+  Future<List<String>?> pickFiles({String? initialDirectory, List<String>? allowedExtensions, String dialogTitle = 'Pick files'});
 
   /// Pick a directory
-  Future<String?> pickDirectory({
-    String? initialDirectory,
-    String dialogTitle = 'Pick a directory',
-  });
+  Future<String?> pickDirectory({String? initialDirectory, String dialogTitle = 'Pick a directory'});
 
   /// Save file dialog
-  Future<String?> saveFile({
-    String? initialDirectory,
-    String? suggestedName,
-    List<String>? allowedExtensions,
-    String dialogTitle = 'Save file',
-  });
+  Future<String?> saveFile({String? initialDirectory, String? suggestedName, List<String>? allowedExtensions, String dialogTitle = 'Save file'});
 }
 
 /// Platform-agnostic keyboard shortcuts
 abstract class PlatformKeyboardShortcuts {
   /// Register a keyboard shortcut
-  void register(
-    String shortcut,
-    VoidCallback action, {
-    bool isRepeatable = false,
-  });
+  void register(String shortcut, VoidCallback action, {bool isRepeatable = false});
 
   /// Unregister a keyboard shortcut
   void unregister(String shortcut);
