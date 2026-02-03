@@ -62,8 +62,8 @@ The system operates on a clear pipeline:
 
 | Directory | Description |
 |-----------|-------------|
-| **`platformio/`** | The ESP32 firmware source code (C++). Handles WiFi, display driving, and power management. |
-| **`rust/`** | High-performance tools handling the `.pfr1` ([file format specs](docs/BINARY_FILE_FORMAT.md)) format logic. [**Overview**](docs/RUST_OVERVIEW.md) of the core library, CLI processor, and InsightFace integration. |
+| **`platformio/`** | The ESP32 firmware source code (C++). Handles WiFi, display driving, and power management ([**Overview**](docs/FIRMWARE_OVERVIEW.md)). |
+| **`rust/`** | High-performance tools handling the `.pfr1` ([**file format specs**](docs/BINARY_FILE_FORMAT.md)) format logic. [**Overview**](docs/RUST_OVERVIEW.md) of the core library, CLI processor, and InsightFace integration. |
 | **`flutter/`** | Cross-platform applications [**Overview**](docs/FLUTTER_OVERVIEW.md). <br>• `desktop/`: GUI for the Rust processor (macOS/Windows/Linux).<br>• `mobile/`: iOS/Android app for Bluetooth transfers. |
 | **`assets/`** | Resources including the **3D printable enclosure** (`3d model/`) and screenshots. |
 | **`docs/`** | Detailed technical documentation, API references, and assembly guides. |
