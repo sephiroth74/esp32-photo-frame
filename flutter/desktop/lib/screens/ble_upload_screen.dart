@@ -3,8 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/ble_provider.dart';
-import '../services/file_picker_history.dart';
+import '../core/providers/ble_provider.dart';
+import '../core/services/file_picker_history.dart';
 
 class BleUploadScreen extends StatelessWidget {
   const BleUploadScreen({super.key});

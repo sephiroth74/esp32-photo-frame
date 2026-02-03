@@ -2,7 +2,7 @@ import 'package:provider/provider.dart';
 import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../providers/processing_provider.dart';
+import '../core/providers/processing_provider.dart';
 import 'ble_upload_screen.dart';
 import 'processing_screen.dart';
 

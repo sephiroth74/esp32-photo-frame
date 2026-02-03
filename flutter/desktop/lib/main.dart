@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:window_manager/window_manager.dart';
-import 'providers/ble_provider.dart';
-import 'providers/processing_provider.dart';
+import 'core/providers/ble_provider.dart';
+import 'core/providers/processing_provider.dart';
 import 'screens/home_screen.dart';
-import 'services/window_preferences.dart';
-import 'services/file_picker_history.dart';
+import 'core/services/window_preferences.dart';
+import 'core/services/file_picker_history.dart';
 import 'widgets/menu_bar.dart';
 
 Future<void> _configureMacosWindowUtils() async {

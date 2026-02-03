@@ -3,10 +3,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/processing_config.dart';
-import '../providers/processing_provider.dart';
-import '../services/font_service.dart';
-import '../services/file_picker_history.dart';
+import '../core/models/processing_config.dart';
+import '../core/providers/processing_provider.dart';
+import '../core/services/font_service.dart';
+import '../core/services/file_picker_history.dart';
 import '../widgets/report_summary_widget.dart';
 
 class ProcessingScreen extends StatelessWidget {

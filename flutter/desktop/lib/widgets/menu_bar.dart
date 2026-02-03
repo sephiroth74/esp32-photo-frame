@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import '../providers/processing_provider.dart';
-import '../services/file_picker_history.dart';
+import '../core/providers/processing_provider.dart';
+import '../core/services/file_picker_history.dart';
 
 class AppMenuBar extends StatelessWidget {
   final Widget child;

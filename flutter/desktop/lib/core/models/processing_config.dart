@@ -1,0 +1,163 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'processing_config.g.dart';
+
+enum DisplayType {
+  @JsonValue('bw')
+  blackWhite,
+  @JsonValue('6c')
+  sixColor,
+}
+
+enum TargetOrientation {
+  @JsonValue('0')
+  landscape,
+  @JsonValue('1')
+  portrait,
+  @JsonValue('2')
+  landscapeReverse,
+  @JsonValue('3')
+  portraitReverse,
+}
+
+enum DitherMethod {
+  @JsonValue('floyd-steinberg')
+  floydSteinberg,
+  @JsonValue('atkinson')
+  atkinson,
+  @JsonValue('stucki')
+  stucki,
+  @JsonValue('jarvis-judice-ninke')
+  jarvisJudiceNinke,
+  @JsonValue('ordered')
+  ordered,
+}
+
+@JsonSerializable()
+class ProcessingConfig {
+  final String inputPath;
+  final String outputPath;
+  final DisplayType displayType;
+  final TargetOrientation orientation;
+  final bool autoColorCorrect;
+  final DitherMethod ditherMethod;
+  final int ditherStrength;
+  final int contrast;
+  final int brightness;
+  final int saturation;
+  final bool autoOptimize;
+  final bool outputBmp;
+  final bool outputBin;
+  final bool outputJpg;
+  final bool outputPng;
+  final bool detectPeople;
+  final double confidenceThreshold;
+  final bool annotate;
+  final String font;
+  final int fontSize;
+  final String annotationBackground;
+  final bool noPairing;
+  final int dividerWidth;
+  final String dividerColor;
+  final bool report;
+  final int jobs;
+  final String extensions;
+  final String? processorBinaryPath;
+
+  const ProcessingConfig({
+    required this.inputPath,
+    required this.outputPath,
+    this.displayType = DisplayType.blackWhite,
+    this.orientation = TargetOrientation.landscape,
+    this.autoColorCorrect = false,
+    this.ditherMethod = DitherMethod.floydSteinberg,
+    this.ditherStrength = 100,
+    this.contrast = 0,
+    this.brightness = 0,
+    this.saturation = 100,
+    this.autoOptimize = false,
+    this.outputBmp = false,
+    this.outputBin = true,
+    this.outputJpg = false,
+    this.outputPng = false,
+    this.detectPeople = false,
+    this.confidenceThreshold = 0.5,
+    this.annotate = false,
+    this.font = 'Arial',
+    this.fontSize = 22,
+    this.annotationBackground = '#40000000',
+    this.noPairing = false,
+    this.dividerWidth = 3,
+    this.dividerColor = '#FFFFFF',
+    this.report = false,
+    this.jobs = 0,
+    this.extensions = 'jpg,jpeg,png,heic,webp,tiff',
+    this.processorBinaryPath,
+  });
+
+  factory ProcessingConfig.fromJson(Map<String, dynamic> json) => _$ProcessingConfigFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ProcessingConfigToJson(this);
+
+  ProcessingConfig copyWith({
+    String? inputPath,
+    String? outputPath,
+    DisplayType? displayType,
+    TargetOrientation? orientation,
+    bool? autoColorCorrect,
+    DitherMethod? ditherMethod,
+    int? ditherStrength,
+    int? contrast,
+    int? brightness,
+    int? saturation,
+    bool? autoOptimize,
+    bool? outputBmp,
+    bool? outputBin,
+    bool? outputJpg,
+    bool? outputPng,
+    bool? detectPeople,
+    double? confidenceThreshold,
+    bool? annotate,
+    String? font,
+    int? fontSize,
+    String? annotationBackground,
+    bool? noPairing,
+    int? dividerWidth,
+    String? dividerColor,
+    bool? report,
+    int? jobs,
+    String? extensions,
+    String? processorBinaryPath,
+  }) {
+    return ProcessingConfig(
+      inputPath: inputPath ?? this.inputPath,
+      outputPath: outputPath ?? this.outputPath,
+      displayType: displayType ?? this.displayType,
+      orientation: orientation ?? this.orientation,
+      autoColorCorrect: autoColorCorrect ?? this.autoColorCorrect,
+      ditherMethod: ditherMethod ?? this.ditherMethod,
+      ditherStrength: ditherStrength ?? this.ditherStrength,
+      contrast: contrast ?? this.contrast,
+      brightness: brightness ?? this.brightness,
+      saturation: saturation ?? this.saturation,
+      autoOptimize: autoOptimize ?? this.autoOptimize,
+      outputBmp: outputBmp ?? this.outputBmp,
+      outputBin: outputBin ?? this.outputBin,
+      outputJpg: outputJpg ?? this.outputJpg,
+      outputPng: outputPng ?? this.outputPng,
+      detectPeople: detectPeople ?? this.detectPeople,
+      confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
+      annotate: annotate ?? this.annotate,
+      font: font ?? this.font,
+      fontSize: fontSize ?? this.fontSize,
+      annotationBackground: annotationBackground ?? this.annotationBackground,
+      noPairing: noPairing ?? this.noPairing,
+      dividerWidth: dividerWidth ?? this.dividerWidth,
+      dividerColor: dividerColor ?? this.dividerColor,
+      report: report ?? this.report,
+      jobs: jobs ?? this.jobs,
+      extensions: extensions ?? this.extensions,
+      processorBinaryPath: processorBinaryPath ?? this.processorBinaryPath,
+    );
+  }
+}
