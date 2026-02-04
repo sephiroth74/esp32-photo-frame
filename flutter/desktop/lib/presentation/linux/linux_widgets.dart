@@ -225,6 +225,7 @@ class LinuxDialog extends PlatformDialog {
     super.content,
     super.actions = const [],
     super.barrierDismissible = true,
+    super.constraints,
     super.onDismissed,
     super.key,
   });
@@ -232,8 +233,9 @@ class LinuxDialog extends PlatformDialog {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      constraints: constraints,
       title: Text(title),
-      content: content ?? (message != null ? Text(message!) : null),
+      content: content?.call(context),
       actions: [
         ...actions.map((action) {
           final isDefault = action.style == PlatformDialogActionStyle.primary;
@@ -276,7 +278,7 @@ class LinuxProgressIndicator extends PlatformProgressIndicator {
 }
 
 class LinuxCircularProgressIndicator extends PlatformCircularProgressIndicator {
-  const LinuxCircularProgressIndicator({super.value, super.label, super.key});
+  const LinuxCircularProgressIndicator({super.value, super.size, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -284,17 +286,56 @@ class LinuxCircularProgressIndicator extends PlatformCircularProgressIndicator {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 48,
-          height: 48,
-          child: CircularProgressIndicator(
-            value: value,
-            strokeWidth: 4,
-            backgroundColor: Colors.grey[300],
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-          ),
+          width: size ?? 16,
+          height: size ?? 16,
+          child: CircularProgressIndicator(value: value),
         ),
-        if (label != null) ...[const SizedBox(height: 12), Text(label!, style: const TextStyle(fontSize: 12))],
       ],
     );
+  }
+}
+
+class LinuxPopupMenuItem<T> extends PlatformPopupMenuItem<T> {
+  const LinuxPopupMenuItem({required super.value, required super.label});
+}
+
+class LinuxPopupMenu<T> extends PlatformPopupMenu<T> {
+  const LinuxPopupMenu({required super.items, super.label, super.selectedItem, super.onSelected, super.style, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownMenu<T>(
+      onSelected: onSelected,
+      label: label,
+      dropdownMenuEntries: items.map((item) => DropdownMenuEntry<T>(value: item.value, label: item.label)).toList(),
+      initialSelection: selectedItem,
+    );
+  }
+}
+
+class LinuxSwitch extends PlatformSwitch {
+  const LinuxSwitch({required super.checked, required super.onChanged, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Switch(value: checked, onChanged: onChanged);
+  }
+}
+
+class LinuxSlider extends PlatformSlider {
+  const LinuxSlider({required super.value, required super.min, required super.max, required super.onChanged, super.divisions, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Slider(value: value, min: min, max: max, divisions: divisions, onChanged: onChanged);
+  }
+}
+
+class LinuxCheckBox extends PlatformCheckbox {
+  const LinuxCheckBox({required super.value, required super.onChanged, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Checkbox.adaptive(value: value, onChanged: onChanged);
   }
 }

@@ -1,4 +1,3 @@
-import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -239,6 +238,7 @@ class _DisplaySettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
     final config = provider.config;
+    final factory = context.read<WidgetFactoryProvider>().factory;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,20 +257,22 @@ class _DisplaySettingsSection extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Text('Display Type:'),
-                        const SizedBox(width: 4),
-                        AppKitPopupButton<DisplayType>(
+                        const SizedBox(width: 8),
+
+                        factory.popupMenu<DisplayType>(
+                          label: Text(config.displayType.name),
                           selectedItem: config.displayType,
-                          onItemSelected: (value) {
+                          onSelected: (value) {
                             if (value != null) {
                               provider.updateConfig(config.copyWith(displayType: value));
                             }
                           },
-                          items: const [
-                            AppKitContextMenuItem(value: DisplayType.blackWhite, child: Text('Black & White')),
-                            AppKitContextMenuItem(value: DisplayType.sixColor, child: Text('6-Color')),
+                          items: [
+                            factory.popupMenuItem<DisplayType>(value: DisplayType.blackWhite, label: 'Black & White'),
+                            factory.popupMenuItem<DisplayType>(value: DisplayType.sixColor, label: '6-Color'),
                           ],
                         ),
                       ],
@@ -279,22 +281,24 @@ class _DisplaySettingsSection extends StatelessWidget {
                   const SizedBox(width: 20),
                   Expanded(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Text('Target Orientation:'),
-                        const SizedBox(width: 4),
-                        AppKitPopupButton<TargetOrientation>(
+                        const SizedBox(width: 8),
+                        factory.popupMenu<TargetOrientation>(
+                          label: Text(config.orientation.name),
+                          style: PlatformPopupMenuStyle.plain,
                           selectedItem: config.orientation,
-                          onItemSelected: (value) {
+                          onSelected: (value) {
                             if (value != null) {
                               provider.updateConfig(config.copyWith(orientation: value));
                             }
                           },
-                          items: const [
-                            AppKitContextMenuItem(value: TargetOrientation.landscape, child: Text('Landscape')),
-                            AppKitContextMenuItem(value: TargetOrientation.portrait, child: Text('Portrait')),
-                            AppKitContextMenuItem(value: TargetOrientation.landscapeReverse, child: Text('Landscape Reverse')),
-                            AppKitContextMenuItem(value: TargetOrientation.portraitReverse, child: Text('Portrait Reverse')),
+                          items: [
+                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.landscape, label: 'Landscape'),
+                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.portrait, label: 'Portrait'),
+                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.landscapeReverse, label: 'Landscape Reverse'),
+                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.portraitReverse, label: 'Portrait Reverse'),
                           ],
                         ),
                       ],
@@ -326,6 +330,7 @@ class _PeopleDetectionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final config = provider.config;
 
     return Column(
@@ -343,11 +348,9 @@ class _PeopleDetectionSection extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.detectPeople,
-                    onChanged: (value) {
-                      provider.updateConfig(config.copyWith(detectPeople: value));
-                    },
+                    onChanged: (value) => provider.updateConfig(config.copyWith(detectPeople: value)),
                   ),
                   const SizedBox(width: 8),
                   const Text('Enable person detection for smart cropping'),
@@ -355,7 +358,7 @@ class _PeopleDetectionSection extends StatelessWidget {
               ),
               if (config.detectPeople) ...[
                 const SizedBox(height: 12),
-                Text('ℹ Uses YOLO11 model for accurate subject detection', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Text('ℹ Uses ai model for accurate subject detection', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -364,9 +367,8 @@ class _PeopleDetectionSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Confidence: ${config.confidenceThreshold.toStringAsFixed(2)}'),
-                          AppKitSlider(
-                            value: config.confidenceThreshold,
-                            style: AppKitSliderStyle.discreteFixed,
+                          factory.slider(
+                            value: config.confidenceThreshold.clamp(0.3, 0.9),
                             stops: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9],
                             min: 0.3,
                             max: 0.9,
@@ -400,6 +402,7 @@ class _DitheringSettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final config = provider.config;
 
     return Column(
@@ -417,7 +420,7 @@ class _DitheringSettingsSection extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.autoColorCorrect,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(autoColorCorrect: value));
@@ -426,7 +429,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Text('Auto-color correction'),
                   const SizedBox(height: 8, width: 16),
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.autoOptimize,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(autoOptimize: value));
@@ -445,20 +448,21 @@ class _DitheringSettingsSection extends StatelessWidget {
                     children: [
                       const Text('Method:'),
                       const SizedBox(height: 4, width: 8),
-                      AppKitPopupButton<DitherMethod>(
-                        style: AppKitPopupButtonStyle.bevel,
+                      factory.popupMenu<DitherMethod>(
+                        label: Text(config.ditherMethod.name),
+                        style: PlatformPopupMenuStyle.bevel,
                         selectedItem: config.ditherMethod,
-                        onItemSelected: (value) {
+                        onSelected: (value) {
                           if (value != null) {
                             provider.updateConfig(config.copyWith(ditherMethod: value));
                           }
                         },
-                        items: const [
-                          AppKitContextMenuItem(value: DitherMethod.floydSteinberg, child: Text('Floyd-Steinberg')),
-                          AppKitContextMenuItem(value: DitherMethod.atkinson, child: Text('Atkinson')),
-                          AppKitContextMenuItem(value: DitherMethod.stucki, child: Text('Stucki')),
-                          AppKitContextMenuItem(value: DitherMethod.jarvisJudiceNinke, child: Text('Jarvis')),
-                          AppKitContextMenuItem(value: DitherMethod.ordered, child: Text('Ordered/Bayer')),
+                        items: [
+                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.floydSteinberg, label: 'Floyd-Steinberg'),
+                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.atkinson, label: 'Atkinson'),
+                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.stucki, label: 'Stucki'),
+                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.jarvisJudiceNinke, label: 'Jarvis'),
+                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.ordered, label: 'Ordered/Bayer'),
                         ],
                       ),
                       const SizedBox(width: 24),
@@ -469,7 +473,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                             Text('Strength: ${config.ditherStrength}'),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: AppKitSlider(
+                              child: factory.slider(
                                 value: config.ditherStrength.toDouble(),
                                 min: 0.0,
                                 max: 200.0,
@@ -492,7 +496,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Contrast: ${config.contrast}'),
-                          AppKitSlider(
+                          factory.slider(
                             value: (config.contrast + 100).toDouble(),
                             min: 0.0,
                             max: 200.0,
@@ -509,7 +513,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Brightness: ${config.brightness}'),
-                          AppKitSlider(
+                          factory.slider(
                             value: (config.brightness + 100).toDouble(),
                             min: 0.0,
                             max: 200.0,
@@ -530,7 +534,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Saturation: ${config.saturation}'),
-                          AppKitSlider(
+                          factory.slider(
                             value: config.saturation.toDouble(),
                             min: 0.0,
                             max: 200.0,
@@ -566,6 +570,7 @@ class _OutputFormatsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final config = provider.config;
 
     return Column(
@@ -588,7 +593,7 @@ class _OutputFormatsSection extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppKitCheckbox(
+                      factory.checkbox(
                         value: config.outputBmp,
                         onChanged: (value) {
                           provider.updateConfig(config.copyWith(outputBmp: value));
@@ -601,7 +606,7 @@ class _OutputFormatsSection extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppKitCheckbox(
+                      factory.checkbox(
                         value: config.outputBin,
                         onChanged: (value) {
                           provider.updateConfig(config.copyWith(outputBin: value));
@@ -614,7 +619,7 @@ class _OutputFormatsSection extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppKitCheckbox(
+                      factory.checkbox(
                         value: config.outputJpg,
                         onChanged: (value) {
                           provider.updateConfig(config.copyWith(outputJpg: value));
@@ -627,7 +632,7 @@ class _OutputFormatsSection extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppKitCheckbox(
+                      factory.checkbox(
                         value: config.outputPng,
                         onChanged: (value) {
                           provider.updateConfig(config.copyWith(outputPng: value));
@@ -692,6 +697,7 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProcessingProvider>();
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final config = provider.config;
 
     return Column(
@@ -709,7 +715,7 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
               const SizedBox(height: 8),
               Row(
                 children: [
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.annotate,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(annotate: value));
@@ -726,18 +732,20 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                     const Text('Font:'),
                     const SizedBox(width: 8),
                     Expanded(
+                      flex: 0,
                       child: _fontsLoaded
-                          ? AppKitPopupButton<String>(
-                              style: AppKitPopupButtonStyle.bevel,
+                          ? factory.popupMenu<String>(
+                              style: PlatformPopupMenuStyle.bevel,
+                              label: _systemFonts.contains(config.font) ? Text(config.font) : null,
                               selectedItem: _systemFonts.contains(config.font) ? config.font : null,
-                              onItemSelected: (value) {
+                              onSelected: (value) {
                                 if (value != null) {
                                   provider.updateConfig(config.copyWith(font: value));
                                 }
                               },
-                              items: _systemFonts.map((font) => AppKitContextMenuItem(value: font, child: Text(font))).toList(),
+                              items: _systemFonts.map((font) => factory.popupMenuItem<String>(value: font, label: font)).toList(),
                             )
-                          : const AppKitProgressCircle(value: null),
+                          : factory.circularProgress(value: null),
                     ),
                     const SizedBox(width: 12),
                     const Text('Size:'),
@@ -803,6 +811,7 @@ class _DividerSettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final provider = context.watch<ProcessingProvider>();
     final config = provider.config;
 
@@ -821,7 +830,7 @@ class _DividerSettingsSection extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.noPairing,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(noPairing: value));
@@ -990,16 +999,19 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
   bool _dialogShown = false;
 
   void _showProgressDialog(BuildContext context, ProcessingProvider provider) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     if (_dialogShown) return;
     _dialogShown = true;
 
-    showAppKitDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _ProcessingDialog(provider: provider),
-    ).then((_) {
-      _dialogShown = false;
-    });
+    factory
+        .openDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _ProcessingDialog(provider: provider),
+        )
+        .then((_) {
+          _dialogShown = false;
+        });
   }
 
   Widget _buildButton(BuildContext context, {required String label, required VoidCallback? onPressed}) {
@@ -1056,6 +1068,7 @@ class _ProcessingDialog extends StatelessWidget {
   }
 
   void _showReportDialog(BuildContext context, ProcessingProvider provider) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final bool hasReport = provider.lastReport != null;
 
     // Debug logging
@@ -1068,24 +1081,17 @@ class _ProcessingDialog extends StatelessWidget {
       debugPrint('Paired images count: ${((provider.lastReport as Map)['paired_images'] as List?)?.length ?? 0}');
     }
 
-    showAppKitDialog(
+    factory.openDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        return AppKitDialog(
+        return factory.dialog(
           constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
-          title: const Text('Processing Report'),
-          message: (context) => SizedBox.expand(
+          title: 'Processing Report',
+          content: (context) => SizedBox.expand(
             child: ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
           ),
-          primaryButton: AppKitButton(
-            size: AppKitControlSize.large,
-            type: AppKitButtonType.primary,
-            onTap: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Close'),
-          ),
+          actions: [PlatformDialogAction(label: 'Close', onPressed: Navigator.of(context).pop)],
         );
       },
     );
@@ -1093,12 +1099,13 @@ class _ProcessingDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {
-        return AppKitDialog(
-          constraints: const BoxConstraints(minWidth: 450, maxWidth: 450),
-          title: const Text('Processing Images'),
-          message: (context) => Column(
+        return factory.dialog(
+          constraints: BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
+          title: 'Processing Images',
+          content: (context) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1108,7 +1115,7 @@ class _ProcessingDialog extends StatelessWidget {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
               ),
               const SizedBox(height: 8),
-              AppKitProgressBar(value: provider.progress),
+              factory.progress(value: provider.progress),
               const SizedBox(height: 12),
               Text(
                 'Processing: ${provider.processedCount}/${provider.totalCount}',
@@ -1152,20 +1159,12 @@ class _ProcessingDialog extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      AppKitButton(
-                        type: AppKitButtonType.secondary,
-                        size: AppKitControlSize.regular,
-                        onTap: () {
+                      factory.button(
+                        label: 'View Full Report',
+                        onPressed: () {
                           _showReportDialog(context, provider);
                         },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.assessment, size: 14),
-                            SizedBox(width: 6),
-                            Text('View Full Report', style: TextStyle(fontSize: 12)),
-                          ],
-                        ),
+                        style: PlatformButtonStyle.primary,
                       ),
                     ],
                   ),
@@ -1173,16 +1172,7 @@ class _ProcessingDialog extends StatelessWidget {
               ],
             ],
           ),
-          primaryButton: AppKitButton(
-            size: AppKitControlSize.large,
-            type: AppKitButtonType.primary,
-            onTap: !provider.isProcessing
-                ? () {
-                    Navigator.of(context).pop();
-                  }
-                : null,
-            child: const Text('Close'),
-          ),
+          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? Navigator.of(context).pop : null)],
         );
       },
     );

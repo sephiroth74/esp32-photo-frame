@@ -673,12 +673,18 @@ fn process_job(
     let img_rgb = img.to_rgb8();
 
     // Create single intermediate temporary file at the start - reuse for all operations
-    let temp_dir = TempDir::new().context("Failed to create temporary directory")?;
+    //let temp_dir = TempDir::new().context("Failed to create temporary directory")?;
+    // create the temp dir if it doesn't exist
+    //fs::create_dir_all(&temp_dir).context("Failed to create temporary directory")?;
+    let temp_dir = std::env::temp_dir();
+
     let mut temp_file = Builder::new()
         .prefix("pfproc_")
         .suffix(".png")
         .tempfile_in(&temp_dir)
         .context("Failed to create temporary file")?;
+    
+    logger.verbose(&format!("temp file: {:?}", temp_file.path()));
 
     // Detect faces if enabled
     let (detection, face_count, detection_time_ms): (Option<Vec<Face>>, Option<usize>, u128) =

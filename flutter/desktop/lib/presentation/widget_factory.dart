@@ -1,11 +1,34 @@
+import 'dart:io';
+
+import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:flutter/material.dart';
 import '../platform/platform_detector.dart';
+import '../screens/home_screen_macos.dart';
+import '../screens/home_screen_material.dart';
 import 'abstractions/widget_abstractions.dart';
 import 'macos/macos_widgets.dart';
 import 'linux/linux_widgets.dart';
 
 /// Factory for creating platform-specific widgets.
 abstract class WidgetFactory {
+  Widget createHomeScreen();
+
+  Future<T?> openDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible});
+
+  PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged});
+
+  PlatformSlider slider({
+    required double value,
+    required ValueChanged<double> onChanged,
+    double min = 0.0,
+    double max = 1.0,
+    int? divisions,
+    List<double>? stops,
+  });
+
+  /// Factory constructor to create platform-specific implementation
+  PlatformCheckbox checkbox({required bool value, ValueChanged<bool?>? onChanged});
+
   PlatformButton button({
     required String label,
     VoidCallback? onPressed,
@@ -44,7 +67,8 @@ abstract class WidgetFactory {
   PlatformDialog dialog({
     required String title,
     String? message,
-    Widget? content,
+    Widget Function(BuildContext)? content,
+    BoxConstraints? constraints,
     List<PlatformDialogAction> actions = const [],
     bool barrierDismissible = true,
     VoidCallback? onDismissed,
@@ -52,10 +76,63 @@ abstract class WidgetFactory {
 
   PlatformProgressIndicator progress({double? value, String? label, bool visible = true});
 
-  PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true});
+  PlatformCircularProgressIndicator circularProgress({double? value, double? size});
+
+  PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label});
+
+  PlatformPopupMenu<T> popupMenu<T>({
+    required List<PlatformPopupMenuItem<T>> items,
+    T? selectedItem,
+    Widget? label,
+    ValueChanged<T?>? onSelected,
+    PlatformPopupMenuStyle style = PlatformPopupMenuStyle.bevel,
+  });
 }
 
 class MacOSWidgetFactory extends WidgetFactory {
+  @override
+  Widget createHomeScreen() {
+    return const HomeScreenMacos();
+  }
+
+  @override
+  Future<T?> openDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible = true}) {
+    return showAppKitDialog<T>(context: context, builder: builder, barrierDismissible: barrierDismissible);
+  }
+
+  @override
+  PlatformCheckbox checkbox({required bool value, ValueChanged<bool?>? onChanged}) {
+    return MacOSCheckbox(value: value, onChanged: onChanged);
+  }
+
+  @override
+  PlatformSlider slider({
+    required double value,
+    required ValueChanged<double> onChanged,
+    double min = 0.0,
+    double max = 1.0,
+    List<double>? stops,
+    int? divisions,
+  }) {
+    return MacOSSlider(value: value, min: min, max: max, onChanged: onChanged, stops: stops);
+  }
+
+  @override
+  PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label}) {
+    return MacOSPopupMenuItem(value: value, label: label);
+  }
+
+  @override
+  PlatformPopupMenu<T> popupMenu<T>({
+    required List<PlatformPopupMenuItem<T>> items,
+    T? selectedItem,
+    Widget? label,
+    ValueChanged<T?>? onSelected,
+    PlatformPopupMenuStyle? style,
+  }) {
+    return MacOSPopupMenu(items: items, onSelected: onSelected);
+  }
+
   @override
   PlatformButton button({
     required String label,
@@ -127,14 +204,16 @@ class MacOSWidgetFactory extends WidgetFactory {
   PlatformDialog dialog({
     required String title,
     String? message,
-    Widget? content,
+    Widget Function(BuildContext)? content,
     List<PlatformDialogAction> actions = const [],
+    BoxConstraints? constraints,
     bool barrierDismissible = true,
     VoidCallback? onDismissed,
   }) {
     return MacOSDialog(
       title: title,
       message: message,
+      constraints: constraints,
       content: content,
       actions: actions,
       barrierDismissible: barrierDismissible,
@@ -148,14 +227,57 @@ class MacOSWidgetFactory extends WidgetFactory {
   }
 
   @override
-  PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true}) {
-    return MacOSCircularProgressIndicator(value: value, label: label, visible: visible);
+  PlatformCircularProgressIndicator circularProgress({double? value, double? size}) {
+    return MacOSCircularProgressIndicator(value: value, size: size);
+  }
+
+  @override
+  PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged}) {
+    return MacOSSwitch(checked: checked, onChanged: onChanged);
   }
 }
 
 class WindowsWidgetFactory extends MacOSWidgetFactory {}
 
 class LinuxWidgetFactory extends WidgetFactory {
+  @override
+  Future<T?> openDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible = true}) {
+    return showDialog(context: context, builder: builder, barrierDismissible: barrierDismissible);
+  }
+
+  @override
+  PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label}) {
+    return LinuxPopupMenuItem(value: value, label: label);
+  }
+
+  @override
+  PlatformCheckbox checkbox({required bool value, ValueChanged<bool?>? onChanged}) {
+    return LinuxCheckBox(value: value, onChanged: onChanged);
+  }
+
+  @override
+  PlatformSlider slider({
+    required double value,
+    double min = 0.0,
+    double max = 1.0,
+    required ValueChanged<double> onChanged,
+    List<double>? stops,
+    int? divisions,
+  }) {
+    return LinuxSlider(value: value, min: min, max: max, onChanged: onChanged, divisions: divisions);
+  }
+
+  @override
+  PlatformPopupMenu<T> popupMenu<T>({
+    required List<PlatformPopupMenuItem<T>> items,
+    T? selectedItem,
+    Widget? label,
+    ValueChanged<T?>? onSelected,
+    PlatformPopupMenuStyle? style,
+  }) {
+    return LinuxPopupMenu(items: items, onSelected: onSelected, label: label);
+  }
+
   @override
   PlatformButton button({
     required String label,
@@ -227,8 +349,9 @@ class LinuxWidgetFactory extends WidgetFactory {
   PlatformDialog dialog({
     required String title,
     String? message,
-    Widget? content,
+    Widget Function(BuildContext)? content,
     List<PlatformDialogAction> actions = const [],
+    BoxConstraints? constraints,
     bool barrierDismissible = true,
     VoidCallback? onDismissed,
   }) {
@@ -238,6 +361,7 @@ class LinuxWidgetFactory extends WidgetFactory {
       content: content,
       actions: actions,
       barrierDismissible: barrierDismissible,
+      constraints: constraints,
       onDismissed: onDismissed,
     );
   }
@@ -248,8 +372,18 @@ class LinuxWidgetFactory extends WidgetFactory {
   }
 
   @override
-  PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true}) {
-    return LinuxCircularProgressIndicator(value: value, label: label);
+  PlatformCircularProgressIndicator circularProgress({double? value, double? size}) {
+    return LinuxCircularProgressIndicator(value: value, size: size);
+  }
+
+  @override
+  PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged}) {
+    return LinuxSwitch(checked: checked, onChanged: onChanged);
+  }
+
+  @override
+  Widget createHomeScreen() {
+    return const HomeScreenMaterial();
   }
 }
 

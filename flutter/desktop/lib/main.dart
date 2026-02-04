@@ -115,7 +115,6 @@ class _MyAppState extends State<MyApp> with WindowListener {
               home: const HomeScreen(),
             )
           : MaterialApp(
-              debugShowCheckedModeBanner: false,
               theme: ThemeData.light(useMaterial3: true),
               darkTheme: ThemeData.dark(useMaterial3: true),
               themeMode: ThemeMode.system,

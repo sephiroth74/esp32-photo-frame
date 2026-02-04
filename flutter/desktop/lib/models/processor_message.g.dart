@@ -39,3 +39,15 @@ Map<String, dynamic> _$FileCompletedMessageToJson(
   'output_paths': instance.outputPaths,
   'processing_time_ms': instance.processingTimeMs,
 };
+
+FileFailedMessage _$FileFailedMessageFromJson(Map<String, dynamic> json) =>
+    FileFailedMessage(
+      inputPath: json['input_path'] as String,
+      error: json['error'] as String,
+    );
+
+Map<String, dynamic> _$FileFailedMessageToJson(FileFailedMessage instance) =>
+    <String, dynamic>{
+      'input_path': instance.inputPath,
+      'error': instance.error,
+    };

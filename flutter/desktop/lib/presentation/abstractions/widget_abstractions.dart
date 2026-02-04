@@ -20,6 +20,9 @@ enum PlatformTextFieldBorderStyle { rounded, square, none }
 /// Dialog action button style
 enum PlatformDialogActionStyle { primary, secondary, cancel, destructive }
 
+/// Popup menu style variants
+enum PlatformPopupMenuStyle { bevel, inline, push, plain }
+
 // ============================================================================
 // ABSTRACT CLASSES
 // ============================================================================
@@ -148,16 +151,8 @@ abstract class PlatformGroupBox extends StatelessWidget {
 abstract class PlatformCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool?>? onChanged;
-  final String? label;
-  final bool enabled;
-  final String? tooltip;
 
-  const PlatformCheckbox({required this.value, this.onChanged, this.label, this.enabled = true, this.tooltip, super.key});
-
-  /// Factory constructor to create platform-specific implementation
-  factory PlatformCheckbox.create({required bool value, ValueChanged<bool?>? onChanged, String? label, bool enabled = true, String? tooltip}) {
-    throw UnimplementedError('Use platform-specific factory');
-  }
+  const PlatformCheckbox({required this.value, this.onChanged, super.key});
 }
 
 /// Platform-agnostic dropdown/select widget
@@ -185,38 +180,15 @@ abstract class PlatformDropdown<T> extends StatefulWidget {
 }
 
 /// Platform-agnostic slider widget
-abstract class PlatformSlider extends StatefulWidget {
+abstract class PlatformSlider extends StatelessWidget {
   final double value;
   final double min;
   final double max;
+  final List<double>? stops;
   final int? divisions;
   final ValueChanged<double>? onChanged;
-  final String? label;
-  final bool enabled;
 
-  const PlatformSlider({
-    required this.value,
-    required this.min,
-    required this.max,
-    this.divisions,
-    this.onChanged,
-    this.label,
-    this.enabled = true,
-    super.key,
-  });
-
-  /// Factory constructor to create platform-specific implementation
-  factory PlatformSlider.create({
-    required double value,
-    required double min,
-    required double max,
-    int? divisions,
-    ValueChanged<double>? onChanged,
-    String? label,
-    bool enabled = true,
-  }) {
-    throw UnimplementedError('Use platform-specific factory');
-  }
+  const PlatformSlider({required this.value, required this.min, required this.max, this.stops, this.divisions, this.onChanged, super.key});
 }
 
 /// Platform-agnostic dialog action button
@@ -233,9 +205,10 @@ class PlatformDialogAction {
 abstract class PlatformDialog extends StatelessWidget {
   final String title;
   final String? message;
-  final Widget? content;
+  final Widget Function(BuildContext)? content;
   final List<PlatformDialogAction> actions;
   final bool barrierDismissible;
+  final BoxConstraints? constraints;
   final VoidCallback? onDismissed;
 
   const PlatformDialog({
@@ -245,6 +218,7 @@ abstract class PlatformDialog extends StatelessWidget {
     this.actions = const [],
     this.barrierDismissible = true,
     this.onDismissed,
+    this.constraints,
     super.key,
   });
 
@@ -255,6 +229,7 @@ abstract class PlatformDialog extends StatelessWidget {
     Widget? content,
     List<PlatformDialogAction> actions = const [],
     bool barrierDismissible = true,
+    BoxConstraints? constraints,
     VoidCallback? onDismissed,
   }) {
     throw UnimplementedError('Use platform-specific factory');
@@ -306,25 +281,14 @@ abstract class PlatformProgressIndicator extends StatelessWidget {
   final bool visible;
 
   const PlatformProgressIndicator({this.value, this.label, this.visible = true, super.key});
-
-  /// Factory constructor to create platform-specific implementation
-  factory PlatformProgressIndicator.create({double? value, String? label, bool visible = true}) {
-    throw UnimplementedError('Use platform-specific factory');
-  }
 }
 
 /// Platform-agnostic circular progress indicator
 abstract class PlatformCircularProgressIndicator extends StatelessWidget {
   final double? value; // null = indeterminate (0.0-1.0 for determinate)
-  final String? label;
-  final bool visible;
+  final double? size;
 
-  const PlatformCircularProgressIndicator({this.value, this.label, this.visible = true, super.key});
-
-  /// Factory constructor to create platform-specific implementation
-  factory PlatformCircularProgressIndicator.create({double? value, String? label, bool visible = true}) {
-    throw UnimplementedError('Use platform-specific factory');
-  }
+  const PlatformCircularProgressIndicator({this.value, this.size, super.key});
 }
 
 /// Platform-agnostic file picker
@@ -355,4 +319,37 @@ abstract class PlatformKeyboardShortcuts {
 
   /// Clear all shortcuts
   void clearAll();
+}
+
+abstract class PlatformPopupMenuItem<T> {
+  final T value;
+  final String label;
+
+  const PlatformPopupMenuItem({required this.value, required this.label});
+}
+
+/// Platform-agnostic popup menu
+abstract class PlatformPopupMenu<T> extends StatelessWidget {
+  final List<PlatformPopupMenuItem<T>> items;
+  final T? selectedItem;
+  final ValueChanged<T?>? onSelected;
+  final PlatformPopupMenuStyle? style;
+  final Widget? label;
+
+  const PlatformPopupMenu({
+    required this.items,
+    this.label,
+    this.selectedItem,
+    this.onSelected,
+    this.style = PlatformPopupMenuStyle.bevel,
+    super.key,
+  });
+}
+
+/// Platform-agnostic switch widget
+abstract class PlatformSwitch extends StatelessWidget {
+  final bool checked;
+  final ValueChanged<bool>? onChanged;
+
+  const PlatformSwitch({required this.checked, this.onChanged, super.key});
 }
