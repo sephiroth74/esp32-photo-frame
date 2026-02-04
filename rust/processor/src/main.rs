@@ -184,13 +184,6 @@ fn main() {
             Some(report.to_json_value()),
             summary,
         );
-
-        JsonMessage::progress(
-            Phase::Complete,
-            report.processed_count,
-            report.processed_count,
-            "Complete",
-        );
     } else {
         report.generate(&logger, args.report.clone());
     }
