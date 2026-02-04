@@ -1071,27 +1071,17 @@ class _ProcessingDialog extends StatelessWidget {
     final factory = context.read<WidgetFactoryProvider>().factory;
     final bool hasReport = provider.lastReport != null;
 
-    // Debug logging
-    debugPrint('=== REPORT DIALOG DEBUG ===');
-    debugPrint('Has report: $hasReport');
-    debugPrint('Summary data: ${provider.lastSummary}');
-    debugPrint('Report data keys: ${(provider.lastReport as Map?)?.keys.toList()}');
-    if (hasReport && provider.lastReport is Map) {
-      debugPrint('Processed images count: ${((provider.lastReport as Map)['processed_images'] as List?)?.length ?? 0}');
-      debugPrint('Paired images count: ${((provider.lastReport as Map)['paired_images'] as List?)?.length ?? 0}');
-    }
-
     factory.openDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
         return factory.dialog(
-          constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
+          constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 600),
           title: 'Processing Report',
           content: (context) => SizedBox.expand(
             child: ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
           ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: Navigator.of(context).pop)],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: (){})],
         );
       },
     );
@@ -1103,7 +1093,7 @@ class _ProcessingDialog extends StatelessWidget {
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {
         return factory.dialog(
-          constraints: BoxConstraints(minWidth: 500, maxWidth: 500, minHeight: 400, maxHeight: 400),
+          constraints: BoxConstraints(minWidth: 500, maxWidth: 500, minHeight: 300, maxHeight: 600),
           title: 'Processing Images',
           content: (context) => Column(
             mainAxisSize: MainAxisSize.min,
@@ -1172,7 +1162,7 @@ class _ProcessingDialog extends StatelessWidget {
               ],
             ],
           ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? Navigator.of(context).pop : null)],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? (){} : null)],
         );
       },
     );
