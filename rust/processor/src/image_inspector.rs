@@ -7,7 +7,7 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::json_output::JsonMessage;
+use crate::json_output::{JsonMessage, Phase};
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, RotationDegrees};
 use image::GenericImageView;
@@ -162,7 +162,7 @@ impl<'a> ImageInspector<'a> {
 
 fn emit_json_progress(current: usize, total: usize, path: &Path) {
     let message = format!("Validating {}", path.display());
-    JsonMessage::progress("inspection", current, total, message);
+    JsonMessage::progress(Phase::Inspection, current, total, message);
 }
 
 fn read_exif_rotation(path: &Path) -> Option<RotationDegrees> {

@@ -1,5 +1,5 @@
 use crate::cli::Args;
-use crate::json_output::JsonMessage;
+use crate::json_output::{JsonMessage, Phase};
 use clap::Parser;
 use serde_json::json;
 use std::fs;
@@ -23,7 +23,7 @@ fn main() {
         logging::Logger::new_with_silent(args.verbose && !args.json_progress, args.json_progress);
 
     if args.json_progress {
-        JsonMessage::progress("startup", 0, 1, "Starting");
+        JsonMessage::progress(Phase::Startup, 0, 1, "Starting");
     }
 
     // Handle validation mode early exit
@@ -33,7 +33,7 @@ fn main() {
             Err(e) => {
                 let msg = format!("Validation error: {}", e);
                 if args.json_progress {
-                    JsonMessage::error("validation", msg);
+                    JsonMessage::error(Phase::Validation, msg);
                 } else {
                     logger.error(&msg);
                 }
@@ -50,7 +50,7 @@ fn main() {
     if let Err(e) = fs_utils::create_format_directories(&args.output, &args.output_formats) {
         let msg = format!("Failed to create output directories: {}", e);
         if args.json_progress {
-            JsonMessage::error("output", msg);
+            JsonMessage::error(Phase::Startup, msg);
         } else {
             logger.error(&msg);
         }
@@ -67,7 +67,7 @@ fn main() {
         Err(e) => {
             let msg = format!("Discovery failed: {}", e);
             if args.json_progress {
-                JsonMessage::error("discovery", msg);
+                JsonMessage::error(Phase::Discovery, msg);
             } else {
                 logger.error(&msg);
             }
@@ -106,7 +106,7 @@ fn main() {
         Err(e) => {
             let msg = format!("Failed to initialize processor: {}", e);
             if args.json_progress {
-                JsonMessage::error("processing", msg);
+                JsonMessage::error(Phase::Discovery, msg);
             } else {
                 logger.error(&msg);
             }
@@ -118,7 +118,7 @@ fn main() {
         Err(e) => {
             let msg = format!("Failed to create processing plan: {}", e);
             if args.json_progress {
-                JsonMessage::error("planning", msg);
+                JsonMessage::error(Phase::Inspection, msg);
             } else {
                 logger.error(&msg);
             }
@@ -139,7 +139,7 @@ fn main() {
         Err(e) => {
             let msg = format!("Processing failed: {}", e);
             if args.json_progress {
-                JsonMessage::error("processing", msg);
+                JsonMessage::error(Phase::Processing, msg);
             } else {
                 logger.error(&msg);
             }
@@ -186,7 +186,7 @@ fn main() {
         );
 
         JsonMessage::progress(
-            "complete",
+            Phase::Complete,
             report.processed_count,
             report.processed_count,
             "Complete",
@@ -212,7 +212,7 @@ fn run_validation(
         Err(e) => {
             let msg = format!("Failed to read file: {}", e);
             if json_progress {
-                JsonMessage::error("validation", msg);
+                JsonMessage::error(Phase::Validation, msg);
             } else {
                 logger.error(&msg);
             }
@@ -319,7 +319,7 @@ fn run_validation(
             logger.info("");
 
             if json_progress {
-                JsonMessage::error("validation", format!("Validation failed: {}", e));
+                JsonMessage::error(Phase::Validation, format!("Validation failed: {}", e));
             }
 
             // Try to provide more details

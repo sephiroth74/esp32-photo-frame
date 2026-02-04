@@ -12,26 +12,55 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Used for throttling progress updates to ~25 FPS (40ms between updates)
 static LAST_PROGRESS_MS: AtomicU64 = AtomicU64::new(0);
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub enum Phase {
+    #[serde(rename = "startup")]
+    Startup,
+
+    #[serde(rename = "discovery")]
+    Discovery,
+
+    #[serde(rename = "inspection")]
+    Inspection,
+
+    #[serde(rename = "processing")]
+    Processing,
+
+    #[serde(rename = "saving")]
+    Saving,
+
+    #[serde(rename = "validation")]
+    Validation,
+
+    #[serde(rename = "complete")]
+    Complete,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum JsonMessage {
     /// Progress update
     Progress {
-        phase: String,
+        phase: Phase,
         current: usize,
         total: usize,
         message: String,
     },
     /// File processing completed
     FileCompleted {
+        phase: Phase,
         input_path: String,
         output_paths: Vec<String>,
         processing_time_ms: u128,
     },
     /// File processing failed
-    FileFailed { input_path: String, error: String },
+    FileFailed {
+        input_path: String,
+        error: String,
+        phase: Phase,
+    },
     /// Fatal error
-    Error { phase: String, message: String },
+    Error { phase: Phase, message: String },
     /// Processing summary
     Summary {
         total_files: usize,
@@ -63,7 +92,7 @@ impl JsonMessage {
     /// Progress updates are throttled to emit at most every 40ms (25 FPS target).
     /// The final progress (current == total) is always emitted to ensure 100% completion.
     pub fn progress(
-        phase: impl Into<String>,
+        phase: impl Into<Phase>,
         current: usize,
         total: usize,
         message: impl Into<String>,
@@ -93,11 +122,13 @@ impl JsonMessage {
 
     /// Create and emit file completed message
     pub fn file_completed(
+        phase: impl Into<Phase>,
         input_path: &PathBuf,
         output_paths: &[PathBuf],
         processing_time_ms: u128,
     ) {
         Self::FileCompleted {
+            phase: phase.into(),
             input_path: input_path.display().to_string(),
             output_paths: output_paths
                 .iter()
@@ -109,8 +140,9 @@ impl JsonMessage {
     }
 
     /// Create and emit file failed message
-    pub fn file_failed(input_path: &PathBuf, error: impl Into<String>) {
+    pub fn file_failed(phase: impl Into<Phase>, input_path: &PathBuf, error: impl Into<String>) {
         Self::FileFailed {
+            phase: phase.into(),
             input_path: input_path.display().to_string(),
             error: error.into(),
         }
@@ -118,7 +150,7 @@ impl JsonMessage {
     }
 
     /// Create and emit fatal error message
-    pub fn error(phase: impl Into<String>, message: impl Into<String>) {
+    pub fn error(phase: impl Into<Phase>, message: impl Into<String>) {
         Self::Error {
             phase: phase.into(),
             message: message.into(),

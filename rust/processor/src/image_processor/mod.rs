@@ -20,7 +20,7 @@ pub use types::{ProcessingPlan, SingleImage};
 
 use crate::cli::Args;
 use crate::image_processor::face_detection::Face;
-use crate::json_output::JsonMessage;
+use crate::json_output::{JsonMessage, Phase};
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
 use crate::types::{ColorType, HexColor, Orientation, Size};
@@ -315,10 +315,14 @@ impl<'a> ImageProcessor<'a> {
                     if json_progress {
                         let current = json_counter.fetch_add(1, Ordering::Relaxed) + 1;
                         let message = format!("Processing {}", job.image.path.display());
-                        JsonMessage::progress("processing", current, total_jobs, message);
+                        JsonMessage::progress(Phase::Processing, current, total_jobs, message);
 
                         if let Err(err) = &result {
-                            JsonMessage::file_failed(&job.image.path, err.to_string());
+                            JsonMessage::file_failed(
+                                Phase::Processing,
+                                &job.image.path,
+                                err.to_string(),
+                            );
                         }
                     }
 

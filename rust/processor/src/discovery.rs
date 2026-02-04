@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::json_output::JsonMessage;
+use crate::json_output::{JsonMessage, Phase};
 use crate::logging::Logger;
 
 /// Scans input paths and returns all matching files.
@@ -57,7 +57,7 @@ impl<'a> Discovery<'a> {
 
             if json_progress {
                 let message = format!("Discovery {}", input.display());
-                JsonMessage::progress("discovery", idx + 1, total, message);
+                JsonMessage::progress(Phase::Discovery, idx + 1, total, message);
             }
         }
 

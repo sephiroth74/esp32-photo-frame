@@ -1,6 +1,6 @@
 use super::ProcessedImage;
 use crate::fs_utils::get_format_extension;
-use crate::json_output::JsonMessage;
+use crate::json_output::{JsonMessage, Phase};
 use crate::types::{ColorType, Orientation, OutputType};
 use anyhow::{Context, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
@@ -134,7 +134,7 @@ pub fn save_outputs(
                 if json_progress {
                     let current = json_counter.fetch_add(1, Ordering::Relaxed) + 1;
                     let message = format!("Saving {} ({})", img.source.display(), format.as_str());
-                    JsonMessage::progress("saving", current, total_jobs, message);
+                    JsonMessage::progress(Phase::Saving, current, total_jobs, message);
                 }
 
                 (idx, result)
@@ -166,10 +166,15 @@ pub fn save_outputs(
     if json_progress {
         for (idx, img) in processed.iter().enumerate() {
             if let Some(err) = error_by_index.get(&idx) {
-                JsonMessage::file_failed(&img.source, err.clone());
+                JsonMessage::file_failed(Phase::Saving, &img.source, err.clone());
             } else {
                 let outputs = output_paths_all.get(idx).cloned().unwrap_or_default();
-                JsonMessage::file_completed(&img.source, &outputs, img.processing_time_ms);
+                JsonMessage::file_completed(
+                    Phase::Saving,
+                    &img.source,
+                    &outputs,
+                    img.processing_time_ms,
+                );
             }
         }
     }

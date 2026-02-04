@@ -1069,17 +1069,6 @@ class _ProcessingDialog extends StatelessWidget {
 
   void _showReportDialog(BuildContext context, ProcessingProvider provider) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    final bool hasReport = provider.lastReport != null;
-
-    // Debug logging
-    debugPrint('=== REPORT DIALOG DEBUG ===');
-    debugPrint('Has report: $hasReport');
-    debugPrint('Summary data: ${provider.lastSummary}');
-    debugPrint('Report data keys: ${(provider.lastReport as Map?)?.keys.toList()}');
-    if (hasReport && provider.lastReport is Map) {
-      debugPrint('Processed images count: ${((provider.lastReport as Map)['processed_images'] as List?)?.length ?? 0}');
-      debugPrint('Paired images count: ${((provider.lastReport as Map)['paired_images'] as List?)?.length ?? 0}');
-    }
 
     factory.openDialog(
       context: context,
@@ -1118,7 +1107,7 @@ class _ProcessingDialog extends StatelessWidget {
               factory.progress(value: provider.progress),
               const SizedBox(height: 12),
               Text(
-                'Processing: ${provider.processedCount}/${provider.totalCount}',
+             'Processing: ${provider.processedCount}/${provider.totalCount}',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
