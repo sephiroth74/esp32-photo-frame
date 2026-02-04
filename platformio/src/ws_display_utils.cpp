@@ -26,6 +26,7 @@
 #include "ws_utils.h"
 #include <Arduino.h>
 #include <qrcode.h>
+#include FONT_HEADER
 
 namespace photo_frame {
 namespace ws_display_utils {
@@ -88,7 +89,7 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
 
     // Define box dimensions and position (bottom-left corner)
     const int16_t boxWidth  = 250;
-    const int16_t boxHeight = 180;
+    const int16_t boxHeight = 200;
     const int16_t boxX      = 10;
     const int16_t boxY      = canvas.height() - boxHeight - 10;
 
@@ -96,16 +97,20 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
     canvas.fillRect(boxX, boxY, boxWidth, boxHeight, DISPLAY_COLOR_WHITE);
     canvas.drawRect(boxX, boxY, boxWidth, boxHeight, DISPLAY_COLOR_BLACK);
 
-    // Draw SSID at the top
+    // Draw SSID at the top (centered)
+    canvas.setFont(&FONT_14pt8b);
     canvas.setTextColor(DISPLAY_COLOR_BLACK);
-    canvas.setTextSize(2);
-    canvas.setCursor(boxX + 10, boxY + 15);
+    int16_t ssidX, ssidY;
+    uint16_t ssidW, ssidH;
+    canvas.getTextBounds(ssid.c_str(), 0, 0, &ssidX, &ssidY, &ssidW, &ssidH);
+    int16_t ssidCenterX = boxX + (boxWidth - ssidW) / 2;
+    canvas.setCursor(ssidCenterX, boxY + 34);
     canvas.print(ssid.c_str());
 
     // Generate and draw QR code
     const int qrSize = 100;
     const int qrX    = boxX + (boxWidth - qrSize) / 2;
-    const int qrY    = boxY + 40;
+    const int qrY    = boxY + 56;
 
     // Create QR code
     QRCode qrcode;
@@ -126,9 +131,13 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
         }
     }
 
-    // Draw IP address at the bottom
-    canvas.setTextSize(1);
-    canvas.setCursor(boxX + 10, boxY + boxHeight - 20);
+    // Draw IP address at the bottom (centered and larger)
+    canvas.setFont(&FONT_10pt8b);
+    int16_t ipX, ipY;
+    uint16_t ipW, ipH;
+    canvas.getTextBounds(wsUrl.c_str(), 0, 0, &ipX, &ipY, &ipW, &ipH);
+    int16_t ipCenterX = boxX + (boxWidth - ipW) / 2;
+    canvas.setCursor(ipCenterX, boxY + boxHeight - 24);
     canvas.print(wsUrl.c_str());
 
     log_i("[WS-Display] Connection info box drawn successfully");

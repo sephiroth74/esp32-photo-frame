@@ -191,7 +191,7 @@ void main_webserver_setup() {
     }
 
     // Draw connection info box (QR code, SSID, IP)
-    std::string wsUrl = "ws://" + apManager.getIP();
+    std::string wsUrl = apManager.getIP();
     photo_frame::ws_display_utils::drawConnectionInfoBox(
         display, apManager.getSSID(), apManager.getIP(), wsUrl);
 
