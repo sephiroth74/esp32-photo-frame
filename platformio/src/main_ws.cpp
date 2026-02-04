@@ -203,6 +203,9 @@ void main_webserver_setup() {
     }
 
     log_i("[WS] Setup complete - waiting for WebSocket connections");
+
+    delay(10000); // Show image for 10 seconds before proceeding
+    shutdown(littleFs, display, 0);
 }
 
 void main_webserver_loop() {}
