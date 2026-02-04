@@ -186,7 +186,7 @@ class ProcessingProvider with ChangeNotifier {
             if (message is ProgressMessage) {
               _currentPhase = message.phaseName;
               _currentFile = message.message;
-               _processedCount = message.current;
+              _processedCount = message.current;
               _totalCount = message.total;
 
               if (message.phase == ProcessorMessagePhase.saving) {
@@ -205,7 +205,7 @@ class ProcessingProvider with ChangeNotifier {
               _totalCount = message.totalFiles;
               if (_totalCount > 0) {
                 _progress = _processedCount / _totalCount;
-              }              
+              }
               notifyListeners();
             }
           } catch (e) {
