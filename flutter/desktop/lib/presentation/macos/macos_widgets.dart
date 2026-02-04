@@ -128,7 +128,7 @@ class _MacOSTextFieldState extends State<MacOSTextField> {
           maxLines: widget.maxLines,
           placeholder: widget.placeholder,
           onChanged: widget.onChanged,
-          onSubmitted:(value) => widget.onSubmitted?.call(),
+          onSubmitted: (value) => widget.onSubmitted?.call(),
           enabled: widget.enabled,
         ),
         if (widget.errorText != null) ...[
@@ -177,12 +177,14 @@ class MacOSDialog extends PlatformDialog {
 
   @override
   Widget build(BuildContext context) {
-    final primary = actions.isNotEmpty ? _mapAction(actions.first) : _mapAction(PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(context).pop()));
+    final primary = actions.isNotEmpty
+        ? _mapAction(actions.first)
+        : _mapAction(PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(context).pop()));
     final secondary = actions.length > 1 ? _mapAction(actions[1]) : null;
 
     return AppKitDialog(
       title: Text(title),
-      message:(context) => content ?? (message != null ? Text(message!) : const SizedBox.shrink()),
+      message: (context) => content ?? (message != null ? Text(message!) : const SizedBox.shrink()),
       primaryButton: primary,
       secondaryButton: secondary,
     );
@@ -228,5 +230,56 @@ class MacOSCircularProgressIndicator extends PlatformCircularProgressIndicator {
         if (label != null) ...[const SizedBox(width: 8), Text(label!)],
       ],
     );
+  }
+}
+
+class MacOSPopupMenuItem<T> extends PlatformPopupMenuItem<T> {
+  const MacOSPopupMenuItem({required super.value, required super.label});
+}
+
+class MacOSPopupMenu<T> extends PlatformPopupMenu<T> {
+  const MacOSPopupMenu({required super.items, required super.onSelected, super.style, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = switch (this.style) {
+      PlatformPopupMenuStyle.plain => AppKitPopupButtonStyle.plain,
+      PlatformPopupMenuStyle.bevel => AppKitPopupButtonStyle.bevel,
+      PlatformPopupMenuStyle.push => AppKitPopupButtonStyle.push,
+      _ => AppKitPopupButtonStyle.bevel,
+    };
+
+    return AppKitPopupButton<T>(
+      style: style,
+      items: items.map((item) => AppKitContextMenuItem<T>(value: item.value, child: Text(item.label))).toList(),
+      onItemSelected: onSelected != null ? (value) => onSelected!(value) : null,
+    );
+  }
+}
+
+class MacOSSwitch extends PlatformSwitch {
+  const MacOSSwitch({required super.checked, required super.onChanged, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppKitSwitch(checked: checked, onChanged: onChanged);
+  }
+}
+
+class MacOSSlider extends PlatformSlider {
+  const MacOSSlider({required super.value, required super.min, required super.max, required super.onChanged, super.stops, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppKitSlider(value: value, min: min, max: max, stops: stops ?? [], onChanged: onChanged);
+  }
+}
+
+class MacOSCheckbox extends PlatformCheckbox {
+  const MacOSCheckbox({required super.value, required super.onChanged, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppKitCheckbox(value: value, onChanged: onChanged);
   }
 }

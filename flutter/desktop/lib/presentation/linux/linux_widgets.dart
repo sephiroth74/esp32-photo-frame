@@ -298,3 +298,48 @@ class LinuxCircularProgressIndicator extends PlatformCircularProgressIndicator {
     );
   }
 }
+
+class LinuxPopupMenuItem<T> extends PlatformPopupMenuItem<T> {
+  const LinuxPopupMenuItem({required super.value, required super.label});
+}
+
+class LinuxPopupMenu<T> extends PlatformPopupMenu<T> {
+  const LinuxPopupMenu({required super.items, super.label, super.selectedItem, super.onSelected, super.style, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownMenu<T>(
+      onSelected: onSelected,
+      label: label,
+      dropdownMenuEntries: items.map((item) => DropdownMenuEntry<T>(value: item.value, label: item.label)).toList(),
+      initialSelection: selectedItem,
+    );
+  }
+}
+
+class LinuxSwitch extends PlatformSwitch {
+  const LinuxSwitch({required super.checked, required super.onChanged, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Switch(value: checked, onChanged: onChanged);
+  }
+}
+
+class LinuxSlider extends PlatformSlider {
+  const LinuxSlider({required super.value, required super.min, required super.max, required super.onChanged, super.divisions, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Slider(value: value, min: min, max: max, divisions: divisions, onChanged: onChanged);
+  }
+}
+
+class LinuxCheckBox extends PlatformCheckbox {
+  const LinuxCheckBox({required super.value, required super.onChanged, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Checkbox.adaptive(value: value, onChanged: onChanged);
+  }
+}
