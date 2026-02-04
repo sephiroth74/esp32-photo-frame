@@ -217,7 +217,13 @@ class _ProcessorBinarySection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text('ℹ If not specified, the app will search in common locations', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text('If not specified, the app will search in common locations', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
             ],
           ),
         ),
@@ -306,11 +312,6 @@ class _DisplaySettingsSection extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'ℹ Dimensions are inferred: bw landscape 800x480, bw portrait 480x800; 6-color always 800x480 (pre-rotated when portrait-mounted). Images are pre-rotated to match the display.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
             ],
           ),
         ),
@@ -353,12 +354,10 @@ class _PeopleDetectionSection extends StatelessWidget {
                     onChanged: (value) => provider.updateConfig(config.copyWith(detectPeople: value)),
                   ),
                   const SizedBox(width: 8),
-                  const Text('Enable person detection for smart cropping'),
+                  const Text('Person detection'),
                 ],
               ),
               if (config.detectPeople) ...[
-                const SizedBox(height: 12),
-                Text('ℹ Uses ai model for accurate subject detection', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -1077,10 +1076,8 @@ class _ProcessingDialog extends StatelessWidget {
         return factory.dialog(
           constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 600),
           title: 'Processing Report',
-          content: (context) => SizedBox.expand(
-            child: ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
-          ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: (){})],
+          content: (context) => SingleChildScrollView(child: ReportSummaryWidget(summary: provider.lastSummary)),
+          actions: [PlatformDialogAction(label: 'Close', onPressed: () {})],
         );
       },
     );
@@ -1107,25 +1104,14 @@ class _ProcessingDialog extends StatelessWidget {
               factory.progress(value: provider.progress),
               const SizedBox(height: 12),
               Text(
-             'Processing: ${provider.processedCount}/${provider.totalCount}',
+                provider.isSaving ? 'Saving images...' : 'Processing: ${provider.processedCount}/${provider.totalCount}',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                provider.currentFile.isNotEmpty ? 'Current: ${provider.currentFile}' : 'Initializing...',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
               if (provider.errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(provider.errorMessage, style: const TextStyle(color: Colors.red, fontSize: 12)),
               ],
-              if (provider.resultsMessage.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(provider.resultsMessage, style: const TextStyle(color: Colors.green, fontSize: 12)),
-              ],
-              if (!provider.isProcessing && provider.resultsMessage.isNotEmpty) ...[
+              if (!provider.isProcessing && !provider.isSaving) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 12),
@@ -1150,9 +1136,11 @@ class _ProcessingDialog extends StatelessWidget {
                       const SizedBox(height: 12),
                       factory.button(
                         label: 'View Full Report',
-                        onPressed: () {
-                          _showReportDialog(context, provider);
-                        },
+                        onPressed: provider.lastSummary != null
+                            ? () {
+                                _showReportDialog(context, provider);
+                              }
+                            : null,
                         style: PlatformButtonStyle.primary,
                       ),
                     ],
@@ -1161,7 +1149,7 @@ class _ProcessingDialog extends StatelessWidget {
               ],
             ],
           ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? (){} : null)],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? () {} : null)],
         );
       },
     );

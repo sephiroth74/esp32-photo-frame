@@ -7,7 +7,6 @@ import 'package:path_provider/path_provider.dart';
 import '../models/config_profile.dart';
 import '../models/processing_config.dart';
 import '../models/processor_message.dart';
-import '../models/processor_report.dart';
 import '../services/config_profile_service.dart';
 
 class ProcessingProvider with ChangeNotifier {
@@ -18,15 +17,14 @@ class ProcessingProvider with ChangeNotifier {
   List<RecentFile> _recentFiles = [];
 
   bool _isProcessing = false;
+  bool _isSaving = false;
   double _progress = 0.0;
   int _processedCount = 0;
   int _totalCount = 0;
   String _currentFile = '';
-  String _resultsMessage = '';
   String _errorMessage = '';
-  ProcessorReport? _lastReport;
-  DateTime? _processingStartTime;
   String _currentPhase = 'Starting';
+  ProcessorSummary? _lastSummary;
 
   ProcessingConfig get config => _config;
   String? get currentProfilePath => _currentProfilePath;
@@ -34,14 +32,13 @@ class ProcessingProvider with ChangeNotifier {
   bool get hasUnsavedChanges => _hasUnsavedChanges;
   List<RecentFile> get recentFiles => _recentFiles;
   bool get isProcessing => _isProcessing;
-  double get progress => _progress;
-  int get processedCount => _processedCount;
-  int get totalCount => _totalCount;
+  bool get isSaving => _isSaving;
+  double? get progress => _isSaving ? null : _progress;
+  int get processedCount => lastSummary?.processed ?? _processedCount;
+  int get totalCount => lastSummary?.totalOutputImages ?? _totalCount;
   String get currentFile => _currentFile;
-  String get resultsMessage => _resultsMessage;
   String get errorMessage => _errorMessage;
-  ProcessorSummary? get lastSummary => _lastReport?.summary;
-  ProcessorReport? get lastReport => _lastReport;
+  ProcessorSummary? get lastSummary => _lastSummary;
   String get currentPhase => _currentPhase;
 
   ProcessingProvider() {
@@ -153,10 +150,7 @@ class ProcessingProvider with ChangeNotifier {
     _processedCount = 0;
     _totalCount = 0;
     _errorMessage = '';
-    _resultsMessage = '';
     _currentFile = '';
-    _lastReport = null;
-    _processingStartTime = DateTime.now();
     notifyListeners();
 
     try {
@@ -190,91 +184,27 @@ class ProcessingProvider with ChangeNotifier {
             debugPrint('✓ Parsed processor message: ${message.type}');
 
             if (message is ProgressMessage) {
-              debugPrint('Progress: ${message.phaseName} (${message.current}/${message.total})');
               _currentPhase = message.phaseName;
-              _processedCount = message.current;
-              _totalCount = message.total;
               _currentFile = message.message;
+
+              if (message.phase == ProcessorMessagePhase.saving) {
+                _isSaving = true;
+              } else {
+                _isSaving = false;
+                _processedCount = message.current;
+                _totalCount = message.total;
+              }
+
               if (_totalCount > 0) {
                 _progress = _processedCount / _totalCount;
               }
               notifyListeners();
-            } else if (message is FileCompletedMessage) {
-              debugPrint('File completed: ${message.inputPath} in ${message.processingTimeMs}ms');
+            } else if (message is ProcessorCompleteMessage) {
+              _lastSummary = message.summary;
+              notifyListeners();
             }
           } catch (e) {
             debugPrint('Failed to parse as ProcessorMessage: $e');
-
-            // Fallback to legacy parsing
-            final type = json['type'];
-            debugPrint('Trying legacy parsing with type: $type');
-
-            if (type == 'progress') {
-              _processedCount = json['current'] ?? 0;
-              _totalCount = json['total'] ?? 0;
-              _currentFile = json['message'] ?? '';
-              if (_totalCount > 0) {
-                _progress = _processedCount / _totalCount;
-              }
-              notifyListeners();
-            } else if (type == 'complete') {
-              // New complete message format with report data
-              debugPrint('=== COMPLETE MESSAGE RECEIVED ===');
-              debugPrint('JSON: $json');
-
-              final processed = json['processed'] ?? 0;
-              final failed = json['failed'] ?? 0;
-              final totalFiles = json['total_files'] ?? 0;
-
-              // Note: Using legacy format, not storing as typed report
-              debugPrint('Summary extracted from legacy format');
-
-              if (failed == 0) {
-                _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
-              } else {
-                _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
-              }
-            } else if (type == 'summary') {
-              // Legacy summary format (backwards compatibility)
-              debugPrint('=== LEGACY SUMMARY MESSAGE RECEIVED ===');
-              debugPrint('JSON: $json');
-
-              final processed = json['processed'] ?? 0;
-              final failed = json['failed'] ?? 0;
-              final totalFiles = json['total_files'] ?? 0;
-
-              debugPrint('Created basic summary from legacy format');
-
-              if (failed == 0) {
-                _resultsMessage = '✓ Successfully processed $processed/$totalFiles images';
-              } else {
-                _resultsMessage = 'Processed $totalFiles images ($processed succeeded, $failed failed)';
-              }
-            } else if (type == null) {
-              // Handle raw JSON report (no "type" field) - sent by processor as final report
-              debugPrint('=== RAW REPORT JSON RECEIVED ===');
-              debugPrint('Full report JSON: ${jsonEncode(json)}');
-
-              // Check if this looks like a report (has config, summary, processed_images fields)
-              if (json['config'] != null && json['summary'] != null) {
-                debugPrint('✓ Detected report JSON with config and summary');
-
-                try {
-                  // Deserialize the report using the ProcessorReport class
-                  _lastReport = ProcessorReport.fromJson(json);
-                  debugPrint('✓ Report deserialized successfully');
-
-                  debugPrint('📊 Summary: ${_lastReport!.summary}');
-                  debugPrint('🖼️ Processed images count: ${_lastReport!.processed_images.length}');
-                  debugPrint('📸 Paired images count: ${_lastReport!.paired_images.length}');
-                  notifyListeners();
-                } catch (e) {
-                  debugPrint('✗ Failed to deserialize report: $e');
-                }
-              } else {
-                debugPrint('✗ JSON does not contain required report fields (config/summary)');
-              }
-            }
           }
         } catch (e) {
           debugPrint('Failed to parse JSON: $line');
@@ -290,25 +220,6 @@ class ProcessingProvider with ChangeNotifier {
       final exitCode = await process.exitCode;
       debugPrint('Process exit code: $exitCode');
 
-      // If we don't have a summary yet, create a basic one
-      if (_lastReport == null && _processedCount > 0) {
-        debugPrint('Creating fallback summary');
-        _lastReport = ProcessorReport(
-          config: ProcessorConfig(output_dir: _config.outputPath),
-          processed_images: [],
-          paired_images: [],
-          summary: ProcessorSummary(
-            total_files_discovered: _totalCount,
-            images_processed: _processedCount,
-            failed_images: 0,
-            image_pairs_created: 0,
-            unpaired_images: 0,
-            invalid_files: 0,
-            total_output_images: 0,
-          ),
-        );
-      }
-
       if (exitCode != 0) {
         _errorMessage = 'Processing failed with exit code $exitCode';
       }
@@ -316,29 +227,9 @@ class ProcessingProvider with ChangeNotifier {
       _errorMessage = 'Processing failed: $e';
       debugPrint('Processing error: $e');
     } finally {
-      // Ensure we always have some summary when processing completes
-      if (_lastReport == null) {
-        debugPrint('=== NO SUMMARY RECEIVED - CREATING FALLBACK ===');
-        _lastReport = ProcessorReport(
-          config: ProcessorConfig(output_dir: _config.outputPath),
-          processed_images: [],
-          paired_images: [],
-          summary: ProcessorSummary(
-            total_files_discovered: _totalCount > 0 ? _totalCount : 1,
-            images_processed: _processedCount > 0 ? _processedCount : 1,
-            failed_images: 0,
-            image_pairs_created: 0,
-            unpaired_images: 0,
-            invalid_files: 0,
-            total_output_images: 0,
-          ),
-        );
-      }
-
       debugPrint('=== PROCESSING COMPLETE ===');
-      debugPrint('Final report summary: ${_lastReport!.summary}');
-
       _isProcessing = false;
+      _isSaving = false;
       notifyListeners();
     }
   }

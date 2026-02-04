@@ -132,7 +132,7 @@ pub fn save_outputs(
                 }
 
                 if json_progress {
-                    let current = json_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    let current = json_counter.fetch_add(1, Ordering::Relaxed);
                     let message = format!("Saving {} ({})", img.source.display(), format.as_str());
                     JsonMessage::progress(Phase::Saving, current, total_jobs, message);
                 }

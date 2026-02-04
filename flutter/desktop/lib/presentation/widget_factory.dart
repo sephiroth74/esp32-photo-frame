@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:flutter/material.dart';
 import '../platform/platform_detector.dart';
@@ -130,7 +128,7 @@ class MacOSWidgetFactory extends WidgetFactory {
     ValueChanged<T?>? onSelected,
     PlatformPopupMenuStyle? style,
   }) {
-    return MacOSPopupMenu(items: items, onSelected: onSelected);
+    return MacOSPopupMenu(items: items, onSelected: onSelected, selectedItem: selectedItem);
   }
 
   @override

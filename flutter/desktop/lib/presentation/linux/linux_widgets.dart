@@ -240,10 +240,12 @@ class LinuxDialog extends PlatformDialog {
         ...actions.map((action) {
           final isDefault = action.style == PlatformDialogActionStyle.primary;
           return ElevatedButton(
-            onPressed: action.onPressed != null ? () {
-              action.onPressed?.call();
-              Navigator.of(context).pop();
-            } : null,
+            onPressed: action.onPressed != null
+                ? () {
+                    action.onPressed?.call();
+                    Navigator.of(context).pop();
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: isDefault ? Colors.blue : Colors.grey[300],
               foregroundColor: isDefault ? Colors.white : Colors.black87,

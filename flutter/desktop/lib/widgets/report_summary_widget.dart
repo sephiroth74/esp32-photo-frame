@@ -1,26 +1,18 @@
 import 'package:appkit_ui_elements/appkit_ui_elements.dart';
-import 'package:photoframe_flutter/core/models/processor_report.dart';
+import 'package:photoframe_flutter/core/models/processor_message.dart';
 
 class ReportSummaryWidget extends StatelessWidget {
   final ProcessorSummary? summary;
-  final ProcessorReport? report;
 
-  const ReportSummaryWidget({super.key, this.summary, this.report});
+  const ReportSummaryWidget({super.key, this.summary});
 
   @override
   Widget build(BuildContext context) {
     // Debug logging
     debugPrint('=== REPORT SUMMARY WIDGET DEBUG ===');
     debugPrint('Summary: $summary');
-    if (report != null) {
-      debugPrint('Report summary: ${report!.summary}');
-      debugPrint('Processed images count: ${report!.processed_images.length}');
-      if (report!.processed_images.isNotEmpty) {
-        debugPrint('First image: ${report!.processed_images.first}');
-      }
-    }
 
-    if (summary == null && report == null) {
+    if (summary == null) {
       return const SizedBox.shrink();
     }
 
@@ -38,20 +30,18 @@ class ReportSummaryWidget extends StatelessWidget {
   }
 
   Widget _buildSummaryFromReport() {
-    final s = report?.summary ?? summary;
+    final s = summary;
     if (s == null) {
       return const Text('No summary data available');
     }
 
     return Column(
       children: [
-        _buildSummaryRow('Total files discovered', (s.total_files_discovered ?? 0).toString()),
-        _buildSummaryRow('Invalid files', (s.invalid_files ?? 0).toString()),
-        _buildSummaryRow('Unpaired images', (s.unpaired_images ?? 0).toString()),
-        _buildSummaryRow('Images processed', (s.images_processed ?? 0).toString()),
-        _buildSummaryRow('Image pairs created', (s.image_pairs_created ?? 0).toString()),
-        _buildSummaryRow('Total output images', (s.total_output_images ?? 0).toString()),
-        _buildSummaryRow('Failed images', (s.failed_images ?? 0).toString()),
+        _buildSummaryRow('Total files discovered', (s.totalFiles).toString()),
+        _buildSummaryRow('Processed', (s.processed).toString()),
+        _buildSummaryRow('Paired', (s.paired).toString()),
+        _buildSummaryRow('Failed', (s.failed).toString()),
+        _buildSummaryRow('Total output images', (s.totalOutputImages).toString()),
       ],
     );
   }

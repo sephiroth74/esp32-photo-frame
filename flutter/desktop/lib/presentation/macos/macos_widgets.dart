@@ -171,17 +171,22 @@ class MacOSDialog extends PlatformDialog {
     super.key,
   });
 
-  AppKitButton _mapAction(PlatformDialogAction action) {
+  AppKitButton _mapAction(BuildContext context, PlatformDialogAction action) {
     final type = action.style == PlatformDialogActionStyle.primary ? AppKitButtonType.primary : AppKitButtonType.secondary;
-    return AppKitButton(size: AppKitControlSize.regular, type: type, onTap: action.onPressed, child: Text(action.label));
+    return AppKitButton(
+      size: AppKitControlSize.regular,
+      type: type,
+      onTap: action.onPressed != null ? () => {Navigator.of(context).pop(), action.onPressed!()} : null,
+      child: Text(action.label),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final primary = actions.isNotEmpty
-        ? _mapAction(actions.first)
-        : _mapAction(PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(context).pop()));
-    final secondary = actions.length > 1 ? _mapAction(actions[1]) : null;
+        ? _mapAction(context, actions.first)
+        : _mapAction(context, PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(context).pop()));
+    final secondary = actions.length > 1 ? _mapAction(context, actions[1]) : null;
 
     return AppKitDialog(
       constraints: const BoxConstraints(minWidth: 450, maxWidth: 450),
@@ -233,7 +238,7 @@ class MacOSPopupMenuItem<T> extends PlatformPopupMenuItem<T> {
 }
 
 class MacOSPopupMenu<T> extends PlatformPopupMenu<T> {
-  const MacOSPopupMenu({required super.items, required super.onSelected, super.style, super.key});
+  const MacOSPopupMenu({required super.items, required super.selectedItem, required super.onSelected, super.style, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +250,7 @@ class MacOSPopupMenu<T> extends PlatformPopupMenu<T> {
     };
 
     return AppKitPopupButton<T>(
+      selectedItem: selectedItem,
       style: style,
       items: items.map((item) => AppKitContextMenuItem<T>(value: item.value, child: Text(item.label))).toList(),
       onItemSelected: onSelected != null ? (value) => onSelected!(value) : null,

@@ -34,9 +34,6 @@ pub enum Phase {
 
     #[serde(rename = "complete")]
     Complete,
-
-    #[serde(rename = "summary")]
-    Summary,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,15 +61,7 @@ pub enum JsonMessage {
     },
     /// Fatal error
     Error { phase: Phase, message: String },
-    /// Processing summary
-    Summary {
-        phase: Phase,
-        total_files: usize,
-        processed: usize,
-        failed: usize,
-        duration_secs: f64,
-    },
-    /// Complete processing summary with report data
+
     Complete {
         phase: Phase,
         total_files: usize,
@@ -159,19 +148,6 @@ impl JsonMessage {
         Self::Error {
             phase: phase.into(),
             message: message.into(),
-        }
-        .emit();
-    }
-
-    /// Create and emit summary message
-    #[allow(dead_code)]
-    pub fn summary(total_files: usize, processed: usize, failed: usize, duration_secs: f64) {
-        Self::Summary {
-            phase: Phase::Summary,
-            total_files,
-            processed,
-            failed,
-            duration_secs,
         }
         .emit();
     }
