@@ -1075,12 +1075,12 @@ class _ProcessingDialog extends StatelessWidget {
       barrierDismissible: true,
       builder: (context) {
         return factory.dialog(
-          constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
+          constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 600),
           title: 'Processing Report',
           content: (context) => SizedBox.expand(
             child: ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
           ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: Navigator.of(context).pop)],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: (){})],
         );
       },
     );
@@ -1092,7 +1092,7 @@ class _ProcessingDialog extends StatelessWidget {
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {
         return factory.dialog(
-          constraints: BoxConstraints(minWidth: 500, maxWidth: 500, minHeight: 400, maxHeight: 400),
+          constraints: BoxConstraints(minWidth: 500, maxWidth: 500, minHeight: 300, maxHeight: 600),
           title: 'Processing Images',
           content: (context) => Column(
             mainAxisSize: MainAxisSize.min,
@@ -1161,7 +1161,7 @@ class _ProcessingDialog extends StatelessWidget {
               ],
             ],
           ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? Navigator.of(context).pop : null)],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? (){} : null)],
         );
       },
     );
