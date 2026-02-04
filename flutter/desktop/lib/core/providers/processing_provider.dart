@@ -33,7 +33,7 @@ class ProcessingProvider with ChangeNotifier {
   List<RecentFile> get recentFiles => _recentFiles;
   bool get isProcessing => _isProcessing;
   bool get isSaving => _isSaving;
-  double? get progress => _isSaving ? null : _progress;
+  double? get progress => _progress;
   int get processedCount => lastSummary?.processed ?? _processedCount;
   int get totalCount => lastSummary?.totalOutputImages ?? _totalCount;
   String get currentFile => _currentFile;
@@ -186,13 +186,13 @@ class ProcessingProvider with ChangeNotifier {
             if (message is ProgressMessage) {
               _currentPhase = message.phaseName;
               _currentFile = message.message;
+               _processedCount = message.current;
+              _totalCount = message.total;
 
               if (message.phase == ProcessorMessagePhase.saving) {
                 _isSaving = true;
               } else {
                 _isSaving = false;
-                _processedCount = message.current;
-                _totalCount = message.total;
               }
 
               if (_totalCount > 0) {
@@ -201,6 +201,11 @@ class ProcessingProvider with ChangeNotifier {
               notifyListeners();
             } else if (message is ProcessorCompleteMessage) {
               _lastSummary = message.summary;
+              _processedCount = message.processed;
+              _totalCount = message.totalFiles;
+              if (_totalCount > 0) {
+                _progress = _processedCount / _totalCount;
+              }              
               notifyListeners();
             }
           } catch (e) {
