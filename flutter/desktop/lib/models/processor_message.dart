@@ -16,6 +16,8 @@ abstract class ProcessorMessage {
         return ProgressMessage.fromJson(json);
       case 'filecompleted':
         return FileCompletedMessage.fromJson(json);
+      case 'filefailed':
+        return FileFailedMessage.fromJson(json);
       default:
         throw UnimplementedError('Unknown message type: $type');
     }
@@ -73,4 +75,17 @@ class FileCompletedMessage extends ProcessorMessage {
 
   factory FileCompletedMessage.fromJson(Map<String, dynamic> json) => _$FileCompletedMessageFromJson(json);
   Map<String, dynamic> toJson() => _$FileCompletedMessageToJson(this);
+}
+
+@JsonSerializable()
+class FileFailedMessage extends ProcessorMessage {
+  @JsonKey(name: 'input_path')
+  final String inputPath;
+  
+  @JsonKey(name: 'error')
+  final String error;
+
+  FileFailedMessage({required this.inputPath, required this.error}) : super(type: 'filefailed');
+
+  factory FileFailedMessage.fromJson(Map<String, dynamic> json) => _$FileFailedMessageFromJson(json);
 }
