@@ -224,6 +224,7 @@ impl<'a> ImageProcessor<'a> {
             return Ok(ProcessingResult {
                 processed: Vec::new(),
                 failed: Vec::new(),
+                output_failed: 0,
                 processed_details: Vec::new(),
                 paired_details: Vec::new(),
             });
@@ -370,7 +371,7 @@ impl<'a> ImageProcessor<'a> {
         )?;
 
         // Save outputs in requested formats
-        let output_paths = save_outputs(
+        let save_result = save_outputs(
             &combined,
             &self.args.output,
             &self.args.output_formats,
@@ -381,6 +382,7 @@ impl<'a> ImageProcessor<'a> {
             self.args.jobs,
             self.logger,
         )?;
+        let output_paths = save_result.output_paths;
 
         // Build report details for single and paired images
         let processed_details = combined
@@ -462,6 +464,7 @@ impl<'a> ImageProcessor<'a> {
         Ok(ProcessingResult {
             processed: combined,
             failed,
+            output_failed: save_result.failed_indices.len(),
             processed_details,
             paired_details,
         })
@@ -577,6 +580,7 @@ struct ProcessingJob {
 pub struct ProcessingResult {
     pub processed: Vec<ProcessedImage>,
     pub failed: Vec<PathBuf>,
+    pub output_failed: usize,
     pub processed_details: Vec<crate::report::ProcessingDetail>,
     pub paired_details: Vec<crate::report::PairedImageDetail>,
 }
@@ -683,7 +687,7 @@ fn process_job(
         .suffix(".png")
         .tempfile_in(&temp_dir)
         .context("Failed to create temporary file")?;
-    
+
     logger.verbose(&format!("temp file: {:?}", temp_file.path()));
 
     // Detect faces if enabled

@@ -14,6 +14,12 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[derive(Debug)]
+pub struct SaveOutputsResult {
+    pub output_paths: Vec<Option<PathBuf>>,
+    pub failed_indices: Vec<usize>,
+}
+
 /// Save processed images to output directory in requested formats
 pub fn save_outputs(
     processed: &[ProcessedImage],
@@ -25,9 +31,12 @@ pub fn save_outputs(
     json_progress: bool,
     jobs: usize,
     logger: &crate::logging::Logger,
-) -> Result<Vec<Option<PathBuf>>> {
+) -> Result<SaveOutputsResult> {
     if processed.is_empty() {
-        return Ok(Vec::new());
+        return Ok(SaveOutputsResult {
+            output_paths: Vec::new(),
+            failed_indices: Vec::new(),
+        });
     }
 
     let primary_format = output_formats.first().copied();
@@ -165,7 +174,13 @@ pub fn save_outputs(
         }
     }
 
-    Ok(output_paths)
+    let mut failed_indices = error_by_index.keys().copied().collect::<Vec<_>>();
+    failed_indices.sort_unstable();
+
+    Ok(SaveOutputsResult {
+        output_paths,
+        failed_indices,
+    })
 }
 
 /// Save a single image in a specific format

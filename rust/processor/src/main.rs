@@ -160,7 +160,7 @@ fn main() {
     let paired_count = plan.paired_images.len();
     report.set_processing_results(
         processing.processed.len(),
-        processing.failed.len(),
+        processing.failed.len() + processing.output_failed,
         paired_count,
     );
     report.set_processing_details(processing.processed_details, processing.paired_details);
