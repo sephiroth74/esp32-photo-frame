@@ -258,10 +258,10 @@ class _DisplaySettingsSection extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Text('Display Type:'),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
 
                         factory.popupMenu<DisplayType>(
                           label: Text(config.displayType.name),
@@ -282,10 +282,10 @@ class _DisplaySettingsSection extends StatelessWidget {
                   const SizedBox(width: 20),
                   Expanded(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Text('Target Orientation:'),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
                         factory.popupMenu<TargetOrientation>(
                           label: Text(config.orientation.name),
                           style: PlatformPopupMenuStyle.plain,
@@ -733,9 +733,11 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                     const Text('Font:'),
                     const SizedBox(width: 8),
                     Expanded(
+                      flex: 0,
                       child: _fontsLoaded
                           ? factory.popupMenu<String>(
                               style: PlatformPopupMenuStyle.bevel,
+                              label: _systemFonts.contains(config.font) ? Text(config.font) : null,
                               selectedItem: _systemFonts.contains(config.font) ? config.font : null,
                               onSelected: (value) {
                                 if (value != null) {
