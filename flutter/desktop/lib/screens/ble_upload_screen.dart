@@ -29,6 +29,7 @@ class BleUploadScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     return Consumer<BleUploadState>(
       builder: (context, ble, _) {
         final fileLabel = ble.binPath != null ? ble.binPath!.split('/').last : 'No file selected';
@@ -159,18 +160,18 @@ class BleUploadScreen extends StatelessWidget {
                           Row(
                             children: [
                               const SizedBox(width: 100, child: Text('Rotation:')),
-                              AppKitPopupButton<int>(
+                              factory.popupMenu<int>(
                                 selectedItem: ble.rotation,
-                                onItemSelected: (value) {
+                                onSelected: (value) {
                                   if (value != null) {
                                     ble.setRotation(value);
                                   }
                                 },
-                                items: const [
-                                  AppKitContextMenuItem(value: 0, child: Text('0° Landscape')),
-                                  AppKitContextMenuItem(value: 1, child: Text('90° Portrait')),
-                                  AppKitContextMenuItem(value: 2, child: Text('180° Landscape')),
-                                  AppKitContextMenuItem(value: 3, child: Text('270° Portrait')),
+                                items: [
+                                  factory.popupMenuItem<int>(value: 0, label: '0° Landscape'),
+                                  factory.popupMenuItem<int>(value: 1, label: '90° Portrait'),
+                                  factory.popupMenuItem<int>(value: 2, label: '180° Landscape'),
+                                  factory.popupMenuItem<int>(value: 3, label: '270° Portrait'),
                                 ],
                               ),
                               const SizedBox(width: 12),
@@ -243,7 +244,7 @@ class BleUploadScreen extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.max,
                           children: [
-                            Expanded(child: AppKitProgressBar(value: ble.progress)),
+                            Expanded(child: factory.progress(value: ble.progress)),
                             const SizedBox(width: 8),
                             Text('${(ble.progress * 100).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12)),
                           ],
@@ -354,7 +355,7 @@ class _DeviceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppKitTheme.of(context);
+    final factory = context.read<WidgetFactoryProvider>().factory;
     if (ble.devices.isEmpty) {
       return _buildGroupBox(
         context,
@@ -362,7 +363,7 @@ class _DeviceList extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              if (ble.scanning) ...[const AppKitProgressCircle(size: 16), const SizedBox(width: 8, height: 16)],
+              if (ble.scanning) ...[factory.circularProgress(size: 16), const SizedBox(width: 8, height: 16)],
               const SizedBox(width: 0, height: 16),
               const Text('No devices found yet. Tap Scan to refresh.', style: TextStyle(fontSize: 12)),
             ],
@@ -380,20 +381,13 @@ class _DeviceList extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: isConnected ? AppKitColors.systemGreen.resolveWithContext(context).withAlpha(10) : null,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isConnected ? AppKitColors.appleGreen.withAlpha(80) : AppKitColors.windowFrameColor),
+            border: Border.all(color: Colors.grey),
           ),
           child: Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: theme.typography.body.copyWith(fontWeight: FontWeight.w600)),
-                    Text(result.device.remoteId.str, style: theme.typography.caption1),
-                  ],
-                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name), Text(result.device.remoteId.str)]),
               ),
               Text('RSSI ${result.rssi}', style: const TextStyle(fontSize: 12)),
               const SizedBox(width: 8),
@@ -549,26 +543,10 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppKitTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.controlBackgroundColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppKitColors.windowFrameColor),
-        boxShadow: [BoxShadow(color: AppKitColors.shadowColor.withAlpha(8), blurRadius: 4, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: theme.typography.callout.copyWith(color: theme.typography.callout.color?.withAlpha(127), fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(width: 6),
-          Text(value, style: theme.typography.callout.copyWith(fontWeight: FontWeight.w600)),
-        ],
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [Text(label), const SizedBox(width: 6), Text(value)]),
     );
   }
 }

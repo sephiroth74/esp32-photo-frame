@@ -276,7 +276,7 @@ class LinuxProgressIndicator extends PlatformProgressIndicator {
 }
 
 class LinuxCircularProgressIndicator extends PlatformCircularProgressIndicator {
-  const LinuxCircularProgressIndicator({super.value, super.label, super.key});
+  const LinuxCircularProgressIndicator({super.value, super.size, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -284,16 +284,10 @@ class LinuxCircularProgressIndicator extends PlatformCircularProgressIndicator {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 48,
-          height: 48,
-          child: CircularProgressIndicator(
-            value: value,
-            strokeWidth: 4,
-            backgroundColor: Colors.grey[300],
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-          ),
+          width: size ?? 16,
+          height: size ?? 16,
+          child: CircularProgressIndicator(value: value),
         ),
-        if (label != null) ...[const SizedBox(height: 12), Text(label!, style: const TextStyle(fontSize: 12))],
       ],
     );
   }

@@ -278,25 +278,14 @@ abstract class PlatformProgressIndicator extends StatelessWidget {
   final bool visible;
 
   const PlatformProgressIndicator({this.value, this.label, this.visible = true, super.key});
-
-  /// Factory constructor to create platform-specific implementation
-  factory PlatformProgressIndicator.create({double? value, String? label, bool visible = true}) {
-    throw UnimplementedError('Use platform-specific factory');
-  }
 }
 
 /// Platform-agnostic circular progress indicator
 abstract class PlatformCircularProgressIndicator extends StatelessWidget {
   final double? value; // null = indeterminate (0.0-1.0 for determinate)
-  final String? label;
-  final bool visible;
+  final double? size;
 
-  const PlatformCircularProgressIndicator({this.value, this.label, this.visible = true, super.key});
-
-  /// Factory constructor to create platform-specific implementation
-  factory PlatformCircularProgressIndicator.create({double? value, String? label, bool visible = true}) {
-    throw UnimplementedError('Use platform-specific factory');
-  }
+  const PlatformCircularProgressIndicator({this.value, this.size, super.key});
 }
 
 /// Platform-agnostic file picker

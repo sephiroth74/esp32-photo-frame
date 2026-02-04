@@ -72,7 +72,7 @@ abstract class WidgetFactory {
 
   PlatformProgressIndicator progress({double? value, String? label, bool visible = true});
 
-  PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true});
+  PlatformCircularProgressIndicator circularProgress({double? value, double? size});
 
   PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label});
 
@@ -216,8 +216,8 @@ class MacOSWidgetFactory extends WidgetFactory {
   }
 
   @override
-  PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true}) {
-    return MacOSCircularProgressIndicator(value: value, label: label, visible: visible);
+  PlatformCircularProgressIndicator circularProgress({double? value, double? size}) {
+    return MacOSCircularProgressIndicator(value: value, size: size);
   }
 
   @override
@@ -354,8 +354,8 @@ class LinuxWidgetFactory extends WidgetFactory {
   }
 
   @override
-  PlatformCircularProgressIndicator circularProgress({double? value, String? label, bool visible = true}) {
-    return LinuxCircularProgressIndicator(value: value, label: label);
+  PlatformCircularProgressIndicator circularProgress({double? value, double? size}) {
+    return LinuxCircularProgressIndicator(value: value, size: size);
   }
 
   @override

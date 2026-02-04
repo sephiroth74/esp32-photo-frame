@@ -218,18 +218,11 @@ class MacOSProgressIndicator extends PlatformProgressIndicator {
 }
 
 class MacOSCircularProgressIndicator extends PlatformCircularProgressIndicator {
-  const MacOSCircularProgressIndicator({super.value, super.label, super.visible = true, super.key});
+  const MacOSCircularProgressIndicator({super.value, super.size, super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (!visible) return const SizedBox.shrink();
-
-    return Row(
-      children: [
-        AppKitProgressCircle(value: value, size: 16),
-        if (label != null) ...[const SizedBox(width: 8), Text(label!)],
-      ],
-    );
+    return AppKitProgressCircle(value: value, size: size);
   }
 }
 

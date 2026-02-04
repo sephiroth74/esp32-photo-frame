@@ -421,7 +421,7 @@ class _DitheringSettingsSection extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.autoColorCorrect,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(autoColorCorrect: value));
@@ -430,7 +430,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Text('Auto-color correction'),
                   const SizedBox(height: 8, width: 16),
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.autoOptimize,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(autoOptimize: value));
@@ -450,6 +450,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                       const Text('Method:'),
                       const SizedBox(height: 4, width: 8),
                       factory.popupMenu<DitherMethod>(
+                        label: Text(config.ditherMethod.name),
                         style: PlatformPopupMenuStyle.bevel,
                         selectedItem: config.ditherMethod,
                         onSelected: (value) {
@@ -743,7 +744,7 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                               },
                               items: _systemFonts.map((font) => factory.popupMenuItem<String>(value: font, label: font)).toList(),
                             )
-                          : const AppKitProgressCircle(value: null),
+                          : factory.circularProgress(value: null),
                     ),
                     const SizedBox(width: 12),
                     const Text('Size:'),
@@ -809,6 +810,7 @@ class _DividerSettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final provider = context.watch<ProcessingProvider>();
     final config = provider.config;
 
@@ -827,7 +829,7 @@ class _DividerSettingsSection extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  AppKitSwitch(
+                  factory.switchWidget(
                     checked: config.noPairing,
                     onChanged: (value) {
                       provider.updateConfig(config.copyWith(noPairing: value));
