@@ -205,9 +205,10 @@ class PlatformDialogAction {
 abstract class PlatformDialog extends StatelessWidget {
   final String title;
   final String? message;
-  final Widget? content;
+  final Widget Function(BuildContext)? content;
   final List<PlatformDialogAction> actions;
   final bool barrierDismissible;
+  final BoxConstraints? constraints;
   final VoidCallback? onDismissed;
 
   const PlatformDialog({
@@ -217,6 +218,7 @@ abstract class PlatformDialog extends StatelessWidget {
     this.actions = const [],
     this.barrierDismissible = true,
     this.onDismissed,
+    this.constraints,
     super.key,
   });
 
@@ -227,6 +229,7 @@ abstract class PlatformDialog extends StatelessWidget {
     Widget? content,
     List<PlatformDialogAction> actions = const [],
     bool barrierDismissible = true,
+    BoxConstraints? constraints,
     VoidCallback? onDismissed,
   }) {
     throw UnimplementedError('Use platform-specific factory');

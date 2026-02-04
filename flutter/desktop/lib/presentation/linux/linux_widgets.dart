@@ -225,6 +225,7 @@ class LinuxDialog extends PlatformDialog {
     super.content,
     super.actions = const [],
     super.barrierDismissible = true,
+    super.constraints,
     super.onDismissed,
     super.key,
   });
@@ -232,8 +233,9 @@ class LinuxDialog extends PlatformDialog {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      constraints: constraints,
       title: Text(title),
-      content: content ?? (message != null ? Text(message!) : null),
+      content: content?.call(context),
       actions: [
         ...actions.map((action) {
           final isDefault = action.style == PlatformDialogActionStyle.primary;

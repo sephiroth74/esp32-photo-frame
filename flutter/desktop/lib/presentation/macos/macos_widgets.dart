@@ -167,6 +167,7 @@ class MacOSDialog extends PlatformDialog {
     super.actions = const [],
     super.barrierDismissible = true,
     super.onDismissed,
+    super.constraints,
     super.key,
   });
 
@@ -183,8 +184,9 @@ class MacOSDialog extends PlatformDialog {
     final secondary = actions.length > 1 ? _mapAction(actions[1]) : null;
 
     return AppKitDialog(
+      constraints: const BoxConstraints(minWidth: 450, maxWidth: 450),
       title: Text(title),
-      message: (context) => content ?? (message != null ? Text(message!) : const SizedBox.shrink()),
+      message: content!,
       primaryButton: primary,
       secondaryButton: secondary,
     );

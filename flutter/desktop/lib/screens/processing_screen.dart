@@ -1,4 +1,3 @@
-import 'package:appkit_ui_elements/appkit_ui_elements.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -1000,16 +999,19 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
   bool _dialogShown = false;
 
   void _showProgressDialog(BuildContext context, ProcessingProvider provider) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     if (_dialogShown) return;
     _dialogShown = true;
 
-    showAppKitDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _ProcessingDialog(provider: provider),
-    ).then((_) {
-      _dialogShown = false;
-    });
+    factory
+        .openDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _ProcessingDialog(provider: provider),
+        )
+        .then((_) {
+          _dialogShown = false;
+        });
   }
 
   Widget _buildButton(BuildContext context, {required String label, required VoidCallback? onPressed}) {
@@ -1066,6 +1068,7 @@ class _ProcessingDialog extends StatelessWidget {
   }
 
   void _showReportDialog(BuildContext context, ProcessingProvider provider) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     final bool hasReport = provider.lastReport != null;
 
     // Debug logging
@@ -1078,24 +1081,17 @@ class _ProcessingDialog extends StatelessWidget {
       debugPrint('Paired images count: ${((provider.lastReport as Map)['paired_images'] as List?)?.length ?? 0}');
     }
 
-    showAppKitDialog(
+    factory.openDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        return AppKitDialog(
+        return factory.dialog(
           constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
-          title: const Text('Processing Report'),
-          message: (context) => SizedBox.expand(
+          title: 'Processing Report',
+          content: (context) => SizedBox.expand(
             child: ReportSummaryWidget(summary: provider.lastSummary, report: provider.lastReport),
           ),
-          primaryButton: AppKitButton(
-            size: AppKitControlSize.large,
-            type: AppKitButtonType.primary,
-            onTap: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Close'),
-          ),
+          actions: [PlatformDialogAction(label: 'Close', onPressed: Navigator.of(context).pop)],
         );
       },
     );
@@ -1103,12 +1099,13 @@ class _ProcessingDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {
-        return AppKitDialog(
-          constraints: const BoxConstraints(minWidth: 450, maxWidth: 450),
-          title: const Text('Processing Images'),
-          message: (context) => Column(
+        return factory.dialog(
+          constraints: BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
+          title: 'Processing Images',
+          content: (context) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1118,7 +1115,7 @@ class _ProcessingDialog extends StatelessWidget {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
               ),
               const SizedBox(height: 8),
-              AppKitProgressBar(value: provider.progress),
+              factory.progress(value: provider.progress),
               const SizedBox(height: 12),
               Text(
                 'Processing: ${provider.processedCount}/${provider.totalCount}',
@@ -1162,20 +1159,12 @@ class _ProcessingDialog extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      AppKitButton(
-                        type: AppKitButtonType.secondary,
-                        size: AppKitControlSize.regular,
-                        onTap: () {
+                      factory.button(
+                        label: 'View Full Report',
+                        onPressed: () {
                           _showReportDialog(context, provider);
                         },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.assessment, size: 14),
-                            SizedBox(width: 6),
-                            Text('View Full Report', style: TextStyle(fontSize: 12)),
-                          ],
-                        ),
+                        style: PlatformButtonStyle.primary,
                       ),
                     ],
                   ),
@@ -1183,16 +1172,7 @@ class _ProcessingDialog extends StatelessWidget {
               ],
             ],
           ),
-          primaryButton: AppKitButton(
-            size: AppKitControlSize.large,
-            type: AppKitButtonType.primary,
-            onTap: !provider.isProcessing
-                ? () {
-                    Navigator.of(context).pop();
-                  }
-                : null,
-            child: const Text('Close'),
-          ),
+          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? Navigator.of(context).pop : null)],
         );
       },
     );
