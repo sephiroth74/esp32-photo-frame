@@ -1103,7 +1103,7 @@ class _ProcessingDialog extends StatelessWidget {
     return Consumer<ProcessingProvider>(
       builder: (context, provider, child) {
         return factory.dialog(
-          constraints: BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 400),
+          constraints: BoxConstraints(minWidth: 500, maxWidth: 500, minHeight: 400, maxHeight: 400),
           title: 'Processing Images',
           content: (context) => Column(
             mainAxisSize: MainAxisSize.min,
