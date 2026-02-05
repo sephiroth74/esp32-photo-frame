@@ -224,11 +224,7 @@ photo_frame_error validatePFR1FileStructure(fs::File& file, bool validate_payloa
                   calculated_crc,
                   expected_crc);
             file.seek(original_pos);
-#ifdef ENABLE_BT_IMAGE
-            return photo_frame::error_type::BtImageValidationFailed;
-#else
             return photo_frame::error_type::ImageFileCorrupted;
-#endif
         }
     }
 
@@ -248,7 +244,6 @@ PFR1BinaryFile::PFR1BinaryFile(uint16_t width, uint16_t height) :
     height_(height) {
     // Allocate buffer on PSRAM for complete PFR1 file:
     // Total size = Header (21) + Payload (width*height) + CRC32 (4)
-    // This size calculation is synchronized with BT_MAX_IMAGE_SIZE
     // via the PFR1_MAX_IMAGE_SIZE_FOR() macro in pfr1_config.h
     buffer_ = std::unique_ptr<uint8_t[]>(static_cast<uint8_t*>(ps_malloc(buffer_size_)));
 
@@ -301,11 +296,7 @@ photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
 
     if (!validatePFR1PayloadCRC(payload, payload_len, payload_crc)) {
         log_e("[PFR1] Payload validation failed");
-#ifdef ENABLE_BT_IMAGE
-        return photo_frame::error_type::BtImageValidationFailed;
-#else
         return photo_frame::error_type::ImageFileCorrupted;
-#endif
     }
 
     wrapper.markValidated();

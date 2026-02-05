@@ -29,9 +29,8 @@
 // configuration flags.
 //
 // The actual setup() and loop() implementations are in separate files:
-// - bt_diagnostic_main.cpp      (ENABLE_BT_DIAGNOSTIC)
 // - display_diagnostic_main.cpp (ENABLE_DISPLAY_DIAGNOSTIC)
-// - main_bt.cpp                 (ENABLE_BT_IMAGE)
+// - main_ws.cpp                 (ENABLE_WEBSERVER_DATAPROVIDER)
 // - main_default.cpp            (normal mode)
 //
 // This architecture keeps main.cpp clean and minimal while allowing
@@ -48,17 +47,6 @@
 // ============================================================================
 // Used for testing and debugging display hardware
 #include "display_diagnostic_main.cpp"
-
-#elif defined(ENABLE_BT_IMAGE)
-// ============================================================================
-// BLUETOOTH IMAGE MODE
-// ============================================================================
-// Allows receiving images via BLE from a companion app
-#include "main_bt.h"
-
-void setup() { bt_main_setup(); }
-
-void loop() { bt_main_loop(); }
 
 #elif defined(ENABLE_WEBSERVER_DATAPROVIDER)
 

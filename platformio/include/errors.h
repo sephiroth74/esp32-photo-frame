@@ -375,23 +375,6 @@ const photo_frame_error ImageDisplayWriteFailed{TXT_IMAGE_DISPLAY_WRITE_FAILED, 
 const photo_frame_error BinaryRenderingFailed{TXT_IMAGE_FORMAT_NOT_SUPPORTED, 260, ERROR_SEVERITY_ERROR, ERROR_CATEGORY_DISPLAY};
 
 // ============================================================================
-// BLUETOOTH ERRORS (300-319) - Only when ENABLE_BT_IMAGE is defined
-// ============================================================================
-#ifdef ENABLE_BT_IMAGE
-// Critical Bluetooth Errors (300-309) - Must be displayed on screen
-const photo_frame_error BtInitFailed{TXT_BT_INIT_FAILED, 300, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_HARDWARE};
-const photo_frame_error BtInvalidConfig{TXT_BT_INVALID_CONFIG, 301, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
-const photo_frame_error BtImageTooLarge{TXT_BT_IMAGE_SIZE_ERROR, 302, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error BtInvalidRotation{TXT_BT_INVALID_ROTATION, 303, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_CONFIG};
-const photo_frame_error BtSdWriteFailed{TXT_BT_SD_WRITE_FAILED, 304, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_STORAGE};
-const photo_frame_error BtImageValidationFailed{TXT_BT_IMAGE_VALIDATION_FAILED, 305, ERROR_SEVERITY_CRITICAL, ERROR_CATEGORY_DISPLAY};
-
-// Non-critical Bluetooth Errors (310-319) - Only logged, not displayed
-const photo_frame_error BtConnectionTimeout{TXT_BT_CONNECTION_TIMEOUT, 310, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-const photo_frame_error BtClientDisconnected{TXT_BT_CLIENT_DISCONNECTED, 311, ERROR_SEVERITY_WARNING, ERROR_CATEGORY_NETWORK};
-#endif // ENABLE_BT_IMAGE
-
-// ============================================================================
 // AUTHENTICATION ERRORS (400-419)
 // ============================================================================
 

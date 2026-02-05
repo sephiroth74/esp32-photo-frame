@@ -92,10 +92,8 @@
 // Bluetooth mode configuration
 // ===========================================================================
 
-#ifdef ENABLE_BT_IMAGE
-// Bluetooth mode constants
-#define BT_FIRST_BOOT_TIMEOUT_MS (20 * 60 * 1000) // minutes timeout for first boot
-#define BT_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // minutes timeout for subsequent boots
-#endif // ENABLE_BT_IMAGE
+#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+#define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // minutes timeout for subsequent boots
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 #define LOCALE it_IT

@@ -114,7 +114,6 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
 
     log_i("Disabling peripherals...");
     // btStop(); // Stop Bluetooth to save power
-    // esp_bt_controller_disable(); // Disable Bluetooth controller
 
 #if defined(WAKEUP_EXT1)
     log_i("Configuring EXT1 wakeup on RTC IO pin...");

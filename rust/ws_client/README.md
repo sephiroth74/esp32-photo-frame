@@ -61,6 +61,8 @@ The client automatically displays server errors in red, including:
 
 Upload a binary image file (`.pfr1` format) to a PhotoFrame device:
 
+**DEPRECATED**
+
 ```bash
 # Upload to first available device
 bt_uploader upload -f image.pfr1

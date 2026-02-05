@@ -26,7 +26,7 @@
 // This is the main entry point for normal photo frame operation.
 // Handles image loading from Google Drive or SD Card and display rendering.
 
-#ifndef ENABLE_BT_IMAGE
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
 #include <Arduino.h>
 
@@ -393,4 +393,4 @@ void default_main_loop() {
     delay(1000); // Just to avoid watchdog reset
 }
 
-#endif // ENABLE_BT_IMAGE
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

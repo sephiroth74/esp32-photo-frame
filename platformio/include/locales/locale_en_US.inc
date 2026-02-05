@@ -138,25 +138,4 @@ const char TXT_CHARGE_CURRENT_TOO_LOW[] PROGMEM = "Charge current is too low for
 const char TXT_CHARGING_CIRCUIT_FAULT[] PROGMEM = "Charging circuit has a fault";
 const char TXT_BATTERY_NOT_DETECTED[] PROGMEM = "Battery is not detected by the system";
 const char TXT_BATTERY_AUTHENTICATION_FAILED[] PROGMEM = "Battery authentication failed";
-
-#ifdef ENABLE_BT_IMAGE
-// ========================================
-// BLUETOOTH/BLE MODE STRINGS - ENGLISH
-// ========================================
-const char TXT_BT_SEARCHING_DEVICE[] PROGMEM = "Searching for: ";
-const char TXT_BT_WAITING_IMAGE[] PROGMEM = "Waiting";
-const char TXT_BT_TIMEOUT_MIN[] PROGMEM = "Timeout: %d minutes";
-const char TXT_BT_TIMEOUT_EXPIRED[] PROGMEM = "Timeout expired";
-const char TXT_BT_INIT_FAILED[] PROGMEM = "Bluetooth initialization failed";
-const char TXT_BT_INVALID_CONFIG[] PROGMEM = "Invalid Bluetooth configuration";
-const char TXT_BT_IMAGE_SIZE_ERROR[] PROGMEM = "Bluetooth image size error";
-const char TXT_BT_INVALID_ROTATION[] PROGMEM = "Bluetooth invalid rotation";
-const char TXT_BT_SD_WRITE_FAILED[] PROGMEM = "Bluetooth SD write failed";
-const char TXT_BT_IMAGE_VALIDATION_FAILED[] PROGMEM = "Bluetooth image validation failed";
-const char TXT_BT_CONNECTION_TIMEOUT[] PROGMEM = "Bluetooth connection timeout";
-const char TXT_BT_CLIENT_DISCONNECTED[] PROGMEM = "Bluetooth client disconnected";
-const char TXT_BT_CHUNK_TIMEOUT[] PROGMEM = "Bluetooth chunk receive timeout";
-const char TXT_BT_PRESS_BUTTON_RETRY[] PROGMEM = "Press button to retry";
-#endif
-
 const char TXT_DATA_PROVIDER_NOT_CONFIGURED[] PROGMEM = "Data provider not configured";

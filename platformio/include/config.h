@@ -58,33 +58,6 @@
 // Operation Mode Configuration
 // ----------------------------------------------------------------------------
 
-/// Bluetooth Image Mode
-/// Uncomment to enable Bluetooth image transfer mode
-/// When enabled:
-/// - WiFi, Google Drive, and SD card image sources are disabled
-/// - config.json is not loaded
-/// - Device waits for BLE connection to receive images
-/// - Images and configuration are sent via Bluetooth
-/// - Wake from deep sleep via GPIO button only
-// #define ENABLE_BT_IMAGE
-
-/// Bluetooth Diagnostic Mode
-/// Uncomment to enable BT diagnostic test suite
-/// Requires ENABLE_BT_IMAGE to be defined
-/// When enabled:
-/// - Runs comprehensive tests for all BT components
-/// - Tests protocol, preferences, battery, SD card, display, BLE
-/// - Does NOT start actual BLE advertising (safe to run)
-
-// #ifdef ENABLE_BT_IMAGE
-// /// Bluetooth mode constants
-// #define BT_FIRST_BOOT_TIMEOUT_MS     (2 * 60 * 1000) // minutes timeout for first boot
-// #define BT_LISTEN_TIMEOUT_MS         (5 * 60 * 1000) // 5 minutes timeout for subsequent boots
-// #define BT_BATTERY_CHECK_INTERVAL_MS 60000           // Check battery every 60 seconds
-// #define BT_DEFAULT_IMAGE_FILENAME    "/default.pfr1"  // Default image filename in LittleFS
-// #define BT_CURRENT_IMAGE_FILENAME    "/current.pfr1"  // Current image filename in LittleFS
-// #endif                                               // ENABLE_BT_IMAGE
-
 // ----------------------------------------------------------------------------
 // E-Paper Display Configuration
 // ----------------------------------------------------------------------------
@@ -512,29 +485,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 #endif
 
-#ifdef ENABLE_BT_IMAGE
-/// Bluetooth mode constants
-#ifndef BT_FIRST_BOOT_TIMEOUT_MS
-#define BT_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
-#endif                                            // BT_FIRST_BOOT_TIMEOUT_MS
-
-#ifndef BT_LISTEN_TIMEOUT_MS
-#define BT_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
-#endif                                        // BT_LISTEN_TIMEOUT_MS
-
-#ifndef BT_BATTERY_CHECK_INTERVAL_MS
-#define BT_BATTERY_CHECK_INTERVAL_MS 60000 // Check battery every 60 seconds
-#endif                                     // BT_BATTERY_CHECK_INTERVAL_MS
-
-#ifndef BT_DEFAULT_IMAGE_FILENAME
-#define BT_DEFAULT_IMAGE_FILENAME "/default.pfr1" // Default image filename in LittleFS
-#endif                                            // BT_DEFAULT_IMAGE_FILENAME
-
-#ifndef BT_CURRENT_IMAGE_FILENAME
-#define BT_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
-#endif                                            // BT_CURRENT_IMAGE_FILENAME
-
-#elif defined(ENABLE_WEBSERVER_DATAPROVIDER)
+#if defined(ENABLE_WEBSERVER_DATAPROVIDER)
 /// Webserver mode constants
 #ifndef WS_FIRST_BOOT_TIMEOUT_MS
 #define WS_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot

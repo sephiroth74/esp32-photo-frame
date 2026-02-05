@@ -207,26 +207,6 @@ extern const char TXT_CHARGE_CURRENT_TOO_LOW[];
 extern const char TXT_CHARGING_CIRCUIT_FAULT[];
 extern const char TXT_BATTERY_NOT_DETECTED[];
 extern const char TXT_BATTERY_AUTHENTICATION_FAILED[];
-
-#ifdef ENABLE_BT_IMAGE
-extern const char TXT_BT_SEARCHING_DEVICE[];
-extern const char TXT_BT_WAITING_IMAGE[];
-extern const char TXT_BT_TIMEOUT_MIN[];
-extern const char TXT_BT_TIMEOUT_EXPIRED[];
-extern const char TXT_BT_PRESS_BUTTON_RETRY[];
-extern const char TXT_BT_INIT_FAILED[];
-extern const char TXT_BT_INVALID_CONFIG[];
-extern const char TXT_BT_IMAGE_SIZE_ERROR[];
-extern const char TXT_BT_INVALID_ROTATION[];
-extern const char TXT_BT_SD_WRITE_FAILED[];
-extern const char TXT_BT_IMAGE_VALIDATION_FAILED[];
-extern const char TXT_BT_CONNECTION_TIMEOUT[];
-extern const char TXT_BT_CLIENT_DISCONNECTED[];
-extern const char TXT_BT_CHUNK_TIMEOUT[];
-extern const char TXT_BT_PRESS_BUTTON_RETRY[];
-
-#endif // ENABLE_BT_IMAGE
-
 extern const char TXT_DATA_PROVIDER_NOT_CONFIGURED[];
 
 #endif

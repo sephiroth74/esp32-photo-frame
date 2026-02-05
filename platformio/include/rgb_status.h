@@ -88,12 +88,7 @@ enum class SystemState {
     BATTERY_LOW,     // Red slow blink - battery low warning
     ERROR,           // Red fast blink - system error
     SLEEP_PREP,      // Dim white fade - preparing for sleep
-#ifdef ENABLE_BT_IMAGE
-    BT_WAITING,   // Cyan pulse - waiting for BLE connection
-    BT_CONNECTED, // Green solid - BLE client connected
-    BT_RECEIVING, // Yellow pulse - receiving data over BLE
-#endif            // ENABLE_BT_IMAGE
-    CUSTOM        // User-defined color
+    CUSTOM           // User-defined color
 };
 
 // Effect types for color transitions - always available

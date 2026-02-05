@@ -81,20 +81,16 @@
                                                                * ============================================================================
                                                                *
                                                                * This file centralizes PFR1 format configuration to ensure consistency
-                                                               * across the entire project (BT protocol, binary_utils, etc).
                                                                *
-                                                               * 1. For Bluetooth Protocol (bt_protocol.h):
-                                                               *    #define BT_MAX_IMAGE_SIZE PFR1_MAX_IMAGE_SIZE_ABSOLUTE
-                                                               *
-                                                               * 2. For Binary Utilities (binary_utils.cpp):
+                                                               * . For Binary Utilities (binary_utils.cpp):
                                                                *    buffer_size = PFR1_HEADER_SIZE + (width * height) + PFR1_CRC32_SIZE
                                                                *
-                                                               * 3. To add a new display dimension:
+                                                               * . To add a new display dimension:
                                                                *    - Update PFR1_DEFAULT_DISPLAY_WIDTH and PFR1_DEFAULT_DISPLAY_HEIGHT
                                                                *    - PFR1_MAX_IMAGE_SIZE_DEFAULT will auto-calculate
                                                                *    - All code using the macros will automatically adapt
                                                                *
-                                                               * 4. Calculate size for custom dimensions:
+                                                               * . Calculate size for custom dimensions:
                                                                *    size = PFR1_MAX_IMAGE_SIZE_FOR(custom_width, custom_height)
                                                                *
                                                                * Note: The macro uses (uint32_t) casts to prevent integer overflow

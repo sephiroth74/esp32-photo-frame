@@ -25,7 +25,6 @@
 #include "ws_utils.h"
 #include "binary_utils.h"
 #include "board_util.h"
-#include "bt_protocol.h"
 #include "config.h"
 #include "display_manager.h"
 #include "esp32/spiram.h"
