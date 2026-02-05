@@ -39,11 +39,21 @@ Example Usage:
 )]
 struct Args {
     /// Test connection and retrieve board configuration
-    #[arg(long = "test", conflicts_with = "upload", help = "Test WebSocket connection and get board configuration", required_unless_present = "upload")]
+    #[arg(
+        long = "test",
+        conflicts_with = "upload",
+        help = "Test WebSocket connection and get board configuration",
+        required_unless_present = "upload"
+    )]
     test: Option<String>,
 
     /// Upload a binary file to PhotoFrame device
-    #[arg(long = "upload", conflicts_with = "test", help = "Upload a binary file to PhotoFrame device (requires --file)", required_unless_present = "test")]
+    #[arg(
+        long = "upload",
+        conflicts_with = "test",
+        help = "Upload a binary file to PhotoFrame device (requires --file)",
+        required_unless_present = "test"
+    )]
     upload: Option<String>,
 
     /// Binary file to upload (required for --upload)
@@ -54,6 +64,16 @@ struct Args {
         required_if_eq("upload", "true")
     )]
     file: Option<PathBuf>,
+
+    /// Display orientation (0-3) for uploaded image
+    #[arg(
+        short = 'o',
+        long = "orientation",
+        value_name = "ORIENTATION",
+        default_value = "0",
+        help = "Display orientation: 0=0°, 1=90°, 2=180°, 3=270°"
+    )]
+    orientation: u8,
 
     /// Verbose output
     #[arg(short = 'v', long = "verbose")]
@@ -79,8 +99,6 @@ async fn main() -> Result<()> {
         ));
     }
 
-
-
     if args.test.is_some() {
         // Test connection and get configuration
         let url = args.test.as_deref();
@@ -100,8 +118,16 @@ async fn main() -> Result<()> {
         }
     } else if args.upload.is_some() {
         // Upload image
-        let url = args.test.as_deref();
+        let url = args.upload.as_deref(); // FIX: use upload URL, not test URL
         let file = args.file.as_ref().unwrap(); // Safe because of required_if_eq
+
+        // Validate orientation
+        if args.orientation > 3 {
+            return Err(anyhow::anyhow!(
+                "Invalid orientation: {} (must be 0-3)",
+                args.orientation
+            ));
+        }
 
         // Validate file
         if !file.exists() {
@@ -119,11 +145,16 @@ async fn main() -> Result<()> {
             println!("{}", style("Upload Configuration:").bold());
             println!("  File: {}", file.display());
             println!("  URL: {}", url.unwrap_or("ws://192.168.4.1:81"));
+            println!(
+                "  Orientation: {}° ({})",
+                args.orientation * 90,
+                args.orientation
+            );
             println!();
         }
 
         println!("{}", style("Uploading to PhotoFrame device...").dim());
-        websocket::upload_image(url, file.to_str().unwrap())
+        websocket::upload_image(url, file.to_str().unwrap(), args.orientation)
             .await
             .with_context(|| format!("Failed to upload {}", file.display()))
     } else {

@@ -558,6 +558,14 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #define WS_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
 #endif // WS_CURRENT_IMAGE_FILENAME
 
+#ifndef WS_UPLOAD_TEMP_FILENAME
+#define WS_UPLOAD_TEMP_FILENAME "/upload.tmp" // Temporary upload filename in LittleFS
+#endif // WS_UPLOAD_TEMP_FILENAME
+
+#ifndef WS_UPLOAD_TIMEOUT_MS
+#define WS_UPLOAD_TIMEOUT_MS (30 * 1000) // Upload session timeout
+#endif // WS_UPLOAD_TIMEOUT_MS
+
 /// WiFi Access Point Configuration
 #ifndef WS_AP_SSID_PREFIX
 #define WS_AP_SSID_PREFIX "PhotoFrame" // SSID prefix (will append MAC last 4 digits)

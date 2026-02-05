@@ -82,6 +82,56 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
     photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
 }
 
+
+void load_image(const char* filename, uint8_t orientation, uint32_t timestamp)
+{
+    log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)",
+        filename, orientation, timestamp);
+
+    auto &littleFs = photo_frame::littlefs_manager::LittleFsManager::getInstance();
+    auto &display = photo_frame::DisplayManager::getInstance();
+
+    photo_frame::binary_utils::PFR1BinaryFile wrapper(display.getWidth(), display.getHeight());
+
+    // Get date/time from BT config (Unix timestamp sent by client)
+    // Configure timezone to convert UTC timestamp to local time
+    setenv("TZ", TIMEZONE, 1);
+    tzset();
+
+    time_t timestamp_time = (time_t)timestamp;
+    struct tm timeinfo;
+    localtime_r(&timestamp_time, &timeinfo);
+
+    DateTime image_time = DateTime(timeinfo.tm_year + 1900,
+        timeinfo.tm_mon + 1,
+        timeinfo.tm_mday,
+        timeinfo.tm_hour,
+        timeinfo.tm_min,
+        timeinfo.tm_sec);
+
+    auto error = photo_frame::ws_utils::loadLittleFsFile(filename, littleFs, wrapper);
+
+    if (error != photo_frame::error_type::None) {
+        if (error != photo_frame::error_type::None) {
+            log_e("[WS] %s not found or invalid in littlefs", filename);
+            return;
+        }
+    }
+
+    memcpy(display.getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
+
+    // Draw overlay with current date/time and battery
+    display.drawOverlay();
+    
+    // Draw date and time on the left (without next wake-up time, using image timestamp)
+    if (image_time.isValid()) {
+        display.drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
+    }
+
+    display.drawImageInfo("Bluetooth", photo_frame::IMAGE_SOURCE_BLUETOOTH);
+    display.render();
+}
+
 void main_webserver_setup()
 {
     Serial.begin(115200);
@@ -242,10 +292,11 @@ void main_webserver_setup()
             log_i("[WS] WebSocket client disconnected");
             break;
         case WSEventType::IMAGE_RECEIVED:
-            log_i("[WS] Image received (%u bytes)", event.imageSize);
-            if (event.imageData) {
-                free(event.imageData);
-            }
+            log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
+                event.filepath.c_str(), event.timestamp, event.orientation);
+            // File is already saved to LittleFS at event.filepath
+            // TODO: Trigger display update with new image
+            load_image(event.filepath.c_str(), event.orientation, event.timestamp);
             break;
         default:
             break;
@@ -258,7 +309,7 @@ void main_webserver_setup()
         log_i("[WS] WebSocket server listening on port %u", WS_PORT);
     }
 
-    while(true) {
+    while (true) {
         delay(100);
         yield();
     }
