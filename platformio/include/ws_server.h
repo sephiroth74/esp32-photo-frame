@@ -94,6 +94,12 @@ class WSServer {
      */
     uint16_t getPort() const { return m_port; }
 
+    /**
+     * @brief Get time of last activity (connection or upload)
+     * @return Milliseconds since last activity (millis())
+     */
+    unsigned long getLastActivityMs() const { return m_lastActivityMs; }
+
   private:
     /**
      * @brief FreeRTOS task function (static wrapper)
@@ -159,6 +165,7 @@ class WSServer {
     uint8_t m_uploadOrientation;
     size_t m_uploadBytesReceived;
     unsigned long m_lastUploadActivityMs;
+    unsigned long m_lastActivityMs; // General activity tracking (connections, uploads, etc.)
     File m_uploadFile;
 
     // Image reception state (legacy buffer-based)

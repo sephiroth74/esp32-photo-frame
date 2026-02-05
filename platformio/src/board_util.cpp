@@ -101,7 +101,7 @@ void display_power_off() {
 #endif
 
     delay(50); // Short delay for clean shutdown
-    log_i("[POWER] Display powered off");
+    log_v("[POWER] Display powered off");
 #endif
 }
 
@@ -112,7 +112,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
     // Power off display if power control is configured
     display_power_off();
 
-    log_i("Disabling peripherals...");
+    log_v("Disabling peripherals...");
     // btStop(); // Stop Bluetooth to save power
 
 #if defined(WAKEUP_EXT1)
@@ -129,14 +129,14 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
     esp_err_t wakeup_result = esp_sleep_enable_ext1_wakeup(pin_mask, WAKEUP_LEVEL);
 
     if (wakeup_result == ESP_OK) {
-        log_i("Testing RTC IO capability for GPIO %d... Pin state: %d | EXT1 config: SUCCESS",
+        log_v("Testing RTC IO capability for GPIO %d... Pin state: %d | EXT1 config: SUCCESS",
               WAKEUP_PIN,
               pinState);
-        log_i("GPIO %d configured for EXT1 wakeup with mask 0x%X, level: %s",
+        log_v("GPIO %d configured for EXT1 wakeup with mask 0x%X, level: %s",
               WAKEUP_PIN,
               (uint32_t)pin_mask,
               WAKEUP_LEVEL == ESP_EXT1_WAKEUP_ANY_HIGH ? "HIGH" : "LOW");
-        log_i("EXT1 wakeup source configured successfully");
+        log_v("EXT1 wakeup source configured successfully");
     } else {
         log_e("Testing RTC IO capability for GPIO %d... FAILED - Error code: %d",
               WAKEUP_PIN,
@@ -145,7 +145,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
     }
 
 #elif defined(WAKEUP_EXT0)
-    log_i("Configuring EXT0 wakeup on RTC IO pin...");
+    log_v("Configuring EXT0 wakeup on RTC IO pin...");
 
     // Configure RTC GPIO for EXT0 wakeup (required for deep sleep)
     // First set regular GPIO mode for initial setup
@@ -172,7 +172,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
               WAKEUP_PIN,
               pinState);
     } else {
-        log_i("Testing RTC IO capability for GPIO %d... Pin state: %d - Pin correctly reads HIGH "
+        log_v("Testing RTC IO capability for GPIO %d... Pin state: %d - Pin correctly reads HIGH "
               "with RTC pull-up",
               WAKEUP_PIN,
               pinState);
@@ -182,7 +182,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
     esp_err_t wakeup_result = esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_LEVEL);
 
     if (wakeup_result == ESP_OK) {
-        log_i("EXT0 config: SUCCESS");
+        log_v("EXT0 config: SUCCESS");
     } else {
         log_e("EXT0 config: FAILED - Error code: %d", wakeup_result);
         log_e("This GPIO pin does not support RTC IO / EXT0 wakeup!");
@@ -193,7 +193,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
     bool delay_before_sleep = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
     if (delay_before_sleep) {
-        log_i("Wakeup reason is undefined, delaying before sleep...");
+        log_d("Wakeup reason is undefined, delaying before sleep...");
         delay(DELAY_BEFORE_SLEEP);
     }
 
@@ -207,21 +207,21 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
               finalPinState);
         log_w("This would cause immediate wakeup - check button/wiring");
     } else {
-        log_i("Final wakeup pin state before sleep: %d", finalPinState);
+        log_v("Final wakeup pin state before sleep: %d", finalPinState);
     }
 #endif
 
     // Configure timer wakeup if refresh microseconds is provided
     if (refresh_microseconds > MICROSECONDS_IN_SECOND) {
-        log_i("Configuring timer wakeup for %lu seconds",
+        log_d("Configuring timer wakeup for %lu seconds",
               (unsigned long)(refresh_microseconds / 1000000ULL));
         esp_sleep_enable_timer_wakeup(refresh_microseconds);
     } else {
-        log_i("No timer wakeup configured - will sleep indefinitely");
+        log_d("No timer wakeup configured - will sleep indefinitely");
     }
 
 #ifndef DISABLE_DEEP_SLEEP
-    log_i("Going to deep sleep now. Good night!");
+    log_d("Going to deep sleep now. Good night!");
     Serial.flush(); // Ensure all serial output is sent before sleeping
     esp_deep_sleep_start();
 #else

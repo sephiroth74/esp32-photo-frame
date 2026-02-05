@@ -130,4 +130,12 @@ uint32_t PreferencesHelper::getImageIndex() {
 
 bool PreferencesHelper::setImageIndex(uint32_t index) { return putULong("image_index", index); }
 
+time_t PreferencesHelper::getLastImageTimestamp() {
+    return static_cast<time_t>(getULong("last_image_ts", 0));
+}
+
+bool PreferencesHelper::setLastImageTimestamp(time_t timestamp) {
+    return putULong("last_image_ts", static_cast<uint32_t>(timestamp));
+}
+
 } // namespace photo_frame

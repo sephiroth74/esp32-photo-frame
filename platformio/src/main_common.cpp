@@ -170,12 +170,12 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInf
 
     // print the battery levels
 #ifdef DEBUG_BATTERY_READER
-    log_i("Battery level: %d%%, %d mV, Raw mV: %d",
+    log_d("Battery level: %d%%, %d mV, Raw mV: %d",
           BatteryInfo.percent,
           BatteryInfo.millivolts,
           BatteryInfo.raw_millivolts);
 #else
-    log_i("Battery level: %.1f%%, %lu mV", BatteryInfo.percent, BatteryInfo.millivolts);
+    log_d("Battery level: %.1f%%, %lu mV", BatteryInfo.percent, BatteryInfo.millivolts);
 #endif // DEBUG_BATTERY_READER
 
     // check battery status
@@ -185,8 +185,8 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInf
 #ifdef BATTERY_POWER_SAVING
         // Battery too low to continue
         unsigned long elapsed = millis() - startupTime;
-        log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
-        log_i("Entering deep sleep to preserve battery...");
+        log_d("Elapsed seconds since startup: %lu s", elapsed / 1000);
+        log_d("Entering deep sleep to preserve battery...");
         photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
 #endif                                                             // BATTERY_POWER_SAVING
 
@@ -241,7 +241,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, Da
         DateTime dayEnd = DateTime(now.year(), now.month(), now.day(), DAY_END_HOUR, 0, 0);
 
         if (nextRefresh > dayEnd) {
-            log_i("Next refresh time is after DAY_END_HOUR");
+            log_d("Next refresh time is after DAY_END_HOUR");
             // Check if we're currently in the inactive period (before DAY_START_HOUR)
             if (now.hour() < DAY_START_HOUR) {
                 // We're in early morning hours, schedule for DAY_START_HOUR today
@@ -255,7 +255,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, Da
             refresh_delay.refresh_seconds = nextRefresh.unixtime() - now.unixtime();
         }
 
-        log_i("Next refresh time: %s", nextRefresh.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+        log_d("Next refresh time: %s", nextRefresh.timestamp(DateTime::TIMESTAMP_FULL).c_str());
 
         // Convert seconds to microseconds for deep sleep with overflow protection
         // ESP32 max sleep time is ~18 hours (281474976710655 microseconds)
@@ -300,7 +300,7 @@ void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
     delay(100);
 
     unsigned long elapsed = millis() - startupTime;
-    log_i("Elapsed seconds since startup: %lu s", elapsed / 1000);
+    log_d("Elapsed seconds since startup: %lu s", elapsed / 1000);
     photo_frame::board_utils::enter_deep_sleep(wakeup_reason,
                                                refresh_delay.get_refresh_microseconds());
 }
@@ -358,12 +358,12 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
         display.drawBatteryStatus(BatteryInfo);
 
         // Render the image with overlays to the display
-        log_i("Rendering image to display...");
+        log_d("Rendering image to display...");
         if (!display.render()) {
             log_e("Failed to render image!");
             rendering_failed = true;
         } else {
-            log_i("Display render complete with overlays");
+            log_d("Display render complete with overlays");
         }
 
         // Power recovery delay after page refresh for 6-color displays

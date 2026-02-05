@@ -74,7 +74,7 @@ void handleCriticalBattery(const BatteryInfo& BatteryInfo,
     display.powerOff();
     board_utils::display_power_off();
 
-    log_i("[BT] Battery critical - entering indefinite sleep (wake via GPIO1 only)");
+    log_w("[BT] Battery critical - entering indefinite sleep (wake via GPIO1 only)");
     board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0); // 0 = indefinite sleep
 }
 

@@ -488,7 +488,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #if defined(ENABLE_WEBSERVER_DATAPROVIDER)
 /// Webserver mode constants
 #ifndef WS_FIRST_BOOT_TIMEOUT_MS
-#define WS_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
+#define WS_FIRST_BOOT_TIMEOUT_MS (20 * 60 * 1000) // minutes timeout for first boot
 #endif                                            // WS_FIRST_BOOT_TIMEOUT_MS
 
 #ifndef WS_LISTEN_TIMEOUT_MS
@@ -515,8 +515,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif                                        // WS_UPLOAD_TEMP_FILENAME
 
 #ifndef WS_UPLOAD_TIMEOUT_MS
-#define WS_UPLOAD_TIMEOUT_MS (30 * 1000) // Upload session timeout
-#endif                                   // WS_UPLOAD_TIMEOUT_MS
+#define WS_UPLOAD_TIMEOUT_MS (5 * 1000) // Upload session timeout
+#endif                                  // WS_UPLOAD_TIMEOUT_MS
 
 /// WiFi Access Point Configuration
 #ifndef WS_AP_SSID_PREFIX

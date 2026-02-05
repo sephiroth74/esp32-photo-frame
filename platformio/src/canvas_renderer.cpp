@@ -163,7 +163,7 @@ void drawImageInfo(GFXcanvas8& canvas, const String& message, ImageSource image_
     case IMAGE_SOURCE_BLUETOOTH:   icon = icon_name::bluetooth_0deg; break;
     case IMAGE_SOURCE_WEBSOCKET:   icon = icon_name::wifi; break;
     case IMAGE_SOURCE_LOCAL_CACHE:
-    default:                       icon = icon_name::micro_sd_card_0deg; break;
+    default:                       drawSideMessage(canvas, gravity::TOP_CENTER, message.c_str(), -4, 0); break;
     }
 
     drawSideMessageWithIcon(canvas, gravity::TOP_CENTER, icon, message.c_str(), -4, 0);

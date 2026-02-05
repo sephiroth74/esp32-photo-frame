@@ -36,11 +36,24 @@
 #include "ws_server.h"
 #include "ws_utils.h"
 #include <Arduino.h>
+#include <memory>
 
 using namespace photo_frame::ws;
 
 /// Flag to track if load_image is currently executing
 volatile bool g_isLoadingImage = false;
+
+// Flag to indicate if an image update occurred
+volatile bool g_imageUpdated = false;
+
+/// Timeout monitoring state variables
+static WSServer* g_wsServer                                       = nullptr;
+static photo_frame::littlefs_manager::LittleFsManager* g_littleFs = nullptr;
+static photo_frame::DisplayManager* g_display                     = nullptr;
+static unsigned long g_serverStartMs                              = 0;
+static unsigned long g_lastCheckMs                                = 0;
+static uint32_t g_timeout_ms                                      = 0;
+static photo_frame::BatteryInfo g_battery_info;
 
 void performFactoryReset() {
     log_i("[WS] ========================================");
@@ -49,13 +62,11 @@ void performFactoryReset() {
 
     // Step 1: Clear all BT preferences
     log_i("[WS] Step 1: Clearing WS preferences...");
-    auto& prefs = photo_frame::PreferencesHelper::getInstance();
-    // prefs.clearAll();
-
+    auto& prefs  = photo_frame::PreferencesHelper::getInstance();
     bool success = true;
 
     // TODO: Add any webserver-specific preferences to clear here
-
+    success &= prefs.setLastImageTimestamp(0);
     success &= prefs.setDisplayRotation(DEFAULT_ORIENTATION); // reset to default orientation
 
     if (success) {
@@ -65,8 +76,8 @@ void performFactoryReset() {
     }
 }
 
-void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
-              photo_frame::DisplayManager& display,
+void shutdown(photo_frame::littlefs_manager::LittleFsManager* littleFs,
+              photo_frame::DisplayManager* display,
               unsigned long delay_ms = 0) {
     log_i("[WS] Shutting down");
 
@@ -76,24 +87,41 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
 
     // TODO: Add any webserver-specific shutdown steps here
 
-    littleFs.release();
-    display.powerOff();
-    display.release();
+    if (littleFs) {
+        littleFs->release();
+    }
+    if (display) {
+        display->powerOff();
+        display->release();
+    }
     photo_frame::board_utils::display_power_off();
     photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
 }
 
+/**
+ * @brief Load and display the received image file
+ * @param filename Filename of the image in LittleFS
+ * @param orientation Display orientation (0-3)
+ * @param timestamp Unix timestamp of the image (for overlay)
+ * @param battery_info Current battery information (for overlay)
+ * @param isNewUpload Flag indicating if the image is a new upload
+ */
 void displayReceivedFile(const char* filename,
                          uint8_t orientation,
                          uint32_t timestamp,
-                         photo_frame::BatteryInfo& BatteryInfo) {
+                         photo_frame::BatteryInfo& battery_info,
+                         bool isNewUpload) {
     g_isLoadingImage = true;
     log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)", filename, orientation, timestamp);
 
-    auto& littleFs = photo_frame::littlefs_manager::LittleFsManager::getInstance();
-    auto& display  = photo_frame::DisplayManager::getInstance();
+    if (!g_littleFs || !g_display) {
+        log_e("[WS] LittleFS or Display not initialized");
+        g_isLoadingImage = false;
+        return;
+    }
 
-    photo_frame::binary_utils::PFR1BinaryFile wrapper(display.getWidth(), display.getHeight());
+    photo_frame::binary_utils::PFR1BinaryFile wrapper(g_display->getWidth(),
+                                                      g_display->getHeight());
 
     // Get date/time from BT config (Unix timestamp sent by client)
     // Configure timezone to convert UTC timestamp to local time
@@ -111,32 +139,52 @@ void displayReceivedFile(const char* filename,
                                    timeinfo.tm_min,
                                    timeinfo.tm_sec);
 
-    auto error          = photo_frame::ws_utils::loadLittleFsFile(filename, littleFs, wrapper);
-    display.clear(DISPLAY_COLOR_WHITE);
+    // Update global rotation state
+    display_rotation = orientation;
+
+    // Set display orientation
+    g_display->setRotation(orientation);
+
+    // Save orientation preference
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
+    prefs.setDisplayRotation(orientation);
+
+    if (timestamp > 0) {
+        prefs.setLastImageTimestamp(timestamp);
+    }
+
+    auto error = photo_frame::ws_utils::loadLittleFsFile(filename, *g_littleFs, wrapper);
+    g_display->clear(DISPLAY_COLOR_WHITE);
 
     if (error != photo_frame::error_type::None) {
         error.log_detailed();
-        display.drawError(error, filename);
-        display.render();
+        g_display->drawError(error, filename);
+        g_display->render();
         g_isLoadingImage = false;
         return;
     }
 
-    memcpy(display.getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
+    memcpy(g_display->getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
 
     // Draw overlay with current date/time and battery
-    display.drawOverlay();
+    g_display->drawOverlay();
 
     // Draw date and time on the left (without next wake-up time, using image timestamp)
-    if (image_time.isValid()) {
-        display.drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
+    if (timestamp > 0 && image_time.isValid()) {
+        g_display->drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
     }
 
-    display.drawImageInfo("Upload", photo_frame::IMAGE_SOURCE_WEBSOCKET);
-    display.drawBatteryStatus(BatteryInfo);
-    display.render();
+    if (isNewUpload) {
+        g_display->drawImageInfo("Upload", photo_frame::IMAGE_SOURCE_WEBSOCKET);
+    } else {
+        g_display->drawImageInfo("Default", photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
+    }
+
+    g_display->drawBatteryStatus(battery_info);
+    g_display->render();
 
     g_isLoadingImage = false;
+    g_imageUpdated   = true;
 }
 
 void main_webserver_setup() {
@@ -145,9 +193,11 @@ void main_webserver_setup() {
 
     // Initialize display power control (if configured)
     photo_frame::board_utils::init_display_power();
-    auto& prefs   = photo_frame::PreferencesHelper::getInstance();
-    auto littleFs = photo_frame::littlefs_manager::LittleFsManager::getInstance();
-    auto& display = photo_frame::DisplayManager::getInstance();
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
+
+    // Get singleton references - we'll store pointers to them in globals for loop() access
+    g_littleFs = &photo_frame::littlefs_manager::LittleFsManager::getInstance();
+    g_display  = &photo_frame::DisplayManager::getInstance();
 
     // Get wakeup reason
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
@@ -161,7 +211,7 @@ void main_webserver_setup() {
     // Initialize hardware
     if (!initialize_hardware()) {
         log_e("[WS] CRITICAL! Failed to initialize hardware!");
-        shutdown(littleFs, display, 0);
+        shutdown(g_littleFs, g_display, 0);
         return;
     }
 
@@ -174,8 +224,8 @@ void main_webserver_setup() {
         log_d("[WS] Factory reset triggered!");
         performFactoryReset();
 
-        if (littleFs.init()) {
-            littleFs.delete_file(WS_CURRENT_IMAGE_FILENAME);
+        if (g_littleFs->init()) {
+            g_littleFs->delete_file(WS_CURRENT_IMAGE_FILENAME);
         }
 
         is_first_boot = true; // After reset, treat as first boot
@@ -185,17 +235,18 @@ void main_webserver_setup() {
     display_rotation = prefs.getDisplayRotation();
 
     // Check battery status
-    photo_frame::BatteryInfo BatteryInfo;
-    photo_frame::photo_frame_error_t error = setup_battery_and_power(BatteryInfo, wakeup_reason);
-    log_d("[WS] Battery: %.1f%%, %.1f mV", BatteryInfo.percent, BatteryInfo.millivolts);
+
+    photo_frame::photo_frame_error_t error = setup_battery_and_power(g_battery_info, wakeup_reason);
+    log_d("[WS] Battery: %.1f%%, %.1f mV", g_battery_info.percent, g_battery_info.millivolts);
 
     // Provide current runtime info to BoardInfo for GET_CONFIG
-    BoardInfo::setBatteryInfo(BatteryInfo);
+    BoardInfo::setBatteryInfo(g_battery_info);
     BoardInfo::setDisplayRotation(static_cast<uint16_t>(display_rotation) * 90);
 
     if (error == photo_frame::error_type::BatteryLevelCritical) {
         log_e("[BT] Battery is critical, showing error and sleeping");
-        photo_frame::ws_utils::handleCriticalBattery(BatteryInfo, wakeup_reason, display_rotation);
+        photo_frame::ws_utils::handleCriticalBattery(
+            g_battery_info, wakeup_reason, display_rotation);
         return;
     }
 
@@ -214,7 +265,7 @@ void main_webserver_setup() {
     // Phase 1: Initialize buffer
     if (!init_image_buffer()) {
         log_e("[WS] Failed to initialize display buffer");
-        shutdown(littleFs, display, 10000);
+        shutdown(g_littleFs, g_display, 10000);
         return;
     }
 
@@ -238,19 +289,19 @@ void main_webserver_setup() {
     // ========================================================================
     // Initialize LittleFS and load image (if AP started successfully)
     // ========================================================================
-    error = littleFs.init() ? error : photo_frame::error_type::LittleFSInitFailed;
+    error = g_littleFs->init() ? error : photo_frame::error_type::LittleFSInitFailed;
 
     // Phase 3: Initialize hardware
     photo_frame::board_utils::display_power_on();
 
     if (!init_display_hardware()) {
         log_e("[WS] Failed to initialize display hardware");
-        shutdown(littleFs, display, 10000);
+        shutdown(g_littleFs, g_display, 10000);
         return;
     }
 
     delay(300);
-    display.setRotation(display_rotation);
+    g_display->setRotation(display_rotation);
 
     // ========================================================================
     // Load and display image with connection info
@@ -259,30 +310,33 @@ void main_webserver_setup() {
 
     if (error == photo_frame::error_type::None) {
         // Load current or default image
-        error = photo_frame::ws_display_utils::loadCurrentOrDefaultImage(littleFs, display);
+        error = photo_frame::ws_display_utils::loadCurrentOrDefaultImage(*g_littleFs, *g_display);
         if (error != photo_frame::error_type::None) {
             log_w("[WS] Failed to load image, will show blank screen with connection info");
-            display.clear(DISPLAY_COLOR_WHITE);
+            g_display->clear(DISPLAY_COLOR_WHITE);
             // Clear error to continue with blank screen
             error = photo_frame::error_type::None;
         }
     } else {
         // just show the error and shut down
         log_w("[WS] Skipping image load due to previous error: %d", error.code);
-        display.clear(DISPLAY_COLOR_WHITE);
-        display.drawError(error);
-        display.render();
-        shutdown(littleFs, display, 10000);
+        g_display->clear(DISPLAY_COLOR_WHITE);
+        g_display->drawError(error);
+        g_display->render();
+        shutdown(g_littleFs, g_display, 10000);
         return;
     }
 
     // Draw connection info box (QR code, SSID, IP)
     std::string wsUrl = "ws://" + apManager.getIP() + ":" + std::to_string(WS_PORT);
     photo_frame::ws_display_utils::drawConnectionInfoBox(
-        display, apManager.getSSID(), apManager.getIP(), wsUrl);
+        *g_display, apManager.getSSID(), apManager.getIP(), wsUrl);
+
+    g_display->drawOverlay();
+    g_display->drawBatteryStatus(g_battery_info);
 
     // Render to display
-    if (!display.render()) {
+    if (!g_display->render()) {
         log_e("[WS] Failed to render display");
     } else {
         log_d("[WS] Display rendered successfully");
@@ -303,64 +357,134 @@ void main_webserver_setup() {
 
     // Start WebSocket server for GET_CONFIG testing
     log_d("[WS] Creating WebSocket server on port %u...", WS_PORT);
-    WSServer wsServer(
-        WS_PORT, [&littleFs, &display, &wsServer, &BatteryInfo](const WSEvent& event) {
-            switch (event.type) {
-            case WSEventType::ERROR:
-                log_e("[WS] WebSocket error: %s", event.message.c_str());
-                break;
-            case WSEventType::CLIENT_CONNECTED: log_i("[WS] WebSocket client connected"); break;
-            case WSEventType::CLIENT_DISCONNECTED:
-                log_i("[WS] WebSocket client disconnected");
-                break;
-            case WSEventType::IMAGE_RECEIVED:
-                log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
-                      event.filepath.c_str(),
-                      event.timestamp,
-                      event.orientation);
-                // File is already saved to LittleFS at event.filepath
-                // TODO: Trigger display update with new image
-                displayReceivedFile(
-                    event.filepath.c_str(), event.orientation, event.timestamp, BatteryInfo);
-                break;
-            case WSEventType::SHUTDOWN_REQUEST:
-                log_d("[WS] ========================================");
-                log_d("[WS] Shutdown request received via WebSocket");
+    static auto wsServer = std::make_unique<WSServer>(WS_PORT, [](const WSEvent& event) {
+        switch (event.type) {
+        case WSEventType::ERROR:               log_e("[WS] WebSocket error: %s", event.message.c_str()); break;
+        case WSEventType::CLIENT_CONNECTED:    log_i("[WS] WebSocket client connected"); break;
+        case WSEventType::CLIENT_DISCONNECTED: log_i("[WS] WebSocket client disconnected"); break;
+        case WSEventType::IMAGE_RECEIVED:
+            log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
+                  event.filepath.c_str(),
+                  event.timestamp,
+                  event.orientation);
+            displayReceivedFile(
+                event.filepath.c_str(), event.orientation, event.timestamp, g_battery_info, true);
+            break;
+        case WSEventType::SHUTDOWN_REQUEST:
+            log_d("[WS] ========================================");
+            log_d("[WS] Shutdown request received via WebSocket");
 
-                // Check if an upload or image loading is in progress
-                if (wsServer.isUploadActive()) {
-                    log_w("[WS] Cannot shutdown: upload session is active");
-                    break;
-                }
-
-                if (g_isLoadingImage) {
-                    log_w("[WS] Cannot shutdown: image is being loaded");
-                    break;
-                }
-
-                log_d("[WS] Entering deep sleep in 100ms...");
-                shutdown(littleFs, display, 100);
+            // Check if an upload or image loading is in progress
+            if (g_wsServer && g_wsServer->isUploadActive()) {
+                log_w("[WS] Cannot shutdown: upload session is active");
                 break;
-            default: break;
             }
-        });
 
-    if (!wsServer.begin()) {
+            if (g_isLoadingImage) {
+                log_w("[WS] Cannot shutdown: image is being loaded");
+                break;
+            }
+
+            log_d("[WS] Entering deep sleep in 100ms...");
+            shutdown(g_littleFs, g_display, 100);
+            break;
+        default: break;
+        }
+    });
+
+    if (!wsServer->begin()) {
         log_e("[WS] Failed to start WebSocket server");
     } else {
         log_i("[WS] WebSocket server listening on port %u", WS_PORT);
     }
 
-    while (true) {
-        delay(100);
-        yield();
-    }
+    // Initialize global state for timeout monitoring in loop()
+    g_wsServer      = wsServer.get();
+    g_serverStartMs = millis();
+    g_lastCheckMs   = millis();
+    g_timeout_ms    = timeout_ms;
+
+    log_i("[WS] Setup complete - timeout monitoring will run in loop()");
+    log_i("[WS] Timeout: %u ms (%u minutes)", timeout_ms, timeout_ms / 60000);
 }
 
 void main_webserver_loop() {
-    // Keep the main loop running to prevent watchdog reset
-    // The WebSocket server runs in its own FreeRTOS task
+    // WebSocket server runs in its own FreeRTOS task
+    // This loop monitors timeout and handles shutdown
     delay(100);
+    yield();
+
+    // Safety check - ensure globals are initialized
+    if (!g_wsServer || !g_littleFs || !g_display) {
+        return;
+    }
+
+    unsigned long now = millis();
+
+    // Check timeout every second
+    if (now - g_lastCheckMs >= 1000) {
+        g_lastCheckMs = now;
+
+        // Get last activity time from WebSocket server
+        unsigned long lastActivityMs = g_wsServer->getLastActivityMs();
+        unsigned long timeSinceActivity;
+
+        // If no activity yet, use server start time
+        if (lastActivityMs == 0) {
+            timeSinceActivity = now - g_serverStartMs;
+        } else {
+            timeSinceActivity = now - lastActivityMs;
+        }
+
+        // Check if timeout exceeded
+        if (timeSinceActivity >= g_timeout_ms) {
+            // Don't shutdown if image is being loaded
+            if (g_isLoadingImage) {
+                log_d("[WS] Timeout reached but image is loading, waiting...");
+                return;
+            }
+
+            // Don't shutdown if upload is active
+            if (g_wsServer->isUploadActive()) {
+                log_d("[WS] Timeout reached but upload is active, waiting...");
+                return;
+            }
+
+            log_d("[WS] Timeout reached after %u ms of inactivity", timeSinceActivity);
+            log_d("[WS] No activity detected, initiating shutdown");
+
+            if (!g_imageUpdated) {
+                // If no image update occurred, re-display current or default image
+                log_d("[WS] No image update occurred, re-displaying current/default image");
+
+                char filename[64];
+                bool isNewUpload = false;
+                if (g_littleFs->file_exists(WS_CURRENT_IMAGE_FILENAME)) {
+                    snprintf(filename, sizeof(filename), WS_CURRENT_IMAGE_FILENAME);
+                } else {
+                    display_rotation = DEFAULT_ORIENTATION;
+                    isNewUpload      = false;
+                    snprintf(filename, sizeof(filename), WS_DEFAULT_IMAGE_FILENAME);
+                }
+
+                time_t timestamp =
+                    photo_frame::PreferencesHelper::getInstance().getLastImageTimestamp();
+                displayReceivedFile(
+                    filename, display_rotation, timestamp, g_battery_info, isNewUpload);
+            } else {
+                log_v("[WS] Image was updated during session, no need to re-display");
+            }
+            shutdown(g_littleFs, g_display, 100);
+            return;
+        }
+
+        // Log status every 30 seconds
+        if ((now - g_serverStartMs) % 30000 < 1000) {
+            log_d("[WS] Active - last activity %u seconds ago (timeout in %u seconds)",
+                  timeSinceActivity / 1000,
+                  (g_timeout_ms - timeSinceActivity) / 1000);
+        }
+    }
 }
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER

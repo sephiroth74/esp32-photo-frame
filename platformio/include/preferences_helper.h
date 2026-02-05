@@ -102,6 +102,16 @@ class PreferencesHelper {
     bool setLastCleanup(time_t timestamp);
 
     /**
+     * @brief Get the timestamp of the last displayed image
+     */
+    time_t getLastImageTimestamp();
+
+    /**
+     * @brief Set the timestamp of the last displayed image
+     */
+    bool setLastImageTimestamp(time_t timestamp);
+
+    /**
      * @brief Get the display rotation setting (0-3)
      *
      * Stored preference key: "display_rotation". Returns values 0-3 where

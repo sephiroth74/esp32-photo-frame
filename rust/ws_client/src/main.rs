@@ -14,6 +14,17 @@ use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 use std::path::PathBuf;
 
+/// Wait for user key press
+#[macro_export]
+macro_rules! press_any_key {
+    () => {
+        use console::Key;
+        println!("Press any key...");
+        let term = console::Term::stdout();
+        term.read_key().unwrap_or(Key::Escape);
+    };
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "ws_client",
@@ -89,9 +100,13 @@ async fn interactive_mode(ws_url: &str) -> Result<()> {
                     Ok(config) => {
                         config.print();
                         println!("{}", style("✓ Configuration retrieved").bold().green());
+                        println!();
+                        press_any_key!();
                     }
                     Err(e) => {
                         println!("{}", style(format!("✗ Error: {}", e)).bold().red());
+                        println!();
+                        press_any_key!();
                     }
                 }
                 println!();

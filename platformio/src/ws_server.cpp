@@ -33,6 +33,7 @@ WSServer::WSServer(uint16_t port, WSEventCallback callback) :
     m_uploadOrientation(0),
     m_uploadBytesReceived(0),
     m_lastUploadActivityMs(0),
+    m_lastActivityMs(0),
     m_uploadFile(),
     m_imageBuffer(nullptr),
     m_imageBufferSize(0),
@@ -251,6 +252,7 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload
 
     case WStype_CONNECTED:
         log_i("[WSServer] Client %u connected", num);
+        m_lastActivityMs = millis();
         {
             WSEvent event;
             event.type    = WSEventType::CLIENT_CONNECTED;
@@ -263,6 +265,7 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload
         String message(reinterpret_cast<const char*>(payload), length);
         message.trim();
         log_i("[WSServer] Received TEXT from client %u: %s", num, message.c_str());
+        m_lastActivityMs = millis();
 
         if (message == "GET_CONFIG") {
             String json = BoardInfo::toJson();
@@ -279,6 +282,7 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload
 
     case WStype_BIN:
         log_d("[WSServer] Received BIN from client %u: %u bytes", num, length);
+        m_lastActivityMs = millis();
         if (m_uploadActive && num == m_uploadClientId && m_uploadFile) {
             // Check file size limit
             uint32_t maxSize = PFR1_MAX_IMAGE_SIZE_FOR(DISP_WIDTH, DISP_HEIGHT);

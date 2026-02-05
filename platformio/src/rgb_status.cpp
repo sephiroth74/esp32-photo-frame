@@ -65,13 +65,13 @@ RGBStatus::~RGBStatus() { end(); }
 bool RGBStatus::begin() {
 #ifdef LED_PWR_PIN
     // Enable power to RGB LED first
-    log_i("Enabling LED power on GPIO%d", LED_PWR_PIN);
+    log_d("Enabling LED power on GPIO%d", LED_PWR_PIN);
     pinMode(LED_PWR_PIN, OUTPUT);
     digitalWrite(LED_PWR_PIN, HIGH); // Power on
     delay(50);                       // Wait for power stabilization
 #endif
 
-    log_i("[RGB] Initializing RGB status system...");
+    log_d("[RGB] Initializing RGB status system...");
 
     // Initialize NeoPixel
     pixels = new Adafruit_NeoPixel(RGB_LED_COUNT, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -89,7 +89,7 @@ bool RGBStatus::begin() {
     pixels->clear();
     pixels->show();
 
-    log_i("NeoPixel initialized");
+    log_v("NeoPixel initialized");
 
     // Create FreeRTOS task for RGB control
     BaseType_t result = xTaskCreatePinnedToCore(rgbTask,         // Task function
@@ -109,7 +109,7 @@ bool RGBStatus::begin() {
     }
 
     taskRunning = true;
-    log_i("RGB status task started");
+    log_d("RGB status task started");
 
     // Set initial state
     setState(SystemState::STARTING, 1000);
@@ -134,17 +134,17 @@ void RGBStatus::end() {
 #ifdef LED_PWR_PIN
     // Power off LED
     digitalWrite(LED_PWR_PIN, LOW);
-    log_i("LED power disabled");
+    log_d("LED power disabled");
 #endif
 
-    log_i("RGB status system stopped");
+    log_d("RGB status system stopped");
 }
 
 void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
     if (!enabled || !pixels)
         return;
 
-    log_i("Setting state to %d", (int)state);
+    log_d("Setting state to %d", (int)state);
 
     // Find configuration for this state
     const StatusConfig* config = nullptr;
@@ -187,7 +187,7 @@ void RGBStatus::setCustomColor(const RGBColor& color,
     lastUpdate = millis();
     effectStep = 0;
 
-    log_i("Custom color set: (%d,%d,%d) Effect: %d", color.r, color.g, color.b, (int)effect);
+    log_v("Custom color set: (%d,%d,%d) Effect: %d", color.r, color.g, color.b, (int)effect);
 }
 
 void RGBStatus::setBrightness(uint8_t brightness) { currentConfig.brightness = brightness; }
@@ -209,7 +209,7 @@ void RGBStatus::turnOff() {
 #ifdef LED_PWR_PIN
     // Power off LED
     digitalWrite(LED_PWR_PIN, LOW);
-    log_i("LED power disabled");
+    log_d("LED power disabled");
 #endif
 
     currentState  = SystemState::IDLE;
@@ -220,7 +220,7 @@ void RGBStatus::turnOff() {
 void RGBStatus::rgbTask(void* parameter) {
     RGBStatus* rgb = static_cast<RGBStatus*>(parameter);
 
-    log_i("RGB task started");
+    log_d("RGB task started");
 
     while (rgb->taskRunning) {
         if (rgb->enabled && rgb->pixels) {
@@ -231,7 +231,7 @@ void RGBStatus::rgbTask(void* parameter) {
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
-    log_i("RGB task ended");
+    log_d("RGB task ended");
     vTaskDelete(NULL);
 }
 

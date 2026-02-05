@@ -125,7 +125,7 @@ bool parsePFR1Header(const uint8_t* buffer, size_t buffer_size, PFR1Header& head
         return false;
     }
 
-    log_i("[PFR1] Header validated: %ux%u, rotation=%u, color_mode=%u, payload=%u bytes",
+    log_v("[PFR1] Header validated: %ux%u, rotation=%u, color_mode=%u, payload=%u bytes",
           header.width,
           header.height,
           header.rotation,
@@ -142,7 +142,7 @@ bool validatePFR1PayloadCRC(const uint8_t* payload, size_t payload_len, uint32_t
               expected_crc32);
         return false;
     }
-    log_i("[PFR1] Payload CRC validated");
+    log_v("[PFR1] Payload CRC validated");
     return true;
 }
 
@@ -229,7 +229,7 @@ photo_frame_error validatePFR1FileStructure(fs::File& file, bool validate_payloa
     }
 
     file.seek(original_pos);
-    log_i("[PFR1] File structure validated successfully");
+    log_v("[PFR1] File structure validated successfully");
     return photo_frame::error_type::None;
 }
 
@@ -300,7 +300,7 @@ photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
     }
 
     wrapper.markValidated();
-    log_i("[PFR1] Wrapper validated successfully");
+    log_v("[PFR1] Wrapper validated successfully");
     return photo_frame::error_type::None;
 }
 
