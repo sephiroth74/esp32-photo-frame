@@ -88,12 +88,4 @@
 // ===========================================================================
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0"
 
-// ===========================================================================
-// Bluetooth mode configuration
-// ===========================================================================
-
-#ifdef ENABLE_WEBSERVER_DATAPROVIDER
-#define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // minutes timeout for subsequent boots
-#endif // ENABLE_WEBSERVER_DATAPROVIDER
-
 #define LOCALE it_IT
