@@ -77,7 +77,7 @@ class BoardInfo {
      * @brief Override current battery info (set by main)
      * @param info Battery info structure
      */
-    static void setBatteryInfo(const battery_info_t& info);
+    static void setBatteryInfo(const BatteryInfo& info);
 
     /**
      * @brief Clear battery info override

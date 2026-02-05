@@ -891,9 +891,9 @@ GoogleDrive::download_file(SdCard& sdCard, GoogleDriveFile file, photo_frame_err
     return readFile;
 }
 
-image_source_t GoogleDrive::get_last_image_source() const { return last_image_source; }
+ImageSource GoogleDrive::get_last_image_source() const { return last_image_source; }
 
-void GoogleDrive::set_last_image_source(image_source_t source) { last_image_source = source; }
+void GoogleDrive::set_last_image_source(ImageSource source) { last_image_source = source; }
 
 String GoogleDrive::load_root_ca_certificate(SdCard& sdCard, const char* rootCaPath) {
     log_i("Loading Google Drive root CA from: %s", rootCaPath);

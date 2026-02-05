@@ -94,14 +94,14 @@ void drawLastUpdate(GFXcanvas8& canvas, const DateTime& lastUpdate, long refresh
     }
 }
 
-void drawBatteryStatus(GFXcanvas8& canvas, battery_info_t battery_info) {
-    auto battery_voltage    = battery_info.millivolts;
-    auto battery_percentage = battery_info.percent;
+void drawBatteryStatus(GFXcanvas8& canvas, BatteryInfo BatteryInfo) {
+    auto battery_voltage    = BatteryInfo.millivolts;
+    auto battery_percentage = BatteryInfo.percent;
 
     // Determine battery icon based on charge level
     icon_name_t icon_name;
 
-    if (battery_info.is_charging()) {
+    if (BatteryInfo.is_charging()) {
         icon_name = icon_name::battery_charging_full_90deg;
     } else {
         if (battery_percentage >= 100) {
@@ -126,12 +126,12 @@ void drawBatteryStatus(GFXcanvas8& canvas, battery_info_t battery_info) {
                      String((float)battery_voltage / 1000, 2) + "V)";
 
 #if defined(USE_SENSOR_MAX1704X) && defined(DEBUG_BATTERY_READER)
-    if (battery_info.charge_rate != 0.0) {
-        message += " - " + String(battery_info.charge_rate, 2) + "mA";
+    if (BatteryInfo.charge_rate != 0.0) {
+        message += " - " + String(BatteryInfo.charge_rate, 2) + "mA";
     }
 #else
 #ifdef DEBUG_BATTERY_READER
-    message += "  - " + String(battery_info.raw_millivolts);
+    message += "  - " + String(BatteryInfo.raw_millivolts);
 #endif
 #endif
 
@@ -141,22 +141,21 @@ void drawBatteryStatus(GFXcanvas8& canvas, battery_info_t battery_info) {
 void drawImageInfo(GFXcanvas8& canvas,
                    uint32_t index,
                    uint32_t total_images,
-                   image_source_t image_source) {
+                   ImageSource image_source) {
     String message = String(index + 1) + " / " + String(total_images);
-    drawSideMessageWithIcon(
-        canvas,
-        gravity::TOP_CENTER,
-        image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
-            ? icon_name::cloud_0deg
-            : (image_source == photo_frame::image_source_t::IMAGE_SOURCE_BLUETOOTH
-                   ? icon_name::bluetooth_0deg
-                   : icon_name::micro_sd_card_0deg),
-        message.c_str(),
-        -4,
-        0);
+    drawSideMessageWithIcon(canvas,
+                            gravity::TOP_CENTER,
+                            image_source == photo_frame::ImageSource::IMAGE_SOURCE_CLOUD
+                                ? icon_name::cloud_0deg
+                                : (image_source == photo_frame::ImageSource::IMAGE_SOURCE_BLUETOOTH
+                                       ? icon_name::bluetooth_0deg
+                                       : icon_name::micro_sd_card_0deg),
+                            message.c_str(),
+                            -4,
+                            0);
 }
 
-void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t image_source) {
+void drawImageInfo(GFXcanvas8& canvas, const String& message, ImageSource image_source) {
     icon_name_t icon = icon_name::micro_sd_card_0deg;
 
     switch (image_source) {

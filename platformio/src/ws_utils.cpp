@@ -37,10 +37,10 @@
 namespace photo_frame {
 namespace ws_utils {
 
-void handleCriticalBattery(const battery_info_t& battery_info,
+void handleCriticalBattery(const BatteryInfo& BatteryInfo,
                            esp_sleep_wakeup_cause_t wakeup_reason,
                            uint8_t display_rotation) {
-    log_e("[BT] Handling critical battery state: %.1f%%", battery_info.percent);
+    log_e("[BT] Handling critical battery state: %.1f%%", BatteryInfo.percent);
 
     RGB_SET_STATE(BATTERY_LOW);
 

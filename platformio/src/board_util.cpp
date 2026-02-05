@@ -351,8 +351,8 @@ void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
 #endif
 } // blink_builtin_led
 
-long read_refresh_seconds(const unified_config& config, photo_frame::battery_info_t& battery_info) {
-    if (battery_info.is_critical()) {
+long read_refresh_seconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo) {
+    if (BatteryInfo.is_critical()) {
         log_w("Battery is critical, board should not wake up - returning 0 seconds");
         return 0;
     }
@@ -444,7 +444,7 @@ long read_refresh_seconds(const unified_config& config, photo_frame::battery_inf
 #endif // USE_POTENTIOMETER
 
     // Apply low battery multiplier if needed
-    if (battery_info.is_low()) {
+    if (BatteryInfo.is_low()) {
         refresh_seconds *= config.board.refresh.low_battery_multiplier;
     }
 

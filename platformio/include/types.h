@@ -5,12 +5,12 @@ namespace photo_frame {
 /**
  * @brief Image source enumeration for tracking where an image was loaded from.
  */
-typedef enum image_source {
+enum ImageSource {
     IMAGE_SOURCE_CLOUD,       ///< Image was downloaded from Google Drive
     IMAGE_SOURCE_LOCAL_CACHE, ///< Image was loaded from local SD card cache
     IMAGE_SOURCE_BLUETOOTH,   ///< Image was received via Bluetooth
     IMAGE_SOURCE_WEBSOCKET    ///< Image was received via WebSocket
-} image_source_t;
+};
 
 } // namespace photo_frame
 

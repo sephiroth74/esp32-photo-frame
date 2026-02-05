@@ -40,11 +40,11 @@ namespace bt_utils {
  *
  * Shows error on display and enters deep sleep.
  *
- * @param battery_info Battery information to display
+ * @param BatteryInfo Battery information to display
  * @param wakeup_reason Current wakeup reason
  * @param display_rotation Current display rotation
  */
-void handleCriticalBattery(const battery_info_t& battery_info,
+void handleCriticalBattery(const BatteryInfo& BatteryInfo,
                            esp_sleep_wakeup_cause_t wakeup_reason,
                            uint8_t display_rotation);
 
@@ -55,9 +55,9 @@ const String getBluetoothDeviceName();
  *
  * Shows warning message on display about low battery.
  *
- * @param battery_info Battery information to display
+ * @param BatteryInfo Battery information to display
  */
-void displayBatteryWarning(const battery_info_t& battery_info);
+void displayBatteryWarning(const BatteryInfo& BatteryInfo);
 
 /**
  * @brief Display timeout message for first boot

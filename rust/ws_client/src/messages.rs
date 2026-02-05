@@ -143,3 +143,13 @@ pub struct ShutdownResponse {
     pub message: Option<String>,
     pub error: Option<String>,
 }
+
+/// Generic error message from server
+#[derive(Deserialize)]
+pub struct ErrorMessage {
+    #[serde(rename = "type")]
+    #[allow(dead_code)]
+    pub msg_type: String,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}

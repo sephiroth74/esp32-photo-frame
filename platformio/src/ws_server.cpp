@@ -8,6 +8,9 @@
 #include <ArduinoJson.h>
 #include <esp_log.h>
 
+// External flag from main_ws.cpp to track if image is being loaded
+extern volatile bool g_isLoadingImage;
+
 namespace photo_frame {
 namespace ws {
 
@@ -422,6 +425,20 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
                 StaticJsonDocument<128> errDoc;
                 errDoc["type"]    = "error";
                 errDoc["message"] = "Orientation must be 0-3";
+                String err;
+                serializeJson(errDoc, err);
+                m_webSocket->sendTXT(num, err);
+            }
+            return;
+        }
+
+        // Check if image is currently being loaded and displayed
+        if (g_isLoadingImage) {
+            log_w("[WSServer] Cannot start upload: image is being loaded and displayed on screen");
+            if (m_webSocket) {
+                StaticJsonDocument<128> errDoc;
+                errDoc["type"]    = "error";
+                errDoc["message"] = "Cannot upload: display is currently showing an image";
                 String err;
                 serializeJson(errDoc, err);
                 m_webSocket->sendTXT(num, err);

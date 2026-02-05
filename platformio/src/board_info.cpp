@@ -8,7 +8,7 @@ namespace photo_frame {
 namespace ws {
 
 static bool s_hasBatteryInfo = false;
-static battery_info_t s_batteryInfo;
+static BatteryInfo s_batteryInfo;
 static bool s_hasDisplayRotation  = false;
 static uint16_t s_displayRotation = 0;
 
@@ -92,7 +92,7 @@ int32_t BoardInfo::getBatteryVoltage() {
     return static_cast<int32_t>(s_batteryInfo.millivolts);
 }
 
-void BoardInfo::setBatteryInfo(const battery_info_t& info) {
+void BoardInfo::setBatteryInfo(const BatteryInfo& info) {
     s_batteryInfo    = info;
     s_hasBatteryInfo = true;
 }

@@ -45,7 +45,7 @@ void drawLastUpdate(GFXcanvas8& canvas, const DateTime& lastUpdate, long refresh
  * @param canvas Canvas to draw on
  * @param batteryInfo Battery information structure
  */
-void drawBatteryStatus(GFXcanvas8& canvas, battery_info_t batteryInfo);
+void drawBatteryStatus(GFXcanvas8& canvas, BatteryInfo batteryInfo);
 
 /**
  * Draw image information on the canvas
@@ -57,7 +57,7 @@ void drawBatteryStatus(GFXcanvas8& canvas, battery_info_t batteryInfo);
 void drawImageInfo(GFXcanvas8& canvas,
                    uint32_t index,
                    uint32_t totalImages,
-                   image_source_t imageSource);
+                   ImageSource imageSource);
 
 /**
  * Draw image information on the canvas
@@ -65,7 +65,7 @@ void drawImageInfo(GFXcanvas8& canvas,
  * @param message Message to display
  * @param imageSource Source of the image (cloud/cache)
  */
-void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t imageSource);
+void drawImageInfo(GFXcanvas8& canvas, const String& message, ImageSource imageSource);
 
 /**
  * Draw centered message with icon on the canvas

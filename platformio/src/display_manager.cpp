@@ -239,17 +239,17 @@ void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_sec
     photo_frame::drawLastUpdate(imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
 }
 
-void DisplayManager::drawBatteryStatus(battery_info_t battery_info) {
+void DisplayManager::drawBatteryStatus(BatteryInfo BatteryInfo) {
     log_i("[DisplayManager] Drawing battery status on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
-    photo_frame::drawBatteryStatus(imageBuffer_.getCanvas(), battery_info);
+    photo_frame::drawBatteryStatus(imageBuffer_.getCanvas(), BatteryInfo);
 }
 
 void DisplayManager::drawImageInfo(uint32_t index,
                                    uint32_t total_images,
-                                   image_source_t image_source) {
+                                   ImageSource image_source) {
     log_i("[DisplayManager] Drawing image info on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
@@ -257,7 +257,7 @@ void DisplayManager::drawImageInfo(uint32_t index,
     photo_frame::drawImageInfo(imageBuffer_.getCanvas(), index, total_images, image_source);
 }
 
-void DisplayManager::drawImageInfo(const String& message, image_source_t image_source) {
+void DisplayManager::drawImageInfo(const String& message, ImageSource image_source) {
     log_i("[DisplayManager] Drawing image info message on canvas");
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())

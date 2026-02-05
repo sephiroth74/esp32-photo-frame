@@ -141,17 +141,17 @@ void drawLastUpdate(Adafruit_GFX& gfx, const DateTime& lastUpdate, long refresh_
     drawLastUpdate(canvas, lastUpdate, refresh_seconds);
 }
 
-void drawBatteryStatus(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info) {
+void drawBatteryStatus(Adafruit_GFX& gfx, photo_frame::BatteryInfo BatteryInfo) {
     // This version draws directly on the provided GFX object
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);
-    drawBatteryStatus(canvas, battery_info);
+    drawBatteryStatus(canvas, BatteryInfo);
 }
 
 void drawImageInfo(Adafruit_GFX& gfx,
                    uint32_t index,
                    uint32_t total_images,
-                   photo_frame::image_source_t image_source) {
+                   photo_frame::ImageSource image_source) {
     // This version draws directly on the provided GFX object
     // We assume it's a GFXcanvas8 - caller must ensure this
     GFXcanvas8& canvas = static_cast<GFXcanvas8&>(gfx);

@@ -159,28 +159,28 @@ void cleanup_image_buffer() {
     }
 }
 
-photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
+photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInfo& BatteryInfo,
                                                          esp_sleep_wakeup_cause_t wakeup_reason) {
     log_i("=======================================");
     log_i("- Reading battery level...");
     log_i("=======================================");
 
     battery_reader.init();
-    battery_info = battery_reader.read();
+    BatteryInfo = battery_reader.read();
 
     // print the battery levels
 #ifdef DEBUG_BATTERY_READER
     log_i("Battery level: %d%%, %d mV, Raw mV: %d",
-          battery_info.percent,
-          battery_info.millivolts,
-          battery_info.raw_millivolts);
+          BatteryInfo.percent,
+          BatteryInfo.millivolts,
+          BatteryInfo.raw_millivolts);
 #else
-    log_i("Battery level: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
+    log_i("Battery level: %.1f%%, %lu mV", BatteryInfo.percent, BatteryInfo.millivolts);
 #endif // DEBUG_BATTERY_READER
 
     // check battery status
     // if the battery is empty, enter deep sleep immediately to preserve battery
-    if (battery_info.is_empty()) {
+    if (BatteryInfo.is_empty()) {
         log_e("Battery is empty!");
 #ifdef BATTERY_POWER_SAVING
         // Battery too low to continue
@@ -193,7 +193,7 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
         RGB_DISABLE();
 
         return photo_frame::error_type::BatteryEmpty;
-    } else if (battery_info.is_critical()) {
+    } else if (BatteryInfo.is_critical()) {
         log_w("Battery level is critical!");
 
         RGB_SET_BRIGHTNESS(12);                 // Dim RGB to save power
@@ -211,14 +211,14 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_in
     return photo_frame::error_type::None;
 }
 
-refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now) {
+refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now) {
     refresh_delay_t refresh_delay = {0};
 
     // if the battery level is low, use the battery low multiplier to reduce refresh rate
     // if the battery level is critical the device should just display the critical warning and not
     // reach this point and it should go to sleep indefinitely
 
-    if (!now.isValid() && !battery_info.is_critical()) {
+    if (!now.isValid() && !BatteryInfo.is_critical()) {
         log_w("Time is invalid, using default refresh interval as fallback");
         refresh_delay.refresh_seconds = REFRESH_DEFAULT_INTERVAL_SECONDS;
         return refresh_delay;
@@ -228,7 +228,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     extern photo_frame::unified_config systemConfig;
 
     refresh_delay.refresh_seconds =
-        photo_frame::board_utils::read_refresh_seconds(systemConfig, battery_info);
+        photo_frame::board_utils::read_refresh_seconds(systemConfig, BatteryInfo);
 
     if (refresh_delay.refresh_seconds > 0) {
         log_d("Refresh seconds: %ld", refresh_delay.refresh_seconds);
@@ -283,7 +283,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info
     return refresh_delay;
 }
 
-void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
+void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
                               DateTime& now,
                               esp_sleep_wakeup_cause_t wakeup_reason,
                               const refresh_delay_t& refresh_delay) {
@@ -314,7 +314,7 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
              uint32_t image_index,
              uint32_t total_files,
              photo_frame::GoogleDrive& drive,
-             const photo_frame::battery_info_t& battery_info) {
+             const photo_frame::BatteryInfo& BatteryInfo) {
     photo_frame::photo_frame_error_t error = current_error;
 
     if (error == photo_frame::error_type::None) {
@@ -355,7 +355,7 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
         // Draw status information
         display.drawLastUpdate(now, refresh_delay.refresh_seconds);
         display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-        display.drawBatteryStatus(battery_info);
+        display.drawBatteryStatus(BatteryInfo);
 
         // Render the image with overlays to the display
         log_i("Rendering image to display...");
@@ -387,7 +387,7 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
             // Draw status information
             display.drawLastUpdate(now, refresh_delay.refresh_seconds);
             display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-            display.drawBatteryStatus(battery_info);
+            display.drawBatteryStatus(BatteryInfo);
 
             // Render error to display
             display.render();
@@ -405,7 +405,7 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
         display.drawOverlay();
         display.drawLastUpdate(now, refresh_delay.refresh_seconds);
         display.drawImageInfo(image_index, total_files, drive.get_last_image_source());
-        display.drawBatteryStatus(battery_info);
+        display.drawBatteryStatus(BatteryInfo);
 
         // Render to display
         display.render();

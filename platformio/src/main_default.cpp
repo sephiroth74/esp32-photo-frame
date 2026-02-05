@@ -72,7 +72,7 @@ photo_frame::unified_config systemConfig; // Unified configuration system
 // ============================================================================
 
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
+setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
                             bool is_reset,
                             DateTime& now);
 
@@ -81,7 +81,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
 // ============================================================================
 
 photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
+setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
                             bool is_reset,
                             DateTime& now) {
     photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
@@ -97,7 +97,7 @@ setup_time_and_connectivity(const photo_frame::battery_info_t& battery_info,
     error = sdCard.begin();
 
     // Reduce RGB brightness if battery is low to save power
-    if (battery_info.is_low()) {
+    if (BatteryInfo.is_low()) {
         RGB_SET_BRIGHTNESS(32); // Reduce brightness to 25% of normal for low battery
     }
 
@@ -217,14 +217,14 @@ void default_main_setup() {
     log_d("Is reset: %s", is_reset ? "Yes" : "No");
 
     // Setup battery and power management
-    photo_frame::battery_info_t battery_info;
-    photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
+    photo_frame::BatteryInfo BatteryInfo;
+    photo_frame::photo_frame_error_t error = setup_battery_and_power(BatteryInfo, wakeup_reason);
 
     // Setup time synchronization and connectivity
     DateTime now = DateTime((uint32_t)0);
 
-    if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
-        error = setup_time_and_connectivity(battery_info, is_reset, now);
+    if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
+        error = setup_time_and_connectivity(BatteryInfo, is_reset, now);
     }
 
     // Set rotation from config BEFORE initializing buffer
@@ -258,7 +258,7 @@ void default_main_setup() {
     // Handle image loading via data provider
     photo_frame::ImageLoadResult image_result;
 
-    if (error == photo_frame::error_type::None && !battery_info.is_critical()) {
+    if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
         log_d("Loading image via data providers...");
         // Create data providers as stack objects (no dynamic allocation)
         photo_frame::SdCardDataProvider sdcard_provider;
@@ -295,7 +295,7 @@ void default_main_setup() {
 
     // Calculate refresh delay
     log_d("Calculating refresh rate");
-    refresh_delay_t refresh_delay = calculate_wakeup_delay(battery_info, now);
+    refresh_delay_t refresh_delay = calculate_wakeup_delay(BatteryInfo, now);
 
     // Phase 2: Initialize E-Paper display hardware (after SD card operations are complete)
     log_i("=======================================");
@@ -379,14 +379,14 @@ void default_main_setup() {
                                  image_result.file_index,
                                  image_result.total_files,
                                  drive,
-                                 battery_info);
+                                 BatteryInfo);
         }
     }
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
     delay(2500);               // Allow sleep preparation animation to complete
-    finalize_and_enter_sleep(battery_info, now, wakeup_reason, refresh_delay);
+    finalize_and_enter_sleep(BatteryInfo, now, wakeup_reason, refresh_delay);
 }
 
 void default_main_loop() {

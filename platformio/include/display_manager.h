@@ -67,7 +67,7 @@ namespace photo_frame {
  *
  *     // Phase 2: Draw overlays on canvas
  *     display.drawOverlay();
- *     display.drawBatteryStatus(battery_info);
+ *     display.drawBatteryStatus(BatteryInfo);
  *
  *     // Phase 3: Render to physical display
  *     display.render();
@@ -207,9 +207,9 @@ class DisplayManager {
 
     /**
      * @brief Draw battery status
-     * @param battery_info Battery information
+     * @param BatteryInfo Battery information
      */
-    void drawBatteryStatus(battery_info_t battery_info);
+    void drawBatteryStatus(BatteryInfo BatteryInfo);
 
     /**
      * @brief Draw a side message on the display
@@ -240,13 +240,13 @@ class DisplayManager {
      * @brief Set the image source for status reporting
      * @param source The source of the current image (CLOUD, LOCAL_CACHE, BLUETOOTH)
      */
-    void setImageSource(image_source_t source) { image_source_ = source; }
+    void setImageSource(ImageSource source) { image_source_ = source; }
 
     /**
      * @brief Get the current image source
      * @return The image source enum value
      */
-    image_source_t getImageSource() const { return image_source_; }
+    ImageSource getImageSource() const { return image_source_; }
 
     /**
      * @brief Draw image information
@@ -254,9 +254,9 @@ class DisplayManager {
      * @param total_images Total number of images
      * @param image_source Source of the image
      */
-    void drawImageInfo(uint32_t index, uint32_t total_images, image_source_t image_source);
+    void drawImageInfo(uint32_t index, uint32_t total_images, ImageSource image_source);
 
-    void drawImageInfo(const String& message, image_source_t image_source);
+    void drawImageInfo(const String& message, ImageSource image_source);
 
     /**
      * @brief Draw error message
@@ -373,7 +373,7 @@ class DisplayManager {
     std::unique_ptr<DisplayDriver> displayDriver_; ///< Hardware display driver (smart pointer)
     bool initialized_;                             ///< Initialization state
     uint8_t rotation_;                             ///< Current rotation (0-3)
-    image_source_t image_source_;                  ///< Current image source (for status reporting)
+    ImageSource image_source_;                     ///< Current image source (for status reporting)
 
     /**
      * @brief Create appropriate display driver based on configuration

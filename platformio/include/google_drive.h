@@ -145,15 +145,15 @@ class GoogleDrive {
 
     /**
      * @brief Get the source of the last downloaded/accessed file.
-     * @return image_source_t indicating whether the last file was from cloud or local cache
+     * @return ImageSource indicating whether the last file was from cloud or local cache
      */
-    image_source_t get_last_image_source() const;
+    ImageSource get_last_image_source() const;
 
     /**
      * @brief Set the source of the current image for tracking purposes.
      * @param source The source type (cloud or local cache)
      */
-    void set_last_image_source(image_source_t source);
+    void set_last_image_source(ImageSource source);
 
     /**
      * @brief Clean up temporary files left from previous incomplete downloads
@@ -325,9 +325,9 @@ class GoogleDrive {
 
     GoogleDriveClient client; ///< Google Drive client for API operations
     unified_config::GoogleDrive_config
-        config;                       ///< Configuration settings for this Google Drive instance
-    image_source_t last_image_source; ///< Source of the last accessed/downloaded image
-    photo_frame_error_t last_error;   ///< Last error that occurred during operations
+        config;                     ///< Configuration settings for this Google Drive instance
+    ImageSource last_image_source;  ///< Source of the last accessed/downloaded image
+    photo_frame_error_t last_error; ///< Last error that occurred during operations
 };
 
 } // namespace photo_frame

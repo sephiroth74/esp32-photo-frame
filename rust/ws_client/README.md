@@ -1,52 +1,63 @@
-# PhotoFrame BLE Client
+# PhotoFrame WebSocket Client
 
-> Bluetooth Low Energy (BLE) uploader for ESP32 Photo Frame devices
+> Interactive WebSocket client for ESP32 Photo Frame devices
 
-A command-line tool for communicating with ESP32-based PhotoFrame devices over Bluetooth Low Energy. This tool allows you to scan for nearby PhotoFrame devices and upload binary image files directly to the device.
+A command-line tool for communicating with ESP32-based PhotoFrame devices over WebSocket. This tool provides an interactive menu-driven interface for managing PhotoFrame devices.
 
 ## Features
 
-- **Device Scanning**: Automatically discover PhotoFrame devices in range
-- **Image Upload**: Transfer `.pfr1` binary image files via BLE
+- **Interactive Menu**: Dialoguer-based menu with arrow key navigation
+- **Get Configuration**: Retrieve device configuration and status
+- **Image Upload**: Transfer `.pfr1` binary image files via WebSocket with progress tracking
 - **Orientation Control**: Set display rotation (0-3) during upload
+- **Shutdown Control**: Put device into deep sleep mode
+- **Error Reporting**: Display server errors in real-time (e.g., filesystem errors, upload failures)
 
 ## Installation
 
 ### Prerequisites
 
 - Rust 1.75+ (edition 2024)
-- Bluetooth adapter (BLE 4.0 or higher)
-- Platform-specific requirements:
-  - **macOS**: No additional dependencies
-  - **Linux**: BlueZ and D-Bus (`libbluetooth-dev`, `libdbus-1-dev`)
-  - **Windows**: Windows 10+ with Bluetooth support
+- ESP32 PhotoFrame device running WebSocket server
+- Network connectivity to the device (WiFi or AP mode)
 
 ### Build from Source
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd bt_uploader
+cd ws_client
 
 # Build release version
 cargo build --release
 
-# The binary will be in target/release/bt_uploader
+# The binary will be in target/release/ws_client
 ```
 
 ## Usage
 
-### Scan for Devices
+### Connect to Device
 
-Scan for available PhotoFrame devices in range:
+Start an interactive session with your PhotoFrame device:
 
 ```bash
-bt_uploader scan
+ws_client connect 192.168.4.1:81
 ```
 
-This will display a list of discovered devices with their names and MAC addresses.
+The client will connect and display an interactive menu with the following options:
 
-### Upload an Image
+1. **Get device configuration** - Retrieve and display device info, battery status, display specs
+2. **Upload image file** - Transfer a `.pfr1` image with orientation control
+3. **Shutdown device** - Put the device into deep sleep mode
+4. **Disconnect and exit** - Close the connection
+
+### Error Messages
+
+The client automatically displays server errors in red, including:
+- Filesystem errors (e.g., "File system is not mounted")
+- Upload failures (e.g., "Failed to open temp file")
+- Size limit violations (e.g., "File size limit exceeded")
+- Write errors (e.g., "Write failed")
 
 Upload a binary image file (`.pfr1` format) to a PhotoFrame device:
 

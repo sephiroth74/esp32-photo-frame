@@ -160,13 +160,13 @@ void setup_bluetooth_mode() {
     log_d("[BT] Loaded display rotation from preferences: %u", display_rotation);
 
     // Check battery status
-    photo_frame::battery_info_t battery_info;
-    photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
-    log_d("[BT] Battery: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
+    photo_frame::BatteryInfo BatteryInfo;
+    photo_frame::photo_frame_error_t error = setup_battery_and_power(BatteryInfo, wakeup_reason);
+    log_d("[BT] Battery: %.1f%%, %.1f mV", BatteryInfo.percent, BatteryInfo.millivolts);
 
     if (error == photo_frame::error_type::BatteryLevelCritical) {
         log_e("[BT] Battery is critical, showing error and sleeping");
-        photo_frame::bt_utils::handleCriticalBattery(battery_info, wakeup_reason, display_rotation);
+        photo_frame::bt_utils::handleCriticalBattery(BatteryInfo, wakeup_reason, display_rotation);
         return;
     }
 
@@ -280,7 +280,7 @@ void setup_bluetooth_mode() {
         // Draw overlay with current date/time and battery
         display.drawOverlay();
         display.drawImageInfo("Bluetooth", photo_frame::IMAGE_SOURCE_BLUETOOTH);
-        display.drawBatteryStatus(battery_info);
+        display.drawBatteryStatus(BatteryInfo);
         display.render();
 
         shutdown(littleFs, display, 1000);
@@ -367,7 +367,7 @@ void setup_bluetooth_mode() {
     display.drawImageInfo("Bluetooth", photo_frame::IMAGE_SOURCE_BLUETOOTH);
 
     // Draw battery status on the right
-    display.drawBatteryStatus(battery_info);
+    display.drawBatteryStatus(BatteryInfo);
 
     // Render to display
     display.render();

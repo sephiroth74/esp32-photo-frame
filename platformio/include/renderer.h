@@ -174,9 +174,9 @@ void rendererDrawLastUpdate(Adafruit_GFX& gfx,
 /**
  * Draws the battery status on a GFX canvas (for overlay composition).
  * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
- * @param battery_info Battery information structure
+ * @param BatteryInfo Battery information structure
  */
-void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::battery_info_t battery_info);
+void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::BatteryInfo BatteryInfo);
 
 /**
  * Draws image information on a GFX canvas (for overlay composition).
@@ -188,7 +188,7 @@ void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::battery_info_t ba
 void rendererDrawImageInfo(Adafruit_GFX& gfx,
                            uint32_t index,
                            uint32_t total_images,
-                           photo_frame::image_source_t image_source);
+                           photo_frame::ImageSource image_source);
 
 /**
  * @brief Load image file into buffer

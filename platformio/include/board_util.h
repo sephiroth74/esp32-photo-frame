@@ -162,11 +162,11 @@ void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_m
  * The interval can be adjusted based on battery level to conserve power when the battery is low.
  *
  * @param config The unified configuration containing refresh settings
- * @param battery_info The current battery information for level checking
+ * @param BatteryInfo The current battery information for level checking
  * @return The refresh interval in seconds
  * @note Actual implementation depends on USE_POTENTIOMETER definition
  */
-long read_refresh_seconds(const unified_config& config, photo_frame::battery_info_t& battery_info);
+long read_refresh_seconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo);
 
 } // namespace board_utils
 

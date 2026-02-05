@@ -425,17 +425,17 @@ void run_display_tests() {
     photo_frame::DisplayManager::getInstance().drawOverlay();
 
     // Draw battery status
-    photo_frame::battery_info_t battery_info;
-    battery_info.percent    = 100;
-    battery_info.millivolts = 4120;
-    uint8_t test_rotation   = 1; // 0=0°,1=90°,2=180°,3=270°
+    photo_frame::BatteryInfo BatteryInfo;
+    BatteryInfo.percent    = 100;
+    BatteryInfo.millivolts = 4120;
+    uint8_t test_rotation  = 1; // 0=0°,1=90°,2=180°,3=270°
     photo_frame::DisplayManager::getInstance().setRotation(test_rotation);
     long refresh_seconds = 3600; // 1 hour
     photo_frame::DisplayManager::getInstance().drawLastUpdate(now, refresh_seconds);
 
     // Draw image info
     photo_frame::DisplayManager::getInstance().drawImageInfo(
-        0, 10, photo_frame::image_source_t::IMAGE_SOURCE_CLOUD);
+        0, 10, photo_frame::ImageSource::IMAGE_SOURCE_CLOUD);
 
     // Render the image with overlays to the display
     log_i("Rendering image to display...");

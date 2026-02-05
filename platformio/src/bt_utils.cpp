@@ -40,10 +40,10 @@ const String getBluetoothDeviceName() {
     return String(photo_frame::bt_protocol::BT_DEVICE_NAME) + "-" + String(chip_id, HEX);
 }
 
-void handleCriticalBattery(const battery_info_t& battery_info,
+void handleCriticalBattery(const BatteryInfo& BatteryInfo,
                            esp_sleep_wakeup_cause_t wakeup_reason,
                            uint8_t display_rotation) {
-    log_e("[BT] Handling critical battery state: %.1f%%", battery_info.percent);
+    log_e("[BT] Handling critical battery state: %.1f%%", BatteryInfo.percent);
 
     RGB_SET_STATE(BATTERY_LOW);
 
@@ -82,8 +82,8 @@ void handleCriticalBattery(const battery_info_t& battery_info,
     board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0); // 0 = indefinite sleep
 }
 
-void displayBatteryWarning(const battery_info_t& battery_info) {
-    log_w("[BT] Displaying battery warning: %.1f%%", battery_info.percent);
+void displayBatteryWarning(const BatteryInfo& BatteryInfo) {
+    log_w("[BT] Displaying battery warning: %.1f%%", BatteryInfo.percent);
 
     RGB_SET_STATE(BATTERY_LOW);
 

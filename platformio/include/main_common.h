@@ -96,30 +96,30 @@ void cleanup_image_buffer();
 
 /**
  * @brief Read and validate battery level, handle critical battery states
- * @param battery_info Reference to store battery information
+ * @param BatteryInfo Reference to store battery information
  * @param wakeup_reason Current wakeup reason for power management decisions
  * @return Error state after battery check
  */
-photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::battery_info_t& battery_info,
+photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInfo& BatteryInfo,
                                                          esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
  * @brief Calculate the wakeup delay based on battery level and current time
  *
- * @param battery_info The battery information structure
+ * @param BatteryInfo The battery information structure
  * @param now The current time
  * @return The calculated wakeup delay
  */
-refresh_delay_t calculate_wakeup_delay(photo_frame::battery_info_t& battery_info, DateTime& now);
+refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now);
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep
- * @param battery_info Battery information for sleep calculations
+ * @param BatteryInfo Battery information for sleep calculations
  * @param now Current DateTime for sleep timing
  * @param wakeup_reason Wakeup reason for sleep decisions
  * @param refresh_delay Pre-calculated refresh delay to avoid re-reading potentiometer
  */
-void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
+void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
                               DateTime& now,
                               esp_sleep_wakeup_cause_t wakeup_reason,
                               const refresh_delay_t& refresh_delay);
@@ -139,7 +139,7 @@ void finalize_and_enter_sleep(photo_frame::battery_info_t& battery_info,
  * @param image_index Current image index
  * @param total_files Total number of files
  * @param drive Google Drive instance
- * @param battery_info Battery information
+ * @param BatteryInfo Battery information
  * @return Updated error state after rendering attempt
  */
 photo_frame::photo_frame_error_t
@@ -151,6 +151,6 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
              uint32_t image_index,
              uint32_t total_files,
              photo_frame::GoogleDrive& drive,
-             const photo_frame::battery_info_t& battery_info);
+             const photo_frame::BatteryInfo& BatteryInfo);
 
 #endif // COMMON_MAIN_H

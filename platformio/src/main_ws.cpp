@@ -83,10 +83,10 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
     photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
 }
 
-void load_image(const char* filename,
-                uint8_t orientation,
-                uint32_t timestamp,
-                photo_frame::battery_info_t& battery_info) {
+void displayReceivedFile(const char* filename,
+                         uint8_t orientation,
+                         uint32_t timestamp,
+                         photo_frame::BatteryInfo& BatteryInfo) {
     g_isLoadingImage = true;
     log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)", filename, orientation, timestamp);
 
@@ -132,8 +132,8 @@ void load_image(const char* filename,
         display.drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
     }
 
-    display.drawImageInfo("WebSocket", photo_frame::IMAGE_SOURCE_WEBSOCKET);
-    display.drawBatteryStatus(battery_info);
+    display.drawImageInfo("Upload", photo_frame::IMAGE_SOURCE_WEBSOCKET);
+    display.drawBatteryStatus(BatteryInfo);
     display.render();
 
     g_isLoadingImage = false;
@@ -185,17 +185,17 @@ void main_webserver_setup() {
     display_rotation = prefs.getDisplayRotation();
 
     // Check battery status
-    photo_frame::battery_info_t battery_info;
-    photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
-    log_d("[WS] Battery: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
+    photo_frame::BatteryInfo BatteryInfo;
+    photo_frame::photo_frame_error_t error = setup_battery_and_power(BatteryInfo, wakeup_reason);
+    log_d("[WS] Battery: %.1f%%, %.1f mV", BatteryInfo.percent, BatteryInfo.millivolts);
 
     // Provide current runtime info to BoardInfo for GET_CONFIG
-    BoardInfo::setBatteryInfo(battery_info);
+    BoardInfo::setBatteryInfo(BatteryInfo);
     BoardInfo::setDisplayRotation(static_cast<uint16_t>(display_rotation) * 90);
 
     if (error == photo_frame::error_type::BatteryLevelCritical) {
         log_e("[BT] Battery is critical, showing error and sleeping");
-        photo_frame::ws_utils::handleCriticalBattery(battery_info, wakeup_reason, display_rotation);
+        photo_frame::ws_utils::handleCriticalBattery(BatteryInfo, wakeup_reason, display_rotation);
         return;
     }
 
@@ -235,6 +235,11 @@ void main_webserver_setup() {
               apManager.getIP().c_str());
     }
 
+    // ========================================================================
+    // Initialize LittleFS and load image (if AP started successfully)
+    // ========================================================================
+    error = littleFs.init() ? error : photo_frame::error_type::LittleFSInitFailed;
+
     // Phase 3: Initialize hardware
     photo_frame::board_utils::display_power_on();
 
@@ -250,14 +255,25 @@ void main_webserver_setup() {
     // ========================================================================
     // Load and display image with connection info
     // ========================================================================
-    log_i("[WS] Loading and displaying image...");
+    log_d("[WS] Loading and displaying image...");
 
-    // Load current or default image
-    error = photo_frame::ws_display_utils::loadCurrentOrDefaultImage(littleFs, display);
-    if (error != photo_frame::error_type::None) {
-        log_w("[WS] Failed to load image, will show blank screen with connection info");
-        // Clear canvas to white
-        display.getCanvas().fillScreen(DISPLAY_COLOR_WHITE);
+    if (error == photo_frame::error_type::None) {
+        // Load current or default image
+        error = photo_frame::ws_display_utils::loadCurrentOrDefaultImage(littleFs, display);
+        if (error != photo_frame::error_type::None) {
+            log_w("[WS] Failed to load image, will show blank screen with connection info");
+            display.clear(DISPLAY_COLOR_WHITE);
+            // Clear error to continue with blank screen
+            error = photo_frame::error_type::None;
+        }
+    } else {
+        // just show the error and shut down
+        log_w("[WS] Skipping image load due to previous error: %d", error.code);
+        display.clear(DISPLAY_COLOR_WHITE);
+        display.drawError(error);
+        display.render();
+        shutdown(littleFs, display, 10000);
+        return;
     }
 
     // Draw connection info box (QR code, SSID, IP)
@@ -269,26 +285,26 @@ void main_webserver_setup() {
     if (!display.render()) {
         log_e("[WS] Failed to render display");
     } else {
-        log_i("[WS] Display rendered successfully");
+        log_d("[WS] Display rendered successfully");
     }
 
-    log_i("[WS] Setup complete - waiting for WebSocket connections");
+    log_d("[WS] Setup complete - waiting for WebSocket connections");
 
     // Verify WiFi AP is still active before starting WebSocket
-    log_i("[WS] Verifying WiFi AP status...");
-    log_i("[WS] AP SSID: %s", apManager.getSSID().c_str());
-    log_i("[WS] AP IP: %s", apManager.getIP().c_str());
-    log_i("[WS] AP Running: %s",
+    log_d("[WS] Verifying WiFi AP status...");
+    log_d("[WS] AP SSID: %s", apManager.getSSID().c_str());
+    log_d("[WS] AP IP: %s", apManager.getIP().c_str());
+    log_d("[WS] AP Running: %s",
           apManager.isClientConnected() ? "Yes (client connected)" : "Yes (no clients yet)");
 
     // Give WiFi AP time to fully stabilize before starting WebSocket
-    log_i("[WS] Waiting 1 second for WiFi AP to stabilize...");
+    log_v("[WS] Waiting 1 second for WiFi AP to stabilize...");
     delay(1000);
 
     // Start WebSocket server for GET_CONFIG testing
-    log_i("[WS] Creating WebSocket server on port %u...", WS_PORT);
+    log_d("[WS] Creating WebSocket server on port %u...", WS_PORT);
     WSServer wsServer(
-        WS_PORT, [&littleFs, &display, &wsServer, &battery_info](const WSEvent& event) {
+        WS_PORT, [&littleFs, &display, &wsServer, &BatteryInfo](const WSEvent& event) {
             switch (event.type) {
             case WSEventType::ERROR:
                 log_e("[WS] WebSocket error: %s", event.message.c_str());
@@ -304,12 +320,12 @@ void main_webserver_setup() {
                       event.orientation);
                 // File is already saved to LittleFS at event.filepath
                 // TODO: Trigger display update with new image
-                load_image(
-                    event.filepath.c_str(), event.orientation, event.timestamp, battery_info);
+                displayReceivedFile(
+                    event.filepath.c_str(), event.orientation, event.timestamp, BatteryInfo);
                 break;
             case WSEventType::SHUTDOWN_REQUEST:
-                log_i("[WS] ========================================");
-                log_i("[WS] Shutdown request received via WebSocket");
+                log_d("[WS] ========================================");
+                log_d("[WS] Shutdown request received via WebSocket");
 
                 // Check if an upload or image loading is in progress
                 if (wsServer.isUploadActive()) {
@@ -322,7 +338,7 @@ void main_webserver_setup() {
                     break;
                 }
 
-                log_i("[WS] Entering deep sleep in 100ms...");
+                log_d("[WS] Entering deep sleep in 100ms...");
                 shutdown(littleFs, display, 100);
                 break;
             default: break;
