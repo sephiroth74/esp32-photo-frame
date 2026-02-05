@@ -6,6 +6,9 @@
 #include <freertos/task.h>
 #include <WebSocketsServer.h>
 
+namespace photo_frame {
+namespace ws {
+
 /**
  * @brief WebSocket event types
  */
@@ -123,3 +126,6 @@ private:
     size_t m_imageReceivedSize;
     bool m_receivingImage;
 };
+
+}  // namespace ws
+}  // namespace photo_frame

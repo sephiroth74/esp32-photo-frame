@@ -53,7 +53,7 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
                            const std::string& ipAddress,
                            const std::string& wsUrl);
 
-} // namespace ws_display_utils
-} // namespace photo_frame
+}  // namespace ws_display_utils
+}  // namespace photo_frame
 
 #endif // WS_DISPLAY_UTILS_H

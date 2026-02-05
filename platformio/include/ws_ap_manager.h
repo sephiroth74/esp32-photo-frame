@@ -28,6 +28,7 @@
 #include <string>
 
 namespace photo_frame {
+namespace ws {
 
 // WiFi AP Configuration Constants
 static constexpr const char* WS_AP_PASSWORD    = nullptr; // Open network (no password)
@@ -82,6 +83,7 @@ class WSAPManager {
     std::string generateSSID();
 };
 
-} // namespace photo_frame
+}  // namespace ws
+}  // namespace photo_frame
 
 #endif // WS_AP_MANAGER_H

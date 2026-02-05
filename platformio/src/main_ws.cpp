@@ -30,19 +30,25 @@
 #include "main_common.h"
 #include "preferences_helper.h"
 #include "rgb_status.h"
+#include "board_info.h"
 #include "ws_ap_manager.h"
 #include "ws_display_utils.h"
+#include "ws_server.h"
 #include "ws_utils.h"
 #include <Arduino.h>
 
-void performFactoryReset() {
+using namespace photo_frame::ws;
+
+void performFactoryReset()
+{
     log_i("[WS] ========================================");
     log_i("[WS] FACTORY RESET INITIATED");
     log_i("[WS] ========================================");
 
     // Step 1: Clear all BT preferences
     log_i("[WS] Step 1: Clearing WS preferences...");
-    auto& prefs  = photo_frame::PreferencesHelper::getInstance();
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
+    // prefs.clearAll();
 
     bool success = true;
 
@@ -58,8 +64,9 @@ void performFactoryReset() {
 }
 
 void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
-              photo_frame::DisplayManager& display,
-              unsigned long delay_ms = 0) {
+    photo_frame::DisplayManager& display,
+    unsigned long delay_ms = 0)
+{
     log_i("[WS] Shutting down");
 
     if (delay_ms > 0) {
@@ -75,19 +82,20 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
     photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
 }
 
-void main_webserver_setup() {
+void main_webserver_setup()
+{
     Serial.begin(115200);
     delay(5000);
 
     // Initialize display power control (if configured)
     photo_frame::board_utils::init_display_power();
-    auto& prefs   = photo_frame::PreferencesHelper::getInstance();
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
     auto littleFs = photo_frame::littlefs_manager::LittleFsManager::getInstance();
     auto& display = photo_frame::DisplayManager::getInstance();
 
     // Get wakeup reason
     esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
-    bool is_first_boot                     = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+    bool is_first_boot = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
     char wakeup_reason_string[32];
     photo_frame::board_utils::get_wakeup_reason_string(
         wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
@@ -118,10 +126,16 @@ void main_webserver_setup() {
     }
     log_d("[WS] No factory reset requested");
 
+    display_rotation = prefs.getDisplayRotation();
+
     // Check battery status
     photo_frame::battery_info_t battery_info;
     photo_frame::photo_frame_error_t error = setup_battery_and_power(battery_info, wakeup_reason);
     log_d("[WS] Battery: %.1f%%, %.1f mV", battery_info.percent, battery_info.millivolts);
+
+    // Provide current runtime info to BoardInfo for GET_CONFIG
+    BoardInfo::setBatteryInfo(battery_info);
+    BoardInfo::setDisplayRotation(static_cast<uint16_t>(display_rotation) * 90);
 
     if (error == photo_frame::error_type::BatteryLevelCritical) {
         log_e("[BT] Battery is critical, showing error and sleeping");
@@ -133,7 +147,7 @@ void main_webserver_setup() {
     uint32_t timeout_ms = is_first_boot ? WS_FIRST_BOOT_TIMEOUT_MS : WS_LISTEN_TIMEOUT_MS;
 
     log_d("[WS] Starting image wait: %s",
-          is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");
+        is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");
     log_d("[WS] Timeout set to %u ms", timeout_ms);
 
     // ========================================================================
@@ -154,15 +168,15 @@ void main_webserver_setup() {
     log_i("[WS] Initializing WiFi Access Point...");
 
     // Phase 2: Start WiFi AP
-    photo_frame::WSAPManager apManager;
+    photo_frame::ws::WSAPManager apManager;
     if (!apManager.begin()) {
         log_e("[WS] Failed to start WiFi AP - will display error");
         // TODO: Display error on screen indicating AP initialization failure
         error = photo_frame::error_type::WifiConnectionFailed;
     } else {
         log_i("[WS] WiFi AP started: SSID=%s, IP=%s",
-              apManager.getSSID().c_str(),
-              apManager.getIP().c_str());
+            apManager.getSSID().c_str(),
+            apManager.getIP().c_str());
     }
 
     // Phase 3: Initialize hardware
@@ -191,7 +205,7 @@ void main_webserver_setup() {
     }
 
     // Draw connection info box (QR code, SSID, IP)
-    std::string wsUrl = apManager.getIP();
+    std::string wsUrl = "ws://" + apManager.getIP() + ":" + std::to_string(WS_PORT);
     photo_frame::ws_display_utils::drawConnectionInfoBox(
         display, apManager.getSSID(), apManager.getIP(), wsUrl);
 
@@ -204,10 +218,57 @@ void main_webserver_setup() {
 
     log_i("[WS] Setup complete - waiting for WebSocket connections");
 
-    delay(10000); // Show image for 10 seconds before proceeding
-    shutdown(littleFs, display, 0);
+    // Verify WiFi AP is still active before starting WebSocket
+    log_i("[WS] Verifying WiFi AP status...");
+    log_i("[WS] AP SSID: %s", apManager.getSSID().c_str());
+    log_i("[WS] AP IP: %s", apManager.getIP().c_str());
+    log_i("[WS] AP Running: %s", apManager.isClientConnected() ? "Yes (client connected)" : "Yes (no clients yet)");
+
+    // Give WiFi AP time to fully stabilize before starting WebSocket
+    log_i("[WS] Waiting 1 second for WiFi AP to stabilize...");
+    delay(1000);
+
+    // Start WebSocket server for GET_CONFIG testing
+    log_i("[WS] Creating WebSocket server on port %u...", WS_PORT);
+    WSServer wsServer(WS_PORT, [](const WSEvent& event) {
+        switch (event.type) {
+        case WSEventType::ERROR:
+            log_e("[WS] WebSocket error: %s", event.message.c_str());
+            break;
+        case WSEventType::CLIENT_CONNECTED:
+            log_i("[WS] WebSocket client connected");
+            break;
+        case WSEventType::CLIENT_DISCONNECTED:
+            log_i("[WS] WebSocket client disconnected");
+            break;
+        case WSEventType::IMAGE_RECEIVED:
+            log_i("[WS] Image received (%u bytes)", event.imageSize);
+            if (event.imageData) {
+                free(event.imageData);
+            }
+            break;
+        default:
+            break;
+        }
+    });
+
+    if (!wsServer.begin()) {
+        log_e("[WS] Failed to start WebSocket server");
+    } else {
+        log_i("[WS] WebSocket server listening on port %u", WS_PORT);
+    }
+
+    while(true) {
+        delay(100);
+        yield();
+    }
 }
 
-void main_webserver_loop() {}
+void main_webserver_loop()
+{
+    // Keep the main loop running to prevent watchdog reset
+    // The WebSocket server runs in its own FreeRTOS task
+    delay(100);
+}
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER

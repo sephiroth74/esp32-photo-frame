@@ -26,6 +26,7 @@
 #include <sstream>
 
 namespace photo_frame {
+namespace ws {
 
 bool WSAPManager::begin() {
     ssid_ = generateSSID();
@@ -112,4 +113,5 @@ std::string WSAPManager::generateSSID() {
     return ss.str();
 }
 
-} // namespace photo_frame
+}  // namespace ws
+}  // namespace photo_frame
