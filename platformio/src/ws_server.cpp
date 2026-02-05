@@ -429,6 +429,23 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
             return;
         }
 
+        // Check if another upload session is already active
+        if (m_uploadActive && m_uploadClientId != num) {
+            log_w("[WSServer] Upload already in progress from client %u, rejecting request from "
+                  "client %u",
+                  m_uploadClientId,
+                  num);
+            if (m_webSocket) {
+                StaticJsonDocument<128> errDoc;
+                errDoc["type"]    = "error";
+                errDoc["message"] = "Another upload is already in progress";
+                String err;
+                serializeJson(errDoc, err);
+                m_webSocket->sendTXT(num, err);
+            }
+            return;
+        }
+
         // Reset any previous session for this client
         if (m_uploadActive && m_uploadClientId == num) {
             resetUploadSession(true, "New upload init");
@@ -506,66 +523,44 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
         if (validationResult == photo_frame::error_type::None) {
             log_i("[WSServer] Upload validation successful");
 
-            // Send success response
-            if (m_webSocket) {
-                StaticJsonDocument<128> successDoc;
-                successDoc["type"]    = "success";
-                successDoc["message"] = "Image uploaded successfully";
-                String success;
-                serializeJson(successDoc, success);
-                m_webSocket->sendTXT(num, success);
-            }
-
-            // Trigger callback to main with upload metadata
-            WSEvent event;
-            event.type        = WSEventType::IMAGE_RECEIVED;
-            event.message     = "Image received successfully";
-            event.filepath    = WS_UPLOAD_TEMP_FILENAME; // Path to saved file in LittleFS
-            event.filename    = m_uploadFilename;
-            event.timestamp   = m_uploadTimestamp;
-            event.orientation = m_uploadOrientation;
-            sendEvent(event);
-
-            resetUploadSession(false, "Upload successful");
-
             // Move temp file to current image
-            // LittleFS.remove(WS_CURRENT_IMAGE_FILENAME);
-            // if (LittleFS.rename(WS_UPLOAD_TEMP_FILENAME, WS_CURRENT_IMAGE_FILENAME)) {
-            //     log_i("[WSServer] Image file moved to: %s", WS_CURRENT_IMAGE_FILENAME);
+            LittleFS.remove(WS_CURRENT_IMAGE_FILENAME);
+            if (LittleFS.rename(WS_UPLOAD_TEMP_FILENAME, WS_CURRENT_IMAGE_FILENAME)) {
+                log_i("[WSServer] Image file moved to: %s", WS_CURRENT_IMAGE_FILENAME);
 
-            //     // Send success response
-            //     if (m_webSocket) {
-            //         StaticJsonDocument<128> successDoc;
-            //         successDoc["type"] = "success";
-            //         successDoc["message"] = "Image uploaded successfully";
-            //         String success;
-            //         serializeJson(successDoc, success);
-            //         m_webSocket->sendTXT(num, success);
-            //     }
+                // Send success response
+                if (m_webSocket) {
+                    StaticJsonDocument<128> successDoc;
+                    successDoc["type"]    = "success";
+                    successDoc["message"] = "Image uploaded successfully";
+                    String success;
+                    serializeJson(successDoc, success);
+                    m_webSocket->sendTXT(num, success);
+                }
 
-            //     // Trigger callback to main with upload metadata
-            //     WSEvent event;
-            //     event.type = WSEventType::IMAGE_RECEIVED;
-            //     event.message = "Image received successfully";
-            //     event.filepath = WS_UPLOAD_TEMP_FILENAME; // Path to saved file in LittleFS
-            //     event.filename = m_uploadFilename;
-            //     event.timestamp = m_uploadTimestamp;
-            //     event.orientation = m_uploadOrientation;
-            //     sendEvent(event);
+                // Trigger callback to main with upload metadata
+                WSEvent event;
+                event.type        = WSEventType::IMAGE_RECEIVED;
+                event.message     = "Image received successfully";
+                event.filepath    = WS_CURRENT_IMAGE_FILENAME; // Path to saved file in LittleFS
+                event.filename    = m_uploadFilename;
+                event.timestamp   = m_uploadTimestamp;
+                event.orientation = m_uploadOrientation;
+                sendEvent(event);
 
-            //     resetUploadSession(false, "Upload successful");
-            // } else {
-            //     log_e("[WSServer] Failed to move upload file");
-            //     if (m_webSocket) {
-            //         StaticJsonDocument<128> errDoc;
-            //         errDoc["type"] = "error";
-            //         errDoc["message"] = "Failed to save image";
-            //         String err;
-            //         serializeJson(errDoc, err);
-            //         m_webSocket->sendTXT(num, err);
-            //     }
-            //     resetUploadSession(true, "Move failed");
-            // }
+                resetUploadSession(false, "Upload successful");
+            } else {
+                log_e("[WSServer] Failed to move upload file");
+                if (m_webSocket) {
+                    StaticJsonDocument<128> errDoc;
+                    errDoc["type"]    = "error";
+                    errDoc["message"] = "Failed to save image";
+                    String err;
+                    serializeJson(errDoc, err);
+                    m_webSocket->sendTXT(num, err);
+                }
+                resetUploadSession(true, "Move failed");
+            }
         } else {
             log_e("[WSServer] Upload validation failed: error=%d", validationResult.code);
             if (m_webSocket) {
@@ -581,6 +576,21 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
     } else if (String(type) == "shutdown") {
         // Shutdown command - put device in deep sleep
         log_i("[WSServer] Received shutdown command from client %u", num);
+
+        // Check if upload is in progress
+        if (m_uploadActive) {
+            log_w("[WSServer] Cannot shutdown: upload session is active from client %u",
+                  m_uploadClientId);
+            if (m_webSocket) {
+                StaticJsonDocument<128> errDoc;
+                errDoc["type"]    = "error";
+                errDoc["message"] = "Cannot shutdown: upload in progress";
+                String err;
+                serializeJson(errDoc, err);
+                m_webSocket->sendTXT(num, err);
+            }
+            return;
+        }
 
         // Send acknowledgement before shutting down
         if (m_webSocket) {

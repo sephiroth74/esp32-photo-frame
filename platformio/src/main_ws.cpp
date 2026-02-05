@@ -39,6 +39,9 @@
 
 using namespace photo_frame::ws;
 
+/// Flag to track if load_image is currently executing
+volatile bool g_isLoadingImage = false;
+
 void performFactoryReset() {
     log_i("[WS] ========================================");
     log_i("[WS] FACTORY RESET INITIATED");
@@ -84,6 +87,7 @@ void load_image(const char* filename,
                 uint8_t orientation,
                 uint32_t timestamp,
                 photo_frame::battery_info_t& battery_info) {
+    g_isLoadingImage = true;
     log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)", filename, orientation, timestamp);
 
     auto& littleFs = photo_frame::littlefs_manager::LittleFsManager::getInstance();
@@ -108,12 +112,14 @@ void load_image(const char* filename,
                                    timeinfo.tm_sec);
 
     auto error          = photo_frame::ws_utils::loadLittleFsFile(filename, littleFs, wrapper);
+    display.clear(DISPLAY_COLOR_WHITE);
 
     if (error != photo_frame::error_type::None) {
-        if (error != photo_frame::error_type::None) {
-            log_e("[WS] %s not found or invalid in littlefs", filename);
-            return;
-        }
+        error.log_detailed();
+        display.drawError(error, filename);
+        display.render();
+        g_isLoadingImage = false;
+        return;
     }
 
     memcpy(display.getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
@@ -129,6 +135,8 @@ void load_image(const char* filename,
     display.drawImageInfo("WebSocket", photo_frame::IMAGE_SOURCE_WEBSOCKET);
     display.drawBatteryStatus(battery_info);
     display.render();
+
+    g_isLoadingImage = false;
 }
 
 void main_webserver_setup() {
@@ -302,6 +310,18 @@ void main_webserver_setup() {
             case WSEventType::SHUTDOWN_REQUEST:
                 log_i("[WS] ========================================");
                 log_i("[WS] Shutdown request received via WebSocket");
+
+                // Check if an upload or image loading is in progress
+                if (wsServer.isUploadActive()) {
+                    log_w("[WS] Cannot shutdown: upload session is active");
+                    break;
+                }
+
+                if (g_isLoadingImage) {
+                    log_w("[WS] Cannot shutdown: image is being loaded");
+                    break;
+                }
+
                 log_i("[WS] Entering deep sleep in 100ms...");
                 shutdown(littleFs, display, 100);
                 break;

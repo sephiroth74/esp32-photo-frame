@@ -83,6 +83,12 @@ class WSServer {
     bool isRunning() const { return m_running; }
 
     /**
+     * @brief Check if an upload session is active
+     * @return true if upload in progress
+     */
+    bool isUploadActive() const { return m_uploadActive; }
+
+    /**
      * @brief Get server port
      * @return Port number
      */
