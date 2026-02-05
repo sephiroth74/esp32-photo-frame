@@ -1,16 +1,16 @@
+use crate::messages::{
+    BoardConfig, ChunkAck, FinalResponse, ReadyResponse, ShutdownCommand, ShutdownResponse,
+    UploadEnd, UploadInit,
+};
 use anyhow::{Context, Result, anyhow};
 use console::style;
 use futures_util::{SinkExt, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use photoframe_lib::validate_bin_file;
-use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::time::timeout;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-
-/// Default WebSocket URL for PhotoFrame device
-const DEFAULT_WS_URL: &str = "ws://192.168.4.1:81";
 
 /// Connection timeout in seconds
 const CONNECTION_TIMEOUT_SECS: u64 = 10;
@@ -18,86 +18,8 @@ const CONNECTION_TIMEOUT_SECS: u64 = 10;
 /// Response timeout in seconds  
 const RESPONSE_TIMEOUT_SECS: u64 = 5;
 
-/// Board configuration returned by GET_CONFIG command
-#[derive(Debug, Deserialize, Serialize)]
-pub struct BoardConfig {
-    pub board: String,
-    pub flash_size: String,
-    pub flash_size_bytes: u32,
-    pub display_type: String,
-    pub display_width: u16,
-    pub display_height: u16,
-    pub display_rotation: u16,
-    pub server_version: String,
-    pub file_version: u8,
-    pub binary_file_size: u32,
-    #[serde(default)]
-    pub battery_level: Option<i8>,
-    #[serde(default)]
-    pub battery_voltage_mv: Option<i32>,
-}
-
-impl BoardConfig {
-    /// Validate the board configuration
-    pub fn validate(&self) -> Result<()> {
-        // Check version
-        if self.file_version == 0 {
-            return Err(anyhow!("Invalid board config file version: 0"));
-        }
-
-        if self.binary_file_size == 0 {
-            return Err(anyhow!("Binary file size is zero"));
-        }
-
-        if self.server_version.is_empty() {
-            return Err(anyhow!("Server version is empty"));
-        }
-
-        // Check display dimensions
-        if self.display_width == 0 || self.display_height == 0 {
-            return Err(anyhow!(
-                "Invalid display dimensions: {}x{}",
-                self.display_width,
-                self.display_height
-            ));
-        }
-
-        // Check rotation
-        if self.display_rotation > 270 {
-            return Err(anyhow!("Invalid rotation: {}", self.display_rotation));
-        }
-
-        Ok(())
-    }
-
-    /// Print board configuration in a formatted way
-    pub fn print(&self) {
-        println!("{}", style("Board Configuration:").bold().green());
-        println!("  File Version: {}", self.file_version);
-        println!("  Server Version: {}", self.server_version);
-        println!("  Display Type: {}", self.display_type);
-        println!("  Binary File Size: {} bytes", self.binary_file_size);
-        println!(
-            "  Dimensions: {}x{}",
-            self.display_width, self.display_height
-        );
-        println!("  Rotation: {}°", self.display_rotation);
-        println!();
-        println!("{}", style("Hardware:").bold().cyan());
-        println!("  Chip Model: {}", self.board);
-        println!("  Board Flash Size: {}", self.flash_size);
-        if let (Some(level), Some(voltage)) = (self.battery_level, self.battery_voltage_mv) {
-            println!("  Battery: {:.1}% ({:.2}V)", level, voltage);
-        } else {
-            println!("{}", style("Battery: Not available").dim());
-        }
-    }
-}
-
 /// Connect to PhotoFrame WebSocket and get board configuration
-pub async fn test_connection(url: Option<&str>) -> Result<BoardConfig> {
-    let ws_url = url.unwrap_or(DEFAULT_WS_URL);
-
+pub async fn test_connection(ws_url: &str) -> Result<BoardConfig> {
     println!("{}", style(format!("Connecting to {}...", ws_url)).dim());
 
     // Connect to WebSocket with timeout
@@ -194,9 +116,7 @@ pub async fn test_connection(url: Option<&str>) -> Result<BoardConfig> {
 }
 
 /// Upload image to PhotoFrame with PFR1 format
-pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -> Result<()> {
-    let ws_url = url.unwrap_or(DEFAULT_WS_URL);
-
+pub async fn upload_image(ws_url: &str, file_path: &str, orientation: u8) -> Result<()> {
     // Validate orientation
     if orientation > 3 {
         return Err(anyhow!("Orientation must be 0-3 (got: {})", orientation));
@@ -260,16 +180,6 @@ pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -
     let (mut write, mut read) = ws_stream.split();
 
     // Send upload initiation message
-    #[derive(Serialize)]
-    struct UploadInit {
-        #[serde(rename = "type")]
-        msg_type: String,
-        filename: String,
-        token: String,
-        timestamp: u32,
-        orientation: u8,
-    }
-
     let init_msg = UploadInit {
         msg_type: "init".to_string(),
         filename: filename.clone(),
@@ -301,15 +211,6 @@ pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -
 
         match ready_response {
             Message::Text(text) => {
-                #[derive(Deserialize)]
-                struct ReadyResponse {
-                    #[serde(rename = "type")]
-                    #[allow(dead_code)]
-                    msg_type: String,
-                    session_id: Option<u8>,
-                    error: Option<String>,
-                }
-
                 let response: ReadyResponse =
                     serde_json::from_str(&text).context("Failed to parse ready response")?;
 
@@ -371,15 +272,6 @@ pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -
 
             match ack_response {
                 Message::Text(text) => {
-                    #[derive(Deserialize)]
-                    struct ChunkAck {
-                        #[serde(rename = "type")]
-                        #[allow(dead_code)]
-                        msg_type: String,
-                        received: Option<usize>,
-                        error: Option<String>,
-                    }
-
                     let ack: ChunkAck =
                         serde_json::from_str(&text).context("Failed to parse chunk ACK")?;
 
@@ -414,12 +306,6 @@ pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -
     progress_bar.finish_with_message(style("✓ Upload complete").green().to_string());
 
     // Send upload completion message
-    #[derive(Serialize)]
-    struct UploadEnd {
-        #[serde(rename = "type")]
-        msg_type: String,
-    }
-
     let end_msg = UploadEnd {
         msg_type: "end".to_string(),
     };
@@ -444,15 +330,6 @@ pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -
 
         match final_response {
             Message::Text(text) => {
-                #[derive(Deserialize)]
-                struct FinalResponse {
-                    #[serde(rename = "type")]
-                    #[allow(dead_code)]
-                    msg_type: String,
-                    message: Option<String>,
-                    error: Option<String>,
-                }
-
                 let response: FinalResponse =
                     serde_json::from_str(&text).context("Failed to parse final response")?;
 
@@ -484,5 +361,81 @@ pub async fn upload_image(url: Option<&str>, file_path: &str, orientation: u8) -
         }
     }
 
+    Ok(())
+}
+/// Send shutdown command to put device in deep sleep
+pub async fn send_shutdown(ws_url: &str) -> Result<()> {
+    println!("{}", style(format!("Connecting to {}...", ws_url)).dim());
+
+    // Connect to WebSocket with timeout
+    let (ws_stream, _) = timeout(
+        Duration::from_secs(CONNECTION_TIMEOUT_SECS),
+        connect_async(ws_url),
+    )
+    .await
+    .context("Connection timeout")?
+    .context("Failed to connect to WebSocket")?;
+
+    println!("{}", style("✓ Connected").green());
+
+    let (mut write, mut read) = ws_stream.split();
+
+    // Send shutdown command
+    let shutdown_msg = ShutdownCommand {
+        msg_type: "shutdown".to_string(),
+    };
+
+    let shutdown_json =
+        serde_json::to_string(&shutdown_msg).context("Failed to serialize shutdown command")?;
+
+    println!("{}", style("Sending shutdown command...").dim());
+    write
+        .send(Message::Text(shutdown_json.into()))
+        .await
+        .context("Failed to send shutdown command")?;
+
+    // Wait for acknowledgement (handle PING/PONG)
+    println!("{}", style("Waiting for acknowledgement...").dim());
+    loop {
+        let response = timeout(Duration::from_secs(RESPONSE_TIMEOUT_SECS), read.next())
+            .await
+            .context("Response timeout")?
+            .ok_or_else(|| anyhow!("Connection closed by server"))?
+            .context("Failed to receive response")?;
+
+        match response {
+            Message::Text(text) => {
+                let response: ShutdownResponse =
+                    serde_json::from_str(&text).context("Failed to parse shutdown response")?;
+
+                if let Some(error) = response.error {
+                    return Err(anyhow!("Shutdown failed: {}", error));
+                }
+
+                println!(
+                    "{}",
+                    style(format!(
+                        "✓ Shutdown command accepted: {}",
+                        response.message.unwrap_or_default()
+                    ))
+                    .green()
+                );
+                break;
+            }
+            Message::Ping(data) => {
+                println!("{}", style("Received PING, sending PONG").dim());
+                write
+                    .send(Message::Pong(data))
+                    .await
+                    .context("Failed to send PONG")?;
+            }
+            Message::Pong(_) => {
+                println!("{}", style("Received PONG").dim());
+            }
+            _ => return Err(anyhow!("Unexpected response type")),
+        }
+    }
+
+    println!("{}", style("Device is entering deep sleep...").yellow());
     Ok(())
 }

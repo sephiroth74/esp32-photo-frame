@@ -62,6 +62,7 @@
 #include "48x48/thunderstorm_0deg_48x48.h"
 #include "48x48/warning_icon_48x48.h"
 #include "48x48/wi_time_10_48x48.h"
+#include "48x48/wifi_48x48.h"
 #include "48x48/wind_0deg_48x48.h"
 #include "48x48/wind_rain_0deg_48x48.h"
 #endif

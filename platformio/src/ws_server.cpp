@@ -578,6 +578,27 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
             }
             resetUploadSession(true, "Validation failed");
         }
+    } else if (String(type) == "shutdown") {
+        // Shutdown command - put device in deep sleep
+        log_i("[WSServer] Received shutdown command from client %u", num);
+
+        // Send acknowledgement before shutting down
+        if (m_webSocket) {
+            StaticJsonDocument<128> ackDoc;
+            ackDoc["type"]    = "ack";
+            ackDoc["message"] = "Device entering deep sleep";
+            String ack;
+            serializeJson(ackDoc, ack);
+            m_webSocket->sendTXT(num, ack);
+        }
+
+        // Trigger shutdown event
+        WSEvent event;
+        event.type    = WSEventType::SHUTDOWN_REQUEST;
+        event.message = "Shutdown requested via WebSocket";
+        sendEvent(event);
+
+        log_i("[WSServer] Shutdown initiated");
     } else {
         log_w("[WSServer] Unknown control message type: %s", type);
         if (m_webSocket) {

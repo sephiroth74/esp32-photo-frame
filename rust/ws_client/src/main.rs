@@ -1,3 +1,4 @@
+mod messages;
 mod websocket;
 
 /// PhotoFrame WebSocket Client - WebSocket operations for ESP32 Photo Frame
@@ -22,39 +23,46 @@ use std::path::PathBuf;
 This tool provides WebSocket communication with PhotoFrame devices:
 • Test connection and retrieve board configuration
 • Upload binary image files to PhotoFrame over WebSocket
+• Send commands (shutdown/deep sleep)
 
 Example Usage:
   # Test connection and get board configuration
-  ws_client --test
+  ws_client --test 192.168.4.1
 
-  # Test with custom URL
-  ws_client --test --url ws://192.168.4.1:81
+  # Upload a binary file
+  ws_client --upload 192.168.4.1:81 -f image.pfr1
 
-  # Upload a binary file (not yet implemented)
-  ws_client --upload -f image.pfr1
-
-  # Upload with custom URL
-  ws_client --upload -f image.pfr1 --url ws://192.168.4.1:81
+  # Shutdown device to deep sleep
+  ws_client --shutdown 192.168.4.1:81
 "
 )]
 struct Args {
     /// Test connection and retrieve board configuration
     #[arg(
         long = "test",
-        conflicts_with = "upload",
+        conflicts_with_all = ["upload", "shutdown"],
         help = "Test WebSocket connection and get board configuration",
-        required_unless_present = "upload"
+        required_unless_present_any = ["upload", "shutdown"]
     )]
     test: Option<String>,
 
     /// Upload a binary file to PhotoFrame device
     #[arg(
         long = "upload",
-        conflicts_with = "test",
+        conflicts_with_all = ["test", "shutdown"],
         help = "Upload a binary file to PhotoFrame device (requires --file)",
-        required_unless_present = "test"
+        required_unless_present_any = ["test", "shutdown"]
     )]
     upload: Option<String>,
+
+    /// Shutdown device to deep sleep
+    #[arg(
+        long = "shutdown",
+        conflicts_with_all = ["test", "upload"],
+        help = "Send shutdown command to put device in deep sleep",
+        required_unless_present_any = ["test", "upload"]
+    )]
+    shutdown: Option<String>,
 
     /// Binary file to upload (required for --upload)
     #[arg(
@@ -80,6 +88,15 @@ struct Args {
     verbose: bool,
 }
 
+fn parse_ws_url(url: &str) -> String {
+    let ws_url = if url.starts_with("ws://") {
+        url.to_string()
+    } else {
+        format!("ws://{}", url)
+    };
+    ws_url
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -93,19 +110,20 @@ async fn main() -> Result<()> {
     println!();
 
     // At least one operation must be specified
-    if args.test.is_none() && args.upload.is_none() {
+    if args.test.is_none() && args.upload.is_none() && args.shutdown.is_none() {
         return Err(anyhow::anyhow!(
-            "Please specify either --test or --upload. Use --help for more information."
+            "Please specify either --test, --upload, or --shutdown. Use --help for more information."
         ));
     }
 
-    if args.test.is_some() {
+    if let Some(url) = args.test {
         // Test connection and get configuration
-        let url = args.test.as_deref();
+        let ws_url = parse_ws_url(&url);
+
         println!("{}", style("Testing WebSocket connection...").bold());
         println!();
 
-        match websocket::test_connection(url).await {
+        match websocket::test_connection(&ws_url).await {
             Ok(config) => {
                 config.print();
                 println!("{}", style("✓ Test completed successfully").bold().green());
@@ -116,9 +134,9 @@ async fn main() -> Result<()> {
                 Err(e)
             }
         }
-    } else if args.upload.is_some() {
+    } else if let Some(url) = args.upload {
         // Upload image
-        let url = args.upload.as_deref(); // FIX: use upload URL, not test URL
+        let ws_url = parse_ws_url(&url);
         let file = args.file.as_ref().unwrap(); // Safe because of required_if_eq
 
         // Validate orientation
@@ -144,7 +162,7 @@ async fn main() -> Result<()> {
         if args.verbose {
             println!("{}", style("Upload Configuration:").bold());
             println!("  File: {}", file.display());
-            println!("  URL: {}", url.unwrap_or("ws://192.168.4.1:81"));
+            println!("  URL: {}", url);
             println!(
                 "  Orientation: {}° ({})",
                 args.orientation * 90,
@@ -154,9 +172,15 @@ async fn main() -> Result<()> {
         }
 
         println!("{}", style("Uploading to PhotoFrame device...").dim());
-        websocket::upload_image(url, file.to_str().unwrap(), args.orientation)
+        websocket::upload_image(&ws_url, file.to_str().unwrap(), args.orientation)
             .await
             .with_context(|| format!("Failed to upload {}", file.display()))
+    } else if let Some(url) = args.shutdown {
+        // Send shutdown command
+        let ws_url = parse_ws_url(&url);
+        println!("{}", style("Sending shutdown command...").bold());
+        println!();
+        websocket::send_shutdown(&ws_url).await
     } else {
         unreachable!()
     }

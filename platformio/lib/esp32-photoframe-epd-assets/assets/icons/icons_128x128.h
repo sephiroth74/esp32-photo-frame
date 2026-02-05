@@ -62,6 +62,7 @@
 #include "128x128/thunderstorm_0deg_128x128.h"
 #include "128x128/warning_icon_128x128.h"
 #include "128x128/wi_time_10_128x128.h"
+#include "128x128/wifi_128x128.h"
 #include "128x128/wind_0deg_128x128.h"
 #include "128x128/wind_rain_0deg_128x128.h"
 #endif

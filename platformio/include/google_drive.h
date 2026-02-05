@@ -25,18 +25,10 @@
 #include "config.h"
 #include "google_drive_client.h"
 #include "sd_card.h"
+#include "types.h"
 #include "unified_config.h"
 
 namespace photo_frame {
-
-/**
- * @brief Image source enumeration for tracking where an image was loaded from.
- */
-typedef enum image_source {
-    IMAGE_SOURCE_CLOUD,       ///< Image was downloaded from Google Drive
-    IMAGE_SOURCE_LOCAL_CACHE, ///< Image was loaded from local SD card cache
-    IMAGE_SOURCE_BLUETOOTH    ///< Image was received via Bluetooth
-} image_source_t;
 
 /**
  * @brief High-level Google Drive interface for file management and caching.

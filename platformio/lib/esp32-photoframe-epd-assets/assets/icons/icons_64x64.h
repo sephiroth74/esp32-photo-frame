@@ -62,6 +62,7 @@
 #include "64x64/thunderstorm_0deg_64x64.h"
 #include "64x64/warning_icon_64x64.h"
 #include "64x64/wi_time_10_64x64.h"
+#include "64x64/wifi_64x64.h"
 #include "64x64/wind_0deg_64x64.h"
 #include "64x64/wind_rain_0deg_64x64.h"
 #endif

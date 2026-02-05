@@ -14,10 +14,11 @@ namespace ws {
  * @brief WebSocket event types
  */
 enum class WSEventType {
-    ERROR,              // Error occurred
-    IMAGE_RECEIVED,     // Complete image received
-    CLIENT_CONNECTED,   // Client connected
-    CLIENT_DISCONNECTED // Client disconnected
+    ERROR,               // Error occurred
+    IMAGE_RECEIVED,      // Complete image received
+    CLIENT_CONNECTED,    // Client connected
+    CLIENT_DISCONNECTED, // Client disconnected
+    SHUTDOWN_REQUEST     // Shutdown command received
 };
 
 /**

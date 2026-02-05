@@ -79,6 +79,7 @@ typedef enum icon_name {
   thunderstorm_0deg,
   warning_icon,
   wi_time_10,
+  wifi,
   wind_0deg,
   wind_rain_0deg,
 } icon_name_t;
@@ -1013,6 +1014,21 @@ constexpr const unsigned char* getBitmap(icon_name_t icon, size_t size)
     case 128: return wi_time_10_128x128;
     case 160: return wi_time_10_160x160;
     case 196: return wi_time_10_196x196;
+    default:
+      return nullptr;
+    }
+  case wifi:
+    switch (size) {
+    case 12: return wifi_12x12;
+    case 16: return wifi_16x16;
+    case 24: return wifi_24x24;
+    case 32: return wifi_32x32;
+    case 48: return wifi_48x48;
+    case 64: return wifi_64x64;
+    case 96: return wifi_96x96;
+    case 128: return wifi_128x128;
+    case 160: return wifi_160x160;
+    case 196: return wifi_196x196;
     default:
       return nullptr;
     }

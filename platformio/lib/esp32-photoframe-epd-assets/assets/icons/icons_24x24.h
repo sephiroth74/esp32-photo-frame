@@ -62,6 +62,7 @@
 #include "24x24/thunderstorm_0deg_24x24.h"
 #include "24x24/warning_icon_24x24.h"
 #include "24x24/wi_time_10_24x24.h"
+#include "24x24/wifi_24x24.h"
 #include "24x24/wind_0deg_24x24.h"
 #include "24x24/wind_rain_0deg_24x24.h"
 #endif

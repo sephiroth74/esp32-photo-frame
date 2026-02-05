@@ -62,6 +62,7 @@
 #include "96x96/thunderstorm_0deg_96x96.h"
 #include "96x96/warning_icon_96x96.h"
 #include "96x96/wi_time_10_96x96.h"
+#include "96x96/wifi_96x96.h"
 #include "96x96/wind_0deg_96x96.h"
 #include "96x96/wind_rain_0deg_96x96.h"
 #endif

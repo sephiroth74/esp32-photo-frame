@@ -62,6 +62,7 @@
 #include "160x160/thunderstorm_0deg_160x160.h"
 #include "160x160/warning_icon_160x160.h"
 #include "160x160/wi_time_10_160x160.h"
+#include "160x160/wifi_160x160.h"
 #include "160x160/wind_0deg_160x160.h"
 #include "160x160/wind_rain_0deg_160x160.h"
 #endif

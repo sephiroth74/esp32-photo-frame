@@ -1,6 +1,7 @@
 #include "canvas_renderer.h"
 #include "config.h"
 #include "datetime_utils.h"
+#include "types.h"
 #include <assets/icons/icons.h>
 #include <vector>
 #include FONT_HEADER
@@ -156,17 +157,17 @@ void drawImageInfo(GFXcanvas8& canvas,
 }
 
 void drawImageInfo(GFXcanvas8& canvas, const String& message, image_source_t image_source) {
-    drawSideMessageWithIcon(
-        canvas,
-        gravity::TOP_CENTER,
-        image_source == photo_frame::image_source_t::IMAGE_SOURCE_CLOUD
-            ? icon_name::cloud_0deg
-            : (image_source == photo_frame::image_source_t::IMAGE_SOURCE_BLUETOOTH
-                   ? icon_name::bluetooth_0deg
-                   : icon_name::micro_sd_card_0deg),
-        message.c_str(),
-        -4,
-        0);
+    icon_name_t icon = icon_name::micro_sd_card_0deg;
+
+    switch (image_source) {
+    case IMAGE_SOURCE_CLOUD:       icon = icon_name::cloud_0deg; break;
+    case IMAGE_SOURCE_BLUETOOTH:   icon = icon_name::bluetooth_0deg; break;
+    case IMAGE_SOURCE_WEBSOCKET:   icon = icon_name::wifi; break;
+    case IMAGE_SOURCE_LOCAL_CACHE:
+    default:                       icon = icon_name::micro_sd_card_0deg; break;
+    }
+
+    drawSideMessageWithIcon(canvas, gravity::TOP_CENTER, icon, message.c_str(), -4, 0);
 }
 
 void drawCenteredMessageWithIcon(GFXcanvas8& canvas,

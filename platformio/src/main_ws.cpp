@@ -80,7 +80,10 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager& littleFs,
     photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
 }
 
-void load_image(const char* filename, uint8_t orientation, uint32_t timestamp) {
+void load_image(const char* filename,
+                uint8_t orientation,
+                uint32_t timestamp,
+                photo_frame::battery_info_t& battery_info) {
     log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)", filename, orientation, timestamp);
 
     auto& littleFs = photo_frame::littlefs_manager::LittleFsManager::getInstance();
@@ -123,7 +126,8 @@ void load_image(const char* filename, uint8_t orientation, uint32_t timestamp) {
         display.drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
     }
 
-    display.drawImageInfo("Bluetooth", photo_frame::IMAGE_SOURCE_BLUETOOTH);
+    display.drawImageInfo("WebSocket", photo_frame::IMAGE_SOURCE_WEBSOCKET);
+    display.drawBatteryStatus(battery_info);
     display.render();
 }
 
@@ -275,23 +279,35 @@ void main_webserver_setup() {
 
     // Start WebSocket server for GET_CONFIG testing
     log_i("[WS] Creating WebSocket server on port %u...", WS_PORT);
-    WSServer wsServer(WS_PORT, [](const WSEvent& event) {
-        switch (event.type) {
-        case WSEventType::ERROR:               log_e("[WS] WebSocket error: %s", event.message.c_str()); break;
-        case WSEventType::CLIENT_CONNECTED:    log_i("[WS] WebSocket client connected"); break;
-        case WSEventType::CLIENT_DISCONNECTED: log_i("[WS] WebSocket client disconnected"); break;
-        case WSEventType::IMAGE_RECEIVED:
-            log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
-                  event.filepath.c_str(),
-                  event.timestamp,
-                  event.orientation);
-            // File is already saved to LittleFS at event.filepath
-            // TODO: Trigger display update with new image
-            load_image(event.filepath.c_str(), event.orientation, event.timestamp);
-            break;
-        default: break;
-        }
-    });
+    WSServer wsServer(
+        WS_PORT, [&littleFs, &display, &wsServer, &battery_info](const WSEvent& event) {
+            switch (event.type) {
+            case WSEventType::ERROR:
+                log_e("[WS] WebSocket error: %s", event.message.c_str());
+                break;
+            case WSEventType::CLIENT_CONNECTED: log_i("[WS] WebSocket client connected"); break;
+            case WSEventType::CLIENT_DISCONNECTED:
+                log_i("[WS] WebSocket client disconnected");
+                break;
+            case WSEventType::IMAGE_RECEIVED:
+                log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
+                      event.filepath.c_str(),
+                      event.timestamp,
+                      event.orientation);
+                // File is already saved to LittleFS at event.filepath
+                // TODO: Trigger display update with new image
+                load_image(
+                    event.filepath.c_str(), event.orientation, event.timestamp, battery_info);
+                break;
+            case WSEventType::SHUTDOWN_REQUEST:
+                log_i("[WS] ========================================");
+                log_i("[WS] Shutdown request received via WebSocket");
+                log_i("[WS] Entering deep sleep in 100ms...");
+                shutdown(littleFs, display, 100);
+                break;
+            default: break;
+            }
+        });
 
     if (!wsServer.begin()) {
         log_e("[WS] Failed to start WebSocket server");
