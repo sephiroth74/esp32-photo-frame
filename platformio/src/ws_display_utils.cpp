@@ -143,5 +143,5 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
     log_i("[WS-Display] Connection info box drawn successfully");
 }
 
-}  // namespace ws_display_utils
-}  // namespace photo_frame
+} // namespace ws_display_utils
+} // namespace photo_frame

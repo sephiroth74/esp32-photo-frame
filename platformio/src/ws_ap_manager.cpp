@@ -113,5 +113,5 @@ std::string WSAPManager::generateSSID() {
     return ss.str();
 }
 
-}  // namespace ws
-}  // namespace photo_frame
+} // namespace ws
+} // namespace photo_frame

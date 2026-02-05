@@ -31,7 +31,7 @@
 // ============================================================================
 
 /// String conversion macros for preprocessor constants
-#define STR(x) #x
+#define STR(x)  #x
 #define XSTR(x) STR(x)
 
 // ============================================================================
@@ -39,9 +39,9 @@
 // ============================================================================
 
 /// Current firmware version
-#define FIRMWARE_VERSION_MAJOR 1
-#define FIRMWARE_VERSION_MINOR 0
-#define FIRMWARE_VERSION_PATCH 0
+#define FIRMWARE_VERSION_MAJOR  1
+#define FIRMWARE_VERSION_MINOR  0
+#define FIRMWARE_VERSION_PATCH  0
 #define FIRMWARE_VERSION_STRING "v1.0.0"
 
 /// WebSocket server protocol version
@@ -184,33 +184,34 @@
 
 /// System timing constants
 #define MICROSECONDS_IN_SECOND 1000000
-#define SECONDS_IN_MINUTE 60
-#define SECONDS_IN_HOUR 3600
-#define SECONDS_IN_DAY 86400
+#define SECONDS_IN_MINUTE      60
+#define SECONDS_IN_HOUR        3600
+#define SECONDS_IN_DAY         86400
 
 /// Deep sleep configuration
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY // Maximum sleep duration (24 hours)
 
 /// Display refresh timing configuration
 #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE) // Minimum refresh interval (5 minutes)
-#define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR) // Maximum refresh interval (4 hours)
-#define REFRESH_STEP_SECONDS (5 * SECONDS_IN_MINUTE) // Step size for refresh adjustment
-#define REFRESH_DEFAULT_INTERVAL_SECONDS \
-    (30 * SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
+#define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR)   // Maximum refresh interval (4 hours)
+#define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE) // Step size for refresh adjustment
+#define REFRESH_DEFAULT_INTERVAL_SECONDS                                                           \
+    (30 *                                                                                          \
+     SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
 #define REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER 3 // Multiplier for low battery refresh interval
 
 /// Daily operation schedule
-#define DAY_START_HOUR 5 // Hour when device becomes active (5 AM)
-#define DAY_END_HOUR 23 // Hour when device enters night mode (11 PM)
+#define DAY_START_HOUR 5  // Hour when device becomes active (5 AM)
+#define DAY_END_HOUR   23 // Hour when device enters night mode (11 PM)
 
 /// Sleep and startup delays
 // #define DELAY_BEFORE_SLEEP 20000  // Delay before sleep in milliseconds (debug/fallback)
 
 /// Battery level thresholds (percentages)
 #define BATTERY_CHARGING_MILLIVOLTS 4300 // Voltage above which battery is considered charging
-#define BATTERY_PERCENT_EMPTY 10 // Battery percentage considered empty
-#define BATTERY_PERCENT_CRITICAL 25 // Battery percentage considered critical
-#define BATTERY_PERCENT_LOW 40 // Battery percentage considered low
+#define BATTERY_PERCENT_EMPTY       10   // Battery percentage considered empty
+#define BATTERY_PERCENT_CRITICAL    25   // Battery percentage considered critical
+#define BATTERY_PERCENT_LOW         40   // Battery percentage considered low
 
 // ============================================================================
 // NETWORK AND CONNECTIVITY
@@ -219,15 +220,15 @@
 /// WiFi configuration (now handled by unified config system)
 
 /// Network timeouts and limits (configured in board-specific config or system defaults section)
-#define WIFI_MAX_NETWORKS 3 // Maximum number of WiFi networks that can be configured
-#define WIFI_CONNECT_TIMEOUT 8000 // WiFi connection timeout in milliseconds
+#define WIFI_MAX_NETWORKS    3     // Maximum number of WiFi networks that can be configured
+#define WIFI_CONNECT_TIMEOUT 8000  // WiFi connection timeout in milliseconds
 #define HTTP_CONNECT_TIMEOUT 15000 // HTTP connection timeout (15 seconds)
 #define HTTP_REQUEST_TIMEOUT 30000 // HTTP request timeout (30 seconds)
 
 /// NTP (Network Time Protocol) configuration (configured in board-specific config or system
 /// defaults section)
-#define NTP_TIMEOUT 10000 // NTP request timeout in milliseconds
-#define NTP_SERVER1 "pool.ntp.org" // Primary NTP server
+#define NTP_TIMEOUT 10000           // NTP request timeout in milliseconds
+#define NTP_SERVER1 "pool.ntp.org"  // Primary NTP server
 #define NTP_SERVER2 "time.nist.gov" // Secondary NTP server
 
 /// Time zone configuration (set in board-specific config)
@@ -243,16 +244,16 @@
 // ============================================================================
 
 /// File system paths and names
-#define PREFS_NAMESPACE "photo_frame" // Preferences namespace for settings
-#define TOC_DATA_FILENAME "toc_data.txt" // Table of contents data file
-#define TOC_META_FILENAME "toc_meta.txt" // Table of contents metadata file
+#define PREFS_NAMESPACE       "photo_frame"       // Preferences namespace for settings
+#define TOC_DATA_FILENAME     "toc_data.txt"      // Table of contents data file
+#define TOC_META_FILENAME     "toc_meta.txt"      // Table of contents metadata file
 #define ACCESS_TOKEN_FILENAME "access_token.json" // OAuth access token cache file
 
 // SD Card cache directory
 #define SD_CARD_CACHE_DIR "/.cache"
 
 /// Storage cleanup settings
-#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16) // 16 MB threshold for cleanup
+#define SD_CARD_FREE_SPACE_THRESHOLD        (1024 * 1024 * 16)     // 16 MB threshold for cleanup
 #define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * SECONDS_IN_HOUR) // Cleanup interval (24 hours)
 
 /// Supported file formats for runtime detection
@@ -305,14 +306,14 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 /// API rate limiting and request management (configured in board-specific config or system defaults
 /// section)
-#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 200 // Conservative API request limit
-#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600 // Rate limiting time window (1 hour)
-#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 10000 // Minimum delay between requests
-#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 10 // Maximum retry attempts for failed requests
-#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 60000 // Base delay for exponential backoff
-#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS 120000UL // Maximum backoff delay
-#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000 // Maximum wait time for rate limiting
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 500 // Files per API request
+#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW   200   // Conservative API request limit
+#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600  // Rate limiting time window (1 hour)
+#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS      10000 // Minimum delay between requests
+#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS        10    // Maximum retry attempts for failed requests
+#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS     60000 // Base delay for exponential backoff
+#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS      120000UL // Maximum backoff delay
+#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS          1200000  // Maximum wait time for rate limiting
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE        500      // Files per API request
 
 /// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults
 /// section)
@@ -515,69 +516,69 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 /// Bluetooth mode constants
 #ifndef BT_FIRST_BOOT_TIMEOUT_MS
 #define BT_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
-#endif // BT_FIRST_BOOT_TIMEOUT_MS
+#endif                                            // BT_FIRST_BOOT_TIMEOUT_MS
 
 #ifndef BT_LISTEN_TIMEOUT_MS
 #define BT_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
-#endif // BT_LISTEN_TIMEOUT_MS
+#endif                                        // BT_LISTEN_TIMEOUT_MS
 
 #ifndef BT_BATTERY_CHECK_INTERVAL_MS
 #define BT_BATTERY_CHECK_INTERVAL_MS 60000 // Check battery every 60 seconds
-#endif // BT_BATTERY_CHECK_INTERVAL_MS
+#endif                                     // BT_BATTERY_CHECK_INTERVAL_MS
 
 #ifndef BT_DEFAULT_IMAGE_FILENAME
 #define BT_DEFAULT_IMAGE_FILENAME "/default.pfr1" // Default image filename in LittleFS
-#endif // BT_DEFAULT_IMAGE_FILENAME
+#endif                                            // BT_DEFAULT_IMAGE_FILENAME
 
 #ifndef BT_CURRENT_IMAGE_FILENAME
 #define BT_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
-#endif // BT_CURRENT_IMAGE_FILENAME
+#endif                                            // BT_CURRENT_IMAGE_FILENAME
 
 #elif defined(ENABLE_WEBSERVER_DATAPROVIDER)
 /// Webserver mode constants
 #ifndef WS_FIRST_BOOT_TIMEOUT_MS
 #define WS_FIRST_BOOT_TIMEOUT_MS (30 * 60 * 1000) // minutes timeout for first boot
-#endif // WS_FIRST_BOOT_TIMEOUT_MS
+#endif                                            // WS_FIRST_BOOT_TIMEOUT_MS
 
 #ifndef WS_LISTEN_TIMEOUT_MS
 #define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
-#endif // WS_LISTEN_TIMEOUT_MS
+#endif                                        // WS_LISTEN_TIMEOUT_MS
 
 #ifndef WS_BATTERY_CHECK_INTERVAL_MS
 #define WS_BATTERY_CHECK_INTERVAL_MS 60000 // Check battery every 60 seconds
-#endif // WS_BATTERY_CHECK_INTERVAL_MS
+#endif                                     // WS_BATTERY_CHECK_INTERVAL_MS
 
 #ifndef WS_PORT
 #define WS_PORT 81 // WebSocket server port
-#endif // WS_PORT
+#endif             // WS_PORT
 
 #ifndef WS_DEFAULT_IMAGE_FILENAME
 #define WS_DEFAULT_IMAGE_FILENAME "/default.pfr1" // Default image filename in LittleFS
-#endif // WS_DEFAULT_IMAGE_FILENAME
+#endif                                            // WS_DEFAULT_IMAGE_FILENAME
 #ifndef WS_CURRENT_IMAGE_FILENAME
 #define WS_CURRENT_IMAGE_FILENAME "/current.pfr1" // Current image filename in LittleFS
-#endif // WS_CURRENT_IMAGE_FILENAME
+#endif                                            // WS_CURRENT_IMAGE_FILENAME
 
 #ifndef WS_UPLOAD_TEMP_FILENAME
 #define WS_UPLOAD_TEMP_FILENAME "/upload.tmp" // Temporary upload filename in LittleFS
-#endif // WS_UPLOAD_TEMP_FILENAME
+#endif                                        // WS_UPLOAD_TEMP_FILENAME
 
 #ifndef WS_UPLOAD_TIMEOUT_MS
 #define WS_UPLOAD_TIMEOUT_MS (30 * 1000) // Upload session timeout
-#endif // WS_UPLOAD_TIMEOUT_MS
+#endif                                   // WS_UPLOAD_TIMEOUT_MS
 
 /// WiFi Access Point Configuration
 #ifndef WS_AP_SSID_PREFIX
 #define WS_AP_SSID_PREFIX "PhotoFrame" // SSID prefix (will append MAC last 4 digits)
-#endif // WS_AP_SSID_PREFIX
+#endif                                 // WS_AP_SSID_PREFIX
 
 #ifndef WS_AP_CHANNEL
 #define WS_AP_CHANNEL 6 // WiFi channel for AP
-#endif // WS_AP_CHANNEL
+#endif                  // WS_AP_CHANNEL
 
 #ifndef WS_AP_IP
 #define WS_AP_IP 0xC0A80401 // 192.168.4.1 in hex
-#endif // WS_AP_IP
+#endif                      // WS_AP_IP
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
 

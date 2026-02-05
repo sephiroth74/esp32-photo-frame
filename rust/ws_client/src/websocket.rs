@@ -2,9 +2,9 @@ use anyhow::{Context, Result, anyhow};
 use console::style;
 use futures_util::{SinkExt, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
+use photoframe_lib::validate_bin_file;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use photoframe_lib::validate_bin_file;
 use tokio::fs;
 use tokio::time::timeout;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -162,8 +162,9 @@ pub async fn test_connection(url: Option<&str>) -> Result<BoardConfig> {
 
                 println!("{}", style("✓ Received configuration").green());
 
-                let config: BoardConfig = serde_json::from_str(String::from_utf8_lossy(&config_json.as_slice()).as_ref())
-                    .context("Failed to parse board configuration JSON")?;
+                let config: BoardConfig =
+                    serde_json::from_str(String::from_utf8_lossy(&config_json.as_slice()).as_ref())
+                        .context("Failed to parse board configuration JSON")?;
 
                 config
                     .validate()
