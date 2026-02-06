@@ -43,8 +43,8 @@ void drawOverlay(GFXcanvas8& canvas) {
     // Rotation 1 or 3 = portrait, 0 or 2 = landscape
     bool portrait_mode = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
 
-    log_i("drawOverlay(rotation=%d)", canvas.getRotation());
-    log_v("canvas size: %dx%d", canvas.width(), canvas.height());
+    log_d("drawOverlay(rotation=%d)", canvas.getRotation());
+    log_d("canvas size: %dx%d", canvas.width(), canvas.height());
 
     // Draw a simple status bar
     if (portrait_mode) {
@@ -156,17 +156,26 @@ void drawImageInfo(GFXcanvas8& canvas,
 }
 
 void drawImageInfo(GFXcanvas8& canvas, const String& message, ImageSource image_source) {
-    icon_name_t icon = icon_name::micro_sd_card_0deg;
-
     switch (image_source) {
-    case IMAGE_SOURCE_CLOUD:       icon = icon_name::cloud_0deg; break;
-    case IMAGE_SOURCE_BLUETOOTH:   icon = icon_name::bluetooth_0deg; break;
-    case IMAGE_SOURCE_WEBSOCKET:   icon = icon_name::wifi; break;
+    case IMAGE_SOURCE_CLOUD:
+        drawSideMessageWithIcon(
+            canvas, gravity::TOP_CENTER, icon_name::cloud_0deg, message.c_str(), -4, 0);
+        break;
+    case IMAGE_SOURCE_BLUETOOTH:
+        drawSideMessageWithIcon(
+            canvas, gravity::TOP_CENTER, icon_name::bluetooth_0deg, message.c_str(), -4, 0);
+        break;
+    case IMAGE_SOURCE_WEBSOCKET:
+        drawSideMessageWithIcon(
+            canvas, gravity::TOP_CENTER, icon_name::wifi, message.c_str(), -4, 0);
+        break;
     case IMAGE_SOURCE_LOCAL_CACHE:
-    default:                       drawSideMessage(canvas, gravity::TOP_CENTER, message.c_str(), -4, 0); break;
-    }
+        drawSideMessageWithIcon(
+            canvas, gravity::TOP_CENTER, icon_name::micro_sd_card_0deg, message.c_str(), -4, 0);
+        break;
 
-    drawSideMessageWithIcon(canvas, gravity::TOP_CENTER, icon, message.c_str(), -4, 0);
+    default: drawSideMessage(canvas, gravity::TOP_CENTER, message.c_str(), -4, 0); break;
+    }
 }
 
 void drawCenteredMessageWithIcon(GFXcanvas8& canvas,

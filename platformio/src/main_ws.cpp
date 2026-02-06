@@ -31,12 +31,15 @@
 #include "main_common.h"
 #include "preferences_helper.h"
 #include "rgb_status.h"
+#include "types.h"
 #include "ws_ap_manager.h"
 #include "ws_display_utils.h"
 #include "ws_server.h"
 #include "ws_utils.h"
 #include <Arduino.h>
 #include <memory>
+#include <sys/time.h>
+#include <time.h>
 
 using namespace photo_frame::ws;
 
@@ -53,15 +56,11 @@ static photo_frame::DisplayManager* g_display                     = nullptr;
 static unsigned long g_serverStartMs                              = 0;
 static unsigned long g_lastCheckMs                                = 0;
 static uint32_t g_timeout_ms                                      = 0;
+static uint8_t g_display_rotation                                 = DEFAULT_ORIENTATION;
 static photo_frame::BatteryInfo g_battery_info;
 
 void performFactoryReset() {
-    log_i("[WS] ========================================");
-    log_i("[WS] FACTORY RESET INITIATED");
-    log_i("[WS] ========================================");
-
-    // Step 1: Clear all BT preferences
-    log_i("[WS] Step 1: Clearing WS preferences...");
+    log_i("[WS] Perform factory reset: clearing preferences and resetting state");
     auto& prefs  = photo_frame::PreferencesHelper::getInstance();
     bool success = true;
 
@@ -79,7 +78,7 @@ void performFactoryReset() {
 void shutdown(photo_frame::littlefs_manager::LittleFsManager* littleFs,
               photo_frame::DisplayManager* display,
               unsigned long delay_ms = 0) {
-    log_i("[WS] Shutting down");
+    log_i("[WS] Shutting down (delay %lu ms)", delay_ms);
 
     if (delay_ms > 0) {
         delay(delay_ms);
@@ -94,8 +93,48 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager* littleFs,
         display->powerOff();
         display->release();
     }
-    photo_frame::board_utils::display_power_off();
-    photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
+    photo_frame::board_utils::displayPowerOff();
+    photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_EXT0, 0);
+}
+
+DateTime updateDateTime(time_t timestamp) {
+    log_i("[WS] Updating DateTime with timestamp: %u", timestamp);
+    struct tm timeinfo;
+
+    if (timestamp > 0) {
+        setenv("TZ", TIMEZONE, 1);
+        tzset();
+
+        time_t timestamp_time = (time_t)timestamp;
+        localtime_r(&timestamp_time, &timeinfo);
+
+        struct timeval tv;
+        tv.tv_sec  = timestamp;
+        tv.tv_usec = 0;
+        settimeofday(&tv, NULL);
+    }
+
+    return DateTime(timeinfo.tm_year + 1900,
+                    timeinfo.tm_mon + 1,
+                    timeinfo.tm_mday,
+                    timeinfo.tm_hour,
+                    timeinfo.tm_min,
+                    timeinfo.tm_sec);
+}
+
+DateTime getCurrentDateTime() {
+    time_t now;
+    time(&now);
+
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    return DateTime(timeinfo.tm_year + 1900,
+                    timeinfo.tm_mon + 1,
+                    timeinfo.tm_mday,
+                    timeinfo.tm_hour,
+                    timeinfo.tm_min,
+                    timeinfo.tm_sec);
 }
 
 /**
@@ -112,6 +151,7 @@ void displayReceivedFile(const char* filename,
                          photo_frame::BatteryInfo& battery_info,
                          bool isNewUpload) {
     g_isLoadingImage = true;
+
     log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)", filename, orientation, timestamp);
 
     if (!g_littleFs || !g_display) {
@@ -120,66 +160,46 @@ void displayReceivedFile(const char* filename,
         return;
     }
 
-    photo_frame::binary_utils::PFR1BinaryFile wrapper(g_display->getWidth(),
-                                                      g_display->getHeight());
+    // Retrieve preferences instance
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
 
-    // Get date/time from BT config (Unix timestamp sent by client)
-    // Configure timezone to convert UTC timestamp to local time
-    setenv("TZ", TIMEZONE, 1);
-    tzset();
+    // Create a wrapper for loading the PFR1 file into the display buffer
+    photo_frame::PFR1BinaryFile wrapper(g_display->getWidth(), g_display->getHeight());
 
-    time_t timestamp_time = (time_t)timestamp;
-    struct tm timeinfo;
-    localtime_r(&timestamp_time, &timeinfo);
-
-    DateTime image_time = DateTime(timeinfo.tm_year + 1900,
-                                   timeinfo.tm_mon + 1,
-                                   timeinfo.tm_mday,
-                                   timeinfo.tm_hour,
-                                   timeinfo.tm_min,
-                                   timeinfo.tm_sec);
+    // Convert timestamp to DateTime for overlay display
+    DateTime image_time = updateDateTime(timestamp);
 
     // Update global rotation state
-    display_rotation = orientation;
+    g_display_rotation = orientation;
 
-    // Set display orientation
-    g_display->setRotation(orientation);
-
-    // Save orientation preference
-    auto& prefs = photo_frame::PreferencesHelper::getInstance();
+    // Save orientation and timestamp preference
     prefs.setDisplayRotation(orientation);
-
-    if (timestamp > 0) {
-        prefs.setLastImageTimestamp(timestamp);
-    }
+    prefs.setLastImageTimestamp(timestamp);
 
     auto error = photo_frame::ws_utils::loadLittleFsFile(filename, *g_littleFs, wrapper);
-    g_display->clear(DISPLAY_COLOR_WHITE);
+    g_display->clear();
 
     if (error != photo_frame::error_type::None) {
         error.log_detailed();
+        g_display->setRotation(orientation);
         g_display->drawError(error, filename);
         g_display->render();
         g_isLoadingImage = false;
         return;
     }
 
-    memcpy(g_display->getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
-
-    // Draw overlay with current date/time and battery
-    g_display->drawOverlay();
-
-    // Draw date and time on the left (without next wake-up time, using image timestamp)
-    if (timestamp > 0 && image_time.isValid()) {
-        g_display->drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
-    }
-
     if (isNewUpload) {
-        g_display->drawImageInfo("Upload", photo_frame::IMAGE_SOURCE_WEBSOCKET);
+        g_display->setImageSource(photo_frame::ImageSource::IMAGE_SOURCE_WEBSOCKET);
     } else {
-        g_display->drawImageInfo("Default", photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
+        g_display->setImageSource(photo_frame::ImageSource::IMAGE_SOURCE_LOCAL_CACHE);
     }
 
+    g_display->drawImage(wrapper);
+    g_display->setRotation(orientation);
+    g_display->drawOverlay();
+    g_display->drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
+    g_display->drawImageInfo(photo_frame::getImageSourceString(g_display->getImageSource()),
+                             g_display->getImageSource());
     g_display->drawBatteryStatus(battery_info);
     g_display->render();
 
@@ -192,30 +212,31 @@ void main_webserver_setup() {
     delay(5000);
 
     // Initialize display power control (if configured)
-    photo_frame::board_utils::init_display_power();
+    photo_frame::board_utils::initDisplayPower();
     auto& prefs = photo_frame::PreferencesHelper::getInstance();
 
     // Get singleton references - we'll store pointers to them in globals for loop() access
     g_littleFs = &photo_frame::littlefs_manager::LittleFsManager::getInstance();
     g_display  = &photo_frame::DisplayManager::getInstance();
 
+    // Initialize DateTime with current time (or RTC time if available)
+    updateDateTime(prefs.getLastImageTimestamp());
+
     // Get wakeup reason
-    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
-    bool is_first_boot                     = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
-    char wakeup_reason_string[32];
-    photo_frame::board_utils::get_wakeup_reason_string(
-        wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
-    log_d("[WS] Wakeup reason: %s (%d)", wakeup_reason_string, wakeup_reason);
+    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::getWakeupReason();
+    photo_frame::board_utils::printWakeUpReason(wakeup_reason);
+
+    bool is_first_boot = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
     log_d("[WS] Is first boot: %s", is_first_boot ? "Yes" : "No");
 
     // Initialize hardware
-    if (!initialize_hardware()) {
+    if (!initializeHardware()) {
         log_e("[WS] CRITICAL! Failed to initialize hardware!");
         shutdown(g_littleFs, g_display, 0);
         return;
     }
 
-    photo_frame::board_utils::display_power_off();
+    photo_frame::board_utils::displayPowerOff();
 
     // Check for factory reset button press (5 second long press on WAKEUP_PIN)
     // This must be checked early, before any other operations
@@ -232,21 +253,21 @@ void main_webserver_setup() {
     }
     log_d("[WS] No factory reset requested");
 
-    display_rotation = prefs.getDisplayRotation();
+    g_display_rotation = prefs.getDisplayRotation();
+    log_d("[WS] Display rotation from preferences: %u", g_display_rotation);
 
     // Check battery status
-
-    photo_frame::photo_frame_error_t error = setup_battery_and_power(g_battery_info, wakeup_reason);
+    photo_frame::photo_frame_error_t error = setupBatteryAndPower(g_battery_info, wakeup_reason);
     log_d("[WS] Battery: %.1f%%, %.1f mV", g_battery_info.percent, g_battery_info.millivolts);
 
     // Provide current runtime info to BoardInfo for GET_CONFIG
     BoardInfo::setBatteryInfo(g_battery_info);
-    BoardInfo::setDisplayRotation(static_cast<uint16_t>(display_rotation) * 90);
+    BoardInfo::setDisplayRotation(static_cast<uint16_t>(g_display_rotation) * 90);
 
     if (error == photo_frame::error_type::BatteryLevelCritical) {
         log_e("[BT] Battery is critical, showing error and sleeping");
         photo_frame::ws_utils::handleCriticalBattery(
-            g_battery_info, wakeup_reason, display_rotation);
+            g_battery_info, wakeup_reason, g_display_rotation);
         return;
     }
 
@@ -263,7 +284,7 @@ void main_webserver_setup() {
     log_i("[WS] Initializing display system...");
 
     // Phase 1: Initialize buffer
-    if (!init_image_buffer()) {
+    if (!initializeImageBuffer()) {
         log_e("[WS] Failed to initialize display buffer");
         shutdown(g_littleFs, g_display, 10000);
         return;
@@ -292,16 +313,16 @@ void main_webserver_setup() {
     error = g_littleFs->init() ? error : photo_frame::error_type::LittleFSInitFailed;
 
     // Phase 3: Initialize hardware
-    photo_frame::board_utils::display_power_on();
+    photo_frame::board_utils::displayPowerOn();
 
-    if (!init_display_hardware()) {
+    if (!initializeDisplayHardware()) {
         log_e("[WS] Failed to initialize display hardware");
         shutdown(g_littleFs, g_display, 10000);
         return;
     }
 
     delay(300);
-    g_display->setRotation(display_rotation);
+    g_display->setRotation(g_display_rotation);
 
     // ========================================================================
     // Load and display image with connection info
@@ -309,14 +330,26 @@ void main_webserver_setup() {
     log_d("[WS] Loading and displaying image...");
 
     if (error == photo_frame::error_type::None) {
+
         // Load current or default image
-        error = photo_frame::ws_display_utils::loadCurrentOrDefaultImage(*g_littleFs, *g_display);
+        error = photo_frame::ws_display_utils::drawImageFile(
+            *g_littleFs, *g_display, WS_CURRENT_IMAGE_FILENAME);
+
         if (error != photo_frame::error_type::None) {
-            log_w("[WS] Failed to load image, will show blank screen with connection info");
-            g_display->clear(DISPLAY_COLOR_WHITE);
-            // Clear error to continue with blank screen
-            error = photo_frame::error_type::None;
+            log_w("[WS] Failed to load current image, trying default image");
+            error = photo_frame::ws_display_utils::drawImageFile(
+                *g_littleFs, *g_display, WS_DEFAULT_IMAGE_FILENAME);
+
+            if (error != photo_frame::error_type::None) {
+                log_w("[WS] Failed to load default image, showing blank screen");
+                g_display->clear(DISPLAY_COLOR_WHITE);
+            } else {
+                g_display->setImageSource(photo_frame::ImageSource::IMAGE_SOURCE_LOCAL_CACHE);
+            }
+        } else {
+            g_display->setImageSource(photo_frame::ImageSource::IMAGE_SOURCE_WEBSOCKET);
         }
+        error = photo_frame::error_type::None;
     } else {
         // just show the error and shut down
         log_w("[WS] Skipping image load due to previous error: %d", error.code);
@@ -333,7 +366,10 @@ void main_webserver_setup() {
         *g_display, apManager.getSSID(), apManager.getIP(), wsUrl);
 
     g_display->drawOverlay();
+    g_display->drawLastUpdate(getCurrentDateTime(), 0);
     g_display->drawBatteryStatus(g_battery_info);
+    g_display->drawImageInfo(photo_frame::getImageSourceString(g_display->getImageSource()),
+                             g_display->getImageSource());
 
     // Render to display
     if (!g_display->render()) {
@@ -462,15 +498,15 @@ void main_webserver_loop() {
                 if (g_littleFs->file_exists(WS_CURRENT_IMAGE_FILENAME)) {
                     snprintf(filename, sizeof(filename), WS_CURRENT_IMAGE_FILENAME);
                 } else {
-                    display_rotation = DEFAULT_ORIENTATION;
-                    isNewUpload      = false;
+                    g_display_rotation = DEFAULT_ORIENTATION;
+                    isNewUpload        = false;
                     snprintf(filename, sizeof(filename), WS_DEFAULT_IMAGE_FILENAME);
                 }
 
                 time_t timestamp =
                     photo_frame::PreferencesHelper::getInstance().getLastImageTimestamp();
                 displayReceivedFile(
-                    filename, display_rotation, timestamp, g_battery_info, isNewUpload);
+                    filename, g_display_rotation, timestamp, g_battery_info, isNewUpload);
             } else {
                 log_v("[WS] Image was updated during session, no need to re-display");
             }

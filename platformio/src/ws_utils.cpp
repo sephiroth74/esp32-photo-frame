@@ -48,15 +48,15 @@ void handleCriticalBattery(const BatteryInfo& BatteryInfo,
 
     if (!display.initBuffer(true)) {
         log_e("[BT] Failed to init buffer for error display");
-        board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
+        board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_EXT0, 0);
         return;
     }
 
-    board_utils::display_power_on();
+    board_utils::displayPowerOn();
 
     if (!display.initDisplay()) {
         log_e("[BT] Failed to init display for error display");
-        board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0);
+        board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_EXT0, 0);
         return;
     }
 
@@ -72,16 +72,16 @@ void handleCriticalBattery(const BatteryInfo& BatteryInfo,
 
     // Power off and sleep indefinitely (only wake via GPIO1)
     display.powerOff();
-    board_utils::display_power_off();
+    board_utils::displayPowerOff();
 
     log_w("[BT] Battery critical - entering indefinite sleep (wake via GPIO1 only)");
-    board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_EXT0, 0); // 0 = indefinite sleep
+    board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_EXT0, 0); // 0 = indefinite sleep
 }
 
 photo_frame::photo_frame_error_t
 loadLittleFsFile(const char* filename,
                  photo_frame::littlefs_manager::LittleFsManager& littleFs,
-                 photo_frame::binary_utils::PFR1BinaryFile& wrapper) {
+                 photo_frame::PFR1BinaryFile& wrapper) {
     log_i("[WS-Utils] Loading %s image from LittleFS", filename);
 
     // Try to open file

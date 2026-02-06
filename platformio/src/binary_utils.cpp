@@ -65,72 +65,74 @@ bool parsePFR1Header(const uint8_t* buffer, size_t buffer_size, PFR1Header& head
     }
 
     // Parse header fields (little-endian)
-    header.magic        = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
-    header.version      = buffer[4];
-    header.header_len   = buffer[5] | (buffer[6] << 8);
-    header.width        = buffer[7] | (buffer[8] << 8);
-    header.height       = buffer[9] | (buffer[10] << 8);
-    header.rotation     = buffer[11];
-    header.color_mode   = buffer[12];
-    header.payload_len  = buffer[13] | (buffer[14] << 8) | (buffer[15] << 16) | (buffer[16] << 24);
-    header.header_crc32 = buffer[17] | (buffer[18] << 8) | (buffer[19] << 16) | (buffer[20] << 24);
+    header.setMagic(buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24));
+    header.setVersion(buffer[4]);
+    header.setHeaderLen(buffer[5] | (buffer[6] << 8));
+    header.setWidth(buffer[7] | (buffer[8] << 8));
+    header.setHeight(buffer[9] | (buffer[10] << 8));
+    header.setRotation(buffer[11]);
+    header.setColorMode(buffer[12]);
+    header.setPayloadLen(buffer[13] | (buffer[14] << 8) | (buffer[15] << 16) | (buffer[16] << 24));
+    header.setHeaderCRC32(buffer[17] | (buffer[18] << 8) | (buffer[19] << 16) | (buffer[20] << 24));
 
     // Validate magic
-    if (header.magic != PFR1_MAGIC) {
-        log_e("[PFR1] Invalid magic: 0x%08X (expected 0x%08X)", header.magic, PFR1_MAGIC);
+    if (header.getMagic() != PFR1_MAGIC) {
+        log_e("[PFR1] Invalid magic: 0x%08X (expected 0x%08X)", header.getMagic(), PFR1_MAGIC);
         return false;
     }
 
     // Version (warn only)
-    if (header.version != PFR1_VERSION) {
-        log_w("[PFR1] Version mismatch: %u (expected %u)", header.version, PFR1_VERSION);
+    if (header.getVersion() != PFR1_VERSION) {
+        log_w("[PFR1] Version mismatch: %u (expected %u)", header.getVersion(), PFR1_VERSION);
     }
 
     // Validate header length
-    if (header.header_len != PFR1_HEADER_SIZE) {
-        log_e(
-            "[PFR1] Invalid header length: %u (expected %u)", header.header_len, PFR1_HEADER_SIZE);
+    if (header.getHeaderLen() != PFR1_HEADER_SIZE) {
+        log_e("[PFR1] Invalid header length: %u (expected %u)",
+              header.getHeaderLen(),
+              PFR1_HEADER_SIZE);
         return false;
     }
 
     // Validate rotation and color_mode bounds
-    if (header.rotation > 3) {
-        log_e("[PFR1] Invalid rotation: %u (must be 0-3)", header.rotation);
+    if (header.getRotation() > 3) {
+        log_e("[PFR1] Invalid rotation: %u (must be 0-3)", header.getRotation());
         return false;
     }
-    if (header.color_mode > 1) {
-        log_e("[PFR1] Invalid color mode: %u (must be 0 or 1)", header.color_mode);
+    if (header.getColorMode() > 1) {
+        log_e("[PFR1] Invalid color mode: %u (must be 0 or 1)", header.getColorMode());
         return false;
     }
 
     // Validate dimensions sanity
-    if (header.width == 0 || header.height == 0 || header.width > 2000 || header.height > 2000) {
-        log_e("[PFR1] Invalid dimensions: %ux%u", header.width, header.height);
+    if (header.getWidth() == 0 || header.getHeight() == 0 || header.getWidth() > 2000 ||
+        header.getHeight() > 2000) {
+        log_e("[PFR1] Invalid dimensions: %ux%u", header.getWidth(), header.getHeight());
         return false;
     }
 
     // Validate header CRC32 (first 17 bytes: magic..payload_len)
     uint32_t calculated_crc = calculateCRC32(buffer, 17);
-    if (calculated_crc != header.header_crc32) {
+    if (calculated_crc != header.getHeaderCRC32()) {
         log_e("[PFR1] Header CRC mismatch: calculated=0x%08X, received=0x%08X",
               calculated_crc,
-              header.header_crc32);
+              header.getHeaderCRC32());
         return false;
     }
 
     // Ensure buffer has header+payload+payload_crc32
-    size_t expected_total = PFR1_HEADER_SIZE + header.payload_len + 4;
+    size_t expected_total = PFR1_HEADER_SIZE + header.getPayloadLen() + PFR1_CRC32_SIZE;
     if (buffer_size < expected_total) {
         log_e("[PFR1] Buffer incomplete: %u bytes (need %u)", buffer_size, expected_total);
         return false;
     }
 
     log_v("[PFR1] Header validated: %ux%u, rotation=%u, color_mode=%u, payload=%u bytes",
-          header.width,
-          header.height,
-          header.rotation,
-          header.color_mode,
-          header.payload_len);
+          header.getWidth(),
+          header.getHeight(),
+          header.getRotation(),
+          header.getColorMode(),
+          header.getPayloadLen());
     return true;
 }
 
@@ -177,25 +179,25 @@ photo_frame_error validatePFR1FileStructure(fs::File& file, bool validate_payloa
 
     // Validate payload size vs width/height
     size_t expected_payload_size =
-        static_cast<size_t>(header.width) * static_cast<size_t>(header.height);
-    if (header.payload_len != expected_payload_size) {
+        static_cast<size_t>(header.getWidth()) * static_cast<size_t>(header.getHeight());
+    if (header.getPayloadLen() != expected_payload_size) {
         log_e("[PFR1] Payload size mismatch: header=%u bytes, expected=%u bytes",
-              header.payload_len,
+              header.getPayloadLen(),
               expected_payload_size);
         file.seek(original_pos);
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
 
-    if (header.payload_len != EXPECTED_IMAGE_SIZE_BYTES) {
+    if (header.getPayloadLen() != EXPECTED_IMAGE_SIZE_BYTES) {
         log_e("[PFR1] Payload size does not match expected display size: header=%u bytes, "
               "expected=%u bytes",
-              header.payload_len,
+              header.getPayloadLen(),
               EXPECTED_IMAGE_SIZE_BYTES);
         file.seek(original_pos);
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
 
-    size_t expected_total = PFR1_HEADER_SIZE + header.payload_len + PFR1_CRC32_SIZE;
+    size_t expected_total = PFR1_HEADER_SIZE + header.getPayloadLen() + PFR1_CRC32_SIZE;
     if (file_size != expected_total) {
         log_e("[PFR1] File size mismatch: actual=%u bytes, expected=%u bytes",
               file_size,
@@ -207,7 +209,7 @@ photo_frame_error validatePFR1FileStructure(fs::File& file, bool validate_payloa
     if (validate_payload_crc) {
         // Read expected payload CRC at end of file
         uint8_t crc_buf[4];
-        if (!file.seek(PFR1_HEADER_SIZE + header.payload_len)) {
+        if (!file.seek(PFR1_HEADER_SIZE + header.getPayloadLen())) {
             file.seek(original_pos);
             return photo_frame::error_type::ImageFileSeekFailed;
         }
@@ -218,7 +220,8 @@ photo_frame_error validatePFR1FileStructure(fs::File& file, bool validate_payloa
         uint32_t expected_crc =
             crc_buf[0] | (crc_buf[1] << 8) | (crc_buf[2] << 16) | (crc_buf[3] << 24);
 
-        uint32_t calculated_crc = calculateCRC32Stream(file, PFR1_HEADER_SIZE, header.payload_len);
+        uint32_t calculated_crc =
+            calculateCRC32Stream(file, PFR1_HEADER_SIZE, header.getPayloadLen());
         if (calculated_crc != expected_crc) {
             log_e("[PFR1] Payload CRC mismatch: calculated=0x%08X, expected=0x%08X",
                   calculated_crc,
@@ -237,28 +240,6 @@ photo_frame_error validatePFR1FileStructure(fs::File& file, bool validate_payloa
 // PFR1BinaryFile Implementation
 // ============================================================
 
-PFR1BinaryFile::PFR1BinaryFile(uint16_t width, uint16_t height) :
-    buffer_size_(PFR1_HEADER_SIZE + (width * height) + 4),
-    is_validated_(false),
-    width_(width),
-    height_(height) {
-    // Allocate buffer on PSRAM for complete PFR1 file:
-    // Total size = Header (21) + Payload (width*height) + CRC32 (4)
-    // via the PFR1_MAX_IMAGE_SIZE_FOR() macro in pfr1_config.h
-    buffer_ = std::unique_ptr<uint8_t[]>(static_cast<uint8_t*>(ps_malloc(buffer_size_)));
-
-    if (!buffer_) {
-        log_e("[PFR1] PSRAM allocation failed for %u x %u (total %u bytes)",
-              width,
-              height,
-              buffer_size_);
-        buffer_size_ = 0;
-    }
-
-    memset(&header, 0, sizeof(header));
-    log_d("[PFR1BinaryFile] Allocated %u bytes on PSRAM (%ux%u)", buffer_size_, width, height);
-}
-
 photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
     if (!wrapper.getBuffer() || wrapper.getBufferSize() == 0) {
         log_e("[PFR1] Wrapper has no buffer allocated");
@@ -272,26 +253,26 @@ photo_frame_error validatePFR1Wrapper(PFR1BinaryFile& wrapper) {
     }
 
     // Validate payload size against width * height
-    size_t expected_payload_size =
-        static_cast<size_t>(wrapper.header.width) * static_cast<size_t>(wrapper.header.height);
-    if (wrapper.header.payload_len != expected_payload_size) {
+    size_t expected_payload_size = static_cast<size_t>(wrapper.header.getWidth()) *
+                                   static_cast<size_t>(wrapper.header.getHeight());
+    if (wrapper.header.getPayloadLen() != expected_payload_size) {
         log_e("[PFR1] Payload size mismatch: header=%u bytes, expected=%u bytes",
-              wrapper.header.payload_len,
+              wrapper.header.getPayloadLen(),
               expected_payload_size);
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
 
-    if (wrapper.header.payload_len != EXPECTED_IMAGE_SIZE_BYTES) {
+    if (wrapper.header.getPayloadLen() != EXPECTED_IMAGE_SIZE_BYTES) {
         log_e("[PFR1] Payload size does not match expected display size: header=%u bytes, "
               "expected=%u bytes",
-              wrapper.header.payload_len,
+              wrapper.header.getPayloadLen(),
               EXPECTED_IMAGE_SIZE_BYTES);
         return photo_frame::error_type::ImageDimensionsInvalid;
     }
 
     // Validate payload CRC
     const uint8_t* payload = wrapper.getPayload();
-    size_t payload_len     = wrapper.header.payload_len;
+    size_t payload_len     = wrapper.header.getPayloadLen();
     uint32_t payload_crc   = *reinterpret_cast<const uint32_t*>(payload + payload_len);
 
     if (!validatePFR1PayloadCRC(payload, payload_len, payload_crc)) {
@@ -331,33 +312,6 @@ photo_frame_error validatePFR1File(fs::File& file, PFR1BinaryFile& wrapper) {
 
     // Validate wrapper (which includes payload CRC check)
     return validatePFR1Wrapper(wrapper);
-}
-
-void PFR1Header_reset(PFR1Header& header) {
-    header.magic        = 0;
-    header.version      = 0;
-    header.header_len   = 0;
-    header.width        = 0;
-    header.height       = 0;
-    header.rotation     = 0;
-    header.color_mode   = 0;
-    header.payload_len  = 0;
-    header.header_crc32 = 0;
-}
-
-uint16_t PFR1Header_getWidth(const PFR1Header& header) {
-    // width must be swapped with height if rotation is 1 or 3
-    if (header.rotation == 1 || header.rotation == 3) {
-        return header.height;
-    }
-    return header.width;
-}
-
-uint16_t PFR1Header_getHeight(const PFR1Header& header) {
-    if (header.rotation == 1 || header.rotation == 3) {
-        return header.width;
-    }
-    return header.height;
 }
 
 } // namespace binary_utils

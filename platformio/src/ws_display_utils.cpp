@@ -31,49 +31,30 @@
 namespace photo_frame {
 namespace ws_display_utils {
 
-photo_frame_error_t
-loadCurrentOrDefaultImage(photo_frame::littlefs_manager::LittleFsManager& littleFs,
-                          photo_frame::DisplayManager& display) {
+photo_frame_error_t drawImageFile(photo_frame::littlefs_manager::LittleFsManager& littleFs,
+                                  photo_frame::DisplayManager& display,
+                                  const char* filename) {
 
-    log_i("[WS-Display] Attempting to load %s from LittleFS", WS_CURRENT_IMAGE_FILENAME);
+    log_i("[WS-Display] Attempting to load %s from LittleFS", filename);
 
     // Try loading current image first
-    photo_frame::binary_utils::PFR1BinaryFile wrapper(display.getWidth(), display.getHeight());
+    photo_frame::PFR1BinaryFile wrapper(display.getWidth(), display.getHeight());
     photo_frame_error_t error =
-        photo_frame::ws_utils::loadLittleFsFile(WS_CURRENT_IMAGE_FILENAME, littleFs, wrapper);
+        photo_frame::ws_utils::loadLittleFsFile(filename, littleFs, wrapper);
 
     if (error != photo_frame::error_type::None) {
-        log_w("[WS-Display] %s not found, trying default image", WS_CURRENT_IMAGE_FILENAME);
-
-        // Fallback to default image
-        error =
-            photo_frame::ws_utils::loadLittleFsFile(WS_DEFAULT_IMAGE_FILENAME, littleFs, wrapper);
-
-        if (error != photo_frame::error_type::None) {
-            log_e("[WS-Display] %s not found either", WS_DEFAULT_IMAGE_FILENAME);
-            return error;
-        }
-
-        log_d("[WS-Display] Loaded default image successfully");
-        log_d("[WS-Display] Successfully loaded %s (PFR1) width=%u height=%u rotation=%u",
-              WS_DEFAULT_IMAGE_FILENAME,
-              wrapper.header.width,
-              wrapper.header.height,
-              wrapper.header.rotation);
+        log_w("[WS-Display] %s not found", filename);
+        wrapper.reset();
+        return error;
     } else {
         log_d("[WS-Display] Loaded current image successfully");
         log_d("[WS-Display] Successfully loaded %s (PFR1) width=%u height=%u rotation=%u",
-              WS_CURRENT_IMAGE_FILENAME,
-              wrapper.header.width,
-              wrapper.header.height,
-              wrapper.header.rotation);
+              filename,
+              wrapper.header.getWidth(),
+              wrapper.header.getHeight(),
+              wrapper.header.getRotation());
     }
-
-    // Copy payload into display buffer
-    memcpy(display.getBuffer(), wrapper.getPayload(), wrapper.header.payload_len);
-
-    // Apply rotation from header (0-3)
-    display.setRotation(wrapper.header.rotation % 4);
+    display.drawImage(wrapper); // will update rotation as well
     return photo_frame::error_type::None;
 }
 

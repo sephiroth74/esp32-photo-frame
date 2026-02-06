@@ -33,7 +33,7 @@ bool init_display_manager();
 void cleanup_display_manager();
 
 // Power control functions
-void display_power_on() {
+void displayPowerOn() {
 #ifdef DISPLAY_POWER_PIN
     log_i("[POWER] Turning display ON (GPIO %d -> %s)",
           DISPLAY_POWER_PIN,
@@ -50,7 +50,7 @@ void display_power_on() {
 #endif
 }
 
-void display_power_off() {
+void displayPowerOff() {
 #ifdef DISPLAY_POWER_PIN
     log_i("[POWER] Turning display OFF (GPIO %d -> %s)",
           DISPLAY_POWER_PIN,
@@ -67,13 +67,13 @@ void display_power_off() {
 #endif
 }
 
-void init_display_power() {
+void initDisplayPower() {
 #ifdef DISPLAY_POWER_PIN
     log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
     pinMode(DISPLAY_POWER_PIN, OUTPUT);
 
     // Start with display OFF
-    display_power_off();
+    displayPowerOff();
     delay(100);
 #else
     log_i("[POWER] Display power control not configured (DISPLAY_POWER_PIN not defined)");
@@ -91,24 +91,24 @@ void test_display_power_cycle() {
 
     // Test 1: Basic ON/OFF cycle
     log_i("\n[TEST 1] Basic power cycle");
-    display_power_on();
+    displayPowerOn();
     delay(2000);
-    display_power_off();
+    displayPowerOff();
     delay(2000);
 
     // Test 2: Multiple rapid cycles
     log_i("\n[TEST 2] Rapid power cycling (5 cycles)");
     for (int i = 0; i < 5; i++) {
         log_i("Cycle %d/5", i + 1);
-        display_power_on();
+        displayPowerOn();
         delay(500);
-        display_power_off();
+        displayPowerOff();
         delay(500);
     }
 
     // Test 3: Power on, initialize display, power off
     log_i("\n[TEST 3] Power + Display init test");
-    display_power_on();
+    displayPowerOn();
 
     if (init_display_manager()) {
         log_i("Display initialized successfully with power control");
@@ -132,7 +132,7 @@ void test_display_power_cycle() {
         delay(1000);
     }
 
-    display_power_off();
+    displayPowerOff();
     delay(2000);
 
     // Test 4: Power measurements simulation
@@ -140,14 +140,14 @@ void test_display_power_cycle() {
     log_i("Display OFF - Simulated consumption: ~0mA");
     delay(1000);
 
-    display_power_on();
+    displayPowerOn();
     log_i("Display ON (idle) - Simulated consumption: ~5mA");
     delay(2000);
 
     log_i("Display ON (refresh) - Simulated consumption: ~35-50mA (peaks to 80mA)");
     delay(3000);
 
-    display_power_off();
+    displayPowerOff();
     log_i("Display OFF again - Simulated consumption: ~0mA");
 
     log_i("\n[POWER TEST] Complete!");
@@ -340,7 +340,7 @@ void run_display_tests() {
     log_i("========================================\n");
 
     // Initialize power control
-    init_display_power();
+    initDisplayPower();
 
     // ========== PHASE 1: SD Card Operations (Display OFF) ==========
     // Display is OFF during SD card operations to avoid SPI conflicts
@@ -352,14 +352,14 @@ void run_display_tests() {
         tempBuffer = (uint8_t*)malloc(bufferSize);
         if (!tempBuffer) {
             log_e("Failed to allocate temporary buffer!");
-            display_power_off();
+            displayPowerOff();
             return;
         }
     }
     log_i("Temporary buffer allocated: %u bytes", bufferSize);
 
     // Turn OFF display during SD card operations
-    display_power_off();
+    displayPowerOff();
     log_i("[PHASE 1] Display powered OFF for SD card operations");
 
     // Initialize SD card using photo_frame::sd_card class
@@ -380,7 +380,7 @@ void run_display_tests() {
     if (!success) {
         log_w("Failed to pick image from SD Card");
         free(tempBuffer);
-        display_power_off();
+        displayPowerOff();
         return;
     }
 
@@ -388,13 +388,13 @@ void run_display_tests() {
     // Now that SD card is closed, we can power on and initialize the display
 
     log_i("[PHASE 2] Powering ON display for rendering");
-    display_power_on();
+    displayPowerOn();
 
     // Initialize display manager (this handles all display initialization)
     if (!init_display_manager()) {
         log_e("Failed to initialize display manager");
         free(tempBuffer);
-        display_power_off();
+        displayPowerOff();
         return;
     }
 
@@ -451,7 +451,7 @@ void run_display_tests() {
 
     // Power off display completely
     log_i("[PHASE 3] Powering OFF display for deep sleep");
-    display_power_off();
+    displayPowerOff();
 
     cleanup_display_manager();
 

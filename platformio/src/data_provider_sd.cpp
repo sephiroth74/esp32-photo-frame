@@ -38,7 +38,7 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
     log_i("--------------------------------------");
 
     // Ensure display is OFF for SD card operations
-    photo_frame::board_utils::display_power_off();
+    photo_frame::board_utils::displayPowerOff();
 
     // Initialize SD card
     auto error = sd_card.begin();
@@ -130,8 +130,7 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
 
     // Validate the binary file
     log_i("Validating image file dimensions and size...");
-    auto wrapper =
-        std::make_unique<photo_frame::binary_utils::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
+    auto wrapper         = std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
     auto validationError = photo_frame::binary_utils::validatePFR1File(file, *wrapper);
     file.close();
 

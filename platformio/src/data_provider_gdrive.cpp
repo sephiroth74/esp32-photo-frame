@@ -46,7 +46,7 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
     log_i("--------------------------------------");
 
     // Ensure display is OFF for SD card operations
-    photo_frame::board_utils::display_power_off();
+    photo_frame::board_utils::displayPowerOff();
 
     error = sd_card.begin();
 
@@ -204,8 +204,8 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
                         original_filename    = String(filename);
 
                         log_i("Validating downloaded image file...");
-                        auto wrapper = std::make_unique<photo_frame::binary_utils::PFR1BinaryFile>(
-                            DISP_WIDTH, DISP_HEIGHT);
+                        auto wrapper =
+                            std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
                         auto validationError =
                             photo_frame::binary_utils::validatePFR1File(file, *wrapper);
                         file.close();

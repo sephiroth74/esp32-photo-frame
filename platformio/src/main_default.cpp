@@ -91,7 +91,7 @@ setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
     log_i("==============================================");
 
     // PHASE 1: SD Card Operations - Display OFF to avoid SPI conflicts
-    photo_frame::board_utils::display_power_off();
+    photo_frame::board_utils::displayPowerOff();
 
     RGB_SET_STATE(SD_READING); // Show SD card operations
     error = sdCard.begin();
@@ -127,7 +127,7 @@ setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
         load_fallback_config(systemConfig);
 
         // Enter deep sleep immediately with extended duration
-        // photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+        // photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
         // fallback_sleep_microseconds);
         return error; // This line won't be reached, but included for completeness
     }
@@ -194,23 +194,23 @@ void default_main_setup() {
     log_i("==================================");
 
     // Initialize display power control (if configured)
-    photo_frame::board_utils::init_display_power();
+    photo_frame::board_utils::initDisplayPower();
 
     // Initialize hardware components
-    if (!initialize_hardware()) {
+    if (!initializeHardware()) {
         log_e("Failed to initialize hardware!");
         return;
     }
 
     // Determine wakeup reason and setup basic state
-    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::get_wakeup_reason();
+    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::getWakeupReason();
 
     // Consider it a reset if it's an undefined wakeup (power on/reset)
     // EXT1 wakeup (button press) goes through normal TOC validation
     bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
 
     char wakeup_reason_string[32];
-    photo_frame::board_utils::get_wakeup_reason_string(
+    photo_frame::board_utils::getWakeupReasonString(
         wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
 
     log_d("Wakeup reason: %s (%d)", wakeup_reason_string, wakeup_reason);
@@ -218,7 +218,7 @@ void default_main_setup() {
 
     // Setup battery and power management
     photo_frame::BatteryInfo BatteryInfo;
-    photo_frame::photo_frame_error_t error = setup_battery_and_power(BatteryInfo, wakeup_reason);
+    photo_frame::photo_frame_error_t error = setupBatteryAndPower(BatteryInfo, wakeup_reason);
 
     // Setup time synchronization and connectivity
     DateTime now = DateTime((uint32_t)0);
@@ -244,14 +244,14 @@ void default_main_setup() {
     log_i("=======================================");
     log_i("- Phase 1: Initializing image buffer...");
     log_i("=======================================");
-    if (!init_image_buffer()) {
+    if (!initializeImageBuffer()) {
         // Critical failure - cannot continue without buffer
         log_e("[main] FATAL: Buffer initialization failed!");
         log_e("[main] Entering deep sleep mode");
 
         const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
-        photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-                                                   emergency_sleep_duration);
+        photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+                                                 emergency_sleep_duration);
         return;
     }
 
@@ -295,7 +295,7 @@ void default_main_setup() {
 
     // Calculate refresh delay
     log_d("Calculating refresh rate");
-    refresh_delay_t refresh_delay = calculate_wakeup_delay(BatteryInfo, now);
+    refresh_delay_t refresh_delay = calculateWakeupDelay(BatteryInfo, now);
 
     // Phase 2: Initialize E-Paper display hardware (after SD card operations are complete)
     log_i("=======================================");
@@ -303,19 +303,19 @@ void default_main_setup() {
     log_i("=======================================");
 
     // PHASE 2: Display Operations - Power ON display now that SD card is closed
-    photo_frame::board_utils::display_power_on();
+    photo_frame::board_utils::displayPowerOn();
 
     RGB_SET_STATE(RENDERING); // Show display rendering
 
     // Initialize the display hardware now that SD card is closed
-    if (!init_display_hardware()) {
+    if (!initializeDisplayHardware()) {
         // Critical failure - cannot continue without display
         log_e("[main] FATAL: Display hardware initialization failed!");
         log_e("[main] Entering deep sleep mode to preserve battery");
 
         const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
-        photo_frame::board_utils::enter_deep_sleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-                                                   emergency_sleep_duration);
+        photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+                                                 emergency_sleep_duration);
         return;
     }
 
@@ -371,22 +371,22 @@ void default_main_setup() {
         // Render the image if it was successfully loaded
         if (error == photo_frame::error_type::None && image_result.is_success()) {
             log_i("Rendering validated binary image...");
-            error = render_image(*image_result.image_file,
-                                 image_result.original_filename.c_str(),
-                                 error,
-                                 now,
-                                 refresh_delay,
-                                 image_result.file_index,
-                                 image_result.total_files,
-                                 drive,
-                                 BatteryInfo);
+            error = renderImage(*image_result.image_file,
+                                image_result.original_filename.c_str(),
+                                error,
+                                now,
+                                refresh_delay,
+                                image_result.file_index,
+                                image_result.total_files,
+                                drive,
+                                BatteryInfo);
         }
     }
 
     // Finalize and enter sleep - show sleep preparation with delay
     RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
     delay(2500);               // Allow sleep preparation animation to complete
-    finalize_and_enter_sleep(BatteryInfo, now, wakeup_reason, refresh_delay);
+    finalizeAndEnterDeepSleep(BatteryInfo, now, wakeup_reason, refresh_delay);
 }
 
 void default_main_loop() {

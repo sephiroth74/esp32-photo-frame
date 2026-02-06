@@ -45,7 +45,7 @@ namespace board_utils {
  * @return The wakeup cause as an esp_sleep_wakeup_cause_t enum value
  * @note This function also prints the wakeup reason to Serial output
  */
-esp_sleep_wakeup_cause_t get_wakeup_reason();
+esp_sleep_wakeup_cause_t getWakeupReason();
 
 /**
  * @brief Converts the wakeup reason to a human-readable string.
@@ -58,9 +58,17 @@ esp_sleep_wakeup_cause_t get_wakeup_reason();
  * @param buffer_size The size of the buffer (must be large enough for the string)
  * @note The buffer should be at least 32 characters to accommodate all possible strings
  */
-void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
-                              char* buffer,
-                              size_t buffer_size);
+void getWakeupReasonString(esp_sleep_wakeup_cause_t wakeup_reason,
+                           char* buffer,
+                           size_t buffer_size);
+
+/**
+ * @brief Prints the wakeup reason to Serial output.
+ * This function is a convenience wrapper that retrieves the wakeup reason and prints it in a
+ * human-readable format.
+ * @param wakeup_reason The reason for waking up from deep sleep
+ */
+void printWakeUpReason(esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
  * @brief Initialize display power control if configured for the board.
@@ -68,7 +76,7 @@ void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
  * This function sets up the GPIO pin for display power control if DISPLAY_POWER_PIN
  * is defined in the board configuration. For ProS3, this controls the LDO2 output.
  */
-void init_display_power();
+void initDisplayPower();
 
 /**
  * @brief Turn on the display power.
@@ -77,7 +85,7 @@ void init_display_power();
  * - For ProS3: Enables LDO2 via GPIO17
  * - For other boards with P-MOSFET: Sets the control pin appropriately
  */
-void display_power_on();
+void displayPowerOn();
 
 /**
  * @brief Turn off the display power.
@@ -86,7 +94,7 @@ void display_power_on();
  * - For ProS3: Disables LDO2 via GPIO17
  * - For other boards with P-MOSFET: Sets the control pin appropriately
  */
-void display_power_off();
+void displayPowerOff();
 
 /**
  * @brief Enters deep sleep mode, disabling peripherals and LEDs to save power.
@@ -101,7 +109,7 @@ void display_power_off();
  * @note This function does not return as the ESP32 enters deep sleep
  * @note Wakeup sources are configured based on compile-time flags (WAKEUP_EXT0/WAKEUP_EXT1)
  */
-void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds = 0);
+void enterDeepSleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds = 0);
 
 /**
  * @brief Prints comprehensive board statistics to Serial console.
@@ -115,7 +123,7 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
  *
  * @note Information is printed to Serial console for debugging purposes
  */
-void print_board_stats();
+void printBoardStatistics();
 
 /**
  * @brief Prints the pin assignments for the current board configuration.
@@ -126,7 +134,7 @@ void print_board_stats();
  *
  * @note Pin information is printed to Serial console
  */
-void print_board_pins();
+void printBoardPinConfiguration();
 
 /**
  * @brief Disables the built-in LED by setting its pin to LOW.
@@ -136,7 +144,7 @@ void print_board_pins();
  *
  * @note This function only operates if BUILTIN_LED_PIN is defined
  */
-void disable_built_in_led();
+void disableBuiltinLed();
 
 /**
  * @brief Blinks the built-in LED a specified number of times.
@@ -149,7 +157,7 @@ void disable_built_in_led();
  * @param off_ms The duration in milliseconds to keep the LED off (default: 300ms)
  * @note This function blocks execution during the blinking sequence
  */
-void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
+void blinkBuiltinLed(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
 
 /**
  * @brief Reads the refresh interval from potentiometer or config, adjusting for battery level.
@@ -166,7 +174,7 @@ void blink_builtin_led(int count, unsigned long on_ms = 100, unsigned long off_m
  * @return The refresh interval in seconds
  * @note Actual implementation depends on USE_POTENTIOMETER definition
  */
-long read_refresh_seconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo);
+long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo);
 
 } // namespace board_utils
 

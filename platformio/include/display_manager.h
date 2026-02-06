@@ -25,6 +25,7 @@
 
 #include "FS.h"
 #include "battery.h"
+#include "binary_utils.h"
 #include "config.h"
 #include "display_driver.h"
 #include "errors.h"
@@ -158,6 +159,12 @@ class DisplayManager {
     void setRotation(uint8_t rotation);
 
     /**
+     * @brief Draw an image file directly to the display buffer
+     * @param imageFile PFR1BinaryFile wrapper containing image data and metadata
+     */
+    void drawImage(photo_frame::PFR1BinaryFile& imageFile);
+
+    /**
      * @brief Get current rotation
      * @return Current rotation value (0-3)
      */
@@ -175,7 +182,7 @@ class DisplayManager {
      * @brief Clear the buffer/canvas to a solid color
      * @param color Fill color (default: 0xFF for white)
      */
-    void clear(uint8_t color = 0xFF);
+    void clear(uint8_t color = DISPLAY_COLOR_WHITE);
 
     /**
      * @brief Fill buffer with image data

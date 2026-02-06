@@ -35,11 +35,12 @@ namespace ws_display_utils {
  * @brief Load and display the current or default image from LittleFS
  * @param littleFs LittleFS manager instance
  * @param display Display manager instance
+ * @param filename Filename of the image to load
  * @return Error code (None if successful)
  */
-photo_frame_error_t
-loadCurrentOrDefaultImage(photo_frame::littlefs_manager::LittleFsManager& littleFs,
-                          photo_frame::DisplayManager& display);
+photo_frame_error_t drawImageFile(photo_frame::littlefs_manager::LittleFsManager& littleFs,
+                                  photo_frame::DisplayManager& display,
+                                  const char* filename);
 
 /**
  * @brief Draw connection info box with AP name, QR code, and IP address

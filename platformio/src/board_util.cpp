@@ -36,20 +36,20 @@ namespace board_utils {
 
 static bool display_power_initialized = false;
 
-void init_display_power() {
+void initDisplayPower() {
 #ifdef DISPLAY_POWER_PIN
     log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
     pinMode(DISPLAY_POWER_PIN, OUTPUT);
 
     // Start with display OFF
-    display_power_off();
+    displayPowerOff();
     delay(100);
 #else
     log_d("[POWER] Display power control not configured (DISPLAY_POWER_PIN not defined)");
 #endif
 }
 
-void display_power_on() {
+void displayPowerOn() {
 #ifdef DISPLAY_POWER_PIN
 #ifndef DISPLAY_POWER_ACTIVE_LOW
 #error                                                                                             \
@@ -78,7 +78,7 @@ void display_power_on() {
 #endif
 }
 
-void display_power_off() {
+void displayPowerOff() {
 #ifdef DISPLAY_POWER_PIN
 #ifndef DISPLAY_POWER_ACTIVE_LOW
 #error                                                                                             \
@@ -105,12 +105,12 @@ void display_power_off() {
 #endif
 }
 
-void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds) {
+void enterDeepSleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds) {
     log_i("Entering deep sleep...");
-    disable_built_in_led(); // Disable built-in LED before going to sleep
+    disableBuiltinLed(); // Disable built-in LED before going to sleep
 
     // Power off display if power control is configured
-    display_power_off();
+    displayPowerOff();
 
     log_v("Disabling peripherals...");
     // btStop(); // Stop Bluetooth to save power
@@ -229,15 +229,15 @@ void enter_deep_sleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_m
 #endif // DISABLE_DEEP_SLEEP
 }
 
-esp_sleep_wakeup_cause_t get_wakeup_reason() {
+esp_sleep_wakeup_cause_t getWakeupReason() {
     esp_sleep_wakeup_cause_t wakeup_reason;
     wakeup_reason = esp_sleep_get_wakeup_cause();
     return wakeup_reason;
 }
 
-void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
-                              char* buffer,
-                              size_t buffer_size) {
+void getWakeupReasonString(esp_sleep_wakeup_cause_t wakeup_reason,
+                           char* buffer,
+                           size_t buffer_size) {
     switch (wakeup_reason) {
     case ESP_SLEEP_WAKEUP_UNDEFINED: snprintf(buffer, buffer_size, "Undefined"); break;
     case ESP_SLEEP_WAKEUP_EXT0:      snprintf(buffer, buffer_size, "External wakeup (EXT0)"); break;
@@ -255,9 +255,15 @@ void get_wakeup_reason_string(esp_sleep_wakeup_cause_t wakeup_reason,
     case ESP_SLEEP_WAKEUP_BT: snprintf(buffer, buffer_size, "Bluetooth wakeup"); break;
     default:                  snprintf(buffer, buffer_size, "Unknown wakeup reason");
     }
-} // get_wakeup_reason_string
+} // getWakeupReasonString
 
-void print_board_stats() {
+void printWakeUpReason(esp_sleep_wakeup_cause_t wakeup_reason) {
+    char wakeup_reason_string[32];
+    getWakeupReasonString(wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
+    log_d("Wakeup reason: %s (%d)", wakeup_reason_string, wakeup_reason);
+} // printWakeUpReason
+
+void printBoardStatistics() {
 #ifdef DEBUG_BOARD
     log_d("Board Statistics:");
 
@@ -316,9 +322,9 @@ void print_board_stats() {
     log_d("CPU Freq: %d", ESP.getCpuFreqMHz());
     log_d("-----------------------------");
 #endif // DEBUG_MODE
-} // print_board_stats
+} // printBoardStatistics
 
-void disable_built_in_led() {
+void disableBuiltinLed() {
 #if defined(LED_BUILTIN)
     log_i("Disabling built-in LED on pin %d", LED_BUILTIN);
     pinMode(LED_BUILTIN, OUTPUT);
@@ -328,7 +334,7 @@ void disable_built_in_led() {
 #endif
 } // disable_builtin_led
 
-void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
+void blinkBuiltinLed(int count, unsigned long on_ms, unsigned long off_ms) {
 #if defined(LED_BUILTIN)
     log_i("Blinking built-in LED on pin %d", LED_BUILTIN);
 
@@ -348,9 +354,9 @@ void blink_builtin_led(int count, unsigned long on_ms, unsigned long off_ms) {
 #else
     log_v("LED_BUILTIN is not defined! Cannot blink the built-in LED.");
 #endif
-} // blink_builtin_led
+} // blinkBuiltinLed
 
-long read_refresh_seconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo) {
+long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo) {
     if (BatteryInfo.is_critical()) {
         log_w("Battery is critical, board should not wake up - returning 0 seconds");
         return 0;
@@ -451,9 +457,9 @@ long read_refresh_seconds(const unified_config& config, photo_frame::BatteryInfo
 
     return refresh_seconds;
 
-} // read_refresh_seconds
+} // readRefreshSeconds
 
-void print_board_pins() {
+void printBoardPinConfiguration() {
     log_i("Board Pin Assignments:");
 #ifdef LED_BUILTIN
     log_i("LED_BUILTIN: %d", LED_BUILTIN);

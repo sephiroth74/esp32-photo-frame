@@ -45,7 +45,7 @@ DisplayManager::DisplayManager() :
     ,
     initialized_(false),
     rotation_(0),
-    image_source_(IMAGE_SOURCE_LOCAL_CACHE) {
+    image_source_(IMAGE_SOURCE_NONE) {
     log_d("[DisplayManager] constructor");
 }
 
@@ -129,6 +129,34 @@ std::unique_ptr<DisplayDriver> DisplayManager::createDisplayDriver() {
 #endif
 }
 
+void DisplayManager::drawImage(photo_frame::PFR1BinaryFile& imageFile) {
+    log_d("[DisplayManager] Drawing image from PFR1BinaryFile wrapper");
+
+    if (!initialized_) {
+        log_e("[DisplayManager] Cannot draw image - display not initialized");
+        return;
+    }
+
+    // Get image data and size from the wrapper
+    const uint8_t* imageData = imageFile.getPayload();
+    size_t imageSize         = imageFile.getPayloadSize();
+    uint8_t rotation         = imageFile.getRotation();
+
+    if (!imageData || imageSize == 0) {
+        log_e("[DisplayManager] Invalid image data in PFR1BinaryFile");
+        return;
+    }
+
+    // update the canvas rotation to match image metadata
+    setRotation(rotation);
+
+    // Fill the buffer with the image data
+    if (!fillBuffer(imageData, imageSize)) {
+        log_e("[DisplayManager] Failed to fill buffer with image data");
+        return;
+    }
+}
+
 void DisplayManager::setRotation(uint8_t rotation) {
     if (rotation > 3) {
         log_w("[DisplayManager] Invalid rotation %u, using 0", rotation);
@@ -173,6 +201,8 @@ void DisplayManager::clear(uint8_t color) {
     log_d("[DisplayManager] Clearing buffer with color 0x%02X", color);
     if (imageBuffer_.isInitialized()) {
         imageBuffer_.clear(color);
+    } else {
+        log_w("[DisplayManager] Cannot clear - image buffer not initialized");
     }
 }
 
@@ -180,7 +210,7 @@ bool DisplayManager::fillBuffer(const uint8_t* imageData, size_t size) {
     log_d("[DisplayManager] Filling buffer with image data (%u bytes)", size);
 
     if (!initialized_) {
-        log_e("[DisplayManager] not initialized");
+        log_w("[DisplayManager] not initialized");
         return false;
     }
 
@@ -233,6 +263,10 @@ void DisplayManager::drawLastUpdate(const DateTime& lastUpdate, long refresh_sec
     // Only need buffer to be initialized for drawing to canvas
     if (!imageBuffer_.isInitialized())
         return;
+    if (!lastUpdate.isValid()) {
+        log_w("Invalid last update time, skipping drawLastUpdate");
+        return;
+    }
     photo_frame::drawLastUpdate(imageBuffer_.getCanvas(), lastUpdate, refresh_seconds);
 }
 

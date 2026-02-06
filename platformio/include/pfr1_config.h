@@ -50,6 +50,8 @@
 // PFR1 format structure sizes
 #define PFR1_HEADER_SIZE 21
 #define PFR1_CRC32_SIZE  4
+#define PFR1_MAGIC       0x50465231 // 'PFR1' in little-endian
+#define PFR1_VERSION     1
 
 /**
  * Calculate maximum image buffer size for a given display dimension

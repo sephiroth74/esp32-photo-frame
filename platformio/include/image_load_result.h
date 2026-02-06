@@ -42,7 +42,7 @@ namespace photo_frame {
  */
 struct ImageLoadResult {
     // Image data - populated if error is None
-    std::unique_ptr<binary_utils::PFR1BinaryFile> image_file;
+    std::unique_ptr<PFR1BinaryFile> image_file;
 
     // Metadata
     String original_filename;
@@ -53,7 +53,7 @@ struct ImageLoadResult {
     photo_frame_error_t error = error_type::None;
 
     // Constructor for success case
-    ImageLoadResult(std::unique_ptr<binary_utils::PFR1BinaryFile> file,
+    ImageLoadResult(std::unique_ptr<PFR1BinaryFile> file,
                     const String& filename,
                     uint32_t index,
                     uint32_t total) :

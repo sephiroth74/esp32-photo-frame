@@ -45,8 +45,6 @@
 // ============================================================================
 // GLOBAL OBJECTS
 // ============================================================================
-// Note: DisplayManager is now a singleton - use DisplayManager::getInstance()
-uint8_t display_rotation  = 0; // 0=0°,1=90°,2=180°,3=270°
 unsigned long startupTime = 0;
 
 #ifndef USE_SENSOR_MAX1704X
@@ -62,11 +60,11 @@ photo_frame::BatteryReader battery_reader;
 // COMMON IMPLEMENTATIONS
 // ============================================================================
 
-bool initialize_hardware() {
+bool initializeHardware() {
     analogReadResolution(12);
     startupTime = millis();
-    photo_frame::board_utils::blink_builtin_led(1, 900, 100);
-    photo_frame::board_utils::disable_built_in_led();
+    photo_frame::board_utils::blinkBuiltinLed(1, 900, 100);
+    photo_frame::board_utils::disableBuiltinLed();
 
 #ifdef LED_PWR_PIN
     pinMode(LED_PWR_PIN, OUTPUT);
@@ -112,16 +110,16 @@ bool initialize_hardware() {
     log_i("Photo Frame %s", FIRMWARE_VERSION_STRING);
     log_i("=======================================");
 
-    photo_frame::board_utils::print_board_stats();
+    photo_frame::board_utils::printBoardStatistics();
 
 #if DEBUG_MODE
-    photo_frame::board_utils::print_board_pins();
+    photo_frame::board_utils::printBoardPinConfiguration();
 #endif // DEBUG_MODE
 
     return true;
 }
 
-bool init_image_buffer() {
+bool initializeImageBuffer() {
     auto& display = photo_frame::DisplayManager::getInstance();
     log_i("[main] Initializing display buffer (Phase 1)...");
 
@@ -136,7 +134,7 @@ bool init_image_buffer() {
     return true;
 }
 
-bool init_display_hardware() {
+bool initializeDisplayHardware() {
     auto& display = photo_frame::DisplayManager::getInstance();
     log_i("[main] Initializing display hardware (Phase 2)...");
 
@@ -150,7 +148,7 @@ bool init_display_hardware() {
     return true;
 }
 
-void cleanup_image_buffer() {
+void cleanupImageBuffer() {
     auto& display = photo_frame::DisplayManager::getInstance();
     if (display.isInitialized()) {
         log_i("[main] Releasing display manager");
@@ -159,8 +157,8 @@ void cleanup_image_buffer() {
     }
 }
 
-photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInfo& BatteryInfo,
-                                                         esp_sleep_wakeup_cause_t wakeup_reason) {
+photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& BatteryInfo,
+                                                      esp_sleep_wakeup_cause_t wakeup_reason) {
     log_i("=======================================");
     log_i("- Reading battery level...");
     log_i("=======================================");
@@ -187,8 +185,8 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInf
         unsigned long elapsed = millis() - startupTime;
         log_d("Elapsed seconds since startup: %lu s", elapsed / 1000);
         log_d("Entering deep sleep to preserve battery...");
-        photo_frame::board_utils::enter_deep_sleep(wakeup_reason); // Enter deep sleep mode
-#endif                                                             // BATTERY_POWER_SAVING
+        photo_frame::board_utils::enterDeepSleep(wakeup_reason); // Enter deep sleep mode
+#endif                                                           // BATTERY_POWER_SAVING
 
         RGB_DISABLE();
 
@@ -211,7 +209,7 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInf
     return photo_frame::error_type::None;
 }
 
-refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now) {
+refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now) {
     refresh_delay_t refresh_delay = {0};
 
     // if the battery level is low, use the battery low multiplier to reduce refresh rate
@@ -228,7 +226,7 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, Da
     extern photo_frame::unified_config systemConfig;
 
     refresh_delay.refresh_seconds =
-        photo_frame::board_utils::read_refresh_seconds(systemConfig, BatteryInfo);
+        photo_frame::board_utils::readRefreshSeconds(systemConfig, BatteryInfo);
 
     if (refresh_delay.refresh_seconds > 0) {
         log_d("Refresh seconds: %ld", refresh_delay.refresh_seconds);
@@ -283,10 +281,10 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, Da
     return refresh_delay;
 }
 
-void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
-                              DateTime& now,
-                              esp_sleep_wakeup_cause_t wakeup_reason,
-                              const refresh_delay_t& refresh_delay) {
+void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& BatteryInfo,
+                               DateTime& now,
+                               esp_sleep_wakeup_cause_t wakeup_reason,
+                               const refresh_delay_t& refresh_delay) {
 
     log_i("=======================================");
     log_i("- Finalizing and entering deep sleep...");
@@ -296,25 +294,26 @@ void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
 
     // Power off display and release resources before sleep
     photo_frame::DisplayManager::getInstance().powerOff();
-    cleanup_image_buffer();
+    cleanupImageBuffer();
     delay(100);
 
     unsigned long elapsed = millis() - startupTime;
     log_d("Elapsed seconds since startup: %lu s", elapsed / 1000);
-    photo_frame::board_utils::enter_deep_sleep(wakeup_reason,
-                                               refresh_delay.get_refresh_microseconds());
+    photo_frame::board_utils::enterDeepSleep(wakeup_reason,
+                                             refresh_delay.get_refresh_microseconds());
 }
 
-photo_frame::photo_frame_error_t
-render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
-             const char* original_filename,
-             photo_frame::photo_frame_error_t current_error,
-             const DateTime& now,
-             const refresh_delay_t& refresh_delay,
-             uint32_t image_index,
-             uint32_t total_files,
-             photo_frame::GoogleDrive& drive,
-             const photo_frame::BatteryInfo& BatteryInfo) {
+#if !defined(ENABLE_WEBSERVER_DATAPROVIDER)
+
+photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile& image_file,
+                                             const char* original_filename,
+                                             photo_frame::photo_frame_error_t current_error,
+                                             const DateTime& now,
+                                             const refresh_delay_t& refresh_delay,
+                                             uint32_t image_index,
+                                             uint32_t total_files,
+                                             photo_frame::GoogleDrive& drive,
+                                             const photo_frame::BatteryInfo& BatteryInfo) {
     photo_frame::photo_frame_error_t error = current_error;
 
     if (error == photo_frame::error_type::None) {
@@ -413,3 +412,5 @@ render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
 
     return error;
 }
+
+#endif // !ENABLE_WEBSERVER_DATAPROVIDER

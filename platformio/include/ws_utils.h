@@ -55,7 +55,7 @@ void handleCriticalBattery(const BatteryInfo& BatteryInfo,
 photo_frame::photo_frame_error_t
 loadLittleFsFile(const char* filename,
                  photo_frame::littlefs_manager::LittleFsManager& littleFs,
-                 photo_frame::binary_utils::PFR1BinaryFile& wrapper);
+                 photo_frame::PFR1BinaryFile& wrapper);
 
 } // namespace ws_utils
 } // namespace photo_frame

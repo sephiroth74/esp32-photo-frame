@@ -205,7 +205,7 @@ void rendererDrawImageInfo(Adafruit_GFX& gfx,
  * @note File can be closed after this function returns
  */
 uint16_t loadImageToBuffer(uint8_t* buffer,
-                           photo_frame::binary_utils::PFR1BinaryFile& file,
+                           photo_frame::PFR1BinaryFile& file,
                            const char* filename,
                            int width,
                            int height);

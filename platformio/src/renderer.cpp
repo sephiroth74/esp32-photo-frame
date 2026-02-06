@@ -185,7 +185,7 @@ bool rendererHasColor() { return displayDriver.has_color(); }
 // ========== Image loading functions ==========
 
 uint16_t loadImageToBuffer(uint8_t* buffer,
-                           photo_frame::binary_utils::PFR1BinaryFile& file,
+                           PFR1BinaryFile& file,
                            const char* filename,
                            int width,
                            int height) {

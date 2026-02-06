@@ -45,7 +45,6 @@ typedef struct {
 // GLOBAL OBJECTS (shared across main files)
 // ============================================================================
 // Note: DisplayManager is now a singleton - use DisplayManager::getInstance()
-extern uint8_t display_rotation; // 0-3 rotation applied to display/canvas
 extern unsigned long startupTime;
 extern photo_frame::BatteryReader battery_reader;
 
@@ -57,7 +56,7 @@ extern photo_frame::BatteryReader battery_reader;
  * @brief Initialize hardware components (Serial, RGB LED, board utilities)
  * @return true if initialization successful, false otherwise
  */
-bool initialize_hardware();
+bool initializeHardware();
 
 /**
  * @brief Initialize the PSRAM image buffer only (Phase 1)
@@ -69,7 +68,7 @@ bool initialize_hardware();
  * @note This function must be called before any image loading operations
  * @return true if buffer allocation successful, false if failed
  */
-bool init_image_buffer();
+bool initializeImageBuffer();
 
 /**
  * @brief Initialize the display hardware (Phase 2)
@@ -80,7 +79,7 @@ bool init_image_buffer();
  * @note Must call init_image_buffer() first
  * @return true if display initialization successful, false if failed
  */
-bool init_display_hardware();
+bool initializeDisplayHardware();
 
 /**
  * @brief Cleanup the image buffer
@@ -88,7 +87,7 @@ bool init_display_hardware();
  * The ImageBuffer class automatically handles cleanup through its destructor,
  * but this function can be called explicitly if needed.
  */
-void cleanup_image_buffer();
+void cleanupImageBuffer();
 
 // ============================================================================
 // POWER MANAGEMENT
@@ -100,8 +99,8 @@ void cleanup_image_buffer();
  * @param wakeup_reason Current wakeup reason for power management decisions
  * @return Error state after battery check
  */
-photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInfo& BatteryInfo,
-                                                         esp_sleep_wakeup_cause_t wakeup_reason);
+photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& BatteryInfo,
+                                                      esp_sleep_wakeup_cause_t wakeup_reason);
 
 /**
  * @brief Calculate the wakeup delay based on battery level and current time
@@ -110,7 +109,7 @@ photo_frame::photo_frame_error_t setup_battery_and_power(photo_frame::BatteryInf
  * @param now The current time
  * @return The calculated wakeup delay
  */
-refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now);
+refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now);
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep
@@ -119,14 +118,16 @@ refresh_delay_t calculate_wakeup_delay(photo_frame::BatteryInfo& BatteryInfo, Da
  * @param wakeup_reason Wakeup reason for sleep decisions
  * @param refresh_delay Pre-calculated refresh delay to avoid re-reading potentiometer
  */
-void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
-                              DateTime& now,
-                              esp_sleep_wakeup_cause_t wakeup_reason,
-                              const refresh_delay_t& refresh_delay);
+void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& BatteryInfo,
+                               DateTime& now,
+                               esp_sleep_wakeup_cause_t wakeup_reason,
+                               const refresh_delay_t& refresh_delay);
 
 // ============================================================================
 // IMAGE RENDERING
 // ============================================================================
+
+#if !defined(ENABLE_WEBSERVER_DATAPROVIDER)
 
 /**
  * @brief Handle image rendering with full/partial display modes and error handling
@@ -142,15 +143,16 @@ void finalize_and_enter_sleep(photo_frame::BatteryInfo& BatteryInfo,
  * @param BatteryInfo Battery information
  * @return Updated error state after rendering attempt
  */
-photo_frame::photo_frame_error_t
-render_image(const photo_frame::binary_utils::PFR1BinaryFile& image_file,
-             const char* original_filename,
-             photo_frame::photo_frame_error_t current_error,
-             const DateTime& now,
-             const refresh_delay_t& refresh_delay,
-             uint32_t image_index,
-             uint32_t total_files,
-             photo_frame::GoogleDrive& drive,
-             const photo_frame::BatteryInfo& BatteryInfo);
+photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile& image_file,
+                                             const char* original_filename,
+                                             photo_frame::photo_frame_error_t current_error,
+                                             const DateTime& now,
+                                             const refresh_delay_t& refresh_delay,
+                                             uint32_t image_index,
+                                             uint32_t total_files,
+                                             photo_frame::GoogleDrive& drive,
+                                             const photo_frame::BatteryInfo& BatteryInfo);
+
+#endif // !ENABLE_WEBSERVER_DATAPROVIDER
 
 #endif // COMMON_MAIN_H
