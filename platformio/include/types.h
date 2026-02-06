@@ -57,8 +57,7 @@ class PFR1Header {
     void setHeaderLen(uint16_t val) { header_len = val; };
 
     uint8_t getVersion() const { return version; };
-
-    uint8_t getMagic() const { return magic; };
+    uint32_t getMagic() const { return magic; };
 
     uint16_t getWidth() const {
         if (rotation == 1 || rotation == 3) {

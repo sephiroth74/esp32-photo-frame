@@ -49,7 +49,7 @@ void test_build_path_three_components()
     String s1 = "root";
     String s2 = "file.txt";
     String s3 = ".png";
-    String result = string_utils::build_path(s1, s2, s3);
+    String result = string_utils::buildPath(s1, s2, s3);
     TEST_ASSERT_EQUAL_STRING("root/file.txt.png", result.c_str());
 }
 
@@ -57,7 +57,7 @@ void test_build_path_with_trailing_slash()
 {
     String s1 = "folder/";
     String s2 = "file.txt";
-    String result = string_utils::build_path(s1, s2);
+    String result = string_utils::buildPath(s1, s2);
     TEST_ASSERT_EQUAL_STRING("folder/file.txt", result.c_str());
 }
 
@@ -65,7 +65,7 @@ void test_build_http_request_line()
 {
     String method = "GET";
     String path = "/api/test";
-    String result = string_utils::build_http_request_line(method, path);
+    String result = string_utils::buildHttpRequestLine(method, path);
     TEST_ASSERT_EQUAL_STRING("GET /api/test HTTP/1.1\r\n", result.c_str());
 }
 
@@ -73,7 +73,7 @@ void test_build_http_header()
 {
     String name = "Content-Type";
     String value = "application/json";
-    String result = string_utils::build_http_header(name, value);
+    String result = string_utils::buildHttpHeader(name, value);
     TEST_ASSERT_EQUAL_STRING("Content-Type: application/json\r\n", result.c_str());
 }
 
@@ -108,7 +108,7 @@ void test_seconds_to_human_zero()
 // Memory check test
 void test_heap_health_check()
 {
-    bool result = string_utils::check_heap_health("test context", 1000);
+    bool result = string_utils::checkHeapHealth("test context", 1000);
     TEST_ASSERT_TRUE(result); // Should have plenty of heap available
 }
 

@@ -347,15 +347,15 @@ String GoogleDrive::get_toc_directory_path(const String& folder_id) const {
     if (sanitized.startsWith("/")) {
         sanitized = sanitized.substring(1);
     }
-    return string_utils::build_path(GOOGLE_DRIVE_TOC_BASE_PATH, sanitized);
+    return string_utils::buildPath(GOOGLE_DRIVE_TOC_BASE_PATH, sanitized);
 }
 
 String GoogleDrive::get_toc_file_path_for_folder(const String& folder_id) const {
-    return string_utils::build_path(get_toc_directory_path(folder_id), TOC_DATA_FILENAME);
+    return string_utils::buildPath(get_toc_directory_path(folder_id), TOC_DATA_FILENAME);
 }
 
 String GoogleDrive::get_toc_meta_file_path_for_folder(const String& folder_id) const {
-    return string_utils::build_path(get_toc_directory_path(folder_id), TOC_META_FILENAME);
+    return string_utils::buildPath(get_toc_directory_path(folder_id), TOC_META_FILENAME);
 }
 
 String GoogleDrive::get_toc_meta_file_path_from_data_path(const String& tocDataPath) const {
@@ -370,14 +370,14 @@ String GoogleDrive::get_toc_file_path() const {
     if (!config.drive.folder_ids.empty()) {
         return get_toc_file_path_for_folder(config.drive.folder_ids[0]);
     }
-    return string_utils::build_path(GOOGLE_DRIVE_TOC_BASE_PATH, TOC_DATA_FILENAME);
+    return string_utils::buildPath(GOOGLE_DRIVE_TOC_BASE_PATH, TOC_DATA_FILENAME);
 }
 
 String GoogleDrive::get_toc_meta_file_path() const {
     if (!config.drive.folder_ids.empty()) {
         return get_toc_meta_file_path_for_folder(config.drive.folder_ids[0]);
     }
-    return string_utils::build_path(GOOGLE_DRIVE_TOC_BASE_PATH, TOC_META_FILENAME);
+    return string_utils::buildPath(GOOGLE_DRIVE_TOC_BASE_PATH, TOC_META_FILENAME);
 }
 
 String GoogleDrive::get_temp_dir_path() const { return GOOGLE_DRIVE_TEMP_DIR; }
@@ -387,11 +387,11 @@ String GoogleDrive::get_cache_dir_path() const {
 }
 
 String GoogleDrive::get_cached_file_path(const String& filename) const {
-    return string_utils::build_path(get_cache_dir_path(), filename);
+    return string_utils::buildPath(get_cache_dir_path(), filename);
 }
 
 String GoogleDrive::get_temp_file_path(const String& filename) const {
-    return string_utils::build_path(get_temp_dir_path(), filename);
+    return string_utils::buildPath(get_temp_dir_path(), filename);
 }
 
 size_t GoogleDrive::get_toc_file_count(SdCard& sdCard,
@@ -981,7 +981,7 @@ uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
             fs::File tempFile = tempRoot.openNextFile();
             while (tempFile) {
                 String tempFileName = tempFile.name();
-                String tempFilePath = string_utils::build_path(tempDir, tempFileName);
+                String tempFilePath = string_utils::buildPath(tempDir, tempFileName);
                 if (sdCard.remove(tempFilePath.c_str())) {
                     cleanedCount++;
                     log_i("Removed temp file: %s", tempFileName.c_str());
@@ -998,7 +998,7 @@ uint32_t GoogleDrive::cleanup_temporary_files(SdCard& sdCard, boolean force) {
 
         // 1. Remove access token
         String accessTokenPath =
-            string_utils::build_path(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
+            string_utils::buildPath(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
         if (sdCard.fileExists(accessTokenPath.c_str()) && sdCard.remove(accessTokenPath.c_str())) {
             cleanedCount++;
             log_i("Removed access token");
@@ -1096,7 +1096,7 @@ uint32_t GoogleDrive::cleanup_all_cached_images(SdCard& sdCard) {
     fs::File cacheFile = cacheRoot.openNextFile();
     while (cacheFile) {
         String fileName = cacheFile.name();
-        String filePath = string_utils::build_path(cacheDir, fileName);
+        String filePath = string_utils::buildPath(cacheDir, fileName);
 
         if (sdCard.remove(filePath.c_str())) {
             cleanedCount++;
@@ -1122,7 +1122,7 @@ photo_frame_error_t GoogleDrive::save_access_token_to_file() {
     }
 
     String tokenPath =
-        string_utils::build_path(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
+        string_utils::buildPath(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
 
     fs::File tokenFile = SD_CARD_LIB.open(tokenPath.c_str(), FILE_WRITE);
     if (!tokenFile) {
@@ -1150,7 +1150,7 @@ photo_frame_error_t GoogleDrive::load_access_token_from_file() {
     log_i("Loading access token from file...");
 
     String tokenPath =
-        string_utils::build_path(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
+        string_utils::buildPath(GOOGLE_DRIVE_CACHING_LOCAL_PATH, ACCESS_TOKEN_FILENAME);
 
     if (!SD_CARD_LIB.exists(tokenPath.c_str())) {
         log_i("Token file does not exist: %s", tokenPath.c_str());

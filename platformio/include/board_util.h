@@ -176,6 +176,14 @@ void blinkBuiltinLed(int count, unsigned long on_ms = 100, unsigned long off_ms 
  */
 long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo);
 
+/**
+ * @brief Check available heap and log warning if low
+ * @param context Context description for logging
+ * @param threshold Warning threshold in bytes (default: 4096)
+ * @return true if heap is sufficient, false if low
+ */
+bool checkHeapHealth(const char* context, size_t threshold = 4096);
+
 } // namespace board_utils
 
 } // namespace photo_frame

@@ -83,7 +83,7 @@ inline String build_string(const String& s1, const String& s2, const String& s3,
  * @param extension File extension (optional)
  * @return Optimized file path String
  */
-inline String build_path(const String& dir, const String& filename, const String& extension = "") {
+inline String buildPath(const String& dir, const String& filename, const String& extension = "") {
     String result;
     size_t totalLen =
         dir.length() + filename.length() + extension.length() + 2; // "/" and null terminator
@@ -107,9 +107,8 @@ inline String build_path(const String& dir, const String& filename, const String
  * @param version HTTP version (default: "HTTP/1.1")
  * @return Optimized HTTP request line
  */
-inline String build_http_request_line(const String& method,
-                                      const String& path,
-                                      const String& version = "HTTP/1.1") {
+inline String
+buildHttpRequestLine(const String& method, const String& path, const String& version = "HTTP/1.1") {
     String result;
     result.reserve(method.length() + path.length() + version.length() + 4); // spaces and \r\n
     result = method;
@@ -127,7 +126,7 @@ inline String build_http_request_line(const String& method,
  * @param value Header value
  * @return Optimized HTTP header line
  */
-inline String build_http_header(const String& name, const String& value) {
+inline String buildHttpHeader(const String& name, const String& value) {
     String result;
     result.reserve(name.length() + value.length() + 4); // ": " and "\r\n"
     result = name;
@@ -135,21 +134,6 @@ inline String build_http_header(const String& name, const String& value) {
     result += value;
     result += "\r\n";
     return result;
-}
-
-/**
- * @brief Check available heap and log warning if low
- * @param context Context description for logging
- * @param threshold Warning threshold in bytes (default: 4096)
- * @return true if heap is sufficient, false if low
- */
-inline bool check_heap_health(const char* context, size_t threshold = 4096) {
-    size_t freeHeap = ESP.getFreeHeap();
-    if (freeHeap < threshold) {
-        log_w("LOW HEAP WARNING in %s: %u bytes free", context, freeHeap);
-        return false;
-    }
-    return true;
 }
 
 /**

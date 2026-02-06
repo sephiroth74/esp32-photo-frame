@@ -442,6 +442,8 @@ void main_webserver_setup() {
 
     log_i("[WS] Setup complete - timeout monitoring will run in loop()");
     log_i("[WS] Timeout: %u ms (%u minutes)", timeout_ms, timeout_ms / 60000);
+
+    photo_frame::board_utils::checkHeapHealth("[WS] End of main_webserver_setup");
 }
 
 void main_webserver_loop() {

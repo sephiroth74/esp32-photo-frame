@@ -64,8 +64,10 @@ bool parsePFR1Header(const uint8_t* buffer, size_t buffer_size, PFR1Header& head
         return false;
     }
 
+    uint32_t magic = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
+
     // Parse header fields (little-endian)
-    header.setMagic(buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24));
+    header.setMagic(magic);
     header.setVersion(buffer[4]);
     header.setHeaderLen(buffer[5] | (buffer[6] << 8));
     header.setWidth(buffer[7] | (buffer[8] << 8));

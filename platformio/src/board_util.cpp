@@ -474,6 +474,20 @@ void printBoardPinConfiguration() {
     log_i("CS: %d", SS);
 }
 
+bool checkHeapHealth(const char* context, size_t threshold) {
+    size_t free_heap = ESP.getFreeHeap();
+    if (free_heap < threshold) {
+        log_w("Low heap memory in context '%s': %u bytes free (threshold: %u bytes)",
+              context,
+              free_heap,
+              threshold);
+        return false;
+    } else {
+        log_d("Heap memory healthy in context '%s': %u bytes free", context, free_heap);
+        return true;
+    }
+}
+
 } // namespace board_utils
 
 } // namespace photo_frame
