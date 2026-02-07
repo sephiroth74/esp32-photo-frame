@@ -235,7 +235,7 @@ class MacOSWidgetFactory extends WidgetFactory {
   }
 }
 
-class WindowsWidgetFactory extends MacOSWidgetFactory {}
+class WindowsWidgetFactory extends LinuxWidgetFactory {}
 
 class LinuxWidgetFactory extends WidgetFactory {
   @override

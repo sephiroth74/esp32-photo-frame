@@ -20,6 +20,9 @@ dependencies:
   # File picker
   file_picker: ^10.3.8
 
+  # Drag and drop support (desktop)
+  desktop_drop: ^0.7.0
+
   # Path utilities
   path: ^1.9.1
   path_provider: ^2.1.5
@@ -27,8 +30,8 @@ dependencies:
   # Persistent local storage
   shared_preferences: ^2.3.2
 
-  # Bluetooth (macOS)
-  flutter_blue_plus: ^1.19.5
+  # WebSocket communication
+  web_socket_channel: ^3.0.1
 
   # JSON serialization
   json_annotation: ^4.10.0

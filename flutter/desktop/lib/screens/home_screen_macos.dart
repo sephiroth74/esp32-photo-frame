@@ -3,7 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../core/providers/processing_provider.dart';
-import 'ble_upload_screen.dart';
+import 'ws_upload_screen.dart';
 import 'processing_screen.dart';
 
 class HomeScreenMacos extends StatefulWidget {
@@ -57,12 +57,12 @@ class _HomeScreenMacosState extends State<HomeScreenMacos> {
                 children: [
                   AppKitSegmentedControl(
                     controller: _tabController,
-                    labels: const ['Process Images', 'Bluetooth Upload'],
+                    labels: const ['Process Images', 'Upload to Device'],
                     onSelectionChanged: (_, _) => setState(() {}),
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: IndexedStack(index: _tabController.index, children: const [ProcessingScreen(), BleUploadScreen()]),
+                    child: IndexedStack(index: _tabController.index, children: const [ProcessingScreen(), WsUploadScreen()]),
                   ),
                 ],
               ),

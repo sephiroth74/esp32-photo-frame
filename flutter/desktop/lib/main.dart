@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:appkit_ui_elements/appkit_ui_elements.dart';
+import 'package:flutter/material.dart';
+import 'package:photoframe_flutter/core/services/preferences.dart';
+import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
-import 'core/providers/ble_provider.dart';
+
 import 'core/providers/processing_provider.dart';
 import 'core/providers/widget_factory_provider.dart';
-import 'screens/home_screen.dart';
-import 'platform/platform_detector.dart';
-import 'platform/window_config.dart';
+import 'core/providers/ws_provider.dart';
 import 'core/services/window_preferences.dart';
-import 'core/services/file_picker_history.dart';
+import 'platform/platform_detector.dart';
+import 'screens/home_screen.dart';
 import 'widgets/menu_bar.dart';
 
 Future<void> _configureMacosWindowUtils() async {
@@ -30,7 +30,6 @@ void main() async {
   // Initialize window manager
   // Get platform-specific configuration
   final platform = PlatformDetector.current;
-  final windowConfig = PlatformWindowConfig.forPlatform(platform);
   debugPrint('🖥️ Running on: $platform');
 
   // Initialize window manager
@@ -46,8 +45,8 @@ void main() async {
   // Restore window size and position
   await WindowPreferences.restoreWindowSize();
 
-  // Initialize file picker history (persistent storage for last used directories)
-  await FilePickerHistory.initialize();
+  // Initialize preferences (persistent storage for settings  )
+  await Preferences.initialize();
 
   // Set minimum window size
   await windowManager.setMinimumSize(const Size(800, 600));
@@ -99,7 +98,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ProcessingProvider()),
-        ChangeNotifierProvider(create: (_) => BleUploadState()),
+        ChangeNotifierProvider(create: (_) => WsUploadState()),
         ChangeNotifierProvider(create: (_) => WidgetFactoryProvider()),
       ],
       child: platform == AppPlatform.macos

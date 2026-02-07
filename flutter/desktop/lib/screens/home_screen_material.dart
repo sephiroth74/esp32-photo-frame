@@ -3,7 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../core/providers/processing_provider.dart';
-import 'ble_upload_screen.dart';
+import 'ws_upload_screen.dart';
 import 'processing_screen.dart';
 
 class HomeScreenMaterial extends StatefulWidget {
@@ -50,12 +50,12 @@ class _HomeScreenMaterialState extends State<HomeScreenMaterial> {
               onPressed: (index) => setState(() => _tabIndex = index),
               children: const [
                 Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Process Images')),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Bluetooth Upload')),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Upload to Device')),
               ],
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: IndexedStack(index: _tabIndex, children: const [ProcessingScreen(), BleUploadScreen()]),
+              child: IndexedStack(index: _tabIndex, children: const [ProcessingScreen(), WsUploadScreen()]),
             ),
           ],
         ),

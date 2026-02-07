@@ -3,10 +3,9 @@ PODS:
     - FlutterMacOS
   - appkit_ui_elements (0.0.2):
     - FlutterMacOS
-  - file_picker (0.0.1):
+  - desktop_drop (0.0.1):
     - FlutterMacOS
-  - flutter_blue_plus_darwin (0.0.2):
-    - Flutter
+  - file_picker (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - macos_window_utils (1.0.0):
@@ -28,8 +27,8 @@ PODS:
 DEPENDENCIES:
   - appkit_ui_element_colors (from `Flutter/ephemeral/.symlinks/plugins/appkit_ui_element_colors/macos`)
   - appkit_ui_elements (from `Flutter/ephemeral/.symlinks/plugins/appkit_ui_elements/macos`)
+  - desktop_drop (from `Flutter/ephemeral/.symlinks/plugins/desktop_drop/macos`)
   - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
-  - flutter_blue_plus_darwin (from `Flutter/ephemeral/.symlinks/plugins/flutter_blue_plus_darwin/darwin`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - macos_window_utils (from `Flutter/ephemeral/.symlinks/plugins/macos_window_utils/macos`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
@@ -44,10 +43,10 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/appkit_ui_element_colors/macos
   appkit_ui_elements:
     :path: Flutter/ephemeral/.symlinks/plugins/appkit_ui_elements/macos
+  desktop_drop:
+    :path: Flutter/ephemeral/.symlinks/plugins/desktop_drop/macos
   file_picker:
     :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
-  flutter_blue_plus_darwin:
-    :path: Flutter/ephemeral/.symlinks/plugins/flutter_blue_plus_darwin/darwin
   FlutterMacOS:
     :path: Flutter/ephemeral
   macos_window_utils:
@@ -68,8 +67,8 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   appkit_ui_element_colors: bb247a2d02b8313cc47e1b83be48d996034c4001
   appkit_ui_elements: af3633614c5729044e411a2cb779d84591afec8e
+  desktop_drop: 1eeeb9484299585770b6461e4f3d60950e99efa2
   file_picker: e716a70a9fe5fd9e09ebc922d7541464289443af
-  flutter_blue_plus_darwin: 904ed52825285a15f60e9d90312337a09f11a785
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   macos_window_utils: 721df4da91cb4bde7b2b7b6ae93cdead4851118f
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b

@@ -81,3 +81,4 @@ rust/photoframe_lib/tests/
 rust/processor/target/
 rust/processor/temp/
 flutter/desktop/temp/
+.swift-version
