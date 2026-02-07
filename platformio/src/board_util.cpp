@@ -356,6 +356,8 @@ void blinkBuiltinLed(int count, unsigned long on_ms, unsigned long off_ms) {
 #endif
 } // blinkBuiltinLed
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo) {
     if (BatteryInfo.is_critical()) {
         log_w("Battery is critical, board should not wake up - returning 0 seconds");
@@ -458,6 +460,8 @@ long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& 
     return refresh_seconds;
 
 } // readRefreshSeconds
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 void printBoardPinConfiguration() {
     log_i("Board Pin Assignments:");

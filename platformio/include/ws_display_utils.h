@@ -47,12 +47,13 @@ photo_frame_error_t drawImageFile(photo_frame::littlefs_manager::LittleFsManager
  * @param display Display manager instance
  * @param ssid AP SSID (e.g., "PhotoFrame-A1B2")
  * @param ipAddress IP address (e.g., "192.168.4.1")
- * @param wsUrl WebSocket URL for QR code (e.g., "ws://192.168.4.1")
+ * @param deepLinkUrl Deep link URL for QR code (e.g.,
+ * "photoframe://connect?ip=192.168.4.1&ssid=MyWiFi&port=8080&v=1&d=1&w=800&h=480")
  */
 void drawConnectionInfoBox(photo_frame::DisplayManager& display,
                            const std::string& ssid,
                            const std::string& ipAddress,
-                           const std::string& wsUrl);
+                           const std::string& deepLinkUrl);
 
 } // namespace ws_display_utils
 } // namespace photo_frame

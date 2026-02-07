@@ -51,15 +51,15 @@ class BoardInfo {
 
     /**
      * @brief Get current display rotation
-     * @return Rotation (0, 90, 180, 270)
+     * @return Rotation in quadrants (0-3) corresponding to 0°, 90°, 180°, 270°
      */
-    static uint16_t getDisplayRotation();
+    static uint8_t getDisplayRotation();
 
     /**
      * @brief Override current display rotation (set by main)
-     * @param rotation Rotation in degrees (0, 90, 180, 270)
+     * @param rotation Rotation in quadrants (0-3) corresponding to 0°, 90°, 180°, 270°
      */
-    static void setDisplayRotation(uint16_t rotation);
+    static void setDisplayRotation(uint8_t rotation);
 
     /**
      * @brief Get battery level percentage
@@ -95,6 +95,51 @@ class BoardInfo {
      * @return JSON string with all board information
      */
     static String toJson();
+};
+
+/**
+ * @brief WebSocket error information structure
+ * Contains error message and code for reporting issues to clients
+ */
+struct WSErrorInfo {
+    String message;
+    uint16_t code;
+    constexpr static char type[] = "error";
+    WSErrorInfo(const String& msg = "", uint16_t c = 0) : message(msg), code(c) {}
+
+    String toJson() const;
+};
+
+struct WSChunkAck {
+    uint32_t received;
+    constexpr static char type[] = "chunk_ack";
+    WSChunkAck(uint32_t r = 0) : received(r) {}
+
+    String toJson() const;
+};
+
+struct WSReadyInfo {
+    constexpr static char type[] = "ready";
+    uint8_t sessionId;
+    WSReadyInfo(uint8_t id = 0) : sessionId(id) {}
+
+    String toJson() const;
+};
+
+struct WSSuccessInfo {
+    constexpr static char type[] = "success";
+    String message;
+    WSSuccessInfo(const String& msg = "") : message(msg) {}
+
+    String toJson() const;
+};
+
+struct WSMessageInfo {
+    String message;
+    String type;
+    WSMessageInfo(const String& msg, const String& t) : message(msg), type(t) {}
+
+    String toJson() const;
 };
 
 } // namespace ws

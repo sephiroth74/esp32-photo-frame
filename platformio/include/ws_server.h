@@ -1,5 +1,6 @@
 #pragma once
 
+#include "psram_allocator.h"
 #include <Arduino.h>
 #include <FS.h>
 #include <WebSocketsServer.h>
@@ -26,18 +27,22 @@ enum class WSEventType {
  */
 struct WSEvent {
     WSEventType type;
-    String message;      // Error message or status info
-    String filepath;     // Path to saved image file in LittleFS (for IMAGE_RECEIVED)
-    String filename;     // Filename of uploaded image
-    uint32_t timestamp;  // Client timestamp
-    uint8_t orientation; // Display orientation (0-3)
+    String message;        // Error message or status info
+    String filepath;       // Path to saved image file in LittleFS (for IMAGE_RECEIVED)
+    String filename;       // Filename of uploaded image
+    uint32_t timestamp;    // Client timestamp
+    uint8_t orientation;   // Display orientation (0-3)
+    uint32_t clientsCount; // Number of currently connected clients
+    uint8_t clientId;      // Client ID for connection/disconnection events
 
     WSEvent() :
         type(WSEventType::ERROR),
         filepath(""),
         filename(""),
         timestamp(0),
-        orientation(0) {}
+        orientation(0),
+        clientsCount(0),
+        clientId(255) {}
 };
 
 /**
@@ -156,6 +161,9 @@ class WSServer {
     // WebSocket server instance
     WebSocketsServer* m_webSocket;
 
+    // Connected clients tracking (multiple clients supported)
+    uint32_t m_connectedClientsCount;
+
     // Upload session state
     bool m_uploadActive;
     uint8_t m_uploadClientId;
@@ -169,7 +177,7 @@ class WSServer {
     File m_uploadFile;
 
     // Image reception state (legacy buffer-based)
-    uint8_t* m_imageBuffer;
+    photo_frame::PSRAMUniquePtr m_imageBuffer;
     size_t m_imageBufferSize;
     size_t m_imageReceivedSize;
     bool m_receivingImage;

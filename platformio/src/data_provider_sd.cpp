@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "data_provider_sd.h"
 #include "binary_utils.h"
 #include "board_util.h"
@@ -154,3 +156,5 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
 }
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

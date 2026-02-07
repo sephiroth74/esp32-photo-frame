@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 #pragma once
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -421,3 +423,5 @@ class GoogleDriveClient {
 };
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

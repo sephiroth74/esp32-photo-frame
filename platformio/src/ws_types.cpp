@@ -1,4 +1,4 @@
-#include "board_info.h"
+#include "ws_types.h"
 #include "config.h"
 #include "renderer.h"
 #include <ArduinoJson.h>
@@ -59,19 +59,19 @@ String BoardInfo::getDisplayType() {
 
 BoardInfo::DisplaySize BoardInfo::getDisplaySize() { return DisplaySize{DISP_WIDTH, DISP_HEIGHT}; }
 
-uint16_t BoardInfo::getDisplayRotation() {
+uint8_t BoardInfo::getDisplayRotation() {
     if (s_hasDisplayRotation) {
         return s_displayRotation;
     }
 
 #ifdef DEFAULT_ORIENTATION
-    return DEFAULT_ORIENTATION * 90;
+    return DEFAULT_ORIENTATION;
 #else
     return 0;
 #endif
 }
 
-void BoardInfo::setDisplayRotation(uint16_t rotation) {
+void BoardInfo::setDisplayRotation(uint8_t rotation) {
     s_displayRotation    = rotation;
     s_hasDisplayRotation = true;
 }
@@ -136,6 +136,77 @@ String BoardInfo::toJson() {
 
     log_d("[BoardInfo] Config JSON: %s", output.c_str());
 
+    return output;
+}
+
+// ===============================================
+// WSErrorInfo Implementation
+// ===============================================
+
+String WSErrorInfo::toJson() const {
+    StaticJsonDocument<256> doc;
+    doc["type"]    = type;
+    doc["code"]    = code;
+    doc["message"] = message;
+
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+// ===============================================
+// WSChunkAck Implementation
+// ===============================================
+
+String WSChunkAck::toJson() const {
+    StaticJsonDocument<256> doc;
+    doc["type"]     = type;
+    doc["received"] = received;
+
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+// ===============================================
+// WSReadyInfo Implementation
+// ===============================================
+
+String WSReadyInfo::toJson() const {
+    StaticJsonDocument<256> doc;
+    doc["type"]       = type;
+    doc["session_id"] = sessionId;
+
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+// ===============================================
+// WSSuccessInfo Implementation
+// ===============================================
+
+String WSSuccessInfo::toJson() const {
+    StaticJsonDocument<256> doc;
+    doc["type"]    = type;
+    doc["message"] = message;
+
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+// ===============================================
+// WSMessageInfo Implementation
+// ===============================================
+
+String WSMessageInfo::toJson() const {
+    StaticJsonDocument<256> doc;
+    doc["type"]    = type;
+    doc["message"] = message;
+
+    String output;
+    serializeJson(doc, output);
     return output;
 }
 

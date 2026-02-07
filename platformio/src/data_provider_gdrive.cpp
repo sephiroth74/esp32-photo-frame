@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "data_provider_gdrive.h"
 #include "binary_utils.h"
 #include "board_util.h"
@@ -278,3 +280,5 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
 }
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

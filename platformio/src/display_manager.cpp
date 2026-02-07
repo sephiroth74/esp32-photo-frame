@@ -24,8 +24,6 @@
 #include "canvas_renderer.h"
 #include "config.h"
 #include "display_driver_6c.h"
-#include "display_driver_bw.h"
-#include "renderer.h"
 
 namespace photo_frame {
 

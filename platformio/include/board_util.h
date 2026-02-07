@@ -159,6 +159,7 @@ void disableBuiltinLed();
  */
 void blinkBuiltinLed(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 /**
  * @brief Reads the refresh interval from potentiometer or config, adjusting for battery level.
  *
@@ -175,6 +176,8 @@ void blinkBuiltinLed(int count, unsigned long on_ms = 100, unsigned long off_ms 
  * @note Actual implementation depends on USE_POTENTIOMETER definition
  */
 long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo);
+
+#endif
 
 /**
  * @brief Check available heap and log warning if low

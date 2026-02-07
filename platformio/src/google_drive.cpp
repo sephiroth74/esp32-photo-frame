@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include <ArduinoJson.h>
 #include <algorithm>
 #include <time.h>
@@ -1276,3 +1278,5 @@ GoogleDriveFile GoogleDrive::get_toc_file_by_name(SdCard& sdCard,
 }
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "google_drive_toc_parser.h"
 
 namespace photo_frame {
@@ -300,3 +302,5 @@ bool GoogleDriveTocParser::skip_header(fs::File& file, photo_frame_error_t* erro
 }
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

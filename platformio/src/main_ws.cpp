@@ -23,7 +23,6 @@
 #ifdef ENABLE_WEBSERVER_DATAPROVIDER
 
 #include "main_ws.h"
-#include "board_info.h"
 #include "board_util.h"
 #include "config.h"
 #include "display_manager.h"
@@ -35,6 +34,7 @@
 #include "ws_ap_manager.h"
 #include "ws_display_utils.h"
 #include "ws_server.h"
+#include "ws_types.h"
 #include "ws_utils.h"
 #include <Arduino.h>
 #include <memory>
@@ -47,7 +47,9 @@ using namespace photo_frame::ws;
 volatile bool g_isLoadingImage = false;
 
 // Flag to indicate if an image update occurred
-volatile bool g_imageUpdated = false;
+volatile bool g_imageUpdated         = false;
+
+static bool g_disconnectOnLastClient = false;
 
 /// Timeout monitoring state variables
 static WSServer* g_wsServer                                       = nullptr;
@@ -58,6 +60,7 @@ static unsigned long g_lastCheckMs                                = 0;
 static uint32_t g_timeout_ms                                      = 0;
 static uint8_t g_display_rotation                                 = DEFAULT_ORIENTATION;
 static photo_frame::BatteryInfo g_battery_info;
+static bool g_clientConnected = false;
 
 void performFactoryReset() {
     log_i("[WS] Perform factory reset: clearing preferences and resetting state");
@@ -207,6 +210,88 @@ void displayReceivedFile(const char* filename,
     g_imageUpdated   = true;
 }
 
+void onWsClientError(const WSEvent& event) {
+    log_w("[WS] Client error: %s", event.message.c_str());
+}
+
+void onWsClientConnected(const WSEvent& event) {
+    log_i("[WS] Client %u connected (active clients: %u)", event.clientId, event.clientsCount);
+    g_clientConnected = true;
+    log_d("[WS] Timeout monitoring disabled while clients are connected");
+}
+
+void onWsClientDisconnected(const WSEvent& event) {
+    log_i("[WS] WebSocket client %u disconnected (active clients: %u)",
+          event.clientId,
+          event.clientsCount);
+    g_clientConnected = (event.clientsCount > 0);
+
+    if (!g_disconnectOnLastClient)
+        return;
+
+    // Check if an upload or image loading is in progress
+    if (g_wsServer && g_wsServer->isUploadActive()) {
+        log_w("[WS] Client disconnected but upload session is still active, waiting...");
+        return;
+    }
+
+    if (g_isLoadingImage) {
+        log_w("[WS] Client disconnected but image is being loaded, waiting...");
+        return;
+    }
+
+    // Client disconnected and no active operations - go to deep sleep
+    log_i("[WS] Client disconnected, no active operations - entering deep sleep");
+
+    if (!g_imageUpdated) {
+        // If no image update occurred, re-display current or default image
+        log_d("[WS] No image update occurred, re-displaying current/default image");
+
+        char filename[64];
+        bool isNewUpload = false;
+        if (g_littleFs->file_exists(WS_CURRENT_IMAGE_FILENAME)) {
+            snprintf(filename, sizeof(filename), WS_CURRENT_IMAGE_FILENAME);
+        } else {
+            g_display_rotation = DEFAULT_ORIENTATION;
+            isNewUpload        = false;
+            snprintf(filename, sizeof(filename), WS_DEFAULT_IMAGE_FILENAME);
+        }
+
+        time_t timestamp = photo_frame::PreferencesHelper::getInstance().getLastImageTimestamp();
+        displayReceivedFile(filename, g_display_rotation, timestamp, g_battery_info, isNewUpload);
+    } else {
+        log_v("[WS] Image was updated during session, no need to re-display");
+    }
+    shutdown(g_littleFs, g_display, 100);
+}
+
+void onWsImageReceived(const WSEvent& event) {
+    log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
+          event.filepath.c_str(),
+          event.timestamp,
+          event.orientation);
+    displayReceivedFile(
+        event.filepath.c_str(), event.orientation, event.timestamp, g_battery_info, true);
+}
+
+void onWsShutDownRequested(const WSEvent& event) {
+    log_i("[WS] Shutdown request received via WebSocket");
+
+    // Check if an upload or image loading is in progress
+    if (g_wsServer && g_wsServer->isUploadActive()) {
+        log_w("[WS] Cannot shutdown: upload session is active");
+        return;
+    }
+
+    if (g_isLoadingImage) {
+        log_w("[WS] Cannot shutdown: image is being loaded");
+        return;
+    }
+
+    log_d("[WS] Entering deep sleep in 100ms...");
+    shutdown(g_littleFs, g_display, 100);
+}
+
 void main_webserver_setup() {
     Serial.begin(115200);
     delay(5000);
@@ -262,7 +347,7 @@ void main_webserver_setup() {
 
     // Provide current runtime info to BoardInfo for GET_CONFIG
     BoardInfo::setBatteryInfo(g_battery_info);
-    BoardInfo::setDisplayRotation(static_cast<uint16_t>(g_display_rotation) * 90);
+    BoardInfo::setDisplayRotation(g_display_rotation);
 
     if (error == photo_frame::error_type::BatteryLevelCritical) {
         log_e("[BT] Battery is critical, showing error and sleeping");
@@ -361,9 +446,20 @@ void main_webserver_setup() {
     }
 
     // Draw connection info box (QR code, SSID, IP)
-    std::string wsUrl = "ws://" + apManager.getIP() + ":" + std::to_string(WS_PORT);
+    // Create deep link URL for Flutter app:
+    // photoframe://connect?ip=...&ssid=...&port=...&v=1&d=1&w=800&h=480
+    std::string deepLinkUrl =
+        "photoframe://connect?ip=" + apManager.getIP() + "&ssid=" + apManager.getSSID() +
+        "&port=" + std::to_string(WS_PORT) + "&v=" + std::to_string(PFR1_VERSION) +
+#ifdef DISP_6C
+        "&d=1" +
+#else
+        "&d=0" +
+#endif
+        "&w=" + std::to_string(EPD_WIDTH) + "&h=" + std::to_string(EPD_HEIGHT);
+
     photo_frame::ws_display_utils::drawConnectionInfoBox(
-        *g_display, apManager.getSSID(), apManager.getIP(), wsUrl);
+        *g_display, apManager.getSSID(), apManager.getIP(), deepLinkUrl);
 
     g_display->drawOverlay();
     g_display->drawLastUpdate(getCurrentDateTime(), 0);
@@ -395,36 +491,12 @@ void main_webserver_setup() {
     log_d("[WS] Creating WebSocket server on port %u...", WS_PORT);
     static auto wsServer = std::make_unique<WSServer>(WS_PORT, [](const WSEvent& event) {
         switch (event.type) {
-        case WSEventType::ERROR:               log_e("[WS] WebSocket error: %s", event.message.c_str()); break;
-        case WSEventType::CLIENT_CONNECTED:    log_i("[WS] WebSocket client connected"); break;
-        case WSEventType::CLIENT_DISCONNECTED: log_i("[WS] WebSocket client disconnected"); break;
-        case WSEventType::IMAGE_RECEIVED:
-            log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
-                  event.filepath.c_str(),
-                  event.timestamp,
-                  event.orientation);
-            displayReceivedFile(
-                event.filepath.c_str(), event.orientation, event.timestamp, g_battery_info, true);
-            break;
-        case WSEventType::SHUTDOWN_REQUEST:
-            log_d("[WS] ========================================");
-            log_d("[WS] Shutdown request received via WebSocket");
-
-            // Check if an upload or image loading is in progress
-            if (g_wsServer && g_wsServer->isUploadActive()) {
-                log_w("[WS] Cannot shutdown: upload session is active");
-                break;
-            }
-
-            if (g_isLoadingImage) {
-                log_w("[WS] Cannot shutdown: image is being loaded");
-                break;
-            }
-
-            log_d("[WS] Entering deep sleep in 100ms...");
-            shutdown(g_littleFs, g_display, 100);
-            break;
-        default: break;
+        case WSEventType::ERROR:               onWsClientError(event); break;
+        case WSEventType::CLIENT_CONNECTED:    onWsClientConnected(event); break;
+        case WSEventType::CLIENT_DISCONNECTED: onWsClientDisconnected(event); break;
+        case WSEventType::IMAGE_RECEIVED:      onWsImageReceived(event); break;
+        case WSEventType::SHUTDOWN_REQUEST:    onWsShutDownRequested(event); break;
+        default:                               break;
         }
     });
 
@@ -462,6 +534,15 @@ void main_webserver_loop() {
     // Check timeout every second
     if (now - g_lastCheckMs >= 1000) {
         g_lastCheckMs = now;
+
+        // Skip timeout check if any client is connected
+        if (g_clientConnected) {
+            // Log status every 30 seconds while clients are connected
+            if ((now - g_serverStartMs) % 30000 < 1000) {
+                log_d("[WS] Clients connected - timeout disabled");
+            }
+            return;
+        }
 
         // Get last activity time from WebSocket server
         unsigned long lastActivityMs = g_wsServer->getLastActivityMs();

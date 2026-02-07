@@ -20,10 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "google_drive_client.h"
+#include "psram_allocator.h"
 #include <HTTPClient.h>
-#include <esp_heap_caps.h> // For ps_malloc/ps_free
-#include <unistd.h>        // For fsync()
+#include <unistd.h> // For fsync()
 
 // OAuth/Google endpoints
 static const char TOKEN_HOST[] PROGMEM      = "oauth2.googleapis.com";
@@ -497,12 +499,7 @@ photo_frame_error_t GoogleDriveClient::get_access_token() {
 
             if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
                 // Allocate buffer in PSRAM
-                char* buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
-                if (!buffer) {
-                    // Fallback to regular heap if PSRAM allocation fails
-                    buffer = (char*)malloc(contentLength + 1);
-                }
-
+                char* buffer = (char*)photo_frame::psram_malloc(contentLength + 1);
                 if (buffer) {
                     // Read response in chunks
                     int totalRead = 0;
@@ -516,7 +513,7 @@ photo_frame_error_t GoogleDriveClient::get_access_token() {
                     }
                     buffer[totalRead] = '\0';
                     responseBody      = String(buffer); // Convert to String for compatibility
-                    free(buffer);
+                    photo_frame::psram_free(buffer);
 
                     log_i("Read %d bytes from token response", totalRead);
                 } else {
@@ -1387,12 +1384,7 @@ size_t GoogleDriveClient::list_files_in_folder_streaming(const char* folderId,
 
     if (contentLength > 0 && contentLength < GOOGLE_DRIVE_SAFETY_LIMIT) {
         // Allocate buffer in PSRAM
-        char* buffer = (char*)heap_caps_malloc(contentLength + 1, MALLOC_CAP_SPIRAM);
-        if (!buffer) {
-            // Fallback to regular heap if PSRAM allocation fails
-            buffer = (char*)malloc(contentLength + 1);
-        }
-
+        char* buffer = (char*)photo_frame::psram_malloc(contentLength + 1);
         if (buffer) {
             // Read response in chunks
             int totalRead = 0;
@@ -1635,3 +1627,5 @@ HttpResponseHeaders GoogleDriveClient::parse_http_headers(WiFiClientSecure& clie
 }
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

@@ -61,7 +61,7 @@ photo_frame_error_t drawImageFile(photo_frame::littlefs_manager::LittleFsManager
 void drawConnectionInfoBox(photo_frame::DisplayManager& display,
                            const std::string& ssid,
                            const std::string& ipAddress,
-                           const std::string& wsUrl) {
+                           const std::string& deepLinkUrl) {
 
     log_i("[WS-Display] Drawing connection info box");
 
@@ -69,37 +69,71 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
     GFXcanvas8& canvas = display.getCanvas();
 
     // Define box dimensions and position (bottom-left corner)
+    const int16_t boxBottom = canvas.height() - 10;
     const int16_t boxWidth  = 250;
-    const int16_t boxHeight = 200;
     const int16_t boxX      = 10;
-    const int16_t boxY      = canvas.height() - boxHeight - 10;
+    const int16_t qrSize    = 148;
 
-    // Draw white background box
-    canvas.fillRect(boxX, boxY, boxWidth, boxHeight, DISPLAY_COLOR_WHITE);
-    canvas.drawRect(boxX, boxY, boxWidth, boxHeight, DISPLAY_COLOR_BLACK);
+    // Draw IP address at the bottom (centered and larger)
+    canvas.setFont(&FONT_10pt8b);
+    int16_t ipX, ipY;
+    uint16_t ipW, ipH;
+    canvas.getTextBounds(ipAddress.c_str(), 0, 0, &ipX, &ipY, &ipW, &ipH);
+    int16_t ipCenterX = boxX + (boxWidth - ipW) / 2;
+    int16_t ipCenterY = boxBottom - 20;
+    log_d("[WS-Display] IP position at (%d,%d)", ipCenterX, ipCenterY);
 
-    // Draw SSID at the top (centered)
-    canvas.setFont(&FONT_14pt8b);
+    // Draw SSID at the top (over the IP address)
+    canvas.setFont(&FONT_12pt8b);
     canvas.setTextColor(DISPLAY_COLOR_BLACK);
     int16_t ssidX, ssidY;
     uint16_t ssidW, ssidH;
     canvas.getTextBounds(ssid.c_str(), 0, 0, &ssidX, &ssidY, &ssidW, &ssidH);
     int16_t ssidCenterX = boxX + (boxWidth - ssidW) / 2;
-    canvas.setCursor(ssidCenterX, boxY + 34);
-    canvas.print(ssid.c_str());
+    int16_t ssidCenterY = ipCenterY - ssidH - 8;
 
-    // Generate and draw QR code
-    const int qrSize = 100;
-    const int qrX    = boxX + (boxWidth - qrSize) / 2;
-    const int qrY    = boxY + 56;
+    log_d("[WS-Display] SSID position at (%d,%d)", ssidCenterX, ssidCenterY);
 
-    // Create QR code
+    // canvas.setCursor(ssidCenterX, boxY + boxHeight - 64);
+    // canvas.print(ssid.c_str());
+
+    // Generate QR code for deep link URL and place it above the SSID
+    // Note: Using version 5 for larger QR code capacity needed for deep link URL
     QRCode qrcode;
-    uint8_t qrcodeData[qrcode_getBufferSize(3)];
-    qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, wsUrl.c_str());
+    uint8_t qrcodeData[qrcode_getBufferSize(5)];
+    qrcode_initText(&qrcode, qrcodeData, 5, ECC_LOW, deepLinkUrl.c_str());
+
+    const int moduleSize = qrSize / qrcode.size;
+    log_d("[WS-Display] QR code size: %u modules, module size: %d pixels", qrcode.size, moduleSize);
+
+    const int qrFinalSize = moduleSize * qrcode.size;
+    const int qrX         = boxX + (boxWidth / 2) - (qrFinalSize / 2);
+    const int qrY         = ssidCenterY - qrFinalSize - 22;
+
+    log_d("[WS-Display] QR code position at (%d,%d)", qrX, qrY);
 
     // Draw QR code on canvas
-    const int moduleSize = qrSize / qrcode.size;
+    log_d("[WS-Display] Generated QR code with size %u", qrcode.size);
+
+    // now draw the box
+    const int16_t boxTop    = qrY - 20;
+    const int16_t boxHeight = boxBottom - boxTop;
+    const int16_t boxY      = boxBottom - boxHeight;
+
+    log_d("[WS-Display] Drawing connection info box at (%d,%d) size %dx%d",
+          boxX,
+          boxY,
+          boxWidth,
+          boxHeight);
+
+    // Draw white background box
+    canvas.fillRect(boxX, boxY, boxWidth, boxHeight, DISPLAY_COLOR_WHITE);
+    canvas.fillRect(boxX + 2, boxY + 2, boxWidth - 4, boxHeight - 4, DISPLAY_COLOR_BLACK);
+    canvas.fillRect(boxX + 4, boxY + 4, boxWidth - 8, boxHeight - 8, DISPLAY_COLOR_WHITE);
+    // canvas.drawRect(boxX + 6, boxY + 6, boxWidth - 12, boxHeight - 12, DISPLAY_COLOR_BLACK);
+
+    log_d("[WS-Display] module size %d  ", moduleSize);
+
     for (uint8_t y = 0; y < qrcode.size; y++) {
         for (uint8_t x = 0; x < qrcode.size; x++) {
             if (qrcode_getModule(&qrcode, x, y)) {
@@ -112,14 +146,15 @@ void drawConnectionInfoBox(photo_frame::DisplayManager& display,
         }
     }
 
-    // Draw IP address at the bottom (centered and larger)
+    // Draw IP
     canvas.setFont(&FONT_10pt8b);
-    int16_t ipX, ipY;
-    uint16_t ipW, ipH;
-    canvas.getTextBounds(wsUrl.c_str(), 0, 0, &ipX, &ipY, &ipW, &ipH);
-    int16_t ipCenterX = boxX + (boxWidth - ipW) / 2;
-    canvas.setCursor(ipCenterX, boxY + boxHeight - 24);
-    canvas.print(wsUrl.c_str());
+    canvas.setCursor(ipCenterX, ipCenterY);
+    canvas.print(ipAddress.c_str());
+
+    // Draw SSID
+    canvas.setFont(&FONT_12pt8b);
+    canvas.setCursor(ssidCenterX, ssidCenterY);
+    canvas.print(ssid.c_str());
 
     log_i("[WS-Display] Connection info box drawn successfully");
 }

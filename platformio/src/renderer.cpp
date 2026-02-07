@@ -1,9 +1,6 @@
 #include "renderer.h"
-#include "binary_utils.h"
 #include "canvas_renderer.h"
 #include "config.h"
-#include "display_driver_6c.h"
-#include "display_driver_bw.h"
 #include "errors.h"
 #include "image_buffer.h"
 #include <Adafruit_GFX.h>
@@ -12,8 +9,10 @@
 // Include display library headers for EPD_WIDTH and EPD_HEIGHT
 // The pins are taken from config.h (EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN)
 #ifdef DISP_6C
+#include "display_driver_6c.h"
 #include <Display_EPD_GDEP073E01_W21.h>
 #else
+#include "display_driver_bw.h"
 #include <Display_EPD_GDEY075T7_W21.h>
 #endif
 

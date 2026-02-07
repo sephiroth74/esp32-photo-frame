@@ -30,7 +30,12 @@
 #include "display_driver.h"
 #include "errors.h"
 #include "geometry.h"
+#include "types.h"
+
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 #include "google_drive.h"
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "image_buffer.h"
 #include <Adafruit_GFX.h>
 #include <Arduino.h>

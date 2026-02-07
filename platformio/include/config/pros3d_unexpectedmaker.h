@@ -88,9 +88,4 @@
 // ===========================================================================
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0"
 
-#ifdef ENABLE_WEBSERVER_DATAPROVIDER
-#define WS_FIRST_BOOT_TIMEOUT_MS (6 * 60 * 1000) // minutes timeout for first boot
-#define WS_LISTEN_TIMEOUT_MS (5 * 60 * 1000)     // 5 minutes timeout for subsequent boots
-#endif // ENABLE_WEBSERVER_DATAPROVIDER
-
 #define LOCALE it_IT

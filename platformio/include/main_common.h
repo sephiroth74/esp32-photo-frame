@@ -28,7 +28,12 @@
 #include "config.h"
 #include "display_manager.h"
 #include "errors.h"
+#include "types.h"
+
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 #include "google_drive.h"
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
+
 #include <Arduino.h>
 
 // ============================================================================
@@ -102,6 +107,8 @@ void cleanupImageBuffer();
 photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& BatteryInfo,
                                                       esp_sleep_wakeup_cause_t wakeup_reason);
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 /**
  * @brief Calculate the wakeup delay based on battery level and current time
  *
@@ -110,6 +117,8 @@ photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& 
  * @return The calculated wakeup delay
  */
 refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now);
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep

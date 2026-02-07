@@ -1,6 +1,7 @@
 #ifndef PHOTO_FRAME_TYPES_H
 #define PHOTO_FRAME_TYPES_H
 
+#include "psram_allocator.h"
 #include <Arduino.h>
 #include <memory>
 
@@ -96,7 +97,7 @@ class PFR1Header {
  */
 class PFR1BinaryFile {
   private:
-    std::unique_ptr<uint8_t[]> buffer_;
+    PSRAMUniquePtr buffer_;
     size_t buffer_size_;
     bool is_validated_;
     uint16_t width_;

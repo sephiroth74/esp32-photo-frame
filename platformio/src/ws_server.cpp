@@ -1,10 +1,11 @@
 #include "ws_server.h"
 #include "binary_utils.h"
-#include "board_info.h"
 #include "config.h"
 #include "littlefs_manager.h"
 #include "pfr1_config.h"
+#include "psram_allocator.h"
 #include "renderer.h"
+#include "ws_types.h"
 #include <ArduinoJson.h>
 #include <esp_log.h>
 
@@ -25,6 +26,7 @@ WSServer::WSServer(uint16_t port, WSEventCallback callback) :
     m_taskHandle(nullptr),
     m_running(false),
     m_webSocket(nullptr),
+    m_connectedClientsCount(0),
     m_uploadActive(false),
     m_uploadClientId(255),
     m_uploadFilename(""),
@@ -51,11 +53,7 @@ WSServer::~WSServer() {
         m_webSocket = nullptr;
     }
 
-    // Free image buffer if allocated
-    if (m_imageBuffer) {
-        free(m_imageBuffer);
-        m_imageBuffer = nullptr;
-    }
+    // Smart pointer automatically frees m_imageBuffer
 }
 
 bool WSServer::begin() {
@@ -66,9 +64,6 @@ bool WSServer::begin() {
 
     if (!m_callback) {
         log_e("[WSServer] No callback provided");
-        WSEvent event;
-        event.type    = WSEventType::ERROR;
-        event.message = "No callback provided";
         return false;
     }
 
@@ -180,8 +175,9 @@ void WSServer::handleMessage(const uint8_t* data, size_t len) {
             m_imageBufferSize = *reinterpret_cast<const size_t*>(data);
             log_i("[WSServer] Starting image reception: %d bytes", m_imageBufferSize);
 
-            // Allocate buffer
-            m_imageBuffer = static_cast<uint8_t*>(malloc(m_imageBufferSize));
+            // Allocate buffer using smart pointer
+            m_imageBuffer = photo_frame::make_psram_unique(m_imageBufferSize);
+
             if (!m_imageBuffer) {
                 log_e("[WSServer] Failed to allocate image buffer");
                 WSEvent event;
@@ -197,7 +193,7 @@ void WSServer::handleMessage(const uint8_t* data, size_t len) {
     } else {
         // Continue receiving image data
         if (m_imageReceivedSize + len <= m_imageBufferSize) {
-            memcpy(m_imageBuffer + m_imageReceivedSize, data, len);
+            memcpy(m_imageBuffer.get() + m_imageReceivedSize, data, len);
             m_imageReceivedSize += len;
 
             log_d("[WSServer] Received chunk: %d/%d bytes", m_imageReceivedSize, m_imageBufferSize);
@@ -214,9 +210,8 @@ void WSServer::handleMessage(const uint8_t* data, size_t len) {
                 event.message  = "Image received successfully (legacy buffer mode)";
                 sendEvent(event);
 
-                // Reset state and free buffer
-                free(m_imageBuffer);
-                m_imageBuffer       = nullptr;
+                // Reset state - smart pointer automatically frees memory
+                m_imageBuffer.reset();
                 m_imageBufferSize   = 0;
                 m_imageReceivedSize = 0;
                 m_receivingImage    = false;
@@ -228,9 +223,8 @@ void WSServer::handleMessage(const uint8_t* data, size_t len) {
             event.message = "Protocol error: data overflow";
             sendEvent(event);
 
-            // Reset state
-            free(m_imageBuffer);
-            m_imageBuffer       = nullptr;
+            // Reset state - smart pointer automatically frees memory
+            m_imageBuffer.reset();
             m_imageBufferSize   = 0;
             m_imageReceivedSize = 0;
             m_receivingImage    = false;
@@ -241,22 +235,31 @@ void WSServer::handleMessage(const uint8_t* data, size_t len) {
 void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
     switch (type) {
     case WStype_DISCONNECTED:
-        log_i("[WSServer] Client %u disconnected", num);
+        if (m_connectedClientsCount > 0) {
+            m_connectedClientsCount--;
+        }
+        log_i(
+            "[WSServer] Client %u disconnected (active clients: %u)", num, m_connectedClientsCount);
         {
             WSEvent event;
-            event.type    = WSEventType::CLIENT_DISCONNECTED;
-            event.message = "Client disconnected";
+            event.type         = WSEventType::CLIENT_DISCONNECTED;
+            event.message      = "Client disconnected";
+            event.clientId     = num;
+            event.clientsCount = m_connectedClientsCount;
             sendEvent(event);
         }
         break;
 
     case WStype_CONNECTED:
-        log_i("[WSServer] Client %u connected", num);
+        m_connectedClientsCount++;
         m_lastActivityMs = millis();
+        log_i("[WSServer] Client %u connected (active clients: %u)", num, m_connectedClientsCount);
         {
             WSEvent event;
-            event.type    = WSEventType::CLIENT_CONNECTED;
-            event.message = "Client connected";
+            event.type         = WSEventType::CLIENT_CONNECTED;
+            event.message      = "Client connected";
+            event.clientId     = num;
+            event.clientsCount = m_connectedClientsCount;
             sendEvent(event);
         }
         break;
@@ -292,12 +295,9 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload
                       length,
                       maxSize);
                 if (m_webSocket) {
-                    StaticJsonDocument<128> errDoc;
-                    errDoc["type"]    = "error";
-                    errDoc["message"] = "File size limit exceeded";
-                    String err;
-                    serializeJson(errDoc, err);
-                    m_webSocket->sendTXT(num, err);
+                    WSErrorInfo errorInfo("File size limit exceeded", 413);
+                    String json = errorInfo.toJson();
+                    m_webSocket->sendTXT(num, json);
                 }
                 resetUploadSession(true, "File size limit exceeded");
                 break;
@@ -307,24 +307,18 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload
             if (written != length) {
                 log_e("[WSServer] Failed to write chunk to file (%u/%u)", written, length);
                 if (m_webSocket) {
-                    StaticJsonDocument<128> errDoc;
-                    errDoc["type"]    = "error";
-                    errDoc["message"] = "Write failed";
-                    String err;
-                    serializeJson(errDoc, err);
-                    m_webSocket->sendTXT(num, err);
+                    WSErrorInfo errorInfo("Failed to write chunk to file", 500);
+                    String json = errorInfo.toJson();
+                    m_webSocket->sendTXT(num, json);
                 }
                 resetUploadSession(true, "Write failed");
             } else {
                 m_uploadBytesReceived += written;
                 m_lastUploadActivityMs = millis();
                 if (m_webSocket) {
-                    StaticJsonDocument<128> ackDoc;
-                    ackDoc["type"]     = "chunk_ack";
-                    ackDoc["received"] = m_uploadBytesReceived;
-                    String ack;
-                    serializeJson(ackDoc, ack);
-                    m_webSocket->sendTXT(num, ack);
+                    WSChunkAck ackInfo(m_uploadBytesReceived);
+                    String json = ackInfo.toJson();
+                    m_webSocket->sendTXT(num, json);
                 }
             }
         } else {
@@ -363,12 +357,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
     if (error) {
         log_e("[WSServer] JSON parse error: %s", error.c_str());
         if (m_webSocket) {
-            StaticJsonDocument<128> errDoc;
-            errDoc["type"]    = "error";
-            errDoc["message"] = "Invalid JSON";
-            String err;
-            serializeJson(errDoc, err);
-            m_webSocket->sendTXT(num, err);
+            WSErrorInfo errorInfo("Invalid JSON", 400);
+            String json = errorInfo.toJson();
+            m_webSocket->sendTXT(num, json);
         }
         return;
     }
@@ -377,12 +368,21 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
     if (!type) {
         log_w("[WSServer] Control message missing 'type' field");
         if (m_webSocket) {
-            StaticJsonDocument<128> errDoc;
-            errDoc["type"]    = "error";
-            errDoc["message"] = "Missing 'type' field";
-            String err;
-            serializeJson(errDoc, err);
-            m_webSocket->sendTXT(num, err);
+            WSErrorInfo errorInfo("Missing 'type' field", 400);
+            String json = errorInfo.toJson();
+            m_webSocket->sendTXT(num, json);
+        }
+        return;
+    }
+
+    if (String(type) == "handshake") {
+        // Client sends handshake, respond with device_info
+        log_i("[WSServer] Received handshake from client %u", num);
+
+        if (m_webSocket) {
+            String json = BoardInfo::toJson();
+            log_i("[WSServer] Sending device_info to client %u: %s", num, json.c_str());
+            m_webSocket->sendTXT(num, json);
         }
         return;
     }
@@ -397,12 +397,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
         if (!filename || !token) {
             log_w("[WSServer] Upload init missing required fields");
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Missing filename or token";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Missing filename or token", 400);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -412,12 +409,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
         if (!filenameStr.endsWith(".pfr1")) {
             log_w("[WSServer] Invalid filename extension: %s", filename);
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Filename must end with .pfr1";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Filename must end with .pfr1", 400);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -426,12 +420,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
         if (orientation > 3) {
             log_w("[WSServer] Invalid orientation: %u", orientation);
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Orientation must be 0-3";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Orientation must be 0-3", 400);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -440,12 +431,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
         if (g_isLoadingImage) {
             log_w("[WSServer] Cannot start upload: image is being loaded and displayed on screen");
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Cannot upload: display is currently showing an image";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Display busy", 503);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -457,12 +445,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
                   m_uploadClientId,
                   num);
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Another upload is already in progress";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Another upload is already in progress", 409);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -488,12 +473,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
             log_e("[WSServer] Failed to open temp file: %s", WS_UPLOAD_TEMP_FILENAME);
             resetUploadSession(false, "Failed to open temp file");
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Failed to create upload file";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Failed to create upload file", 500);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -505,24 +487,18 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
 
         // Send ready response
         if (m_webSocket) {
-            StaticJsonDocument<128> readyDoc;
-            readyDoc["type"]       = "ready";
-            readyDoc["session_id"] = num;
-            String ready;
-            serializeJson(readyDoc, ready);
-            m_webSocket->sendTXT(num, ready);
+            WSReadyInfo readyInfo(num);
+            String json = readyInfo.toJson();
+            m_webSocket->sendTXT(num, json);
         }
     } else if (String(type) == "end") {
         // Upload completion request
         if (!m_uploadActive || m_uploadClientId != num) {
             log_w("[WSServer] End upload without active session from client %u", num);
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "No active upload session";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("No active upload session", 400);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
@@ -551,12 +527,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
 
                 // Send success response
                 if (m_webSocket) {
-                    StaticJsonDocument<128> successDoc;
-                    successDoc["type"]    = "success";
-                    successDoc["message"] = "Image uploaded successfully";
-                    String success;
-                    serializeJson(successDoc, success);
-                    m_webSocket->sendTXT(num, success);
+                    WSSuccessInfo successInfo("Image uploaded successfully");
+                    String json = successInfo.toJson();
+                    m_webSocket->sendTXT(num, json);
                 }
 
                 // Trigger callback to main with upload metadata
@@ -573,24 +546,18 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
             } else {
                 log_e("[WSServer] Failed to move upload file");
                 if (m_webSocket) {
-                    StaticJsonDocument<128> errDoc;
-                    errDoc["type"]    = "error";
-                    errDoc["message"] = "Failed to save image";
-                    String err;
-                    serializeJson(errDoc, err);
-                    m_webSocket->sendTXT(num, err);
+                    WSErrorInfo errorInfo("Failed to save image", 500);
+                    String json = errorInfo.toJson();
+                    m_webSocket->sendTXT(num, json);
                 }
                 resetUploadSession(true, "Move failed");
             }
         } else {
             log_e("[WSServer] Upload validation failed: error=%d", validationResult.code);
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Invalid image file";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Invalid image file", 400);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             resetUploadSession(true, "Validation failed");
         }
@@ -603,24 +570,18 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
             log_w("[WSServer] Cannot shutdown: upload session is active from client %u",
                   m_uploadClientId);
             if (m_webSocket) {
-                StaticJsonDocument<128> errDoc;
-                errDoc["type"]    = "error";
-                errDoc["message"] = "Cannot shutdown: upload in progress";
-                String err;
-                serializeJson(errDoc, err);
-                m_webSocket->sendTXT(num, err);
+                WSErrorInfo errorInfo("Cannot shutdown: upload in progress", 409);
+                String json = errorInfo.toJson();
+                m_webSocket->sendTXT(num, json);
             }
             return;
         }
 
         // Send acknowledgement before shutting down
         if (m_webSocket) {
-            StaticJsonDocument<128> ackDoc;
-            ackDoc["type"]    = "ack";
-            ackDoc["message"] = "Device entering deep sleep";
-            String ack;
-            serializeJson(ackDoc, ack);
-            m_webSocket->sendTXT(num, ack);
+            WSMessageInfo ackInfo("Device entering deep sleep", "ack");
+            String json = ackInfo.toJson();
+            m_webSocket->sendTXT(num, json);
         }
 
         // Trigger shutdown event
@@ -633,12 +594,9 @@ void WSServer::handleControlMessage(uint8_t num, const String& message) {
     } else {
         log_w("[WSServer] Unknown control message type: %s", type);
         if (m_webSocket) {
-            StaticJsonDocument<128> errDoc;
-            errDoc["type"]    = "error";
-            errDoc["message"] = "Unknown command";
-            String err;
-            serializeJson(errDoc, err);
-            m_webSocket->sendTXT(num, err);
+            WSErrorInfo errorInfo("Unknown command", 400);
+            String json = errorInfo.toJson();
+            m_webSocket->sendTXT(num, json);
         }
     }
 }
@@ -679,12 +637,9 @@ void WSServer::checkUploadTimeout() {
 
         // Send timeout error to client
         if (m_webSocket && m_uploadClientId != 255) {
-            StaticJsonDocument<128> errDoc;
-            errDoc["type"]    = "error";
-            errDoc["message"] = "Upload timeout";
-            String err;
-            serializeJson(errDoc, err);
-            m_webSocket->sendTXT(m_uploadClientId, err);
+            WSErrorInfo errorInfo("Upload timeout", 408);
+            String json = errorInfo.toJson();
+            m_webSocket->sendTXT(m_uploadClientId, json);
         }
 
         resetUploadSession(true, "Timeout");

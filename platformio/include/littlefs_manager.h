@@ -66,14 +66,6 @@ class LittleFsManager {
     void list_files(const char* path);
 
     /**
-     * @brief Copy a file from SD card to LittleFS
-     * @param source_file Open file handle from SD card
-     * @param dest_filename Destination filename in LittleFS (including path)
-     * @return true if copy succeeded, false on error
-     */
-    bool copy_to_littlefs(fs::File& source_file, const char* dest_filename);
-
-    /**
      * @brief Open a file in LittleFS
      * @param filename Filename to open (including path)
      * @param mode File open mode (e.g., "r", "w")

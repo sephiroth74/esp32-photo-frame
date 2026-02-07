@@ -209,6 +209,8 @@ photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& 
     return photo_frame::error_type::None;
 }
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
+
 refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now) {
     refresh_delay_t refresh_delay = {0};
 
@@ -280,6 +282,8 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& BatteryInfo, Date
 
     return refresh_delay;
 }
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& BatteryInfo,
                                DateTime& now,

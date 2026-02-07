@@ -34,7 +34,12 @@
 #include "display_driver.h"
 #include "errors.h"
 #include "geometry.h"
+#include "types.h"
+
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 #include "google_drive.h"
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
+
 #include <assets/icons/icons.h>
 
 #define MAX_DISPLAY_BUFFER_SIZE 65536ul // e.g.

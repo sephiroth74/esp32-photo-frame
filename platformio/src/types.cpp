@@ -54,7 +54,7 @@ PFR1BinaryFile::PFR1BinaryFile(uint16_t width, uint16_t height) :
     // Allocate buffer on PSRAM for complete PFR1 file:
     // Total size = Header (21) + Payload (width*height) + CRC32 (4)
     // via the PFR1_MAX_IMAGE_SIZE_FOR() macro in pfr1_config.h
-    buffer_ = std::unique_ptr<uint8_t[]>(static_cast<uint8_t*>(ps_malloc(buffer_size_)));
+    buffer_ = make_psram_unique(buffer_size_);
 
     if (!buffer_) {
         log_e("[PFR1] PSRAM allocation failed for %u x %u (total %u bytes)",

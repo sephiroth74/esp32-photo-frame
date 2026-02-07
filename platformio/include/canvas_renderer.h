@@ -6,7 +6,12 @@
 #include "display_driver.h" // For DISPLAY_COLOR_* definitions
 #include "errors.h"
 #include "geometry.h"
+
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 #include "google_drive.h"
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
+
+#include "types.h"
 #include <Adafruit_GFX.h>
 #include <Arduino.h>
 #include <RTClib.h>

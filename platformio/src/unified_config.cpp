@@ -23,6 +23,7 @@
 #include "unified_config.h"
 #include "config.h"
 #include "preferences_helper.h"
+#include "psram_allocator.h"
 #include <ArduinoJson.h>
 
 namespace photo_frame {
@@ -88,10 +89,7 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
 
     // Allocate buffer for JSON parsing using PSRAM
     size_t buffer_size = file_size + 512; // Extra space for JSON parsing
-    char* buffer       = (char*)heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
-    if (!buffer) {
-        buffer = (char*)malloc(buffer_size);
-    }
+    char* buffer       = static_cast<char*>(photo_frame::psram_malloc(buffer_size));
 
     if (!buffer) {
         log_e("Failed to allocate buffer for config");
@@ -105,7 +103,7 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
 
     if (bytes_read != file_size) {
         log_e("Failed to read complete configuration file");
-        free(buffer);
+        photo_frame::psram_free(buffer);
         return error_type::CardOpenFileFailed; // Use available error type
     }
 
@@ -114,7 +112,7 @@ load_unified_config(SdCard& sdCard, const char* config_path, unified_config& con
     // Parse JSON
     DynamicJsonDocument doc(buffer_size);
     DeserializationError json_error = deserializeJson(doc, buffer);
-    free(buffer);
+    photo_frame::psram_free(buffer);
 
     if (json_error) {
         log_e("JSON parsing failed: %s", json_error.c_str());

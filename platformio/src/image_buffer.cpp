@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "image_buffer.h"
+#include "psram_allocator.h"
 #include <esp_heap_caps.h>
 
 namespace photo_frame {
@@ -50,26 +51,24 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
 
     log_i("Initializing image buffer (%ux%u = %u bytes)...", width, height, bufferSize_);
 
-    // Try to allocate in PSRAM if requested and available
+    // Allocate buffer based on preference
     if (preferPsram) {
-#if CONFIG_SPIRAM_USE_CAPS_ALLOC || CONFIG_SPIRAM_USE_MALLOC
-        buffer_ = (uint8_t*)heap_caps_malloc(bufferSize_, MALLOC_CAP_SPIRAM);
+        // Prefer PSRAM, fall back to heap if needed
+        buffer_ = static_cast<uint8_t*>(photo_frame::psram_malloc(bufferSize_));
         if (buffer_) {
-            inPsram_ = true;
-            log_i("Successfully allocated %u bytes in PSRAM", bufferSize_);
-            log_d("PSRAM free after allocation: %u bytes", ESP.getFreePsram());
-        } else {
-            log_w("Failed to allocate in PSRAM, falling back to regular heap");
+            inPsram_ = photo_frame::psram_is_psram_ptr(buffer_);
+            log_i("Successfully allocated %u bytes from %s",
+                  bufferSize_,
+                  inPsram_ ? "PSRAM" : "internal RAM");
         }
-#endif
-    }
-
-    // Fall back to regular heap if PSRAM allocation failed or not requested
-    if (!buffer_) {
-        buffer_  = (uint8_t*)malloc(bufferSize_);
-        inPsram_ = false;
+    } else {
+        // Prefer internal heap, fall back to PSRAM if needed
+        buffer_ = static_cast<uint8_t*>(photo_frame::heap_malloc(bufferSize_));
         if (buffer_) {
-            log_i("Allocated %u bytes in regular heap", bufferSize_);
+            inPsram_ = photo_frame::psram_is_psram_ptr(buffer_);
+            log_i("Successfully allocated %u bytes from %s",
+                  bufferSize_,
+                  inPsram_ ? "PSRAM" : "internal RAM");
         }
     }
 
@@ -85,7 +84,7 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
     canvas_ = new GFXcanvas8(width_, height_, false); // false = don't allocate internal buffer
     if (!canvas_) {
         log_e("Failed to create canvas!");
-        free(buffer_);
+        photo_frame::psram_free(buffer_);
         buffer_ = nullptr;
         return false;
     }
@@ -129,7 +128,7 @@ void ImageBuffer::release() {
               buffer_,
               bufferSize_,
               inPsram_ ? "PSRAM" : "heap");
-        free(buffer_);
+        photo_frame::psram_free(buffer_);
         buffer_     = nullptr;
         bufferSize_ = 0;
         width_      = 0;
