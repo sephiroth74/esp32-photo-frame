@@ -56,6 +56,16 @@ impl From<u8> for ColorMode {
     }
 }
 
+impl From<&str> for ColorMode {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "blackandwhite" | "black_and_white" | "bw" => ColorMode::BlackAndWhite,
+            "sixcolors" | "six_colors" | "6c" => ColorMode::SixColors,
+            _ => ColorMode::BlackAndWhite, // Default case
+        }
+    }
+}
+
 impl Into<ColorMode> for DisplayType {
     fn into(self) -> ColorMode {
         match self {
