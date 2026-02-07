@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'processor_message.g.dart';
@@ -48,7 +47,6 @@ abstract class ProcessorMessage {
 
   factory ProcessorMessage.fromJson(Map<String, dynamic> json) {
     final type = ProcessorMessageType.fromString(json['type']);
-    debugPrint('Deserializing message of type: $type');
 
     switch (type) {
       case ProcessorMessageType.progress:
@@ -88,17 +86,13 @@ class ProgressMessage extends ProcessorMessage {
 
 @JsonSerializable()
 class FileCompletedMessage extends ProcessorMessage {
-  @JsonKey(name: 'input_path')
-  final String inputPath;
-
-  @JsonKey(name: 'output_paths')
-  final List<String> outputPaths;
-
-  @JsonKey(name: 'processing_time_ms')
-  final int processingTimeMs;
-
-  FileCompletedMessage({required super.phase, required this.inputPath, required this.outputPaths, required this.processingTimeMs})
-    : super(type: ProcessorMessageType.filecompleted);
+  // @JsonKey(name: 'input_path')
+  // final String inputPath;
+  // @JsonKey(name: 'output_paths')
+  // final List<String> outputPaths;
+  // @JsonKey(name: 'processing_time_ms')
+  // final int processingTimeMs;
+  FileCompletedMessage({required super.phase}) : super(type: ProcessorMessageType.filecompleted);
 
   factory FileCompletedMessage.fromJson(Map<String, dynamic> json) => _$FileCompletedMessageFromJson(json);
   Map<String, dynamic> toJson() => _$FileCompletedMessageToJson(this);

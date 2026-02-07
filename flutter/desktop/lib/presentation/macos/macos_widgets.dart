@@ -165,20 +165,15 @@ class MacOSDialog extends PlatformDialog {
     super.message,
     super.content,
     super.actions = const [],
-    super.barrierDismissible = true,
     super.onDismissed,
     super.constraints,
+    super.icon,
     super.key,
   });
 
   AppKitButton _mapAction(BuildContext context, PlatformDialogAction action) {
     final type = action.style == PlatformDialogActionStyle.primary ? AppKitButtonType.primary : AppKitButtonType.secondary;
-    return AppKitButton(
-      size: AppKitControlSize.regular,
-      type: type,
-      onTap: action.onPressed != null ? () => {Navigator.of(context).pop(), action.onPressed!()} : null,
-      child: Text(action.label),
-    );
+    return AppKitButton(size: AppKitControlSize.large, style: AppKitButtonStyle.push, type: type, onTap: action.onPressed, child: Text(action.label));
   }
 
   @override
@@ -191,7 +186,8 @@ class MacOSDialog extends PlatformDialog {
     return AppKitDialog(
       constraints: const BoxConstraints(minWidth: 450, maxWidth: 450),
       title: Text(title),
-      message: content!,
+      icon: icon,
+      message: content ?? (builder) => Text(message!),
       primaryButton: primary,
       secondaryButton: secondary,
     );
@@ -204,20 +200,10 @@ class MacOSProgressIndicator extends PlatformProgressIndicator {
   @override
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
-
-    if (value == null) {
-      return Row(
-        children: [
-          const AppKitProgressCircle(size: 14),
-          if (label != null) ...[const SizedBox(width: 8), Text(label!)],
-        ],
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppKitProgressBar(value: value!),
+        AppKitProgressBar(value: value),
         if (label != null) ...[const SizedBox(height: 6), Text(label!)],
       ],
     );

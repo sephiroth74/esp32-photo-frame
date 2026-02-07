@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
@@ -31,16 +25,20 @@
 
 namespace photo_frame {
 
-GoogleDriveDataProvider::GoogleDriveDataProvider(GoogleDrive& drive) : drive_(drive) {}
+GoogleDriveDataProvider::GoogleDriveDataProvider(GoogleDrive& drive)
+    : drive_(drive)
+{
+}
 
 ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
-                                                         SdCard& sd_card,
-                                                         const unified_config& config) {
-    photo_frame_error_t error    = photo_frame::error_type::None;
+    SdCard& sd_card,
+    const unified_config& config)
+{
+    photo_frame_error_t error = photo_frame::error_type::None;
     photo_frame_error_t tocError = photo_frame::error_type::JsonParseFailed;
-    bool write_toc               = is_reset;
-    uint32_t image_index         = 0;
-    uint32_t total_files         = 0;
+    bool write_toc = is_reset;
+    uint32_t image_index = 0;
+    uint32_t total_files = 0;
     String original_filename;
 
     log_i("--------------------------------------");
@@ -70,8 +68,8 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
             bool shouldCleanup = write_toc;
 
             if (!shouldCleanup) {
-                auto& prefs        = photo_frame::PreferencesHelper::getInstance();
-                time_t now         = time(NULL);
+                auto& prefs = photo_frame::PreferencesHelper::getInstance();
+                time_t now = time(NULL);
                 time_t lastCleanup = prefs.getLastCleanup();
 
                 if (now - lastCleanup >= CLEANUP_TEMP_FILES_INTERVAL_SECONDS) {
@@ -79,8 +77,8 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
                     log_i("Time since last cleanup: %ld seconds", now - lastCleanup);
                 } else {
                     log_i("Skipping cleanup, only %ld seconds since last cleanup (need %d seconds)",
-                          now - lastCleanup,
-                          CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
+                        now - lastCleanup,
+                        CLEANUP_TEMP_FILES_INTERVAL_SECONDS);
                 }
             }
 
@@ -109,8 +107,7 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
                     return ImageLoadResult(photo_frame::error_type::InvalidConfigNoImageSource);
                 }
 
-                bool rebuild_toc = is_reset || !drive_.isMultiDirectoryTocValid(
-                                                   sd_card, config.GoogleDrive.drive.folder_ids);
+                bool rebuild_toc = is_reset || !drive_.isMultiDirectoryTocValid(sd_card, config.GoogleDrive.drive.folder_ids);
 
                 if (rebuild_toc) {
                     if (is_reset) {
@@ -125,8 +122,8 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
                     if (!drive_.buildMultiDirectoryToc(
                             sd_card, config.GoogleDrive.drive.folder_ids, false, &tocError)) {
                         log_e("Failed to build Google Drive TOC cache: %s (code: %u)",
-                              tocError.message,
-                              tocError.code);
+                            tocError.message,
+                            tocError.code);
                         sd_card.end();
                         return ImageLoadResult(tocError);
                     }
@@ -146,27 +143,27 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
                 bool found_test = false;
                 for (const auto& folder_id : config.GoogleDrive.drive.folder_ids) {
                     String tocPath = drive_.get_toc_file_path_for_folder(folder_id);
-                    selectedFile   = drive_.get_toc_file_by_name(
+                    selectedFile = drive_.get_toc_file_by_name(
                         sd_card, tocPath, GOOGLE_DRIVE_TEST_FILE, &tocError);
                     if (tocError == photo_frame::error_type::None && selectedFile.id.length() > 0) {
                         selected_folder_id = folder_id;
-                        found_test         = true;
-                        total_files        = drive_.get_toc_file_count(sd_card, tocPath);
-                        image_index        = 0;
+                        found_test = true;
+                        total_files = drive_.get_toc_file_count(sd_card, tocPath);
+                        image_index = 0;
                         break;
                     }
                 }
 
                 if (!found_test) {
                     log_w("Test file not found in TOC, falling back to random selection. Error: %d",
-                          tocError.code);
+                        tocError.code);
                     if (!drive_.selectRandomImageFromFolders(sd_card,
-                                                             config.GoogleDrive.drive.folder_ids,
-                                                             selected_folder_id,
-                                                             selectedFile,
-                                                             total_files,
-                                                             image_index,
-                                                             &tocError)) {
+                            config.GoogleDrive.drive.folder_ids,
+                            selected_folder_id,
+                            selectedFile,
+                            total_files,
+                            image_index,
+                            &tocError)) {
                         log_e("No files found in configured Google Drive folders");
                         sd_card.end();
                         return ImageLoadResult(photo_frame::error_type::NoImagesFound);
@@ -174,12 +171,12 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
                 }
 #else
                 if (!drive_.selectRandomImageFromFolders(sd_card,
-                                                         config.GoogleDrive.drive.folder_ids,
-                                                         selected_folder_id,
-                                                         selectedFile,
-                                                         total_files,
-                                                         image_index,
-                                                         &tocError)) {
+                        config.GoogleDrive.drive.folder_ids,
+                        selected_folder_id,
+                        selectedFile,
+                        total_files,
+                        image_index,
+                        &tocError)) {
                     log_e("No files found in configured Google Drive folders");
                     sd_card.end();
                     return ImageLoadResult(photo_frame::error_type::NoImagesFound);
@@ -191,8 +188,7 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
 
                     String localFilePath = drive_.get_cached_file_path(selectedFile.name);
                     fs::File file;
-                    if (sd_card.fileExists(localFilePath.c_str()) &&
-                        sd_card.getFileSize(localFilePath.c_str()) > 0) {
+                    if (sd_card.fileExists(localFilePath.c_str()) && sd_card.getFileSize(localFilePath.c_str()) > 0) {
                         log_i("File already exists in SD card, using cached version");
                         file = sd_card.open(localFilePath.c_str(), FILE_READ);
                         drive_.set_last_image_source(photo_frame::IMAGE_SOURCE_LOCAL_CACHE);
@@ -203,13 +199,11 @@ ImageLoadResult GoogleDriveDataProvider::load_next_image(bool is_reset,
 
                     if (error == photo_frame::error_type::None && file) {
                         const char* filename = file.name();
-                        original_filename    = String(filename);
+                        original_filename = String(filename);
 
                         log_i("Validating downloaded image file...");
-                        auto wrapper =
-                            std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
-                        auto validationError =
-                            photo_frame::binary_utils::validatePFR1File(file, *wrapper);
+                        auto wrapper = std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
+                        auto validationError = photo_frame::binary_utils::validatePFR1File(file, *wrapper);
                         file.close();
 
                         if (validationError != photo_frame::error_type::None) {

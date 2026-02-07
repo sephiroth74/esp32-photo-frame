@@ -30,18 +30,11 @@ const _$ProcessorMessagePhaseEnumMap = {
   ProcessorMessagePhase.complete: 'complete',
 };
 
-FileCompletedMessage _$FileCompletedMessageFromJson(Map<String, dynamic> json) => FileCompletedMessage(
-  phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']),
-  inputPath: json['input_path'] as String,
-  outputPaths: (json['output_paths'] as List<dynamic>).map((e) => e as String).toList(),
-  processingTimeMs: (json['processing_time_ms'] as num).toInt(),
-);
+FileCompletedMessage _$FileCompletedMessageFromJson(Map<String, dynamic> json) =>
+    FileCompletedMessage(phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']));
 
 Map<String, dynamic> _$FileCompletedMessageToJson(FileCompletedMessage instance) => <String, dynamic>{
   'phase': _$ProcessorMessagePhaseEnumMap[instance.phase]!,
-  'input_path': instance.inputPath,
-  'output_paths': instance.outputPaths,
-  'processing_time_ms': instance.processingTimeMs,
 };
 
 FileFailedMessage _$FileFailedMessageFromJson(Map<String, dynamic> json) => FileFailedMessage(

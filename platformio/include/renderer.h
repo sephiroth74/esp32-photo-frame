@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef __PHOTO_FRAME_RENDERER_H__
 #define __PHOTO_FRAME_RENDERER_H__
@@ -108,10 +102,10 @@ void rendererDrawError(GFXcanvas8& canvas, photo_frame_error_t error);
  * @param errorCode The numeric error code
  */
 void rendererDrawErrorWithDetails(GFXcanvas8& canvas,
-                                  const String& errMsgLn1,
-                                  const String& errMsgLn2,
-                                  const char* filename,
-                                  uint16_t errorCode);
+    const String& errMsgLn1,
+    const String& errMsgLn2,
+    const char* filename,
+    uint16_t errorCode);
 
 // ========== Image loading and rendering functions ==========
 
@@ -127,14 +121,14 @@ void rendererDrawErrorWithDetails(GFXcanvas8& canvas,
  * @param color The color of the text (default is DISPLAY_COLOR_BLACK).
  */
 void rendererDrawMultilineString(GFXcanvas8 canvas,
-                                 int16_t x,
-                                 int16_t y,
-                                 const String& text,
-                                 alignment_t alignment,
-                                 uint16_t max_width,
-                                 uint16_t max_lines,
-                                 int16_t line_spacing,
-                                 uint16_t color = DISPLAY_COLOR_BLACK);
+    int16_t x,
+    int16_t y,
+    const String& text,
+    alignment_t alignment,
+    uint16_t max_width,
+    uint16_t max_lines,
+    int16_t line_spacing,
+    uint16_t color = DISPLAY_COLOR_BLACK);
 
 /**
  * Draws a side message with an icon on a GFX canvas (for overlay composition).
@@ -146,11 +140,11 @@ void rendererDrawMultilineString(GFXcanvas8 canvas,
  * @param y_offset The y-offset from the icon position (default is 0)
  */
 void rendererDrawSideMessageWithIcon(Adafruit_GFX& gfx,
-                                     gravity_t gravity,
-                                     icon_name_t icon_name,
-                                     const char* message,
-                                     int32_t x_offset = 0,
-                                     int32_t y_offset = 0);
+    gravity_t gravity,
+    icon_name_t icon_name,
+    const char* message,
+    int32_t x_offset = 0,
+    int32_t y_offset = 0);
 
 /**
  * Draws a side message without an icon on a GFX canvas (for overlay composition).
@@ -161,10 +155,10 @@ void rendererDrawSideMessageWithIcon(Adafruit_GFX& gfx,
  * @param y_offset The y-offset from the message position (default is 0)
  */
 void rendererDrawSideMessage(Adafruit_GFX& gfx,
-                             gravity_t gravity,
-                             const char* message,
-                             int32_t x_offset = 0,
-                             int32_t y_offset = 0);
+    gravity_t gravity,
+    const char* message,
+    int32_t x_offset = 0,
+    int32_t y_offset = 0);
 
 /**
  * Draws the last update time on a GFX canvas (for overlay composition).
@@ -173,8 +167,8 @@ void rendererDrawSideMessage(Adafruit_GFX& gfx,
  * @param refresh_seconds The number of seconds since the last update (default is 0).
  */
 void rendererDrawLastUpdate(Adafruit_GFX& gfx,
-                            const DateTime& lastUpdate,
-                            long refresh_seconds = 0);
+    const DateTime& lastUpdate,
+    long refresh_seconds = 0);
 
 /**
  * Draws the battery status on a GFX canvas (for overlay composition).
@@ -191,9 +185,9 @@ void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::BatteryInfo Batte
  * @param image_source The source of the current image (cloud or local cache).
  */
 void rendererDrawImageInfo(Adafruit_GFX& gfx,
-                           uint32_t index,
-                           uint32_t total_images,
-                           photo_frame::ImageSource image_source);
+    uint32_t index,
+    uint32_t total_images,
+    photo_frame::ImageSource image_source);
 
 /**
  * @brief Load image file into buffer
@@ -210,10 +204,10 @@ void rendererDrawImageInfo(Adafruit_GFX& gfx,
  * @note File can be closed after this function returns
  */
 uint16_t loadImageToBuffer(uint8_t* buffer,
-                           photo_frame::PFR1BinaryFile& file,
-                           const char* filename,
-                           int width,
-                           int height);
+    photo_frame::PFR1BinaryFile& file,
+    const char* filename,
+    int width,
+    int height);
 
 } // namespace photo_frame
 

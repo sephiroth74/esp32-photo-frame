@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "battery.h"
 #include "config.h"
@@ -47,25 +41,40 @@ Adafruit_MAX17048 max1704x;
 namespace photo_frame {
 
 const BatteryMappingStep steps[21] = {
-    BatteryMappingStep(0, 3270),  BatteryMappingStep(5, 3610),  BatteryMappingStep(10, 3690),
-    BatteryMappingStep(15, 3710), BatteryMappingStep(20, 3730), BatteryMappingStep(25, 3750),
-    BatteryMappingStep(30, 3770), BatteryMappingStep(35, 3790), BatteryMappingStep(40, 3800),
-    BatteryMappingStep(45, 3820), BatteryMappingStep(50, 3840), BatteryMappingStep(55, 3850),
-    BatteryMappingStep(60, 3870), BatteryMappingStep(65, 3910), BatteryMappingStep(70, 3950),
-    BatteryMappingStep(75, 3980), BatteryMappingStep(80, 4020), BatteryMappingStep(85, 4080),
-    BatteryMappingStep(90, 4110), BatteryMappingStep(95, 4150), BatteryMappingStep(100, 4200),
+    BatteryMappingStep(0, 3270),
+    BatteryMappingStep(5, 3610),
+    BatteryMappingStep(10, 3690),
+    BatteryMappingStep(15, 3710),
+    BatteryMappingStep(20, 3730),
+    BatteryMappingStep(25, 3750),
+    BatteryMappingStep(30, 3770),
+    BatteryMappingStep(35, 3790),
+    BatteryMappingStep(40, 3800),
+    BatteryMappingStep(45, 3820),
+    BatteryMappingStep(50, 3840),
+    BatteryMappingStep(55, 3850),
+    BatteryMappingStep(60, 3870),
+    BatteryMappingStep(65, 3910),
+    BatteryMappingStep(70, 3950),
+    BatteryMappingStep(75, 3980),
+    BatteryMappingStep(80, 4020),
+    BatteryMappingStep(85, 4080),
+    BatteryMappingStep(90, 4110),
+    BatteryMappingStep(95, 4150),
+    BatteryMappingStep(100, 4200),
 };
 
 const uint8_t total_steps = 21;
 
-uint8_t calcBatteryPercentage(uint32_t v) {
+uint8_t calcBatteryPercentage(uint32_t v)
+{
     if (v >= steps[total_steps - 1].voltage)
         return steps[total_steps - 1].percent;
     if (v <= steps[0].voltage)
         return steps[0].percent;
 
     for (int8_t i = total_steps - 1; i > 0; i--) {
-        BatteryMappingStep current  = steps[i];
+        BatteryMappingStep current = steps[i];
         BatteryMappingStep previous = steps[i - 1];
         if (v >= previous.voltage && v <= current.voltage) {
             return map(v, previous.voltage, current.voltage, previous.percent, current.percent);
@@ -86,7 +95,8 @@ bool BatteryInfo::is_charging() const { return percent > 100; }
 bool BatteryInfo::is_charging() const { return millivolts > BATTERY_CHARGING_MILLIVOLTS; }
 #endif // USE_SENSOR_MAX1704X
 
-void BatteryReader::init() const {
+void BatteryReader::init() const
+{
 #ifdef USE_SENSOR_MAX1704X
     log_i("Initializing MAX1704X Battery Reader on Wire");
 #if defined(MAX1704X_SDA_PIN) && defined(MAX1704X_SCL_PIN)
@@ -102,7 +112,8 @@ void BatteryReader::init() const {
     delay(200); // Allow some time for the ADC to stabilize
 } // init
 
-BatteryInfo BatteryReader::read() const {
+BatteryInfo BatteryReader::read() const
+{
 #ifdef USE_SENSOR_MAX1704X
 
     unsigned long ms = millis();
@@ -124,14 +135,14 @@ BatteryInfo BatteryReader::read() const {
         return BatteryInfo::full();
     }
 
-    float voltage     = max1704x.cellVoltage();
-    float percent     = max1704x.cellPercent();
+    float voltage = max1704x.cellVoltage();
+    float percent = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
     log_v("Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA",
-          voltage,
-          percent,
-          charge_rate);
+        voltage,
+        percent,
+        charge_rate);
 
     return BatteryInfo(
         voltage /* cell_voltage */, charge_rate /* charge_rate */, percent /* percent */);
@@ -139,7 +150,7 @@ BatteryInfo BatteryReader::read() const {
 #else
 
     uint32_t millivolts = 0;
-    uint32_t raw        = 0;
+    uint32_t raw = 0;
     for (int i = 0; i < num_readings; i++) {
         millivolts += analogReadMilliVolts(pin);
         raw += analogRead(pin);
@@ -149,20 +160,20 @@ BatteryInfo BatteryReader::read() const {
     millivolts /= num_readings;
     raw /= num_readings;
     uint32_t voltage = millivolts / resistor_ratio;
-    uint8_t percent  = calcBatteryPercentage(voltage);
+    uint8_t percent = calcBatteryPercentage(voltage);
 
 #ifdef DEBUG_BATTERY_READER
     log_d("Battery reading: raw: %lu, millivolts: %lu, voltage: %lu, percent: %u",
-          raw,
-          millivolts,
-          voltage,
-          percent);
+        raw,
+        millivolts,
+        voltage,
+        percent);
 #endif // DEBUG_BATTERY_READER
 
     return BatteryInfo(raw /* raw_value */,
-                       millivolts /* raw_millivolts */,
-                       voltage /* adjusted millivolts */,
-                       percent /* percent */);
+        millivolts /* raw_millivolts */,
+        voltage /* adjusted millivolts */,
+        percent /* percent */);
 
 #endif // USE_SENSOR_MAX1704X
 } // read

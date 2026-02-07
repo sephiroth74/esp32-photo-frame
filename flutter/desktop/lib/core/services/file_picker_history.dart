@@ -1,7 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart' as p;
 import 'package:photoframe_flutter/core/services/preferences.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class FilePickerHistory {
   // Storage key prefix for file picker directories

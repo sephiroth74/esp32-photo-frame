@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef __DISPLAY_MANAGER_H__
 #define __DISPLAY_MANAGER_H__
@@ -82,7 +76,7 @@ namespace photo_frame {
  * ```
  */
 class DisplayManager {
-  public:
+public:
     /**
      * @brief Get singleton instance of DisplayManager
      * @return Reference to the global DisplayManager instance
@@ -144,7 +138,8 @@ class DisplayManager {
      * @brief Get the canvas for drawing operations
      * @return Reference to GFXcanvas8 (will crash if not initialized!)
      */
-    GFXcanvas8& getCanvas() {
+    GFXcanvas8& getCanvas()
+    {
         if (!imageBuffer_.isInitialized()) {
             log_e("DisplayManager not initialized! Call init() first");
         }
@@ -232,9 +227,9 @@ class DisplayManager {
      * @param yOffset Optional Y offset
      */
     void drawSideMessage(gravity_t gravity,
-                         const char* message,
-                         int32_t xOffset = 0,
-                         int32_t yOffset = 0);
+        const char* message,
+        int32_t xOffset = 0,
+        int32_t yOffset = 0);
 
     /**
      * @brief Draw a side message for an error
@@ -244,9 +239,9 @@ class DisplayManager {
      * @param xOffset Optional X offset
      */
     void drawSideMessageError(gravity_t gravity,
-                              photo_frame::photo_frame_error_t error,
-                              int32_t xOffset = 0,
-                              int32_t yOffset = 0);
+        photo_frame::photo_frame_error_t error,
+        int32_t xOffset = 0,
+        int32_t yOffset = 0);
 
     /**
      * @brief Set the image source for status reporting
@@ -286,10 +281,10 @@ class DisplayManager {
      * @param icon_size Size of the icon bitmap to use
      */
     void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
-                                     icon_name_t icon,
-                                     const String& title,
-                                     const String& message,
-                                     uint16_t icon_size);
+        icon_name_t icon,
+        const String& title,
+        const String& message,
+        uint16_t icon_size);
 
     /**
      * @brief Draw error with details
@@ -299,9 +294,9 @@ class DisplayManager {
      * @param errorCode Error code
      */
     void drawErrorWithDetails(const String& errMsgLn1,
-                              const String& errMsgLn2,
-                              const char* filename,
-                              uint16_t errorCode);
+        const String& errMsgLn2,
+        const char* filename,
+        uint16_t errorCode);
 
     // ========== Display Control Functions ==========
 
@@ -380,12 +375,12 @@ class DisplayManager {
      */
     void release();
 
-  private:
-    ImageBuffer imageBuffer_;                      ///< Manages image buffer and canvas
+private:
+    ImageBuffer imageBuffer_; ///< Manages image buffer and canvas
     std::unique_ptr<DisplayDriver> displayDriver_; ///< Hardware display driver (smart pointer)
-    bool initialized_;                             ///< Initialization state
-    uint8_t rotation_;                             ///< Current rotation (0-3)
-    ImageSource image_source_;                     ///< Current image source (for status reporting)
+    bool initialized_; ///< Initialization state
+    uint8_t rotation_; ///< Current rotation (0-3)
+    ImageSource image_source_; ///< Current image source (for status reporting)
 
     /**
      * @brief Create appropriate display driver based on configuration

@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
@@ -54,29 +48,31 @@ namespace photo_frame {
  */
 typedef struct {
     const char* serviceAccountEmail; ///< Service account email address
-    const char* privateKeyPem;       ///< PEM-encoded private key for JWT signing
-    const char* clientId;            ///< Client ID from Google Cloud Console
-    bool useInsecureTls;             ///< Whether to use insecure TLS connections
+    const char* privateKeyPem; ///< PEM-encoded private key for JWT signing
+    const char* clientId; ///< Client ID from Google Cloud Console
+    bool useInsecureTls; ///< Whether to use insecure TLS connections
 
     // Rate limiting configuration
     int rateLimitWindowSeconds; ///< Time window for rate limiting in seconds
-    int minRequestDelayMs;      ///< Minimum delay between requests in milliseconds
-    int maxRetryAttempts;       ///< Maximum retry attempts for failed requests
-    int backoffBaseDelayMs;     ///< Base delay for exponential backoff in milliseconds
-    int maxWaitTimeMs;          ///< Maximum wait time for rate limiting in milliseconds
+    int minRequestDelayMs; ///< Minimum delay between requests in milliseconds
+    int maxRetryAttempts; ///< Maximum retry attempts for failed requests
+    int backoffBaseDelayMs; ///< Base delay for exponential backoff in milliseconds
+    int maxWaitTimeMs; ///< Maximum wait time for rate limiting in milliseconds
 } GoogleDriveClient_config;
 
 typedef struct {
-    char accessToken[512];    ///< Access token for Google Drive API
-    unsigned long expiresAt;  ///< Expiration time of the access token
+    char accessToken[512]; ///< Access token for Google Drive API
+    unsigned long expiresAt; ///< Expiration time of the access token
     unsigned long obtainedAt; ///< Timestamp when the access token was obtained
 
-    bool expired(int marginSeconds = 0) const {
+    bool expired(int marginSeconds = 0) const
+    {
         time_t now = time(NULL);
         return (now + marginSeconds) >= expiresAt;
     }
 
-    unsigned long expires_in() const {
+    unsigned long expires_in() const
+    {
         time_t now = time(NULL);
         return (now < expiresAt) ? (expiresAt - now) : 0;
     }
@@ -110,34 +106,40 @@ struct HttpResponse {
     String body;
     bool hasContent;
 
-    HttpResponse() : statusCode(0), hasContent(false) {}
+    HttpResponse()
+        : statusCode(0)
+        , hasContent(false)
+    {
+    }
 };
 
 /**
  * @brief Parsed HTTP response headers
  */
 struct HttpResponseHeaders {
-    bool isChunked;       ///< Whether response uses chunked transfer encoding
-    long contentLength;   ///< Content-Length header value (-1 if not present)
-    int headerCount;      ///< Number of headers parsed
+    bool isChunked; ///< Whether response uses chunked transfer encoding
+    long contentLength; ///< Content-Length header value (-1 if not present)
+    int headerCount; ///< Number of headers parsed
     bool parseSuccessful; ///< Whether parsing completed successfully
 
-    HttpResponseHeaders() :
-        isChunked(false),
-        contentLength(-1),
-        headerCount(0),
-        parseSuccessful(false) {}
+    HttpResponseHeaders()
+        : isChunked(false)
+        , contentLength(-1)
+        , headerCount(0)
+        , parseSuccessful(false)
+    {
+    }
 };
 
 /**
  * @brief Classification of failure types for retry logic
  */
 enum class failure_type {
-    Permanent,    // Don't retry (4xx errors, authentication failures)
-    Transient,    // Retry with backoff (5xx errors, network issues)
-    RateLimit,    // Special handling for 429 responses
+    Permanent, // Don't retry (4xx errors, authentication failures)
+    Transient, // Retry with backoff (5xx errors, network issues)
+    RateLimit, // Special handling for 429 responses
     TokenExpired, // Token refresh needed (401 responses)
-    Unknown       // Default fallback
+    Unknown // Default fallback
 };
 
 /**
@@ -147,19 +149,27 @@ enum class failure_type {
  * including its unique identifier and name.
  */
 class GoogleDriveFile {
-  public:
-    String id;   ///< Unique file identifier in Google Drive
+public:
+    String id; ///< Unique file identifier in Google Drive
     String name; ///< Display name of the file
 
     /** Default constructor */
-    GoogleDriveFile() : id(""), name("") {}
+    GoogleDriveFile()
+        : id("")
+        , name("")
+    {
+    }
 
     /**
      * @brief Constructor for GoogleDriveFile.
      * @param id Unique file identifier in Google Drive
      * @param name Display name of the file
      */
-    GoogleDriveFile(const String& id, const String& name) : id(id), name(name) {}
+    GoogleDriveFile(const String& id, const String& name)
+        : id(id)
+        , name(name)
+    {
+    }
 };
 
 /**
@@ -178,7 +188,7 @@ class GoogleDriveFile {
  * storage.
  */
 class GoogleDriveClient {
-  public:
+public:
     /**
      * @brief Constructor for GoogleDriveClient.
      * @param config Configuration containing service account credentials
@@ -222,9 +232,9 @@ class GoogleDriveClient {
      * @return Total number of files written to the TOC, or 0 on error
      */
     size_t list_files_streaming(const char* folderId,
-                                SdCard& sdCard,
-                                const char* tocFilePath,
-                                int pageSize = 50);
+        SdCard& sdCard,
+        const char* tocFilePath,
+        int pageSize = 50);
 
     /**
      * @brief Downloads a file from Google Drive to the specified file.
@@ -255,7 +265,7 @@ class GoogleDriveClient {
      */
     bool is_token_expired(int marginSeconds = 60);
 
-  private:
+private:
     /**
      * @brief Creates a JWT token for Google Drive authentication.
      * @return JWT token as a string, or empty string on failure
@@ -281,11 +291,11 @@ class GoogleDriveClient {
      * @return Number of files written to TOC, or 0 on error
      */
     size_t list_files_in_folder_streaming(const char* folderId,
-                                          SdCard& sdCard,
-                                          const char* tocFilePath,
-                                          int pageSize          = 10,
-                                          char* nextPageToken   = nullptr,
-                                          const char* pageToken = "");
+        SdCard& sdCard,
+        const char* tocFilePath,
+        int pageSize = 10,
+        char* nextPageToken = nullptr,
+        const char* pageToken = "");
 
     /**
      * @brief Streaming parser that writes files directly to TOC file with extension filtering.
@@ -304,9 +314,9 @@ class GoogleDriveClient {
      * @see ALLOWED_FILE_EXTENSIONS for supported file types
      */
     size_t parse_file_list_to_toc(const String& jsonBody,
-                                  SdCard& sdCard,
-                                  const char* tocFilePath,
-                                  char* nextPageToken);
+        SdCard& sdCard,
+        const char* tocFilePath,
+        char* nextPageToken);
 
     /**
      * @brief Build HTTP request string with optimized memory allocation
@@ -318,10 +328,10 @@ class GoogleDriveClient {
      * @return Complete HTTP request string
      */
     String build_http_request(const char* method,
-                              const char* path,
-                              const char* host,
-                              const char* headers = nullptr,
-                              const char* body    = nullptr);
+        const char* path,
+        const char* host,
+        const char* headers = nullptr,
+        const char* body = nullptr);
 
     /**
      * @brief Parses HTTP response headers from a WiFi client connection.

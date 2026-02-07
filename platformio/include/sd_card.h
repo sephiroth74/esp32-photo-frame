@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef __PHOTO_FRAME_SD_CARD_H__
 #define __PHOTO_FRAME_SD_CARD_H__
@@ -50,15 +44,20 @@ namespace photo_frame {
  * utility methods for string representation and validity checking.
  */
 class SdCardEntry {
-  public:
-    String name;    ///< Name of the file (without path)
-    String path;    ///< Full path to the file on the SD card
+public:
+    String name; ///< Name of the file (without path)
+    String path; ///< Full path to the file on the SD card
     uint32_t index; ///< Index of this entry within a collection
 
     /**
      * @brief Default constructor creating an empty entry.
      */
-    SdCardEntry() : name(""), path(""), index(0) {}
+    SdCardEntry()
+        : name("")
+        , path("")
+        , index(0)
+    {
+    }
 
     /**
      * @brief Constructor with file information.
@@ -66,10 +65,12 @@ class SdCardEntry {
      * @param path Full path to the file on the SD card
      * @param index Index of this entry within a collection
      */
-    SdCardEntry(const char* name, const char* path, uint32_t index) :
-        name(name),
-        path(path),
-        index(index) {}
+    SdCardEntry(const char* name, const char* path, uint32_t index)
+        : name(name)
+        , path(path)
+        , index(index)
+    {
+    }
 
     /**
      * @brief Converts the entry to a string representation.
@@ -94,26 +95,31 @@ class SdCardEntry {
  * Note: D0 moved from GPIO2 to GPIO7 to avoid NeoPixel LED conflict on Feather V2.
  */
 class SdCard {
-  private:
-    bool initialized;       ///< Flag indicating if SD card is initialized
+private:
+    bool initialized; ///< Flag indicating if SD card is initialized
     sdcard_type_t cardType; ///< Type of the SD card (MMC, SD, SDHC, etc.)
 
     // TOC caching system
     mutable String cached_toc_directory_; ///< Last directory used for TOC
     mutable String cached_toc_extension_; ///< Last extension used for TOC
     mutable time_t cached_toc_timestamp_; ///< When TOC was created
-    mutable bool toc_valid_;              ///< Whether TOC is currently valid
+    mutable bool toc_valid_; ///< Whether TOC is currently valid
 
-  public:
+public:
     /**
      * @brief Constructor for SdCard using SD_MMC (SDIO interface).
      * SD_MMC uses fixed pins that cannot be configured:
      * - CLK: GPIO14, CMD: GPIO15, D0: GPIO2, D1: GPIO4, D2: GPIO12, D3: GPIO13
      */
-    SdCard() : initialized(false), cardType(CARD_UNKNOWN), toc_valid_(false) {}
+    SdCard()
+        : initialized(false)
+        , cardType(CARD_UNKNOWN)
+        , toc_valid_(false)
+    {
+    }
 
     // Disable copy constructor and assignment operator
-    SdCard(const SdCard&)            = delete;
+    SdCard(const SdCard&) = delete;
     SdCard& operator=(const SdCard&) = delete;
 
     /**
@@ -144,7 +150,8 @@ class SdCard {
      * @return sdcard_type_t representing the type of the SD card.
      * If the SD card is not initialized, it returns CARD_NONE.
      */
-    sdcard_type_t getCardType() const {
+    sdcard_type_t getCardType() const
+    {
         if (!initialized) {
             return CARD_NONE;
         }
@@ -157,15 +164,28 @@ class SdCard {
      * Outputs a human-readable description of the detected SD card type
      * (MMC, SDSC, SDHC, etc.) for debugging and informational purposes.
      */
-    void printCardType() const {
+    void printCardType() const
+    {
         const char* card_type_str;
         switch (cardType) {
-        case CARD_MMC:     card_type_str = "MMC"; break;
-        case CARD_SD:      card_type_str = "SDSC"; break;
-        case CARD_SDHC:    card_type_str = "SDHC"; break;
-        case CARD_UNKNOWN: card_type_str = "Unknown"; break;
-        case CARD_NONE:    card_type_str = "No SD card attached!"; break;
-        default:           card_type_str = "Unknown card type!"; break;
+        case CARD_MMC:
+            card_type_str = "MMC";
+            break;
+        case CARD_SD:
+            card_type_str = "SDSC";
+            break;
+        case CARD_SDHC:
+            card_type_str = "SDHC";
+            break;
+        case CARD_UNKNOWN:
+            card_type_str = "Unknown";
+            break;
+        case CARD_NONE:
+            card_type_str = "No SD card attached!";
+            break;
+        default:
+            card_type_str = "Unknown card type!";
+            break;
         }
         log_i("Card Type: %s", card_type_str);
     }
@@ -301,7 +321,7 @@ class SdCard {
      * @note If the SD card is not initialized or directory doesn't exist, returns empty vector.
      */
     std::vector<String> listFilesInDirectory(const char* dir_path,
-                                             const char* extension = BINARY_FILE_EXTENSION) const;
+        const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Gets a file at a specific index from a directory.
@@ -312,8 +332,8 @@ class SdCard {
      * @note Files are sorted alphabetically before indexing.
      */
     String getFileAtIndex(const char* dir_path,
-                          uint32_t index,
-                          const char* extension = BINARY_FILE_EXTENSION) const;
+        uint32_t index,
+        const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Counts the number of files with specified extension in a directory.
@@ -323,7 +343,7 @@ class SdCard {
      * @note If the SD card is not initialized or directory doesn't exist, returns 0.
      */
     uint32_t countFilesInDirectory(const char* dir_path,
-                                   const char* extension = BINARY_FILE_EXTENSION) const;
+        const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Gets the amount of used space in bytes on the SD card.
@@ -355,8 +375,8 @@ class SdCard {
      * @return true if TOC was built successfully, false otherwise.
      */
     bool buildDirectoryToc(const char* dir_path,
-                           const char* extension      = BINARY_FILE_EXTENSION,
-                           photo_frame_error_t* error = nullptr);
+        const char* extension = BINARY_FILE_EXTENSION,
+        photo_frame_error_t* error = nullptr);
 
     /**
      * Checks if the TOC is valid for the given directory.
@@ -382,8 +402,8 @@ class SdCard {
      * @return Number of files matching the extension.
      */
     uint32_t countFilesCached(const char* dir_path,
-                              const char* extension = BINARY_FILE_EXTENSION,
-                              bool use_toc          = true) const;
+        const char* extension = BINARY_FILE_EXTENSION,
+        bool use_toc = true) const;
 
     /**
      * Gets a file at index using the cached TOC if available.
@@ -395,9 +415,9 @@ class SdCard {
      * @return Full path to the file, or empty string if not found.
      */
     String getFileAtIndexCached(const char* dir_path,
-                                uint32_t index,
-                                const char* extension = BINARY_FILE_EXTENSION,
-                                bool use_toc          = true) const;
+        uint32_t index,
+        const char* extension = BINARY_FILE_EXTENSION,
+        bool use_toc = true) const;
 
     /**
      * Builds TOC files for all configured directories.
@@ -407,8 +427,8 @@ class SdCard {
      * @return true if all TOCs were built successfully.
      */
     bool buildMultiDirectoryToc(const std::vector<String>& directories,
-                                const char* extension      = BINARY_FILE_EXTENSION,
-                                photo_frame_error_t* error = nullptr);
+        const char* extension = BINARY_FILE_EXTENSION,
+        photo_frame_error_t* error = nullptr);
 
     /**
      * Validates TOC cache consistency for all configured directories.
@@ -417,7 +437,7 @@ class SdCard {
      * @return true if all cached TOCs are valid and match the config list.
      */
     bool isMultiDirectoryTocValid(const std::vector<String>& directories,
-                                  const char* extension = BINARY_FILE_EXTENSION) const;
+        const char* extension = BINARY_FILE_EXTENSION) const;
 
     /**
      * Select a random image from the configured directories.
@@ -432,20 +452,20 @@ class SdCard {
      * @return true if an image was selected.
      */
     bool selectRandomImageFromDirectories(const std::vector<String>& directories,
-                                          String& out_directory,
-                                          String& out_file_path,
-                                          uint32_t& out_total_files,
-                                          uint32_t& out_selected_index,
-                                          const char* extension = BINARY_FILE_EXTENSION) const;
+        String& out_directory,
+        String& out_file_path,
+        uint32_t& out_total_files,
+        uint32_t& out_selected_index,
+        const char* extension = BINARY_FILE_EXTENSION) const;
 
-  private:
+private:
     // Helper methods for TOC operations
     String getTocDirectoryPath(const char* dir_path) const;
     String getTocDataPath(const char* dir_path) const;
     String getTocMetaPath(const char* dir_path) const;
     bool shouldUseToc(const char* dir_path, const char* extension) const;
     void collectTocDirectoriesWithFiles(const char* base_path,
-                                        std::vector<String>& out_paths) const;
+        std::vector<String>& out_paths) const;
 };
 
 } // namespace photo_frame

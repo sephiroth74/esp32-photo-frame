@@ -106,7 +106,7 @@ These are already configured in `DebugProfile.entitlements` and `Release.entitle
 
 ## 📄 License
 
-This project is part of the ESP32 Photo Frame project and is released under the MIT license.
+This project is part of the ESP32 Photo Frame project and is released under the GNU General Public License v3 (GPL-3.0).
 
 ## 👤 Author
 

@@ -1006,7 +1006,7 @@ class _ProcessButtonSectionState extends State<_ProcessButtonSection> {
         .openDialog(
           context: context,
           barrierDismissible: false,
-          builder: (context) => _ProcessingDialog(provider: provider),
+          builder: (context, factory) => _ProcessingDialog(provider: provider),
         )
         .then((_) {
           _dialogShown = false;
@@ -1072,12 +1072,12 @@ class _ProcessingDialog extends StatelessWidget {
     factory.openDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) {
+      builder: (context, factory) {
         return factory.dialog(
           constraints: const BoxConstraints(minWidth: 400, maxWidth: 500, maxHeight: 600),
           title: 'Processing Report',
           content: (context) => SingleChildScrollView(child: ReportSummaryWidget(summary: provider.lastSummary)),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: () {})],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: () => Navigator.of(context).pop())],
         );
       },
     );
@@ -1149,7 +1149,7 @@ class _ProcessingDialog extends StatelessWidget {
               ],
             ],
           ),
-          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? () {} : null)],
+          actions: [PlatformDialogAction(label: 'Close', onPressed: !provider.isProcessing ? () => Navigator.of(context).pop() : null)],
         );
       },
     );

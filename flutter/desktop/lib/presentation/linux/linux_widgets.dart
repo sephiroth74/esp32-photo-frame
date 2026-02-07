@@ -224,28 +224,24 @@ class LinuxDialog extends PlatformDialog {
     super.message,
     super.content,
     super.actions = const [],
-    super.barrierDismissible = true,
     super.constraints,
     super.onDismissed,
+    super.icon,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      icon: icon,
       constraints: constraints,
       title: Text(title),
-      content: content?.call(context),
+      content: content?.call(context) ?? Text(message!),
       actions: [
         ...actions.map((action) {
           final isDefault = action.style == PlatformDialogActionStyle.primary;
           return ElevatedButton(
-            onPressed: action.onPressed != null
-                ? () {
-                    action.onPressed?.call();
-                    Navigator.of(context).pop();
-                  }
-                : null,
+            onPressed: action.onPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: isDefault ? Colors.blue : Colors.grey[300],
               foregroundColor: isDefault ? Colors.white : Colors.black87,

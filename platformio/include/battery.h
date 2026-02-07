@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef __BATTERY_READER_H__
 #define __BATTERY_READER_H__
@@ -43,7 +37,7 @@ uint8_t calcBatteryPercentage(uint32_t v);
  * and percentage levels for accurate battery level calculation.
  */
 typedef struct BatteryMappingStep {
-    uint8_t percent;  ///< Battery percentage (0-100)
+    uint8_t percent; ///< Battery percentage (0-100)
     uint16_t voltage; ///< Corresponding voltage in millivolts
 
     /**
@@ -51,9 +45,11 @@ typedef struct BatteryMappingStep {
      * @param percent Battery percentage (0-100)
      * @param voltage Corresponding voltage in millivolts
      */
-    constexpr BatteryMappingStep(uint16_t percent, uint16_t voltage) :
-        percent(percent),
-        voltage(voltage) {}
+    constexpr BatteryMappingStep(uint16_t percent, uint16_t voltage)
+        : percent(percent)
+        , voltage(voltage)
+    {
+    }
 } BatteryMappingStep;
 
 /**
@@ -64,17 +60,17 @@ typedef struct BatteryMappingStep {
  * is being used or analog voltage reading is employed.
  */
 typedef struct BatteryInfo {
-  public:
+public:
 #ifdef USE_SENSOR_MAX1704X
-    float cell_voltage;  ///< Battery cell voltage in volts (MAX1704X sensor)
-    float charge_rate;   ///< Battery charge rate in mA (MAX1704X sensor)
-    float percent;       ///< Battery percentage (0-100)
+    float cell_voltage; ///< Battery cell voltage in volts (MAX1704X sensor)
+    float charge_rate; ///< Battery charge rate in mA (MAX1704X sensor)
+    float percent; ///< Battery percentage (0-100)
     uint32_t millivolts; ///< Battery voltage in millivolts
 #else
-    uint32_t raw_value;      ///< Raw ADC reading value
+    uint32_t raw_value; ///< Raw ADC reading value
     uint32_t raw_millivolts; ///< Raw voltage reading in millivolts
-    uint32_t millivolts;     ///< Corrected battery voltage in millivolts
-    float percent;           ///< Battery percentage (0-100)
+    uint32_t millivolts; ///< Corrected battery voltage in millivolts
+    float percent; ///< Battery percentage (0-100)
 #endif
 
 #ifdef USE_SENSOR_MAX1704X
@@ -84,32 +80,39 @@ typedef struct BatteryInfo {
      * @param charge_rate Battery charge rate in mA
      * @param percent Battery percentage (0-100)
      */
-    constexpr BatteryInfo(float cell_voltage, float charge_rate, float percent) :
-        cell_voltage(cell_voltage),
-        charge_rate(charge_rate),
-        percent(percent),
-        millivolts(static_cast<uint32_t>(cell_voltage * 1000)) {}
+    constexpr BatteryInfo(float cell_voltage, float charge_rate, float percent)
+        : cell_voltage(cell_voltage)
+        , charge_rate(charge_rate)
+        , percent(percent)
+        , millivolts(static_cast<uint32_t>(cell_voltage * 1000))
+    {
+    }
 
     /**
      * @brief Default constructor initializing all values to zero.
      */
-    constexpr BatteryInfo() : BatteryInfo(0.0f, 0.0f, 0.0f) {}
+    constexpr BatteryInfo()
+        : BatteryInfo(0.0f, 0.0f, 0.0f)
+    {
+    }
 
     /**
      * @brief Constructor from BatteryMappingStep for MAX1704X sensor.
      * @param step Battery step containing voltage and percentage data
      */
-    constexpr BatteryInfo(const BatteryMappingStep& step) :
-        BatteryInfo(step.voltage / 1000.0f, 0.0f, step.percent) {}
+    constexpr BatteryInfo(const BatteryMappingStep& step)
+        : BatteryInfo(step.voltage / 1000.0f, 0.0f, step.percent)
+    {
+    }
 
     /**
      * @brief Equality operator for BatteryInfo comparison.
      * @param other Another BatteryInfo instance to compare with
      * @return True if both instances are equal, false otherwise
      */
-    constexpr bool operator==(const BatteryInfo& other) const {
-        return (cell_voltage == other.cell_voltage && charge_rate == other.charge_rate &&
-                percent == other.percent);
+    constexpr bool operator==(const BatteryInfo& other) const
+    {
+        return (cell_voltage == other.cell_voltage && charge_rate == other.charge_rate && percent == other.percent);
     }
 
     /**
@@ -133,37 +136,47 @@ typedef struct BatteryInfo {
      * @param percent Battery percentage (0-100)
      */
     constexpr BatteryInfo(uint32_t raw_value,
-                          uint32_t raw_millivolts,
-                          uint32_t millivolts,
-                          float percent) :
-        raw_value(raw_value),
-        raw_millivolts(raw_millivolts),
-        millivolts(millivolts),
-        percent(percent) {}
+        uint32_t raw_millivolts,
+        uint32_t millivolts,
+        float percent)
+        : raw_value(raw_value)
+        , raw_millivolts(raw_millivolts)
+        , millivolts(millivolts)
+        , percent(percent)
+    {
+    }
 
     /**
      * @brief Default constructor initializing all values to zero.
      */
-    constexpr BatteryInfo() : raw_value(0), raw_millivolts(0), millivolts(0), percent(0) {}
+    constexpr BatteryInfo()
+        : raw_value(0)
+        , raw_millivolts(0)
+        , millivolts(0)
+        , percent(0)
+    {
+    }
 
     /**
      * @brief Constructor from BatteryMappingStep for analog reading.
      * @param step Battery step containing voltage and percentage data
      */
-    constexpr BatteryInfo(const BatteryMappingStep& step) :
-        raw_value(step.voltage),
-        raw_millivolts(step.voltage),
-        millivolts(step.voltage),
-        percent(step.percent) {}
+    constexpr BatteryInfo(const BatteryMappingStep& step)
+        : raw_value(step.voltage)
+        , raw_millivolts(step.voltage)
+        , millivolts(step.voltage)
+        , percent(step.percent)
+    {
+    }
 
     /**
      * @brief Equality operator for BatteryInfo comparison.
      * @param other Another BatteryInfo instance to compare with
      * @return True if both instances are equal, false otherwise
      */
-    constexpr bool operator==(const BatteryInfo& other) const {
-        return (raw_millivolts == other.raw_millivolts && millivolts == other.millivolts &&
-                percent == other.percent);
+    constexpr bool operator==(const BatteryInfo& other) const
+    {
+        return (raw_millivolts == other.raw_millivolts && millivolts == other.millivolts && percent == other.percent);
     }
 
     /**
@@ -237,11 +250,11 @@ extern const uint8_t total_steps;
  * voltage reading, and percentage calculation.
  */
 class BatteryReader {
-  public:
+public:
 #ifndef USE_SENSOR_MAX1704X
-    uint8_t pin;                     ///< Analog pin for battery voltage reading
-    double resistor_ratio;           ///< Voltage divider ratio (R1/(R1+R2))
-    uint8_t num_readings;            ///< Number of readings to average
+    uint8_t pin; ///< Analog pin for battery voltage reading
+    double resistor_ratio; ///< Voltage divider ratio (R1/(R1+R2))
+    uint8_t num_readings; ///< Number of readings to average
     uint32_t delay_between_readings; ///< Delay between readings in milliseconds
 
     /**
@@ -252,20 +265,22 @@ class BatteryReader {
      * @param delay Delay between readings in milliseconds
      */
     constexpr BatteryReader(uint8_t pin,
-                            double resistor_ratio,
-                            uint8_t num_readings,
-                            uint32_t delay) :
-        pin(pin),
-        resistor_ratio(resistor_ratio),
-        num_readings(num_readings),
-        delay_between_readings(delay) {}
+        double resistor_ratio,
+        uint8_t num_readings,
+        uint32_t delay)
+        : pin(pin)
+        , resistor_ratio(resistor_ratio)
+        , num_readings(num_readings)
+        , delay_between_readings(delay)
+    {
+    }
 
 #else
     /**
      * @brief Constructor for MAX1704X sensor battery reader.
      * No parameters needed as the sensor handles everything internally.
      */
-    constexpr BatteryReader() {}
+    constexpr BatteryReader() { }
 
 #endif // USE_SENSOR_MAX1704X
 

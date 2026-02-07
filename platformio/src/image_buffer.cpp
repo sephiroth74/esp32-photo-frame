@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "image_buffer.h"
 #include "psram_allocator.h"
@@ -26,27 +20,31 @@
 
 namespace photo_frame {
 
-ImageBuffer::ImageBuffer() :
-    buffer_(nullptr),
-    canvas_(nullptr),
-    bufferSize_(0),
-    width_(0),
-    height_(0),
-    inPsram_(false) {}
+ImageBuffer::ImageBuffer()
+    : buffer_(nullptr)
+    , canvas_(nullptr)
+    , bufferSize_(0)
+    , width_(0)
+    , height_(0)
+    , inPsram_(false)
+{
+}
 
-ImageBuffer::~ImageBuffer() {
+ImageBuffer::~ImageBuffer()
+{
     if (buffer_ || canvas_) {
         log_d("ImageBuffer destructor called, releasing resources");
     }
     release();
 }
 
-bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
+bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram)
+{
     // Release any existing buffer
     release();
 
-    width_      = width;
-    height_     = height;
+    width_ = width;
+    height_ = height;
     bufferSize_ = (size_t)width * height;
 
     log_i("Initializing image buffer (%ux%u = %u bytes)...", width, height, bufferSize_);
@@ -58,8 +56,8 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
         if (buffer_) {
             inPsram_ = photo_frame::psram_is_psram_ptr(buffer_);
             log_i("Successfully allocated %u bytes from %s",
-                  bufferSize_,
-                  inPsram_ ? "PSRAM" : "internal RAM");
+                bufferSize_,
+                inPsram_ ? "PSRAM" : "internal RAM");
         }
     } else {
         // Prefer internal heap, fall back to PSRAM if needed
@@ -67,8 +65,8 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
         if (buffer_) {
             inPsram_ = photo_frame::psram_is_psram_ptr(buffer_);
             log_i("Successfully allocated %u bytes from %s",
-                  bufferSize_,
-                  inPsram_ ? "PSRAM" : "internal RAM");
+                bufferSize_,
+                inPsram_ ? "PSRAM" : "internal RAM");
         }
     }
 
@@ -98,7 +96,8 @@ bool ImageBuffer::init(uint16_t width, uint16_t height, bool preferPsram) {
     return true;
 }
 
-void ImageBuffer::linkCanvasToBuffer() {
+void ImageBuffer::linkCanvasToBuffer()
+{
     if (!canvas_ || !buffer_) {
         return;
     }
@@ -106,18 +105,20 @@ void ImageBuffer::linkCanvasToBuffer() {
     // Hack to access the internal buffer pointer of GFXcanvas8
     // The buffer pointer is the first member after the base class
     uint8_t** canvasBufferPtr = (uint8_t**)((uint8_t*)canvas_ + sizeof(Adafruit_GFX));
-    *canvasBufferPtr          = buffer_;
+    *canvasBufferPtr = buffer_;
 
     log_d("Canvas linked to buffer at %p", buffer_);
 }
 
-void ImageBuffer::clear(uint8_t color) {
+void ImageBuffer::clear(uint8_t color)
+{
     if (buffer_) {
         memset(buffer_, color, bufferSize_);
     }
 }
 
-void ImageBuffer::release() {
+void ImageBuffer::release()
+{
     if (canvas_) {
         delete canvas_;
         canvas_ = nullptr;
@@ -125,56 +126,58 @@ void ImageBuffer::release() {
 
     if (buffer_) {
         log_d("Releasing image buffer at %p (%u bytes, %s)",
-              buffer_,
-              bufferSize_,
-              inPsram_ ? "PSRAM" : "heap");
+            buffer_,
+            bufferSize_,
+            inPsram_ ? "PSRAM" : "heap");
         photo_frame::psram_free(buffer_);
-        buffer_     = nullptr;
+        buffer_ = nullptr;
         bufferSize_ = 0;
-        width_      = 0;
-        height_     = 0;
-        inPsram_    = false;
+        width_ = 0;
+        height_ = 0;
+        inPsram_ = false;
     }
 }
 
 // Move constructor
-ImageBuffer::ImageBuffer(ImageBuffer&& other) noexcept :
-    buffer_(other.buffer_),
-    canvas_(other.canvas_),
-    bufferSize_(other.bufferSize_),
-    width_(other.width_),
-    height_(other.height_),
-    inPsram_(other.inPsram_) {
+ImageBuffer::ImageBuffer(ImageBuffer&& other) noexcept
+    : buffer_(other.buffer_)
+    , canvas_(other.canvas_)
+    , bufferSize_(other.bufferSize_)
+    , width_(other.width_)
+    , height_(other.height_)
+    , inPsram_(other.inPsram_)
+{
     // Clear the other object
-    other.buffer_     = nullptr;
-    other.canvas_     = nullptr;
+    other.buffer_ = nullptr;
+    other.canvas_ = nullptr;
     other.bufferSize_ = 0;
-    other.width_      = 0;
-    other.height_     = 0;
-    other.inPsram_    = false;
+    other.width_ = 0;
+    other.height_ = 0;
+    other.inPsram_ = false;
 }
 
 // Move assignment operator
-ImageBuffer& ImageBuffer::operator=(ImageBuffer&& other) noexcept {
+ImageBuffer& ImageBuffer::operator=(ImageBuffer&& other) noexcept
+{
     if (this != &other) {
         // Release our current resources
         release();
 
         // Take ownership of other's resources
-        buffer_     = other.buffer_;
-        canvas_     = other.canvas_;
+        buffer_ = other.buffer_;
+        canvas_ = other.canvas_;
         bufferSize_ = other.bufferSize_;
-        width_      = other.width_;
-        height_     = other.height_;
-        inPsram_    = other.inPsram_;
+        width_ = other.width_;
+        height_ = other.height_;
+        inPsram_ = other.inPsram_;
 
         // Clear the other object
-        other.buffer_     = nullptr;
-        other.canvas_     = nullptr;
+        other.buffer_ = nullptr;
+        other.canvas_ = nullptr;
         other.bufferSize_ = 0;
-        other.width_      = 0;
-        other.height_     = 0;
-        other.inPsram_    = false;
+        other.width_ = 0;
+        other.height_ = 0;
+        other.inPsram_ = false;
     }
     return *this;
 }

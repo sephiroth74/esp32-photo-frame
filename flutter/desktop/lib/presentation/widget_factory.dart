@@ -11,7 +11,11 @@ import 'linux/linux_widgets.dart';
 abstract class WidgetFactory {
   Widget createHomeScreen();
 
-  Future<T?> openDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible});
+  Future<T?> openDialog<T>({
+    required BuildContext context,
+    required Widget Function(BuildContext context, WidgetFactory factory) builder,
+    bool barrierDismissible,
+  });
 
   PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged});
 
@@ -65,10 +69,10 @@ abstract class WidgetFactory {
   PlatformDialog dialog({
     required String title,
     String? message,
+    Widget? icon,
     Widget Function(BuildContext)? content,
     BoxConstraints? constraints,
     List<PlatformDialogAction> actions = const [],
-    bool barrierDismissible = true,
     VoidCallback? onDismissed,
   });
 
@@ -94,8 +98,12 @@ class MacOSWidgetFactory extends WidgetFactory {
   }
 
   @override
-  Future<T?> openDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible = true}) {
-    return showAppKitDialog<T>(context: context, builder: builder, barrierDismissible: barrierDismissible);
+  Future<T?> openDialog<T>({
+    required BuildContext context,
+    required Widget Function(BuildContext context, WidgetFactory factory) builder,
+    bool barrierDismissible = true,
+  }) {
+    return showAppKitDialog<T>(context: context, builder: (context) => builder(context, this), barrierDismissible: barrierDismissible);
   }
 
   @override
@@ -202,19 +210,19 @@ class MacOSWidgetFactory extends WidgetFactory {
   PlatformDialog dialog({
     required String title,
     String? message,
+    Widget? icon,
     Widget Function(BuildContext)? content,
     List<PlatformDialogAction> actions = const [],
     BoxConstraints? constraints,
-    bool barrierDismissible = true,
     VoidCallback? onDismissed,
   }) {
     return MacOSDialog(
       title: title,
       message: message,
       constraints: constraints,
+      icon: icon,
       content: content,
       actions: actions,
-      barrierDismissible: barrierDismissible,
       onDismissed: onDismissed,
     );
   }
@@ -239,8 +247,12 @@ class WindowsWidgetFactory extends LinuxWidgetFactory {}
 
 class LinuxWidgetFactory extends WidgetFactory {
   @override
-  Future<T?> openDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible = true}) {
-    return showDialog(context: context, builder: builder, barrierDismissible: barrierDismissible);
+  Future<T?> openDialog<T>({
+    required BuildContext context,
+    required Widget Function(BuildContext context, WidgetFactory factory) builder,
+    bool barrierDismissible = true,
+  }) {
+    return showDialog(context: context, builder: (context) => builder(context, this), barrierDismissible: barrierDismissible);
   }
 
   @override
@@ -347,6 +359,7 @@ class LinuxWidgetFactory extends WidgetFactory {
   PlatformDialog dialog({
     required String title,
     String? message,
+    Widget? icon,
     Widget Function(BuildContext)? content,
     List<PlatformDialogAction> actions = const [],
     BoxConstraints? constraints,
@@ -358,7 +371,7 @@ class LinuxWidgetFactory extends WidgetFactory {
       message: message,
       content: content,
       actions: actions,
-      barrierDismissible: barrierDismissible,
+      icon: icon,
       constraints: constraints,
       onDismissed: onDismissed,
     );

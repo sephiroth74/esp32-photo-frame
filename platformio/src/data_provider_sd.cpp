@@ -1,24 +1,18 @@
-// MIT License
+// ESP32 Photo Frame
+// Copyright (C) 2025 Alessandro Crugnola
 //
-// Copyright (c) 2025 Alessandro Crugnola
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
@@ -31,10 +25,11 @@
 
 namespace photo_frame {
 
-SdCardDataProvider::SdCardDataProvider() {}
+SdCardDataProvider::SdCardDataProvider() { }
 
 ImageLoadResult
-SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) {
+SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config)
+{
     log_i("--------------------------------------");
     log_i(" - SD Card Mode - Multi Directory");
     log_i("--------------------------------------");
@@ -68,8 +63,7 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
         }
     }
 
-    bool rebuild_toc = is_reset || !sd_card.isMultiDirectoryTocValid(config.sd_card.directories,
-                                                                     BINARY_FILE_EXTENSION);
+    bool rebuild_toc = is_reset || !sd_card.isMultiDirectoryTocValid(config.sd_card.directories, BINARY_FILE_EXTENSION);
 
     if (rebuild_toc) {
         if (is_reset) {
@@ -86,8 +80,8 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
         if (!sd_card.buildMultiDirectoryToc(
                 config.sd_card.directories, BINARY_FILE_EXTENSION, &tocError)) {
             log_e("Failed to build SD card TOC cache: %s (code: %u)",
-                  tocError.message,
-                  tocError.code);
+                tocError.message,
+                tocError.code);
             sd_card.end();
             return ImageLoadResult(tocError);
         }
@@ -101,11 +95,11 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
     uint32_t image_index = 0;
 
     if (!sd_card.selectRandomImageFromDirectories(config.sd_card.directories,
-                                                  selected_directory,
-                                                  file_path,
-                                                  total_files,
-                                                  image_index,
-                                                  BINARY_FILE_EXTENSION)) {
+            selected_directory,
+            file_path,
+            total_files,
+            image_index,
+            BINARY_FILE_EXTENSION)) {
         log_e("No %s files found in configured directories", BINARY_FILE_EXTENSION);
         sd_card.end();
         return ImageLoadResult(photo_frame::error_type::NoImagesFound);
@@ -132,14 +126,14 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
 
     // Validate the binary file
     log_i("Validating image file dimensions and size...");
-    auto wrapper         = std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
+    auto wrapper = std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
     auto validationError = photo_frame::binary_utils::validatePFR1File(file, *wrapper);
     file.close();
 
     if (validationError != photo_frame::error_type::None) {
         log_e("Image validation failed for: %s - %s",
-              original_filename.c_str(),
-              validationError.message);
+            original_filename.c_str(),
+            validationError.message);
         sd_card.end();
         return ImageLoadResult(validationError);
     }

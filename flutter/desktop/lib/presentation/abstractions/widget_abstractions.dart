@@ -205,9 +205,9 @@ class PlatformDialogAction {
 abstract class PlatformDialog extends StatelessWidget {
   final String title;
   final String? message;
+  final Widget? icon;
   final Widget Function(BuildContext)? content;
   final List<PlatformDialogAction> actions;
-  final bool barrierDismissible;
   final BoxConstraints? constraints;
   final VoidCallback? onDismissed;
 
@@ -216,9 +216,9 @@ abstract class PlatformDialog extends StatelessWidget {
     this.message,
     this.content,
     this.actions = const [],
-    this.barrierDismissible = true,
     this.onDismissed,
     this.constraints,
+    this.icon,
     super.key,
   });
 

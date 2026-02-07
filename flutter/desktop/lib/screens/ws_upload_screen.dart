@@ -4,10 +4,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:photoframe_flutter/core/services/bin_parser.dart';
 import 'package:photoframe_flutter/core/services/preferences.dart';
+import 'package:photoframe_flutter/presentation/widget_factory.dart';
 import 'package:provider/provider.dart';
 
-import '../core/providers/ws_provider.dart';
 import '../core/providers/widget_factory_provider.dart';
+import '../core/providers/ws_provider.dart';
 import '../core/services/file_picker_history.dart';
 import '../presentation/abstractions/widget_abstractions.dart';
 
@@ -24,6 +25,8 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
   static const String _ipHistoryKey = 'ws_ip_address';
   static const String _portHistoryKey = 'ws_port';
   bool _dragging = false;
+  String? _lastErrorShown;
+  String? _lastSuccessShown;
 
   @override
   void initState() {
@@ -60,6 +63,12 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     super.dispose();
   }
 
+  Future<void> _openDialog<T>({required Widget Function(BuildContext context, WidgetFactory factory) builder, bool barrierDismissible = true}) async {
+    if (!mounted) return;
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    await factory.openDialog<T>(context: context, builder: (ctx, f) => builder(ctx, f), barrierDismissible: barrierDismissible);
+  }
+
   Future<void> _pickBinFile(WsUploadState ws) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -85,6 +94,15 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     return factory.button(label: label, onPressed: onPressed, icon: icon != null ? Icon(icon) : null, size: size, style: style);
   }
 
+  Widget _buildCircularProgress(double? value) {
+    return AppKitProgressCircle(size: 14, value: value);
+  }
+
+  Widget _buildLinearProgress(BuildContext context, double? value) {
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.progress(value: value);
+  }
+
   Widget _buildGroupBox(BuildContext context, {required Widget child}) {
     final factory = context.read<WidgetFactoryProvider>().factory;
     return factory.groupBox(child: child);
@@ -100,10 +118,109 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     return AppKitTextField(controller: controller, placeholder: placeholder, keyboardType: keyboardType, onChanged: onChanged);
   }
 
+  Widget _buildConfigRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDimensionComparison(WsUploadState ws) {
+    final imageWidth = ws.binHeader!.getWidth();
+    final imageHeight = ws.binHeader!.getHeight();
+    final displayWidth = ws.boardConfig!.displayWidth;
+    final displayHeight = ws.boardConfig!.displayHeight;
+
+    final matches = (imageWidth == displayWidth && imageHeight == displayHeight) || (imageWidth == displayHeight && imageHeight == displayWidth);
+    final statusColor = matches ? Colors.green : Colors.orange;
+    final statusIcon = matches ? Icons.check_circle : Icons.warning;
+    final statusText = matches
+        ? 'Image dimensions match display'
+        : 'Image dimensions (${imageWidth}×${imageHeight}) differ from display (${displayWidth}×${displayHeight})';
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(statusText, style: TextStyle(fontSize: 10, color: statusColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUploadError(BuildContext context, String message) {
+    _openDialog<void>(
+      builder: (ctx, factory) {
+        return factory.dialog(
+          title: 'Error',
+          icon: Icon(Icons.warning, color: Colors.red.shade800),
+          message: message,
+          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop())],
+        );
+      },
+    );
+  }
+
+  void _showUploadSuccess(BuildContext context, String message) {
+    _openDialog<void>(
+      builder: (ctx, factory) {
+        return factory.dialog(
+          icon: Icon(Icons.check, color: Colors.green.shade500),
+          title: 'Upload completed',
+          message: message,
+          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop())],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<WsUploadState>(
       builder: (context, ws, _) {
+        if (ws.uploading) {
+          _lastSuccessShown = null;
+        }
+        // Show error alert if there's an error (either during or after upload)
+        if (ws.error != null && ws.error != _lastErrorShown) {
+          _lastErrorShown = ws.error;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _showUploadError(context, ws.error!);
+          });
+        }
+        final uploadSucceeded = !ws.uploading && ws.error == null && ws.progress >= 1.0 && ws.status.startsWith('Upload completed');
+        if (uploadSucceeded && ws.status != _lastSuccessShown) {
+          _lastSuccessShown = ws.status;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _showUploadSuccess(context, ws.status);
+          });
+        }
         final fileLabel = ws.binPath != null ? ws.binPath!.split('/').last : 'No file selected';
 
         return Column(
@@ -123,14 +240,11 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('WebSocket Connection.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                          const Text('Enter the IP address and port of the device you want to connect to.', style: TextStyle(fontSize: 12)),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Text('Note: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              const Text('Please ensure to connect first to the device own WIFI', style: TextStyle(fontSize: 12)),
-                            ],
+                          const Text('Connection.', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Enter the IP address and port of the device you want to connect to. Remember to connect to the device\'s own WiFi network first.',
+                            style: TextStyle(fontSize: 14),
                           ),
                           const SizedBox(height: 12),
 
@@ -189,8 +303,8 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                 children: [
                                   _buildButton(
                                     context,
-                                    label: ws.connected ? 'Disconnect' : (ws.connecting ? 'Connecting...' : 'Connect'),
-                                    onPressed: ws.connecting
+                                    label: ws.connected ? 'Disconnect' : 'Connect',
+                                    onPressed: ws.connecting || ws.uploading
                                         ? null
                                         : () async {
                                             if (ws.connected) {
@@ -201,12 +315,14 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                           },
                                     style: ws.connected ? PlatformButtonStyle.secondary : PlatformButtonStyle.primary,
                                   ),
-                                  if (ws.connected) ...[
-                                    const SizedBox(width: 8),
-                                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text('Connected to ${ws.ipAddress}:${ws.port}', style: TextStyle(fontSize: 11, color: Colors.green)),
-                                  ],
+                                  const SizedBox(width: 8),
+                                  _buildButton(
+                                    context,
+                                    label: 'Shutdown',
+                                    onPressed: ws.connected && !ws.uploading ? () async => await ws.shutdown() : null,
+                                    style: PlatformButtonStyle.danger,
+                                  ),
+                                  if (ws.connecting) ...[const SizedBox(width: 8), _buildCircularProgress(null)],
                                 ],
                               ),
                             ],
@@ -214,34 +330,48 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Status Message
-                          if (ws.status.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Text(ws.status, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                          if (ws.connected) ...[
+                            Row(
+                              children: [
+                                const SizedBox(width: 8),
+                                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                const SizedBox(width: 4),
+                                Text('Connected', style: TextStyle(fontSize: 11, color: Colors.green)),
+                              ],
+                            ),
                           ],
 
-                          // Error Message
-                          if (ws.error != null) ...[
+                          // Status Message
+                          if (ws.status.isNotEmpty || ws.error != null) ...[
                             const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.error_outline, color: Colors.red, size: 16),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(ws.error!, style: TextStyle(fontSize: 11, color: Colors.red)),
-                                  ),
-                                ],
+
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: ws.error != null ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Row(
+                                  children: [
+                                    if (ws.error != null) ...[const Icon(Icons.error_outline, color: Colors.red, size: 16)],
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      flex: 0,
+                                      child: ws.error == null
+                                          ? Text(ws.status, style: TextStyle(fontSize: 11, color: Colors.grey[600]))
+                                          : Text(ws.error!, style: TextStyle(fontSize: 11, color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
-                          const SizedBox(height: 8),
                         ],
                       ),
                     ),
 
+                    // Board Configuration Info
                     const SizedBox(height: 16),
 
                     // File Selection Section
@@ -249,121 +379,164 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                       context,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 8),
-                          const Text('File Selection', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 12),
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              _buildButton(context, label: 'Select BIN File', onPressed: () async => _pickBinFile(ws)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(fileLabel, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          DropTarget(
-                            enable: true,
-                            onDragEntered: (_) => setState(() => _dragging = true),
-                            onDragUpdated: (_) => setState(() => _dragging = true),
-                            onDragExited: (_) => setState(() => _dragging = false),
-                            onDragDone: (detail) async {
-                              setState(() => _dragging = false);
-                              if (detail.files.isNotEmpty) {
-                                await ws.selectBinFile(detail.files.first.path);
-                              }
-                            },
-                            child: GestureDetector(
-                              onTap: () async => _pickBinFile(ws),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                height: 240,
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: _dragging ? Colors.blue.withValues(alpha: 0.08) : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: _dragging ? Colors.blue : Colors.grey[300]!, width: _dragging ? 1.5 : 1),
-                                ),
-                                child: Center(
-                                  child: ws.previewImage != null
-                                      ? RotatedBox(
-                                          quarterTurns: -ws.rotation,
-                                          child: SizedBox(
-                                            width: 300,
-                                            height: 300,
-                                            child: RawImage(image: ws.previewImage, fit: BoxFit.contain),
-                                          ),
-                                        )
-                                      : Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.upload_file, color: Colors.grey[600], size: 28),
-                                            const SizedBox(height: 8),
-                                            Text('Drop a .pfr1 file here', style: TextStyle(fontSize: 11, color: Colors.grey[700])),
-                                            const SizedBox(height: 4),
-                                            Text('or click to select', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-                                          ],
+                              Flexible(
+                                flex: 0,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 150,
+                                      child: const Text('File Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                    ),
+                                    const SizedBox(height: 12, width: 12),
+                                    Row(
+                                      children: [
+                                        _buildButton(
+                                          context,
+                                          label: 'Pick File',
+                                          style: PlatformButtonStyle.primary,
+                                          size: PlatformButtonSize.large,
+                                          onPressed: ws.uploading ? null : () async => _pickBinFile(ws),
                                         ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (ws.binHeader != null) ...[
-                            Row(
-                              children: [
-                                _buildGroupBox(
-                                  context,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text('Rotation:', style: TextStyle(fontSize: 12)),
-                                          SizedBox(width: 8, height: 12),
-                                          Text(ws.binHeader!.rotation.toString(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                        ],
-                                      ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text('Size:', style: TextStyle(fontSize: 12)),
-                                          SizedBox(width: 8, height: 12),
-                                          Text(
-                                            '${ws.binHeader!.getWidth()} x ${ws.binHeader!.getHeight()}',
-                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                        const SizedBox(height: 12, width: 8),
+                                        _buildButton(
+                                          context,
+                                          label: 'Rotate',
+                                          style: PlatformButtonStyle.secondary,
+                                          size: PlatformButtonSize.large,
+                                          onPressed: !ws.uploading && ws.binHeader != null
+                                              ? () {
+                                                  ws.setRotation((ws.rotation + 1) % 4);
+                                                }
+                                              : null,
+                                        ),
+                                      ],
+                                    ),
+                                    if (ws.binHeader != null) ...[
+                                      const SizedBox(width: 12, height: 12),
+                                      SizedBox(
+                                        width: 300,
+                                        child: _buildGroupBox(
+                                          context,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment: MainAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              _buildConfigRow('Rotation', ws.binHeader!.rotation.toString()),
+                                              _buildConfigRow('Size', '${ws.binHeader!.getWidth()} x ${ws.binHeader!.getHeight()}'),
+                                              _buildConfigRow('Color Mode', ws.binHeader!.colorMode.toReadableString()),
+                                              _buildConfigRow('Name', fileLabel),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text('Color Mode:', style: TextStyle(fontSize: 12)),
-                                          SizedBox(width: 8, height: 12),
-                                          Text(ws.binHeader!.colorMode.toReadableString(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                        ],
+                                        ),
                                       ),
                                     ],
-                                  ),
+                                    if (ws.boardConfig != null) ...[
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: 300,
+                                        child: _buildGroupBox(
+                                          context,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Text('Board Configuration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                              const SizedBox(height: 2),
+                                              _buildConfigRow(
+                                                'Display Size:',
+                                                '${ws.boardConfig!.displayWidth} × ${ws.boardConfig!.displayHeight} px',
+                                              ),
+                                              if (ws.boardConfig!.flashSizeBytes > 0)
+                                                _buildConfigRow(
+                                                  'Flash Size:',
+                                                  '${(ws.boardConfig!.flashSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB',
+                                                ),
+                                              if (ws.boardConfig!.batteryVoltageMv != null && ws.boardConfig!.batteryVoltageMv! > 0)
+                                                _buildConfigRow(
+                                                  'Battery:',
+                                                  '${ws.boardConfig!.batteryLevel}% (${ws.boardConfig!.batteryVoltageMv} mV)',
+                                                ),
+                                              if (ws.binHeader != null) ...[const SizedBox(height: 8), _buildDimensionComparison(ws)],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                const Spacer(flex: 1),
-                                const SizedBox(width: 12),
-                                _buildButton(
-                                  context,
-                                  label: 'Rotate',
-                                  icon: Icons.rotate_right,
-                                  size: PlatformButtonSize.large,
-                                  onPressed: () {
-                                    ws.setRotation((ws.rotation + 1) % 4);
-                                  },
+                              ),
+                              const SizedBox(width: 24),
+                              Flexible(
+                                flex: 1,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    Expanded(
+                                      child: DropTarget(
+                                        enable: true,
+                                        onDragEntered: (_) => setState(() => _dragging = true),
+                                        onDragUpdated: (_) => setState(() => _dragging = true),
+                                        onDragExited: (_) => setState(() => _dragging = false),
+                                        onDragDone: (detail) async {
+                                          setState(() => _dragging = false);
+                                          if (detail.files.isNotEmpty) {
+                                            await ws.selectBinFile(detail.files.first.path);
+                                          }
+                                        },
+                                        child: GestureDetector(
+                                          onTap: () async => _pickBinFile(ws),
+                                          child: AnimatedContainer(
+                                            height: 370,
+                                            width: 300,
+                                            duration: const Duration(milliseconds: 150),
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: _dragging ? Colors.blue.withValues(alpha: 0.08) : Colors.grey.shade800.withAlpha(127),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: _dragging ? Colors.blue : Colors.grey.shade600, width: _dragging ? 1.5 : 1),
+                                            ),
+                                            child: Center(
+                                              child: ws.previewImage != null
+                                                  ? RotatedBox(
+                                                      quarterTurns: -ws.rotation,
+                                                      child: SizedBox(
+                                                        width: 300,
+                                                        height: 300,
+                                                        child: RawImage(image: ws.previewImage, fit: BoxFit.contain),
+                                                      ),
+                                                    )
+                                                  : Column(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        Icon(Icons.upload_file, color: Colors.blue[600], size: 28),
+                                                        const SizedBox(height: 8),
+                                                        Text('Drop a .pfr1 file here', style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+                                                        const SizedBox(height: 4),
+                                                        Text('or click to select', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                                                      ],
+                                                    ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                              // const Spacer(),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -372,15 +545,19 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
               ),
             ),
 
+            const SizedBox(height: 8),
+
             // Bottom Action Bar
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.grey[300]!)),
+                border: Border(top: BorderSide(color: Colors.grey[500]!)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  Expanded(child: ws.uploading ? _buildLinearProgress(context, ws.progress.clamp(0.0, 1.0)) : const SizedBox.shrink()),
+                  const SizedBox(width: 12),
                   _buildButton(
                     context,
                     label: 'Upload',
