@@ -55,7 +55,7 @@ bool BatteryInfo::isCritical() const { return percent <= BATTERY_PERCENT_CRITICA
 
 bool BatteryInfo::isCharging() const {
 #ifdef USE_SENSOR_MAX1704X
-    return chargeRate > 0.0f;
+    return chargeRate != 0.0f;
 #else
     // If not using the sensor, we can't determine charging state, so we return false
     return millivolts > BATTERY_CHARGING_MILLIVOLTS;
@@ -97,8 +97,7 @@ photo_frame_error_t BatteryManager::init() {
     analogSetPinAttenuation(BATTERY_PIN, ADC_11db);
 #endif
 
-    delay(200); // Allow some time for the ADC to stabilize
-
+    delay(1000); // Allow some time for the ADC to stabilize
     initialized_ = true;
     log_i("[BatteryManager] BatteryReader initialized successfully");
     return error_type::None;

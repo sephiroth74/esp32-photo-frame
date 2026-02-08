@@ -602,7 +602,7 @@ void main_webserver_loop() {
 
             photo_frame::photo_frame_error_t error =
                 photo_frame::BatteryManager::getInstance().read(g_battery_info);
-            if (error != photo_frame::error_type::None) {
+            if (error == photo_frame::error_type::None) {
                 BoardInfo::setBatteryInfo(g_battery_info);
             } else {
                 log_w("[WS] Failed to read battery info during timeout check: %s", error.message);
