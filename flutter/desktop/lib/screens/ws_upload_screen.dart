@@ -1,4 +1,4 @@
-import 'package:appkit_ui_elements/appkit_ui_elements.dart';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -95,8 +95,10 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
   }
 
   Widget _buildCircularProgress(double? value) {
-    return AppKitProgressCircle(size: 14, value: value);
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.circularProgress(value: value);
   }
+
 
   Widget _buildLinearProgress(BuildContext context, double? value) {
     final factory = context.read<WidgetFactoryProvider>().factory;
@@ -115,7 +117,8 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     required ValueChanged<String> onChanged,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    return AppKitTextField(controller: controller, placeholder: placeholder, keyboardType: keyboardType, onChanged: onChanged);
+    final factory = context.read<WidgetFactoryProvider>().factory;
+    return factory.textField(controller: controller, placeholder: placeholder, keyboardType: keyboardType, onChanged: onChanged);
   }
 
   Widget _buildConfigRow(String label, String value) {
