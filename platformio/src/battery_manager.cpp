@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "battery_manager.h"
+#include <algorithm>
 #include <cmath>
 
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -49,20 +50,63 @@ constexpr BatteryMappingStep steps[21] = {
 
 const uint8_t total_steps = 21;
 
-bool BatteryInfo::isLow() const { return percent <= BATTERY_PERCENT_LOW; }
+const BatteryMappingStep* findBatteryMappingStep(uint8_t percent) {
+    if (percent >= 100) {
+        return &steps[total_steps - 1];
+    }
+    if (percent <= 0) {
+        return &steps[0];
+    }
 
-bool BatteryInfo::isCritical() const { return percent <= BATTERY_PERCENT_CRITICAL; }
+    // use binary tree search for efficiency
+    const auto it =
+        std::find_if(steps, steps + total_steps, [percent](const BatteryMappingStep& step) {
+            return step.percent >= percent;
+        });
+
+    if (it != steps + total_steps) {
+        return &(*it);
+    }
+
+    return nullptr;
+}
+
+bool BatteryInfo::isLow() const {
+    auto it = findBatteryMappingStep(BATTERY_PERCENT_LOW);
+    if (it)
+        return millivolts <= it->voltage;
+    else
+        return percent <= BATTERY_PERCENT_LOW;
+}
+
+bool BatteryInfo::isCritical() const {
+    auto it = findBatteryMappingStep(BATTERY_PERCENT_CRITICAL);
+    if (it)
+        return millivolts <= it->voltage;
+    else
+        return percent <= BATTERY_PERCENT_CRITICAL;
+}
 
 bool BatteryInfo::isCharging() const {
 #ifdef USE_SENSOR_MAX1704X
     return chargeRate != 0.0f;
 #else
-    // If not using the sensor, we can't determine charging state, so we return false
+    auto it = findBatteryMappingStep(100);
+    if (it) {
+        // If we have a mapping step for 100%, we can use it to determine charging state
+        return millivolts > it->voltage;
+    }
     return millivolts > BATTERY_CHARGING_MILLIVOLTS;
 #endif
 }
 
-bool BatteryInfo::isEmpty() const { return percent <= BATTERY_PERCENT_EMPTY; }
+bool BatteryInfo::isEmpty() const {
+    auto it = findBatteryMappingStep(BATTERY_PERCENT_EMPTY);
+    if (it)
+        return millivolts <= it->voltage;
+    else
+        return percent <= BATTERY_PERCENT_EMPTY;
+}
 
 BatteryManager& BatteryManager::getInstance() {
     static BatteryManager instance;
