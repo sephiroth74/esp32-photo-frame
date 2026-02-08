@@ -22,7 +22,7 @@ class _ColorWheelPickerState extends State<ColorWheelPicker> {
   void initState() {
     super.initState();
     _hsv = HSVColor.fromColor(widget.value);
-    _alpha = widget.value.opacity;
+    _alpha = widget.value.a;
   }
 
   void _updateColor(HSVColor hsv, [double? alpha]) {
@@ -30,7 +30,7 @@ class _ColorWheelPickerState extends State<ColorWheelPicker> {
       _hsv = hsv;
       if (alpha != null) _alpha = alpha;
     });
-    widget.onChanged(_hsv.toColor().withOpacity(_alpha));
+    widget.onChanged(_hsv.toColor().withValues(alpha: _alpha));
   }
 
   @override
@@ -121,7 +121,7 @@ class _ColorWheelPickerState extends State<ColorWheelPicker> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: Colors.black12),
-                color: _hsv.toColor().withOpacity(_alpha),
+                color: _hsv.toColor().withValues(alpha: _alpha),
               ),
             ),
           ],

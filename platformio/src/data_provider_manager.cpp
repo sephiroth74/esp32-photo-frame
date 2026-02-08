@@ -18,33 +18,31 @@
 
 namespace photo_frame {
 
-DataProviderManager::DataProviderManager(SdCard& sd_card, const unified_config& config)
-    : sd_card_(sd_card)
-    , config_(config)
-{
-}
+DataProviderManager::DataProviderManager(SdCard& sd_card, const unified_config& config) :
+    sd_card_(sd_card),
+    config_(config) {}
 
-void DataProviderManager::register_provider(DataProvider* provider)
-{
+void DataProviderManager::register_provider(DataProvider* provider) {
     if (!provider) {
         return;
     }
     providers_.push_back(provider);
 }
 
-DataProvider* DataProviderManager::get_active_provider() const
-{
+DataProvider* DataProviderManager::get_active_provider() const {
     // find the active provider based on config and registered providers
-    const char* provider_name = config_.GoogleDrive.enabled ? "gdrive" : (config_.sd_card.enabled ? "sdcard" : "");
+    const char* provider_name =
+        config_.GoogleDrive.enabled ? "gdrive" : (config_.sd_card.enabled ? "sdcard" : "");
 
     if (provider_name[0] == '\0') {
         return nullptr;
     }
 
     // use std::find_if to locate the provider
-    auto it = std::find_if(providers_.begin(), providers_.end(), [provider_name](DataProvider* provider) {
-        return strcmp(provider->name(), provider_name) == 0;
-    });
+    auto it =
+        std::find_if(providers_.begin(), providers_.end(), [provider_name](DataProvider* provider) {
+            return strcmp(provider->name(), provider_name) == 0;
+        });
     if (it != providers_.end()) {
         return *it;
     }
@@ -52,8 +50,7 @@ DataProvider* DataProviderManager::get_active_provider() const
     return nullptr;
 }
 
-ImageLoadResult DataProviderManager::load_next_image(bool is_reset)
-{
+ImageLoadResult DataProviderManager::load_next_image(bool is_reset) {
     DataProvider* active_provider = get_active_provider();
     if (!active_provider) {
         return ImageLoadResult(photo_frame::error_type::DataProviderNotConfigured);

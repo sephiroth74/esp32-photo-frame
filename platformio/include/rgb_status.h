@@ -63,43 +63,38 @@
 struct RGBColor {
     uint8_t r, g, b;
 
-    RGBColor(uint8_t red = 0, uint8_t green = 0, uint8_t blue = 0)
-        : r(red)
-        , g(green)
-        , b(blue)
-    {
-    }
+    RGBColor(uint8_t red = 0, uint8_t green = 0, uint8_t blue = 0) : r(red), g(green), b(blue) {}
 
     uint32_t toUint32() const { return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b; }
 };
 
 // System operation states - always available for macro compatibility
 enum class SystemState {
-    IDLE, // Off/Dark blue - system idle
-    STARTING, // White pulse - system starting up
+    IDLE,            // Off/Dark blue - system idle
+    STARTING,        // White pulse - system starting up
     WIFI_CONNECTING, // Blue pulse - connecting to WiFi
-    WIFI_FAILED, // Red - WiFi connection failed
-    SD_READING, // Orange - reading from SD card
-    SD_WRITING, // Yellow - writing to SD card
-    GOOGLE_DRIVE, // Cyan - Google Drive operations
-    DOWNLOADING, // Purple pulse - downloading files
-    RENDERING, // Pink - rendering to display
-    BATTERY_LOW, // Red slow blink - battery low warning
-    ERROR, // Red fast blink - system error
-    SLEEP_PREP, // Dim white fade - preparing for sleep
-    CUSTOM // User-defined color
+    WIFI_FAILED,     // Red - WiFi connection failed
+    SD_READING,      // Orange - reading from SD card
+    SD_WRITING,      // Yellow - writing to SD card
+    GOOGLE_DRIVE,    // Cyan - Google Drive operations
+    DOWNLOADING,     // Purple pulse - downloading files
+    RENDERING,       // Pink - rendering to display
+    BATTERY_LOW,     // Red slow blink - battery low warning
+    ERROR,           // Red fast blink - system error
+    SLEEP_PREP,      // Dim white fade - preparing for sleep
+    CUSTOM           // User-defined color
 };
 
 // Effect types for color transitions - always available
 enum class RGBEffect {
-    SOLID, // Steady color
-    PULSE, // Breathing effect
+    SOLID,      // Steady color
+    PULSE,      // Breathing effect
     BLINK_SLOW, // Slow blinking
     BLINK_FAST, // Fast blinking
-    FADE_IN, // Fade in once
-    FADE_OUT, // Fade out once
-    RAINBOW, // Rainbow cycle
-    OFF // Turn off LED
+    FADE_IN,    // Fade in once
+    FADE_OUT,   // Fade out once
+    RAINBOW,    // Rainbow cycle
+    OFF         // Turn off LED
 };
 
 // Predefined colors - always available
@@ -130,20 +125,18 @@ struct StatusConfig {
     RGBColor color;
     RGBEffect effect;
     uint16_t duration_ms; // Duration for temporary effects (0 = indefinite)
-    uint8_t brightness; // 0-255
+    uint8_t brightness;   // 0-255
 
     StatusConfig(SystemState s,
-        RGBColor c,
-        RGBEffect e = RGBEffect::SOLID,
-        uint16_t dur = 0,
-        uint8_t bright = 64)
-        : state(s)
-        , color(c)
-        , effect(e)
-        , duration_ms(dur)
-        , brightness(bright)
-    {
-    }
+                 RGBColor c,
+                 RGBEffect e    = RGBEffect::SOLID,
+                 uint16_t dur   = 0,
+                 uint8_t bright = 64) :
+        state(s),
+        color(c),
+        effect(e),
+        duration_ms(dur),
+        brightness(bright) {}
 };
 
 /**
@@ -153,7 +146,7 @@ struct StatusConfig {
  * Supports various colors, effects, and FreeRTOS task-based operation.
  */
 class RGBStatus {
-private:
+  private:
     Adafruit_NeoPixel* pixels;
     TaskHandle_t rgbTaskHandle;
 
@@ -177,7 +170,7 @@ private:
     uint8_t calculatePulse(uint16_t step, uint16_t period);
     RGBColor rainbow(uint8_t pos);
 
-public:
+  public:
     RGBStatus();
     ~RGBStatus();
 
@@ -224,9 +217,9 @@ public:
      * indications not covered by predefined states.
      */
     void setCustomColor(const RGBColor& color,
-        RGBEffect effect = RGBEffect::SOLID,
-        uint16_t duration_ms = 0,
-        uint8_t brightness = 64);
+                        RGBEffect effect     = RGBEffect::SOLID,
+                        uint16_t duration_ms = 0,
+                        uint8_t brightness   = 64);
 
     /**
      * @brief Set the global brightness level
@@ -294,43 +287,43 @@ extern RGBStatus rgbStatus;
  * @endcode
  */
 #ifdef RGB_STATUS_ENABLED
-#define RGB_SET_STATE(state) rgbStatus.setState(SystemState::state)
+#define RGB_SET_STATE(state)           rgbStatus.setState(SystemState::state)
 #define RGB_SET_STATE_TIMED(state, ms) rgbStatus.setState(SystemState::state, ms)
-#define RGB_SET_CUSTOM(color, effect) rgbStatus.setCustomColor(RGBColors::color, RGBEffect::effect)
-#define RGB_OFF() rgbStatus.turnOff()
-#define RGB_ENABLE() rgbStatus.enable()
-#define RGB_DISABLE() rgbStatus.disable()
-#define RGB_BEGIN() rgbStatus.begin()
-#define RGB_END() rgbStatus.end()
+#define RGB_SET_CUSTOM(color, effect)  rgbStatus.setCustomColor(RGBColors::color, RGBEffect::effect)
+#define RGB_OFF()                      rgbStatus.turnOff()
+#define RGB_ENABLE()                   rgbStatus.enable()
+#define RGB_DISABLE()                  rgbStatus.disable()
+#define RGB_BEGIN()                    rgbStatus.begin()
+#define RGB_END()                      rgbStatus.end()
 #define RGB_SET_BRIGHTNESS(brightness) rgbStatus.setBrightness(brightness)
 #else
 // RGB system disabled - all macros become no-ops
-#define RGB_SET_STATE(state) \
-    do {                     \
+#define RGB_SET_STATE(state)                                                                       \
+    do {                                                                                           \
     } while (0)
-#define RGB_SET_STATE_TIMED(state, ms) \
-    do {                               \
+#define RGB_SET_STATE_TIMED(state, ms)                                                             \
+    do {                                                                                           \
     } while (0)
-#define RGB_SET_CUSTOM(color, effect) \
-    do {                              \
+#define RGB_SET_CUSTOM(color, effect)                                                              \
+    do {                                                                                           \
     } while (0)
-#define RGB_OFF() \
-    do {          \
+#define RGB_OFF()                                                                                  \
+    do {                                                                                           \
     } while (0)
-#define RGB_ENABLE() \
-    do {             \
+#define RGB_ENABLE()                                                                               \
+    do {                                                                                           \
     } while (0)
-#define RGB_DISABLE() \
-    do {              \
+#define RGB_DISABLE()                                                                              \
+    do {                                                                                           \
     } while (0)
-#define RGB_BEGIN() \
-    do {            \
+#define RGB_BEGIN()                                                                                \
+    do {                                                                                           \
     } while (0)
-#define RGB_END() \
-    do {          \
+#define RGB_END()                                                                                  \
+    do {                                                                                           \
     } while (0)
-#define RGB_SET_BRIGHTNESS(brightness) \
-    do {                               \
+#define RGB_SET_BRIGHTNESS(brightness)                                                             \
+    do {                                                                                           \
     } while (0)
 #endif // RGB_STATUS_ENABLED
 

@@ -25,11 +25,10 @@
 
 namespace photo_frame {
 
-SdCardDataProvider::SdCardDataProvider() { }
+SdCardDataProvider::SdCardDataProvider() {}
 
 ImageLoadResult
-SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config)
-{
+SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) {
     log_i("--------------------------------------");
     log_i(" - SD Card Mode - Multi Directory");
     log_i("--------------------------------------");
@@ -63,7 +62,8 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
         }
     }
 
-    bool rebuild_toc = is_reset || !sd_card.isMultiDirectoryTocValid(config.sd_card.directories, BINARY_FILE_EXTENSION);
+    bool rebuild_toc = is_reset || !sd_card.isMultiDirectoryTocValid(config.sd_card.directories,
+                                                                     BINARY_FILE_EXTENSION);
 
     if (rebuild_toc) {
         if (is_reset) {
@@ -80,8 +80,8 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
         if (!sd_card.buildMultiDirectoryToc(
                 config.sd_card.directories, BINARY_FILE_EXTENSION, &tocError)) {
             log_e("Failed to build SD card TOC cache: %s (code: %u)",
-                tocError.message,
-                tocError.code);
+                  tocError.message,
+                  tocError.code);
             sd_card.end();
             return ImageLoadResult(tocError);
         }
@@ -95,11 +95,11 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
     uint32_t image_index = 0;
 
     if (!sd_card.selectRandomImageFromDirectories(config.sd_card.directories,
-            selected_directory,
-            file_path,
-            total_files,
-            image_index,
-            BINARY_FILE_EXTENSION)) {
+                                                  selected_directory,
+                                                  file_path,
+                                                  total_files,
+                                                  image_index,
+                                                  BINARY_FILE_EXTENSION)) {
         log_e("No %s files found in configured directories", BINARY_FILE_EXTENSION);
         sd_card.end();
         return ImageLoadResult(photo_frame::error_type::NoImagesFound);
@@ -126,14 +126,14 @@ SdCardDataProvider::load_next_image(bool is_reset, SdCard& sd_card, const unifie
 
     // Validate the binary file
     log_i("Validating image file dimensions and size...");
-    auto wrapper = std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
+    auto wrapper         = std::make_unique<photo_frame::PFR1BinaryFile>(DISP_WIDTH, DISP_HEIGHT);
     auto validationError = photo_frame::binary_utils::validatePFR1File(file, *wrapper);
     file.close();
 
     if (validationError != photo_frame::error_type::None) {
         log_e("Image validation failed for: %s - %s",
-            original_filename.c_str(),
-            validationError.message);
+              original_filename.c_str(),
+              validationError.message);
         sd_card.end();
         return ImageLoadResult(validationError);
     }

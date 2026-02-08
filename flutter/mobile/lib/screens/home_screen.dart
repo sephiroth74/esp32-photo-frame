@@ -9,8 +9,11 @@ import '../services/gallery_service.dart';
 import '../services/bin_parser.dart';
 import '../services/thumbnail_cache_service.dart';
 import '../state/image_processing_state.dart';
+import '../models/processing_models.dart';
+import '../main.dart' as main_app;
 import 'processing_wizard.dart';
 import 'gallery_detail_screen.dart';
+import 'websocket_upload_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,11 +26,106 @@ class _HomeScreenState extends State<HomeScreen> {
   late Future<List<GeneratedImage>> _galleryFuture;
   bool _selectionMode = false;
   final Set<String> _selectedFilenames = {};
+  StreamSubscription? _deepLinkSubscription;
 
   @override
   void initState() {
     super.initState();
     _galleryFuture = GalleryService.getGalleryImages();
+
+    // Listen to deep link events
+    _deepLinkSubscription = main_app.deepLinkHandler.connectionStream.listen((deviceInfo) {
+      _handleDeepLink(deviceInfo);
+    });
+  }
+
+  @override
+  void dispose() {
+    _deepLinkSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleDeepLink(dynamic deviceInfo) async {
+    if (!mounted) return;
+
+    // Show dialog to select which image to upload
+    final images = await GalleryService.getGalleryImages();
+
+    if (!mounted) return;
+
+    if (images.isEmpty) {
+      // No images available, prompt user to create one
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Images Available'),
+          content: const Text(
+            'You need to process an image before you can upload it to your device. '
+            'Would you like to select an image to process now?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _pickImageAndStartWizard(context);
+              },
+              child: const Text('Select Image'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Show dialog to select image
+    final selectedImage = await showDialog<GeneratedImage>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Image to Upload'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              final image = images[index];
+              return ListTile(
+                leading: const Icon(Icons.image),
+                title: Text(image.displayName),
+                subtitle: Text('${(image.file.lengthSync() / 1024).toStringAsFixed(1)} KB'),
+                onTap: () => Navigator.of(context).pop(image),
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel'))],
+      ),
+    );
+
+    if (selectedImage != null && mounted) {
+      // Read processing job from the image metadata
+      final bytes = await selectedImage.file.readAsBytes();
+      final header = BinParser.parseHeader(bytes);
+
+      if (header != null) {
+        // Create a minimal ProcessingJob from header
+        final job = ProcessingJob(targetResolution: Size(header.width.toDouble(), header.height.toDouble()), rotation: header.rotation == 1 ? 90 : 0);
+
+        // Navigate to WebSocket upload screen
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => WebSocketUploadScreen(
+              pfr1File: selectedImage.file,
+              job: job,
+              deviceIp: deviceInfo.ip,
+              deviceSsid: deviceInfo.ssid,
+              devicePort: deviceInfo.port,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _refreshGallery() {

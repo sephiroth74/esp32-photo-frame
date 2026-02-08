@@ -35,7 +35,7 @@ namespace photo_frame {
  * Line 3+: id|name
  */
 class GoogleDriveTocParser {
-public:
+  public:
     /**
      * @brief Constructor
      * @param sdCard Reference to the SD card instance
@@ -81,7 +81,7 @@ public:
      */
     static GoogleDriveFile parse_file_line(const char* line, photo_frame_error_t* error = nullptr);
 
-private:
+  private:
     SdCard& sdCard_;
     const char* tocFilePath_;
 

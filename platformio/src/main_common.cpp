@@ -19,7 +19,6 @@
 #include "esp32/spiram.h"
 #include <Arduino.h>
 
-#include "battery.h"
 #include "board_util.h"
 #include "config.h"
 #include "datetime_utils.h"
@@ -40,15 +39,6 @@
 // GLOBAL OBJECTS
 // ============================================================================
 unsigned long startupTime = 0;
-
-#ifndef USE_SENSOR_MAX1704X
-photo_frame::BatteryReader battery_reader(BATTERY_PIN,
-                                          BATTERY_RESISTORS_RATIO,
-                                          BATTERY_NUM_READINGS,
-                                          BATTERY_DELAY_BETWEEN_READINGS);
-#else  // USE_SENSOR_MAX1704X
-photo_frame::BatteryReader battery_reader;
-#endif // USE_SENSOR_MAX1704X
 
 // ============================================================================
 // COMMON IMPLEMENTATIONS
@@ -151,41 +141,43 @@ void cleanupImageBuffer() {
     }
 }
 
-photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& BatteryInfo,
+photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& batteryInfo,
                                                       esp_sleep_wakeup_cause_t wakeup_reason) {
     log_i("=======================================");
     log_i("- Reading battery level...");
     log_i("=======================================");
 
-    battery_reader.init();
-    BatteryInfo = battery_reader.read();
+    auto batteryManager                    = photo_frame::BatteryManager::getInstance();
+    photo_frame::photo_frame_error_t error = batteryManager.init();
 
-    // print the battery levels
-#ifdef DEBUG_BATTERY_READER
-    log_d("Battery level: %d%%, %d mV, Raw mV: %d",
-          BatteryInfo.percent,
-          BatteryInfo.millivolts,
-          BatteryInfo.raw_millivolts);
-#else
-    log_d("Battery level: %.1f%%, %lu mV", BatteryInfo.percent, BatteryInfo.millivolts);
-#endif // DEBUG_BATTERY_READER
+    if (error != photo_frame::error_type::None) {
+        log_w("Failed to initialize battery manager: %s", error.message);
+    }
+
+    error = batteryManager.read(batteryInfo);
+
+    if (error != photo_frame::error_type::None) {
+        log_w("Failed to read battery level: %s", error.message);
+    }
 
     // check battery status
     // if the battery is empty, enter deep sleep immediately to preserve battery
-    if (BatteryInfo.is_empty()) {
+    if (batteryInfo.isEmpty()) {
         log_e("Battery is empty!");
 #ifdef BATTERY_POWER_SAVING
         // Battery too low to continue
         unsigned long elapsed = millis() - startupTime;
         log_d("Elapsed seconds since startup: %lu s", elapsed / 1000);
         log_d("Entering deep sleep to preserve battery...");
+
+#ifndef DISABLE_DEEP_SLEEP
         photo_frame::board_utils::enterDeepSleep(wakeup_reason); // Enter deep sleep mode
-#endif                                                           // BATTERY_POWER_SAVING
-
-        RGB_DISABLE();
-
+#endif
         return photo_frame::error_type::BatteryEmpty;
-    } else if (BatteryInfo.is_critical()) {
+#endif // BATTERY_POWER_SAVING
+        RGB_DISABLE();
+        return photo_frame::error_type::BatteryEmpty;
+    } else if (batteryInfo.isCritical()) {
         log_w("Battery level is critical!");
 
         RGB_SET_BRIGHTNESS(12);                 // Dim RGB to save power

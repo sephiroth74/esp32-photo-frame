@@ -7,6 +7,10 @@
 #include FONT_HEADER
 
 namespace photo_frame {
+
+constexpr int16_t OVERLAY_ICON_SIZE = 16;
+constexpr int16_t OVERLAY_HEIGHT    = 18;
+
 // Canvas rendering functions
 
 // Helper function to draw inverted bitmap (for icons)
@@ -39,22 +43,9 @@ static void drawInvertedBitmap(GFXcanvas8& canvas,
 }
 
 void drawOverlay(GFXcanvas8& canvas) {
-    // Determine orientation from canvas rotation
-    // Rotation 1 or 3 = portrait, 0 or 2 = landscape
-    bool portrait_mode = (canvas.getRotation() == 1 || canvas.getRotation() == 3);
-
     log_d("drawOverlay(rotation=%d)", canvas.getRotation());
     log_d("canvas size: %dx%d", canvas.width(), canvas.height());
-
-    // Draw a simple status bar
-    if (portrait_mode) {
-        // Portrait: status bar on the right side
-        canvas.fillRect(0, 0, canvas.width(), 16, DISPLAY_COLOR_WHITE);
-        // canvas.fillRect(canvas.width() - 16, 0, 16, canvas.height(), DISPLAY_COLOR_WHITE);
-    } else {
-        // Landscape: status bar on top
-        canvas.fillRect(0, 0, canvas.width(), 16, DISPLAY_COLOR_WHITE);
-    }
+    canvas.fillRect(0, 0, canvas.width(), OVERLAY_HEIGHT, DISPLAY_COLOR_WHITE);
 }
 
 void drawLastUpdate(GFXcanvas8& canvas, const DateTime& lastUpdate, long refresh_seconds) {
@@ -101,7 +92,7 @@ void drawBatteryStatus(GFXcanvas8& canvas, BatteryInfo BatteryInfo) {
     // Determine battery icon based on charge level
     icon_name_t icon_name;
 
-    if (BatteryInfo.is_charging()) {
+    if (BatteryInfo.isCharging()) {
         icon_name = icon_name::battery_charging_full_90deg;
     } else {
         if (battery_percentage >= 100) {
@@ -557,35 +548,30 @@ void drawSideMessageWithIcon(GFXcanvas8& canvas,
         return;
 
     // Calculate positions based on gravity
-    int16_t icon_x = 0, icon_y = 0;
-    int16_t text_x = 0, text_y = 0;
+    int16_t icon_x = 0, icon_y = 0 + y_offset;
+    int16_t text_x = 0, text_y = 11 + y_offset;
 
     switch (gravity) {
     case TOP_LEFT:
         icon_x = 2 + x_offset;
-        icon_y = 0 + y_offset;
-        text_x = 20 + x_offset;
-        text_y = 10 + y_offset;
+        text_x = OVERLAY_ICON_SIZE + 4 + x_offset;
         break;
     case TOP_RIGHT: {
         int16_t text_width = getStringWidth(canvas, String(message));
-        icon_x             = canvas.width() - text_width - 20 + x_offset;
-        icon_y             = 0 + y_offset;
-        text_x             = icon_x + 18;
-        text_y             = 10 + y_offset;
+        icon_x             = canvas.width() - text_width - OVERLAY_ICON_SIZE - 4 + x_offset;
+        text_x             = icon_x + OVERLAY_ICON_SIZE + 2;
     } break;
     case TOP_CENTER: {
         int16_t text_width = getStringWidth(canvas, String(message));
-        icon_x             = (canvas.width() - text_width - 18) / 2 + x_offset;
-        icon_y             = 0 + y_offset;
-        text_x             = icon_x + 18;
-        text_y             = 10 + y_offset;
+        icon_x             = (canvas.width() - text_width - (OVERLAY_ICON_SIZE + 2)) / 2 + x_offset;
+        text_x             = icon_x + OVERLAY_ICON_SIZE + 2;
     } break;
     default: break;
     }
 
     // Draw icon
-    drawInvertedBitmap(canvas, icon_x, icon_y, icon, 16, 16, DISPLAY_COLOR_BLACK);
+    drawInvertedBitmap(
+        canvas, icon_x, icon_y, icon, OVERLAY_ICON_SIZE, OVERLAY_ICON_SIZE, DISPLAY_COLOR_BLACK);
 
     // Draw text
     canvas.setCursor(text_x, text_y);

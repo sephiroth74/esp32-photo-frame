@@ -222,7 +222,7 @@ class ImageProcessingState extends ChangeNotifier {
 
       final picture = recorder.endRecording();
       final outImage = await picture.toImage(width, height);
-      logger.fine('Canvas rendered to ${width}x${height}');
+      logger.fine('Canvas rendered to ${width}x$height');
 
       // Encode as JPEG with high quality
       final byteData = await outImage.toByteData(format: ImageByteFormat.rawRgba);
@@ -232,7 +232,7 @@ class ImageProcessingState extends ChangeNotifier {
       }
 
       // Convert to JPEG using image package
-      final img.Image? intermediate = img.Image.fromBytes(
+      final img.Image intermediate = img.Image.fromBytes(
         width: width,
         height: height,
         bytes: byteData.buffer,

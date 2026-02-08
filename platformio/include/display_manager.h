@@ -18,7 +18,7 @@
 #define __DISPLAY_MANAGER_H__
 
 #include "FS.h"
-#include "battery.h"
+#include "battery_manager.h"
 #include "binary_utils.h"
 #include "config.h"
 #include "display_driver.h"
@@ -76,7 +76,7 @@ namespace photo_frame {
  * ```
  */
 class DisplayManager {
-public:
+  public:
     /**
      * @brief Get singleton instance of DisplayManager
      * @return Reference to the global DisplayManager instance
@@ -138,8 +138,7 @@ public:
      * @brief Get the canvas for drawing operations
      * @return Reference to GFXcanvas8 (will crash if not initialized!)
      */
-    GFXcanvas8& getCanvas()
-    {
+    GFXcanvas8& getCanvas() {
         if (!imageBuffer_.isInitialized()) {
             log_e("DisplayManager not initialized! Call init() first");
         }
@@ -227,9 +226,9 @@ public:
      * @param yOffset Optional Y offset
      */
     void drawSideMessage(gravity_t gravity,
-        const char* message,
-        int32_t xOffset = 0,
-        int32_t yOffset = 0);
+                         const char* message,
+                         int32_t xOffset = 0,
+                         int32_t yOffset = 0);
 
     /**
      * @brief Draw a side message for an error
@@ -239,9 +238,9 @@ public:
      * @param xOffset Optional X offset
      */
     void drawSideMessageError(gravity_t gravity,
-        photo_frame::photo_frame_error_t error,
-        int32_t xOffset = 0,
-        int32_t yOffset = 0);
+                              photo_frame::photo_frame_error_t error,
+                              int32_t xOffset = 0,
+                              int32_t yOffset = 0);
 
     /**
      * @brief Set the image source for status reporting
@@ -281,10 +280,10 @@ public:
      * @param icon_size Size of the icon bitmap to use
      */
     void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
-        icon_name_t icon,
-        const String& title,
-        const String& message,
-        uint16_t icon_size);
+                                     icon_name_t icon,
+                                     const String& title,
+                                     const String& message,
+                                     uint16_t icon_size);
 
     /**
      * @brief Draw error with details
@@ -294,9 +293,9 @@ public:
      * @param errorCode Error code
      */
     void drawErrorWithDetails(const String& errMsgLn1,
-        const String& errMsgLn2,
-        const char* filename,
-        uint16_t errorCode);
+                              const String& errMsgLn2,
+                              const char* filename,
+                              uint16_t errorCode);
 
     // ========== Display Control Functions ==========
 
@@ -375,12 +374,12 @@ public:
      */
     void release();
 
-private:
-    ImageBuffer imageBuffer_; ///< Manages image buffer and canvas
+  private:
+    ImageBuffer imageBuffer_;                      ///< Manages image buffer and canvas
     std::unique_ptr<DisplayDriver> displayDriver_; ///< Hardware display driver (smart pointer)
-    bool initialized_; ///< Initialization state
-    uint8_t rotation_; ///< Current rotation (0-3)
-    ImageSource image_source_; ///< Current image source (for status reporting)
+    bool initialized_;                             ///< Initialization state
+    uint8_t rotation_;                             ///< Current rotation (0-3)
+    ImageSource image_source_;                     ///< Current image source (for status reporting)
 
     /**
      * @brief Create appropriate display driver based on configuration

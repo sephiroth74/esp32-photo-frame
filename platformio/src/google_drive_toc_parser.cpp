@@ -20,14 +20,11 @@
 
 namespace photo_frame {
 
-GoogleDriveTocParser::GoogleDriveTocParser(SdCard& sdCard, const char* tocFilePath)
-    : sdCard_(sdCard)
-    , tocFilePath_(tocFilePath)
-{
-}
+GoogleDriveTocParser::GoogleDriveTocParser(SdCard& sdCard, const char* tocFilePath) :
+    sdCard_(sdCard),
+    tocFilePath_(tocFilePath) {}
 
-time_t GoogleDriveTocParser::get_timestamp(photo_frame_error_t* error)
-{
+time_t GoogleDriveTocParser::get_timestamp(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -78,8 +75,7 @@ time_t GoogleDriveTocParser::get_timestamp(photo_frame_error_t* error)
     return timestamp;
 }
 
-size_t GoogleDriveTocParser::get_file_count(photo_frame_error_t* error)
-{
+size_t GoogleDriveTocParser::get_file_count(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -141,8 +137,7 @@ size_t GoogleDriveTocParser::get_file_count(photo_frame_error_t* error)
     return fileCount;
 }
 
-GoogleDriveFile GoogleDriveTocParser::get_file_by_index(size_t index, photo_frame_error_t* error)
-{
+GoogleDriveFile GoogleDriveTocParser::get_file_by_index(size_t index, photo_frame_error_t* error) {
     log_d("Getting TOC file at index: %zu", index);
 
     if (error) {
@@ -188,8 +183,7 @@ GoogleDriveFile GoogleDriveTocParser::get_file_by_index(size_t index, photo_fram
 }
 
 GoogleDriveFile GoogleDriveTocParser::get_file_by_name(const char* filename,
-    photo_frame_error_t* error)
-{
+                                                       photo_frame_error_t* error) {
     log_d("Getting TOC file by name: %s", filename);
 
     if (error) {
@@ -248,8 +242,7 @@ GoogleDriveFile GoogleDriveTocParser::get_file_by_name(const char* filename,
 }
 
 GoogleDriveFile GoogleDriveTocParser::parse_file_line(const char* line,
-    photo_frame_error_t* error)
-{
+                                                      photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -266,14 +259,13 @@ GoogleDriveFile GoogleDriveTocParser::parse_file_line(const char* line,
         return GoogleDriveFile("", "");
     }
 
-    String id = lineStr.substring(0, pos1);
+    String id   = lineStr.substring(0, pos1);
     String name = lineStr.substring(pos1 + 1);
 
     return GoogleDriveFile(id, name);
 }
 
-bool GoogleDriveTocParser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error)
-{
+bool GoogleDriveTocParser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error) {
     file = sdCard_.open(tocFilePath_, FILE_READ);
     if (!file) {
         log_e("Failed to open TOC file: %s", tocFilePath_);
@@ -286,8 +278,7 @@ bool GoogleDriveTocParser::open_and_validate_toc(fs::File& file, photo_frame_err
     return true;
 }
 
-bool GoogleDriveTocParser::skip_header(fs::File& file, photo_frame_error_t* error)
-{
+bool GoogleDriveTocParser::skip_header(fs::File& file, photo_frame_error_t* error) {
     log_d("Skipping TOC header lines...");
     // Skip line 1 (timestamp) and line 2 (fileCount)
     String line1 = file.readStringUntil('\n');

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "battery.h"
+#include "battery_manager.h"
 #include <Arduino.h>
 
 namespace photo_frame {

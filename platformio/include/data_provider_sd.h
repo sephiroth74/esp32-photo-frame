@@ -26,7 +26,7 @@
 namespace photo_frame {
 
 class SdCardDataProvider : public DataProvider {
-public:
+  public:
     SdCardDataProvider();
 
     const char* name() const override { return "sdcard"; }

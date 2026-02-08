@@ -23,49 +23,46 @@ RGBStatus rgbStatus;
 
 // Predefined status configurations - optimized for power efficiency (max brightness 64)
 const StatusConfig RGBStatus::STATUS_CONFIGS[] = {
-    { SystemState::IDLE, RGBColors::DARK_BLUE, RGBEffect::SOLID, 0, 12 },
-    { SystemState::STARTING, RGBColors::WHITE, RGBEffect::PULSE, 3000, 12 },
-    { SystemState::WIFI_CONNECTING, RGBColors::BLUE, RGBEffect::PULSE, 0, 12 },
-    { SystemState::WIFI_FAILED, RGBColors::RED, RGBEffect::BLINK_SLOW, 0, 12 },
-    { SystemState::SD_READING, RGBColors::ORANGE, RGBEffect::PULSE, 0, 12 },
-    { SystemState::SD_WRITING, RGBColors::YELLOW, RGBEffect::PULSE, 0, 12 },
-    { SystemState::GOOGLE_DRIVE, RGBColors::CYAN, RGBEffect::PULSE, 0, 12 },
-    { SystemState::DOWNLOADING, RGBColors::PURPLE, RGBEffect::PULSE, 0, 12 },
-    { SystemState::RENDERING, RGBColors::PINK, RGBEffect::PULSE, 0, 12 },
-    { SystemState::BATTERY_LOW, RGBColors::RED, RGBEffect::BLINK_SLOW, 0, 12 },
-    { SystemState::ERROR,
-        RGBColors::RED,
-        RGBEffect::BLINK_FAST,
-        0, 48 }, // Keep error reasonably bright for visibility
-    { SystemState::SLEEP_PREP, RGBColors::DIM_WHITE, RGBEffect::FADE_OUT, 2000, 12 },
-    { SystemState::CUSTOM, RGBColors::WHITE, RGBEffect::SOLID, 0, 12 }
+    {SystemState::IDLE,            RGBColors::DARK_BLUE, RGBEffect::SOLID,      0,    12},
+    {SystemState::STARTING,        RGBColors::WHITE,     RGBEffect::PULSE,      3000, 12},
+    {SystemState::WIFI_CONNECTING, RGBColors::BLUE,      RGBEffect::PULSE,      0,    12},
+    {SystemState::WIFI_FAILED,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    12},
+    {SystemState::SD_READING,      RGBColors::ORANGE,    RGBEffect::PULSE,      0,    12},
+    {SystemState::SD_WRITING,      RGBColors::YELLOW,    RGBEffect::PULSE,      0,    12},
+    {SystemState::GOOGLE_DRIVE,    RGBColors::CYAN,      RGBEffect::PULSE,      0,    12},
+    {SystemState::DOWNLOADING,     RGBColors::PURPLE,    RGBEffect::PULSE,      0,    12},
+    {SystemState::RENDERING,       RGBColors::PINK,      RGBEffect::PULSE,      0,    12},
+    {SystemState::BATTERY_LOW,     RGBColors::RED,       RGBEffect::BLINK_SLOW, 0,    12},
+    {SystemState::ERROR,
+     RGBColors::RED,
+     RGBEffect::BLINK_FAST,
+     0,                                                                               48}, // Keep error reasonably bright for visibility
+    {SystemState::SLEEP_PREP,      RGBColors::DIM_WHITE, RGBEffect::FADE_OUT,   2000, 12},
+    {SystemState::CUSTOM,          RGBColors::WHITE,     RGBEffect::SOLID,      0,    12}
 };
 
 const size_t RGBStatus::NUM_STATUS_CONFIGS = sizeof(STATUS_CONFIGS) / sizeof(StatusConfig);
 
-RGBStatus::RGBStatus()
-    : pixels(nullptr)
-    , rgbTaskHandle(nullptr)
-    , currentState(SystemState::IDLE)
-    , currentConfig(SystemState::IDLE, RGBColors::OFF)
-    , enabled(true)
-    , taskRunning(false)
-    , lastUpdate(0)
-    , effectStep(0)
-    , currentBrightness(0)
-{
-}
+RGBStatus::RGBStatus() :
+    pixels(nullptr),
+    rgbTaskHandle(nullptr),
+    currentState(SystemState::IDLE),
+    currentConfig(SystemState::IDLE, RGBColors::OFF),
+    enabled(true),
+    taskRunning(false),
+    lastUpdate(0),
+    effectStep(0),
+    currentBrightness(0) {}
 
 RGBStatus::~RGBStatus() { end(); }
 
-bool RGBStatus::begin()
-{
+bool RGBStatus::begin() {
 #ifdef LED_PWR_PIN
     // Enable power to RGB LED first
     log_d("Enabling LED power on GPIO%d", LED_PWR_PIN);
     pinMode(LED_PWR_PIN, OUTPUT);
     digitalWrite(LED_PWR_PIN, HIGH); // Power on
-    delay(50); // Wait for power stabilization
+    delay(50);                       // Wait for power stabilization
 #endif
 
     log_d("[RGB] Initializing RGB status system...");
@@ -89,13 +86,13 @@ bool RGBStatus::begin()
     log_v("NeoPixel initialized");
 
     // Create FreeRTOS task for RGB control
-    BaseType_t result = xTaskCreatePinnedToCore(rgbTask, // Task function
-        "RGBStatusTask", // Task name
-        2048, // Stack size (bytes)
-        this, // Task parameter (this instance)
-        1, // Priority (1 = low priority)
-        &rgbTaskHandle, // Task handle
-        0 // Core ID (0 = any core)
+    BaseType_t result = xTaskCreatePinnedToCore(rgbTask,         // Task function
+                                                "RGBStatusTask", // Task name
+                                                2048,            // Stack size (bytes)
+                                                this,            // Task parameter (this instance)
+                                                1,               // Priority (1 = low priority)
+                                                &rgbTaskHandle,  // Task handle
+                                                0                // Core ID (0 = any core)
     );
 
     if (result != pdPASS) {
@@ -114,8 +111,7 @@ bool RGBStatus::begin()
     return true;
 }
 
-void RGBStatus::end()
-{
+void RGBStatus::end() {
     if (rgbTaskHandle) {
         taskRunning = false;
         vTaskDelete(rgbTaskHandle);
@@ -138,8 +134,7 @@ void RGBStatus::end()
     log_d("RGB status system stopped");
 }
 
-void RGBStatus::setState(SystemState state, uint16_t duration_ms)
-{
+void RGBStatus::setState(SystemState state, uint16_t duration_ms) {
     if (!enabled || !pixels)
         return;
 
@@ -159,7 +154,7 @@ void RGBStatus::setState(SystemState state, uint16_t duration_ms)
         return;
     }
 
-    currentState = state;
+    currentState  = state;
     currentConfig = *config;
     if (duration_ms > 0) {
         currentConfig.duration_ms = duration_ms;
@@ -173,14 +168,13 @@ void RGBStatus::setState(SystemState state, uint16_t duration_ms)
 }
 
 void RGBStatus::setCustomColor(const RGBColor& color,
-    RGBEffect effect,
-    uint16_t duration_ms,
-    uint8_t brightness)
-{
+                               RGBEffect effect,
+                               uint16_t duration_ms,
+                               uint8_t brightness) {
     if (!enabled || !pixels)
         return;
 
-    currentState = SystemState::CUSTOM;
+    currentState  = SystemState::CUSTOM;
     currentConfig = StatusConfig(SystemState::CUSTOM, color, effect, duration_ms, brightness);
 
     // Reset effect timing
@@ -192,8 +186,7 @@ void RGBStatus::setCustomColor(const RGBColor& color,
 
 void RGBStatus::setBrightness(uint8_t brightness) { currentConfig.brightness = brightness; }
 
-void RGBStatus::enable(bool en)
-{
+void RGBStatus::enable(bool en) {
     enabled = en;
     if (!enabled && pixels) {
         pixels->clear();
@@ -201,8 +194,7 @@ void RGBStatus::enable(bool en)
     }
 }
 
-void RGBStatus::turnOff()
-{
+void RGBStatus::turnOff() {
     if (pixels) {
         pixels->clear();
         pixels->show();
@@ -214,13 +206,12 @@ void RGBStatus::turnOff()
     log_d("LED power disabled");
 #endif
 
-    currentState = SystemState::IDLE;
+    currentState  = SystemState::IDLE;
     currentConfig = StatusConfig(SystemState::IDLE, RGBColors::OFF, RGBEffect::OFF);
 }
 
 // Static FreeRTOS task function
-void RGBStatus::rgbTask(void* parameter)
-{
+void RGBStatus::rgbTask(void* parameter) {
     RGBStatus* rgb = static_cast<RGBStatus*>(parameter);
 
     log_d("RGB task started");
@@ -238,8 +229,7 @@ void RGBStatus::rgbTask(void* parameter)
     vTaskDelete(NULL);
 }
 
-void RGBStatus::updateEffect()
-{
+void RGBStatus::updateEffect() {
     unsigned long now = millis();
 
     // Check if effect duration has expired
@@ -249,7 +239,7 @@ void RGBStatus::updateEffect()
     }
 
     uint8_t finalBrightness = currentConfig.brightness;
-    RGBColor displayColor = currentConfig.color;
+    RGBColor displayColor   = currentConfig.color;
 
     // Apply effect based on configured effect type
     switch (currentConfig.effect) {
@@ -266,8 +256,8 @@ void RGBStatus::updateEffect()
     case RGBEffect::PULSE: {
         // Breathing effect - brightness varies smoothly
         uint8_t pulseBrightness = calculatePulse(effectStep, 120);
-        uint8_t minBrightness = currentConfig.brightness / 3; // Pulse to 1/3 brightness
-        uint8_t maxBrightness = currentConfig.brightness;
+        uint8_t minBrightness   = currentConfig.brightness / 3; // Pulse to 1/3 brightness
+        uint8_t maxBrightness   = currentConfig.brightness;
 
         // Map pulse (0-255) to brightness range
         finalBrightness = minBrightness + ((maxBrightness - minBrightness) * pulseBrightness) / 255;
@@ -301,8 +291,8 @@ void RGBStatus::updateEffect()
         // Fade in over duration time
         if (currentConfig.duration_ms > 0) {
             uint32_t elapsed = now - lastUpdate;
-            finalBrightness = (currentConfig.brightness * elapsed) / currentConfig.duration_ms;
-            finalBrightness = min(finalBrightness, currentConfig.brightness);
+            finalBrightness  = (currentConfig.brightness * elapsed) / currentConfig.duration_ms;
+            finalBrightness  = min(finalBrightness, currentConfig.brightness);
         }
         setPixelColor(displayColor, finalBrightness);
         break;
@@ -312,7 +302,8 @@ void RGBStatus::updateEffect()
         // Fade out over duration time
         if (currentConfig.duration_ms > 0) {
             uint32_t elapsed = now - lastUpdate;
-            finalBrightness = currentConfig.brightness - ((currentConfig.brightness * elapsed) / currentConfig.duration_ms);
+            finalBrightness  = currentConfig.brightness -
+                              ((currentConfig.brightness * elapsed) / currentConfig.duration_ms);
             finalBrightness = max((uint8_t)0, finalBrightness);
         }
         setPixelColor(displayColor, finalBrightness);
@@ -321,10 +312,10 @@ void RGBStatus::updateEffect()
 
     case RGBEffect::RAINBOW: {
         // Rainbow color cycling with pulse effect
-        RGBColor rainbowColor = rainbow(effectStep / 4);
+        RGBColor rainbowColor   = rainbow(effectStep / 4);
         uint8_t pulseBrightness = calculatePulse(effectStep, 120);
-        uint8_t minBrightness = currentConfig.brightness / 3;
-        uint8_t maxBrightness = currentConfig.brightness;
+        uint8_t minBrightness   = currentConfig.brightness / 3;
+        uint8_t maxBrightness   = currentConfig.brightness;
 
         finalBrightness = minBrightness + ((maxBrightness - minBrightness) * pulseBrightness) / 255;
         setPixelColor(rainbowColor, finalBrightness);
@@ -341,8 +332,7 @@ void RGBStatus::updateEffect()
     effectStep = (effectStep + 1) % 1024; // Large enough for all effects
 }
 
-void RGBStatus::setPixelColor(const RGBColor& color, uint8_t brightness)
-{
+void RGBStatus::setPixelColor(const RGBColor& color, uint8_t brightness) {
     if (!pixels)
         return;
 
@@ -355,16 +345,14 @@ void RGBStatus::setPixelColor(const RGBColor& color, uint8_t brightness)
     pixels->show();
 }
 
-uint8_t RGBStatus::calculatePulse(uint16_t step, uint16_t period)
-{
+uint8_t RGBStatus::calculatePulse(uint16_t step, uint16_t period) {
     // Generate sine wave pulse effect
     float angle = (2.0 * PI * step) / period;
-    float sine = sin(angle);
+    float sine  = sin(angle);
     return (uint8_t)((sine + 1.0) * 127.5); // Convert -1,1 to 0,255
 }
 
-RGBColor RGBStatus::rainbow(uint8_t pos)
-{
+RGBColor RGBStatus::rainbow(uint8_t pos) {
     pos = 255 - pos;
     if (pos < 85) {
         return RGBColor(255 - pos * 3, 0, pos * 3);

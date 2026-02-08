@@ -27,7 +27,7 @@
 namespace photo_frame {
 
 class GoogleDriveDataProvider : public DataProvider {
-public:
+  public:
     GoogleDriveDataProvider(GoogleDrive& drive);
 
     const char* name() const override { return "gdrive"; }
@@ -35,7 +35,7 @@ public:
     ImageLoadResult
     load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) override;
 
-private:
+  private:
     GoogleDrive& drive_;
 };
 
