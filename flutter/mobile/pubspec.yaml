@@ -50,6 +50,18 @@ dependencies:
   path_provider: ^2.1.2
   wakelock_plus: ^1.2.8
   crypto: ^3.0.3
+  # WebSocket support
+  web_socket_channel: ^2.4.0
+  # Deep linking support (handles both Android and iOS)
+  app_links: ^3.5.0
+  # WiFi information
+  network_info_plus: ^5.0.0
+  # QR code scanner
+  mobile_scanner: ^5.1.0
+  # Open WiFi settings
+  app_settings: ^5.1.1
+  # Persistent storage
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

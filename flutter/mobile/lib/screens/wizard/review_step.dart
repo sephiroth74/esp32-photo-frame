@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../../models/processing_models.dart';
 import '../../state/image_processing_state.dart';
 import '../../utils/app_logger.dart';
-import '../ble_upload_screen.dart';
+import '../websocket_upload_screen.dart';
 import 'preview_card.dart';
 
 final _logger = getLogger('ReviewStep');
@@ -18,7 +18,7 @@ class ReviewStep extends StatelessWidget {
 
   const ReviewStep({super.key, required this.job, required this.file});
 
-  void _startBluetoothUpload(BuildContext context) async {
+  void _startWebSocketUpload(BuildContext context) async {
     final state = context.read<ImageProcessingState>();
 
     // Show loading indicator
@@ -65,7 +65,7 @@ class ReviewStep extends StatelessWidget {
     if (pfr1File != null && context.mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => BleUploadScreen(pfr1File: pfr1File, job: job),
+          builder: (context) => WebSocketUploadScreen(pfr1File: pfr1File, job: job),
         ),
       );
     } else if (context.mounted) {
@@ -149,9 +149,9 @@ class ReviewStep extends StatelessWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: () => _startBluetoothUpload(context),
-                      icon: const Icon(Icons.bluetooth),
-                      label: const Text('Upload via Bluetooth'),
+                      onPressed: () => _startWebSocketUpload(context),
+                      icon: const Icon(Icons.cloud_upload),
+                      label: const Text('Upload via WebSocket'),
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                     ),
                   ),

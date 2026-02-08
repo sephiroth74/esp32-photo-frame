@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -9,7 +8,7 @@ import '../models/processing_models.dart';
 import '../services/bin_parser.dart';
 import '../services/gallery_service.dart';
 import '../utils/app_logger.dart';
-import 'ble_upload_screen.dart';
+import 'websocket_upload_screen.dart';
 
 final _logger = getLogger('GalleryDetailScreen');
 
@@ -51,7 +50,7 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     }
   }
 
-  void _startBluetoothUpload(BuildContext context, BinHeader header) async {
+  void _startWebSocketUpload(BuildContext context, BinHeader header) async {
     // Create a minimal ProcessingJob from the header
     final job = ProcessingJob(
       targetResolution: Resolution(header.width.toDouble(), header.height.toDouble()),
@@ -62,7 +61,7 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     // Use the .pfr1 file from gallery
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BleUploadScreen(pfr1File: widget.image.file, job: job),
+        builder: (context) => WebSocketUploadScreen(pfr1File: widget.image.file, job: job),
       ),
     );
   }
@@ -215,9 +214,9 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () => _startBluetoothUpload(context, header),
-                    icon: const Icon(Icons.bluetooth),
-                    label: const Text('Upload via Bluetooth'),
+                    onPressed: () => _startWebSocketUpload(context, header),
+                    icon: const Icon(Icons.cloud_upload),
+                    label: const Text('Upload via WebSocket'),
                     style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                   ),
                 ),

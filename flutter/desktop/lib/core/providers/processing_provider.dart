@@ -174,7 +174,7 @@ class ProcessingProvider with ChangeNotifier {
 
       // Listen to stdout for JSON progress
       process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        debugPrint('STDOUT: $line'); // Debug all output
+        debugPrint('STDOUT: ${line.substring(0, line.length > 100 ? 100 : line.length)}'); // Debug all output
         try {
           final json = jsonDecode(line);
 

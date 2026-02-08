@@ -4,10 +4,18 @@ import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
 import 'state/image_processing_state.dart';
+import 'services/deep_link_handler.dart';
 
-void main() {
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final DeepLinkHandler deepLinkHandler = DeepLinkHandler();
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   initLogging();
+
+  // Initialize deep link handler
+  await deepLinkHandler.initialize();
+
   runApp(const PhotoframeApp());
 }
 
@@ -19,6 +27,7 @@ class PhotoframeApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => ImageProcessingState(),
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'PhotoFrame Mobile',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo, brightness: Brightness.light),
