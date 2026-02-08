@@ -1,7 +1,7 @@
 #ifndef __CANVAS_RENDERER_H__
 #define __CANVAS_RENDERER_H__
 
-#include "battery.h"
+#include "battery_manager.h"
 #include "config.h"
 #include "display_driver.h" // For DISPLAY_COLOR_* definitions
 #include "errors.h"

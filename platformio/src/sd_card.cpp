@@ -27,8 +27,7 @@ SPIClass hspi(HSPI);
 
 namespace photo_frame {
 
-photo_frame_error_t SdCard::begin()
-{
+photo_frame_error_t SdCard::begin() {
     if (initialized) {
         log_i("already initialized.");
         return error_type::None;
@@ -86,8 +85,7 @@ photo_frame_error_t SdCard::begin()
     return error_type::None;
 } // end begin
 
-void SdCard::end()
-{
+void SdCard::end() {
     log_i("Ending SD card...");
     if (initialized) {
         SD_CARD_LIB.end();
@@ -113,8 +111,7 @@ void SdCard::end()
     }
 } // end end
 
-void SdCard::printStats() const
-{
+void SdCard::printStats() const {
     if (!initialized) {
         log_i("not initialized.");
         return;
@@ -122,24 +119,12 @@ void SdCard::printStats() const
 
     const char* card_type_str;
     switch (cardType) {
-    case CARD_MMC:
-        card_type_str = "MMC";
-        break;
-    case CARD_SD:
-        card_type_str = "SDSC";
-        break;
-    case CARD_SDHC:
-        card_type_str = "SDHC";
-        break;
-    case CARD_UNKNOWN:
-        card_type_str = "Unknown";
-        break;
-    case CARD_NONE:
-        card_type_str = "No SD card attached!";
-        break;
-    default:
-        card_type_str = "Unknown card type!";
-        break;
+    case CARD_MMC:     card_type_str = "MMC"; break;
+    case CARD_SD:      card_type_str = "SDSC"; break;
+    case CARD_SDHC:    card_type_str = "SDHC"; break;
+    case CARD_UNKNOWN: card_type_str = "Unknown"; break;
+    case CARD_NONE:    card_type_str = "No SD card attached!"; break;
+    default:           card_type_str = "Unknown card type!"; break;
     }
     log_i("Card Type: %s", card_type_str);
 
@@ -148,8 +133,7 @@ void SdCard::printStats() const
     log_i("Used Size: %llu MB", SD_CARD_LIB.usedBytes() / (1024 * 1024));
 } // end printStats
 
-time_t SdCard::getLastModified(const char* path) const
-{
+time_t SdCard::getLastModified(const char* path) const {
     if (!initialized) {
         return 0; // Return 0 if SD card is not initialized
     }
@@ -162,8 +146,7 @@ time_t SdCard::getLastModified(const char* path) const
     return lastModified;
 }
 
-time_t SdCard::getFileAge(const char* path) const
-{
+time_t SdCard::getFileAge(const char* path) const {
     time_t lastModified = this->getLastModified(path);
     if (lastModified == 0) {
         return 0; // Return 0 if file cannot be accessed
@@ -171,8 +154,7 @@ time_t SdCard::getFileAge(const char* path) const
     return time(NULL) - lastModified;
 }
 
-void SdCard::listFiles() const
-{
+void SdCard::listFiles() const {
 #ifdef DEBUG_SD_CARD
     log_d("Listing files on SD card with allowed extensions");
 #endif // DEBUG_SD_CARD
@@ -189,9 +171,9 @@ void SdCard::listFiles() const
     }
 
     uint32_t fileCount = 1;
-    String entry = root.getNextFileName();
+    String entry       = root.getNextFileName();
     while (entry.length() > 0) {
-        String file_name = entry.substring(entry.lastIndexOf('/') + 1);
+        String file_name         = entry.substring(entry.lastIndexOf('/') + 1);
         bool hasAllowedExtension = false;
 
         // Check if file has any of the allowed extensions
@@ -214,8 +196,7 @@ void SdCard::listFiles() const
     root.close();
 } // end listFiles
 
-bool SdCard::fileExists(const char* path) const
-{
+bool SdCard::fileExists(const char* path) const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return false;
@@ -230,8 +211,7 @@ bool SdCard::fileExists(const char* path) const
     return SD_CARD_LIB.exists(path);
 } // end fileExists
 
-uint32_t SdCard::countFiles() const
-{
+uint32_t SdCard::countFiles() const {
     log_d("count_files with allowed extensions");
 
     if (!initialized) {
@@ -239,17 +219,17 @@ uint32_t SdCard::countFiles() const
     }
 
     uint32_t count = 0;
-    File root = SD_CARD_LIB.open("/", FILE_READ);
+    File root      = SD_CARD_LIB.open("/", FILE_READ);
     if (!root) {
         log_e("Failed to open root directory");
         return count;
     }
 
     auto start_time __attribute__((unused)) = millis();
-    bool is_dir = false;
-    String path = root.getNextFileName(&is_dir);
+    bool is_dir                             = false;
+    String path                             = root.getNextFileName(&is_dir);
     while (path && !path.isEmpty()) {
-        String file_name = path.substring(path.lastIndexOf('/') + 1);
+        String file_name         = path.substring(path.lastIndexOf('/') + 1);
         bool hasAllowedExtension = false;
 
         // Check if file has any of the allowed extensions
@@ -260,7 +240,8 @@ uint32_t SdCard::countFiles() const
             }
         }
 
-        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") && hasAllowedExtension) {
+        if (!is_dir && !file_name.startsWith(".") && !file_name.startsWith("/") &&
+            hasAllowedExtension) {
             count++;
         }
         path = root.getNextFileName(&is_dir);
@@ -275,8 +256,7 @@ uint32_t SdCard::countFiles() const
     return count;
 } // end getFileCount
 
-fs::File SdCard::open(const char* path, const char* mode, bool create)
-{
+fs::File SdCard::open(const char* path, const char* mode, bool create) {
     log_d("SdCard::open | path: %s, mode: %s", path, mode);
 
     if (!initialized) {
@@ -288,8 +268,7 @@ fs::File SdCard::open(const char* path, const char* mode, bool create)
     return file;
 } // end open
 
-bool SdCard::rename(const char* pathFrom, const char* pathTo, bool overwrite)
-{
+bool SdCard::rename(const char* pathFrom, const char* pathTo, bool overwrite) {
     log_d("SdCard::rename | pathFrom: %s, pathTo: %s", pathFrom, pathTo);
 
     if (!initialized) {
@@ -325,8 +304,7 @@ bool SdCard::rename(const char* pathFrom, const char* pathTo, bool overwrite)
     }
 }
 
-bool SdCard::cleanupDir(const char* path)
-{
+bool SdCard::cleanupDir(const char* path) {
     log_d("SdCard::cleanupDir | path: %s", path);
 
     if (!initialized) {
@@ -356,8 +334,8 @@ bool SdCard::cleanupDir(const char* path)
     }
 
     bool allRemoved = true;
-    bool isDir = false;
-    String entry = dir.getNextFileName(&isDir);
+    bool isDir      = false;
+    String entry    = dir.getNextFileName(&isDir);
 
     while (entry && !entry.isEmpty()) {
 #ifdef DEBUG_SD_CARD
@@ -400,8 +378,7 @@ bool SdCard::cleanupDir(const char* path)
     return true;
 }
 
-bool SdCard::rmdir(const char* path)
-{
+bool SdCard::rmdir(const char* path) {
     log_d("SdCard::rmdir | path: %s", path);
 
     if (!initialized) {
@@ -435,8 +412,7 @@ bool SdCard::rmdir(const char* path)
     }
 }
 
-bool SdCard::remove(const char* path)
-{
+bool SdCard::remove(const char* path) {
     log_d("SdCard::remove | path: %s", path);
 
     if (!initialized) {
@@ -463,8 +439,7 @@ bool SdCard::remove(const char* path)
     }
 }
 
-size_t SdCard::getFileSize(const char* path) const
-{
+size_t SdCard::getFileSize(const char* path) const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return 0;
@@ -491,8 +466,7 @@ size_t SdCard::getFileSize(const char* path) const
     return fileSize;
 }
 
-bool SdCard::isDirectory(const char* path) const
-{
+bool SdCard::isDirectory(const char* path) const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return false;
@@ -519,8 +493,7 @@ bool SdCard::isDirectory(const char* path) const
     return isDir;
 }
 
-bool SdCard::isFile(const char* path) const
-{
+bool SdCard::isFile(const char* path) const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return false;
@@ -542,8 +515,7 @@ bool SdCard::isFile(const char* path) const
     return isFile;
 }
 
-bool SdCard::createDirectories(const char* path)
-{
+bool SdCard::createDirectories(const char* path) {
     if (!initialized) {
         log_e("SD card not initialized");
         return false;
@@ -567,9 +539,9 @@ bool SdCard::createDirectories(const char* path)
 
     // Split path into components and create each directory level
     String currentPath = "";
-    int start = 0;
+    int start          = 0;
     if (dirPath.startsWith("/")) {
-        start = 1; // Skip leading slash
+        start       = 1; // Skip leading slash
         currentPath = "/";
     }
 
@@ -605,8 +577,7 @@ bool SdCard::createDirectories(const char* path)
     return true;
 }
 
-uint64_t SdCard::totalBytes() const
-{
+uint64_t SdCard::totalBytes() const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return 0;
@@ -615,8 +586,7 @@ uint64_t SdCard::totalBytes() const
     return SD_CARD_LIB.totalBytes();
 }
 
-uint64_t SdCard::usedBytes() const
-{
+uint64_t SdCard::usedBytes() const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return 0;
@@ -625,8 +595,7 @@ uint64_t SdCard::usedBytes() const
     return SD_CARD_LIB.usedBytes();
 }
 
-uint64_t SdCard::cardSize() const
-{
+uint64_t SdCard::cardSize() const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return 0;
@@ -636,8 +605,7 @@ uint64_t SdCard::cardSize() const
 }
 
 std::vector<String> SdCard::listFilesInDirectory(const char* dir_path,
-    const char* extension) const
-{
+                                                 const char* extension) const {
     std::vector<String> files;
 
     if (!initialized) {
@@ -656,13 +624,13 @@ std::vector<String> SdCard::listFilesInDirectory(const char* dir_path,
         return files;
     }
 
-    bool isDir = false;
+    bool isDir      = false;
     String fileName = dir.getNextFileName(&isDir);
 
     while (!fileName.isEmpty()) {
         if (!isDir && fileName.endsWith(extension)) {
             // Extract just the filename from the full path to check for hidden files
-            int lastSlash = fileName.lastIndexOf('/');
+            int lastSlash   = fileName.lastIndexOf('/');
             String baseName = (lastSlash >= 0) ? fileName.substring(lastSlash + 1) : fileName;
 
             if (!baseName.startsWith(".")) {
@@ -680,8 +648,7 @@ std::vector<String> SdCard::listFilesInDirectory(const char* dir_path,
     return files;
 }
 
-String SdCard::getFileAtIndex(const char* dir_path, uint32_t index, const char* extension) const
-{
+String SdCard::getFileAtIndex(const char* dir_path, uint32_t index, const char* extension) const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return String();
@@ -699,15 +666,15 @@ String SdCard::getFileAtIndex(const char* dir_path, uint32_t index, const char* 
     }
 
     uint32_t currentIndex = 0;
-    bool isDir = false;
-    String fileName = dir.getNextFileName(&isDir);
+    bool isDir            = false;
+    String fileName       = dir.getNextFileName(&isDir);
     String result;
 
     // Find the file at the target index
     while (!fileName.isEmpty()) {
         if (!isDir && fileName.endsWith(extension)) {
             // Extract just the filename from the full path to check for hidden files
-            int lastSlash = fileName.lastIndexOf('/');
+            int lastSlash   = fileName.lastIndexOf('/');
             String baseName = (lastSlash >= 0) ? fileName.substring(lastSlash + 1) : fileName;
 
             if (!baseName.startsWith(".")) {
@@ -730,8 +697,7 @@ String SdCard::getFileAtIndex(const char* dir_path, uint32_t index, const char* 
     return result;
 }
 
-uint32_t SdCard::countFilesInDirectory(const char* dir_path, const char* extension) const
-{
+uint32_t SdCard::countFilesInDirectory(const char* dir_path, const char* extension) const {
     if (!initialized) {
         log_e("SD card not initialized.");
         return 0;
@@ -743,19 +709,19 @@ uint32_t SdCard::countFilesInDirectory(const char* dir_path, const char* extensi
     }
 
     uint32_t count = 0;
-    File dir = SD_CARD_LIB.open(dir_path);
+    File dir       = SD_CARD_LIB.open(dir_path);
     if (!dir) {
         log_e("Failed to open directory: %s", dir_path);
         return 0;
     }
 
-    bool isDir = false;
+    bool isDir      = false;
     String fileName = dir.getNextFileName(&isDir);
 
     while (!fileName.isEmpty()) {
         if (!isDir && fileName.endsWith(extension)) {
             // Extract just the filename from the full path to check for hidden files
-            int lastSlash = fileName.lastIndexOf('/');
+            int lastSlash   = fileName.lastIndexOf('/');
             String baseName = (lastSlash >= 0) ? fileName.substring(lastSlash + 1) : fileName;
 
             if (!baseName.startsWith(".")) {
@@ -771,35 +737,31 @@ uint32_t SdCard::countFilesInDirectory(const char* dir_path, const char* extensi
 
 // ========== TOC (Table of Contents) Caching System Implementation ==========
 
-String SdCard::getTocDirectoryPath(const char* dir_path) const
-{
+String SdCard::getTocDirectoryPath(const char* dir_path) const {
     String base = SD_TOC_BASE_PATH;
-    String dir = String(dir_path);
+    String dir  = String(dir_path);
     if (!dir.startsWith("/")) {
         dir = "/" + dir;
     }
     return base + dir;
 }
 
-String SdCard::getTocDataPath(const char* dir_path) const
-{
+String SdCard::getTocDataPath(const char* dir_path) const {
     return this->getTocDirectoryPath(dir_path) + "/" + TOC_DATA_FILENAME;
 }
 
-String SdCard::getTocMetaPath(const char* dir_path) const
-{
+String SdCard::getTocMetaPath(const char* dir_path) const {
     return this->getTocDirectoryPath(dir_path) + "/" + TOC_META_FILENAME;
 }
 
 void SdCard::collectTocDirectoriesWithFiles(const char* base_path,
-    std::vector<String>& out_paths) const
-{
+                                            std::vector<String>& out_paths) const {
     File dir = SD_CARD_LIB.open(base_path, FILE_READ);
     if (!dir || !dir.isDirectory()) {
         return;
     }
 
-    bool isDir = false;
+    bool isDir      = false;
     String fileName = dir.getNextFileName(&isDir);
 
     while (!fileName.isEmpty()) {
@@ -817,9 +779,8 @@ void SdCard::collectTocDirectoriesWithFiles(const char* base_path,
 }
 
 bool SdCard::buildDirectoryToc(const char* dir_path,
-    const char* extension,
-    photo_frame_error_t* error)
-{
+                               const char* extension,
+                               photo_frame_error_t* error) {
     if (!initialized) {
         log_e("SD card not initialized.");
         if (error)
@@ -886,17 +847,17 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     }
 
     log_d("Directory opened successfully, starting file iteration");
-    uint32_t fileCount = 0;
-    bool isDir = false;
-    String fileName = dir.getNextFileName(&isDir);
+    uint32_t fileCount   = 0;
+    bool isDir           = false;
+    String fileName      = dir.getNextFileName(&isDir);
 
-    int errorCount = 0;
+    int errorCount       = 0;
     const int MAX_ERRORS = 3;
 
     while (!fileName.isEmpty()) {
         if (!isDir && fileName.endsWith(extension)) {
             // Extract just the filename from the full path to check for hidden files
-            int lastSlash = fileName.lastIndexOf('/');
+            int lastSlash   = fileName.lastIndexOf('/');
             String baseName = (lastSlash >= 0) ? fileName.substring(lastSlash + 1) : fileName;
 
             if (!baseName.startsWith(".")) {
@@ -908,8 +869,8 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
                 if (fileCount % 10 == 0) {
                     log_i("Building TOC: processed %u files...", fileCount);
                     tocDataFile.flush(); // Flush buffer to SD
-                    delay(20); // Increased delay for better stability with many files
-                    yield(); // Allow other tasks to run
+                    delay(20);           // Increased delay for better stability with many files
+                    yield();             // Allow other tasks to run
 
                     // Extra delay every 100 files for large directories
                     if (fileCount % 100 == 0) {
@@ -951,7 +912,7 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
         }
 
         errorCount = 0; // Reset error count on successful read
-        fileName = nextFile;
+        fileName   = nextFile;
     }
     dir.close();
     log_d("Directory iteration complete, found %u files", fileCount);
@@ -1031,7 +992,7 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     cached_toc_directory_ = String(dir_path);
     cached_toc_extension_ = String(extension);
     cached_toc_timestamp_ = timestamp;
-    toc_valid_ = true;
+    toc_valid_            = true;
 
     log_i("TOC built successfully: %lu files indexed", (unsigned long)fileCount);
     if (error) {
@@ -1040,16 +1001,15 @@ bool SdCard::buildDirectoryToc(const char* dir_path,
     return true;
 }
 
-bool SdCard::isTocValid(const char* dir_path, const char* extension) const
-{
+bool SdCard::isTocValid(const char* dir_path, const char* extension) const {
     if (!initialized) {
         return false;
     }
 
     // First, check if TOC files exist on disk
     SdCardTocParser parser(const_cast<SdCard&>(*this),
-        this->getTocDataPath(dir_path).c_str(),
-        this->getTocMetaPath(dir_path).c_str());
+                           this->getTocDataPath(dir_path).c_str(),
+                           this->getTocMetaPath(dir_path).c_str());
 
     if (!parser.toc_exists()) {
         log_i("TOC rebuild reason: TOC files don't exist on SD card");
@@ -1064,7 +1024,7 @@ bool SdCard::isTocValid(const char* dir_path, const char* extension) const
 
     // If we reach here, the TOC files exist and are valid for the requested directory
     // Update the cached values so subsequent calls in the same session are faster
-    const_cast<SdCard*>(this)->toc_valid_ = true;
+    const_cast<SdCard*>(this)->toc_valid_            = true;
     const_cast<SdCard*>(this)->cached_toc_directory_ = String(dir_path);
     const_cast<SdCard*>(this)->cached_toc_extension_ = String(extension);
 
@@ -1072,17 +1032,15 @@ bool SdCard::isTocValid(const char* dir_path, const char* extension) const
     return true;
 }
 
-void SdCard::invalidateToc()
-{
-    toc_valid_ = false;
+void SdCard::invalidateToc() {
+    toc_valid_            = false;
     cached_toc_directory_ = "";
     cached_toc_extension_ = "";
     cached_toc_timestamp_ = 0;
     log_v("TOC invalidated");
 }
 
-bool SdCard::shouldUseToc(const char* dir_path, const char* extension) const
-{
+bool SdCard::shouldUseToc(const char* dir_path, const char* extension) const {
     // Check if TOC is valid
     // NOTE: We don't attempt to build TOC here anymore to avoid double builds.
     // TOC building should be done explicitly by the caller when needed.
@@ -1093,12 +1051,11 @@ bool SdCard::shouldUseToc(const char* dir_path, const char* extension) const
     return true;
 }
 
-uint32_t SdCard::countFilesCached(const char* dir_path, const char* extension, bool use_toc) const
-{
+uint32_t SdCard::countFilesCached(const char* dir_path, const char* extension, bool use_toc) const {
     if (use_toc && this->shouldUseToc(dir_path, extension)) {
         SdCardTocParser parser(const_cast<SdCard&>(*this),
-            this->getTocDataPath(dir_path).c_str(),
-            this->getTocMetaPath(dir_path).c_str());
+                               this->getTocDataPath(dir_path).c_str(),
+                               this->getTocMetaPath(dir_path).c_str());
 
         photo_frame_error_t error; // Default constructor sets code to 0 (no error)
         size_t count = parser.get_file_count(&error);
@@ -1108,8 +1065,8 @@ uint32_t SdCard::countFilesCached(const char* dir_path, const char* extension, b
             return count;
         } else {
             log_w("TOC read failed: %s (code: %u), falling back to direct iteration",
-                error.message,
-                error.code);
+                  error.message,
+                  error.code);
         }
     }
 
@@ -1118,14 +1075,13 @@ uint32_t SdCard::countFilesCached(const char* dir_path, const char* extension, b
 }
 
 String SdCard::getFileAtIndexCached(const char* dir_path,
-    uint32_t index,
-    const char* extension,
-    bool use_toc) const
-{
+                                    uint32_t index,
+                                    const char* extension,
+                                    bool use_toc) const {
     if (use_toc && this->shouldUseToc(dir_path, extension)) {
         SdCardTocParser parser(const_cast<SdCard&>(*this),
-            this->getTocDataPath(dir_path).c_str(),
-            this->getTocMetaPath(dir_path).c_str());
+                               this->getTocDataPath(dir_path).c_str(),
+                               this->getTocMetaPath(dir_path).c_str());
 
         photo_frame_error_t error; // Default constructor sets code to 0 (no error)
         String filePath = parser.get_file_by_index(index, &error);
@@ -1135,8 +1091,8 @@ String SdCard::getFileAtIndexCached(const char* dir_path,
             return filePath;
         } else {
             log_w("TOC read failed: %s (code: %u), falling back to direct iteration",
-                error.message,
-                error.code);
+                  error.message,
+                  error.code);
         }
     }
 
@@ -1145,9 +1101,8 @@ String SdCard::getFileAtIndexCached(const char* dir_path,
 }
 
 bool SdCard::buildMultiDirectoryToc(const std::vector<String>& directories,
-    const char* extension,
-    photo_frame_error_t* error)
-{
+                                    const char* extension,
+                                    photo_frame_error_t* error) {
     if (!initialized) {
         if (error)
             *error = error_type::NoSdCardAttached;
@@ -1184,8 +1139,7 @@ bool SdCard::buildMultiDirectoryToc(const std::vector<String>& directories,
 }
 
 bool SdCard::isMultiDirectoryTocValid(const std::vector<String>& directories,
-    const char* extension) const
-{
+                                      const char* extension) const {
     if (!initialized) {
         return false;
     }
@@ -1210,8 +1164,8 @@ bool SdCard::isMultiDirectoryTocValid(const std::vector<String>& directories,
 
     if (cachedPaths.size() != expectedPaths.size()) {
         log_i("TOC cache mismatch: expected %u directories, found %u",
-            (unsigned int)expectedPaths.size(),
-            (unsigned int)cachedPaths.size());
+              (unsigned int)expectedPaths.size(),
+              (unsigned int)cachedPaths.size());
         return false;
     }
 
@@ -1241,15 +1195,14 @@ bool SdCard::isMultiDirectoryTocValid(const std::vector<String>& directories,
 }
 
 bool SdCard::selectRandomImageFromDirectories(const std::vector<String>& directories,
-    String& out_directory,
-    String& out_file_path,
-    uint32_t& out_total_files,
-    uint32_t& out_selected_index,
-    const char* extension) const
-{
-    out_directory = "";
-    out_file_path = "";
-    out_total_files = 0;
+                                              String& out_directory,
+                                              String& out_file_path,
+                                              uint32_t& out_total_files,
+                                              uint32_t& out_selected_index,
+                                              const char* extension) const {
+    out_directory      = "";
+    out_file_path      = "";
+    out_total_files    = 0;
     out_selected_index = 0;
 
     if (!initialized || directories.empty()) {
@@ -1268,9 +1221,10 @@ bool SdCard::selectRandomImageFromDirectories(const std::vector<String>& directo
             continue;
         }
 
-        out_total_files = fileCount;
+        out_total_files    = fileCount;
         out_selected_index = random(0, fileCount);
-        String file_path = this->getFileAtIndexCached(dir.c_str(), out_selected_index, extension, true);
+        String file_path =
+            this->getFileAtIndexCached(dir.c_str(), out_selected_index, extension, true);
         if (!file_path.isEmpty()) {
             out_directory = dir;
             out_file_path = file_path;

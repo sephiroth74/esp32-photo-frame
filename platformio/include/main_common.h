@@ -17,7 +17,7 @@
 #ifndef COMMON_MAIN_H
 #define COMMON_MAIN_H
 
-#include "battery.h"
+#include "battery_manager.h"
 #include "binary_utils.h"
 #include "config.h"
 #include "display_manager.h"
@@ -45,7 +45,6 @@ typedef struct {
 // ============================================================================
 // Note: DisplayManager is now a singleton - use DisplayManager::getInstance()
 extern unsigned long startupTime;
-extern photo_frame::BatteryReader battery_reader;
 
 // ============================================================================
 // COMMON HARDWARE INITIALIZATION
@@ -94,11 +93,11 @@ void cleanupImageBuffer();
 
 /**
  * @brief Read and validate battery level, handle critical battery states
- * @param BatteryInfo Reference to store battery information
+ * @param batteryInfo Reference to store battery information
  * @param wakeup_reason Current wakeup reason for power management decisions
  * @return Error state after battery check
  */
-photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& BatteryInfo,
+photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& batteryInfo,
                                                       esp_sleep_wakeup_cause_t wakeup_reason);
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
@@ -106,22 +105,22 @@ photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& 
 /**
  * @brief Calculate the wakeup delay based on battery level and current time
  *
- * @param BatteryInfo The battery information structure
+ * @param batteryInfo The battery information structure
  * @param now The current time
  * @return The calculated wakeup delay
  */
-refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& BatteryInfo, DateTime& now);
+refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& batteryInfo, DateTime& now);
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 /**
  * @brief Handle final cleanup and prepare for deep sleep
- * @param BatteryInfo Battery information for sleep calculations
+ * @param batteryInfo Battery information for sleep calculations
  * @param now Current DateTime for sleep timing
  * @param wakeup_reason Wakeup reason for sleep decisions
  * @param refresh_delay Pre-calculated refresh delay to avoid re-reading potentiometer
  */
-void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& BatteryInfo,
+void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& batteryInfo,
                                DateTime& now,
                                esp_sleep_wakeup_cause_t wakeup_reason,
                                const refresh_delay_t& refresh_delay);
@@ -143,7 +142,7 @@ void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& BatteryInfo,
  * @param image_index Current image index
  * @param total_files Total number of files
  * @param drive Google Drive instance
- * @param BatteryInfo Battery information
+ * @param batteryInfo Battery information
  * @return Updated error state after rendering attempt
  */
 photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile& image_file,
@@ -154,7 +153,7 @@ photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile& 
                                              uint32_t image_index,
                                              uint32_t total_files,
                                              photo_frame::GoogleDrive& drive,
-                                             const photo_frame::BatteryInfo& BatteryInfo);
+                                             const photo_frame::BatteryInfo& batteryInfo);
 
 #endif // !ENABLE_WEBSERVER_DATAPROVIDER
 

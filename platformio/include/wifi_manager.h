@@ -34,7 +34,7 @@ namespace photo_frame {
  * robust connection management with timeout handling.
  */
 class WifiManager {
-public:
+  public:
     /**
      * @brief Constructor for WifiManager.
      *
@@ -188,8 +188,8 @@ public:
      */
     void end();
 
-private:
-    String _ssid; // Currently connected SSID (for reporting)
+  private:
+    String _ssid;     // Currently connected SSID (for reporting)
     String _password; // Currently connected password
     struct wifi_network {
         String ssid;

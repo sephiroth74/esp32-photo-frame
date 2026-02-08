@@ -35,7 +35,7 @@
 
 /// PSRAM is now mandatory for all supported boards
 #ifndef BOARD_HAS_PSRAM
-#error \
+#error                                                                                             \
     "BOARD_HAS_PSRAM must be defined. This project now requires PSRAM for all supported boards. Please ensure your board configuration includes -D BOARD_HAS_PSRAM."
 #endif
 
@@ -44,8 +44,9 @@
 // ----------------------------------------------------------------------------
 
 /// Ensure all required e-paper display pins are defined
-#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) || !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
-#error \
+#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) ||                     \
+    !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
+#error                                                                                             \
     "All e-paper display pins must be defined: EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN, EPD_SCK_PIN, EPD_MOSI_PIN"
 #endif
 
@@ -62,7 +63,7 @@
 /// Ensure DISPLAY_POWER_ACTIVE_LOW is defined when DISPLAY_POWER_PIN is also defined
 #ifdef DISPLAY_POWER_PIN
 #ifndef DISPLAY_POWER_ACTIVE_LOW
-#error \
+#error                                                                                             \
     "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
 #endif
 #endif
@@ -90,13 +91,13 @@
 #ifdef USE_POTENTIOMETER
 /// When USE_POTENTIOMETER is defined, ensure potentiometer pins are defined
 #if !defined(POTENTIOMETER_PWR_PIN) || !defined(POTENTIOMETER_INPUT_PIN)
-#error \
+#error                                                                                             \
     "POTENTIOMETER_PWR_PIN and POTENTIOMETER_INPUT_PIN must be defined when USE_POTENTIOMETER is enabled"
 #endif
 
 /// Ensure potentiometer maximum value is defined
 #if !defined(POTENTIOMETER_INPUT_MAX)
-#error \
+#error                                                                                             \
     "POTENTIOMETER_INPUT_MAX must be defined when USE_POTENTIOMETER is enabled (typically 4095 for 12-bit ADC or 1023 for 10-bit ADC)"
 #endif
 
@@ -124,8 +125,9 @@
 
 #ifndef USE_SENSOR_MAX1704X
 /// Validate analog battery monitoring settings when MAX1704X is not used
-#if !defined(BATTERY_PIN) || !defined(BATTERY_NUM_READINGS) || !defined(BATTERY_DELAY_BETWEEN_READINGS) || !defined(BATTERY_RESISTORS_RATIO)
-#error \
+#if !defined(BATTERY_PIN) || !defined(BATTERY_NUM_READINGS) ||                                     \
+    !defined(BATTERY_DELAY_BETWEEN_READINGS) || !defined(BATTERY_RESISTORS_RATIO)
+#error                                                                                             \
     "When USE_SENSOR_MAX1704X is not defined, you must define: BATTERY_PIN, BATTERY_NUM_READINGS, BATTERY_DELAY_BETWEEN_READINGS, BATTERY_RESISTORS_RATIO"
 #endif
 
@@ -184,12 +186,14 @@
 // ----------------------------------------------------------------------------
 
 /// Validate minimum refresh interval (5 minutes to 2 hours)
-#if REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) || REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR)
+#if REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) ||                                      \
+    REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR)
 #error "REFRESH_MIN_INTERVAL_SECONDS must be between 5 minutes and 2 hours"
 #endif
 
 /// Validate maximum refresh interval (10 minutes to 4 hours)
-#if REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) || REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR)
+#if REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) ||                                     \
+    REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR)
 #error "REFRESH_MAX_INTERVAL_SECONDS must be between 10 minutes and 4 hours"
 #endif
 
@@ -269,12 +273,14 @@
 /// Removed: GOOGLE_DRIVE_CONFIG_FILEPATH check (replaced by CONFIG_FILEPATH unified configuration)
 
 /// Validate SD card free space threshold is reasonable (1MB to 1GB)
-#if SD_CARD_FREE_SPACE_THRESHOLD < (1024 * 1024) || SD_CARD_FREE_SPACE_THRESHOLD > (1024 * 1024 * 1024)
+#if SD_CARD_FREE_SPACE_THRESHOLD < (1024 * 1024) ||                                                \
+    SD_CARD_FREE_SPACE_THRESHOLD > (1024 * 1024 * 1024)
 #error "SD_CARD_FREE_SPACE_THRESHOLD must be between 1MB and 1GB"
 #endif
 
 /// Validate cleanup interval is reasonable (1 hour to 30 days)
-#if CLEANUP_TEMP_FILES_INTERVAL_SECONDS < SECONDS_IN_HOUR || CLEANUP_TEMP_FILES_INTERVAL_SECONDS > (30 * SECONDS_IN_DAY)
+#if CLEANUP_TEMP_FILES_INTERVAL_SECONDS < SECONDS_IN_HOUR ||                                       \
+    CLEANUP_TEMP_FILES_INTERVAL_SECONDS > (30 * SECONDS_IN_DAY)
 #error "CLEANUP_TEMP_FILES_INTERVAL_SECONDS must be between 1 hour and 30 days"
 #endif
 
@@ -362,7 +368,8 @@ const char* ALLOWED_FILE_EXTENSIONS[] = {
  * @note This value is calculated automatically and should not be modified manually.
  * @see ALLOWED_FILE_EXTENSIONS for the actual array of supported extensions
  */
-const size_t ALLOWED_EXTENSIONS_COUNT = sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
+const size_t ALLOWED_EXTENSIONS_COUNT =
+    sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
 
 // ============================================================================
 // CONFIGURATION VALIDATION SUMMARY

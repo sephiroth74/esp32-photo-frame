@@ -75,13 +75,16 @@ void performFactoryReset() {
 void shutdown(photo_frame::littlefs_manager::LittleFsManager* littleFs,
               photo_frame::DisplayManager* display,
               unsigned long delay_ms = 0) {
+#ifdef DISABLE_DEEP_SLEEP
+    log_w("[WS] Deep sleep is disabled!");
+    return;
+#endif // DISABLE_DEEP_SLEEP
+
     log_i("[WS] Shutting down (delay %lu ms)", delay_ms);
 
     if (delay_ms > 0) {
         delay(delay_ms);
     }
-
-    // TODO: Add any webserver-specific shutdown steps here
 
     if (littleFs) {
         littleFs->release();
@@ -337,14 +340,15 @@ void main_webserver_setup() {
 
     // Check battery status
     photo_frame::photo_frame_error_t error = setupBatteryAndPower(g_battery_info, wakeup_reason);
-    log_d("[WS] Battery: %.1f%%, %.1f mV", g_battery_info.percent, g_battery_info.millivolts);
+    log_d("[WS] Battery: %.1f%%, %.2f mV", g_battery_info.percent, g_battery_info.cellVoltage);
 
     // Provide current runtime info to BoardInfo for GET_CONFIG
     BoardInfo::setBatteryInfo(g_battery_info);
     BoardInfo::setDisplayRotation(g_display_rotation);
 
-    if (error == photo_frame::error_type::BatteryLevelCritical) {
-        log_e("[BT] Battery is critical, showing error and sleeping");
+    if (error == photo_frame::error_type::BatteryLevelCritical ||
+        error == photo_frame::error_type::BatteryEmpty) {
+        log_e("[WS] Battery is critical, showing error and sleeping");
         photo_frame::ws_utils::handleCriticalBattery(
             g_battery_info, wakeup_reason, g_display_rotation);
         return;
@@ -513,11 +517,6 @@ void main_webserver_setup() {
 }
 
 void main_webserver_loop() {
-    // WebSocket server runs in its own FreeRTOS task
-    // This loop monitors timeout and handles shutdown
-    delay(100);
-    yield();
-
     // Safety check - ensure globals are initialized
     if (!g_wsServer || !g_littleFs || !g_display) {
         return;
@@ -592,13 +591,22 @@ void main_webserver_loop() {
             shutdown(g_littleFs, g_display, 100);
             return;
         }
-    #endif // DISABLE_DEEP_SLEEP
+#endif // DISABLE_DEEP_SLEEP
 
-        // Log status every 30 seconds
-        if ((now - g_serverStartMs) % 30000 < 1000) {
+        // update battery info every minute even if clients are connected, to keep info up to date
+        // for GET_CONFIG
+        if ((now - g_serverStartMs) % WS_BATTERY_CHECK_INTERVAL_MS < 1000) {
             log_d("[WS] Active - last activity %u seconds ago (timeout in %u seconds)",
                   timeSinceActivity / 1000,
                   (g_timeout_ms - timeSinceActivity) / 1000);
+
+            photo_frame::photo_frame_error_t error =
+                photo_frame::BatteryManager::getInstance().read(g_battery_info);
+            if (error != photo_frame::error_type::None) {
+                BoardInfo::setBatteryInfo(g_battery_info);
+            } else {
+                log_w("[WS] Failed to read battery info during timeout check: %s", error.message);
+            }
         }
     }
 }

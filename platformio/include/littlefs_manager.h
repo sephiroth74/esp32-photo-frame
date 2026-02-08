@@ -24,91 +24,91 @@
 namespace photo_frame {
 namespace littlefs_manager {
 
+/**
+ * @brief Manages SPI configuration switching between SD card and e-paper display
+ *
+ * This utility class handles the complexity of using different SPI pins
+ * for SD card and e-paper display when using shared SPI mode on ESP32-C6.
+ */
+class LittleFsManager {
+  public:
+    static LittleFsManager& getInstance();
+
+    ~LittleFsManager();
+
     /**
-     * @brief Manages SPI configuration switching between SD card and e-paper display
-     *
-     * This utility class handles the complexity of using different SPI pins
-     * for SD card and e-paper display when using shared SPI mode on ESP32-C6.
+     * @brief Initialize LittleFS if not already mounted
+     * @return true if LittleFS is ready, false on error
      */
-    class LittleFsManager {
-    public:
-        static LittleFsManager& getInstance();
+    bool init();
 
-        ~LittleFsManager();
+    /**
+     * @brief Release LittleFS resources
+     */
+    void release();
 
-        /**
-         * @brief Initialize LittleFS if not already mounted
-         * @return true if LittleFS is ready, false on error
-         */
-        bool init();
+    /**
+     * @brief Clean up temporary files from LittleFS
+     * @param pattern File pattern to match (e.g., "*.tmp")
+     */
+    void cleanup_temp_files();
 
-        /**
-         * @brief Release LittleFS resources
-         */
-        void release();
+    /**
+     * @brief List all files in LittleFS (for debugging)
+     * @param path Directory path to list
+     */
+    void list_files(const char* path);
 
-        /**
-         * @brief Clean up temporary files from LittleFS
-         * @param pattern File pattern to match (e.g., "*.tmp")
-         */
-        void cleanup_temp_files();
+    /**
+     * @brief Open a file in LittleFS
+     * @param filename Filename to open (including path)
+     * @param mode File open mode (e.g., "r", "w")
+     * @return Opened File object, or invalid File on error
+     */
+    File open_file(const char* filename, const char* mode);
 
-        /**
-         * @brief List all files in LittleFS (for debugging)
-         * @param path Directory path to list
-         */
-        void list_files(const char* path);
+    /**
+     * @brief Read a file from LittleFS into a buffer
+     * @param filename Filename to read (including path)
+     * @param buffer Destination buffer
+     * @param buffer_size Maximum bytes to read
+     * @return Number of bytes read, or 0 on error
+     */
+    size_t read_file(const char* filename, uint8_t* buffer, size_t buffer_size);
 
-        /**
-         * @brief Open a file in LittleFS
-         * @param filename Filename to open (including path)
-         * @param mode File open mode (e.g., "r", "w")
-         * @return Opened File object, or invalid File on error
-         */
-        File open_file(const char* filename, const char* mode);
+    /**
+     * @brief Delete a file from LittleFS
+     * @param filename Filename to delete (including path)
+     * @return true if deletion succeeded, false on error
+     */
+    bool delete_file(const char* filename);
 
-        /**
-         * @brief Read a file from LittleFS into a buffer
-         * @param filename Filename to read (including path)
-         * @param buffer Destination buffer
-         * @param buffer_size Maximum bytes to read
-         * @return Number of bytes read, or 0 on error
-         */
-        size_t read_file(const char* filename, uint8_t* buffer, size_t buffer_size);
+    /**
+     * @brief Write a buffer to a file in LittleFS
+     * @param filename Filename to write (including path)
+     * @param buffer Data to write
+     * @param buffer_size Number of bytes to write
+     * @return true if write succeeded, false on error
+     */
+    bool write_file(const char* filename, const uint8_t* buffer, size_t buffer_size);
 
-        /**
-         * @brief Delete a file from LittleFS
-         * @param filename Filename to delete (including path)
-         * @return true if deletion succeeded, false on error
-         */
-        bool delete_file(const char* filename);
+    /**
+     * @brief Get the size of a file in LittleFS
+     * @param filename Filename to check (including path)
+     * @return File size in bytes, or 0 if file doesn't exist
+     */
+    size_t get_file_size(const char* filename);
 
-        /**
-         * @brief Write a buffer to a file in LittleFS
-         * @param filename Filename to write (including path)
-         * @param buffer Data to write
-         * @param buffer_size Number of bytes to write
-         * @return true if write succeeded, false on error
-         */
-        bool write_file(const char* filename, const uint8_t* buffer, size_t buffer_size);
+    /**
+     * @brief Check if a file exists in LittleFS
+     * @param filename Filename to check (including path)
+     * @return true if file exists, false otherwise
+     */
+    bool file_exists(const char* filename);
 
-        /**
-         * @brief Get the size of a file in LittleFS
-         * @param filename Filename to check (including path)
-         * @return File size in bytes, or 0 if file doesn't exist
-         */
-        size_t get_file_size(const char* filename);
-
-        /**
-         * @brief Check if a file exists in LittleFS
-         * @param filename Filename to check (including path)
-         * @return true if file exists, false otherwise
-         */
-        bool file_exists(const char* filename);
-
-    private:
-        LittleFsManager() = default;
-    };
+  private:
+    LittleFsManager() = default;
+};
 
 } // namespace littlefs_manager
 } // namespace photo_frame

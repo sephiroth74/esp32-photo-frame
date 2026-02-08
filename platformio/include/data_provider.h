@@ -17,7 +17,7 @@
 #ifndef PHOTO_FRAME_DATA_PROVIDER_H
 #define PHOTO_FRAME_DATA_PROVIDER_H
 
-#include "battery.h"
+#include "battery_manager.h"
 #include "errors.h"
 #include "image_load_result.h"
 #include "sd_card.h"
@@ -33,8 +33,8 @@ namespace photo_frame {
  * (e.g., SD card, Google Drive,...).
  */
 class DataProvider {
-public:
-    virtual ~DataProvider() = default;
+  public:
+    virtual ~DataProvider()          = default;
 
     virtual const char* name() const = 0;
 
@@ -52,8 +52,7 @@ public:
      * - Managing the returned PFR1BinaryFile lifetime
      */
     virtual ImageLoadResult
-    load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config)
-        = 0;
+    load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) = 0;
 };
 
 } // namespace photo_frame

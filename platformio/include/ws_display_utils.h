@@ -25,29 +25,29 @@
 namespace photo_frame {
 namespace ws_display_utils {
 
-    /**
-     * @brief Load and display the current or default image from LittleFS
-     * @param littleFs LittleFS manager instance
-     * @param display Display manager instance
-     * @param filename Filename of the image to load
-     * @return Error code (None if successful)
-     */
-    photo_frame_error_t drawImageFile(photo_frame::littlefs_manager::LittleFsManager& littleFs,
-        photo_frame::DisplayManager& display,
-        const char* filename);
+/**
+ * @brief Load and display the current or default image from LittleFS
+ * @param littleFs LittleFS manager instance
+ * @param display Display manager instance
+ * @param filename Filename of the image to load
+ * @return Error code (None if successful)
+ */
+photo_frame_error_t drawImageFile(photo_frame::littlefs_manager::LittleFsManager& littleFs,
+                                  photo_frame::DisplayManager& display,
+                                  const char* filename);
 
-    /**
-     * @brief Draw connection info box with AP name, QR code, and IP address
-     * @param display Display manager instance
-     * @param ssid AP SSID (e.g., "PhotoFrame-A1B2")
-     * @param ipAddress IP address (e.g., "192.168.4.1")
-     * @param deepLinkUrl Deep link URL for QR code (e.g.,
-     * "photoframe://connect?ip=192.168.4.1&ssid=MyWiFi&port=8080&v=1&d=1&w=800&h=480")
-     */
-    void drawConnectionInfoBox(photo_frame::DisplayManager& display,
-        const std::string& ssid,
-        const std::string& ipAddress,
-        const std::string& deepLinkUrl);
+/**
+ * @brief Draw connection info box with AP name, QR code, and IP address
+ * @param display Display manager instance
+ * @param ssid AP SSID (e.g., "PhotoFrame-A1B2")
+ * @param ipAddress IP address (e.g., "192.168.4.1")
+ * @param deepLinkUrl Deep link URL for QR code (e.g.,
+ * "photoframe://connect?ip=192.168.4.1&ssid=MyWiFi&port=8080&v=1&d=1&w=800&h=480")
+ */
+void drawConnectionInfoBox(photo_frame::DisplayManager& display,
+                           const std::string& ssid,
+                           const std::string& ipAddress,
+                           const std::string& deepLinkUrl);
 
 } // namespace ws_display_utils
 } // namespace photo_frame

@@ -24,16 +24,11 @@ namespace photo_frame {
 // and caused excessive wait times when connection actually failed
 const unsigned long WifiManager::CONNECTION_TIMEOUT_MS = 15000;
 
-WifiManager::WifiManager()
-    : _initialized(false)
-    , _connected(false)
-{
-}
+WifiManager::WifiManager() : _initialized(false), _connected(false) {}
 
 WifiManager::~WifiManager() { disconnect(); }
 
-photo_frame_error_t WifiManager::init(const char* config_file, SdCard& sdCard)
-{
+photo_frame_error_t WifiManager::init(const char* config_file, SdCard& sdCard) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -50,7 +45,7 @@ photo_frame_error_t WifiManager::init(const char* config_file, SdCard& sdCard)
         return error_type::SdCardFileOpenFailed;
     }
 
-    _ssid = file.readStringUntil('\n');
+    _ssid     = file.readStringUntil('\n');
     _password = file.readStringUntil('\n');
 
     _ssid.trim();
@@ -71,8 +66,7 @@ photo_frame_error_t WifiManager::init(const char* config_file, SdCard& sdCard)
     return error_type::None;
 }
 
-photo_frame_error_t WifiManager::initWithConfig(const String& ssid, const String& password)
-{
+photo_frame_error_t WifiManager::initWithConfig(const String& ssid, const String& password) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -84,11 +78,11 @@ photo_frame_error_t WifiManager::initWithConfig(const String& ssid, const String
     }
 
     // Store as single network
-    _network_count = 1;
-    _networks[0].ssid = ssid;
+    _network_count        = 1;
+    _networks[0].ssid     = ssid;
     _networks[0].password = password;
-    _ssid = ssid;
-    _password = password;
+    _ssid                 = ssid;
+    _password             = password;
 
 #ifdef DEBUG_WIFI
     log_d("Loaded WiFi credentials for SSID: %s", _ssid.c_str());
@@ -98,8 +92,7 @@ photo_frame_error_t WifiManager::initWithConfig(const String& ssid, const String
     return error_type::None;
 }
 
-photo_frame_error_t WifiManager::initWithNetworks(const unified_config::wifi_config& wifi_config)
-{
+photo_frame_error_t WifiManager::initWithNetworks(const unified_config::wifi_config& wifi_config) {
     // skip if already initialized
     if (_initialized) {
         return error_type::None;
@@ -113,29 +106,27 @@ photo_frame_error_t WifiManager::initWithNetworks(const unified_config::wifi_con
     // Copy all configured networks
     _network_count = wifi_config.network_count;
     for (uint8_t i = 0; i < _network_count; i++) {
-        _networks[i].ssid = wifi_config.networks[i].ssid;
+        _networks[i].ssid     = wifi_config.networks[i].ssid;
         _networks[i].password = wifi_config.networks[i].password;
         log_i("Loaded WiFi network #%d: %s", i + 1, _networks[i].ssid.c_str());
     }
 
     // Set first network as default (will be updated when connected)
-    _ssid = _networks[0].ssid;
-    _password = _networks[0].password;
+    _ssid        = _networks[0].ssid;
+    _password    = _networks[0].password;
 
     _initialized = true;
     log_i("WiFi manager initialized with %d network(s)", _network_count);
     return error_type::None;
 }
 
-void WifiManager::setTimezone(const char* timezone)
-{
+void WifiManager::setTimezone(const char* timezone) {
     log_i("Setting timezone to: %s", timezone);
     setenv("TZ", timezone, 1);
     tzset();
 }
 
-photo_frame_error_t WifiManager::connect()
-{
+photo_frame_error_t WifiManager::connect() {
     // Check if the WiFi manager is initialized
     if (!_initialized) {
         log_e("WiFi manager not initialized");
@@ -156,12 +147,12 @@ photo_frame_error_t WifiManager::connect()
     WiFi.mode(WIFI_STA);
 
     const uint8_t maxRetriesPerNetwork = 2;
-    const unsigned long baseDelay = 2000; // 2 seconds base delay
-    bool connected = false;
+    const unsigned long baseDelay      = 2000; // 2 seconds base delay
+    bool connected                     = false;
 
     // Try each configured network in order
     for (uint8_t network_idx = 0; network_idx < _network_count && !connected; network_idx++) {
-        const String& ssid = _networks[network_idx].ssid;
+        const String& ssid     = _networks[network_idx].ssid;
         const String& password = _networks[network_idx].password;
 
         if (ssid.isEmpty()) {
@@ -174,9 +165,9 @@ photo_frame_error_t WifiManager::connect()
         // Try connecting to this network with retries
         for (uint8_t attempt = 0; attempt < maxRetriesPerNetwork && !connected; attempt++) {
             log_i("Connection attempt %u/%u for network: %s",
-                attempt + 1,
-                maxRetriesPerNetwork,
-                ssid.c_str());
+                  attempt + 1,
+                  maxRetriesPerNetwork,
+                  ssid.c_str());
 
             WiFi.begin(ssid.c_str(), password.c_str());
             WiFi.setTxPower(WIFI_POWER_8_5dBm);
@@ -185,7 +176,7 @@ photo_frame_error_t WifiManager::connect()
             // WiFi.begin() is asynchronous and needs time to start the connection process
             delay(1000);
 
-            unsigned long timeout = millis() + CONNECTION_TIMEOUT_MS;
+            unsigned long timeout         = millis() + CONNECTION_TIMEOUT_MS;
             wl_status_t connection_status = WiFi.status();
             while ((connection_status != WL_CONNECTED) && (millis() < timeout)) {
                 delay(500);
@@ -193,18 +184,18 @@ photo_frame_error_t WifiManager::connect()
             }
 
             if (connection_status == WL_CONNECTED) {
-                connected = true;
+                connected  = true;
                 _connected = true;
-                _ssid = ssid; // Update to reflect currently connected network
-                _password = password;
+                _ssid      = ssid; // Update to reflect currently connected network
+                _password  = password;
                 log_i("WiFi connected to '%s'! IP address: %s",
-                    ssid.c_str(),
-                    WiFi.localIP().toString().c_str());
+                      ssid.c_str(),
+                      WiFi.localIP().toString().c_str());
             } else {
                 log_w("Failed to connect to '%s' (attempt %u/%u)",
-                    ssid.c_str(),
-                    attempt + 1,
-                    maxRetriesPerNetwork);
+                      ssid.c_str(),
+                      attempt + 1,
+                      maxRetriesPerNetwork);
 
                 // PROBLEM #3 FIX: Use disconnect(false) for faster retries
                 // EXCEPTION: ESP32-C6 needs disconnect(true) due to I2C/WiFi interference
@@ -218,7 +209,7 @@ photo_frame_error_t WifiManager::connect()
                 // Exponential backoff with jitter for retries (only within same network)
                 if (attempt < maxRetriesPerNetwork - 1) {
                     unsigned long backoffDelay = baseDelay * (1UL << attempt);
-                    unsigned long jitter = random(0, backoffDelay / 4);
+                    unsigned long jitter       = random(0, backoffDelay / 4);
                     backoffDelay += jitter;
 
                     log_i("Retrying same network in %lu ms...", backoffDelay);
@@ -243,8 +234,7 @@ photo_frame_error_t WifiManager::connect()
     return error_type::None;
 }
 
-DateTime WifiManager::fetchDatetime(photo_frame_error_t* error)
-{
+DateTime WifiManager::fetchDatetime(photo_frame_error_t* error) {
     if (error) {
         *error = error_type::None;
     }
@@ -263,8 +253,9 @@ DateTime WifiManager::fetchDatetime(photo_frame_error_t* error)
     log_i("Waiting for NTP time sync...");
 
     unsigned long startTime = millis();
-    time_t now = time(nullptr);
-    while (now < 1000000000 && (millis() - startTime) < (NTP_TIMEOUT * 1000)) { // NTP_TIMEOUT in seconds
+    time_t now              = time(nullptr);
+    while (now < 1000000000 &&
+           (millis() - startTime) < (NTP_TIMEOUT * 1000)) { // NTP_TIMEOUT in seconds
         delay(200);
         now = time(nullptr);
     }
@@ -292,11 +283,11 @@ DateTime WifiManager::fetchDatetime(photo_frame_error_t* error)
         log_i("Current time is: %s", timeStr);
 
         return DateTime(timeinfo.tm_year + 1900,
-            timeinfo.tm_mon + 1,
-            timeinfo.tm_mday,
-            timeinfo.tm_hour,
-            timeinfo.tm_min,
-            timeinfo.tm_sec);
+                        timeinfo.tm_mon + 1,
+                        timeinfo.tm_mday,
+                        timeinfo.tm_hour,
+                        timeinfo.tm_min,
+                        timeinfo.tm_sec);
     }
 
     log_e("Failed to obtain time from NTP server within timeout");
@@ -306,8 +297,7 @@ DateTime WifiManager::fetchDatetime(photo_frame_error_t* error)
     return DateTime(); // Invalid DateTime
 }
 
-void WifiManager::disconnect()
-{
+void WifiManager::disconnect() {
     if (_connected) {
         log_i("Disconnecting from WiFi...");
 
@@ -329,8 +319,7 @@ void WifiManager::end() { disconnect(); }
 
 bool WifiManager::isConnected() const { return _connected && WiFi.status() == WL_CONNECTED; }
 
-String WifiManager::getIpAddress() const
-{
+String WifiManager::getIpAddress() const {
     if (isConnected()) {
         return WiFi.localIP().toString();
     }

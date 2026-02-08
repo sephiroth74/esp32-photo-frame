@@ -101,7 +101,7 @@ void drawBatteryStatus(GFXcanvas8& canvas, BatteryInfo BatteryInfo) {
     // Determine battery icon based on charge level
     icon_name_t icon_name;
 
-    if (BatteryInfo.is_charging()) {
+    if (BatteryInfo.isCharging()) {
         icon_name = icon_name::battery_charging_full_90deg;
     } else {
         if (battery_percentage >= 100) {

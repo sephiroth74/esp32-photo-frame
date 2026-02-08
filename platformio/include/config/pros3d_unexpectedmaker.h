@@ -57,7 +57,6 @@
 
 // MAX1704X I2C fuel gauge - primary battery monitoring method
 // Note: USE_SENSOR_MAX1704X is defined in platformio.ini build_flags
-// Note: RTC hardware support removed - time synchronization uses NTP only
 #define MAX1704X_SDA_PIN 8 // IO8 - I2C SDA
 #define MAX1704X_SCL_PIN 9 // IO9 - I2C SCL
 

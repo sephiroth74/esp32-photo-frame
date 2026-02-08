@@ -54,7 +54,7 @@ namespace photo_frame {
  * @endcode
  */
 class PreferencesHelper {
-public:
+  public:
     /**
      * @brief Get singleton instance of PreferencesHelper
      *
@@ -67,7 +67,7 @@ public:
     static PreferencesHelper& getInstance();
 
     // Delete copy constructor and assignment operator to enforce singleton
-    PreferencesHelper(const PreferencesHelper&) = delete;
+    PreferencesHelper(const PreferencesHelper&)            = delete;
     PreferencesHelper& operator=(const PreferencesHelper&) = delete;
 
     // ========================================
@@ -140,7 +140,7 @@ public:
      */
     bool setImageIndex(uint32_t index);
 
-private:
+  private:
     /**
      * @brief Private constructor for singleton pattern
      */
@@ -189,7 +189,7 @@ private:
     uint32_t getULong(const char* key, uint32_t defaultValue = 0);
 
     Preferences preferences; ///< ESP32 Preferences instance
-    bool isOpen = false; ///< Track if preferences are currently open
+    bool isOpen     = false; ///< Track if preferences are currently open
     bool isReadOnly = false; ///< Track if opened in read-only mode
 };
 

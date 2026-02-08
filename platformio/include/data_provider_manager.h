@@ -32,7 +32,7 @@ namespace photo_frame {
  * Handles registration and selection of data providers based on configuration.
  */
 class DataProviderManager {
-public:
+  public:
     explicit DataProviderManager(SdCard& sd_card, const unified_config& config);
 
     /**
@@ -52,7 +52,7 @@ public:
      */
     ImageLoadResult load_next_image(bool is_reset);
 
-private:
+  private:
     SdCard& sd_card_;
     const unified_config& config_;
     std::vector<DataProvider*> providers_;
