@@ -127,7 +127,7 @@ BatteryInfo BatteryReader::read() const
         log_i(".");
     } while (!max1704x.begin(&TheWire));
 
-    log_v("MAX1704X initialized..");
+    log_d("MAX1704X initialized..");
     delay(1000); // Allow some time for the sensor to initialize
 
     if (!max1704x.isDeviceReady()) {
@@ -139,7 +139,7 @@ BatteryInfo BatteryReader::read() const
     float percent = max1704x.cellPercent();
     float charge_rate = max1704x.chargeRate();
 
-    log_v("Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA",
+    log_d("Battery reading: voltage: %.2fV, percent: %.1f%%, charge rate: %.2f mA",
         voltage,
         percent,
         charge_rate);
