@@ -95,8 +95,9 @@ photo_frame_error_t BatteryManager::init() {
     log_i("[BatteryManager] Initializing BatteryReader on pin %d", BATTERY_PIN);
     pinMode(BATTERY_PIN, INPUT);
     analogSetPinAttenuation(BATTERY_PIN, ADC_11db);
-    delay(200); // Allow some time for the ADC to stabilize
 #endif
+
+    delay(200); // Allow some time for the ADC to stabilize
 
     initialized_ = true;
     log_i("[BatteryManager] BatteryReader initialized successfully");
@@ -115,18 +116,9 @@ photo_frame_error_t BatteryManager::read(BatteryInfo& info) const {
 
 photo_frame_error_t BatteryManager::readFromSensor(BatteryInfo& info) const {
     if (!max1704x.isDeviceReady()) {
-        log_w("[BatteryManager] MAX1704X device not ready, attempting reset");
-        max1704x.reset();
-        delay(100);
-        if (!max1704x.isDeviceReady()) {
-            log_e("[BatteryManager] MAX1704X device is not ready!");
-#ifdef BATTERY_POWER_SAVING
-            info.setEmpty();
-#else
-            info.setFull(); // Set to full to allow error handling instead of treating as empty
-#endif // BATTERY_POWER_SAVING
-            return error_type::BatteryNotDetected;
-        }
+        log_e("[BatteryManager] MAX1704X device is not ready!");
+        info.setFull(); // Set to full to allow error handling instead of treating as empty
+        return error_type::BatteryNotDetected;
     }
 
     float voltage     = max1704x.cellVoltage();
