@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import '../utils/app_logger.dart';
+import '../models/qr_code_data.dart';
+import 'qr_code_data_service.dart';
 
+// Old BLE connection info - kept for backward compatibility
 class DeviceConnectionInfo {
   final String ip;
   final String ssid;
@@ -23,12 +26,22 @@ class DeviceConnectionInfo {
 class DeepLinkHandler {
   final AppLinks _appLinks = AppLinks();
   final _connectionStreamController = StreamController<DeviceConnectionInfo>.broadcast();
+  final _qrCodeDataStreamController = StreamController<QRCodeData>.broadcast();
+  final QRCodeDataService _qrCodeDataService = QRCodeDataService();
 
   Stream<DeviceConnectionInfo> get connectionStream => _connectionStreamController.stream;
+  Stream<QRCodeData> get qrCodeDataStream => _qrCodeDataStreamController.stream;
 
   /// Initialize deep link handling
   /// Should be called once in the app's main method or initState
   Future<void> initialize() async {
+    // Initialize QR code data service first
+    try {
+      await _qrCodeDataService.initialize();
+    } catch (e) {
+      logger.severe('Failed to initialize QRCodeDataService: $e');
+    }
+
     // Handle initial link if app was opened from a link
     try {
       final initialUri = await _appLinks.getInitialAppLink();
@@ -56,7 +69,8 @@ class DeepLinkHandler {
 
   void _handleDeepLink(Uri uri) {
     try {
-      // Expected format: photoframe://connect?ip=192.168.1.100&ssid=MyWiFi&port=8080&v=1&d=1&w=800&h=480
+      // Expected format: photoframe://connect?wsUrl=ws://192.168.4.1:81&token=abc123xyz
+      // or old format: photoframe://connect?ip=192.168.1.100&ssid=MyWiFi&port=8080&v=1&d=1&w=800&h=480
       if (uri.scheme != 'photoframe') {
         logger.warning('Invalid scheme: ${uri.scheme}');
         return;
@@ -68,11 +82,19 @@ class DeepLinkHandler {
       }
 
       final params = uri.queryParameters;
+
+      // Check if it's the new WebSocket format
+      if (params.containsKey('wsUrl') && params.containsKey('token')) {
+        _handleWebSocketDeepLink(uri);
+        return;
+      }
+
+      // Otherwise, handle old BLE format
       final ip = params['ip'];
       final ssid = params['ssid'];
 
       if (ip == null || ssid == null) {
-        logger.warning('Missing required parameters: ip or ssid');
+        logger.warning('Missing required parameters: ip or ssid (old format) or wsUrl/token (new format)');
         return;
       }
 
@@ -92,26 +114,46 @@ class DeepLinkHandler {
         height: height,
       );
 
-      logger.info('Parsed connection info: $connectionInfo');
+      logger.info('Parsed connection info (BLE format): $connectionInfo');
       _connectionStreamController.add(connectionInfo);
     } catch (e) {
       logger.severe('Failed to parse deep link: $e');
     }
   }
 
+  /// Handle new WebSocket deep link format
+  Future<void> _handleWebSocketDeepLink(Uri uri) async {
+    try {
+      final qrData = QRCodeData.fromUri(uri);
+      logger.info('Parsed QR code data (WebSocket format): $qrData');
+
+      // Save QR data for later use
+      await _qrCodeDataService.saveQRData(qrData);
+
+      // Emit via stream
+      _qrCodeDataStreamController.add(qrData);
+    } catch (e) {
+      logger.severe('Failed to parse WebSocket deep link: $e');
+    }
+  }
+
+  /// Get current QR code data from storage
+  QRCodeData? getCurrentQRData() {
+    return _qrCodeDataService.getCurrentQRData();
+  }
+
   /// Manually parse a deep link URL (useful for testing)
-  DeviceConnectionInfo? parseUrl(String url) {
+  void parseUrl(String url) {
     try {
       final uri = Uri.parse(url);
       _handleDeepLink(uri);
-      return null; // Will be emitted via stream
     } catch (e) {
       logger.severe('Failed to parse URL: $e');
-      return null;
     }
   }
 
   void dispose() {
     _connectionStreamController.close();
+    _qrCodeDataStreamController.close();
   }
 }

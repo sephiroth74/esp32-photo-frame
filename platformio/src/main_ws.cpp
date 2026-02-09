@@ -456,8 +456,10 @@ void main_webserver_setup() {
 #endif
         "&w=" + std::to_string(EPD_WIDTH) + "&h=" + std::to_string(EPD_HEIGHT);
 
+    std::string boardAddress = apManager.getIP() + ":" + std::to_string(WS_PORT);
+
     photo_frame::ws_display_utils::drawConnectionInfoBox(
-        *g_display, apManager.getSSID(), apManager.getIP(), deepLinkUrl);
+        *g_display, apManager.getSSID(), boardAddress, deepLinkUrl);
 
     g_display->drawOverlay();
     g_display->drawLastUpdate(getCurrentDateTime(), 0);

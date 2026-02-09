@@ -1,4 +1,3 @@
-
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -99,7 +98,6 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     return factory.circularProgress(value: value);
   }
 
-
   Widget _buildLinearProgress(BuildContext context, double? value) {
     final factory = context.read<WidgetFactoryProvider>().factory;
     return factory.progress(value: value);
@@ -153,7 +151,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     final statusIcon = matches ? Icons.check_circle : Icons.warning;
     final statusText = matches
         ? 'Image dimensions match display'
-        : 'Image dimensions (${imageWidth}×${imageHeight}) differ from display (${displayWidth}×${displayHeight})';
+        : 'Image dimensions ($imageWidth×$imageHeight) differ from display ($displayWidth×$displayHeight)';
 
     return Container(
       padding: const EdgeInsets.all(8),

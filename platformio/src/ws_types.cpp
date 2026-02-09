@@ -105,6 +105,7 @@ String BoardInfo::toJson() {
 
     DisplaySize displaySize = getDisplaySize();
 
+    doc["type"]             = type;
     doc["board"]            = getBoardModel();
     doc["flash_size"]       = getFlashSizeStr();
     doc["flash_size_bytes"] = getFlashSize();

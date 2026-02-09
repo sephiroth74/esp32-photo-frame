@@ -19,6 +19,8 @@ class BoardInfo {
         uint16_t height;
     };
 
+    constexpr static char type[] = "board_info";
+
     /**
      * @brief Get board model name
      * @return Board model string
