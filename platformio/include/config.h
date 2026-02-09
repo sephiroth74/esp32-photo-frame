@@ -480,11 +480,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 
 #if defined(ENABLE_WEBSERVER_DATAPROVIDER)
-/// Webserver mode constants
-#ifndef WS_FIRST_BOOT_TIMEOUT_MS
-#define WS_FIRST_BOOT_TIMEOUT_MS (20 * 60 * 1000) // minutes timeout for first boot
-#endif                                            // WS_FIRST_BOOT_TIMEOUT_MS
-
 #ifndef WS_LISTEN_TIMEOUT_MS
 #define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
 #endif                                        // WS_LISTEN_TIMEOUT_MS

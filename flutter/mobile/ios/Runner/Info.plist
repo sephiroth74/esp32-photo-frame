@@ -47,6 +47,10 @@
 		<true/>
 		<key>NSLocalNetworkUsageDescription</key>
 		<string>This app needs to connect to your PhotoFrame device on the local network to upload images.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>This app needs camera access to scan QR codes from your PhotoFrame device.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs location access to detect WiFi network information.</string>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

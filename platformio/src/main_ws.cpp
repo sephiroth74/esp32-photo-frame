@@ -355,7 +355,7 @@ void main_webserver_setup() {
     }
 
     // Determine timeout based on boot type
-    uint32_t timeout_ms = is_first_boot ? WS_FIRST_BOOT_TIMEOUT_MS : WS_LISTEN_TIMEOUT_MS;
+    uint32_t timeout_ms = WS_LISTEN_TIMEOUT_MS;
 
     log_d("[WS] Starting image wait: %s",
           is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");

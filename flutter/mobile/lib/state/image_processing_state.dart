@@ -239,10 +239,6 @@ class ImageProcessingState extends ChangeNotifier {
         format: img.Format.uint8,
         numChannels: 4,
       );
-      if (intermediate == null) {
-        logger.severe('Failed to create Image from bytes');
-        return null;
-      }
 
       final jpegBytes = img.encodeJpg(intermediate, quality: 95);
 

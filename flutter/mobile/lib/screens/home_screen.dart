@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _galleryFuture = GalleryService.getGalleryImages();
 
     // Listen to deep link events
-    _deepLinkSubscription = main_app.deepLinkHandler.connectionStream.listen((deviceInfo) {
+    _deepLinkSubscription = main_app.deepLinkHandler.qrCodeDataStream.listen((deviceInfo) {
       _handleDeepLink(deviceInfo);
     });
   }
@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final bytes = await selectedImage.file.readAsBytes();
       final header = BinParser.parseHeader(bytes);
 
-      if (header != null) {
+      if (header != null && mounted) {
         // Create a minimal ProcessingJob from header
         final job = ProcessingJob(targetResolution: Size(header.width.toDouble(), header.height.toDouble()), rotation: header.rotation == 1 ? 90 : 0);
 

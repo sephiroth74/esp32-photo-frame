@@ -327,25 +327,6 @@ class WebSocketService {
     }
   }
 
-  // Simple CRC32 calculation
-  int _calculateCrc32(Uint8List data) {
-    const int polynomial = 0xEDB88320;
-    int crc = 0xFFFFFFFF;
-
-    for (final byte in data) {
-      crc ^= byte;
-      for (int j = 0; j < 8; j++) {
-        if ((crc & 1) != 0) {
-          crc = (crc >> 1) ^ polynomial;
-        } else {
-          crc = crc >> 1;
-        }
-      }
-    }
-
-    return crc ^ 0xFFFFFFFF;
-  }
-
   void _updateState(WsConnectionState newState) {
     if (_state != newState) {
       _state = newState;

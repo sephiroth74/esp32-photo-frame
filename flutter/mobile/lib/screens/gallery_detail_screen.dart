@@ -257,23 +257,3 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     return completer.future;
   }
 }
-
-class _UiImageProvider extends ImageProvider<_UiImageProvider> {
-  final ui.Image image;
-
-  _UiImageProvider(this.image);
-
-  @override
-  Future<_UiImageProvider> obtainKey(ImageConfiguration configuration) {
-    return SynchronousFuture<_UiImageProvider>(this);
-  }
-
-  @override
-  ImageStreamCompleter loadImage(_UiImageProvider key, ImageDecoderCallback decode) {
-    return OneFrameImageStreamCompleter(_loadImage());
-  }
-
-  Future<ImageInfo> _loadImage() async {
-    return ImageInfo(image: image);
-  }
-}

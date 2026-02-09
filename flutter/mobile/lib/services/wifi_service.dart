@@ -5,9 +5,15 @@ import 'package:network_info_plus/network_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../utils/app_logger.dart';
 
-class WifiService {
+class WiFiService {
   static const MethodChannel _platform = MethodChannel('photoframe/wifi');
   final NetworkInfo _networkInfo = NetworkInfo();
+
+  /// Static convenience method to get current SSID
+  static Future<String?> getCurrentSSID() async {
+    final service = WiFiService();
+    return await service.getCurrentSsid();
+  }
 
   /// Get the current WiFi SSID
   /// Returns null if not connected to WiFi or permission denied
@@ -31,7 +37,7 @@ class WifiService {
 
       // Remove quotes if present (iOS returns SSID with quotes)
       final cleanSsid = ssid.replaceAll('"', '');
-      logger.info('Current WiFi SSID: $cleanSsid');
+      // logger.info('Current WiFi SSID: $cleanSsid');
       return cleanSsid;
     } catch (e) {
       logger.severe('Failed to get WiFi SSID: $e');

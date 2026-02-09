@@ -9,7 +9,6 @@ final _logger = getLogger('ThumbnailCacheService');
 /// Service for caching thumbnails locally to avoid regenerating them
 class ThumbnailCacheService {
   static const _thumbnailDir = 'pfr1_thumbnails';
-  static const _thumbnailSize = 128; // Cache thumbnails at 128x128
 
   /// Get cached thumbnail file path for a given .pfr1 file
   static Future<File?> getCachedThumbnail(File pfr1File) async {

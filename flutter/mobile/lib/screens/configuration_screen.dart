@@ -1,0 +1,428 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:photoframe/models/qr_code_data.dart';
+import 'package:photoframe/screens/image_upload_screen.dart';
+import 'package:photoframe/services/wifi_service.dart';
+import 'package:photoframe/services/ws_connection_service.dart';
+import 'package:photoframe/utils/app_logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_settings/app_settings.dart';
+
+/// Configuration screen for WiFi and WebSocket connection
+class ConfigurationScreen extends StatefulWidget {
+  final QRCodeData? qrData;
+
+  const ConfigurationScreen({super.key, this.qrData});
+
+  @override
+  State<ConfigurationScreen> createState() => _ConfigurationScreenState();
+}
+
+class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsBindingObserver {
+  final _formKey = GlobalKey<FormState>();
+  final _ipController = TextEditingController(text: '192.168.4.1');
+  final _portController = TextEditingController(text: '81');
+
+  String? _currentSSID;
+  bool _isLoadingWiFi = true;
+  bool _wifiValid = false;
+  String? _expectedSSID;
+  Timer? _wifiPoller;
+  bool _isConnecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadSavedConfig();
+    _checkWiFiConnection();
+    _startWiFiPolling();
+
+    // If QR data provided, extract info
+    if (widget.qrData != null) {
+      _parseQRData();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _wifiPoller?.cancel();
+    _ipController.dispose();
+    _portController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkWiFiConnection(showLoading: false, showPermissionSnackBar: false);
+    }
+  }
+
+  /// Parse QR data to extract IP, port and SSID
+  void _parseQRData() {
+    try {
+      // Use IP and port directly from QR data
+      _ipController.text = widget.qrData!.ip;
+      _portController.text = widget.qrData!.port.toString();
+
+      // Get SSID from QRCodeData
+      _expectedSSID = widget.qrData!.ssid;
+
+      _checkWiFiConnection(showLoading: false, showPermissionSnackBar: false);
+
+      logger.info('Parsed QR data - IP: ${widget.qrData!.ip}, Port: ${widget.qrData!.port}, SSID: $_expectedSSID');
+    } catch (e) {
+      logger.severe('Failed to parse QR data: $e');
+    }
+  }
+
+  /// Load saved configuration from preferences
+  Future<void> _loadSavedConfig() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedIp = prefs.getString('connection_ip');
+      final savedPort = prefs.getString('connection_port');
+
+      if (savedIp != null && savedIp.isNotEmpty) {
+        _ipController.text = savedIp;
+      }
+
+      if (savedPort != null && savedPort.isNotEmpty) {
+        _portController.text = savedPort;
+      }
+
+      logger.info('Loaded saved config - IP: $savedIp, Port: $savedPort');
+    } catch (e) {
+      logger.warning('Failed to load saved config: $e');
+    }
+  }
+
+  /// Check current WiFi connection
+  Future<void> _checkWiFiConnection({bool showLoading = true, bool showPermissionSnackBar = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoadingWiFi = true;
+      });
+    }
+
+    try {
+      // Request location permission first (required on Android to get WiFi SSID)
+      final wifiService = WiFiService();
+      final permissionGranted = await wifiService.requestLocationPermission();
+
+      if (!permissionGranted) {
+        logger.warning('Location permission denied');
+        if (mounted) {
+          setState(() {
+            _currentSSID = 'Permission required';
+            _isLoadingWiFi = false;
+            _wifiValid = false;
+          });
+        }
+
+        if (showPermissionSnackBar && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location permission is required to verify WiFi network'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      final ssid = await WiFiService.getCurrentSSID();
+      if (mounted) {
+        setState(() {
+          _currentSSID = ssid;
+          _isLoadingWiFi = false;
+        });
+      }
+
+      // Validate WiFi
+      if (ssid != null) {
+        if (_expectedSSID != null) {
+          // If we have exact SSID from QR code, match exactly
+          _wifiValid = ssid == _expectedSSID;
+        } else {
+          // Otherwise, check if it starts with "PhotoFrame-"
+          _wifiValid = ssid.startsWith('PhotoFrame-');
+        }
+      } else {
+        _wifiValid = false;
+      }
+
+      if (!_wifiValid) {
+        logger.info('WiFi check - Current: $ssid, Expected: $_expectedSSID, Valid: $_wifiValid');
+      }
+    } catch (e) {
+      logger.severe('Failed to get WiFi info: $e');
+      if (mounted) {
+        setState(() {
+          _currentSSID = 'Error getting WiFi info';
+          _isLoadingWiFi = false;
+          _wifiValid = false;
+        });
+      }
+    }
+  }
+
+  void _startWiFiPolling() {
+    _wifiPoller?.cancel();
+    _wifiPoller = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || _isLoadingWiFi) {
+        return;
+      }
+      _checkWiFiConnection(showLoading: false, showPermissionSnackBar: false);
+    });
+  }
+
+  /// Open system WiFi settings
+  void _openWiFiSettings() {
+    AppSettings.openAppSettings(type: AppSettingsType.wifi);
+  }
+
+  /// Save configuration and connect to WebSocket
+  Future<void> _saveAndContinue() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_wifiValid) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please connect to the correct WiFi network first'), backgroundColor: Colors.orange));
+      return;
+    }
+
+    setState(() {
+      _isConnecting = true;
+    });
+
+    try {
+      final ip = _ipController.text;
+      final portStr = _portController.text;
+      final port = int.parse(portStr);
+
+      logger.info('Attempting WebSocket connection to $ip:$port');
+
+      // Get singleton instance and connect
+      final wsService = WsConnectionService();
+      final boardConfig = await wsService.connect(host: ip, port: port);
+
+      logger.info('WebSocket connection successful: $boardConfig');
+
+      // Save to preferences (including SSID)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('connection_ip', ip);
+      await prefs.setString('connection_port', portStr);
+      if (_currentSSID != null) {
+        await prefs.setString('connection_ssid', _currentSSID!);
+      }
+
+      logger.info('Configuration saved - IP: $ip, Port: $portStr, SSID: $_currentSSID');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Connected successfully! Ready to upload'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+        );
+
+        // Navigate to image upload screen with board config
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ImageUploadScreen(boardConfig: boardConfig)));
+        }
+      }
+    } catch (e) {
+      logger.severe('Failed to save configuration or connect: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Connection failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 3)));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConnecting = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('E-Paper Connection'), centerTitle: true),
+      body: AbsorbPointer(
+        absorbing: _isConnecting,
+        child: Opacity(
+          opacity: _isConnecting ? 0.6 : 1.0,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // WiFi Status Card
+                  Card(
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(_wifiValid ? Icons.wifi : Icons.wifi_off, color: _wifiValid ? Colors.green : Colors.orange),
+                              const SizedBox(width: 8),
+                              const Text('WiFi Connection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_isLoadingWiFi)
+                            const Row(
+                              children: [
+                                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                                SizedBox(width: 12),
+                                Text('Checking WiFi...'),
+                              ],
+                            )
+                          else ...[
+                            Text('Current Network: ${_currentSSID ?? "Not connected"}', style: const TextStyle(fontSize: 14)),
+                            if (_expectedSSID != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Required Network: $_expectedSSID',
+                                style: TextStyle(fontSize: 14, color: _wifiValid ? Colors.green : Colors.orange, fontWeight: FontWeight.bold),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Network must start with: PhotoFrame-',
+                                style: TextStyle(fontSize: 14, color: _wifiValid ? Colors.green : Colors.orange, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              'Open the WiFi settings and connect to the network displayed on your ESP32 screen',
+                              style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              ElevatedButton.icon(onPressed: _openWiFiSettings, icon: const Icon(Icons.settings), label: const Text('WiFi Settings')),
+                              const SizedBox(width: 12),
+                              ElevatedButton.icon(onPressed: _checkWiFiConnection, icon: const Icon(Icons.refresh), label: const Text('Refresh')),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Connection Configuration Card
+                  Card(
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.settings_ethernet, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('Connection Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _ipController,
+                            decoration: const InputDecoration(
+                              labelText: 'IP Address',
+                              hintText: '192.168.4.1',
+                              prefixIcon: Icon(Icons.computer),
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter an IP address';
+                              }
+                              // Basic IP validation
+                              final parts = value.split('.');
+                              if (parts.length != 4) {
+                                return 'Invalid IP address format';
+                              }
+                              for (final part in parts) {
+                                final num = int.tryParse(part);
+                                if (num == null || num < 0 || num > 255) {
+                                  return 'Invalid IP address';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _portController,
+                            decoration: const InputDecoration(
+                              labelText: 'Port',
+                              hintText: '81',
+                              prefixIcon: Icon(Icons.power),
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a port number';
+                              }
+                              final port = int.tryParse(value);
+                              if (port == null || port < 1 || port > 65535) {
+                                return 'Invalid port number (1-65535)';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  // Continue Button
+                  ElevatedButton(
+                    onPressed: (_wifiValid && !_isConnecting) ? _saveAndContinue : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: (_wifiValid && !_isConnecting) ? Colors.indigo : Colors.grey,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isConnecting) ...[
+                          const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo)),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Text('Save & Connect', style: TextStyle(fontSize: 16, color: _wifiValid ? Colors.white : Colors.black)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

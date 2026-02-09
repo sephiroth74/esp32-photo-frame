@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:photoframe/utils/app_logger.dart';
-import 'package:provider/provider.dart';
 
 // Old implementation kept for reference
 // import 'screens/home_screen.dart';

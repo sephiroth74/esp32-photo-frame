@@ -29,7 +29,7 @@ class WebSocketUploadScreen extends StatefulWidget {
 
 class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
   final ws.WebSocketService _wsService = ws.WebSocketService();
-  final WifiService _wifiService = WifiService();
+  final WiFiService _wifiService = WiFiService();
   final TextEditingController _ipController = TextEditingController();
   final TextEditingController _portController = TextEditingController(text: '8080');
   final TextEditingController _ssidController = TextEditingController();
@@ -735,7 +735,7 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                 child: const Text(
                   '⚠️ You are connected to a different WiFi network. '
                   'Please connect to the correct network to communicate with the device.',
@@ -747,7 +747,7 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                 child: const Text('❌ Not connected to WiFi. Please connect to the device\'s WiFi network.', style: TextStyle(fontSize: 12)),
               ),
             ],
@@ -795,7 +795,7 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
             if (isConnected && deviceInfo != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -937,7 +937,7 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
 
   Widget _buildErrorCard() {
     return Card(
-      color: Colors.red.withOpacity(0.1),
+      color: Colors.red.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
@@ -955,7 +955,7 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
 
   Widget _buildSuccessCard() {
     return Card(
-      color: Colors.green.withOpacity(0.1),
+      color: Colors.green.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
