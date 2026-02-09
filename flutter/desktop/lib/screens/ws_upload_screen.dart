@@ -35,7 +35,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
 
   Future<void> _loadSavedSettings() async {
     await Preferences.initialize();
-
+    assert(mounted);
     final ws = context.read<WsUploadState>();
     final savedIp = Preferences.getString(_ipHistoryKey);
     final savedPort = Preferences.getString(_portHistoryKey);

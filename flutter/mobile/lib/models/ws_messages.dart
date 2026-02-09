@@ -34,8 +34,7 @@ class BoardConfig {
 
   /// Check if a JSON map looks like a BoardConfig
   static bool looksLikeConfig(Map<String, dynamic> json) {
-    return 
-        json.containsKey('type') &&
+    return json.containsKey('type') &&
         json.containsKey('board') &&
         json.containsKey('flash_size') &&
         json.containsKey('display_width') &&

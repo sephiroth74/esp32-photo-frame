@@ -157,7 +157,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       }
 
       if (!_wifiValid) {
-        logger.info('WiFi check - Current: $ssid, Expected: $_expectedSSID, Valid: $_wifiValid');
+        // logger.info('WiFi check - Current: $ssid, Expected: $_expectedSSID, Valid: $_wifiValid');
       }
     } catch (e) {
       logger.severe('Failed to get WiFi info: $e');

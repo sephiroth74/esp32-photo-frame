@@ -145,7 +145,7 @@ class WsConnectionService {
         final json = jsonDecode(message) as Map<String, dynamic>;
         logger.fine('Received message type: ${json['type']}');
 
-        if(json['type'] == 'board_info') {
+        if (json['type'] == 'board_info') {
           final config = BoardConfig.fromJson(json);
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.complete(config);

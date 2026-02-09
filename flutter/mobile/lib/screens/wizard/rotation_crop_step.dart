@@ -90,7 +90,9 @@ class _RotationCropStepState extends State<RotationCropStep> {
                                   child: Transform(
                                     alignment: Alignment.center,
                                     transform: Matrix4.identity()
+                                      // ignore: deprecated_member_use
                                       ..translate(_panOffset.dx, _panOffset.dy)
+                                      // ignore: deprecated_member_use
                                       ..scale(_cropZoom),
                                     child: RotatedBox(
                                       quarterTurns: widget.job.rotation ~/ 90,
@@ -101,7 +103,7 @@ class _RotationCropStepState extends State<RotationCropStep> {
                                 IgnorePointer(
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.yellow.withOpacity(0.5), width: 1, style: BorderStyle.solid),
+                                      border: Border.all(color: Colors.yellow.withValues(alpha: 0.5), width: 1, style: BorderStyle.solid),
                                     ),
                                   ),
                                 ),

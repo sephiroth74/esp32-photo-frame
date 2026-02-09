@@ -61,7 +61,9 @@ class PreviewCard extends StatelessWidget {
         imageWithOverlay = Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
+            // ignore: deprecated_member_use
             ..translate(job.panOffset.dx, job.panOffset.dy)
+            // ignore: deprecated_member_use
             ..scale(job.cropZoom),
           child: RotatedBox(quarterTurns: job.rotation ~/ 90, child: imageWithOverlay),
         );

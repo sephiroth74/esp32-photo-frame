@@ -138,7 +138,9 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       await tempFile.writeAsBytes(binaryData, flush: true);
       await Share.shareXFiles([XFile(tempFile.path)], text: 'PhotoFrame .pfr1 ready for desktop test');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sharing failed: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sharing failed: $e')));
+      }
     }
   }
 

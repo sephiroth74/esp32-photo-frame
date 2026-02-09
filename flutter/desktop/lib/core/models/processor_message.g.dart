@@ -43,12 +43,6 @@ FileFailedMessage _$FileFailedMessageFromJson(Map<String, dynamic> json) => File
   error: json['error'] as String,
 );
 
-Map<String, dynamic> _$FileFailedMessageToJson(FileFailedMessage instance) => <String, dynamic>{
-  'phase': _$ProcessorMessagePhaseEnumMap[instance.phase]!,
-  'input_path': instance.inputPath,
-  'error': instance.error,
-};
-
 ProcessorSummary _$ProcessorSummaryFromJson(Map<String, dynamic> json) => ProcessorSummary(
   failed: (json['failed'] as num).toInt(),
   paired: (json['paired'] as num).toInt(),
@@ -57,14 +51,6 @@ ProcessorSummary _$ProcessorSummaryFromJson(Map<String, dynamic> json) => Proces
   totalOutputImages: (json['total_output_images'] as num).toInt(),
 );
 
-Map<String, dynamic> _$ProcessorSummaryToJson(ProcessorSummary instance) => <String, dynamic>{
-  'failed': instance.failed,
-  'paired': instance.paired,
-  'processed': instance.processed,
-  'total_files': instance.totalFiles,
-  'total_output_images': instance.totalOutputImages,
-};
-
 ProcessorCompleteMessage _$ProcessorCompleteMessageFromJson(Map<String, dynamic> json) => ProcessorCompleteMessage(
   totalFiles: (json['total_files'] as num).toInt(),
   processed: (json['processed'] as num).toInt(),
@@ -72,11 +58,3 @@ ProcessorCompleteMessage _$ProcessorCompleteMessageFromJson(Map<String, dynamic>
   durationInSeconds: (json['duration_secs'] as num).toDouble(),
   summary: ProcessorSummary.fromJson(json['summary'] as Map<String, dynamic>),
 );
-
-Map<String, dynamic> _$ProcessorCompleteMessageToJson(ProcessorCompleteMessage instance) => <String, dynamic>{
-  'total_files': instance.totalFiles,
-  'processed': instance.processed,
-  'failed': instance.failed,
-  'duration_secs': instance.durationInSeconds,
-  'summary': instance.summary,
-};

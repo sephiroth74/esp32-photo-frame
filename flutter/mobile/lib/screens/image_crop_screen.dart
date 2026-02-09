@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:photoframe/models/ws_messages.dart';
@@ -17,12 +18,12 @@ class ImageCropScreen extends StatefulWidget {
 }
 
 class _ImageCropScreenState extends State<ImageCropScreen> {
-  static const double _maxScale = 4.0;
-  static const double _minScale = 1.0;
+  static const double _minUserScale = 1.0;
+  static const double _maxUserScale = 4.0;
 
   Size? _imageSize;
+  ui.Image? _decodedImage;
   Offset _offset = Offset.zero;
-  Offset _startOffset = Offset.zero;
   double _userScale = 1.0;
   double _startScale = 1.0;
   bool _isRotated = false;
@@ -64,10 +65,19 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
     try {
       final size = await completer.future;
+
+      // Decode the image
+      final bytes = await widget.imageFile.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frameInfo = await codec.getNextFrame();
+      final decodedImage = frameInfo.image;
+
       if (mounted) {
         setState(() {
           _imageSize = size;
+          _decodedImage = decodedImage;
         });
+        debugPrint('imageSize resolved: $size');
       }
     } catch (e) {
       logger.severe('Failed to resolve image size: $e');
@@ -76,23 +86,49 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
   void _onScaleStart(ScaleStartDetails details) {
     _startScale = _userScale;
-    _startOffset = _offset;
   }
 
-  void _onScaleUpdate(ScaleUpdateDetails details, Size cropSize) {
-    final newScale = (_startScale * details.scale).clamp(_minScale, _maxScale).toDouble();
+  void _onScaleUpdate(ScaleUpdateDetails details, Size cropSize, Size imageSize) {
+    final newUserScale = (_startScale * details.scale).clamp(_minUserScale, _maxUserScale).toDouble();
 
     // Accumula il pan durante la gesture
     final dx = details.focalPointDelta.dx;
     final dy = details.focalPointDelta.dy;
     final updatedOffset = Offset(_offset.dx + dx, _offset.dy + dy);
 
-    // Il clamping basato sulla nuova scala
-    final displaySize = Size(cropSize.width * newScale, cropSize.height * newScale);
+    // Calcola minScale: scala minima per riempire il crop frame
+    final minScale = math.max(cropSize.width / imageSize.width, cropSize.height / imageSize.height);
+    // Dimensione immagine scalata finale
+    final displaySize = Size(imageSize.width * minScale * newUserScale, imageSize.height * minScale * newUserScale);
+
+    // Debug clamping calculation
+    final maxX = math.max(0, (displaySize.width - cropSize.width) / 2);
+    final maxY = math.max(0, (displaySize.height - cropSize.height) / 2);
     final clamped = _clampOffset(updatedOffset, displaySize, cropSize);
 
+    debugPrint('onScaleUpdate: userScale=$newUserScale minScale=$minScale');
+    debugPrint('  displaySize=$displaySize cropSize=$cropSize');
+    debugPrint('  maxX=$maxX maxY=$maxY');
+    debugPrint('  updatedOffset=$updatedOffset clamped=$clamped');
+
+    // Check if image borders are inside crop area
+    final imageLeft = clamped.dx - displaySize.width / 2;
+    final imageRight = clamped.dx + displaySize.width / 2;
+    final imageTop = clamped.dy - displaySize.height / 2;
+    final imageBottom = clamped.dy + displaySize.height / 2;
+    final cropLeft = -cropSize.width / 2;
+    final cropRight = cropSize.width / 2;
+    final cropTop = -cropSize.height / 2;
+    final cropBottom = cropSize.height / 2;
+
+    debugPrint('  Image bounds: L=$imageLeft R=$imageRight T=$imageTop B=$imageBottom');
+    debugPrint('  Crop bounds: L=$cropLeft R=$cropRight T=$cropTop B=$cropBottom');
+    if (imageLeft > cropLeft || imageRight < cropRight || imageTop > cropTop || imageBottom < cropBottom) {
+      debugPrint('  ⚠️ WARNING: Image does not cover crop area!');
+    }
+
     setState(() {
-      _userScale = newScale;
+      _userScale = newUserScale;
       _offset = clamped;
     });
   }
@@ -109,21 +145,6 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
       _isRotated = !_isRotated;
       _userScale = 1.0;
       _offset = Offset.zero;
-    });
-  }
-
-  void _ensureClamped(Offset clampedOffset) {
-    if (clampedOffset == _offset) {
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _offset = clampedOffset;
-      });
     });
   }
 
@@ -174,12 +195,24 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                     final cropSize = Size(cropWidth, cropHeight);
                     final cropCenter = Offset(maxWidth / 2, maxHeight / 2);
                     final cropRect = Rect.fromCenter(center: cropCenter, width: cropSize.width, height: cropSize.height);
+                    final imageSize = _imageSize!;
+                    final minScale = math.max(cropSize.width / imageSize.width, cropSize.height / imageSize.height);
+                    final finalScale = minScale * _userScale;
+                    final displaySize = Size(imageSize.width * finalScale, imageSize.height * finalScale);
+
+                    debugPrint('cropSize: $cropSize');
+                    debugPrint('cropCenter: $cropCenter');
+                    debugPrint('cropRect: $cropRect');
+                    debugPrint('imageSize: $imageSize');
+                    debugPrint('minScale: $minScale userScale: $_userScale finalScale: $finalScale');
+                    debugPrint('displaySize: $displaySize');
 
                     // Ensure offset stays valid when crop size changes (e.g., during rotation)
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!mounted) return;
-                      final displaySize = Size(cropSize.width * _userScale, cropSize.height * _userScale);
+                      if (!mounted || _imageSize == null) return;
                       final clamped = _clampOffset(_offset, displaySize, cropSize);
+                      debugPrint('clamped offset: $clamped');
+
                       if (clamped != _offset) {
                         setState(() {
                           _offset = clamped;
@@ -194,26 +227,27 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         const ColoredBox(color: Colors.black),
 
                         // Gesture detector covering entire screen
-                        Positioned.fill(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onScaleStart: _onScaleStart,
-                            onScaleUpdate: (details) => _onScaleUpdate(details, cropSize),
-                            child: Center(
-                              child: Transform(
-                                alignment: Alignment.center,
-                                transform: Matrix4.identity()
-                                  ..translate(_offset.dx, _offset.dy)
-                                  ..scale(_userScale),
-                                child: SizedBox(
-                                  width: cropSize.width,
-                                  height: cropSize.height,
-                                  child: Image.file(widget.imageFile, fit: BoxFit.cover),
+                        if (_imageSize != null && _decodedImage != null)
+                          Positioned.fill(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onScaleStart: _onScaleStart,
+                              onScaleUpdate: (details) => _onScaleUpdate(details, cropSize, imageSize),
+                              child: CustomPaint(
+                                painter: ImageCropPainter(
+                                  image: _decodedImage!,
+                                  imageSize: imageSize,
+                                  cropSize: cropSize,
+                                  cropCenter: cropCenter,
+                                  offset: _offset,
+                                  scale: finalScale,
                                 ),
+                                size: Size.infinite,
                               ),
                             ),
-                          ),
-                        ),
+                          )
+                        else
+                          const Positioned.fill(child: Center(child: CircularProgressIndicator())),
 
                         // Crop frame overlay (border and darkened surroundings)
                         IgnorePointer(
@@ -273,6 +307,51 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
   }
 }
 
+class ImageCropPainter extends CustomPainter {
+  final ui.Image image;
+  final Size imageSize;
+  final Size cropSize;
+  final Offset cropCenter;
+  final Offset offset;
+  final double scale;
+
+  ImageCropPainter({
+    required this.image,
+    required this.imageSize,
+    required this.cropSize,
+    required this.cropCenter,
+    required this.offset,
+    required this.scale,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Calcola la dimensione scalata dell'immagine
+    final scaledImageWidth = imageSize.width * scale;
+    final scaledImageHeight = imageSize.height * scale;
+
+    // Posizione dell'immagine scalata (centrata)
+    final imageX = offset.dx + size.width / 2 - scaledImageWidth / 2;
+    final imageY = offset.dy + size.height / 2 - scaledImageHeight / 2;
+
+    // Rect di destinazione dove rendere l'immagine scalata
+    final dstRect = Rect.fromLTWH(imageX, imageY, scaledImageWidth, scaledImageHeight);
+
+    // Rect dell'immagine originale (uso tutta l'immagine)
+    final srcRect = Rect.fromLTWH(0, 0, imageSize.width.toDouble(), imageSize.height.toDouble());
+
+    // Disegna l'immagine
+    canvas.drawImageRect(image, srcRect, dstRect, Paint());
+
+    debugPrint('ImageCropPainter: dstRect=$dstRect, imageX=$imageX, imageY=$imageY, offset=$offset');
+  }
+
+  @override
+  bool shouldRepaint(ImageCropPainter oldDelegate) {
+    return oldDelegate.offset != offset || oldDelegate.scale != scale || oldDelegate.image != image;
+  }
+}
+
 class CropOverlayPainter extends CustomPainter {
   final Rect cropRect;
 
@@ -301,13 +380,17 @@ class CropOverlayPainter extends CustomPainter {
       canvas.drawLine(
         Offset(cropRect.left + i * thirdWidth, cropRect.top),
         Offset(cropRect.left + i * thirdWidth, cropRect.bottom),
-        borderPaint..color = Colors.white.withValues(alpha: .5)..strokeWidth = 1,
+        borderPaint
+          ..color = Colors.white.withValues(alpha: .5)
+          ..strokeWidth = 1,
       );
       // Horizontal lines
       canvas.drawLine(
         Offset(cropRect.left, cropRect.top + i * thirdHeight),
         Offset(cropRect.right, cropRect.top + i * thirdHeight),
-        borderPaint..color = Colors.white.withValues(alpha: .5)..strokeWidth = 1,
+        borderPaint
+          ..color = Colors.white.withValues(alpha: .5)
+          ..strokeWidth = 1,
       );
     }
   }

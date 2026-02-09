@@ -481,7 +481,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 #if defined(ENABLE_WEBSERVER_DATAPROVIDER)
 #ifndef WS_LISTEN_TIMEOUT_MS
-#define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 5 minutes timeout for subsequent boots
+#define WS_LISTEN_TIMEOUT_MS (10 * 60 * 1000) // 10 minutes timeout for subsequent boots
 #endif                                        // WS_LISTEN_TIMEOUT_MS
 
 #ifndef WS_BATTERY_CHECK_INTERVAL_MS

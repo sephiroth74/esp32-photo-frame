@@ -82,6 +82,10 @@
 #define DISPLAY_POWER_PIN 17
 #define DISPLAY_POWER_ACTIVE_LOW 0 // ProS3 LDO2: HIGH = ON, LOW = OFF
 
+#if defined(ENABLE_WEBSERVER_DATAPROVIDER)
+#define WS_LISTEN_TIMEOUT_MS (60 * 60 * 1000) // 10 minutes timeout for subsequent boots
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
+
 // ===========================================================================
 // Timezone Configuration
 // ===========================================================================

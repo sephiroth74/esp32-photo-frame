@@ -448,7 +448,7 @@ class _GalleryGridItemState extends State<_GalleryGridItem> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     decoration: BoxDecoration(
-                      color: widget.selected ? Colors.black.withOpacity(0.35) : Colors.transparent,
+                      color: widget.selected ? Colors.black.withValues(alpha: 0.35) : Colors.transparent,
                       border: Border.all(color: widget.selected ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
                     ),
                   ),

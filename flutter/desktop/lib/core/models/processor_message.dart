@@ -98,7 +98,7 @@ class FileCompletedMessage extends ProcessorMessage {
   Map<String, dynamic> toJson() => _$FileCompletedMessageToJson(this);
 }
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class FileFailedMessage extends ProcessorMessage {
   @JsonKey(name: 'input_path')
   final String inputPath;
@@ -111,7 +111,7 @@ class FileFailedMessage extends ProcessorMessage {
   factory FileFailedMessage.fromJson(Map<String, dynamic> json) => _$FileFailedMessageFromJson(json);
 }
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class ProcessorSummary {
   @JsonKey(name: 'failed')
   final int failed;
@@ -142,7 +142,7 @@ class ProcessorSummary {
 // "report":{"config":{"extensions":"jpg,jpeg,png,heic,webp,tiff","input_paths":["/Users/alessandro/Desktop/arduino/photos/test"],"no_pairing":true,"output_dir":"/Users/alessandro/Desktop/arduino/photos/outputs/test","output_formats":["pfr1","jpg"]},"paired_images":[],"processed_images":[{"detect_ms":1025,"faces":2,"output":"1691418184145_e6d26805.pfr1","size":"480x800","source":"1691418184145.jpg","total_ms":1381},{"detect_ms":439,"faces":1,"output":"20220720_195613_9df835e7.pfr1","size":"480x800","source":"20220720_195613.jpg","total_ms":629},{"detect_ms":279,"faces":1,"output":"20220720_195642_477d8ece.pfr1","size":"480x800","source":"20220720_195642.jpg","total_ms":386},{"detect_ms":889,"faces":1,"output":"20220721_083759_d772beaf.pfr1","size":"480x800","source":"20220721_083759.jpg","total_ms":1097},{"detect_ms":594,"faces":2,"output":"20230402_170803_1dd60086.pfr1","size":"480x800","source":"20230402_170803.jpg","total_ms":759},{"detect_ms":1405,"faces":13,"output":"20230409_175100_54dc816d.pfr1","size":"480x800","source":"20230409_175100.jpg","total_ms":1559},{"detect_ms":1192,"faces":0,"output":"DSC_0599_89c0aa70.pfr1","size":"480x800","source":"DSC_0599.jpg","total_ms":1710},{"detect_ms":1289,"faces":1,"output":"IMG-20250610-WA0018_6aa37055.pfr1","size":"480x800","source":"IMG-20250610-WA0018.jpg","total_ms":1449},{"detect_ms":295,"faces":2,"output":"IMG-20250719-WA0004_1e9c3e76.pfr1","size":"480x800","source":"IMG-20250719-WA0004.jpg","total_ms":379},{"detect_ms":1125,"faces":2,"output":"IMG-20251006-WA0002_97794d4d.pfr1","size":"480x800","source":"IMG-20251006-WA0002.jpg","total_ms":1209},{"detect_ms":286,"faces":2,"output":"IMG-20251006-WA0003_c4092582.pfr1","size":"480x800","source":"IMG-20251006-WA0003.jpg","total_ms":389},{"detect_ms":263,"faces":1,"output":"IMG-20251113-WA0000_38b43cc4.pfr1","size":"480x800","source":"IMG-20251113-WA0000.jpg","total_ms":451},{"detect_ms":763,"faces":5,"output":"PXL_20250530_133132350_949f7883.pfr1","size":"480x800","source":"PXL_20250530_133132350.jpg","total_ms":967},{"detect_ms":1398,"faces":0,"output":"DSC0468-Edit_ccacfd2b.pfr1","size":"480x800","source":"_DSC0468-Edit.jpg","total_ms":1754},{"detect_ms":1177,"faces":4,"output":"cc7d8f28-49dd-4a0d-82f2-a5fe7facb882_beb9c921.pfr1","size":"480x800","source":"cc7d8f28-49dd-4a0d-82f2-a5fe7facb882.JPG","total_ms":1315},{"detect_ms":1425,"faces":0,"output":"default_portrait_50d7a647.pfr1","size":"480x800","source":"default_portrait.jpg","total_ms":1522}],"summary":{"failed_images":0,"image_pairs_created":0,"images_processed":16,"invalid_files":0,"total_files_discovered":16,"total_output_images":16,"unpaired_images":0}},
 // "summary":{"failed":0,"paired":0,"processed":16,"total_files":16,"total_output_images":16}}
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class ProcessorCompleteMessage extends ProcessorMessage {
   @JsonKey(name: 'total_files')
   final int totalFiles;
