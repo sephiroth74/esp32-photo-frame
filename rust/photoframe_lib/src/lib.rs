@@ -3,14 +3,13 @@ mod core;
 pub mod dithering;
 pub mod types;
 
-use image::ImageEncoder;
-use std::slice;
-
 // Re-export core public API for Rust users (include color adjustments)
 pub use core::{
     apply_color_adjustments, convert_bw_to_demo_bitmap_mode1, convert_image_from_bytes,
     convert_to_demo_bitmap_mode1, convert_to_esp32_binary, process_image_with_display_type,
 };
+use image::ImageEncoder;
+use std::slice;
 
 // Re-export the dithering dispatcher from the dithering module
 pub use dithering::apply_dithering;
@@ -65,15 +64,8 @@ pub extern "C" fn photoframe_dithering_free(ptr: *mut u8, len: usize) {
 /// Safety and parameter mapping (FFI):
 /// - `image_data` must point to a valid buffer of length `image_len` containing a
 ///   JPEG/PNG/etc image in a format understood by the `image` crate.
-/// - `method`: mapping to `DitheringMethod`:
-///     - 0 => FloydSteinberg
-///     - 1 => Atkinson
-///     - 2 => Stucki
-///     - 3 => JarvisJudiceNinke
-///     - 4 => Ordered
-/// - `display_type`: mapping:
-///     - 0 => SixColors
-///     - 1 => BlackAndWhite
+/// - `method`: mapping to `DitheringMethod` (see `DitheringMethod` enum)
+/// - `color_mode`: mapping (see `ColorMode`)
 /// - `dither_strength`: recommended range 0.0..=2.0 (1.0 default). Values outside
 ///   that range are accepted but may produce extreme visual results.
 /// - `saturation`, `contrast`, `brightness`: same semantics and recommended ranges
@@ -86,8 +78,8 @@ pub extern "C" fn photoframe_dithering_free(ptr: *mut u8, len: usize) {
 pub unsafe extern "C" fn photoframe_dithering_apply(
     image_data: *const u8,
     image_len: usize,
-    method: u8,
-    display_type: u8,
+    dither_method: DitheringMethod,
+    color_mode: ColorMode,
     dither_strength: f32,
     saturation: f32,
     contrast: f32,
@@ -111,27 +103,12 @@ pub unsafe extern "C" fn photoframe_dithering_apply(
     };
 
     // Apply color adjustments (function now lives in core module)
-    let adjusted = crate::core::apply_color_adjustments(&img, saturation, contrast, brightness);
-
-    // Parse method and display type
-    let dither_method = match method {
-        0 => DitheringMethod::FloydSteinberg,
-        1 => DitheringMethod::Atkinson,
-        2 => DitheringMethod::Stucki,
-        3 => DitheringMethod::JarvisJudiceNinke,
-        4 => DitheringMethod::Ordered,
-        _ => DitheringMethod::FloydSteinberg,
-    };
-
-    let display = match display_type {
-        0 => DisplayType::SixColors,
-        1 => DisplayType::BlackAndWhite,
-        _ => DisplayType::SixColors,
-    };
+    let adjusted = apply_color_adjustments(&img, saturation, contrast, brightness);
+    //let dither = DitheringMethod::from_str(&dither_method, true).unwrap_or(DitheringMethod::FloydSteinberg);
+    //let display = ColorMode::from(color_mode);
 
     // Apply dithering
-    let result =
-        crate::dithering::apply_dithering(&adjusted, dither_method, display, dither_strength);
+    let result = apply_dithering(&adjusted, dither_method, color_mode, dither_strength);
     if result.is_err() {
         return DitheringResult {
             success: false,

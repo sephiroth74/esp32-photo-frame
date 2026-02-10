@@ -1,10 +1,12 @@
 use super::ProcessedImage;
 use crate::fs_utils::get_format_extension;
 use crate::json_output::{JsonMessage, Phase};
-use crate::types::{ColorType, Orientation, OutputType};
+use crate::types::OutputType;
 use anyhow::{Context, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use photoframe_lib::{ColorMode, DisplayType, build_bin_file, process_image_with_display_type};
+use photoframe_lib::{
+    ColorMode, DisplayType, Orientation, build_bin_file, process_image_with_display_type,
+};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use sha2::{Digest, Sha256};
@@ -25,7 +27,7 @@ pub fn save_outputs(
     processed: &[ProcessedImage],
     output_dir: &Path,
     output_formats: &[OutputType],
-    processing_type: ColorType,
+    processing_type: ColorMode,
     target_orientation: Orientation,
     multi: &MultiProgress,
     json_progress: bool,
@@ -106,13 +108,8 @@ pub fn save_outputs(
         .flat_map(|(idx, img)| output_formats.iter().map(move |format| (idx, img, *format)))
         .collect();
 
-    let display_type = match processing_type {
-        ColorType::BlackWhite => DisplayType::BlackAndWhite,
-        ColorType::SixColor => DisplayType::SixColors,
-    };
-
+    let display_type = <ColorMode as Into<DisplayType>>::into(processing_type);
     let output_dir = output_dir.to_path_buf();
-
     let json_counter = AtomicUsize::new(0);
     let results: Vec<(usize, Result<()>)> = pool.install(|| {
         save_jobs

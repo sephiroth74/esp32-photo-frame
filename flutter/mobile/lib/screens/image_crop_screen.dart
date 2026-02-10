@@ -4,7 +4,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 import 'package:photoframe/models/ws_messages.dart';
+import 'package:photoframe/screens/dithering_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
 
 class ImageCropScreen extends StatefulWidget {
@@ -28,6 +31,10 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
   double _startScale = 1.0;
   bool _isRotated = false;
   double? _currentAspect;
+  Size? _lastCropSize;
+  Offset? _lastCropCenter;
+  double? _lastMinScale;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -35,6 +42,12 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     _resolveImageSize();
     _isRotated = widget.boardConfig.displayRotation % 2 == 1;
     _currentAspect = _targetAspect;
+  }
+
+  @override
+  void dispose() {
+    _decodedImage?.dispose();
+    super.dispose();
   }
 
   double get _baseAspect => widget.boardConfig.displayWidth / widget.boardConfig.displayHeight;
@@ -77,7 +90,6 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
           _imageSize = size;
           _decodedImage = decodedImage;
         });
-        debugPrint('imageSize resolved: $size');
       }
     } catch (e) {
       logger.severe('Failed to resolve image size: $e');
@@ -106,11 +118,6 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     final maxY = math.max(0, (displaySize.height - cropSize.height) / 2);
     final clamped = _clampOffset(updatedOffset, displaySize, cropSize);
 
-    debugPrint('onScaleUpdate: userScale=$newUserScale minScale=$minScale');
-    debugPrint('  displaySize=$displaySize cropSize=$cropSize');
-    debugPrint('  maxX=$maxX maxY=$maxY');
-    debugPrint('  updatedOffset=$updatedOffset clamped=$clamped');
-
     // Check if image borders are inside crop area
     final imageLeft = clamped.dx - displaySize.width / 2;
     final imageRight = clamped.dx + displaySize.width / 2;
@@ -121,10 +128,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     final cropTop = -cropSize.height / 2;
     final cropBottom = cropSize.height / 2;
 
-    debugPrint('  Image bounds: L=$imageLeft R=$imageRight T=$imageTop B=$imageBottom');
-    debugPrint('  Crop bounds: L=$cropLeft R=$cropRight T=$cropTop B=$cropBottom');
     if (imageLeft > cropLeft || imageRight < cropRight || imageTop > cropTop || imageBottom < cropBottom) {
-      debugPrint('  ⚠️ WARNING: Image does not cover crop area!');
+      // Image does not completely cover crop area
     }
 
     setState(() {
@@ -155,152 +160,273 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     });
   }
 
-  void _continue() {
-    logger.info('Continue to next step (not implemented yet)');
+  Future<void> _continue() async {
+    if (_isSaving) {
+      return;
+    }
+
+    final cropSize = _lastCropSize;
+    final cropCenter = _lastCropCenter;
+    final imageSize = _imageSize;
+    final minScale = _lastMinScale;
+
+    if (cropSize == null || cropCenter == null || imageSize == null || minScale == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Crop data not ready yet'), backgroundColor: Colors.orange));
+      }
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final croppedFile = await _saveCroppedImage(
+        cropSize: cropSize,
+        cropCenter: cropCenter,
+        imageSize: imageSize,
+        minScale: minScale,
+        isRotated: _isRotated,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DitheringScreen(croppedImageFile: croppedFile, boardConfig: widget.boardConfig),
+        ),
+      );
+    } catch (e) {
+      logger.severe('Failed to save cropped image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save cropped image: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<File> _saveCroppedImage({
+    required Size cropSize,
+    required Offset cropCenter,
+    required Size imageSize,
+    required double minScale,
+    required bool isRotated,
+  }) async {
+    final finalScale = minScale * _userScale;
+    final scaledSize = Size(imageSize.width * finalScale, imageSize.height * finalScale);
+    final scaledImageTopLeft = Offset(cropCenter.dx + _offset.dx - scaledSize.width / 2, cropCenter.dy + _offset.dy - scaledSize.height / 2);
+    final cropRect = Rect.fromCenter(center: cropCenter, width: cropSize.width, height: cropSize.height);
+    final relative = Offset(cropRect.left - scaledImageTopLeft.dx, cropRect.top - scaledImageTopLeft.dy);
+
+    var srcX = relative.dx / finalScale;
+    var srcY = relative.dy / finalScale;
+    var srcW = cropSize.width / finalScale;
+    var srcH = cropSize.height / finalScale;
+
+    // Clamp to image bounds
+    if (srcX < 0) srcX = 0;
+    if (srcY < 0) srcY = 0;
+    if (srcX + srcW > imageSize.width) srcW = imageSize.width - srcX;
+    if (srcY + srcH > imageSize.height) srcH = imageSize.height - srcY;
+
+    final srcXInt = srcX.floor();
+    final srcYInt = srcY.floor();
+    final srcWInt = srcW.ceil();
+    final srcHInt = srcH.ceil();
+
+    final bytes = await widget.imageFile.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      throw Exception('Failed to decode image');
+    }
+
+    final cropped = img.copyCrop(
+      decoded,
+      x: srcXInt.clamp(0, decoded.width - 1),
+      y: srcYInt.clamp(0, decoded.height - 1),
+      width: srcWInt.clamp(1, decoded.width),
+      height: srcHInt.clamp(1, decoded.height),
+    );
+
+    debugPrint('cropped image size: ${cropped.width}x${cropped.height}');
+
+    final displayWidth = isRotated ? widget.boardConfig.displayHeight : widget.boardConfig.displayWidth;
+    final displayHeight = isRotated ? widget.boardConfig.displayWidth : widget.boardConfig.displayHeight;
+
+    final resized = img.copyResize(cropped, width: displayWidth, height: displayHeight, interpolation: img.Interpolation.cubic);
+
+    debugPrint('resized image size: ${resized.width}x${resized.height}');
+
+    final tempDir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final file = File('${tempDir.path}/crop_$timestamp.png');
+
+    debugPrint('Saving cropped image to ${file.path}');
+
+    await file.writeAsBytes(img.encodePng(resized));
+
+    return file;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Crop & Rotate'), elevation: 0, backgroundColor: Colors.white, foregroundColor: Colors.black),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (_imageSize == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final maxWidth = constraints.maxWidth;
-                final maxHeight = constraints.maxHeight;
-                final maxCropWidth = maxWidth * 0.85;
-                final maxCropHeight = maxHeight * 0.85;
-
-                return TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                  tween: Tween<double>(begin: _currentAspect ?? _targetAspect, end: _targetAspect),
-                  onEnd: () {
-                    _currentAspect = _targetAspect;
-                  },
-                  builder: (context, animatedAspect, child) {
-                    double cropWidth = maxCropWidth;
-                    double cropHeight = cropWidth / animatedAspect;
-                    if (cropHeight > maxCropHeight) {
-                      cropHeight = maxCropHeight;
-                      cropWidth = cropHeight * animatedAspect;
+          Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (_imageSize == null) {
+                      return const Center(child: CircularProgressIndicator());
                     }
 
-                    final cropSize = Size(cropWidth, cropHeight);
-                    final cropCenter = Offset(maxWidth / 2, maxHeight / 2);
-                    final cropRect = Rect.fromCenter(center: cropCenter, width: cropSize.width, height: cropSize.height);
-                    final imageSize = _imageSize!;
-                    final minScale = math.max(cropSize.width / imageSize.width, cropSize.height / imageSize.height);
-                    final finalScale = minScale * _userScale;
-                    final displaySize = Size(imageSize.width * finalScale, imageSize.height * finalScale);
+                    final maxWidth = constraints.maxWidth;
+                    final maxHeight = constraints.maxHeight;
+                    final maxCropWidth = maxWidth * 0.85;
+                    final maxCropHeight = maxHeight * 0.85;
 
-                    debugPrint('cropSize: $cropSize');
-                    debugPrint('cropCenter: $cropCenter');
-                    debugPrint('cropRect: $cropRect');
-                    debugPrint('imageSize: $imageSize');
-                    debugPrint('minScale: $minScale userScale: $_userScale finalScale: $finalScale');
-                    debugPrint('displaySize: $displaySize');
+                    return TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      tween: Tween<double>(begin: _currentAspect ?? _targetAspect, end: _targetAspect),
+                      onEnd: () {
+                        _currentAspect = _targetAspect;
+                      },
+                      builder: (context, animatedAspect, child) {
+                        double cropWidth = maxCropWidth;
+                        double cropHeight = cropWidth / animatedAspect;
+                        if (cropHeight > maxCropHeight) {
+                          cropHeight = maxCropHeight;
+                          cropWidth = cropHeight * animatedAspect;
+                        }
 
-                    // Ensure offset stays valid when crop size changes (e.g., during rotation)
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!mounted || _imageSize == null) return;
-                      final clamped = _clampOffset(_offset, displaySize, cropSize);
-                      debugPrint('clamped offset: $clamped');
+                        final cropSize = Size(cropWidth, cropHeight);
+                        final cropCenter = Offset(maxWidth / 2, maxHeight / 2);
+                        final cropRect = Rect.fromCenter(center: cropCenter, width: cropSize.width, height: cropSize.height);
+                        final imageSize = _imageSize!;
+                        final minScale = math.max(cropSize.width / imageSize.width, cropSize.height / imageSize.height);
+                        final finalScale = minScale * _userScale;
+                        final displaySize = Size(imageSize.width * finalScale, imageSize.height * finalScale);
 
-                      if (clamped != _offset) {
-                        setState(() {
-                          _offset = clamped;
+                        _lastCropSize = cropSize;
+                        _lastCropCenter = cropCenter;
+                        _lastMinScale = minScale;
+
+                        // Ensure offset stays valid when crop size changes (e.g., during rotation)
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted || _imageSize == null) return;
+                          final clamped = _clampOffset(_offset, displaySize, cropSize);
+
+                          if (clamped != _offset) {
+                            setState(() {
+                              _offset = clamped;
+                            });
+                          }
                         });
-                      }
-                    });
 
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Black background
-                        const ColoredBox(color: Colors.black),
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Black background
+                            const ColoredBox(color: Colors.black),
 
-                        // Gesture detector covering entire screen
-                        if (_imageSize != null && _decodedImage != null)
-                          Positioned.fill(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.translucent,
-                              onScaleStart: _onScaleStart,
-                              onScaleUpdate: (details) => _onScaleUpdate(details, cropSize, imageSize),
-                              child: CustomPaint(
-                                painter: ImageCropPainter(
-                                  image: _decodedImage!,
-                                  imageSize: imageSize,
-                                  cropSize: cropSize,
-                                  cropCenter: cropCenter,
-                                  offset: _offset,
-                                  scale: finalScale,
+                            // Gesture detector covering entire screen
+                            if (_imageSize != null && _decodedImage != null)
+                              Positioned.fill(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.translucent,
+                                  onScaleStart: _onScaleStart,
+                                  onScaleUpdate: (details) => _onScaleUpdate(details, cropSize, imageSize),
+                                  child: CustomPaint(
+                                    painter: ImageCropPainter(
+                                      image: _decodedImage!,
+                                      imageSize: imageSize,
+                                      cropSize: cropSize,
+                                      cropCenter: cropCenter,
+                                      offset: _offset,
+                                      scale: finalScale,
+                                    ),
+                                    size: Size.infinite,
+                                  ),
                                 ),
+                              )
+                            else
+                              const Positioned.fill(child: Center(child: CircularProgressIndicator())),
+
+                            // Crop frame overlay (border and darkened surroundings)
+                            IgnorePointer(
+                              child: CustomPaint(
+                                painter: CropOverlayPainter(cropRect: cropRect),
                                 size: Size.infinite,
                               ),
                             ),
-                          )
-                        else
-                          const Positioned.fill(child: Center(child: CircularProgressIndicator())),
-
-                        // Crop frame overlay (border and darkened surroundings)
-                        IgnorePointer(
-                          child: CustomPaint(
-                            painter: CropOverlayPainter(cropRect: cropRect),
-                            size: Size.infinite,
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 12, offset: const Offset(0, -2))],
+                ),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: OutlinedButton.icon(onPressed: _rotateFrame, icon: const Icon(Icons.rotate_right), label: const Text('Rotate')),
+              SafeArea(
+                top: false,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 12, offset: const Offset(0, -2))],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: OutlinedButton(onPressed: _resetTransform, child: const Text('Reset')),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton(
-                      onPressed: _continue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: OutlinedButton.icon(onPressed: _rotateFrame, icon: const Icon(Icons.rotate_right), label: const Text('Rotate')),
                       ),
-                      child: const Text(
-                        'Continue',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: OutlinedButton(onPressed: _resetTransform, child: const Text('Reset')),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 1,
+                        child: ElevatedButton(
+                          onPressed: _continue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text(
+                            'Continue',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+          if (_isSaving)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: Container(
+                  color: Colors.black54,
+                  child: const Center(child: SizedBox(width: 40, height: 40, child: CircularProgressIndicator())),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -342,8 +468,6 @@ class ImageCropPainter extends CustomPainter {
 
     // Disegna l'immagine
     canvas.drawImageRect(image, srcRect, dstRect, Paint());
-
-    debugPrint('ImageCropPainter: dstRect=$dstRect, imageX=$imageX, imageY=$imageY, offset=$offset');
   }
 
   @override

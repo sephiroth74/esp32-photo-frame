@@ -1,7 +1,7 @@
 // rust
-use crate::types::{ColorType, HexColor, Orientation, OutputType, ReportFormat};
+use crate::types::{HexColor, OutputType, ReportFormat};
 use clap::Parser;
-use photoframe_lib::DitheringMethod;
+use photoframe_lib::{ColorMode, DitheringMethod, Orientation};
 use std::path::PathBuf;
 
 fn get_long_about() -> String {
@@ -102,7 +102,7 @@ pub struct Args {
         conflicts_with = "validate",
         help = "Display type: 'bw' for black & white, '6c' for 6-color"
     )]
-    pub processing_type: ColorType,
+    pub processing_type: ColorMode,
 
     /// Output formats: comma-separated list of bmp, pfr1, jpg, png (e.g., "bmp,pfr1" or "jpg")
     #[arg(

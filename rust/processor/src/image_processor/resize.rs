@@ -1,6 +1,6 @@
-use crate::types::Size;
 use image::imageops::FilterType;
 use imageproc::drawing::Canvas;
+use photoframe_lib::Size;
 
 /// Resize an image to cover the target dimensions while preserving aspect ratio.
 /// The image will be scaled so that both dimensions are at least as large as the target,

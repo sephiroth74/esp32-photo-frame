@@ -1,12 +1,14 @@
 /// WebSocket message models for device communication
 library;
 
+import 'package:photoframe/models/library_models.dart';
+
 class BoardConfig {
   final String type;
   final String board;
   final String flashSize;
   final int flashSizeBytes;
-  final String displayType;
+  final DisplayType displayType;
   final int displayWidth;
   final int displayHeight;
   final int displayRotation;
@@ -49,7 +51,7 @@ class BoardConfig {
       board: json['board'] as String,
       flashSize: json['flash_size'] as String,
       flashSizeBytes: (json['flash_size_bytes'] as num).toInt(),
-      displayType: json['display_type'] as String,
+      displayType: displayTypeFromString(json['display_type']),
       displayWidth: (json['display_width'] as num).toInt(),
       displayHeight: (json['display_height'] as num).toInt(),
       displayRotation: (json['display_rotation'] as num).toInt(),

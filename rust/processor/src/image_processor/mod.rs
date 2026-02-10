@@ -23,11 +23,11 @@ use crate::image_processor::face_detection::Face;
 use crate::json_output::{JsonMessage, Phase};
 use crate::logging::Logger;
 use crate::report::{ImageInfo, ImageOrientation, Report};
-use crate::types::{ColorType, HexColor, Orientation, Size};
+use crate::types::HexColor;
 use anyhow::{Context, Result};
 use image::RgbImage;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use photoframe_lib::{DitheringMethod, apply_dithering};
+use photoframe_lib::{ColorMode, DitheringMethod, Orientation, Size, apply_dithering};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -475,12 +475,14 @@ impl<'a> ImageProcessor<'a> {
     }
 
     fn build_jobs(&self, plan: &ProcessingPlan) -> Vec<ProcessingJob> {
-        let base_size: Size = self
-            .args
-            .processing_type
-            .into_size(self.args.target_orientation);
-        let paired_size = paired_target_size(base_size, self.args.target_orientation);
+        let size: Size = self.args.processing_type.into();
+        let base_size = size.rotate(self.args.target_orientation);
+        //let base_size: Size = self
+        //    .args
+        //    .processing_type
+        //    .into_size(self.args.target_orientation);
 
+        let paired_size = paired_target_size(base_size, self.args.target_orientation);
         let mut jobs = Vec::new();
 
         for single in &plan.single_images {
@@ -563,7 +565,7 @@ struct ProcessingJob {
     paired: bool,
     pair_id: Option<usize>,    // ID to identify which pair this belongs to
     pair_index: Option<usize>, // 0 for first image, 1 for second image in pair
-    processing_type: ColorType,
+    processing_type: ColorMode,
     auto_color_correct: bool,
     brightness: i32,
     contrast: i32,

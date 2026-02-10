@@ -57,7 +57,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
   "board": "ESP32-S3",
   "flash_size": "16MB",
   "flash_size_bytes": 16777216,
-  "display_type": "6C",
+  "display_type": "six-colors",
   "display_width": 800,
   "display_height": 480,
   "display_rotation": 1,

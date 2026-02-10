@@ -1,8 +1,9 @@
 use super::ProcessedImage;
-use crate::types::{HexColor, Orientation, Size};
+use crate::types::HexColor;
 use anyhow::{Context, Result};
 use image::RgbImage;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use photoframe_lib::{Orientation, Size};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use std::collections::HashMap;

@@ -49,9 +49,9 @@ String BoardInfo::getFlashSizeStr() {
 
 String BoardInfo::getDisplayType() {
 #ifdef DISP_6C
-    return "6C";
+    return "six-colors";
 #elif defined(DISP_BW)
-    return "BW";
+    return "black-and-white";
 #else
     return "Unknown";
 #endif

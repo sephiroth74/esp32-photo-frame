@@ -37,7 +37,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
     WidgetsBinding.instance.addObserver(this);
     _loadSavedConfig();
     _checkWiFiConnection();
-    _startWiFiPolling();
+    if (!WsConnectionService().isConnected) {
+      _startWiFiPolling();
+    }
 
     // If QR data provided, extract info
     if (widget.qrData != null) {
@@ -58,6 +60,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkWiFiConnection(showLoading: false, showPermissionSnackBar: false);
+      if (WsConnectionService().isConnected) {
+        _stopWiFiPolling();
+      } else {
+        _startWiFiPolling();
+      }
     }
   }
 
@@ -172,6 +179,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
   }
 
   void _startWiFiPolling() {
+    if (WsConnectionService().isConnected) {
+      return;
+    }
     _wifiPoller?.cancel();
     _wifiPoller = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted || _isLoadingWiFi) {
@@ -179,6 +189,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       }
       _checkWiFiConnection(showLoading: false, showPermissionSnackBar: false);
     });
+  }
+
+  void _stopWiFiPolling() {
+    _wifiPoller?.cancel();
+    _wifiPoller = null;
   }
 
   /// Open system WiFi settings
@@ -216,6 +231,8 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
 
       logger.info('WebSocket connection successful: $boardConfig');
 
+      _stopWiFiPolling();
+
       // Save to preferences (including SSID)
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('connection_ip', ip);
@@ -243,6 +260,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Connection failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 3)));
+      }
+      if (!WsConnectionService().isConnected) {
+        _startWiFiPolling();
       }
     } finally {
       if (mounted) {

@@ -1,6 +1,5 @@
-use crate::types::{ColorType, HexColor, Orientation, ReportFormat, Size};
+use crate::types::{HexColor, ReportFormat};
 use image::{Rgb, Rgba};
-use photoframe_lib::DisplayType;
 use std::fmt::{Display, Formatter};
 
 impl Display for ReportFormat {
@@ -11,41 +10,6 @@ impl Display for ReportFormat {
             ReportFormat::Plain => "plain",
         };
         write!(f, "{}", s)
-    }
-}
-
-impl From<&str> for Orientation {
-    fn from(value: &str) -> Self {
-        match value {
-            "0" | "landscape" | "0°" => Orientation::Landscape,
-            "1" | "portrait" | "90°" => Orientation::Portrait,
-            "2" | "landscape-reverse" | "180°" => Orientation::LandscapeReverse,
-            "3" | "portrait-reverse" | "270°" => Orientation::PortraitReverse,
-            _ => Orientation::Landscape, // Default case
-        }
-    }
-}
-
-impl Into<u8> for Orientation {
-    fn into(self) -> u8 {
-        match self {
-            Orientation::Landscape => 0,
-            Orientation::Portrait => 1,
-            Orientation::LandscapeReverse => 2,
-            Orientation::PortraitReverse => 3,
-        }
-    }
-}
-
-impl From<u8> for Orientation {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Orientation::Landscape,
-            1 => Orientation::Portrait,
-            2 => Orientation::LandscapeReverse,
-            3 => Orientation::PortraitReverse,
-            _ => Orientation::Landscape, // Default case
-        }
     }
 }
 
@@ -139,34 +103,5 @@ impl Display for HexColor {
 impl Into<Rgba<u8>> for HexColor {
     fn into(self) -> Rgba<u8> {
         Rgba::from([self.1, self.2, self.3, self.0])
-    }
-}
-
-impl Size {
-    pub fn new(width: u32, height: u32) -> Self {
-        Self { width, height }
-    }
-}
-
-impl Into<DisplayType> for ColorType {
-    fn into(self) -> DisplayType {
-        match self {
-            ColorType::SixColor => DisplayType::SixColors,
-            ColorType::BlackWhite => DisplayType::BlackAndWhite,
-        }
-    }
-}
-
-impl ColorType {
-    pub fn into_size(self, orientation: Orientation) -> Size {
-        match orientation {
-            Orientation::Landscape | Orientation::LandscapeReverse => match self {
-                ColorType::BlackWhite | ColorType::SixColor => Size::new(800, 480),
-            },
-
-            Orientation::Portrait | Orientation::PortraitReverse => match self {
-                ColorType::BlackWhite | ColorType::SixColor => Size::new(480, 800),
-            },
-        }
     }
 }

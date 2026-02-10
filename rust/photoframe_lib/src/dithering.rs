@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::{Rgb, RgbImage};
 
 /// Use canonical helpers from core module to avoid duplication
-use crate::{DisplayType, DitheringMethod};
+use crate::{ColorMode, DitheringMethod};
 
 /// Provide thin local wrappers that forward to the canonical implementations in `core`.
 /// Wrappers avoid potential ordering/circular import issues while keeping call sites unchanged.
@@ -21,12 +21,12 @@ fn find_closest_color_weighted(r: u8, g: u8, b: u8, palette: &[(u8, u8, u8)]) ->
 pub fn apply_dithering(
     img: &RgbImage,
     method: DitheringMethod,
-    display_type: DisplayType,
+    display_type: ColorMode,
     dither_strength: f32,
 ) -> anyhow::Result<RgbImage> {
     let palette = match display_type {
-        DisplayType::SixColors => crate::core::SIX_COLOR_PALETTE.to_vec(),
-        DisplayType::BlackAndWhite => crate::core::BW_PALETTE.to_vec(),
+        ColorMode::SixColors => crate::core::SIX_COLOR_PALETTE.to_vec(),
+        ColorMode::BlackAndWhite => crate::core::BW_PALETTE.to_vec(),
     };
     let palette_ref = palette.as_slice();
 

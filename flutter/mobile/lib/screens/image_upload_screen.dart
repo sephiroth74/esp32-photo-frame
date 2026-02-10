@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:photoframe/models/library_models.dart';
 import 'package:photoframe/models/ws_messages.dart';
 import 'package:photoframe/screens/image_crop_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
@@ -82,7 +83,7 @@ class _ImageUploadScreenState extends State<ImageUploadScreen> {
                       const SizedBox(height: 12),
                       _buildInfoRow('Device', widget.boardConfig.board),
                       _buildInfoRow('Display', '${widget.boardConfig.displayWidth}×${widget.boardConfig.displayHeight}'),
-                      _buildInfoRow('Type', widget.boardConfig.displayType),
+                      _buildInfoRow('Type', widget.boardConfig.displayType.toJsonValue()),
                       _buildInfoRow('Rotation', '${widget.boardConfig.displayRotation} (${_rotationAngle(widget.boardConfig.displayRotation)}°)'),
                       if (widget.boardConfig.batteryLevel != null)
                         _buildInfoRow(
@@ -200,11 +201,7 @@ class _ImageUploadScreenState extends State<ImageUploadScreen> {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: _selectedImage != null ? _continue : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      disabledBackgroundColor: Colors.grey[300],
-                      // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, disabledBackgroundColor: Colors.grey[300]),
                     child: const Text(
                       'Continue',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
