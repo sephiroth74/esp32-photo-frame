@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Shared models and utilities
+  photoframe_common:
+    path: ../photoframe_common
+
   # Native macOS UI components
   appkit_ui_elements: ^0.2.2
 

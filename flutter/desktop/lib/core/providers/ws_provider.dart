@@ -5,10 +5,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:photoframe_common/photoframe_common.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../models/ws_messages.dart';
 import '../services/bin_parser.dart';
 
 class WsUploadState with ChangeNotifier {
@@ -270,7 +270,7 @@ class WsUploadState with ChangeNotifier {
 
       final rgba = BinParser.decodeToRgba(parsed);
       previewImage = await _rgbaToImage(rgba, parsed.header.width, parsed.header.height);
-      rotation = parsed.header.rotation;
+      rotation = parsed.header.quarterTurns();
 
       status = 'File loaded: ${p.basename(path)}';
       notifyListeners();

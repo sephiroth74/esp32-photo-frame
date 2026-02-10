@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 
 import '../models/config_profile.dart';
 import '../models/processing_config.dart';
@@ -347,39 +348,14 @@ class ProcessingProvider with ChangeNotifier {
   }
 
   String _displayTypeToString(DisplayType type) {
-    switch (type) {
-      case DisplayType.blackWhite:
-        return 'bw';
-      case DisplayType.sixColor:
-        return '6c';
-    }
+    return type.toJsonValue();
   }
 
-  String _targetOrientationToString(TargetOrientation orientation) {
-    switch (orientation) {
-      case TargetOrientation.landscape:
-        return '0';
-      case TargetOrientation.portrait:
-        return '1';
-      case TargetOrientation.landscapeReverse:
-        return '2';
-      case TargetOrientation.portraitReverse:
-        return '3';
-    }
+  String _targetOrientationToString(Orientation orientation) {
+    return orientation.toJsonValue();
   }
 
-  String _ditherMethodToString(DitherMethod method) {
-    switch (method) {
-      case DitherMethod.floydSteinberg:
-        return 'floyd-steinberg';
-      case DitherMethod.atkinson:
-        return 'atkinson';
-      case DitherMethod.stucki:
-        return 'stucki';
-      case DitherMethod.jarvisJudiceNinke:
-        return 'jarvis';
-      case DitherMethod.ordered:
-        return 'ordered';
-    }
+  String _ditherMethodToString(DitheringMethod method) {
+    return method.toJsonValue();
   }
 }

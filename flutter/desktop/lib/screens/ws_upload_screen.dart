@@ -1,7 +1,7 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:photoframe_flutter/core/services/bin_parser.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe_flutter/core/services/preferences.dart';
 import 'package:photoframe_flutter/presentation/widget_factory.dart';
 import 'package:provider/provider.dart';
@@ -433,9 +433,9 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                             mainAxisAlignment: MainAxisAlignment.start,
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              _buildConfigRow('Rotation', ws.binHeader!.rotation.toString()),
+                                              _buildConfigRow('Rotation', ws.binHeader!.rotation.toReadableString()),
                                               _buildConfigRow('Size', '${ws.binHeader!.getWidth()} x ${ws.binHeader!.getHeight()}'),
-                                              _buildConfigRow('Color Mode', ws.binHeader!.colorMode.toReadableString()),
+                                              _buildConfigRow('Color Mode', ws.binHeader!.colorMode.toJsonValue()),
                                               _buildConfigRow('Name', fileLabel),
                                             ],
                                           ),

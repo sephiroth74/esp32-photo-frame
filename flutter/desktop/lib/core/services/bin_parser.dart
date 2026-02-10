@@ -1,47 +1,16 @@
 import 'dart:typed_data';
 
+import 'package:photoframe_common/photoframe_common.dart';
+
 /// FFI validation result (used when validation succeeds)
 import 'bin_validator_ffi.dart' show PhotoframeValidator, BinValidationResult;
-
-enum ColorMode { blackAndWhite, sixColor }
-
-extension ColorModeExtension on ColorMode {
-  static ColorMode fromInt(int value) {
-    switch (value) {
-      case 0:
-        return ColorMode.blackAndWhite;
-      case 1:
-        return ColorMode.sixColor;
-      default:
-        throw ArgumentError('Unknown color mode: $value');
-    }
-  }
-
-  static int toInt(ColorMode mode) {
-    switch (mode) {
-      case ColorMode.blackAndWhite:
-        return 0;
-      case ColorMode.sixColor:
-        return 1;
-    }
-  }
-
-  String toReadableString() {
-    switch (this) {
-      case ColorMode.blackAndWhite:
-        return 'Black & White';
-      case ColorMode.sixColor:
-        return '6-Color';
-    }
-  }
-}
 
 class BinHeader {
   final int version;
   final int headerLen;
   final int width;
   final int height;
-  final int rotation;
+  final Orientation rotation;
   final ColorMode colorMode;
   final int payloadLen;
   final int headerCrc32;
@@ -64,15 +33,17 @@ class BinHeader {
       headerLen: result.headerLen,
       width: result.width,
       height: result.height,
-      rotation: result.rotation,
-      colorMode: ColorModeExtension.fromInt(result.colorMode),
+      rotation: orientationFromInt(result.rotation),
+      colorMode: colorModeFromInt(result.colorMode),
       payloadLen: result.payloadLen,
       headerCrc32: 0, // Not available from validation result
     );
   }
 
-  int getWidth() => rotation % 2 == 0 ? width : height;
-  int getHeight() => rotation % 2 == 0 ? height : width;
+  int quarterTurns() => rotation.toInt() % 4;
+
+  int getWidth() => quarterTurns() % 2 == 0 ? width : height;
+  int getHeight() => quarterTurns() % 2 == 0 ? height : width;
 }
 
 class ParsedBin {
@@ -147,8 +118,8 @@ class BinParser {
         headerLen: headerLen,
         width: width,
         height: height,
-        rotation: rotation,
-        colorMode: ColorModeExtension.fromInt(color),
+        rotation: orientationFromInt(rotation),
+        colorMode: colorModeFromInt(color),
         payloadLen: payloadLen,
         headerCrc32: headerCrc,
       ),
@@ -165,9 +136,9 @@ class BinParser {
       final padded = Uint8List(w * h);
       padded.fillRange(0, padded.length, 0xFF);
       padded.setRange(0, bin.payload.lengthInBytes, bin.payload);
-      return _mapPixels(padded, w, h, ColorModeExtension.toInt(bin.header.colorMode));
+      return _mapPixels(padded, w, h, bin.header.colorMode.toInt());
     }
-    return _mapPixels(bin.payload, w, h, ColorModeExtension.toInt(bin.header.colorMode));
+    return _mapPixels(bin.payload, w, h, bin.header.colorMode.toInt());
   }
 
   static Uint8List _mapPixels(Uint8List src, int width, int height, int colorMode) {

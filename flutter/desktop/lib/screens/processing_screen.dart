@@ -1,8 +1,8 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
+import 'package:photoframe_common/photoframe_common.dart';
 import 'package:provider/provider.dart';
 
-import '../core/models/processing_config.dart';
 import '../core/providers/processing_provider.dart';
 import '../core/providers/widget_factory_provider.dart';
 import '../core/services/file_picker_history.dart';
@@ -277,8 +277,8 @@ class _DisplaySettingsSection extends StatelessWidget {
                             }
                           },
                           items: [
-                            factory.popupMenuItem<DisplayType>(value: DisplayType.blackWhite, label: 'Black & White'),
-                            factory.popupMenuItem<DisplayType>(value: DisplayType.sixColor, label: '6-Color'),
+                            factory.popupMenuItem<DisplayType>(value: DisplayType.blackAndWhite, label: 'Black & White'),
+                            factory.popupMenuItem<DisplayType>(value: DisplayType.sixColors, label: 'Six Colors'),
                           ],
                         ),
                       ],
@@ -291,7 +291,7 @@ class _DisplaySettingsSection extends StatelessWidget {
                       children: [
                         const Text('Target Orientation:'),
                         const SizedBox(width: 8),
-                        factory.popupMenu<TargetOrientation>(
+                        factory.popupMenu<Orientation>(
                           label: Text(config.orientation.name),
                           style: PlatformPopupMenuStyle.plain,
                           selectedItem: config.orientation,
@@ -301,10 +301,10 @@ class _DisplaySettingsSection extends StatelessWidget {
                             }
                           },
                           items: [
-                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.landscape, label: 'Landscape'),
-                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.portrait, label: 'Portrait'),
-                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.landscapeReverse, label: 'Landscape Reverse'),
-                            factory.popupMenuItem<TargetOrientation>(value: TargetOrientation.portraitReverse, label: 'Portrait Reverse'),
+                            factory.popupMenuItem<Orientation>(value: Orientation.landscape, label: 'Landscape'),
+                            factory.popupMenuItem<Orientation>(value: Orientation.portrait, label: 'Portrait'),
+                            factory.popupMenuItem<Orientation>(value: Orientation.landscapeReverse, label: 'Landscape Reverse'),
+                            factory.popupMenuItem<Orientation>(value: Orientation.portraitReverse, label: 'Portrait Reverse'),
                           ],
                         ),
                       ],
@@ -447,7 +447,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                     children: [
                       const Text('Method:'),
                       const SizedBox(height: 4, width: 8),
-                      factory.popupMenu<DitherMethod>(
+                      factory.popupMenu<DitheringMethod>(
                         label: Text(config.ditherMethod.name),
                         style: PlatformPopupMenuStyle.bevel,
                         selectedItem: config.ditherMethod,
@@ -457,11 +457,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                           }
                         },
                         items: [
-                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.floydSteinberg, label: 'Floyd-Steinberg'),
-                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.atkinson, label: 'Atkinson'),
-                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.stucki, label: 'Stucki'),
-                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.jarvisJudiceNinke, label: 'Jarvis'),
-                          factory.popupMenuItem<DitherMethod>(value: DitherMethod.ordered, label: 'Ordered/Bayer'),
+                          factory.popupMenuItem<DitheringMethod>(value: DitheringMethod.floydSteinberg, label: 'Floyd-Steinberg'),
+                          factory.popupMenuItem<DitheringMethod>(value: DitheringMethod.atkinson, label: 'Atkinson'),
+                          factory.popupMenuItem<DitheringMethod>(value: DitheringMethod.stucki, label: 'Stucki'),
+                          factory.popupMenuItem<DitheringMethod>(value: DitheringMethod.jarvisJudiceNinke, label: 'Jarvis'),
+                          factory.popupMenuItem<DitheringMethod>(value: DitheringMethod.ordered, label: 'Ordered/Bayer'),
                         ],
                       ),
                       const SizedBox(width: 24),
@@ -496,11 +496,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                         children: [
                           Text('Contrast: ${config.contrast}'),
                           factory.slider(
-                            value: (config.contrast + 100).toDouble(),
+                            value: (config.contrast.clamp(0, 200)).toDouble(),
                             min: 0.0,
                             max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(contrast: value.round() - 100));
+                              provider.updateConfig(config.copyWith(contrast: value.round()));
                             },
                           ),
                         ],
@@ -513,11 +513,11 @@ class _DitheringSettingsSection extends StatelessWidget {
                         children: [
                           Text('Brightness: ${config.brightness}'),
                           factory.slider(
-                            value: (config.brightness + 100).toDouble(),
+                            value: (config.brightness.clamp(0, 200)).toDouble(),
                             min: 0.0,
                             max: 200.0,
                             onChanged: (value) {
-                              provider.updateConfig(config.copyWith(brightness: value.round() - 100));
+                              provider.updateConfig(config.copyWith(brightness: value.round()));
                             },
                           ),
                         ],
@@ -534,7 +534,7 @@ class _DitheringSettingsSection extends StatelessWidget {
                         children: [
                           Text('Saturation: ${config.saturation}'),
                           factory.slider(
-                            value: config.saturation.toDouble(),
+                            value: config.saturation.clamp(0, 200).toDouble(),
                             min: 0.0,
                             max: 200.0,
                             onChanged: (value) {

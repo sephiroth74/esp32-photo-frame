@@ -1,46 +1,16 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 
 part 'processing_config.g.dart';
-
-enum DisplayType {
-  @JsonValue('bw')
-  blackWhite,
-  @JsonValue('6c')
-  sixColor,
-}
-
-enum TargetOrientation {
-  @JsonValue('0')
-  landscape,
-  @JsonValue('1')
-  portrait,
-  @JsonValue('2')
-  landscapeReverse,
-  @JsonValue('3')
-  portraitReverse,
-}
-
-enum DitherMethod {
-  @JsonValue('floyd-steinberg')
-  floydSteinberg,
-  @JsonValue('atkinson')
-  atkinson,
-  @JsonValue('stucki')
-  stucki,
-  @JsonValue('jarvis-judice-ninke')
-  jarvisJudiceNinke,
-  @JsonValue('ordered')
-  ordered,
-}
 
 @JsonSerializable()
 class ProcessingConfig {
   final String inputPath;
   final String outputPath;
   final DisplayType displayType;
-  final TargetOrientation orientation;
+  final Orientation orientation;
   final bool autoColorCorrect;
-  final DitherMethod ditherMethod;
+  final DitheringMethod ditherMethod;
   final int ditherStrength;
   final int contrast;
   final int brightness;
@@ -67,13 +37,13 @@ class ProcessingConfig {
   const ProcessingConfig({
     required this.inputPath,
     required this.outputPath,
-    this.displayType = DisplayType.blackWhite,
-    this.orientation = TargetOrientation.landscape,
+    this.displayType = DisplayType.blackAndWhite,
+    this.orientation = Orientation.landscape,
     this.autoColorCorrect = false,
-    this.ditherMethod = DitherMethod.floydSteinberg,
+    this.ditherMethod = DitheringMethod.floydSteinberg,
     this.ditherStrength = 100,
-    this.contrast = 0,
-    this.brightness = 0,
+    this.contrast = 100,
+    this.brightness = 100,
     this.saturation = 100,
     this.autoOptimize = false,
     this.outputBmp = false,
@@ -103,9 +73,9 @@ class ProcessingConfig {
     String? inputPath,
     String? outputPath,
     DisplayType? displayType,
-    TargetOrientation? orientation,
+    Orientation? orientation,
     bool? autoColorCorrect,
-    DitherMethod? ditherMethod,
+    DitheringMethod? ditherMethod,
     int? ditherStrength,
     int? contrast,
     int? brightness,

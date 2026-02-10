@@ -9,13 +9,13 @@ part of 'processing_config.dart';
 ProcessingConfig _$ProcessingConfigFromJson(Map<String, dynamic> json) => ProcessingConfig(
   inputPath: json['inputPath'] as String,
   outputPath: json['outputPath'] as String,
-  displayType: $enumDecodeNullable(_$DisplayTypeEnumMap, json['displayType']) ?? DisplayType.blackWhite,
-  orientation: $enumDecodeNullable(_$TargetOrientationEnumMap, json['orientation']) ?? TargetOrientation.landscape,
+  displayType: $enumDecodeNullable(_$DisplayTypeEnumMap, json['displayType']) ?? DisplayType.blackAndWhite,
+  orientation: $enumDecodeNullable(_$OrientationEnumMap, json['orientation']) ?? Orientation.landscape,
   autoColorCorrect: json['autoColorCorrect'] as bool? ?? false,
-  ditherMethod: $enumDecodeNullable(_$DitherMethodEnumMap, json['ditherMethod']) ?? DitherMethod.floydSteinberg,
+  ditherMethod: $enumDecodeNullable(_$DitheringMethodEnumMap, json['ditherMethod']) ?? DitheringMethod.floydSteinberg,
   ditherStrength: (json['ditherStrength'] as num?)?.toInt() ?? 100,
-  contrast: (json['contrast'] as num?)?.toInt() ?? 0,
-  brightness: (json['brightness'] as num?)?.toInt() ?? 0,
+  contrast: (json['contrast'] as num?)?.toInt() ?? 100,
+  brightness: (json['brightness'] as num?)?.toInt() ?? 100,
   saturation: (json['saturation'] as num?)?.toInt() ?? 100,
   autoOptimize: json['autoOptimize'] as bool? ?? false,
   outputBmp: json['outputBmp'] as bool? ?? false,
@@ -41,9 +41,9 @@ Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) => <Str
   'inputPath': instance.inputPath,
   'outputPath': instance.outputPath,
   'displayType': _$DisplayTypeEnumMap[instance.displayType]!,
-  'orientation': _$TargetOrientationEnumMap[instance.orientation]!,
+  'orientation': _$OrientationEnumMap[instance.orientation]!,
   'autoColorCorrect': instance.autoColorCorrect,
-  'ditherMethod': _$DitherMethodEnumMap[instance.ditherMethod]!,
+  'ditherMethod': _$DitheringMethodEnumMap[instance.ditherMethod]!,
   'ditherStrength': instance.ditherStrength,
   'contrast': instance.contrast,
   'brightness': instance.brightness,
@@ -68,19 +68,19 @@ Map<String, dynamic> _$ProcessingConfigToJson(ProcessingConfig instance) => <Str
   'processorBinaryPath': instance.processorBinaryPath,
 };
 
-const _$DisplayTypeEnumMap = {DisplayType.blackWhite: 'bw', DisplayType.sixColor: '6c'};
+const _$DisplayTypeEnumMap = {DisplayType.blackAndWhite: 'black-and-white', DisplayType.sixColors: 'six-colors'};
 
-const _$TargetOrientationEnumMap = {
-  TargetOrientation.landscape: '0',
-  TargetOrientation.portrait: '1',
-  TargetOrientation.landscapeReverse: '2',
-  TargetOrientation.portraitReverse: '3',
+const _$OrientationEnumMap = {
+  Orientation.landscape: '0',
+  Orientation.portrait: '1',
+  Orientation.landscapeReverse: '2',
+  Orientation.portraitReverse: '3',
 };
 
-const _$DitherMethodEnumMap = {
-  DitherMethod.floydSteinberg: 'floyd-steinberg',
-  DitherMethod.atkinson: 'atkinson',
-  DitherMethod.stucki: 'stucki',
-  DitherMethod.jarvisJudiceNinke: 'jarvis-judice-ninke',
-  DitherMethod.ordered: 'ordered',
+const _$DitheringMethodEnumMap = {
+  DitheringMethod.floydSteinberg: 'floyd-steinberg',
+  DitheringMethod.atkinson: 'atkinson',
+  DitheringMethod.stucki: 'stucki',
+  DitheringMethod.jarvisJudiceNinke: 'jarvis-judice-ninke',
+  DitheringMethod.ordered: 'ordered',
 };
