@@ -567,8 +567,8 @@ struct ProcessingJob {
     pair_index: Option<usize>, // 0 for first image, 1 for second image in pair
     processing_type: ColorMode,
     auto_color_correct: bool,
-    brightness: i32,
-    contrast: i32,
+    brightness: u32,
+    contrast: u32,
     saturation: u32,
     dithering_method: DitheringMethod,
     dither_strength: f32,
@@ -741,10 +741,10 @@ fn process_job(
     if job.auto_color_correct {
         active.push("auto-color".to_string());
     }
-    if job.brightness != 0 {
+    if job.brightness != 100 {
         active.push(format!("brightness:{}", job.brightness));
     }
-    if job.contrast != 0 {
+    if job.contrast != 100 {
         active.push(format!("contrast:{}", job.contrast));
     }
     if job.saturation != 100 {

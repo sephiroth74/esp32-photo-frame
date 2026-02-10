@@ -79,15 +79,15 @@ impl ImageMagickWrapper {
     /// # Arguments
     /// * `input_path` - Path to input image
     /// * `output_path` - Path to output image
-    /// * `brightness` - Brightness adjustment (-100 to 100)
-    /// * `contrast` - Contrast adjustment (-100 to 100)
-    /// * `saturation` - Saturation multiplier (0.0 to 2.0)
+    /// * `brightness` - Brightness adjustment (0 to 1000)
+    /// * `contrast` - Contrast adjustment (0 to 1000)
+    /// * `saturation` - Saturation (0 to 1000)
     pub fn apply_color_correction(
         input_path: &Path,
         output_path: &Path,
-        brightness: i32,
-        contrast: i32,
-        saturation: f32,
+        brightness: u32,
+        contrast: u32,
+        saturation: u32,
     ) -> Result<()> {
         if !Self::is_available() {
             return Err(anyhow::anyhow!("ImageMagick is not available"));
@@ -101,26 +101,18 @@ impl ImageMagickWrapper {
         command.arg("-auto-level"); // Stretch histogram
 
         // Apply brightness
-        if brightness != 0 {
+        if brightness != 100 || saturation != 100 {
             command
                 .arg("-modulate")
-                .arg(format!("{},100,100", 100 + brightness));
+                .arg(format!("{},{},100", brightness, saturation));
         }
 
         // Apply contrast
-        if contrast != 0 {
+        if contrast != 100 {
             command.arg("-contrast-stretch").arg("0");
             command
                 .arg("-brightness-contrast")
-                .arg(format!("0x{}", contrast as i32));
-        }
-
-        // Apply saturation
-        if (saturation - 1.0).abs() > 0.01 {
-            let saturation_percent = (saturation * 100.0) as u32;
-            command
-                .arg("-modulate")
-                .arg(format!("100,{},100", saturation_percent));
+                .arg(format!("0x{}", 100i32 - (contrast as i32)));
         }
 
         command.arg(output_path.to_string_lossy().as_ref());

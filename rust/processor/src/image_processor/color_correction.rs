@@ -50,8 +50,8 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
 /// Applies: auto-white-balance, auto-level, then custom brightness/contrast/saturation
 fn apply_imagemagick_manual_correction(
     img: &RgbImage,
-    brightness: i32,
-    contrast: i32,
+    brightness: u32,
+    contrast: u32,
     saturation: u32,
 ) -> Result<RgbImage> {
     let timestamp = std::time::SystemTime::now()
@@ -78,7 +78,7 @@ fn apply_imagemagick_manual_correction(
         &output_path.path(),
         brightness,
         contrast,
-        saturation as f32 / 100.0,
+        saturation,
     )
     .context("Failed to apply color correction using ImageMagick")?;
 
@@ -113,8 +113,8 @@ fn apply_fallback_auto_correction(img: &RgbImage) -> Result<RgbImage> {
 /// Fallback: Apply manual color correction using photoframe-lib
 fn apply_fallback_manual_correction(
     img: &RgbImage,
-    brightness: i32,
-    contrast: i32,
+    brightness: u32,
+    contrast: u32,
     saturation: u32,
 ) -> Result<RgbImage> {
     let mut corrected = img.clone();
@@ -126,13 +126,13 @@ fn apply_fallback_manual_correction(
     corrected = apply_white_balance(&corrected)?;
 
     // Convert CLI parameters to photoframe-lib format
-    // brightness: -100..100 -> 0.0..2.0 (100 = 1.0)
+    // brightness: 0..1000 -> 0.0..10.0 (100 = 1.0)
     let brightness_factor = 1.0 + (brightness as f32 / 100.0);
 
-    // contrast: -100..100 -> 0.0..2.0 (100 = 1.0)
-    let contrast_factor = 1.0 + (contrast as f32 / 100.0);
+    // contrast: 0..1000 -> 0.0..2.0 (100 = 1.0)
+    let contrast_factor = contrast as f32 / 100.0;
 
-    // saturation: 50..200 -> 0.5..2.0 (100 = 1.0)
+    // saturation: 0..1000 -> 0.0..10.0 (100 = 1.0)
     let saturation_factor = saturation as f32 / 100.0;
 
     corrected = photoframe_lib::apply_color_adjustments(
@@ -151,8 +151,8 @@ fn apply_fallback_manual_correction(
 pub fn apply_color_correction(
     img: &RgbImage,
     auto_color_correct: bool,
-    brightness: i32,
-    contrast: i32,
+    brightness: u32,
+    contrast: u32,
     saturation: u32,
 ) -> Result<RgbImage> {
     let processed_image = if auto_color_correct {
@@ -170,7 +170,7 @@ pub fn apply_color_correction(
         img.clone()
     };
 
-    if brightness == 0 && contrast == 0 && saturation == 100 {
+    if brightness == 100 && contrast == 100 && saturation == 100 {
         // No manual adjustments needed
         return Ok(processed_image);
     }

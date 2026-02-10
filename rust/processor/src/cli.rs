@@ -27,10 +27,10 @@ Compiled features: {}
 
 Example Usage:
     # Basic black & white processing (800x480 landscape by default)
-    processor -i ~/Photos -o ~/processed -t bw --output-format pfr1
+    processor -i ~/Photos -o ~/processed -t black-and-white --output-format pfr1
 
     # Process single image file
-    processor -i ~/Photos/IMG_001.jpg -o ~/processed -t bw --output-format pfr1
+    processor -i ~/Photos/IMG_001.jpg -o ~/processed -t black-and-white --output-format pfr1
 
     # 6-color processing with only binary output (hardware 800x480)
     processor -i ~/Photos -o ~/processed -t 6c --output-format pfr1 --verbose
@@ -93,14 +93,14 @@ pub struct Args {
     )]
     pub target_orientation: Orientation,
 
-    /// Display type: bw (black & white) or 6c (6-color)
+    /// Display type: black-and-white (black & white) or six-colors (6-color)
     /// This determines both the processing type and output dimensions
     #[arg(
         short = 't',
         long = "type",
-        default_value = "bw",
+        default_value = "black-and-white",
         conflicts_with = "validate",
-        help = "Display type: 'bw' for black & white, '6c' for 6-color"
+        help = "Display type: 'black-and-white' for black & white, 'six-colors' for 6-color"
     )]
     pub processing_type: ColorMode,
 
@@ -223,25 +223,25 @@ pub struct Args {
     #[arg(
         short = 'c',
         long = "contrast",
-        default_value = "0",
+        default_value = "100",
         value_name = "ADJUSTMENT",
-        value_parser = clap::value_parser!(i32).range(-100..=100),
+        value_parser = clap::value_parser!(u32).range(0..=1000),
         conflicts_with = "validate",
-        help = "Contrast adjustment: -100 (low contrast) to 100 (high contrast), 0 = no change"
+        help = "Contrast adjustment: 100 (no change), <100 = decrease contrast, >100 = increase contrast (e.g., 150 = 50% boost, 50 = 50% reduction)"
     )]
-    pub contrast: i32,
+    pub contrast: u32,
 
     /// Brightness adjustment (-100 to 100, default 0). Positive = lighter, negative = darker
     #[arg(
         short = 'b',
         long = "brightness",
-        default_value = "0",
+        default_value = "100",
         value_name = "ADJUSTMENT",
-        value_parser = clap::value_parser!(i32).range(-100..=100),
+        value_parser = clap::value_parser!(u32).range(0..=1000),
         conflicts_with = "validate",
-        help = "Brightness adjustment: -100 (darker) to 100 (lighter), 0 = no change"
+        help = "Brightness adjustment: 100 (no change), <100 = darker, >100 = lighter (e.g., 150 = 50% brighter, 50 = 50% darker)"
     )]
-    pub brightness: i32,
+    pub brightness: u32,
 
     /// Saturation boost multiplier (0.5 to 2.0, default 1.0). >1.0 = more vibrant, <1.0 = less vibrant
     #[arg(
@@ -249,9 +249,9 @@ pub struct Args {
         long = "saturation",
         default_value = "100",
         value_name = "MULTIPLIER",
-        value_parser = clap::value_parser!(u32).range(0..=200),
+        value_parser = clap::value_parser!(u32).range(0..=1000),
         conflicts_with = "validate",
-        help = "Saturation boost: 0 (desaturated) to 200 (highly saturated), 100 = no change"
+        help = "Saturation: 100 (no change), <100 = less vibrant, >100 = more vibrant (e.g., 150 = 50% boost, 50 = 50% reduction)"
     )]
     pub saturation: u32,
 
