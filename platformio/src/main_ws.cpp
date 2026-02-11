@@ -41,24 +41,31 @@ using namespace photo_frame::ws;
 volatile bool g_isLoadingImage = false;
 
 // Flag to indicate if an image update occurred
-volatile bool g_imageUpdated         = false;
+volatile bool g_imageUpdated = false;
 
 static bool g_disconnectOnLastClient = false;
 
 /// Timeout monitoring state variables
-static WSServer* g_wsServer                                       = nullptr;
+static WSServer* g_wsServer = nullptr;
 static photo_frame::littlefs_manager::LittleFsManager* g_littleFs = nullptr;
-static photo_frame::DisplayManager* g_display                     = nullptr;
-static unsigned long g_serverStartMs                              = 0;
-static unsigned long g_lastCheckMs                                = 0;
-static uint32_t g_timeout_ms                                      = 0;
-static uint8_t g_display_rotation                                 = DEFAULT_ORIENTATION;
+static photo_frame::DisplayManager* g_display = nullptr;
+static unsigned long g_lastCheckMs = 0;
+static const uint32_t g_timeout_ms = WS_LISTEN_TIMEOUT_MS;
+static uint8_t g_display_rotation = DEFAULT_ORIENTATION;
 static photo_frame::BatteryInfo g_battery_info;
 static bool g_clientConnected = false;
+static unsigned long g_serverStartMs = 0;
+static unsigned long g_lastActivityMs = 0;
 
-void performFactoryReset() {
+/// Pausable timer state variables
+static bool g_timerPaused = false; // Whether the timer is currently paused
+static unsigned long g_elapsedBeforePause = 0; // Accumulated time before pause (ms)
+static unsigned long g_pauseStartMs = 0; // When the current pause started
+
+void performFactoryReset()
+{
     log_i("[WS] Perform factory reset: clearing preferences and resetting state");
-    auto& prefs  = photo_frame::PreferencesHelper::getInstance();
+    auto& prefs = photo_frame::PreferencesHelper::getInstance();
     bool success = true;
 
     // TODO: Add any webserver-specific preferences to clear here
@@ -73,8 +80,9 @@ void performFactoryReset() {
 }
 
 void shutdown(photo_frame::littlefs_manager::LittleFsManager* littleFs,
-              photo_frame::DisplayManager* display,
-              unsigned long delay_ms = 0) {
+    photo_frame::DisplayManager* display,
+    unsigned long delay_ms = 0)
+{
 #ifdef DISABLE_DEEP_SLEEP
     log_w("[WS] Deep sleep is disabled!");
     return;
@@ -97,7 +105,8 @@ void shutdown(photo_frame::littlefs_manager::LittleFsManager* littleFs,
     photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_EXT0, 0);
 }
 
-DateTime updateDateTime(time_t timestamp) {
+DateTime updateDateTime(time_t timestamp)
+{
     log_i("[WS] Updating DateTime with timestamp: %u", timestamp);
     struct tm timeinfo;
 
@@ -109,20 +118,21 @@ DateTime updateDateTime(time_t timestamp) {
         localtime_r(&timestamp_time, &timeinfo);
 
         struct timeval tv;
-        tv.tv_sec  = timestamp;
+        tv.tv_sec = timestamp;
         tv.tv_usec = 0;
         settimeofday(&tv, NULL);
     }
 
     return DateTime(timeinfo.tm_year + 1900,
-                    timeinfo.tm_mon + 1,
-                    timeinfo.tm_mday,
-                    timeinfo.tm_hour,
-                    timeinfo.tm_min,
-                    timeinfo.tm_sec);
+        timeinfo.tm_mon + 1,
+        timeinfo.tm_mday,
+        timeinfo.tm_hour,
+        timeinfo.tm_min,
+        timeinfo.tm_sec);
 }
 
-DateTime getCurrentDateTime() {
+DateTime getCurrentDateTime()
+{
     time_t now;
     time(&now);
 
@@ -130,11 +140,11 @@ DateTime getCurrentDateTime() {
     localtime_r(&now, &timeinfo);
 
     return DateTime(timeinfo.tm_year + 1900,
-                    timeinfo.tm_mon + 1,
-                    timeinfo.tm_mday,
-                    timeinfo.tm_hour,
-                    timeinfo.tm_min,
-                    timeinfo.tm_sec);
+        timeinfo.tm_mon + 1,
+        timeinfo.tm_mday,
+        timeinfo.tm_hour,
+        timeinfo.tm_min,
+        timeinfo.tm_sec);
 }
 
 /**
@@ -146,10 +156,11 @@ DateTime getCurrentDateTime() {
  * @param isNewUpload Flag indicating if the image is a new upload
  */
 void displayReceivedFile(const char* filename,
-                         uint8_t orientation,
-                         uint32_t timestamp,
-                         photo_frame::BatteryInfo& battery_info,
-                         bool isNewUpload) {
+    uint8_t orientation,
+    uint32_t timestamp,
+    photo_frame::BatteryInfo& battery_info,
+    bool isNewUpload)
+{
     g_isLoadingImage = true;
 
     log_i("[WS] Loading image %s (orientation=%u, timestamp=%u)", filename, orientation, timestamp);
@@ -199,28 +210,31 @@ void displayReceivedFile(const char* filename,
     g_display->drawOverlay();
     g_display->drawLastUpdate(image_time, 0); // Pass 0 for refresh seconds to skip wake-up time
     g_display->drawImageInfo(photo_frame::getImageSourceString(g_display->getImageSource()),
-                             g_display->getImageSource());
+        g_display->getImageSource());
     g_display->drawBatteryStatus(battery_info);
     g_display->render();
 
     g_isLoadingImage = false;
-    g_imageUpdated   = true;
+    g_imageUpdated = true;
 }
 
-void onWsClientError(const WSEvent& event) {
+void onWsClientError(const WSEvent& event)
+{
     log_w("[WS] Client error: %s", event.message.c_str());
 }
 
-void onWsClientConnected(const WSEvent& event) {
+void onWsClientConnected(const WSEvent& event)
+{
     log_i("[WS] Client %u connected (active clients: %u)", event.clientId, event.clientsCount);
     g_clientConnected = true;
     log_d("[WS] Timeout monitoring disabled while clients are connected");
 }
 
-void onWsClientDisconnected(const WSEvent& event) {
+void onWsClientDisconnected(const WSEvent& event)
+{
     log_i("[WS] WebSocket client %u disconnected (active clients: %u)",
-          event.clientId,
-          event.clientsCount);
+        event.clientId,
+        event.clientsCount);
     g_clientConnected = (event.clientsCount > 0);
 
     if (!g_disconnectOnLastClient)
@@ -250,7 +264,7 @@ void onWsClientDisconnected(const WSEvent& event) {
             snprintf(filename, sizeof(filename), WS_CURRENT_IMAGE_FILENAME);
         } else {
             g_display_rotation = DEFAULT_ORIENTATION;
-            isNewUpload        = false;
+            isNewUpload = false;
             snprintf(filename, sizeof(filename), WS_DEFAULT_IMAGE_FILENAME);
         }
 
@@ -262,16 +276,18 @@ void onWsClientDisconnected(const WSEvent& event) {
     shutdown(g_littleFs, g_display, 100);
 }
 
-void onWsImageReceived(const WSEvent& event) {
+void onWsImageReceived(const WSEvent& event)
+{
     log_i("[WS] Image received: %s (timestamp: %u, orientation: %u)",
-          event.filepath.c_str(),
-          event.timestamp,
-          event.orientation);
+        event.filepath.c_str(),
+        event.timestamp,
+        event.orientation);
     displayReceivedFile(
         event.filepath.c_str(), event.orientation, event.timestamp, g_battery_info, true);
 }
 
-void onWsShutDownRequested(const WSEvent& event) {
+void onWsShutDownRequested(const WSEvent& event)
+{
     log_i("[WS] Shutdown request received via WebSocket");
 
     // Check if an upload or image loading is in progress
@@ -289,7 +305,8 @@ void onWsShutDownRequested(const WSEvent& event) {
     shutdown(g_littleFs, g_display, 100);
 }
 
-void main_webserver_setup() {
+void main_webserver_setup()
+{
     Serial.begin(115200);
     delay(5000);
 
@@ -299,7 +316,7 @@ void main_webserver_setup() {
 
     // Get singleton references - we'll store pointers to them in globals for loop() access
     g_littleFs = &photo_frame::littlefs_manager::LittleFsManager::getInstance();
-    g_display  = &photo_frame::DisplayManager::getInstance();
+    g_display = &photo_frame::DisplayManager::getInstance();
 
     // Initialize DateTime with current time (or RTC time if available)
     updateDateTime(prefs.getLastImageTimestamp());
@@ -346,20 +363,16 @@ void main_webserver_setup() {
     BoardInfo::setBatteryInfo(g_battery_info);
     BoardInfo::setDisplayRotation(g_display_rotation);
 
-    if (error == photo_frame::error_type::BatteryLevelCritical ||
-        error == photo_frame::error_type::BatteryEmpty) {
+    if (error == photo_frame::error_type::BatteryLevelCritical || error == photo_frame::error_type::BatteryEmpty) {
         log_e("[WS] Battery is critical, showing error and sleeping");
         photo_frame::ws_utils::handleCriticalBattery(
             g_battery_info, wakeup_reason, g_display_rotation);
         return;
     }
 
-    // Determine timeout based on boot type
-    uint32_t timeout_ms = WS_LISTEN_TIMEOUT_MS;
-
     log_d("[WS] Starting image wait: %s",
-          is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");
-    log_d("[WS] Timeout set to %u ms", timeout_ms);
+        is_first_boot ? "First Boot Timeout" : "Subsequent Wakeup Timeout");
+    log_d("[WS] Timeout set to %u ms", WS_LISTEN_TIMEOUT_MS);
 
     // ========================================================================
     // Initialize display ONCE at the beginning (before WS operations)
@@ -386,8 +399,8 @@ void main_webserver_setup() {
         error = photo_frame::error_type::WifiConnectionFailed;
     } else {
         log_i("[WS] WiFi AP started: SSID=%s, IP=%s",
-              apManager.getSSID().c_str(),
-              apManager.getIP().c_str());
+            apManager.getSSID().c_str(),
+            apManager.getIP().c_str());
     }
 
     // ========================================================================
@@ -446,9 +459,7 @@ void main_webserver_setup() {
     // Draw connection info box (QR code, SSID, IP)
     // Create deep link URL for Flutter app:
     // photoframe://connect?ip=...&ssid=...&port=...&v=1&d=1&w=800&h=480
-    std::string deepLinkUrl =
-        "photoframe://connect?ip=" + apManager.getIP() + "&ssid=" + apManager.getSSID() +
-        "&port=" + std::to_string(WS_PORT) + "&v=" + std::to_string(PFR1_VERSION) +
+    std::string deepLinkUrl = "photoframe://connect?ip=" + apManager.getIP() + "&ssid=" + apManager.getSSID() + "&port=" + std::to_string(WS_PORT) + "&v=" + std::to_string(PFR1_VERSION) +
 #ifdef DISP_6C
         "&d=1" +
 #else
@@ -465,7 +476,7 @@ void main_webserver_setup() {
     g_display->drawLastUpdate(getCurrentDateTime(), 0);
     g_display->drawBatteryStatus(g_battery_info);
     g_display->drawImageInfo(photo_frame::getImageSourceString(g_display->getImageSource()),
-                             g_display->getImageSource());
+        g_display->getImageSource());
 
     // Render to display
     if (!g_display->render()) {
@@ -481,7 +492,7 @@ void main_webserver_setup() {
     log_d("[WS] AP SSID: %s", apManager.getSSID().c_str());
     log_d("[WS] AP IP: %s", apManager.getIP().c_str());
     log_d("[WS] AP Running: %s",
-          apManager.isClientConnected() ? "Yes (client connected)" : "Yes (no clients yet)");
+        apManager.isClientConnected() ? "Yes (client connected)" : "Yes (no clients yet)");
 
     // Give WiFi AP time to fully stabilize before starting WebSocket
     log_v("[WS] Waiting 1 second for WiFi AP to stabilize...");
@@ -491,12 +502,23 @@ void main_webserver_setup() {
     log_d("[WS] Creating WebSocket server on port %u...", WS_PORT);
     static auto wsServer = std::make_unique<WSServer>(WS_PORT, [](const WSEvent& event) {
         switch (event.type) {
-        case WSEventType::ERROR:               onWsClientError(event); break;
-        case WSEventType::CLIENT_CONNECTED:    onWsClientConnected(event); break;
-        case WSEventType::CLIENT_DISCONNECTED: onWsClientDisconnected(event); break;
-        case WSEventType::IMAGE_RECEIVED:      onWsImageReceived(event); break;
-        case WSEventType::SHUTDOWN_REQUEST:    onWsShutDownRequested(event); break;
-        default:                               break;
+        case WSEventType::ERROR:
+            onWsClientError(event);
+            break;
+        case WSEventType::CLIENT_CONNECTED:
+            onWsClientConnected(event);
+            break;
+        case WSEventType::CLIENT_DISCONNECTED:
+            onWsClientDisconnected(event);
+            break;
+        case WSEventType::IMAGE_RECEIVED:
+            onWsImageReceived(event);
+            break;
+        case WSEventType::SHUTDOWN_REQUEST:
+            onWsShutDownRequested(event);
+            break;
+        default:
+            break;
         }
     });
 
@@ -507,18 +529,22 @@ void main_webserver_setup() {
     }
 
     // Initialize global state for timeout monitoring in loop()
-    g_wsServer      = wsServer.get();
+    g_wsServer = wsServer.get();
     g_serverStartMs = millis();
-    g_lastCheckMs   = millis();
-    g_timeout_ms    = timeout_ms;
+    g_lastActivityMs = millis();
+    g_lastCheckMs = millis();
+    g_timerPaused = false;
+    g_elapsedBeforePause = 0;
+    g_pauseStartMs = 0;
 
     log_i("[WS] Setup complete - timeout monitoring will run in loop()");
-    log_i("[WS] Timeout: %u ms (%u minutes)", timeout_ms, timeout_ms / 60000);
+    log_i("[WS] Timeout: %u ms (%u minutes)", WS_LISTEN_TIMEOUT_MS, WS_LISTEN_TIMEOUT_MS / 60000);
 
     photo_frame::board_utils::checkHeapHealth("[WS] End of main_webserver_setup");
 }
 
-void main_webserver_loop() {
+void main_webserver_loop()
+{
     // Safety check - ensure globals are initialized
     if (!g_wsServer || !g_littleFs || !g_display) {
         return;
@@ -530,43 +556,42 @@ void main_webserver_loop() {
     if (now - g_lastCheckMs >= 1000) {
         g_lastCheckMs = now;
 
-        // Skip timeout check if any client is connected
-        if (g_clientConnected) {
-            // Log status every 30 seconds while clients are connected
-            if ((now - g_serverStartMs) % 30000 < 1000) {
-                log_d("[WS] Clients connected - timeout disabled");
+        // Determine if timer should be paused based on current activity
+        bool shouldPause = g_clientConnected || g_wsServer->isUploadActive() || g_isLoadingImage;
+
+        // Handle pause state transitions
+        if (shouldPause && !g_timerPaused) {
+            // Activity started - pause the timer
+            unsigned long elapsedSinceStart = now - g_serverStartMs;
+            g_elapsedBeforePause = elapsedSinceStart;
+            g_pauseStartMs = now;
+            g_timerPaused = true;
+            log_d("[WS] Timer paused at %u ms (client: %d, upload: %d, loading: %d)",
+                g_elapsedBeforePause, g_clientConnected, g_wsServer->isUploadActive(), g_isLoadingImage);
+        } else if (!shouldPause && g_timerPaused) {
+            // Activity ended - resume the timer
+            unsigned long pauseDuration = now - g_pauseStartMs;
+            g_serverStartMs = now - g_elapsedBeforePause; // Adjust start time to account for pause
+            g_timerPaused = false;
+            log_d("[WS] Timer resumed after %u ms pause (total elapsed: %u ms)",
+                pauseDuration, g_elapsedBeforePause);
+        }
+
+        // If timer is paused, skip timeout check
+        if (g_timerPaused) {
+            // Log status every 30 seconds while paused
+            if ((now - g_pauseStartMs) % 30000 < 1000) {
+                log_d("[WS] Timer paused - elapsed before pause: %u ms", g_elapsedBeforePause);
             }
             return;
         }
 
-        // Get last activity time from WebSocket server
-        unsigned long lastActivityMs = g_wsServer->getLastActivityMs();
-        unsigned long timeSinceActivity;
-
-        // If no activity yet, use server start time
-        if (lastActivityMs == 0) {
-            timeSinceActivity = now - g_serverStartMs;
-        } else {
-            timeSinceActivity = now - lastActivityMs;
-        }
-
-#ifndef DISABLE_DEEP_SLEEP
+        // Calculate elapsed time (excluding paused periods)
+        unsigned long elapsedTime = now - g_serverStartMs;
 
         // Check if timeout exceeded
-        if (timeSinceActivity >= g_timeout_ms) {
-            // Don't shutdown if image is being loaded
-            if (g_isLoadingImage) {
-                log_d("[WS] Timeout reached but image is loading, waiting...");
-                return;
-            }
-
-            // Don't shutdown if upload is active
-            if (g_wsServer->isUploadActive()) {
-                log_d("[WS] Timeout reached but upload is active, waiting...");
-                return;
-            }
-
-            log_d("[WS] Timeout reached after %u ms of inactivity", timeSinceActivity);
+        if (elapsedTime >= g_timeout_ms) {
+            log_d("[WS] Timeout reached after %u ms elapsed time", elapsedTime);
             log_d("[WS] No activity detected, initiating shutdown");
 
             if (!g_imageUpdated) {
@@ -579,12 +604,11 @@ void main_webserver_loop() {
                     snprintf(filename, sizeof(filename), WS_CURRENT_IMAGE_FILENAME);
                 } else {
                     g_display_rotation = DEFAULT_ORIENTATION;
-                    isNewUpload        = false;
+                    isNewUpload = false;
                     snprintf(filename, sizeof(filename), WS_DEFAULT_IMAGE_FILENAME);
                 }
 
-                time_t timestamp =
-                    photo_frame::PreferencesHelper::getInstance().getLastImageTimestamp();
+                time_t timestamp = photo_frame::PreferencesHelper::getInstance().getLastImageTimestamp();
                 displayReceivedFile(
                     filename, g_display_rotation, timestamp, g_battery_info, isNewUpload);
             } else {
@@ -593,17 +617,14 @@ void main_webserver_loop() {
             shutdown(g_littleFs, g_display, 100);
             return;
         }
-#endif // DISABLE_DEEP_SLEEP
 
-        // update battery info every minute even if clients are connected, to keep info up to date
-        // for GET_CONFIG
-        if ((now - g_serverStartMs) % WS_BATTERY_CHECK_INTERVAL_MS < 1000) {
-            log_d("[WS] Active - last activity %u seconds ago (timeout in %u seconds)",
-                  timeSinceActivity / 1000,
-                  (g_timeout_ms - timeSinceActivity) / 1000);
+        // Update battery info every minute to keep info up to date for GET_CONFIG
+        if (elapsedTime % WS_BATTERY_CHECK_INTERVAL_MS < 1000) {
+            log_d("[WS] Active - elapsed time %u seconds (timeout in %u seconds)",
+                elapsedTime / 1000,
+                (g_timeout_ms - elapsedTime) / 1000);
 
-            photo_frame::photo_frame_error_t error =
-                photo_frame::BatteryManager::getInstance().read(g_battery_info);
+            photo_frame::photo_frame_error_t error = photo_frame::BatteryManager::getInstance().read(g_battery_info);
             if (error == photo_frame::error_type::None) {
                 BoardInfo::setBatteryInfo(g_battery_info);
             } else {

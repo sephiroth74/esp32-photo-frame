@@ -7,209 +7,216 @@
 namespace photo_frame {
 namespace ws {
 
-static bool s_hasBatteryInfo = false;
-static BatteryInfo s_batteryInfo;
-static bool s_hasDisplayRotation  = false;
-static uint16_t s_displayRotation = 0;
+    static bool s_hasBatteryInfo = false;
+    static BatteryInfo s_batteryInfo;
+    static bool s_hasDisplayRotation = false;
+    static uint16_t s_displayRotation = 0;
 
-uint32_t BoardInfo::getBinaryFileSize() {
-    uint32_t size = PFR1_MAX_IMAGE_SIZE_FOR(DISP_WIDTH, DISP_HEIGHT);
-    return size;
-}
+    uint32_t BoardInfo::getBinaryFileSize()
+    {
+        uint32_t size = PFR1_MAX_IMAGE_SIZE_FOR(DISP_WIDTH, DISP_HEIGHT);
+        return size;
+    }
 
-String BoardInfo::getBoardModel() {
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
+    String BoardInfo::getBoardModel()
+    {
+        esp_chip_info_t chip_info;
+        esp_chip_info(&chip_info);
 
-    switch (chip_info.model) {
-    case CHIP_ESP32S3: return "ESP32-S3";
-    case CHIP_ESP32:   return "ESP32";
-    case CHIP_ESP32S2: return "ESP32-S2";
-    case CHIP_ESP32C3: return "ESP32-C3";
+        switch (chip_info.model) {
+        case CHIP_ESP32S3:
+            return "ESP32-S3";
+        case CHIP_ESP32:
+            return "ESP32";
+        case CHIP_ESP32S2:
+            return "ESP32-S2";
+        case CHIP_ESP32C3:
+            return "ESP32-C3";
 #ifdef CHIP_ESP32H2
-    case CHIP_ESP32H2: return "ESP32-H2";
+        case CHIP_ESP32H2:
+            return "ESP32-H2";
 #endif
-    default: return "ESP32 (Unknown)";
+        default:
+            return "ESP32 (Unknown)";
+        }
     }
-}
 
-uint32_t BoardInfo::getFlashSize() { return ESP.getFlashChipSize(); }
+    uint32_t BoardInfo::getFlashSize() { return ESP.getFlashChipSize(); }
 
-String BoardInfo::getFlashSizeStr() {
-    uint32_t flashSize = getFlashSize();
-
-    if (flashSize >= 1024 * 1024) {
-        return String(flashSize / (1024 * 1024)) + "MB";
-    } else if (flashSize >= 1024) {
-        return String(flashSize / 1024) + "KB";
-    } else {
-        return String(flashSize) + "B";
-    }
-}
-
-String BoardInfo::getDisplayType() {
+    String BoardInfo::getDisplayType()
+    {
 #ifdef DISP_6C
-    return "six-colors";
+        return "six-colors";
 #elif defined(DISP_BW)
-    return "black-and-white";
+        return "black-and-white";
 #else
-    return "Unknown";
+        return "Unknown";
 #endif
-}
-
-BoardInfo::DisplaySize BoardInfo::getDisplaySize() { return DisplaySize{DISP_WIDTH, DISP_HEIGHT}; }
-
-uint8_t BoardInfo::getDisplayRotation() {
-    if (s_hasDisplayRotation) {
-        return s_displayRotation;
     }
+
+    BoardInfo::DisplaySize BoardInfo::getDisplaySize() { return DisplaySize { DISP_WIDTH, DISP_HEIGHT }; }
+
+    uint8_t BoardInfo::getDisplayRotation()
+    {
+        if (s_hasDisplayRotation) {
+            return s_displayRotation;
+        }
 
 #ifdef DEFAULT_ORIENTATION
-    return DEFAULT_ORIENTATION;
+        return DEFAULT_ORIENTATION;
 #else
-    return 0;
+        return 0;
 #endif
-}
-
-void BoardInfo::setDisplayRotation(uint8_t rotation) {
-    s_displayRotation    = rotation;
-    s_hasDisplayRotation = true;
-}
-
-int8_t BoardInfo::getBatteryLevel() {
-    if (!s_hasBatteryInfo) {
-        return -1;
     }
 
-    return static_cast<int8_t>(s_batteryInfo.percent);
-}
-
-int32_t BoardInfo::getBatteryVoltage() {
-    if (!s_hasBatteryInfo) {
-        return -1;
+    void BoardInfo::setDisplayRotation(uint8_t rotation)
+    {
+        s_displayRotation = rotation;
+        s_hasDisplayRotation = true;
     }
 
-    return static_cast<int32_t>(s_batteryInfo.millivolts);
-}
+    int8_t BoardInfo::getBatteryLevel()
+    {
+        if (!s_hasBatteryInfo) {
+            return -1;
+        }
 
-void BoardInfo::setBatteryInfo(const BatteryInfo& info) {
-    s_batteryInfo    = info;
-    s_hasBatteryInfo = true;
-}
-
-void BoardInfo::clearBatteryInfo() { s_hasBatteryInfo = false; }
-
-String BoardInfo::toJson() {
-    // Create JSON document
-    StaticJsonDocument<512> doc;
-
-    DisplaySize displaySize = getDisplaySize();
-
-    doc["type"]             = type;
-    doc["board"]            = getBoardModel();
-    doc["flash_size"]       = getFlashSizeStr();
-    doc["flash_size_bytes"] = getFlashSize();
-    doc["display_type"]     = getDisplayType();
-    doc["display_width"]    = displaySize.width;
-    doc["display_height"]   = displaySize.height;
-    doc["display_rotation"] = getDisplayRotation();
-    doc["server_version"]   = WS_SERVER_VERSION;
-    doc["file_version"]     = PFR1_FILE_VERSION;
-    doc["binary_file_size"] = getBinaryFileSize();
-
-    int8_t battery          = getBatteryLevel();
-    if (battery >= 0) {
-        doc["battery_level"] = battery;
-    } else {
-        doc["battery_level"] = nullptr;
+        return static_cast<int8_t>(s_batteryInfo.percent);
     }
 
-    int32_t voltage = getBatteryVoltage();
-    if (voltage >= 0) {
-        doc["battery_voltage_mv"] = voltage;
-    } else {
-        doc["battery_voltage_mv"] = nullptr;
+    int32_t BoardInfo::getBatteryVoltage()
+    {
+        if (!s_hasBatteryInfo) {
+            return -1;
+        }
+
+        return static_cast<int32_t>(s_batteryInfo.millivolts);
     }
 
-    // Serialize to string
-    String output;
-    serializeJson(doc, output);
+    void BoardInfo::setBatteryInfo(const BatteryInfo& info)
+    {
+        s_batteryInfo = info;
+        s_hasBatteryInfo = true;
+    }
 
-    log_d("[BoardInfo] Config JSON: %s", output.c_str());
+    void BoardInfo::clearBatteryInfo() { s_hasBatteryInfo = false; }
 
-    return output;
-}
+    String BoardInfo::toJson()
+    {
+        // Create JSON document
+        StaticJsonDocument<512> doc;
 
-// ===============================================
-// WSErrorInfo Implementation
-// ===============================================
+        DisplaySize displaySize = getDisplaySize();
 
-String WSErrorInfo::toJson() const {
-    StaticJsonDocument<256> doc;
-    doc["type"]    = type;
-    doc["code"]    = code;
-    doc["message"] = message;
+        doc["type"] = type;
+        doc["board"] = getBoardModel();
+        doc["flash_size"] = getFlashSize();
+        doc["display_type"] = getDisplayType();
+        doc["display_width"] = displaySize.width;
+        doc["display_height"] = displaySize.height;
+        doc["display_rotation"] = getDisplayRotation();
+        doc["server_version"] = WS_SERVER_VERSION;
+        doc["file_version"] = PFR1_FILE_VERSION;
+        doc["binary_file_size"] = getBinaryFileSize();
 
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
+        int8_t battery = getBatteryLevel();
+        if (battery >= 0) {
+            doc["battery_level"] = battery;
+        } else {
+            doc["battery_level"] = nullptr;
+        }
 
-// ===============================================
-// WSChunkAck Implementation
-// ===============================================
+        int32_t voltage = getBatteryVoltage();
+        if (voltage >= 0) {
+            doc["battery_voltage_mv"] = voltage;
+        } else {
+            doc["battery_voltage_mv"] = nullptr;
+        }
 
-String WSChunkAck::toJson() const {
-    StaticJsonDocument<256> doc;
-    doc["type"]     = type;
-    doc["received"] = received;
+        // Serialize to string
+        String output;
+        serializeJson(doc, output);
 
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
+        log_d("[BoardInfo] Config JSON: %s", output.c_str());
 
-// ===============================================
-// WSReadyInfo Implementation
-// ===============================================
+        return output;
+    }
 
-String WSReadyInfo::toJson() const {
-    StaticJsonDocument<256> doc;
-    doc["type"]       = type;
-    doc["session_id"] = sessionId;
+    // ===============================================
+    // WSErrorInfo Implementation
+    // ===============================================
 
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
+    String WSErrorInfo::toJson() const
+    {
+        StaticJsonDocument<256> doc;
+        doc["type"] = type;
+        doc["code"] = code;
+        doc["message"] = message;
 
-// ===============================================
-// WSSuccessInfo Implementation
-// ===============================================
+        String output;
+        serializeJson(doc, output);
+        return output;
+    }
 
-String WSSuccessInfo::toJson() const {
-    StaticJsonDocument<256> doc;
-    doc["type"]    = type;
-    doc["message"] = message;
+    // ===============================================
+    // WSChunkAck Implementation
+    // ===============================================
 
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
+    String WSChunkAck::toJson() const
+    {
+        StaticJsonDocument<256> doc;
+        doc["type"] = type;
+        doc["received"] = received;
 
-// ===============================================
-// WSMessageInfo Implementation
-// ===============================================
+        String output;
+        serializeJson(doc, output);
+        return output;
+    }
 
-String WSMessageInfo::toJson() const {
-    StaticJsonDocument<256> doc;
-    doc["type"]    = type;
-    doc["message"] = message;
+    // ===============================================
+    // WSReadyInfo Implementation
+    // ===============================================
 
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
+    String WSReadyInfo::toJson() const
+    {
+        StaticJsonDocument<256> doc;
+        doc["type"] = type;
+        doc["session_id"] = sessionId;
+
+        String output;
+        serializeJson(doc, output);
+        return output;
+    }
+
+    // ===============================================
+    // WSSuccessInfo Implementation
+    // ===============================================
+
+    String WSSuccessInfo::toJson() const
+    {
+        StaticJsonDocument<256> doc;
+        doc["type"] = type;
+        doc["message"] = message;
+
+        String output;
+        serializeJson(doc, output);
+        return output;
+    }
+
+    // ===============================================
+    // WSMessageInfo Implementation
+    // ===============================================
+
+    String WSMessageInfo::toJson() const
+    {
+        StaticJsonDocument<256> doc;
+        doc["type"] = type;
+        doc["message"] = message;
+
+        String output;
+        serializeJson(doc, output);
+        return output;
+    }
 
 } // namespace ws
 } // namespace photo_frame
