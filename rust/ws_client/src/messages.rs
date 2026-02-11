@@ -17,18 +17,18 @@
 /// WebSocket message types for PhotoFrame device communication
 use anyhow::{Result, anyhow};
 use console::style;
+use photoframe_lib::DisplayType;
 use serde::{Deserialize, Serialize};
 
 /// Board configuration returned by GET_CONFIG command
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct BoardConfig {
     pub board: String,
-    pub flash_size: String,
-    pub flash_size_bytes: u32,
-    pub display_type: String,
+    pub flash_size: u32,
+    pub display_type: DisplayType,
     pub display_width: u16,
     pub display_height: u16,
-    pub display_rotation: u16,
+    pub display_rotation: u8,
     pub server_version: String,
     pub file_version: u8,
     pub binary_file_size: u32,
@@ -64,7 +64,7 @@ impl BoardConfig {
         }
 
         // Check rotation
-        if self.display_rotation > 270 {
+        if self.display_rotation > 3 {
             return Err(anyhow!("Invalid rotation: {}", self.display_rotation));
         }
 
