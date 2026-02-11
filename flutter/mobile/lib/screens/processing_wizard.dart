@@ -6,9 +6,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../state/image_processing_state.dart';
 import '../utils/app_logger.dart';
-import 'wizard/rotation_crop_step.dart';
-import 'wizard/dithering_step.dart';
-import 'wizard/review_step.dart';
 
 class ProcessingWizardScreen extends StatefulWidget {
   final File imageFile;
@@ -174,9 +171,9 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                     });
                   },
                   children: [
-                    RotationCropStep(job: job, file: widget.imageFile),
-                    DitheringStep(job: job, file: processed),
-                    ReviewStep(job: job, file: processed),
+                    // RotationCropStep(job: job, file: widget.imageFile),
+                    // DitheringStep(job: job, file: processed),
+                    // ReviewStep(job: job, file: processed),
                   ],
                 ),
               ),

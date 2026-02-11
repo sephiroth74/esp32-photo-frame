@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import '../models/processing_models.dart';
+import 'package:photoframe_common/photoframe_common.dart';
+
 import '../utils/app_logger.dart';
 import 'photoframe_dithering_ffi.dart';
 
@@ -23,8 +24,8 @@ class DitheringProcessor {
     final stopwatch = Stopwatch()..start();
 
     // Map enums to FFI values
-    final ffiMethod = _mapDitheringMethod(method);
-    final ffiDisplay = _mapDisplayType(displayType);
+    final ffiMethod = method;
+    final ffiDisplay = displayType;
 
     logger.fine('Calling Rust FFI with ${inputBytes.length} bytes');
     logger.fine('Dithering params: method=${ffiMethod.value}, display=${ffiDisplay.value}');
@@ -50,29 +51,5 @@ class DitheringProcessor {
 
     // Return result or original on error
     return result ?? inputBytes;
-  }
-
-  static DitheringMethodFFI _mapDitheringMethod(DitheringMethod method) {
-    switch (method) {
-      case DitheringMethod.floydSteinberg:
-        return DitheringMethodFFI.floydSteinberg;
-      case DitheringMethod.atkinson:
-        return DitheringMethodFFI.atkinson;
-      case DitheringMethod.stucki:
-        return DitheringMethodFFI.stucki;
-      case DitheringMethod.jarvisJudiceNinke:
-        return DitheringMethodFFI.jarvisJudiceNinke;
-      case DitheringMethod.ordered:
-        return DitheringMethodFFI.ordered;
-    }
-  }
-
-  static DisplayTypeFFI _mapDisplayType(DisplayType type) {
-    switch (type) {
-      case DisplayType.sixColors:
-        return DisplayTypeFFI.sixColors;
-      case DisplayType.blackAndWhite:
-        return DisplayTypeFFI.blackAndWhite;
-    }
   }
 }

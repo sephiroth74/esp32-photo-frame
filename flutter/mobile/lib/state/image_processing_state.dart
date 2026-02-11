@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:exif/exif.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 
 import '../models/processing_models.dart';
 import '../services/dithering_processor.dart';

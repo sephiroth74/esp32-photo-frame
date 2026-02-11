@@ -1,6 +1,7 @@
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:ffi/ffi.dart';
 
 /// FFI result structure matching Rust
@@ -153,25 +154,4 @@ class PhotoframeDithering {
       malloc.free(inputPtr);
     }
   }
-}
-
-/// Dithering method enum (must match Rust)
-enum DitheringMethodFFI {
-  floydSteinberg(0),
-  atkinson(1),
-  stucki(2),
-  jarvisJudiceNinke(3),
-  ordered(4);
-
-  final int value;
-  const DitheringMethodFFI(this.value);
-}
-
-/// Display type enum (must match Rust)
-enum DisplayTypeFFI {
-  sixColors(0),
-  blackAndWhite(1);
-
-  final int value;
-  const DisplayTypeFFI(this.value);
 }

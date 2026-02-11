@@ -16,23 +16,29 @@ enum Orientation {
 @JsonEnum(alwaysCreate: true)
 enum DitheringMethod {
   @JsonValue('floyd-steinberg')
-  floydSteinberg,
+  floydSteinberg(0),
   @JsonValue('atkinson')
-  atkinson,
+  atkinson(1),
   @JsonValue('stucki')
-  stucki,
+  stucki(2),
   @JsonValue('jarvis-judice-ninke')
-  jarvisJudiceNinke,
+  jarvisJudiceNinke(3),
   @JsonValue('ordered')
-  ordered,
+  ordered(4);
+
+  final int value;
+  const DitheringMethod([this.value = 0]);
 }
 
 @JsonEnum(alwaysCreate: true)
 enum DisplayType {
   @JsonValue('black-and-white')
-  blackAndWhite,
+  blackAndWhite(0),
   @JsonValue('six-colors')
-  sixColors,
+  sixColors(1);
+
+  final int value;
+  const DisplayType([this.value = 0]);
 }
 
 @JsonEnum(alwaysCreate: true)

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-
-enum DisplayType { sixColors, blackAndWhite }
-
-enum DitheringMethod { floydSteinberg, atkinson, stucki, jarvisJudiceNinke, ordered }
+import 'package:photoframe_common/photoframe_common.dart';
 
 typedef Resolution = Size;
 

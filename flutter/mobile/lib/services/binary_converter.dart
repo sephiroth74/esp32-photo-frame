@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import '../models/processing_models.dart';
+import 'package:photoframe_common/photoframe_common.dart';
+
 import '../utils/app_logger.dart';
 import 'photoframe_dithering_ffi.dart';
 
