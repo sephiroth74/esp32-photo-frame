@@ -44,9 +44,12 @@ enum DisplayType {
 @JsonEnum(alwaysCreate: true)
 enum ColorMode {
   @JsonValue('black-and-white')
-  blackAndWhite,
+  blackAndWhite(0),
   @JsonValue('six-colors')
-  sixColors,
+  sixColors(1);
+
+  final int value;
+  const ColorMode([this.value = 0]);
 }
 
 // ----------- Extensions for FFI enums ------------
@@ -145,6 +148,19 @@ extension OrientationExtension on Orientation {
       throw ArgumentError('Unknown orientation: $this');
     }
     return value;
+  }
+
+  int toDegrees() {
+    switch (this) {
+      case Orientation.landscape:
+        return 0;
+      case Orientation.portrait:
+        return 90;
+      case Orientation.landscapeReverse:
+        return 180;
+      case Orientation.portraitReverse:
+        return 270;
+    }
   }
 
   String toReadableString() {

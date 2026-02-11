@@ -15,7 +15,7 @@ fn main() {
             bytes.as_ptr(),
             bytes.len(),
             0,
-            ColorMode::BlackAndWhite,
+            ColorMode::BlackAndWhite.into(),
         );
         if res.success {
             let payload: &[u8] = slice::from_raw_parts(res.data_ptr, res.data_len);
@@ -39,7 +39,7 @@ fn main() {
             bytes.as_ptr(),
             bytes.len(),
             0,
-            ColorMode::SixColors,
+            ColorMode::SixColors.into(),
         );
         if res2.success {
             let payload: &[u8] = slice::from_raw_parts(res2.data_ptr, res2.data_len);

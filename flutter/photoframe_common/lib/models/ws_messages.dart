@@ -11,7 +11,7 @@ class BoardConfig {
   final DisplayType displayType;
   final int displayWidth;
   final int displayHeight;
-  final int displayRotation;
+  final Orientation displayRotation;
   final String serverVersion;
   final int fileVersion;
   final int binaryFileSize;
@@ -54,7 +54,7 @@ class BoardConfig {
       displayType: displayTypeFromString(json['display_type']),
       displayWidth: (json['display_width'] as num).toInt(),
       displayHeight: (json['display_height'] as num).toInt(),
-      displayRotation: (json['display_rotation'] as num).toInt(),
+      displayRotation: orientationFromInt((json['display_rotation'] as num).toInt()),
       serverVersion: json['server_version'] as String,
       fileVersion: (json['file_version'] as num).toInt(),
       binaryFileSize: (json['binary_file_size'] as num).toInt(),

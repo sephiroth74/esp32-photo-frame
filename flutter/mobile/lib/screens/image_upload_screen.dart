@@ -83,7 +83,10 @@ class _ImageUploadScreenState extends State<ImageUploadScreen> {
                       _buildInfoRow('Device', widget.boardConfig.board),
                       _buildInfoRow('Display', '${widget.boardConfig.displayWidth}×${widget.boardConfig.displayHeight}'),
                       _buildInfoRow('Type', widget.boardConfig.displayType.toJsonValue()),
-                      _buildInfoRow('Rotation', '${widget.boardConfig.displayRotation} (${_rotationAngle(widget.boardConfig.displayRotation)}°)'),
+                      _buildInfoRow(
+                        'Rotation',
+                        '${widget.boardConfig.displayRotation.name} (${_rotationAngle(widget.boardConfig.displayRotation.value)}°)',
+                      ),
                       if (widget.boardConfig.batteryLevel != null)
                         _buildInfoRow(
                           'Battery',

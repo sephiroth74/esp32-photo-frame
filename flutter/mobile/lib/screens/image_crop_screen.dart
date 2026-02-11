@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:photoframe/screens/dithering_screen.dart';
@@ -40,7 +40,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
   void initState() {
     super.initState();
     _resolveImageSize();
-    _isRotated = widget.boardConfig.displayRotation % 2 == 1;
+    _isRotated = widget.boardConfig.displayRotation.value % 2 == 1;
     _currentAspect = _targetAspect;
   }
 
@@ -194,7 +194,11 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => DitheringScreen(croppedImageFile: croppedFile, boardConfig: widget.boardConfig),
+          builder: (_) => DitheringScreen(
+            croppedImageFile: croppedFile,
+            boardConfig: widget.boardConfig,
+            currentOrientation: _isRotated ? Orientation.portrait : Orientation.landscape,
+          ),
         ),
       );
     } catch (e) {

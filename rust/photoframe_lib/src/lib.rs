@@ -172,10 +172,12 @@ pub unsafe extern "C" fn photoframe_convert_with_processing(
     image_data: *const u8,
     image_len: usize,
     rotation: u8,
-    color_mode: ColorMode,
+    mode: u8,
 ) -> DitheringResult {
     // Convert input to slice
     let input_slice = unsafe { slice::from_raw_parts(image_data, image_len) };
+
+    let color_mode: ColorMode = mode.into();
 
     match convert_image_from_bytes(input_slice, color_mode.into()) {
         Some((payload, w, h)) => {

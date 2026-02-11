@@ -1,8 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 import 'package:photoframe_common/photoframe_common.dart';
+import 'package:photoframe/screens/upload_screen.dart';
+import 'package:photoframe/services/binary_converter.dart';
 import 'package:photoframe/services/dithering_processor.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/widgets/dithering_method_icon.dart';
@@ -10,8 +14,9 @@ import 'package:photoframe/widgets/dithering_method_icon.dart';
 class DitheringScreen extends StatefulWidget {
   final File croppedImageFile;
   final BoardConfig boardConfig;
+  final Orientation currentOrientation;
 
-  const DitheringScreen({super.key, required this.croppedImageFile, required this.boardConfig});
+  const DitheringScreen({super.key, required this.croppedImageFile, required this.boardConfig, this.currentOrientation = Orientation.landscape});
 
   @override
   State<DitheringScreen> createState() => _DitheringScreenState();
@@ -28,6 +33,7 @@ class _DitherPreviewArgs {
   final double brightness;
   final double contrast;
   final double saturation;
+  final double ditherStrength;
 
   const _DitherPreviewArgs({
     required this.imageBytes,
@@ -36,6 +42,7 @@ class _DitherPreviewArgs {
     required this.brightness,
     required this.contrast,
     required this.saturation,
+    required this.ditherStrength,
   });
 }
 
@@ -47,7 +54,7 @@ Uint8List? _computeDitherPreview(_DitherPreviewArgs args) {
     saturation: args.saturation,
     contrast: args.contrast,
     brightness: args.brightness,
-    ditherStrength: 1.0,
+    ditherStrength: args.ditherStrength,
   );
 }
 
@@ -64,6 +71,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
   double _brightness = 1.1;
   double _contrast = 0.9;
   double _saturation = 1.0;
+  double _ditherStrength = 1.0;
 
   @override
   void initState() {
@@ -80,7 +88,9 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
   @override
   void dispose() {
     // Clean up temporary cropped image file when leaving this screen
-    widget.croppedImageFile.delete().catchError((_) {});
+    widget.croppedImageFile.delete().catchError((_) {
+      logger.warning('Failed to delete temporary cropped image file: ${widget.croppedImageFile.path}');
+    });
     super.dispose();
   }
 
@@ -152,6 +162,15 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
     }
   }
 
+  void _setDitherStrength(double value, bool isFinal) {
+    setState(() {
+      _ditherStrength = value;
+    });
+    if (isFinal) {
+      _updatePreviewDithering();
+    }
+  }
+
   Future<void> _updatePreviewDithering() async {
     if (_isGeneratingPreview) return;
 
@@ -162,7 +181,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
 
       final imageBytes = await widget.croppedImageFile.readAsBytes();
       logger.fine(
-        'Computing dithering preview: method=$_selectedMethod, colorMode=$_selectedColorMode, brightness=$_brightness, contrast=$_contrast, saturation=$_saturation',
+        'Computing dithering preview: method=$_selectedMethod, colorMode=$_selectedColorMode, brightness=$_brightness, contrast=$_contrast, saturation=$_saturation, strength=$_ditherStrength',
       );
 
       final displayType = _selectedColorMode == ColorMode.sixColors ? DisplayType.sixColors : DisplayType.blackAndWhite;
@@ -174,6 +193,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
         brightness: _brightness,
         contrast: _contrast,
         saturation: _saturation,
+        ditherStrength: _ditherStrength,
       );
 
       final ditheredBytes = await compute(_computeDitherPreview, args);
@@ -205,7 +225,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
 
     try {
       logger.fine(
-        'Applying dithering: method=$_selectedMethod, colorMode=$_selectedColorMode, brightness=$_brightness, contrast=$_contrast, saturation=$_saturation',
+        'Applying dithering: method=$_selectedMethod, colorMode=$_selectedColorMode, brightness=$_brightness, contrast=$_contrast, saturation=$_saturation, strength=$_ditherStrength',
       );
 
       // Read the cropped image
@@ -213,7 +233,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
       logger.fine('Loaded cropped image: ${imageBytes.length} bytes');
 
       // Apply dithering with effects
-      final displayType = _selectedColorMode == ColorMode.sixColors ? DisplayType.sixColors : DisplayType.blackAndWhite;
+      final displayType = _selectedColorMode.toDisplayType();
 
       final ditheredBytes = DitheringProcessor.apply(
         imageBytes,
@@ -222,25 +242,69 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
         saturation: _saturation,
         contrast: _contrast,
         brightness: _brightness,
-        ditherStrength: 1.0,
+        ditherStrength: _ditherStrength,
       );
 
       if (!mounted) return;
 
       logger.info('Dithering applied successfully: ${ditheredBytes.length} bytes');
 
-      // Show success message and navigate back or to preview
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dithering applied successfully!'), duration: Duration(seconds: 2)));
-
-      // For now, just go back or you can navigate to a preview screen
-      // Future: Navigate to upload/preview screen with ditheredBytes
-      if (mounted) {
-        Navigator.of(context).pop();
+      // Decode dithered image for rotation
+      final ditheredImage = img.decodeImage(ditheredBytes);
+      if (ditheredImage == null) {
+        throw Exception('Failed to decode dithered image');
       }
+
+      logger.fine('Dithered image decoded: ${ditheredImage.width}x${ditheredImage.height}');
+
+      // Rotate image back to landscape mode based on current orientation
+      final int rotationAngle = widget.currentOrientation.toDegrees();
+      logger.fine('Current image orientation is ${widget.currentOrientation.name}, applying rotation: $rotationAngle°');
+
+      img.Image rotatedImage = ditheredImage;
+      if (rotationAngle != 0) {
+        logger.fine('Rotating image by $rotationAngle° to landscape mode');
+        rotatedImage = img.copyRotate(ditheredImage, angle: rotationAngle);
+      }
+
+      logger.fine('Rotated image: ${rotatedImage.width}x${rotatedImage.height}');
+
+      // Encode back to PNG bytes
+      final rotatedBytes = img.encodePng(rotatedImage);
+
+      // Convert to binary format using BinaryConverter
+      logger.fine('Converting to binary format for ESP32');
+      final binaryData = BinaryConverter.convertToBinary(rotatedBytes, colorMode: _selectedColorMode, orientation: widget.currentOrientation);
+
+      if (binaryData == null) {
+        throw Exception('Failed to convert image to binary format');
+      }
+
+      logger.info('Binary conversion successful: ${binaryData.length} bytes');
+
+      // Save as .pfr1 file in temp directory
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final baseFilename = '${tempDir.path}/photoframe_$timestamp';
+
+      final pfrFile = File('$baseFilename.pfr1');
+
+      // Save binary data as .pfr1
+      await pfrFile.writeAsBytes(binaryData);
+      logger.info('PFR1 file saved: ${pfrFile.path}');
+
+      if (!mounted) return;
+
+      // Navigate to UploadScreen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => UploadScreen(pfrFile: pfrFile, currentOrientation: widget.currentOrientation),
+        ),
+      );
     } catch (e, stackTrace) {
-      logger.severe('Failed to apply dithering: $e', e, stackTrace);
+      logger.severe('Failed to apply dithering and convert to binary: $e', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to apply dithering: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to process image: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) {
@@ -264,6 +328,9 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
         selected: _DitheringOption(method: _selectedMethod, colorMode: _selectedColorMode),
         onSelect: _onSelectEffect,
         imageFile: widget.croppedImageFile,
+        ditherStrength: _ditherStrength,
+        onStrengthChanged: (value) => _setDitherStrength(value, false),
+        onStrengthChangeEnd: (value) => _setDitherStrength(value, true),
       );
     }
 
@@ -324,7 +391,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
               height: _activeTab == null
                   ? 0
                   : _activeTab == NavigationTab.effects
-                  ? 140
+                  ? _activeTab == NavigationTab.effects ? 190 : 190
                   : 90,
               child: _buildPanel(),
             ),
@@ -454,6 +521,9 @@ class _EffectsPanel extends StatelessWidget {
   final _DitheringOption selected;
   final ValueChanged<_DitheringOption> onSelect;
   final File imageFile;
+  final double ditherStrength;
+  final ValueChanged<double> onStrengthChanged;
+  final ValueChanged<double> onStrengthChangeEnd;
 
   const _EffectsPanel({
     required this.options,
@@ -461,24 +531,58 @@ class _EffectsPanel extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.imageFile,
+    required this.ditherStrength,
+    required this.onStrengthChanged,
+    required this.onStrengthChangeEnd,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.grey.shade100,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            for (int i = 0; i < options.length; i++) ...[
-              if (i > 0 && supportsSixColors && options[i - 1].colorMode == ColorMode.sixColors && options[i].colorMode == ColorMode.blackAndWhite)
-                Container(width: 1, height: 80, margin: const EdgeInsets.symmetric(horizontal: 8), color: Colors.grey.shade400),
-              _EffectPreviewCard(option: options[i], isSelected: options[i] == selected, onTap: () => onSelect(options[i]), imageFile: imageFile),
-            ],
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: ditherStrength,
+                        min: 0.0,
+                        max: 2.0,
+                        divisions: 40,
+                        onChanged: onStrengthChanged,
+                        onChangeEnd: onStrengthChangeEnd,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(ditherStrength.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 6),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(
+                children: [
+                  for (int i = 0; i < options.length; i++) ...[
+                    if (i > 0 && supportsSixColors && options[i - 1].colorMode == ColorMode.sixColors && options[i].colorMode == ColorMode.blackAndWhite)
+                      Container(width: 1, height: 80, margin: const EdgeInsets.symmetric(horizontal: 8), color: Colors.grey.shade400),
+                    _EffectPreviewCard(option: options[i], isSelected: options[i] == selected, onTap: () => onSelect(options[i]), imageFile: imageFile),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -548,22 +652,6 @@ class _EffectPreviewCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 2),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: option.colorMode == ColorMode.sixColors ? Colors.blue.shade50 : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                option.modeLabel,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: option.colorMode == ColorMode.sixColors ? Colors.blue.shade700 : Colors.grey.shade700,
-                ),
-              ),
             ),
           ],
         ),
