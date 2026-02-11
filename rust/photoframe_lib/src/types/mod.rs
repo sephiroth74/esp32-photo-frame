@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use clap::ValueEnum;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -130,6 +131,16 @@ impl Into<DisplayType> for ColorMode {
             ColorMode::BlackAndWhite => DisplayType::BlackAndWhite,
             ColorMode::SixColors => DisplayType::SixColors,
         }
+    }
+}
+
+impl Display for DisplayType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DisplayType::BlackAndWhite => "Black and White",
+            DisplayType::SixColors => "Six Colors",
+        };
+        write!(f, "{}", s)
     }
 }
 
