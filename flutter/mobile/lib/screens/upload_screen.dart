@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Orientation;
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe_common/models/bin_model.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:share_plus/share_plus.dart';
@@ -63,19 +64,21 @@ class _UploadScreenState extends State<UploadScreen> {
     } catch (e) {
       logger.severe('Failed to share file: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to share file: $e'), backgroundColor: Colors.red));
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to share file: $e'), backgroundColor: colors.error));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Preview'),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: colors.appBarBackground,
+        foregroundColor: colors.appBarForeground,
         elevation: 0,
         actions: [IconButton(icon: const Icon(Icons.share), tooltip: 'Share PFR1 file', onPressed: _shareFile)],
       ),
@@ -157,8 +160,8 @@ class _UploadScreenState extends State<UploadScreen> {
                   icon: const Icon(Icons.share),
                   label: const Text('Share File'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.primary,
+                    foregroundColor: colors.onError,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),

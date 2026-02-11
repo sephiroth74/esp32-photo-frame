@@ -9,6 +9,7 @@ import 'package:photoframe/screens/upload_screen.dart';
 import 'package:photoframe/services/binary_converter.dart';
 import 'package:photoframe/services/dithering_processor.dart';
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe/widgets/dithering_method_icon.dart';
 
 class DitheringScreen extends StatefulWidget {
@@ -304,7 +305,8 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
     } catch (e, stackTrace) {
       logger.severe('Failed to apply dithering and convert to binary: $e', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to process image: $e'), backgroundColor: Colors.red));
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to process image: $e'), backgroundColor: colors.error));
       }
     } finally {
       if (mounted) {
@@ -322,6 +324,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
 
     if (_activeTab == NavigationTab.effects) {
       final options = _getAvailableOptions();
+      final colors = ThemeColors(context);
       return _EffectsPanel(
         options: options,
         supportsSixColors: _supportsSixColors,
@@ -331,6 +334,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
         ditherStrength: _ditherStrength,
         onStrengthChanged: (value) => _setDitherStrength(value, false),
         onStrengthChangeEnd: (value) => _setDitherStrength(value, true),
+        colors: colors,
       );
     }
 
@@ -351,12 +355,13 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dithering & Effects'),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: colors.appBarBackground,
+        foregroundColor: colors.appBarForeground,
         elevation: 0,
       ),
       body: Column(
@@ -393,7 +398,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                         height: _activeTab == null
                             ? 0
                             : _activeTab == NavigationTab.effects
-                            ? 190
+                            ? 185
                             : 90,
                         child: _buildPanel(),
                       ),
@@ -409,8 +414,8 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
               return Container(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                  color: colors.surface,
+                  border: Border(top: BorderSide(color: colors.borderLight)),
                   boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2))],
                 ),
                 child: Row(
@@ -454,7 +459,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surface,
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 12, offset: const Offset(0, -2))],
               ),
               child: Row(
@@ -465,7 +470,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, disabledBackgroundColor: Colors.grey[300]),
+                      style: ElevatedButton.styleFrom(backgroundColor: colors.primary, disabledBackgroundColor: colors.disabled),
                       onPressed: _isProcessing ? null : _applyDithering,
                       child: _isProcessing
                           ? const SizedBox(
@@ -473,9 +478,9 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
                             )
-                          : const Text(
+                          : Text(
                               'Continue',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),
                             ),
                     ),
                   ),
@@ -531,6 +536,7 @@ class _EffectsPanel extends StatelessWidget {
   final double ditherStrength;
   final ValueChanged<double> onStrengthChanged;
   final ValueChanged<double> onStrengthChangeEnd;
+  final ThemeColors colors;
 
   const _EffectsPanel({
     required this.options,
@@ -541,6 +547,7 @@ class _EffectsPanel extends StatelessWidget {
     required this.ditherStrength,
     required this.onStrengthChanged,
     required this.onStrengthChangeEnd,
+    required this.colors,
   });
 
   @override
@@ -585,7 +592,7 @@ class _EffectsPanel extends StatelessWidget {
                         supportsSixColors &&
                         options[i - 1].colorMode == ColorMode.sixColors &&
                         options[i].colorMode == ColorMode.blackAndWhite)
-                      Container(width: 1, height: 80, margin: const EdgeInsets.symmetric(horizontal: 8), color: Colors.grey.shade400),
+                      Container(width: 1, height: 80, margin: const EdgeInsets.symmetric(horizontal: 8), color: colors.borderLight),
                     _EffectPreviewCard(
                       option: options[i],
                       isSelected: options[i] == selected,
@@ -613,9 +620,10 @@ class _EffectPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isSelected ? Colors.blue : Colors.grey.shade400;
+    final colors = ThemeColors(context);
+    final borderColor = isSelected ? colors.primary : colors.borderLight;
     final borderWidth = isSelected ? 2.5 : 1.0;
-    final iconColor = option.colorMode == ColorMode.sixColors ? Colors.white : Colors.grey.shade300;
+    final iconColor = option.colorMode == ColorMode.sixColors ? colors.surface : colors.textHint;
     final grayScale = option.colorMode == ColorMode.blackAndWhite;
     Image image;
     if (grayScale) {
@@ -697,10 +705,7 @@ class _AdjustmentPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        backgroundBlendMode: BlendMode.screen,
-        color: Colors.white.withValues(alpha: 0.8),
-      ),
+      decoration: BoxDecoration(backgroundBlendMode: BlendMode.screen, color: Colors.white.withValues(alpha: 0.8)),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -724,7 +729,8 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? Colors.blue : Colors.grey.shade600;
+    final colors = ThemeColors(context);
+    final color = isActive ? colors.primary : colors.textSecondary;
 
     return InkWell(
       onTap: onTap,

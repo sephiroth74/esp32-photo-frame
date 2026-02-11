@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:photoframe/screens/dithering_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 
 class ImageCropScreen extends StatefulWidget {
@@ -170,7 +171,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
     if (cropSize == null || cropCenter == null || imageSize == null || minScale == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Crop data not ready yet'), backgroundColor: Colors.orange));
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Crop data not ready yet'), backgroundColor: colors.warning));
       }
       return;
     }
@@ -204,7 +206,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     } catch (e) {
       logger.severe('Failed to save cropped image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save cropped image: $e'), backgroundColor: Colors.red));
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save cropped image: $e'), backgroundColor: colors.error));
       }
     } finally {
       if (mounted) {
@@ -280,8 +283,14 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Crop & Rotate'), elevation: 0, backgroundColor: Colors.white, foregroundColor: Colors.black),
+      appBar: AppBar(
+        title: const Text('Crop & Rotate'),
+        elevation: 0,
+        backgroundColor: colors.appBarBackground,
+        foregroundColor: colors.appBarForeground,
+      ),
       body: Stack(
         children: [
           Column(
@@ -405,12 +414,12 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         child: ElevatedButton(
                           onPressed: _continue,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: colors.primary,
                             // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Continue',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),

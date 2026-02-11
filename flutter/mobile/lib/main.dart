@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 // Old implementation kept for reference
 // import 'screens/home_screen.dart';
@@ -27,13 +28,31 @@ class PhotoframeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Old implementation with ChangeNotifierProvider commented out
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'PhotoFrame Mobile',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo, brightness: Brightness.light),
-      home: const NewHomeScreen(),
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        // Use dynamic colors if available (Android 12+), fallback to indigo seed
+        ColorScheme lightColorScheme;
+        ColorScheme darkColorScheme;
+
+        if (lightDynamic != null && darkDynamic != null) {
+          // Use system palette colors (Android 12+ Material You)
+          lightColorScheme = lightDynamic.harmonized();
+          darkColorScheme = darkDynamic.harmonized();
+        } else {
+          // Fallback to default color scheme with indigo seed
+          lightColorScheme = ColorScheme.fromSeed(seedColor: Colors.indigo, brightness: Brightness.light);
+          darkColorScheme = ColorScheme.fromSeed(seedColor: Colors.indigo, brightness: Brightness.dark);
+        }
+
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'PhotoFrame Mobile',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(useMaterial3: true, colorScheme: lightColorScheme, brightness: Brightness.light),
+          darkTheme: ThemeData(useMaterial3: true, colorScheme: darkColorScheme, brightness: Brightness.dark),
+          home: const NewHomeScreen(),
+        );
+      },
     );
   }
 }

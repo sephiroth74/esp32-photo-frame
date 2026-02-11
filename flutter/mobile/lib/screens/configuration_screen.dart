@@ -6,6 +6,7 @@ import 'package:photoframe/screens/image_upload_screen.dart';
 import 'package:photoframe/services/wifi_service.dart';
 import 'package:photoframe/services/ws_connection_service.dart';
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:photoframe/utils/theme_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_settings/app_settings.dart';
 
@@ -131,11 +132,12 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
         }
 
         if (showPermissionSnackBar && mounted) {
+          final colors = ThemeColors(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location permission is required to verify WiFi network'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
+            SnackBar(
+              content: const Text('Location permission is required to verify WiFi network'),
+              backgroundColor: colors.warning,
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -207,10 +209,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       return;
     }
 
+    final colors = ThemeColors(context);
     if (!_wifiValid) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please connect to the correct WiFi network first'), backgroundColor: Colors.orange));
+      ).showSnackBar(SnackBar(content: const Text('Please connect to the correct WiFi network first'), backgroundColor: colors.warning));
       return;
     }
 
@@ -245,7 +248,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connected successfully! Ready to upload'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+          SnackBar(
+            content: const Text('Connected successfully! Ready to upload'),
+            backgroundColor: colors.success,
+            duration: const Duration(seconds: 2),
+          ),
         );
 
         // Navigate to image upload screen with board config
@@ -259,7 +266,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Connection failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 3)));
+        ).showSnackBar(SnackBar(content: Text('Connection failed: $e'), backgroundColor: colors.error, duration: const Duration(seconds: 3)));
       }
       if (!WsConnectionService().isConnected) {
         _startWiFiPolling();
@@ -275,6 +282,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors(context);
     return Scaffold(
       appBar: AppBar(title: const Text('E-Paper Connection'), centerTitle: true),
       body: AbsorbPointer(
@@ -298,14 +306,14 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                         children: [
                           Row(
                             children: [
-                              Icon(_wifiValid ? Icons.wifi : Icons.wifi_off, color: _wifiValid ? Colors.green : Colors.orange),
+                              Icon(_wifiValid ? Icons.wifi : Icons.wifi_off, color: _wifiValid ? colors.success : colors.warning),
                               const SizedBox(width: 8),
                               const Text('WiFi Connection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                           const SizedBox(height: 12),
                           if (_isLoadingWiFi)
-                            const Row(
+                            Row(
                               children: [
                                 SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                                 SizedBox(width: 12),
@@ -354,10 +362,10 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(Icons.settings_ethernet, color: Colors.blue),
-                              SizedBox(width: 8),
+                              Icon(Icons.settings_ethernet, color: colors.primary),
+                              const SizedBox(width: 8),
                               Text('Connection Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
@@ -420,7 +428,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                     onPressed: (_wifiValid && !_isConnecting) ? _saveAndContinue : null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: (_wifiValid && !_isConnecting) ? Colors.indigo : Colors.grey,
+                      backgroundColor: (_wifiValid && !_isConnecting) ? colors.primary : colors.disabled,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
