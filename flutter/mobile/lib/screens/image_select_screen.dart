@@ -6,18 +6,18 @@ import 'package:photoframe/screens/image_crop_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/utils/theme_colors.dart';
 
-/// Image upload screen with BoardConfig info display and image selection
+/// Image select screen with BoardConfig info display and image selection
 /// Allows user to pick an image from gallery and preview before upload
-class ImageUploadScreen extends StatefulWidget {
+class ImageSelectScreen extends StatefulWidget {
   final BoardConfig boardConfig;
 
-  const ImageUploadScreen({super.key, required this.boardConfig});
+  const ImageSelectScreen({super.key, required this.boardConfig});
 
   @override
-  State<ImageUploadScreen> createState() => _ImageUploadScreenState();
+  State<ImageSelectScreen> createState() => _ImageSelectScreenState();
 }
 
-class _ImageUploadScreenState extends State<ImageUploadScreen> {
+class _ImageSelectScreenState extends State<ImageSelectScreen> {
   File? _selectedImage;
   final ImagePicker _imagePicker = ImagePicker();
 

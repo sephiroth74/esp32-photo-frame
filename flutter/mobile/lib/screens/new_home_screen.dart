@@ -5,7 +5,7 @@ import 'package:photoframe/main.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/qr_scanner_screen.dart';
 import 'package:photoframe/screens/configuration_screen.dart';
-import 'package:photoframe/screens/image_upload_screen.dart';
+import 'package:photoframe/screens/image_select_screen.dart';
 
 /// Home Screen - Choose connection method
 class NewHomeScreen extends StatefulWidget {
@@ -71,7 +71,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
     try {
       final boardConfig = BoardConfig.fromJson(jsonDecode(boardConfigJson) as Map<String, dynamic>);
 
-      Navigator.of(context).push(MaterialPageRoute(builder: (context) => ImageUploadScreen(boardConfig: boardConfig)));
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => ImageSelectScreen(boardConfig: boardConfig)));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }

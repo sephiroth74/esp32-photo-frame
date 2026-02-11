@@ -35,7 +35,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
 
   Future<void> _loadSavedSettings() async {
     await Preferences.initialize();
-    assert(mounted);
+    if(!mounted) return;
     final ws = context.read<WsUploadState>();
     final savedIp = Preferences.getString(_ipHistoryKey);
     final savedPort = Preferences.getString(_portHistoryKey);
@@ -458,10 +458,10 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                                 'Display Size:',
                                                 '${ws.boardConfig!.displayWidth} × ${ws.boardConfig!.displayHeight} px',
                                               ),
-                                              if (ws.boardConfig!.flashSizeBytes > 0)
+                                              if (ws.boardConfig!.flashSize > 0)
                                                 _buildConfigRow(
                                                   'Flash Size:',
-                                                  '${(ws.boardConfig!.flashSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB',
+                                                  '${(ws.boardConfig!.flashSize / 1024 / 1024).toStringAsFixed(1)} MB',
                                                 ),
                                               if (ws.boardConfig!.batteryVoltageMv != null && ws.boardConfig!.batteryVoltageMv! > 0)
                                                 _buildConfigRow(

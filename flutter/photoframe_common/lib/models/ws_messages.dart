@@ -6,8 +6,7 @@ import 'package:photoframe_common/models/library_models.dart';
 class BoardConfig {
   final String type;
   final String board;
-  final String flashSize;
-  final int flashSizeBytes;
+  final int flashSize;
   final DisplayType displayType;
   final int displayWidth;
   final int displayHeight;
@@ -22,7 +21,6 @@ class BoardConfig {
     required this.type,
     required this.board,
     required this.flashSize,
-    required this.flashSizeBytes,
     required this.displayType,
     required this.displayWidth,
     required this.displayHeight,
@@ -49,8 +47,7 @@ class BoardConfig {
     return BoardConfig(
       type: json['type'] as String,
       board: json['board'] as String,
-      flashSize: json['flash_size'] as String,
-      flashSizeBytes: (json['flash_size_bytes'] as num).toInt(),
+      flashSize: (json['flash_size'] as num).toInt(),
       displayType: displayTypeFromString(json['display_type']),
       displayWidth: (json['display_width'] as num).toInt(),
       displayHeight: (json['display_height'] as num).toInt(),

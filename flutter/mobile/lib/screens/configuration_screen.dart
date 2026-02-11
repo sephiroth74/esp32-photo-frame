@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:photoframe/models/qr_code_data.dart';
-import 'package:photoframe/screens/image_upload_screen.dart';
+import 'package:photoframe/screens/image_select_screen.dart';
 import 'package:photoframe/services/wifi_service.dart';
 import 'package:photoframe/services/ws_connection_service.dart';
 import 'package:photoframe/utils/app_logger.dart';
@@ -258,7 +258,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
         // Navigate to image upload screen with board config
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ImageUploadScreen(boardConfig: boardConfig)));
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ImageSelectScreen(boardConfig: boardConfig)));
         }
       }
     } catch (e) {
