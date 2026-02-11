@@ -34,7 +34,7 @@ namespace photo_frame {
  * @param canvas Canvas to draw on (typically GFXcanvas8)
  * @note Portrait mode is determined from canvas.getRotation()
  */
-void drawOverlay(GFXcanvas8& canvas);
+void drawOverlay(GFXcanvas8 &canvas);
 
 /**
  * Draw last update time on the canvas
@@ -43,14 +43,14 @@ void drawOverlay(GFXcanvas8& canvas);
  * @param refreshSeconds Refresh interval in seconds
  * @note Portrait mode is determined from canvas.getRotation()
  */
-void drawLastUpdate(GFXcanvas8& canvas, const DateTime& lastUpdate, long refreshSeconds = 0);
+void drawLastUpdate(GFXcanvas8 &canvas, const DateTime &lastUpdate, long refreshSeconds = 0);
 
 /**
  * Draw battery status on the canvas
  * @param canvas Canvas to draw on
  * @param batteryInfo Battery information structure
  */
-void drawBatteryStatus(GFXcanvas8& canvas, BatteryInfo batteryInfo);
+void drawBatteryStatus(GFXcanvas8 &canvas, BatteryInfo batteryInfo);
 
 /**
  * Draw image information on the canvas
@@ -59,10 +59,7 @@ void drawBatteryStatus(GFXcanvas8& canvas, BatteryInfo batteryInfo);
  * @param totalImages Total number of images
  * @param imageSource Source of the image (cloud/cache)
  */
-void drawImageInfo(GFXcanvas8& canvas,
-                   uint32_t index,
-                   uint32_t totalImages,
-                   ImageSource imageSource);
+void drawImageInfo(GFXcanvas8 &canvas, uint32_t index, uint32_t totalImages, ImageSource imageSource);
 
 /**
  * Draw image information on the canvas
@@ -70,7 +67,7 @@ void drawImageInfo(GFXcanvas8& canvas,
  * @param message Message to display
  * @param imageSource Source of the image (cloud/cache)
  */
-void drawImageInfo(GFXcanvas8& canvas, const String& message, ImageSource imageSource);
+void drawImageInfo(GFXcanvas8 &canvas, const String &message, ImageSource imageSource);
 
 /**
  * Draw centered message with icon on the canvas
@@ -80,10 +77,7 @@ void drawImageInfo(GFXcanvas8& canvas, const String& message, ImageSource imageS
  * @param message Message text (optional)
  * @param icon_size Size of the icon bitmap to use
  */
-void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
-                                 icon_name_t icon,
-                                 const String& title,
-                                 const String& message,
+void drawCenteredMessageWithIcon(GFXcanvas8 &canvas, icon_name_t icon, const String &title, const String &message,
                                  uint16_t icon_size);
 
 /**
@@ -92,7 +86,7 @@ void drawCenteredMessageWithIcon(GFXcanvas8& canvas,
  * @param error Error information
  * @param filename Optional filename to display (nullptr if not applicable)
  */
-void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filename = nullptr);
+void drawError(GFXcanvas8 &canvas, photo_frame_error_t error, const char *filename = nullptr);
 
 /**
  * Draw error message with details on the canvas
@@ -102,10 +96,7 @@ void drawError(GFXcanvas8& canvas, photo_frame_error_t error, const char* filena
  * @param filename Filename that caused error (optional)
  * @param errorCode Error code
  */
-void drawErrorWithDetails(GFXcanvas8& canvas,
-                          const String& errMsgLn1,
-                          const String& errMsgLn2,
-                          const char* filename,
+void drawErrorWithDetails(GFXcanvas8 &canvas, const String &errMsgLn1, const String &errMsgLn2, const char *filename,
                           uint16_t errorCode);
 
 /**
@@ -117,11 +108,7 @@ void drawErrorWithDetails(GFXcanvas8& canvas,
  * @param xOffset X offset from default position
  * @param yOffset Y offset from default position
  */
-void drawSideMessageWithIcon(GFXcanvas8& canvas,
-                             gravity_t gravity,
-                             icon_name_t iconName,
-                             const char* message,
-                             int32_t xOffset = 0,
+void drawSideMessageWithIcon(GFXcanvas8 &canvas, gravity_t gravity, icon_name_t iconName, const char *message, int32_t xOffset = 0,
                              int32_t yOffset = 0);
 
 /**
@@ -132,11 +119,7 @@ void drawSideMessageWithIcon(GFXcanvas8& canvas,
  * @param xOffset X offset from default position
  * @param yOffset Y offset from default position
  */
-void drawSideMessage(GFXcanvas8& canvas,
-                     gravity_t gravity,
-                     const char* message,
-                     int32_t xOffset = 0,
-                     int32_t yOffset = 0);
+void drawSideMessage(GFXcanvas8 &canvas, gravity_t gravity, const char *message, int32_t xOffset = 0, int32_t yOffset = 0);
 
 /**
  * Get text bounds for a string
@@ -146,7 +129,7 @@ void drawSideMessage(GFXcanvas8& canvas,
  * @param y Y position
  * @return Rectangle with text bounds
  */
-rect_t getTextBounds(GFXcanvas8& canvas, const char* text, int16_t x = 0, int16_t y = 0);
+rect_t getTextBounds(GFXcanvas8 &canvas, const char *text, int16_t x = 0, int16_t y = 0);
 
 /**
  * Get string width
@@ -154,7 +137,7 @@ rect_t getTextBounds(GFXcanvas8& canvas, const char* text, int16_t x = 0, int16_
  * @param text Text to measure
  * @return Width in pixels
  */
-uint16_t getStringWidth(GFXcanvas8& canvas, const String& text);
+uint16_t getStringWidth(GFXcanvas8 &canvas, const String &text);
 
 /**
  * Get string height
@@ -162,7 +145,7 @@ uint16_t getStringWidth(GFXcanvas8& canvas, const String& text);
  * @param text Text to measure
  * @return Height in pixels
  */
-uint16_t getStringHeight(GFXcanvas8& canvas, const String& text);
+uint16_t getStringHeight(GFXcanvas8 &canvas, const String &text);
 
 /**
  * Draw a string with alignment on the canvas
@@ -173,11 +156,7 @@ uint16_t getStringHeight(GFXcanvas8& canvas, const String& text);
  * @param alignment Text alignment
  * @param color Text color
  */
-void drawString(GFXcanvas8& canvas,
-                int16_t x,
-                int16_t y,
-                const char* text,
-                alignment_t alignment,
+void drawString(GFXcanvas8 &canvas, int16_t x, int16_t y, const char *text, alignment_t alignment,
                 uint16_t color = DISPLAY_COLOR_BLACK);
 
 /**
@@ -192,15 +171,8 @@ void drawString(GFXcanvas8& canvas,
  * @param lineSpacing Spacing between lines
  * @param color Text color
  */
-void drawMultilineString(GFXcanvas8& canvas,
-                         int16_t x,
-                         int16_t y,
-                         const String& text,
-                         alignment_t alignment,
-                         uint16_t maxWidth,
-                         uint16_t maxLines,
-                         int16_t lineSpacing,
-                         uint16_t color = DISPLAY_COLOR_BLACK);
+void drawMultilineString(GFXcanvas8 &canvas, int16_t x, int16_t y, const String &text, alignment_t alignment, uint16_t maxWidth,
+                         uint16_t maxLines, int16_t lineSpacing, uint16_t color = DISPLAY_COLOR_BLACK);
 
 /**
  * Draw a rounded rectangle with transparency on the canvas
@@ -213,13 +185,7 @@ void drawMultilineString(GFXcanvas8& canvas,
  * @param color Fill color
  * @param transparency Transparency level (0=opaque, 255=invisible)
  */
-void drawRoundedRect(GFXcanvas8& canvas,
-                     int16_t x,
-                     int16_t y,
-                     int16_t width,
-                     int16_t height,
-                     uint16_t radius,
-                     uint16_t color,
+void drawRoundedRect(GFXcanvas8 &canvas, int16_t x, int16_t y, int16_t width, int16_t height, uint16_t radius, uint16_t color,
                      uint8_t transparency = 128);
 } // namespace photo_frame
 

@@ -32,30 +32,30 @@ namespace photo_frame {
  * Handles registration and selection of data providers based on configuration.
  */
 class DataProviderManager {
-  public:
-    explicit DataProviderManager(SdCard& sd_card, const unified_config& config);
+public:
+  explicit DataProviderManager(SdCard &sd_card, const unified_config &config);
 
-    /**
-     * @brief Register a data provider
-     * @param provider Pointer to the DataProvider instance
-     */
-    void register_provider(DataProvider* provider);
+  /**
+   * @brief Register a data provider
+   * @param provider Pointer to the DataProvider instance
+   */
+  void register_provider(DataProvider *provider);
 
-    /**
-     * @brief Get the currently active data provider based on configuration
-     * @return Pointer to the active DataProvider, or nullptr if none active
-     */
-    DataProvider* get_active_provider() const;
+  /**
+   * @brief Get the currently active data provider based on configuration
+   * @return Pointer to the active DataProvider, or nullptr if none active
+   */
+  DataProvider *get_active_provider() const;
 
-    /**
-     * @brief Load next image using active provider with centralized config/sdcard
-     */
-    ImageLoadResult load_next_image(bool is_reset);
+  /**
+   * @brief Load next image using active provider with centralized config/sdcard
+   */
+  ImageLoadResult load_next_image(bool is_reset);
 
-  private:
-    SdCard& sd_card_;
-    const unified_config& config_;
-    std::vector<DataProvider*> providers_;
+private:
+  SdCard &sd_card_;
+  const unified_config &config_;
+  std::vector<DataProvider *> providers_;
 };
 
 } // namespace photo_frame

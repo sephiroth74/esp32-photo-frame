@@ -58,121 +58,116 @@ photo_frame::SdCard sdCard; // SD_MMC uses fixed SDIO pins
 photo_frame::WifiManager wifiManager;
 photo_frame::unified_config systemConfig; // Unified configuration system
 
-// Data provider instances (created locally in setup, no dynamic allocation needed)
-// Removed - created as stack objects in default_main_setup()
+// Data provider instances (created locally in setup, no dynamic allocation
+// needed) Removed - created as stack objects in default_main_setup()
 
 // ============================================================================
 // FORWARD DECLARATIONS (from original main.cpp)
 // ============================================================================
 
-photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
-                            bool is_reset,
-                            DateTime& now);
+photo_frame::photo_frame_error_t setup_time_and_connectivity(const photo_frame::BatteryInfo &BatteryInfo, bool is_reset,
+                                                             DateTime &now);
 
 // ============================================================================
 // MODE-SPECIFIC IMPLEMENTATIONS
 // ============================================================================
 
-photo_frame::photo_frame_error_t
-setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
-                            bool is_reset,
-                            DateTime& now) {
-    photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
+photo_frame::photo_frame_error_t setup_time_and_connectivity(const photo_frame::BatteryInfo &BatteryInfo, bool is_reset,
+                                                             DateTime &now) {
+  photo_frame::photo_frame_error_t error = photo_frame::error_type::None;
 
-    log_i("==============================================");
-    log_i("- Initialize SD card and load configuration...");
-    log_i("==============================================");
+  log_i("==============================================");
+  log_i("- Initialize SD card and load configuration...");
+  log_i("==============================================");
 
-    // PHASE 1: SD Card Operations - Display OFF to avoid SPI conflicts
-    photo_frame::board_utils::displayPowerOff();
+  // PHASE 1: SD Card Operations - Display OFF to avoid SPI conflicts
+  photo_frame::board_utils::displayPowerOff();
 
-    RGB_SET_STATE(SD_READING); // Show SD card operations
-    error = sdCard.begin();
+  RGB_SET_STATE(SD_READING); // Show SD card operations
+  error = sdCard.begin();
 
-    // Reduce RGB brightness if battery is low to save power
-    if (BatteryInfo.is_low()) {
-        RGB_SET_BRIGHTNESS(32); // Reduce brightness to 25% of normal for low battery
+  // Reduce RGB brightness if battery is low to save power
+  if (BatteryInfo.is_low()) {
+    RGB_SET_BRIGHTNESS(32); // Reduce brightness to 25% of normal for low battery
+  }
+
+  // Load unified configuration from SD card
+  if (error == photo_frame::error_type::None) {
+    log_d("Loading unified configuration...");
+    error = photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
+
+    if (error != photo_frame::error_type::None) {
+      log_w("Failed to load unified configuration: %d", error.code);
+      // Configuration loading failed, but fallback values are loaded
+      // Continue with fallback configuration
+      error = photo_frame::error_type::None;
     }
 
-    // Load unified configuration from SD card
-    if (error == photo_frame::error_type::None) {
-        log_d("Loading unified configuration...");
-        error =
-            photo_frame::load_unified_config_with_fallback(sdCard, CONFIG_FILEPATH, systemConfig);
-
-        if (error != photo_frame::error_type::None) {
-            log_w("Failed to load unified configuration: %d", error.code);
-            // Configuration loading failed, but fallback values are loaded
-            // Continue with fallback configuration
-            error = photo_frame::error_type::None;
-        }
-
-        // Validate essential configuration
-        if (!systemConfig.wifi.is_valid()) {
-            log_w("WARNING: WiFi configuration is missing or invalid!");
-            log_w("Please ensure CONFIG_FILEPATH contains valid WiFi credentials");
-            error = photo_frame::error_type::WifiCredentialsNotFound;
-        }
-    } else {
-        log_w("SD card initialization failed - using fallback configuration");
-
-        // SD card failed, load fallback configuration and calculate extended sleep
-        load_fallback_config(systemConfig);
-
-        // Enter deep sleep immediately with extended duration
-        // photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-        // fallback_sleep_microseconds);
-        return error; // This line won't be reached, but included for completeness
+    // Validate essential configuration
+    if (!systemConfig.wifi.is_valid()) {
+      log_w("WARNING: WiFi configuration is missing or invalid!");
+      log_w("Please ensure CONFIG_FILEPATH contains valid WiFi credentials");
+      error = photo_frame::error_type::WifiCredentialsNotFound;
     }
+  } else {
+    log_w("SD card initialization failed - using fallback configuration");
 
-    // WiFi is optional for SD card mode, required for Google Drive
-    bool wifiRequired = systemConfig.GoogleDrive.enabled;
+    // SD card failed, load fallback configuration and calculate extended sleep
+    load_fallback_config(systemConfig);
+
+    // Enter deep sleep immediately with extended duration
+    // photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
+    // fallback_sleep_microseconds);
+    return error; // This line won't be reached, but included for completeness
+  }
+
+  // WiFi is optional for SD card mode, required for Google Drive
+  bool wifiRequired = systemConfig.GoogleDrive.enabled;
+
+  if (error == photo_frame::error_type::None) {
+    log_d("Initializing WiFi manager with unified configuration...");
+    RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
+
+    // Initialize WiFi manager with multiple networks from unified config
+    error = wifiManager.initWithNetworks(systemConfig.wifi);
 
     if (error == photo_frame::error_type::None) {
-        log_d("Initializing WiFi manager with unified configuration...");
-        RGB_SET_STATE(WIFI_CONNECTING); // Show WiFi connecting status
-
-        // Initialize WiFi manager with multiple networks from unified config
-        error = wifiManager.initWithNetworks(systemConfig.wifi);
-
-        if (error == photo_frame::error_type::None) {
-            // NTP-only time fetching
-            log_d("Fetching time from NTP servers...");
-            error = wifiManager.connect();
-            if (error == photo_frame::error_type::None) {
-                now = wifiManager.fetchDatetime(&error);
-                if (!now.isValid() || error != photo_frame::error_type::None) {
-                    log_e("Failed to fetch time from NTP!");
-                    if (error == photo_frame::error_type::None) {
-                        error = photo_frame::error_type::NTPSyncFailed;
-                    }
-                } else {
-                    log_d("Successfully fetched time from NTP: %s",
-                          now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
-                }
-            }
+      // NTP-only time fetching
+      log_d("Fetching time from NTP servers...");
+      error = wifiManager.connect();
+      if (error == photo_frame::error_type::None) {
+        now = wifiManager.fetchDatetime(&error);
+        if (!now.isValid() || error != photo_frame::error_type::None) {
+          log_e("Failed to fetch time from NTP!");
+          if (error == photo_frame::error_type::None) {
+            error = photo_frame::error_type::NTPSyncFailed;
+          }
         } else {
-            log_e("WiFi initialization failed");
-            RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
+          log_d("Successfully fetched time from NTP: %s", now.timestamp(DateTime::TIMESTAMP_FULL).c_str());
         }
-
-        // If WiFi is not required (SD card mode) and it failed, clear the error
-        if (!wifiRequired && error != photo_frame::error_type::None) {
-            log_w("WiFi failed but not required for SD card mode, continuing without time sync");
-            error = photo_frame::error_type::None;
-            // Set a default time if WiFi failed
-            now = DateTime(2024, 1, 1, 12, 0, 0);
-        }
-    }
-
-    if (error == photo_frame::error_type::None) {
-        log_d("Current time is valid: %s", now.isValid() ? "Yes" : "No");
+      }
     } else {
-        log_e("Failed to fetch current time! Error code: %d", error.code);
+      log_e("WiFi initialization failed");
+      RGB_SET_STATE_TIMED(WIFI_FAILED, 2000); // Show WiFi failed status
     }
 
-    return error;
+    // If WiFi is not required (SD card mode) and it failed, clear the error
+    if (!wifiRequired && error != photo_frame::error_type::None) {
+      log_w("WiFi failed but not required for SD card mode, continuing without "
+            "time sync");
+      error = photo_frame::error_type::None;
+      // Set a default time if WiFi failed
+      now = DateTime(2024, 1, 1, 12, 0, 0);
+    }
+  }
+
+  if (error == photo_frame::error_type::None) {
+    log_d("Current time is valid: %s", now.isValid() ? "Yes" : "No");
+  } else {
+    log_e("Failed to fetch current time! Error code: %d", error.code);
+  }
+
+  return error;
 }
 
 // ============================================================================
@@ -180,211 +175,198 @@ setup_time_and_connectivity(const photo_frame::BatteryInfo& BatteryInfo,
 // ============================================================================
 
 void default_main_setup() {
-    Serial.begin(115200);
-    delay(5000);
+  Serial.begin(115200);
+  delay(5000);
 
-    log_i("==================================");
-    log_i("*** DEFAULT IMAGE MODE ***");
-    log_i("==================================");
+  log_i("==================================");
+  log_i("*** DEFAULT IMAGE MODE ***");
+  log_i("==================================");
 
-    // Initialize display power control (if configured)
-    photo_frame::board_utils::initDisplayPower();
+  // Initialize display power control (if configured)
+  photo_frame::board_utils::initDisplayPower();
 
-    // Initialize hardware components
-    if (!initializeHardware()) {
-        log_e("Failed to initialize hardware!");
-        return;
+  // Initialize hardware components
+  if (!initializeHardware()) {
+    log_e("Failed to initialize hardware!");
+    return;
+  }
+
+  // Determine wakeup reason and setup basic state
+  esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::getWakeupReason();
+
+  // Consider it a reset if it's an undefined wakeup (power on/reset)
+  // EXT1 wakeup (button press) goes through normal TOC validation
+  bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+
+  char wakeup_reason_string[32];
+  photo_frame::board_utils::getWakeupReasonString(wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
+
+  log_d("Wakeup reason: %s (%d)", wakeup_reason_string, wakeup_reason);
+  log_d("Is reset: %s", is_reset ? "Yes" : "No");
+
+  // Setup battery and power management
+  photo_frame::BatteryInfo BatteryInfo;
+  photo_frame::photo_frame_error_t error = setupBatteryAndPower(BatteryInfo, wakeup_reason);
+
+  // Setup time synchronization and connectivity
+  DateTime now = DateTime((uint32_t)0);
+
+  if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
+    error = setup_time_and_connectivity(BatteryInfo, is_reset, now);
+  }
+
+  // Set rotation from config BEFORE initializing buffer
+  display_rotation = systemConfig.board.display_rotation;
+
+  // If config loading failed, try to get from preferences
+  if (!systemConfig.is_valid()) {
+    auto &prefs = photo_frame::PreferencesHelper::getInstance();
+    display_rotation = prefs.getDisplayRotation(); // Default to 0 (landscape) if not set
+    log_w("Config invalid, using rotation from preferences: %u", display_rotation);
+  }
+
+  log_d("Display rotation: %u", display_rotation);
+
+  // Phase 1: Initialize PSRAM image buffer BEFORE SD card operations
+  // This allocates the buffer but does NOT initialize display hardware
+  log_i("=======================================");
+  log_i("- Phase 1: Initializing image buffer...");
+  log_i("=======================================");
+  if (!initializeImageBuffer()) {
+    // Critical failure - cannot continue without buffer
+    log_e("[main] FATAL: Buffer initialization failed!");
+    log_e("[main] Entering deep sleep mode");
+
+    const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
+    photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED, emergency_sleep_duration);
+    return;
+  }
+
+  // Handle image loading via data provider
+  photo_frame::ImageLoadResult image_result;
+
+  if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
+    log_d("Loading image via data providers...");
+    // Create data providers as stack objects (no dynamic allocation)
+    photo_frame::SdCardDataProvider sdcard_provider;
+    photo_frame::GoogleDriveDataProvider gdrive_provider(drive);
+
+    // Create and configure provider manager
+    photo_frame::DataProviderManager provider_manager(sdCard, systemConfig);
+    provider_manager.register_provider(&sdcard_provider);
+    provider_manager.register_provider(&gdrive_provider);
+
+    // Load image using manager wrapper (passes config and sdcard automatically)
+    log_d("Using data provider: %s",
+          provider_manager.get_active_provider() ? provider_manager.get_active_provider()->name() : "none");
+    RGB_SET_STATE(GOOGLE_DRIVE); // Default to Google Drive status LED
+    image_result = provider_manager.load_next_image(is_reset);
+    error = image_result.error;
+  }
+
+  // Cleanup data provider resources (automatic with unique_ptr)
+
+  // Safely disconnect WiFi with proper cleanup
+  if (wifiManager.isConnected()) {
+    log_d("Disconnecting WiFi to save power...");
+    // Add small delay to ensure pending WiFi operations complete
+    delay(100);
+    wifiManager.disconnect();
+    // Wait for disconnect to complete
+    delay(200);
+  }
+
+  log_d("WiFi operations complete - using NTP-only time");
+
+  // Calculate refresh delay
+  log_d("Calculating refresh rate");
+  refresh_delay_t refresh_delay = calculateWakeupDelay(BatteryInfo, now);
+
+  // Phase 2: Initialize E-Paper display hardware (after SD card operations are
+  // complete)
+  log_i("=======================================");
+  log_i("- Phase 2: Initializing display hardware...");
+  log_i("=======================================");
+
+  // PHASE 2: Display Operations - Power ON display now that SD card is closed
+  photo_frame::board_utils::displayPowerOn();
+
+  RGB_SET_STATE(RENDERING); // Show display rendering
+
+  // Initialize the display hardware now that SD card is closed
+  if (!initializeDisplayHardware()) {
+    // Critical failure - cannot continue without display
+    log_e("[main] FATAL: Display hardware initialization failed!");
+    log_e("[main] Entering deep sleep mode to preserve battery");
+
+    const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
+    photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED, emergency_sleep_duration);
+    return;
+  }
+
+  // Allow time for display SPI bus initialization to complete
+  delay(300);
+  log_d("Display initialization complete");
+
+  // Prepare display for rendering
+  // Note: fillScreen() removed in v0.11.0 to eliminate race condition causing
+  // white vertical stripes The full-screen image write will overwrite the
+  // entire display buffer, making fillScreen() redundant
+  log_d("Preparing display for rendering...");
+
+  // Check if image was loaded successfully
+  if (error == photo_frame::error_type::None && !image_result.is_success()) {
+    log_w("Image load reported success but no image is ready!");
+    log_e("Image file is not ready!");
+    error = photo_frame::error_type::SdCardFileOpenFailed;
+  }
+
+  // Handle errors or process image file
+  if (error != photo_frame::error_type::None) {
+    RGB_SET_STATE(ERROR); // Show error status
+
+    auto &display = photo_frame::DisplayManager::getInstance();
+    // Clear display and draw error (include filename if available)
+    display.clear(DISPLAY_COLOR_WHITE);
+    display.drawError(error, image_result.original_filename.isEmpty() ? nullptr : image_result.original_filename.c_str());
+
+    if (error != photo_frame::error_type::BatteryLevelCritical && now.isValid()) {
+      display.drawLastUpdate(now, refresh_delay.refresh_seconds);
     }
 
-    // Determine wakeup reason and setup basic state
-    esp_sleep_wakeup_cause_t wakeup_reason = photo_frame::board_utils::getWakeupReason();
+    // Render to display
+    display.render();
+  } else {
 
-    // Consider it a reset if it's an undefined wakeup (power on/reset)
-    // EXT1 wakeup (button press) goes through normal TOC validation
-    bool is_reset = wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED;
+    // double check that the payload_len is valid against the display buffer
+    // size
+    auto &display = photo_frame::DisplayManager::getInstance();
 
-    char wakeup_reason_string[32];
-    photo_frame::board_utils::getWakeupReasonString(
-        wakeup_reason, wakeup_reason_string, sizeof(wakeup_reason_string));
-
-    log_d("Wakeup reason: %s (%d)", wakeup_reason_string, wakeup_reason);
-    log_d("Is reset: %s", is_reset ? "Yes" : "No");
-
-    // Setup battery and power management
-    photo_frame::BatteryInfo BatteryInfo;
-    photo_frame::photo_frame_error_t error = setupBatteryAndPower(BatteryInfo, wakeup_reason);
-
-    // Setup time synchronization and connectivity
-    DateTime now = DateTime((uint32_t)0);
-
-    if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
-        error = setup_time_and_connectivity(BatteryInfo, is_reset, now);
+    if (image_result.is_success()) {
+      if (image_result.image_file->header.payload_len > display.getBufferSize()) {
+        log_e("Image payload size (%u bytes) exceeds display buffer size (%u "
+              "bytes)!",
+              image_result.image_file->header.payload_len, display.getBufferSize());
+        error = photo_frame::error_type::ImageBufferOverflow;
+      }
     }
 
-    // Set rotation from config BEFORE initializing buffer
-    display_rotation = systemConfig.board.display_rotation;
-
-    // If config loading failed, try to get from preferences
-    if (!systemConfig.is_valid()) {
-        auto& prefs      = photo_frame::PreferencesHelper::getInstance();
-        display_rotation = prefs.getDisplayRotation(); // Default to 0 (landscape) if not set
-        log_w("Config invalid, using rotation from preferences: %u", display_rotation);
+    // Render the image if it was successfully loaded
+    if (error == photo_frame::error_type::None && image_result.is_success()) {
+      log_i("Rendering validated binary image...");
+      error = renderImage(*image_result.image_file, image_result.original_filename.c_str(), error, now, refresh_delay,
+                          image_result.file_index, image_result.total_files, drive, BatteryInfo);
     }
+  }
 
-    log_d("Display rotation: %u", display_rotation);
-
-    // Phase 1: Initialize PSRAM image buffer BEFORE SD card operations
-    // This allocates the buffer but does NOT initialize display hardware
-    log_i("=======================================");
-    log_i("- Phase 1: Initializing image buffer...");
-    log_i("=======================================");
-    if (!initializeImageBuffer()) {
-        // Critical failure - cannot continue without buffer
-        log_e("[main] FATAL: Buffer initialization failed!");
-        log_e("[main] Entering deep sleep mode");
-
-        const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
-        photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-                                                 emergency_sleep_duration);
-        return;
-    }
-
-    // Handle image loading via data provider
-    photo_frame::ImageLoadResult image_result;
-
-    if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
-        log_d("Loading image via data providers...");
-        // Create data providers as stack objects (no dynamic allocation)
-        photo_frame::SdCardDataProvider sdcard_provider;
-        photo_frame::GoogleDriveDataProvider gdrive_provider(drive);
-
-        // Create and configure provider manager
-        photo_frame::DataProviderManager provider_manager(sdCard, systemConfig);
-        provider_manager.register_provider(&sdcard_provider);
-        provider_manager.register_provider(&gdrive_provider);
-
-        // Load image using manager wrapper (passes config and sdcard automatically)
-        log_d("Using data provider: %s",
-              provider_manager.get_active_provider()
-                  ? provider_manager.get_active_provider()->name()
-                  : "none");
-        RGB_SET_STATE(GOOGLE_DRIVE); // Default to Google Drive status LED
-        image_result = provider_manager.load_next_image(is_reset);
-        error        = image_result.error;
-    }
-
-    // Cleanup data provider resources (automatic with unique_ptr)
-
-    // Safely disconnect WiFi with proper cleanup
-    if (wifiManager.isConnected()) {
-        log_d("Disconnecting WiFi to save power...");
-        // Add small delay to ensure pending WiFi operations complete
-        delay(100);
-        wifiManager.disconnect();
-        // Wait for disconnect to complete
-        delay(200);
-    }
-
-    log_d("WiFi operations complete - using NTP-only time");
-
-    // Calculate refresh delay
-    log_d("Calculating refresh rate");
-    refresh_delay_t refresh_delay = calculateWakeupDelay(BatteryInfo, now);
-
-    // Phase 2: Initialize E-Paper display hardware (after SD card operations are complete)
-    log_i("=======================================");
-    log_i("- Phase 2: Initializing display hardware...");
-    log_i("=======================================");
-
-    // PHASE 2: Display Operations - Power ON display now that SD card is closed
-    photo_frame::board_utils::displayPowerOn();
-
-    RGB_SET_STATE(RENDERING); // Show display rendering
-
-    // Initialize the display hardware now that SD card is closed
-    if (!initializeDisplayHardware()) {
-        // Critical failure - cannot continue without display
-        log_e("[main] FATAL: Display hardware initialization failed!");
-        log_e("[main] Entering deep sleep mode to preserve battery");
-
-        const uint64_t emergency_sleep_duration = 60 * 60 * 1000000ULL; // 1 hour
-        photo_frame::board_utils::enterDeepSleep(ESP_SLEEP_WAKEUP_UNDEFINED,
-                                                 emergency_sleep_duration);
-        return;
-    }
-
-    // Allow time for display SPI bus initialization to complete
-    delay(300);
-    log_d("Display initialization complete");
-
-    // Prepare display for rendering
-    // Note: fillScreen() removed in v0.11.0 to eliminate race condition causing white vertical
-    // stripes The full-screen image write will overwrite the entire display buffer, making
-    // fillScreen() redundant
-    log_d("Preparing display for rendering...");
-
-    // Check if image was loaded successfully
-    if (error == photo_frame::error_type::None && !image_result.is_success()) {
-        log_w("Image load reported success but no image is ready!");
-        log_e("Image file is not ready!");
-        error = photo_frame::error_type::SdCardFileOpenFailed;
-    }
-
-    // Handle errors or process image file
-    if (error != photo_frame::error_type::None) {
-        RGB_SET_STATE(ERROR); // Show error status
-
-        auto& display = photo_frame::DisplayManager::getInstance();
-        // Clear display and draw error (include filename if available)
-        display.clear(DISPLAY_COLOR_WHITE);
-        display.drawError(error,
-                          image_result.original_filename.isEmpty()
-                              ? nullptr
-                              : image_result.original_filename.c_str());
-
-        if (error != photo_frame::error_type::BatteryLevelCritical && now.isValid()) {
-            display.drawLastUpdate(now, refresh_delay.refresh_seconds);
-        }
-
-        // Render to display
-        display.render();
-    } else {
-
-        // double check that the payload_len is valid against the display buffer size
-        auto& display = photo_frame::DisplayManager::getInstance();
-
-        if (image_result.is_success()) {
-            if (image_result.image_file->header.payload_len > display.getBufferSize()) {
-                log_e("Image payload size (%u bytes) exceeds display buffer size (%u bytes)!",
-                      image_result.image_file->header.payload_len,
-                      display.getBufferSize());
-                error = photo_frame::error_type::ImageBufferOverflow;
-            }
-        }
-
-        // Render the image if it was successfully loaded
-        if (error == photo_frame::error_type::None && image_result.is_success()) {
-            log_i("Rendering validated binary image...");
-            error = renderImage(*image_result.image_file,
-                                image_result.original_filename.c_str(),
-                                error,
-                                now,
-                                refresh_delay,
-                                image_result.file_index,
-                                image_result.total_files,
-                                drive,
-                                BatteryInfo);
-        }
-    }
-
-    // Finalize and enter sleep - show sleep preparation with delay
-    RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
-    delay(2500);               // Allow sleep preparation animation to complete
-    finalizeAndEnterDeepSleep(BatteryInfo, now, wakeup_reason, refresh_delay);
+  // Finalize and enter sleep - show sleep preparation with delay
+  RGB_SET_STATE(SLEEP_PREP); // Show sleep preparation
+  delay(2500);               // Allow sleep preparation animation to complete
+  finalizeAndEnterDeepSleep(BatteryInfo, now, wakeup_reason, refresh_delay);
 }
 
 void default_main_loop() {
-    delay(1000); // Just to avoid watchdog reset
+  delay(1000); // Just to avoid watchdog reset
 }
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER

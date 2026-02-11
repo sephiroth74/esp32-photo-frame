@@ -49,17 +49,17 @@ esp_sleep_wakeup_cause_t getWakeupReason();
  *
  * @param wakeup_reason The reason for waking up from deep sleep
  * @param buffer The buffer to store the string representation
- * @param buffer_size The size of the buffer (must be large enough for the string)
- * @note The buffer should be at least 32 characters to accommodate all possible strings
+ * @param buffer_size The size of the buffer (must be large enough for the
+ * string)
+ * @note The buffer should be at least 32 characters to accommodate all possible
+ * strings
  */
-void getWakeupReasonString(esp_sleep_wakeup_cause_t wakeup_reason,
-                           char* buffer,
-                           size_t buffer_size);
+void getWakeupReasonString(esp_sleep_wakeup_cause_t wakeup_reason, char *buffer, size_t buffer_size);
 
 /**
  * @brief Prints the wakeup reason to Serial output.
- * This function is a convenience wrapper that retrieves the wakeup reason and prints it in a
- * human-readable format.
+ * This function is a convenience wrapper that retrieves the wakeup reason and
+ * prints it in a human-readable format.
  * @param wakeup_reason The reason for waking up from deep sleep
  */
 void printWakeUpReason(esp_sleep_wakeup_cause_t wakeup_reason);
@@ -67,8 +67,9 @@ void printWakeUpReason(esp_sleep_wakeup_cause_t wakeup_reason);
 /**
  * @brief Initialize display power control if configured for the board.
  *
- * This function sets up the GPIO pin for display power control if DISPLAY_POWER_PIN
- * is defined in the board configuration. For ProS3, this controls the LDO2 output.
+ * This function sets up the GPIO pin for display power control if
+ * DISPLAY_POWER_PIN is defined in the board configuration. For ProS3, this
+ * controls the LDO2 output.
  */
 void initDisplayPower();
 
@@ -84,7 +85,8 @@ void displayPowerOn();
 /**
  * @brief Turn off the display power.
  *
- * This function turns off the display power to save energy and avoid SPI conflicts:
+ * This function turns off the display power to save energy and avoid SPI
+ * conflicts:
  * - For ProS3: Disables LDO2 via GPIO17
  * - For other boards with P-MOSFET: Sets the control pin appropriately
  */
@@ -93,15 +95,17 @@ void displayPowerOff();
 /**
  * @brief Enters deep sleep mode, disabling peripherals and LEDs to save power.
  *
- * This function prepares the ESP32 for deep sleep by disabling various peripherals,
- * turning off LEDs, and configuring wakeup sources based on the board configuration.
- * The function configures EXT0 or EXT1 wakeup sources and timer wakeup using the provided delay.
+ * This function prepares the ESP32 for deep sleep by disabling various
+ * peripherals, turning off LEDs, and configuring wakeup sources based on the
+ * board configuration. The function configures EXT0 or EXT1 wakeup sources and
+ * timer wakeup using the provided delay.
  *
  * @param wakeup_reason The reason for the previous wakeup
- * @param refresh_microseconds The sleep duration in microseconds for timer wakeup (0 to disable
- * timer wakeup)
+ * @param refresh_microseconds The sleep duration in microseconds for timer
+ * wakeup (0 to disable timer wakeup)
  * @note This function does not return as the ESP32 enters deep sleep
- * @note Wakeup sources are configured based on compile-time flags (WAKEUP_EXT0/WAKEUP_EXT1)
+ * @note Wakeup sources are configured based on compile-time flags
+ * (WAKEUP_EXT0/WAKEUP_EXT1)
  */
 void enterDeepSleep(esp_sleep_wakeup_cause_t wakeup_reason, uint64_t refresh_microseconds = 0);
 
@@ -123,8 +127,9 @@ void printBoardStatistics();
  * @brief Prints the pin assignments for the current board configuration.
  *
  * Displays the GPIO pin assignments used by various peripherals on the board,
- * including display pins, sensor pins, LED pins, and wakeup pins. Pin assignments
- * vary based on the board configuration defined in the config files.
+ * including display pins, sensor pins, LED pins, and wakeup pins. Pin
+ * assignments vary based on the board configuration defined in the config
+ * files.
  *
  * @note Pin information is printed to Serial console
  */
@@ -148,28 +153,31 @@ void disableBuiltinLed();
  *
  * @param count The number of times to blink the LED
  * @param on_ms The duration in milliseconds to keep the LED on (default: 100ms)
- * @param off_ms The duration in milliseconds to keep the LED off (default: 300ms)
+ * @param off_ms The duration in milliseconds to keep the LED off (default:
+ * 300ms)
  * @note This function blocks execution during the blinking sequence
  */
 void blinkBuiltinLed(int count, unsigned long on_ms = 100, unsigned long off_ms = 300);
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
 /**
- * @brief Reads the refresh interval from potentiometer or config, adjusting for battery level.
+ * @brief Reads the refresh interval from potentiometer or config, adjusting for
+ * battery level.
  *
  * Determines the display refresh interval by either:
  * - Reading an analog potentiometer value (if USE_POTENTIOMETER is defined)
- * - Using the default value from config.board.refresh.default_seconds (if USE_POTENTIOMETER is not
- * defined)
+ * - Using the default value from config.board.refresh.default_seconds (if
+ * USE_POTENTIOMETER is not defined)
  *
- * The interval can be adjusted based on battery level to conserve power when the battery is low.
+ * The interval can be adjusted based on battery level to conserve power when
+ * the battery is low.
  *
  * @param config The unified configuration containing refresh settings
  * @param BatteryInfo The current battery information for level checking
  * @return The refresh interval in seconds
  * @note Actual implementation depends on USE_POTENTIOMETER definition
  */
-long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& BatteryInfo);
+long readRefreshSeconds(const unified_config &config, photo_frame::BatteryInfo &BatteryInfo);
 
 #endif
 
@@ -179,7 +187,7 @@ long readRefreshSeconds(const unified_config& config, photo_frame::BatteryInfo& 
  * @param threshold Warning threshold in bytes (default: 4096)
  * @return true if heap is sufficient, false if low
  */
-bool checkHeapHealth(const char* context, size_t threshold = 4096);
+bool checkHeapHealth(const char *context, size_t threshold = 4096);
 
 } // namespace board_utils
 

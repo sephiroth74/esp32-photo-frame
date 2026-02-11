@@ -35,9 +35,7 @@ namespace ws_utils {
  * @param wakeup_reason Current wakeup reason
  * @param display_rotation Current display rotation
  */
-void handleCriticalBattery(const BatteryInfo& BatteryInfo,
-                           esp_sleep_wakeup_cause_t wakeup_reason,
-                           uint8_t display_rotation);
+void handleCriticalBattery(const BatteryInfo &BatteryInfo, esp_sleep_wakeup_cause_t wakeup_reason, uint8_t display_rotation);
 
 /**
  * @brief Load and display a PFR1 image file from LittleFS
@@ -46,10 +44,8 @@ void handleCriticalBattery(const BatteryInfo& BatteryInfo,
  * @param wrapper PFR1 binary file wrapper
  * @return Error code (None if successful)
  */
-photo_frame::photo_frame_error_t
-loadLittleFsFile(const char* filename,
-                 photo_frame::littlefs_manager::LittleFsManager& littleFs,
-                 photo_frame::PFR1BinaryFile& wrapper);
+photo_frame::photo_frame_error_t loadLittleFsFile(const char *filename, photo_frame::littlefs_manager::LittleFsManager &littleFs,
+                                                  photo_frame::PFR1BinaryFile &wrapper);
 
 } // namespace ws_utils
 } // namespace photo_frame

@@ -52,11 +52,12 @@ bool rendererInit();
 
 /**
  * Render an image from a buffer.
- * @param imageBuffer Pointer to image buffer (800x480 bytes) with image and overlays already drawn
+ * @param imageBuffer Pointer to image buffer (800x480 bytes) with image and
+ * overlays already drawn
  * @return True if rendering successful, false otherwise
  * @note The buffer should already contain the complete image with any overlays
  */
-bool renderImage(uint8_t* imageBuffer);
+bool renderImage(uint8_t *imageBuffer);
 
 /**
  * Put the display into sleep mode to save power.
@@ -91,7 +92,7 @@ bool rendererHasColor();
  * @param canvas Canvas to draw on
  * @param error The error to be displayed
  */
-void rendererDrawError(GFXcanvas8& canvas, photo_frame_error_t error);
+void rendererDrawError(GFXcanvas8 &canvas, photo_frame_error_t error);
 
 /**
  * Draws an error message with details on the canvas.
@@ -101,10 +102,7 @@ void rendererDrawError(GFXcanvas8& canvas, photo_frame_error_t error);
  * @param filename The filename that caused the error (optional)
  * @param errorCode The numeric error code
  */
-void rendererDrawErrorWithDetails(GFXcanvas8& canvas,
-                                  const String& errMsgLn1,
-                                  const String& errMsgLn2,
-                                  const char* filename,
+void rendererDrawErrorWithDetails(GFXcanvas8 &canvas, const String &errMsgLn1, const String &errMsgLn2, const char *filename,
                                   uint16_t errorCode);
 
 // ========== Image loading and rendering functions ==========
@@ -120,14 +118,8 @@ void rendererDrawErrorWithDetails(GFXcanvas8& canvas,
  * @param line_spacing The spacing between lines in pixels.
  * @param color The color of the text (default is DISPLAY_COLOR_BLACK).
  */
-void rendererDrawMultilineString(GFXcanvas8 canvas,
-                                 int16_t x,
-                                 int16_t y,
-                                 const String& text,
-                                 alignment_t alignment,
-                                 uint16_t max_width,
-                                 uint16_t max_lines,
-                                 int16_t line_spacing,
+void rendererDrawMultilineString(GFXcanvas8 canvas, int16_t x, int16_t y, const String &text, alignment_t alignment,
+                                 uint16_t max_width, uint16_t max_lines, int16_t line_spacing,
                                  uint16_t color = DISPLAY_COLOR_BLACK);
 
 /**
@@ -139,43 +131,35 @@ void rendererDrawMultilineString(GFXcanvas8 canvas,
  * @param x_offset The x-offset from the icon position (default is 0)
  * @param y_offset The y-offset from the icon position (default is 0)
  */
-void rendererDrawSideMessageWithIcon(Adafruit_GFX& gfx,
-                                     gravity_t gravity,
-                                     icon_name_t icon_name,
-                                     const char* message,
-                                     int32_t x_offset = 0,
-                                     int32_t y_offset = 0);
+void rendererDrawSideMessageWithIcon(Adafruit_GFX &gfx, gravity_t gravity, icon_name_t icon_name, const char *message,
+                                     int32_t x_offset = 0, int32_t y_offset = 0);
 
 /**
- * Draws a side message without an icon on a GFX canvas (for overlay composition).
+ * Draws a side message without an icon on a GFX canvas (for overlay
+ * composition).
  * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
  * @param gravity The gravity of the message
  * @param message The message to be displayed
  * @param x_offset The x-offset from the message position (default is 0)
  * @param y_offset The y-offset from the message position (default is 0)
  */
-void rendererDrawSideMessage(Adafruit_GFX& gfx,
-                             gravity_t gravity,
-                             const char* message,
-                             int32_t x_offset = 0,
-                             int32_t y_offset = 0);
+void rendererDrawSideMessage(Adafruit_GFX &gfx, gravity_t gravity, const char *message, int32_t x_offset = 0, int32_t y_offset = 0);
 
 /**
  * Draws the last update time on a GFX canvas (for overlay composition).
  * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
  * @param lastUpdate The DateTime object representing the last update time.
- * @param refresh_seconds The number of seconds since the last update (default is 0).
+ * @param refresh_seconds The number of seconds since the last update (default
+ * is 0).
  */
-void rendererDrawLastUpdate(Adafruit_GFX& gfx,
-                            const DateTime& lastUpdate,
-                            long refresh_seconds = 0);
+void rendererDrawLastUpdate(Adafruit_GFX &gfx, const DateTime &lastUpdate, long refresh_seconds = 0);
 
 /**
  * Draws the battery status on a GFX canvas (for overlay composition).
  * @param gfx Reference to Adafruit_GFX object (can be display or canvas)
  * @param BatteryInfo Battery information structure
  */
-void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::BatteryInfo BatteryInfo);
+void rendererDrawBatteryStatus(Adafruit_GFX &gfx, photo_frame::BatteryInfo BatteryInfo);
 
 /**
  * Draws image information on a GFX canvas (for overlay composition).
@@ -184,16 +168,14 @@ void rendererDrawBatteryStatus(Adafruit_GFX& gfx, photo_frame::BatteryInfo Batte
  * @param total_images The total number of images.
  * @param image_source The source of the current image (cloud or local cache).
  */
-void rendererDrawImageInfo(Adafruit_GFX& gfx,
-                           uint32_t index,
-                           uint32_t total_images,
-                           photo_frame::ImageSource image_source);
+void rendererDrawImageInfo(Adafruit_GFX &gfx, uint32_t index, uint32_t total_images, photo_frame::ImageSource image_source);
 
 /**
  * @brief Load image file into buffer
  *
  * Reads Mode 1 format image (384KB, 1 byte per pixel) from SD card into the
- * provided buffer. This allows the SD card to be closed before display operations begin.
+ * provided buffer. This allows the SD card to be closed before display
+ * operations begin.
  *
  * @param buffer Pointer to buffer (must be at least width * height bytes)
  * @param file Open file handle (SD card or google drive cached file)
@@ -203,11 +185,7 @@ void rendererDrawImageInfo(Adafruit_GFX& gfx,
  * @return Error code (0 = success, non-zero = error)
  * @note File can be closed after this function returns
  */
-uint16_t loadImageToBuffer(uint8_t* buffer,
-                           photo_frame::PFR1BinaryFile& file,
-                           const char* filename,
-                           int width,
-                           int height);
+uint16_t loadImageToBuffer(uint8_t *buffer, photo_frame::PFR1BinaryFile &file, const char *filename, int width, int height);
 
 } // namespace photo_frame
 

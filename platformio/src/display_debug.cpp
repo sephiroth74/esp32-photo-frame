@@ -12,20 +12,21 @@
 #include <assets/icons/icons.h>
 #include <esp_heap_caps.h> // For heap_caps_malloc
 
-#define COLOR_WHITE  0xFF
-#define COLOR_BLACK  0x00
-#define COLOR_RED    0xE0
-#define COLOR_GREEN  0x1C
-#define COLOR_BLUE   0x03
+#define COLOR_WHITE 0xFF
+#define COLOR_BLACK 0x00
+#define COLOR_RED 0xE0
+#define COLOR_GREEN 0x1C
+#define COLOR_BLUE 0x03
 #define COLOR_YELLOW 0xFC
 
 // Define display power control pin (adjust for your board)
-#define DISPLAY_POWER_PIN        17 // ProS3: GPIO17 controls LDO2 output
-#define DISPLAY_POWER_ACTIVE_LOW 0  // ProS3 LDO2: HIGH = ON, LOW = OFF
+#define DISPLAY_POWER_PIN 17       // ProS3: GPIO17 controls LDO2 output
+#define DISPLAY_POWER_ACTIVE_LOW 0 // ProS3 LDO2: HIGH = ON, LOW = OFF
 
-const char images_directory[]      = "/6c/portrait/bin";
+const char images_directory[] = "/6c/portrait/bin";
 static const char image_filename[] = "/6c/bin/6c_MjAyMjA3MjBfMTk1NjEz__portrait.pfr1";
-// Note: display_debug uses the DisplayManager singleton via DisplayManager::getInstance()
+// Note: display_debug uses the DisplayManager singleton via
+// DisplayManager::getInstance()
 static photo_frame::SdCard sdCard; // Use same SD card class as main.cpp
 
 // Forward declarations
@@ -35,450 +36,440 @@ void cleanup_display_manager();
 // Power control functions
 void displayPowerOn() {
 #ifdef DISPLAY_POWER_PIN
-    log_i("[POWER] Turning display ON (GPIO %d -> %s)",
-          DISPLAY_POWER_PIN,
-          DISPLAY_POWER_ACTIVE_LOW ? "LOW" : "HIGH");
+  log_i("[POWER] Turning display ON (GPIO %d -> %s)", DISPLAY_POWER_PIN, DISPLAY_POWER_ACTIVE_LOW ? "LOW" : "HIGH");
 
 #ifdef DISPLAY_POWER_ACTIVE_LOW
-    digitalWrite(DISPLAY_POWER_PIN, LOW); // P-MOSFET: LOW = ON
+  digitalWrite(DISPLAY_POWER_PIN, LOW); // P-MOSFET: LOW = ON
 #else
-    digitalWrite(DISPLAY_POWER_PIN, HIGH); // ProS3 LDO2 or N-MOSFET: HIGH = ON
+  digitalWrite(DISPLAY_POWER_PIN, HIGH); // ProS3 LDO2 or N-MOSFET: HIGH = ON
 #endif
 
-    delay(200); // Allow power to stabilize (GDEP073E01 needs time)
-    log_i("[POWER] Display power stabilized");
+  delay(200); // Allow power to stabilize (GDEP073E01 needs time)
+  log_i("[POWER] Display power stabilized");
 #endif
 }
 
 void displayPowerOff() {
 #ifdef DISPLAY_POWER_PIN
-    log_i("[POWER] Turning display OFF (GPIO %d -> %s)",
-          DISPLAY_POWER_PIN,
-          DISPLAY_POWER_ACTIVE_LOW ? "HIGH" : "LOW");
+  log_i("[POWER] Turning display OFF (GPIO %d -> %s)", DISPLAY_POWER_PIN, DISPLAY_POWER_ACTIVE_LOW ? "HIGH" : "LOW");
 
 #ifdef DISPLAY_POWER_ACTIVE_LOW
-    digitalWrite(DISPLAY_POWER_PIN, HIGH); // P-MOSFET: HIGH = OFF
+  digitalWrite(DISPLAY_POWER_PIN, HIGH); // P-MOSFET: HIGH = OFF
 #else
-    digitalWrite(DISPLAY_POWER_PIN, LOW); // ProS3 LDO2 or N-MOSFET: LOW = OFF
+  digitalWrite(DISPLAY_POWER_PIN, LOW); // ProS3 LDO2 or N-MOSFET: LOW = OFF
 #endif
 
-    delay(50); // Short delay for clean shutdown
-    log_i("[POWER] Display powered off");
+  delay(50); // Short delay for clean shutdown
+  log_i("[POWER] Display powered off");
 #endif
 }
 
 void initDisplayPower() {
 #ifdef DISPLAY_POWER_PIN
-    log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
-    pinMode(DISPLAY_POWER_PIN, OUTPUT);
+  log_i("[POWER] Initializing display power control on GPIO %d", DISPLAY_POWER_PIN);
+  pinMode(DISPLAY_POWER_PIN, OUTPUT);
 
-    // Start with display OFF
-    displayPowerOff();
-    delay(100);
+  // Start with display OFF
+  displayPowerOff();
+  delay(100);
 #else
-    log_i("[POWER] Display power control not configured (DISPLAY_POWER_PIN not defined)");
+  log_i("[POWER] Display power control not configured (DISPLAY_POWER_PIN not "
+        "defined)");
 #endif
 }
 
 // Test function for power cycling
 void test_display_power_cycle() {
-    log_i("========================================");
-    log_i("Display Power Control Test");
-    log_i("========================================");
+  log_i("========================================");
+  log_i("Display Power Control Test");
+  log_i("========================================");
 
 #ifdef DISPLAY_POWER_PIN
-    log_i("Testing display power cycling...");
+  log_i("Testing display power cycling...");
 
-    // Test 1: Basic ON/OFF cycle
-    log_i("\n[TEST 1] Basic power cycle");
+  // Test 1: Basic ON/OFF cycle
+  log_i("\n[TEST 1] Basic power cycle");
+  displayPowerOn();
+  delay(2000);
+  displayPowerOff();
+  delay(2000);
+
+  // Test 2: Multiple rapid cycles
+  log_i("\n[TEST 2] Rapid power cycling (5 cycles)");
+  for (int i = 0; i < 5; i++) {
+    log_i("Cycle %d/5", i + 1);
     displayPowerOn();
-    delay(2000);
+    delay(500);
     displayPowerOff();
-    delay(2000);
+    delay(500);
+  }
 
-    // Test 2: Multiple rapid cycles
-    log_i("\n[TEST 2] Rapid power cycling (5 cycles)");
-    for (int i = 0; i < 5; i++) {
-        log_i("Cycle %d/5", i + 1);
-        displayPowerOn();
-        delay(500);
-        displayPowerOff();
-        delay(500);
+  // Test 3: Power on, initialize display, power off
+  log_i("\n[TEST 3] Power + Display init test");
+  displayPowerOn();
+
+  if (init_display_manager()) {
+    log_i("Display initialized successfully with power control");
+
+    // Try to draw something simple
+    GFXcanvas8 &canvas = photo_frame::DisplayManager::getInstance().getCanvas();
+    canvas.fillScreen(COLOR_WHITE);
+    canvas.fillRect(100, 100, 200, 200, COLOR_BLACK);
+    canvas.fillRect(150, 150, 100, 100, COLOR_RED);
+    log_i("Drew test pattern");
+
+    // Render to display
+    if (photo_frame::DisplayManager::getInstance().render()) {
+      log_i("Test pattern rendered successfully");
+    } else {
+      log_e("Failed to render test pattern");
     }
 
-    // Test 3: Power on, initialize display, power off
-    log_i("\n[TEST 3] Power + Display init test");
-    displayPowerOn();
-
-    if (init_display_manager()) {
-        log_i("Display initialized successfully with power control");
-
-        // Try to draw something simple
-        GFXcanvas8& canvas = photo_frame::DisplayManager::getInstance().getCanvas();
-        canvas.fillScreen(COLOR_WHITE);
-        canvas.fillRect(100, 100, 200, 200, COLOR_BLACK);
-        canvas.fillRect(150, 150, 100, 100, COLOR_RED);
-        log_i("Drew test pattern");
-
-        // Render to display
-        if (photo_frame::DisplayManager::getInstance().render()) {
-            log_i("Test pattern rendered successfully");
-        } else {
-            log_e("Failed to render test pattern");
-        }
-
-        // Sleep display before power off
-        photo_frame::DisplayManager::getInstance().sleep();
-        delay(1000);
-    }
-
-    displayPowerOff();
-    delay(2000);
-
-    // Test 4: Power measurements simulation
-    log_i("\n[TEST 4] Power consumption simulation");
-    log_i("Display OFF - Simulated consumption: ~0mA");
+    // Sleep display before power off
+    photo_frame::DisplayManager::getInstance().sleep();
     delay(1000);
+  }
 
-    displayPowerOn();
-    log_i("Display ON (idle) - Simulated consumption: ~5mA");
-    delay(2000);
+  displayPowerOff();
+  delay(2000);
 
-    log_i("Display ON (refresh) - Simulated consumption: ~35-50mA (peaks to 80mA)");
-    delay(3000);
+  // Test 4: Power measurements simulation
+  log_i("\n[TEST 4] Power consumption simulation");
+  log_i("Display OFF - Simulated consumption: ~0mA");
+  delay(1000);
 
-    displayPowerOff();
-    log_i("Display OFF again - Simulated consumption: ~0mA");
+  displayPowerOn();
+  log_i("Display ON (idle) - Simulated consumption: ~5mA");
+  delay(2000);
 
-    log_i("\n[POWER TEST] Complete!");
-    log_i("Note: Connect multimeter to measure actual current consumption");
+  log_i("Display ON (refresh) - Simulated consumption: ~35-50mA (peaks to 80mA)");
+  delay(3000);
+
+  displayPowerOff();
+  log_i("Display OFF again - Simulated consumption: ~0mA");
+
+  log_i("\n[POWER TEST] Complete!");
+  log_i("Note: Connect multimeter to measure actual current consumption");
 
 #else
-    log_w("Display power control not available (DISPLAY_POWER_PIN not defined)");
-    log_w("To enable: Define DISPLAY_POWER_PIN in your board config");
+  log_w("Display power control not available (DISPLAY_POWER_PIN not defined)");
+  log_w("To enable: Define DISPLAY_POWER_PIN in your board config");
 #endif
 }
 
 bool init_display_manager() {
-    if (photo_frame::DisplayManager::getInstance().isInitialized()) {
-        log_w("Display manager already initialized");
-        return true;
-    }
-
-    log_i("Initializing display manager...");
-
-    // First initialize the buffer
-    if (!photo_frame::DisplayManager::getInstance().initBuffer(true)) { // true = prefer PSRAM
-        log_e("[display_debug] CRITICAL: Failed to initialize display buffer!");
-        log_e("[display_debug] Cannot continue without buffer");
-        return false;
-    }
-
-    // Then initialize the display hardware
-    if (!photo_frame::DisplayManager::getInstance().initDisplay()) {
-        log_e("[display_debug] CRITICAL: Failed to initialize display hardware!");
-        log_e("[display_debug] Cannot continue without display");
-        return false;
-    }
-
-    log_i("[display_debug] Display manager initialized successfully");
-    log_i("[display_debug] Buffer size: %u bytes",
-          photo_frame::DisplayManager::getInstance().getBufferSize());
+  if (photo_frame::DisplayManager::getInstance().isInitialized()) {
+    log_w("Display manager already initialized");
     return true;
+  }
+
+  log_i("Initializing display manager...");
+
+  // First initialize the buffer
+  if (!photo_frame::DisplayManager::getInstance().initBuffer(true)) { // true = prefer PSRAM
+    log_e("[display_debug] CRITICAL: Failed to initialize display buffer!");
+    log_e("[display_debug] Cannot continue without buffer");
+    return false;
+  }
+
+  // Then initialize the display hardware
+  if (!photo_frame::DisplayManager::getInstance().initDisplay()) {
+    log_e("[display_debug] CRITICAL: Failed to initialize display hardware!");
+    log_e("[display_debug] Cannot continue without display");
+    return false;
+  }
+
+  log_i("[display_debug] Display manager initialized successfully");
+  log_i("[display_debug] Buffer size: %u bytes", photo_frame::DisplayManager::getInstance().getBufferSize());
+  return true;
 }
 
 void cleanup_display_manager() {
-    if (photo_frame::DisplayManager::getInstance().isInitialized()) {
-        log_i("[display_debug] Releasing display manager");
-        photo_frame::DisplayManager::getInstance().release();
-        log_i("[display_debug] Display manager released");
-    }
+  if (photo_frame::DisplayManager::getInstance().isInitialized()) {
+    log_i("[display_debug] Releasing display manager");
+    photo_frame::DisplayManager::getInstance().release();
+    log_i("[display_debug] Display manager released");
+  }
 }
 
 // These functions are no longer needed as we use photo_frame::sd_card class
 
-bool pickImageFromSdCard(const char* images_directory, uint8_t* image_buffer, size_t buffer_size) {
-    log_i("========================================");
-    log_i("Portrait Image Test (From SD Card)");
-    log_i("========================================");
+bool pickImageFromSdCard(const char *images_directory, uint8_t *image_buffer, size_t buffer_size) {
+  log_i("========================================");
+  log_i("Portrait Image Test (From SD Card)");
+  log_i("========================================");
 
-    if (!image_buffer) {
-        log_w("image_buffer is NULL");
-        return false;
-    }
+  if (!image_buffer) {
+    log_w("image_buffer is NULL");
+    return false;
+  }
 
-    // First, try to use TOC cache if available
-    bool use_toc       = true; // Enable TOC by default
-    uint32_t fileCount = 0;
-    auto ts            = millis();
+  // First, try to use TOC cache if available
+  bool use_toc = true; // Enable TOC by default
+  uint32_t fileCount = 0;
+  auto ts = millis();
 
-    // Build or validate TOC
-    if (use_toc) {
-        if (!sdCard.isTocValid(images_directory, ".pfr1")) {
-            log_i("Building SD card TOC for directory: %s", images_directory);
-            photo_frame::photo_frame_error_t tocError;
-            if (sdCard.buildDirectoryToc(images_directory, BINARY_FILE_EXTENSION, &tocError)) {
-                log_i("SD card TOC built successfully");
-            } else {
-                log_w(
-                    "Failed to build SD card TOC: %s (code: %u), falling back to direct iteration",
-                    tocError.message,
-                    tocError.code);
-                use_toc = false;
-            }
-        } else {
-            log_i("Using existing SD card TOC cache");
-        }
-    }
-
-    // Count files using TOC or direct iteration
-    if (use_toc) {
-        fileCount = sdCard.countFilesCached(images_directory, BINARY_FILE_EXTENSION, true);
-        log_i("Found %lu files using TOC cache", fileCount);
+  // Build or validate TOC
+  if (use_toc) {
+    if (!sdCard.isTocValid(images_directory, ".pfr1")) {
+      log_i("Building SD card TOC for directory: %s", images_directory);
+      photo_frame::photo_frame_error_t tocError;
+      if (sdCard.buildDirectoryToc(images_directory, BINARY_FILE_EXTENSION, &tocError)) {
+        log_i("SD card TOC built successfully");
+      } else {
+        log_w("Failed to build SD card TOC: %s (code: %u), falling back to "
+              "direct iteration",
+              tocError.message, tocError.code);
+        use_toc = false;
+      }
     } else {
-        fileCount = sdCard.countFilesInDirectory(images_directory, BINARY_FILE_EXTENSION);
-        log_i("Found %lu files using direct iteration", fileCount);
+      log_i("Using existing SD card TOC cache");
     }
+  }
 
-    auto elapsed = millis() - ts;
-    log_v(
-        "Total %s file count inside %s is %lu", BINARY_FILE_EXTENSION, images_directory, fileCount);
-    log_v("Elapsed time for counting: %lu ms", elapsed);
+  // Count files using TOC or direct iteration
+  if (use_toc) {
+    fileCount = sdCard.countFilesCached(images_directory, BINARY_FILE_EXTENSION, true);
+    log_i("Found %lu files using TOC cache", fileCount);
+  } else {
+    fileCount = sdCard.countFilesInDirectory(images_directory, BINARY_FILE_EXTENSION);
+    log_i("Found %lu files using direct iteration", fileCount);
+  }
 
-    if (fileCount < 1) {
-        log_w("Could not find any image inside the %s directory", images_directory);
-        return false;
-    }
+  auto elapsed = millis() - ts;
+  log_v("Total %s file count inside %s is %lu", BINARY_FILE_EXTENSION, images_directory, fileCount);
+  log_v("Elapsed time for counting: %lu ms", elapsed);
 
-    // Pick a random file
-    uint32_t targetIndex = random(0, fileCount);
-    log_v("Picking file at index %lu (0-based)", targetIndex);
+  if (fileCount < 1) {
+    log_w("Could not find any image inside the %s directory", images_directory);
+    return false;
+  }
 
-    // Get file path using TOC or direct iteration
-    String fullPath;
-    ts = millis();
+  // Pick a random file
+  uint32_t targetIndex = random(0, fileCount);
+  log_v("Picking file at index %lu (0-based)", targetIndex);
 
-    if (use_toc) {
-        fullPath =
-            sdCard.getFileAtIndexCached(images_directory, targetIndex, BINARY_FILE_EXTENSION, true);
-        log_i("Selected file from TOC: %s", fullPath.c_str());
-    } else {
-        fullPath = sdCard.getFileAtIndex(images_directory, targetIndex, BINARY_FILE_EXTENSION);
-        log_i("Selected file from iteration: %s", fullPath.c_str());
-    }
+  // Get file path using TOC or direct iteration
+  String fullPath;
+  ts = millis();
 
-    elapsed = millis() - ts;
-    log_v("Elapsed time for file selection: %lu ms", elapsed);
+  if (use_toc) {
+    fullPath = sdCard.getFileAtIndexCached(images_directory, targetIndex, BINARY_FILE_EXTENSION, true);
+    log_i("Selected file from TOC: %s", fullPath.c_str());
+  } else {
+    fullPath = sdCard.getFileAtIndex(images_directory, targetIndex, BINARY_FILE_EXTENSION);
+    log_i("Selected file from iteration: %s", fullPath.c_str());
+  }
 
-    if (fullPath.isEmpty()) {
-        log_e("Failed to get file at index %lu", targetIndex);
-        return false;
-    }
+  elapsed = millis() - ts;
+  log_v("Elapsed time for file selection: %lu ms", elapsed);
 
-    log_v("Full path: %s", fullPath.c_str());
-    log_v("image_buffer address: %p", image_buffer);
+  if (fullPath.isEmpty()) {
+    log_e("Failed to get file at index %lu", targetIndex);
+    return false;
+  }
 
-    // Open and read the file
-    File imageFile = sdCard.open(fullPath.c_str(), "r");
-    if (!imageFile) {
-        log_e("Failed to open file: %s", fullPath.c_str());
-        return false;
-    }
+  log_v("Full path: %s", fullPath.c_str());
+  log_v("image_buffer address: %p", image_buffer);
 
-    size_t fileSize = imageFile.size();
-    log_v("File size: %u bytes (expected: %u bytes)", fileSize, buffer_size);
+  // Open and read the file
+  File imageFile = sdCard.open(fullPath.c_str(), "r");
+  if (!imageFile) {
+    log_e("Failed to open file: %s", fullPath.c_str());
+    return false;
+  }
 
-    // Validate file size
-    if (fileSize != buffer_size) {
-        log_e("File size mismatch! File: %u bytes, Buffer: %u bytes", fileSize, buffer_size);
-        imageFile.close();
-        return false;
-    }
+  size_t fileSize = imageFile.size();
+  log_v("File size: %u bytes (expected: %u bytes)", fileSize, buffer_size);
 
-    log_v("File opened successfully, available bytes: %u", imageFile.available());
-
-    // Read file content into image_buffer
-    log_v("Reading file into image buffer...");
-    size_t bytesRead = imageFile.read(image_buffer, buffer_size);
+  // Validate file size
+  if (fileSize != buffer_size) {
+    log_e("File size mismatch! File: %u bytes, Buffer: %u bytes", fileSize, buffer_size);
     imageFile.close();
+    return false;
+  }
 
-    if (bytesRead != buffer_size) {
-        log_e("Failed to read complete file! Read: %u bytes, Expected: %u bytes",
-              bytesRead,
-              buffer_size);
-        return false;
-    }
+  log_v("File opened successfully, available bytes: %u", imageFile.available());
 
-    log_i("Successfully loaded %u bytes from SD card", bytesRead);
-    return true;
+  // Read file content into image_buffer
+  log_v("Reading file into image buffer...");
+  size_t bytesRead = imageFile.read(image_buffer, buffer_size);
+  imageFile.close();
+
+  if (bytesRead != buffer_size) {
+    log_e("Failed to read complete file! Read: %u bytes, Expected: %u bytes", bytesRead, buffer_size);
+    return false;
+  }
+
+  log_i("Successfully loaded %u bytes from SD card", bytesRead);
+  return true;
 }
 
 void run_display_tests() {
-    log_i("\n========================================");
-    log_i("Display Debug Menu");
-    log_i("========================================");
-    log_i("1. Power Control Test");
-    log_i("2. SD Card Image Test (with power control)");
-    log_i("3. Full Test (Power + Image + Overlays)");
-    log_i("========================================");
-    log_i("Running test 1: Power Control Test");
-    log_i("========================================\n");
+  log_i("\n========================================");
+  log_i("Display Debug Menu");
+  log_i("========================================");
+  log_i("1. Power Control Test");
+  log_i("2. SD Card Image Test (with power control)");
+  log_i("3. Full Test (Power + Image + Overlays)");
+  log_i("========================================");
+  log_i("Running test 1: Power Control Test");
+  log_i("========================================\n");
 
-    // Run power control test
-    test_display_power_cycle();
+  // Run power control test
+  test_display_power_cycle();
 
-    log_i("\nPress any key to continue to SD Card Image Test...");
-    while (!Serial.available()) {
-        delay(100);
-    }
-    while (Serial.available()) {
-        Serial.read();
-    }
+  log_i("\nPress any key to continue to SD Card Image Test...");
+  while (!Serial.available()) {
+    delay(100);
+  }
+  while (Serial.available()) {
+    Serial.read();
+  }
 
-    log_i("\n========================================");
-    log_i("Running test 2: SD Card Image Test");
-    log_i("========================================\n");
+  log_i("\n========================================");
+  log_i("Running test 2: SD Card Image Test");
+  log_i("========================================\n");
 
-    // Initialize power control
-    initDisplayPower();
+  // Initialize power control
+  initDisplayPower();
 
-    // ========== PHASE 1: SD Card Operations (Display OFF) ==========
-    // Display is OFF during SD card operations to avoid SPI conflicts
+  // ========== PHASE 1: SD Card Operations (Display OFF) ==========
+  // Display is OFF during SD card operations to avoid SPI conflicts
 
-    size_t bufferSize = photo_frame::DisplayManager::getNativeWidth() *
-                        photo_frame::DisplayManager::getNativeHeight();
-    uint8_t* tempBuffer = (uint8_t*)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM);
+  size_t bufferSize = photo_frame::DisplayManager::getNativeWidth() * photo_frame::DisplayManager::getNativeHeight();
+  uint8_t *tempBuffer = (uint8_t *)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM);
+  if (!tempBuffer) {
+    tempBuffer = (uint8_t *)malloc(bufferSize);
     if (!tempBuffer) {
-        tempBuffer = (uint8_t*)malloc(bufferSize);
-        if (!tempBuffer) {
-            log_e("Failed to allocate temporary buffer!");
-            displayPowerOff();
-            return;
-        }
+      log_e("Failed to allocate temporary buffer!");
+      displayPowerOff();
+      return;
     }
-    log_i("Temporary buffer allocated: %u bytes", bufferSize);
+  }
+  log_i("Temporary buffer allocated: %u bytes", bufferSize);
 
-    // Turn OFF display during SD card operations
-    displayPowerOff();
-    log_i("[PHASE 1] Display powered OFF for SD card operations");
+  // Turn OFF display during SD card operations
+  displayPowerOff();
+  log_i("[PHASE 1] Display powered OFF for SD card operations");
 
-    // Initialize SD card using photo_frame::sd_card class
-    photo_frame::photo_frame_error_t sdError = sdCard.begin();
-    if (sdError != photo_frame::error_type::None) {
-        log_w("Failed to initialize the SD Card: %s", sdError.message);
-        free(tempBuffer);
-        return;
-    }
-
-    // Load image from SD card into temporary buffer
-    bool success = pickImageFromSdCard(images_directory, tempBuffer, bufferSize);
-
-    // IMPORTANT: Close SD card before initializing display (SPI conflict avoidance)
-    sdCard.end();
-    log_i("SD card closed");
-
-    if (!success) {
-        log_w("Failed to pick image from SD Card");
-        free(tempBuffer);
-        displayPowerOff();
-        return;
-    }
-
-    // ========== PHASE 2: Display Operations (Display ON) ==========
-    // Now that SD card is closed, we can power on and initialize the display
-
-    log_i("[PHASE 2] Powering ON display for rendering");
-    displayPowerOn();
-
-    // Initialize display manager (this handles all display initialization)
-    if (!init_display_manager()) {
-        log_e("Failed to initialize display manager");
-        free(tempBuffer);
-        displayPowerOff();
-        return;
-    }
-
-    // Copy image from temporary buffer to display buffer
-    memcpy(photo_frame::DisplayManager::getInstance().getBuffer(), tempBuffer, bufferSize);
+  // Initialize SD card using photo_frame::sd_card class
+  photo_frame::photo_frame_error_t sdError = sdCard.begin();
+  if (sdError != photo_frame::error_type::None) {
+    log_w("Failed to initialize the SD Card: %s", sdError.message);
     free(tempBuffer);
-    log_i("Image copied to display buffer");
+    return;
+  }
 
-    // Check display is valid
-    if (!photo_frame::DisplayManager::getInstance().isInitialized()) {
-        log_e("Display manager is not initialized!");
-        return;
-    }
+  // Load image from SD card into temporary buffer
+  bool success = pickImageFromSdCard(images_directory, tempBuffer, bufferSize);
 
-    log_v("Image buffer address: %p", photo_frame::DisplayManager::getInstance().getBuffer());
-    delay(1000);
+  // IMPORTANT: Close SD card before initializing display (SPI conflict
+  // avoidance)
+  sdCard.end();
+  log_i("SD card closed");
 
-    log_i("Displaying SD Card image");
-
-    // Set rotation for portrait mode if needed
-    bool portrait_mode = true; // Change to true if testing portrait mode
-
-    if (portrait_mode) {
-        photo_frame::DisplayManager::getInstance().setRotation(1);
-    }
-
-    log_v("Drawing overlay elements...");
-    photo_frame::DisplayManager::getInstance().drawOverlay();
-
-    // Draw battery status
-    photo_frame::BatteryInfo BatteryInfo;
-    BatteryInfo.percent    = 100;
-    BatteryInfo.millivolts = 4120;
-    uint8_t test_rotation  = 1; // 0=0°,1=90°,2=180°,3=270°
-    photo_frame::DisplayManager::getInstance().setRotation(test_rotation);
-    long refresh_seconds = 3600; // 1 hour
-    photo_frame::DisplayManager::getInstance().drawLastUpdate(now, refresh_seconds);
-
-    // Draw image info
-    photo_frame::DisplayManager::getInstance().drawImageInfo(
-        0, 10, photo_frame::ImageSource::IMAGE_SOURCE_CLOUD);
-
-    // Render the image with overlays to the display
-    log_i("Rendering image to display...");
-    if (!photo_frame::DisplayManager::getInstance().render()) {
-        log_e("Failed to render image!");
-    }
-
-    // Put display to sleep to preserve lifespan
-    photo_frame::DisplayManager::getInstance().sleep();
-
-    log_i("Display rendered and put to sleep mode");
-    delay(5000); // Delay for 5s to view the result
-
-    // Power off display completely
-    log_i("[PHASE 3] Powering OFF display for deep sleep");
+  if (!success) {
+    log_w("Failed to pick image from SD Card");
+    free(tempBuffer);
     displayPowerOff();
+    return;
+  }
 
-    cleanup_display_manager();
+  // ========== PHASE 2: Display Operations (Display ON) ==========
+  // Now that SD card is closed, we can power on and initialize the display
 
-    log_i("\n========================================");
-    log_i("Test Complete!");
-    log_i("Display is now powered OFF");
-    log_i("Power consumption should be ~0mA");
-    log_i("========================================");
+  log_i("[PHASE 2] Powering ON display for rendering");
+  displayPowerOn();
+
+  // Initialize display manager (this handles all display initialization)
+  if (!init_display_manager()) {
+    log_e("Failed to initialize display manager");
+    free(tempBuffer);
+    displayPowerOff();
+    return;
+  }
+
+  // Copy image from temporary buffer to display buffer
+  memcpy(photo_frame::DisplayManager::getInstance().getBuffer(), tempBuffer, bufferSize);
+  free(tempBuffer);
+  log_i("Image copied to display buffer");
+
+  // Check display is valid
+  if (!photo_frame::DisplayManager::getInstance().isInitialized()) {
+    log_e("Display manager is not initialized!");
+    return;
+  }
+
+  log_v("Image buffer address: %p", photo_frame::DisplayManager::getInstance().getBuffer());
+  delay(1000);
+
+  log_i("Displaying SD Card image");
+
+  // Set rotation for portrait mode if needed
+  bool portrait_mode = true; // Change to true if testing portrait mode
+
+  if (portrait_mode) {
+    photo_frame::DisplayManager::getInstance().setRotation(1);
+  }
+
+  log_v("Drawing overlay elements...");
+  photo_frame::DisplayManager::getInstance().drawOverlay();
+
+  // Draw battery status
+  photo_frame::BatteryInfo BatteryInfo;
+  BatteryInfo.percent = 100;
+  BatteryInfo.millivolts = 4120;
+  uint8_t test_rotation = 1; // 0=0°,1=90°,2=180°,3=270°
+  photo_frame::DisplayManager::getInstance().setRotation(test_rotation);
+  long refresh_seconds = 3600; // 1 hour
+  photo_frame::DisplayManager::getInstance().drawLastUpdate(now, refresh_seconds);
+
+  // Draw image info
+  photo_frame::DisplayManager::getInstance().drawImageInfo(0, 10, photo_frame::ImageSource::IMAGE_SOURCE_CLOUD);
+
+  // Render the image with overlays to the display
+  log_i("Rendering image to display...");
+  if (!photo_frame::DisplayManager::getInstance().render()) {
+    log_e("Failed to render image!");
+  }
+
+  // Put display to sleep to preserve lifespan
+  photo_frame::DisplayManager::getInstance().sleep();
+
+  log_i("Display rendered and put to sleep mode");
+  delay(5000); // Delay for 5s to view the result
+
+  // Power off display completely
+  log_i("[PHASE 3] Powering OFF display for deep sleep");
+  displayPowerOff();
+
+  cleanup_display_manager();
+
+  log_i("\n========================================");
+  log_i("Test Complete!");
+  log_i("Display is now powered OFF");
+  log_i("Power consumption should be ~0mA");
+  log_i("========================================");
 }
 
 void setup() {
-    Serial.begin(115200);
-    delay(2000);
+  Serial.begin(115200);
+  delay(2000);
 
-    log_i("========================================");
-    log_i("Display Power Control Test Suite");
-    log_i("========================================");
-    log_i("This test will demonstrate display power control");
-    log_i("using GPIO pin for GDEP073E01 display");
-    log_i("========================================\n");
+  log_i("========================================");
+  log_i("Display Power Control Test Suite");
+  log_i("========================================");
+  log_i("This test will demonstrate display power control");
+  log_i("using GPIO pin for GDEP073E01 display");
+  log_i("========================================\n");
 
-    // Run all display tests
-    run_display_tests();
+  // Run all display tests
+  run_display_tests();
 }
 
 void loop() {
-    // empty
+  // empty
 }
 
 #endif // ENABLE_DISPLAY_DIAGNOSTIC

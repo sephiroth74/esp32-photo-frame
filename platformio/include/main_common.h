@@ -34,10 +34,8 @@
 // REFRESH DELAY STRUCTURE
 // ============================================================================
 typedef struct {
-    long refresh_seconds;
-    uint64_t get_refresh_microseconds() const {
-        return (uint64_t)refresh_seconds * MICROSECONDS_IN_SECOND;
-    };
+  long refresh_seconds;
+  uint64_t get_refresh_microseconds() const { return (uint64_t)refresh_seconds * MICROSECONDS_IN_SECOND; };
 } refresh_delay_t;
 
 // ============================================================================
@@ -97,7 +95,7 @@ void cleanupImageBuffer();
  * @param wakeup_reason Current wakeup reason for power management decisions
  * @return Error state after battery check
  */
-photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& batteryInfo,
+photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo &batteryInfo,
                                                       esp_sleep_wakeup_cause_t wakeup_reason);
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
@@ -109,7 +107,7 @@ photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo& 
  * @param now The current time
  * @return The calculated wakeup delay
  */
-refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& batteryInfo, DateTime& now);
+refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo &batteryInfo, DateTime &now);
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
 
@@ -118,12 +116,11 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo& batteryInfo, Date
  * @param batteryInfo Battery information for sleep calculations
  * @param now Current DateTime for sleep timing
  * @param wakeup_reason Wakeup reason for sleep decisions
- * @param refresh_delay Pre-calculated refresh delay to avoid re-reading potentiometer
+ * @param refresh_delay Pre-calculated refresh delay to avoid re-reading
+ * potentiometer
  */
-void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& batteryInfo,
-                               DateTime& now,
-                               esp_sleep_wakeup_cause_t wakeup_reason,
-                               const refresh_delay_t& refresh_delay);
+void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo &batteryInfo, DateTime &now, esp_sleep_wakeup_cause_t wakeup_reason,
+                               const refresh_delay_t &refresh_delay);
 
 // ============================================================================
 // IMAGE RENDERING
@@ -132,10 +129,11 @@ void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& batteryInfo,
 #if !defined(ENABLE_WEBSERVER_DATAPROVIDER)
 
 /**
- * @brief Handle image rendering with full/partial display modes and error handling
+ * @brief Handle image rendering with full/partial display modes and error
+ * handling
  * @param file The validated image file to render (temporary file in LittleFS)
- * @param original_filename Original filename from SD card (used for format detection and error
- * reporting)
+ * @param original_filename Original filename from SD card (used for format
+ * detection and error reporting)
  * @param current_error Current error state
  * @param now Current DateTime for info display
  * @param refresh_delay Refresh delay info
@@ -145,15 +143,10 @@ void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo& batteryInfo,
  * @param batteryInfo Battery information
  * @return Updated error state after rendering attempt
  */
-photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile& image_file,
-                                             const char* original_filename,
-                                             photo_frame::photo_frame_error_t current_error,
-                                             const DateTime& now,
-                                             const refresh_delay_t& refresh_delay,
-                                             uint32_t image_index,
-                                             uint32_t total_files,
-                                             photo_frame::GoogleDrive& drive,
-                                             const photo_frame::BatteryInfo& batteryInfo);
+photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile &image_file, const char *original_filename,
+                                             photo_frame::photo_frame_error_t current_error, const DateTime &now,
+                                             const refresh_delay_t &refresh_delay, uint32_t image_index, uint32_t total_files,
+                                             photo_frame::GoogleDrive &drive, const photo_frame::BatteryInfo &batteryInfo);
 
 #endif // !ENABLE_WEBSERVER_DATAPROVIDER
 

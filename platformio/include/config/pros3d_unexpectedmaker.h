@@ -22,11 +22,11 @@
 // #define SD_MMC_D2_PIN   5    // SDIO D2
 
 // SD Card - sharing default SPI bus (VSPI) with display
-#define SD_USE_SPI // Use SPI instead of SDIO for SD card
-#define SD_SCK_PIN 12 // SD SPI Clock - IO36 (VSPI, shared with display)
+#define SD_USE_SPI     // Use SPI instead of SDIO for SD card
+#define SD_SCK_PIN 12  // SD SPI Clock - IO36 (VSPI, shared with display)
 #define SD_MISO_PIN 13 // SD SPI MISO - IO37 (VSPI)
 #define SD_MOSI_PIN 14 // SD SPI MOSI - IO35 (VSPI, shared with display)
-#define SD_CS_PIN 15 // SD Card Chip Select (CS)
+#define SD_CS_PIN 15   // SD Card Chip Select (CS)
 
 // ==========================================================================
 // E-Paper Display Pin Configuration
@@ -37,11 +37,11 @@
 #define FONT_HEADER "assets/fonts/Ubuntu_R.h"
 
 // e-Paper Display - using default SPI (VSPI)
-#define EPD_BUSY_PIN 6 // IO6 - available digital pin
-#define EPD_RST_PIN 4 // IO5 - available digital pin
-#define EPD_DC_PIN 16 // IO13 - available digital pin
-#define EPD_CS_PIN 38 // IO38 - SPI CS for e-paper
-#define EPD_SCK_PIN 36 // IO36 - SPI Clock for e-paper (VSPI)
+#define EPD_BUSY_PIN 6  // IO6 - available digital pin
+#define EPD_RST_PIN 4   // IO5 - available digital pin
+#define EPD_DC_PIN 16   // IO13 - available digital pin
+#define EPD_CS_PIN 38   // IO38 - SPI CS for e-paper
+#define EPD_SCK_PIN 36  // IO36 - SPI Clock for e-paper (VSPI)
 #define EPD_MOSI_PIN 35 // IO35 - SPI MOSI for e-paper (VSPI)
 
 #define DISPLAY_TIMEOUT_MS 60000
@@ -65,14 +65,14 @@
 // ===========================================================================
 
 // RGB NeoPixel LED configuration - ProS3 built-in
-#define RGB_LED_PIN 18 // GPIO18 - Built-in RGB NeoPixel on ProS3
+#define RGB_LED_PIN 18  // GPIO18 - Built-in RGB NeoPixel on ProS3
 #define RGB_LED_COUNT 1 // Single RGB LED
 
 // External wakeup configuration
 #define WAKEUP_EXT0
-#define WAKEUP_PIN GPIO_NUM_1 // GPIO1 is an RTC IO pin on ESP32-S3
+#define WAKEUP_PIN GPIO_NUM_1        // GPIO1 is an RTC IO pin on ESP32-S3
 #define WAKEUP_PIN_MODE INPUT_PULLUP // Internal pull-up for button to GND
-#define WAKEUP_LEVEL LOW // Button press pulls pin LOW
+#define WAKEUP_LEVEL LOW             // Button press pulls pin LOW
 
 #define DELAY_BEFORE_SLEEP 8000 // Reduced since no I2C/WiFi conflicts
 
@@ -84,7 +84,7 @@
 
 #if defined(ENABLE_WEBSERVER_DATAPROVIDER)
 #define WS_LISTEN_TIMEOUT_MS (60 * 60 * 1000) // 10 minutes timeout for subsequent boots
-#endif // ENABLE_WEBSERVER_DATAPROVIDER
+#endif                                        // ENABLE_WEBSERVER_DATAPROVIDER
 
 // ===========================================================================
 // Timezone Configuration

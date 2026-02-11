@@ -26,13 +26,12 @@
 namespace photo_frame {
 
 class SdCardDataProvider : public DataProvider {
-  public:
-    SdCardDataProvider();
+public:
+  SdCardDataProvider();
 
-    const char* name() const override { return "sdcard"; }
+  const char *name() const override { return "sdcard"; }
 
-    ImageLoadResult
-    load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) override;
+  ImageLoadResult load_next_image(bool is_reset, SdCard &sd_card, const unified_config &config) override;
 };
 
 } // namespace photo_frame

@@ -27,16 +27,15 @@
 namespace photo_frame {
 
 class GoogleDriveDataProvider : public DataProvider {
-  public:
-    GoogleDriveDataProvider(GoogleDrive& drive);
+public:
+  GoogleDriveDataProvider(GoogleDrive &drive);
 
-    const char* name() const override { return "gdrive"; }
+  const char *name() const override { return "gdrive"; }
 
-    ImageLoadResult
-    load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) override;
+  ImageLoadResult load_next_image(bool is_reset, SdCard &sd_card, const unified_config &config) override;
 
-  private:
-    GoogleDrive& drive_;
+private:
+  GoogleDrive &drive_;
 };
 
 } // namespace photo_frame

@@ -25,56 +25,56 @@ namespace photo_frame {
 namespace ws {
 
 // WiFi AP Configuration Constants
-static constexpr const char* WS_AP_PASSWORD    = nullptr; // Open network (no password)
+static constexpr const char *WS_AP_PASSWORD = nullptr; // Open network (no password)
 static constexpr uint8_t WS_AP_MAX_CONNECTIONS = 1;
 
 /**
  * @class WSAPManager
  * @brief Manages ESP32 as Wi-Fi Access Point for WebSocket image transfer
  *
- * Creates an open SoftAP with SSID "PhotoFrame-XXXX" where XXXX = last 4 digits of MAC.
- * Configures IP stack: 192.168.4.1 (AP) with DHCP server.
+ * Creates an open SoftAP with SSID "PhotoFrame-XXXX" where XXXX = last 4 digits
+ * of MAC. Configures IP stack: 192.168.4.1 (AP) with DHCP server.
  */
 class WSAPManager {
-  public:
-    /**
-     * @brief Initialize and start the WiFi Access Point
-     * @return true if AP started successfully, false otherwise
-     */
-    bool begin();
+public:
+  /**
+   * @brief Initialize and start the WiFi Access Point
+   * @return true if AP started successfully, false otherwise
+   */
+  bool begin();
 
-    /**
-     * @brief Stop the AP and cleanup
-     */
-    void stop();
+  /**
+   * @brief Stop the AP and cleanup
+   */
+  void stop();
 
-    /**
-     * @brief Check if a client is currently connected to the AP
-     * @return true if at least one client is connected
-     */
-    bool isClientConnected() const;
+  /**
+   * @brief Check if a client is currently connected to the AP
+   * @return true if at least one client is connected
+   */
+  bool isClientConnected() const;
 
-    /**
-     * @brief Get the current SSID of the AP
-     * @return SSID string
-     */
-    std::string getSSID() const;
+  /**
+   * @brief Get the current SSID of the AP
+   * @return SSID string
+   */
+  std::string getSSID() const;
 
-    /**
-     * @brief Get the AP's IP address
-     * @return IP address as string (typically "192.168.4.1")
-     */
-    std::string getIP() const;
+  /**
+   * @brief Get the AP's IP address
+   * @return IP address as string (typically "192.168.4.1")
+   */
+  std::string getIP() const;
 
-  private:
-    std::string ssid_;
-    bool isRunning_ = false;
+private:
+  std::string ssid_;
+  bool isRunning_ = false;
 
-    /**
-     * @brief Generate SSID with last 4 digits of MAC address
-     * @return Full SSID string (e.g., "PhotoFrame-A1B2")
-     */
-    std::string generateSSID();
+  /**
+   * @brief Generate SSID with last 4 digits of MAC address
+   * @return Full SSID string (e.g., "PhotoFrame-A1B2")
+   */
+  std::string generateSSID();
 };
 
 } // namespace ws

@@ -54,143 +54,143 @@ namespace photo_frame {
  * @endcode
  */
 class PreferencesHelper {
-  public:
-    /**
-     * @brief Get singleton instance of PreferencesHelper
-     *
-     * Returns the single instance of PreferencesHelper used throughout
-     * the application. This ensures consistent namespace usage and
-     * prevents multiple preferences instances.
-     *
-     * @return Reference to the singleton PreferencesHelper instance
-     */
-    static PreferencesHelper& getInstance();
+public:
+  /**
+   * @brief Get singleton instance of PreferencesHelper
+   *
+   * Returns the single instance of PreferencesHelper used throughout
+   * the application. This ensures consistent namespace usage and
+   * prevents multiple preferences instances.
+   *
+   * @return Reference to the singleton PreferencesHelper instance
+   */
+  static PreferencesHelper &getInstance();
 
-    // Delete copy constructor and assignment operator to enforce singleton
-    PreferencesHelper(const PreferencesHelper&)            = delete;
-    PreferencesHelper& operator=(const PreferencesHelper&) = delete;
+  // Delete copy constructor and assignment operator to enforce singleton
+  PreferencesHelper(const PreferencesHelper &) = delete;
+  PreferencesHelper &operator=(const PreferencesHelper &) = delete;
 
-    // ========================================
-    // APPLICATION-SPECIFIC METHODS
-    // ========================================
+  // ========================================
+  // APPLICATION-SPECIFIC METHODS
+  // ========================================
 
-    /**
-     * @brief Get the timestamp of the last cleanup operation
-     *
-     * This method encapsulates the "last_cleanup" preference key
-     * and provides a type-safe way to retrieve the cleanup timestamp.
-     *
-     * @return Unix timestamp of last cleanup, or 0 if never performed
-     */
-    time_t getLastCleanup();
+  /**
+   * @brief Get the timestamp of the last cleanup operation
+   *
+   * This method encapsulates the "last_cleanup" preference key
+   * and provides a type-safe way to retrieve the cleanup timestamp.
+   *
+   * @return Unix timestamp of last cleanup, or 0 if never performed
+   */
+  time_t getLastCleanup();
 
-    /**
-     * @brief Set the timestamp of the last cleanup operation
-     *
-     * This method encapsulates the "last_cleanup" preference key
-     * and provides a type-safe way to store the cleanup timestamp.
-     *
-     * @param timestamp Unix timestamp of the cleanup operation
-     * @return true if successfully stored, false on error
-     */
-    bool setLastCleanup(time_t timestamp);
+  /**
+   * @brief Set the timestamp of the last cleanup operation
+   *
+   * This method encapsulates the "last_cleanup" preference key
+   * and provides a type-safe way to store the cleanup timestamp.
+   *
+   * @param timestamp Unix timestamp of the cleanup operation
+   * @return true if successfully stored, false on error
+   */
+  bool setLastCleanup(time_t timestamp);
 
-    /**
-     * @brief Get the timestamp of the last displayed image
-     */
-    time_t getLastImageTimestamp();
+  /**
+   * @brief Get the timestamp of the last displayed image
+   */
+  time_t getLastImageTimestamp();
 
-    /**
-     * @brief Set the timestamp of the last displayed image
-     */
-    bool setLastImageTimestamp(time_t timestamp);
+  /**
+   * @brief Set the timestamp of the last displayed image
+   */
+  bool setLastImageTimestamp(time_t timestamp);
 
-    /**
-     * @brief Get the display rotation setting (0-3)
-     *
-     * Stored preference key: "display_rotation". Returns values 0-3 where
-     * 0=0°, 1=90°, 2=180°, 3=270°. Defaults to 0 on missing/invalid data.
-     */
-    uint8_t getDisplayRotation();
+  /**
+   * @brief Get the display rotation setting (0-3)
+   *
+   * Stored preference key: "display_rotation". Returns values 0-3 where
+   * 0=0°, 1=90°, 2=180°, 3=270°. Defaults to 0 on missing/invalid data.
+   */
+  uint8_t getDisplayRotation();
 
-    /**
-     * @brief Persist the display rotation setting (0-3)
-     *
-     * @param rotation rotation value (clamped to 0-3)
-     * @return true if successfully stored, false on error
-     */
-    bool setDisplayRotation(uint8_t rotation);
+  /**
+   * @brief Persist the display rotation setting (0-3)
+   *
+   * @param rotation rotation value (clamped to 0-3)
+   * @return true if successfully stored, false on error
+   */
+  bool setDisplayRotation(uint8_t rotation);
 
-    /**
-     * @brief Get the last displayed image index
-     *
-     * This method retrieves the index of the last displayed image.
-     *
-     * @return Image index, or 0 if not set
-     */
-    uint32_t getImageIndex();
+  /**
+   * @brief Get the last displayed image index
+   *
+   * This method retrieves the index of the last displayed image.
+   *
+   * @return Image index, or 0 if not set
+   */
+  uint32_t getImageIndex();
 
-    /**
-     * @brief Set the last displayed image index
-     *
-     * This method stores the index of the last displayed image.
-     *
-     * @param index The image index to store
-     * @return true if successfully stored, false on error
-     */
-    bool setImageIndex(uint32_t index);
+  /**
+   * @brief Set the last displayed image index
+   *
+   * This method stores the index of the last displayed image.
+   *
+   * @param index The image index to store
+   * @return true if successfully stored, false on error
+   */
+  bool setImageIndex(uint32_t index);
 
-  private:
-    /**
-     * @brief Private constructor for singleton pattern
-     */
-    PreferencesHelper() = default;
+private:
+  /**
+   * @brief Private constructor for singleton pattern
+   */
+  PreferencesHelper() = default;
 
-    /**
-     * @brief Private destructor
-     */
-    ~PreferencesHelper() = default;
+  /**
+   * @brief Private destructor
+   */
+  ~PreferencesHelper() = default;
 
-    /**
-     * @brief Open preferences for reading
-     *
-     * @return true if successfully opened, false on error
-     */
-    bool beginRead();
+  /**
+   * @brief Open preferences for reading
+   *
+   * @return true if successfully opened, false on error
+   */
+  bool beginRead();
 
-    /**
-     * @brief Open preferences for writing
-     *
-     * @return true if successfully opened, false on error
-     */
-    bool beginWrite();
+  /**
+   * @brief Open preferences for writing
+   *
+   * @return true if successfully opened, false on error
+   */
+  bool beginWrite();
 
-    /**
-     * @brief Close preferences
-     */
-    void end();
+  /**
+   * @brief Close preferences
+   */
+  void end();
 
-    /**
-     * @brief Store an unsigned long value in preferences
-     *
-     * @param key The preference key name
-     * @param value The value to store
-     * @return true if successfully stored, false on error
-     */
-    bool putULong(const char* key, uint32_t value);
+  /**
+   * @brief Store an unsigned long value in preferences
+   *
+   * @param key The preference key name
+   * @param value The value to store
+   * @return true if successfully stored, false on error
+   */
+  bool putULong(const char *key, uint32_t value);
 
-    /**
-     * @brief Retrieve an unsigned long value from preferences
-     *
-     * @param key The preference key name
-     * @param defaultValue Default value if key doesn't exist
-     * @return The stored value or defaultValue if not found
-     */
-    uint32_t getULong(const char* key, uint32_t defaultValue = 0);
+  /**
+   * @brief Retrieve an unsigned long value from preferences
+   *
+   * @param key The preference key name
+   * @param defaultValue Default value if key doesn't exist
+   * @return The stored value or defaultValue if not found
+   */
+  uint32_t getULong(const char *key, uint32_t defaultValue = 0);
 
-    Preferences preferences; ///< ESP32 Preferences instance
-    bool isOpen     = false; ///< Track if preferences are currently open
-    bool isReadOnly = false; ///< Track if opened in read-only mode
+  Preferences preferences; ///< ESP32 Preferences instance
+  bool isOpen = false;     ///< Track if preferences are currently open
+  bool isReadOnly = false; ///< Track if opened in read-only mode
 };
 
 } // namespace photo_frame

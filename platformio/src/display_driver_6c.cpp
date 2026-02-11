@@ -2,169 +2,155 @@
 #include "config.h"
 
 // Include the GDEP073E01 library headers
-// The pins are taken from config.h (EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN)
+// The pins are taken from config.h (EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN,
+// EPD_CS_PIN)
 #include <Display_EPD_GDEP073E01_W21.h>
 #include <Display_EPD_GDEP073E01_W21_spi.h>
 
 using namespace GDEP073E01;
 
-DisplayDriver6C::DisplayDriver6C(int8_t cs_pin,
-                                 int8_t dc_pin,
-                                 int8_t rst_pin,
-                                 int8_t busy_pin,
-                                 int8_t sck_pin,
-                                 int8_t mosi_pin) :
-    _cs_pin(cs_pin),
-    _dc_pin(dc_pin),
-    _rst_pin(rst_pin),
-    _busy_pin(busy_pin),
-    _sck_pin(sck_pin),
-    _mosi_pin(mosi_pin) {
-    initialized = false;
+DisplayDriver6C::DisplayDriver6C(int8_t cs_pin, int8_t dc_pin, int8_t rst_pin, int8_t busy_pin, int8_t sck_pin, int8_t mosi_pin)
+    : _cs_pin(cs_pin), _dc_pin(dc_pin), _rst_pin(rst_pin), _busy_pin(busy_pin), _sck_pin(sck_pin), _mosi_pin(mosi_pin) {
+  initialized = false;
 }
 
 DisplayDriver6C::~DisplayDriver6C() {
-    if (initialized) {
-        sleep();
-    }
+  if (initialized) {
+    sleep();
+  }
 }
 
 void DisplayDriver6C::configureSPI() {
-    log_i("Configuring SPI for display");
-    log_v("pins: BUSY(%d), RST(%d), DC(%d), CS(%d), SCK(%d), MOSI(%d)",
-          _busy_pin,
-          _rst_pin,
-          _dc_pin,
-          _cs_pin,
-          _sck_pin,
-          _mosi_pin);
+  log_i("Configuring SPI for display");
+  log_v("pins: BUSY(%d), RST(%d), DC(%d), CS(%d), SCK(%d), MOSI(%d)", _busy_pin, _rst_pin, _dc_pin, _cs_pin, _sck_pin, _mosi_pin);
 
-    // Configure pins
-    pinMode(_busy_pin, INPUT);
-    pinMode(_rst_pin, OUTPUT);
-    pinMode(_dc_pin, OUTPUT);
-    pinMode(_cs_pin, OUTPUT);
+  // Configure pins
+  pinMode(_busy_pin, INPUT);
+  pinMode(_rst_pin, OUTPUT);
+  pinMode(_dc_pin, OUTPUT);
+  pinMode(_cs_pin, OUTPUT);
 
-    // Initialize SPI
-    SPI.end();
-    SPI.beginTransaction(SPISettings(SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
-    SPI.begin(_sck_pin, -1, _mosi_pin, _cs_pin);
+  // Initialize SPI
+  SPI.end();
+  SPI.beginTransaction(SPISettings(SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
+  SPI.begin(_sck_pin, -1, _mosi_pin, _cs_pin);
 }
 
 bool DisplayDriver6C::init() {
-    if (initialized) {
-        log_w("Display already initialized");
-        return true;
-    }
+  if (initialized) {
+    log_w("Display already initialized");
+    return true;
+  }
 
-    log_i("Initializing 6-color display (GDEP073E01)...");
+  log_i("Initializing 6-color display (GDEP073E01)...");
 
 // Set display timeout (configurable, default 30 seconds)
 // Can be adjusted based on display performance or requirements
 #ifdef DISPLAY_TIMEOUT_MS
-    set_display_timeout(DISPLAY_TIMEOUT_MS);
+  set_display_timeout(DISPLAY_TIMEOUT_MS);
 #else
-    set_display_timeout(30000); // Default 30 seconds
+  set_display_timeout(30000); // Default 30 seconds
 #endif
-    log_v("Display timeout configured to %lu ms", get_display_timeout());
+  log_v("Display timeout configured to %lu ms", get_display_timeout());
 
-    // Configure SPI and pins
-    configureSPI();
+  // Configure SPI and pins
+  configureSPI();
 
-    // Add small delay for hardware stabilization
-    delay(100);
+  // Add small delay for hardware stabilization
+  delay(100);
 
-    // Pre-wait: ensure BUSY pin is ready before fast init
-    // Some boards need extra stabilization time, especially when other subsystems are active
-    {
-        const unsigned long prewait_timeout_ms = 5000; // 5s maximum pre-wait
-        unsigned long start_ms                 = millis();
-        pinMode(_busy_pin, INPUT);
-        while (digitalRead(_busy_pin) == HIGH && (millis() - start_ms) < prewait_timeout_ms) {
-            delay(50);
-        }
+  // Pre-wait: ensure BUSY pin is ready before fast init
+  // Some boards need extra stabilization time, especially when other subsystems
+  // are active
+  {
+    const unsigned long prewait_timeout_ms = 5000; // 5s maximum pre-wait
+    unsigned long start_ms = millis();
+    pinMode(_busy_pin, INPUT);
+    while (digitalRead(_busy_pin) == HIGH && (millis() - start_ms) < prewait_timeout_ms) {
+      delay(50);
     }
+  }
 
-    // Initialize the display using the library's fast init
-    EPD_init_fast();
+  // Initialize the display using the library's fast init
+  EPD_init_fast();
 
-    initialized = true;
-    log_i("6-color display initialized successfully");
+  initialized = true;
+  log_i("6-color display initialized successfully");
 
-    return true;
+  return true;
 }
 
-bool DisplayDriver6C::picDisplay(uint8_t* imageBuffer) {
-    if (!initialized) {
-        log_e("Display not initialized");
-        return false;
-    }
+bool DisplayDriver6C::picDisplay(uint8_t *imageBuffer) {
+  if (!initialized) {
+    log_e("Display not initialized");
+    return false;
+  }
 
-    if (!imageBuffer) {
-        log_e("Image buffer is NULL");
-        return false;
-    }
+  if (!imageBuffer) {
+    log_e("Image buffer is NULL");
+    return false;
+  }
 
-    log_d("Displaying image on 6-color display...");
+  log_d("Displaying image on 6-color display...");
 
-    // Display the image using the library function
-    PIC_display(imageBuffer);
+  // Display the image using the library function
+  PIC_display(imageBuffer);
 
-    // Small delay for display stability
-    delay(1);
+  // Small delay for display stability
+  delay(1);
 
-    log_d("Image displayed successfully");
-    return true;
+  log_d("Image displayed successfully");
+  return true;
 }
 
 void DisplayDriver6C::sleep() {
-    if (!initialized) {
-        log_w("Display not initialized, skipping sleep");
-        return;
-    }
+  if (!initialized) {
+    log_w("Display not initialized, skipping sleep");
+    return;
+  }
 
-    log_d("Putting 6-color display to sleep...");
+  log_d("Putting 6-color display to sleep...");
 
-    // Enter sleep mode - IMPORTANT: Do not skip this to preserve display lifespan
-    EPD_sleep();
-    delay(2000);
+  // Enter sleep mode - IMPORTANT: Do not skip this to preserve display lifespan
+  EPD_sleep();
+  delay(2000);
 
-    initialized = false;
-    log_d("Display is now in sleep mode");
+  initialized = false;
+  log_d("Display is now in sleep mode");
 }
 
 void DisplayDriver6C::refresh(bool partial_update) {
-    if (!initialized) {
-        log_w("Display not initialized");
-        return;
-    }
+  if (!initialized) {
+    log_w("Display not initialized");
+    return;
+  }
 
-    log_d("Refreshing 6-color display (partial=%d)...", partial_update);
-    // Note: 6-color display doesn't support partial updates
-    log_w("Refresh not fully implemented for this display");
+  log_d("Refreshing 6-color display (partial=%d)...", partial_update);
+  // Note: 6-color display doesn't support partial updates
+  log_w("Refresh not fully implemented for this display");
 
-    log_d("Refresh complete");
+  log_d("Refresh complete");
 }
 
 void DisplayDriver6C::power_off() {
-    log_d("Powering off 6-color display...");
-    sleep(); // For 6-color display, power_off is same as sleep
+  log_d("Powering off 6-color display...");
+  sleep(); // For 6-color display, power_off is same as sleep
 }
 
 void DisplayDriver6C::hibernate() {
-    log_d("Putting 6-color display in hibernate mode...");
-    sleep(); // For 6-color display, hibernate is same as sleep
+  log_d("Putting 6-color display in hibernate mode...");
+  sleep(); // For 6-color display, hibernate is same as sleep
 }
 
 void DisplayDriver6C::clear() {
-    if (!initialized) {
-        log_w("Display not initialized");
-        return;
-    }
+  if (!initialized) {
+    log_w("Display not initialized");
+    return;
+  }
 
-    log_d("Clearing 6-color display to white...");
+  log_d("Clearing 6-color display to white...");
 
-    // Clear the display using the library function
-    PIC_display_Clear();
-    log_d("Display cleared");
+  // Clear the display using the library function
+  PIC_display_Clear();
+  log_d("Display cleared");
 }

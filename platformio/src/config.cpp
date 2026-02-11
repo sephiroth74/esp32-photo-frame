@@ -35,7 +35,7 @@
 
 /// PSRAM is now mandatory for all supported boards
 #ifndef BOARD_HAS_PSRAM
-#error                                                                                             \
+#error                                                                                                                             \
     "BOARD_HAS_PSRAM must be defined. This project now requires PSRAM for all supported boards. Please ensure your board configuration includes -D BOARD_HAS_PSRAM."
 #endif
 
@@ -44,10 +44,9 @@
 // ----------------------------------------------------------------------------
 
 /// Ensure all required e-paper display pins are defined
-#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) ||                     \
-    !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) || !defined(EPD_MOSI_PIN)
-#error                                                                                             \
-    "All e-paper display pins must be defined: EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN, EPD_SCK_PIN, EPD_MOSI_PIN"
+#if !defined(EPD_BUSY_PIN) || !defined(EPD_RST_PIN) || !defined(EPD_DC_PIN) || !defined(EPD_CS_PIN) || !defined(EPD_SCK_PIN) ||    \
+    !defined(EPD_MOSI_PIN)
+#error "All e-paper display pins must be defined: EPD_BUSY_PIN, EPD_RST_PIN, EPD_DC_PIN, EPD_CS_PIN, EPD_SCK_PIN, EPD_MOSI_PIN"
 #endif
 
 /// Ensure exactly one display type is selected
@@ -60,11 +59,11 @@
 #error "Only one display type can be defined: DISP_BW or DISP_6C"
 #endif
 
-/// Ensure DISPLAY_POWER_ACTIVE_LOW is defined when DISPLAY_POWER_PIN is also defined
+/// Ensure DISPLAY_POWER_ACTIVE_LOW is defined when DISPLAY_POWER_PIN is also
+/// defined
 #ifdef DISPLAY_POWER_PIN
 #ifndef DISPLAY_POWER_ACTIVE_LOW
-#error                                                                                             \
-    "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
+#error "DISPLAY_POWER_ACTIVE_LOW must be defined when DISPLAY_POWER_PIN is defined (set to 1 for active-low or 0 for active-high)"
 #endif
 #endif
 
@@ -91,13 +90,12 @@
 #ifdef USE_POTENTIOMETER
 /// When USE_POTENTIOMETER is defined, ensure potentiometer pins are defined
 #if !defined(POTENTIOMETER_PWR_PIN) || !defined(POTENTIOMETER_INPUT_PIN)
-#error                                                                                             \
-    "POTENTIOMETER_PWR_PIN and POTENTIOMETER_INPUT_PIN must be defined when USE_POTENTIOMETER is enabled"
+#error "POTENTIOMETER_PWR_PIN and POTENTIOMETER_INPUT_PIN must be defined when USE_POTENTIOMETER is enabled"
 #endif
 
 /// Ensure potentiometer maximum value is defined
 #if !defined(POTENTIOMETER_INPUT_MAX)
-#error                                                                                             \
+#error                                                                                                                             \
     "POTENTIOMETER_INPUT_MAX must be defined when USE_POTENTIOMETER is enabled (typically 4095 for 12-bit ADC or 1023 for 10-bit ADC)"
 #endif
 
@@ -125,9 +123,9 @@
 
 #ifndef USE_SENSOR_MAX1704X
 /// Validate analog battery monitoring settings when MAX1704X is not used
-#if !defined(BATTERY_PIN) || !defined(BATTERY_NUM_READINGS) ||                                     \
-    !defined(BATTERY_DELAY_BETWEEN_READINGS) || !defined(BATTERY_RESISTORS_RATIO)
-#error                                                                                             \
+#if !defined(BATTERY_PIN) || !defined(BATTERY_NUM_READINGS) || !defined(BATTERY_DELAY_BETWEEN_READINGS) ||                         \
+    !defined(BATTERY_RESISTORS_RATIO)
+#error                                                                                                                             \
     "When USE_SENSOR_MAX1704X is not defined, you must define: BATTERY_PIN, BATTERY_NUM_READINGS, BATTERY_DELAY_BETWEEN_READINGS, BATTERY_RESISTORS_RATIO"
 #endif
 
@@ -178,22 +176,20 @@
 #error "DAY_END_HOUR must be between 0 and 23 (24-hour format)"
 #endif
 
-/// Note: DAY_START_HOUR can be greater than DAY_END_HOUR for overnight operation
-/// (e.g., DAY_START_HOUR=22, DAY_END_HOUR=6 means active 22:00-06:00)
+/// Note: DAY_START_HOUR can be greater than DAY_END_HOUR for overnight
+/// operation (e.g., DAY_START_HOUR=22, DAY_END_HOUR=6 means active 22:00-06:00)
 
 // ----------------------------------------------------------------------------
 // Refresh Interval Validation
 // ----------------------------------------------------------------------------
 
 /// Validate minimum refresh interval (5 minutes to 2 hours)
-#if REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) ||                                      \
-    REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR)
+#if REFRESH_MIN_INTERVAL_SECONDS < (5 * SECONDS_IN_MINUTE) || REFRESH_MIN_INTERVAL_SECONDS > (2 * SECONDS_IN_HOUR)
 #error "REFRESH_MIN_INTERVAL_SECONDS must be between 5 minutes and 2 hours"
 #endif
 
 /// Validate maximum refresh interval (10 minutes to 4 hours)
-#if REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) ||                                     \
-    REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR)
+#if REFRESH_MAX_INTERVAL_SECONDS < (10 * SECONDS_IN_MINUTE) || REFRESH_MAX_INTERVAL_SECONDS > (4 * SECONDS_IN_HOUR)
 #error "REFRESH_MAX_INTERVAL_SECONDS must be between 10 minutes and 4 hours"
 #endif
 
@@ -270,17 +266,16 @@
 // ----------------------------------------------------------------------------
 
 /// Google Drive configuration validation
-/// Removed: GOOGLE_DRIVE_CONFIG_FILEPATH check (replaced by CONFIG_FILEPATH unified configuration)
+/// Removed: GOOGLE_DRIVE_CONFIG_FILEPATH check (replaced by CONFIG_FILEPATH
+/// unified configuration)
 
 /// Validate SD card free space threshold is reasonable (1MB to 1GB)
-#if SD_CARD_FREE_SPACE_THRESHOLD < (1024 * 1024) ||                                                \
-    SD_CARD_FREE_SPACE_THRESHOLD > (1024 * 1024 * 1024)
+#if SD_CARD_FREE_SPACE_THRESHOLD < (1024 * 1024) || SD_CARD_FREE_SPACE_THRESHOLD > (1024 * 1024 * 1024)
 #error "SD_CARD_FREE_SPACE_THRESHOLD must be between 1MB and 1GB"
 #endif
 
 /// Validate cleanup interval is reasonable (1 hour to 30 days)
-#if CLEANUP_TEMP_FILES_INTERVAL_SECONDS < SECONDS_IN_HOUR ||                                       \
-    CLEANUP_TEMP_FILES_INTERVAL_SECONDS > (30 * SECONDS_IN_DAY)
+#if CLEANUP_TEMP_FILES_INTERVAL_SECONDS < SECONDS_IN_HOUR || CLEANUP_TEMP_FILES_INTERVAL_SECONDS > (30 * SECONDS_IN_DAY)
 #error "CLEANUP_TEMP_FILES_INTERVAL_SECONDS must be between 1 hour and 30 days"
 #endif
 
@@ -341,20 +336,23 @@
 /**
  * @brief Array of allowed file extensions for image files
  *
- * This array contains all file extensions that the ESP32 photo frame can process.
- * The system supports runtime file format detection, allowing both binary and bitmap
- * formats to coexist in the same directory or Google Drive folder.
+ * This array contains all file extensions that the ESP32 photo frame can
+ * process. The system supports runtime file format detection, allowing both
+ * binary and bitmap formats to coexist in the same directory or Google Drive
+ * folder.
  *
  * Supported formats:
- * - ".pfr1": Binary format optimized for ESP32 e-paper displays (compressed, fast rendering)
- * - ".bmp": Standard bitmap format for viewing/debugging (uncompressed, compatible)
+ * - ".pfr1": Binary format optimized for ESP32 e-paper displays (compressed,
+ * fast rendering)
+ * - ".bmp": Standard bitmap format for viewing/debugging (uncompressed,
+ * compatible)
  *
- * @note The rendering engine automatically selects the appropriate decoder based on
- *       the detected file extension at runtime.
+ * @note The rendering engine automatically selects the appropriate decoder
+ * based on the detected file extension at runtime.
  * @see photo_frame::io_utils::is_binary_format() for format detection logic
  * @see ALLOWED_EXTENSIONS_COUNT for the number of elements in this array
  */
-const char* ALLOWED_FILE_EXTENSIONS[] = {
+const char *ALLOWED_FILE_EXTENSIONS[] = {
     BINARY_FILE_EXTENSION, ///< Binary format for optimized e-paper rendering
 };
 
@@ -365,11 +363,11 @@ const char* ALLOWED_FILE_EXTENSIONS[] = {
  * throughout the codebase for iterating over the extensions array safely.
  * The value is calculated automatically at compile time.
  *
- * @note This value is calculated automatically and should not be modified manually.
+ * @note This value is calculated automatically and should not be modified
+ * manually.
  * @see ALLOWED_FILE_EXTENSIONS for the actual array of supported extensions
  */
-const size_t ALLOWED_EXTENSIONS_COUNT =
-    sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
+const size_t ALLOWED_EXTENSIONS_COUNT = sizeof(ALLOWED_FILE_EXTENSIONS) / sizeof(ALLOWED_FILE_EXTENSIONS[0]);
 
 // ============================================================================
 // CONFIGURATION VALIDATION SUMMARY

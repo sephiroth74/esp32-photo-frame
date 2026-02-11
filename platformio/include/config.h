@@ -25,7 +25,7 @@
 // ============================================================================
 
 /// String conversion macros for preprocessor constants
-#define STR(x)  #x
+#define STR(x) #x
 #define XSTR(x) STR(x)
 
 // ============================================================================
@@ -33,9 +33,9 @@
 // ============================================================================
 
 /// Current firmware version
-#define FIRMWARE_VERSION_MAJOR  1
-#define FIRMWARE_VERSION_MINOR  0
-#define FIRMWARE_VERSION_PATCH  0
+#define FIRMWARE_VERSION_MAJOR 1
+#define FIRMWARE_VERSION_MINOR 0
+#define FIRMWARE_VERSION_PATCH 0
 #define FIRMWARE_VERSION_STRING "v1.0.0"
 
 /// WebSocket server protocol version
@@ -63,7 +63,8 @@
 // #define EPD_DC_PIN    [GPIO_NUM]  // Display data/command pin
 // #define EPD_CS_PIN    [GPIO_NUM]  // Display chip select pin (SPI CS)
 // #define EPD_SCK_PIN   [GPIO_NUM]  // Display serial clock pin (SPI CLK)
-// #define EPD_MOSI_PIN  [GPIO_NUM]  // Display master out slave in pin (SPI MOSI)
+// #define EPD_MOSI_PIN  [GPIO_NUM]  // Display master out slave in pin (SPI
+// MOSI)
 
 /// Display type selection (define exactly ONE of these in board config)
 // #define DISP_BW    // Black and White e-Paper display (GDEH0154D67)
@@ -107,10 +108,11 @@
 
 /// Analog battery monitoring (fallback method when MAX1704X not available)
 /// Used when USE_SENSOR_MAX1704X is not defined
-// #define BATTERY_PIN                    A0           // Analog pin for battery voltage reading
-// #define BATTERY_NUM_READINGS           100          // Number of readings to average for
-// stability #define BATTERY_DELAY_BETWEEN_READINGS 30           // Delay between readings in
-// milliseconds #define BATTERY_RESISTORS_RATIO        0.460453401  // Voltage divider ratio
+// #define BATTERY_PIN                    A0           // Analog pin for battery
+// voltage reading #define BATTERY_NUM_READINGS           100          // Number
+// of readings to average for stability #define BATTERY_DELAY_BETWEEN_READINGS
+// 30           // Delay between readings in milliseconds #define
+// BATTERY_RESISTORS_RATIO        0.460453401  // Voltage divider ratio
 // (R1/(R1+R2))
 
 /// Battery power management settings
@@ -121,12 +123,14 @@
 // ----------------------------------------------------------------------------
 
 /// Potentiometer configuration for refresh rate adjustment
-/// When USE_POTENTIOMETER is not defined, board_config.refresh.default from config.json is used
-// #define USE_POTENTIOMETER              // Enable potentiometer for refresh rate adjustment
-// #define POTENTIOMETER_PWR_PIN    A6    // Power pin for potentiometer (optional)
-// #define POTENTIOMETER_INPUT_PIN  A7    // Analog input pin for potentiometer
-// #define POTENTIOMETER_INPUT_MIN  0     // Minimum ADC value (typically 0)
-// #define POTENTIOMETER_INPUT_MAX  4095  // Maximum ADC value (12-bit: 4095, 10-bit: 1023)
+/// When USE_POTENTIOMETER is not defined, board_config.refresh.default from
+/// config.json is used
+// #define USE_POTENTIOMETER              // Enable potentiometer for refresh
+// rate adjustment #define POTENTIOMETER_PWR_PIN    A6    // Power pin for
+// potentiometer (optional) #define POTENTIOMETER_INPUT_PIN  A7    // Analog
+// input pin for potentiometer #define POTENTIOMETER_INPUT_MIN  0     // Minimum
+// ADC value (typically 0) #define POTENTIOMETER_INPUT_MAX  4095  // Maximum ADC
+// value (12-bit: 4095, 10-bit: 1023)
 
 /// RGB NeoPixel LED configuration for status indication
 // #define RGB_STATUS_ENABLED        // Enable RGB status LED functionality
@@ -135,10 +139,11 @@
 
 /// Wake-up pin configuration for manual device activation
 // #define WAKEUP_EXT0               // Enable EXT0 wakeup (single pin)
-// #define WAKEUP_EXT1               // Enable EXT1 wakeup (multiple pins, OR logic)
-// #define WAKEUP_PIN        GPIO_NUM_7        // GPIO pin for wakeup functionality
-// #define WAKEUP_PIN_MODE   INPUT_PULLDOWN    // Pin mode (INPUT_PULLUP/INPUT_PULLDOWN)
-// #define WAKEUP_LEVEL      ESP_EXT1_WAKEUP_ANY_HIGH  // Wakeup trigger level
+// #define WAKEUP_EXT1               // Enable EXT1 wakeup (multiple pins, OR
+// logic) #define WAKEUP_PIN        GPIO_NUM_7        // GPIO pin for wakeup
+// functionality #define WAKEUP_PIN_MODE   INPUT_PULLDOWN    // Pin mode
+// (INPUT_PULLUP/INPUT_PULLDOWN) #define WAKEUP_LEVEL ESP_EXT1_WAKEUP_ANY_HIGH
+// // Wakeup trigger level
 
 // ============================================================================
 // FILE FORMATS AND EXTENSIONS
@@ -151,9 +156,9 @@
 
 /// System timing constants
 #define MICROSECONDS_IN_SECOND 1000000
-#define SECONDS_IN_MINUTE      60
-#define SECONDS_IN_HOUR        3600
-#define SECONDS_IN_DAY         86400
+#define SECONDS_IN_MINUTE 60
+#define SECONDS_IN_HOUR 3600
+#define SECONDS_IN_DAY 86400
 
 /// Deep sleep configuration
 #define MAX_DEEP_SLEEP_SECONDS SECONDS_IN_DAY // Maximum sleep duration (24 hours)
@@ -161,24 +166,25 @@
 /// Display refresh timing configuration
 #define REFRESH_MIN_INTERVAL_SECONDS (5 * SECONDS_IN_MINUTE) // Minimum refresh interval (5 minutes)
 #define REFRESH_MAX_INTERVAL_SECONDS (4 * SECONDS_IN_HOUR)   // Maximum refresh interval (4 hours)
-#define REFRESH_STEP_SECONDS         (5 * SECONDS_IN_MINUTE) // Step size for refresh adjustment
-#define REFRESH_DEFAULT_INTERVAL_SECONDS                                                           \
-    (30 *                                                                                          \
-     SECONDS_IN_MINUTE) // Default refresh interval when USE_POTENTIOMETER is false (30 minutes)
+#define REFRESH_STEP_SECONDS (5 * SECONDS_IN_MINUTE)         // Step size for refresh adjustment
+#define REFRESH_DEFAULT_INTERVAL_SECONDS                                                                                           \
+  (30 * SECONDS_IN_MINUTE)                        // Default refresh interval when USE_POTENTIOMETER is
+                                                  // false (30 minutes)
 #define REFRESH_INTERVAL_LOW_BATTERY_MULTIPLIER 3 // Multiplier for low battery refresh interval
 
 /// Daily operation schedule
-#define DAY_START_HOUR 5  // Hour when device becomes active (5 AM)
-#define DAY_END_HOUR   23 // Hour when device enters night mode (11 PM)
+#define DAY_START_HOUR 5 // Hour when device becomes active (5 AM)
+#define DAY_END_HOUR 23  // Hour when device enters night mode (11 PM)
 
 /// Sleep and startup delays
-// #define DELAY_BEFORE_SLEEP 20000  // Delay before sleep in milliseconds (debug/fallback)
+// #define DELAY_BEFORE_SLEEP 20000  // Delay before sleep in milliseconds
+// (debug/fallback)
 
 /// Battery level thresholds (percentages)
 #define BATTERY_CHARGING_MILLIVOLTS 4300 // Voltage above which battery is considered charging
-#define BATTERY_PERCENT_EMPTY       10   // Battery percentage considered empty
-#define BATTERY_PERCENT_CRITICAL    25   // Battery percentage considered critical
-#define BATTERY_PERCENT_LOW         40   // Battery percentage considered low
+#define BATTERY_PERCENT_EMPTY 10         // Battery percentage considered empty
+#define BATTERY_PERCENT_CRITICAL 25      // Battery percentage considered critical
+#define BATTERY_PERCENT_LOW 40           // Battery percentage considered low
 
 // ============================================================================
 // NETWORK AND CONNECTIVITY
@@ -186,24 +192,27 @@
 
 /// WiFi configuration (now handled by unified config system)
 
-/// Network timeouts and limits (configured in board-specific config or system defaults section)
-#define WIFI_MAX_NETWORKS    3     // Maximum number of WiFi networks that can be configured
+/// Network timeouts and limits (configured in board-specific config or system
+/// defaults section)
+#define WIFI_MAX_NETWORKS 3        // Maximum number of WiFi networks that can be configured
 #define WIFI_CONNECT_TIMEOUT 8000  // WiFi connection timeout in milliseconds
 #define HTTP_CONNECT_TIMEOUT 15000 // HTTP connection timeout (15 seconds)
 #define HTTP_REQUEST_TIMEOUT 30000 // HTTP request timeout (30 seconds)
 
-/// NTP (Network Time Protocol) configuration (configured in board-specific config or system
-/// defaults section)
+/// NTP (Network Time Protocol) configuration (configured in board-specific
+/// config or system defaults section)
 #define NTP_TIMEOUT 10000           // NTP request timeout in milliseconds
 #define NTP_SERVER1 "pool.ntp.org"  // Primary NTP server
 #define NTP_SERVER2 "time.nist.gov" // Secondary NTP server
 
 /// Time zone configuration (set in board-specific config)
-// #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Example: Central European Time
+// #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Example: Central European
+// Time
 
 /// Protocol-specific settings
 #if defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
-#define USE_HTTP_1_0 // Force HTTP/1.0 to avoid chunked encoding issues on ESP32-C6/H2
+#define USE_HTTP_1_0 // Force HTTP/1.0 to avoid chunked encoding issues on
+                     // ESP32-C6/H2
 #endif
 
 // ============================================================================
@@ -211,20 +220,20 @@
 // ============================================================================
 
 /// File system paths and names
-#define PREFS_NAMESPACE       "photo_frame"       // Preferences namespace for settings
-#define TOC_DATA_FILENAME     "toc_data.txt"      // Table of contents data file
-#define TOC_META_FILENAME     "toc_meta.txt"      // Table of contents metadata file
+#define PREFS_NAMESPACE "photo_frame"             // Preferences namespace for settings
+#define TOC_DATA_FILENAME "toc_data.txt"          // Table of contents data file
+#define TOC_META_FILENAME "toc_meta.txt"          // Table of contents metadata file
 #define ACCESS_TOKEN_FILENAME "access_token.json" // OAuth access token cache file
 
 // SD Card cache directory
 #define SD_CARD_CACHE_DIR "/.cache"
 
 /// Storage cleanup settings
-#define SD_CARD_FREE_SPACE_THRESHOLD        (1024 * 1024 * 16)     // 16 MB threshold for cleanup
+#define SD_CARD_FREE_SPACE_THRESHOLD (1024 * 1024 * 16)            // 16 MB threshold for cleanup
 #define CLEANUP_TEMP_FILES_INTERVAL_SECONDS (24 * SECONDS_IN_HOUR) // Cleanup interval (24 hours)
 
 /// Supported file formats for runtime detection
-extern const char* ALLOWED_FILE_EXTENSIONS[];
+extern const char *ALLOWED_FILE_EXTENSIONS[];
 extern const size_t ALLOWED_EXTENSIONS_COUNT;
 
 // ===========================================================================
@@ -243,7 +252,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 /// - Google Drive images: after download from cloud
 /// - SD Card images: before display
 /// - Bluetooth images: during and after transfer
-/// The size is calculated at runtime using EPD_WIDTH and EPD_HEIGHT from the display library
+/// The size is calculated at runtime using EPD_WIDTH and EPD_HEIGHT from the
+/// display library
 #define EXPECTED_IMAGE_SIZE_BYTES (EPD_WIDTH * EPD_HEIGHT)
 
 /// Minimum image file size (sanity check - must be > 0)
@@ -256,8 +266,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // GOOGLE DRIVE CONFIGURATION
 // ============================================================================
 
-/// Google Drive integration settings (configured in board-specific config or system defaults
-/// section)
+/// Google Drive integration settings (configured in board-specific config or
+/// system defaults section)
 
 // TOC cache expiry (30 days)
 #define GOOGLE_DRIVE_TOC_MAX_AGE_SECONDS (30 * SECONDS_IN_DAY)
@@ -271,25 +281,27 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 // TOC files base path for multi-folder support
 #define GOOGLE_DRIVE_TOC_BASE_PATH GOOGLE_DRIVE_CACHING_LOCAL_PATH "/toc"
 
-/// API rate limiting and request management (configured in board-specific config or system defaults
-/// section)
-#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW   200   // Conservative API request limit
-#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600  // Rate limiting time window (1 hour)
-#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS      10000 // Minimum delay between requests
-#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS        10    // Maximum retry attempts for failed requests
-#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS     60000 // Base delay for exponential backoff
-#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS      120000UL // Maximum backoff delay
-#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS          1200000  // Maximum wait time for rate limiting
-#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE        500      // Files per API request
+/// API rate limiting and request management (configured in board-specific
+/// config or system defaults section)
+#define GOOGLE_DRIVE_MAX_REQUESTS_PER_WINDOW 200    // Conservative API request limit
+#define GOOGLE_DRIVE_RATE_LIMIT_WINDOW_SECONDS 3600 // Rate limiting time window (1 hour)
+#define GOOGLE_DRIVE_MIN_REQUEST_DELAY_MS 10000     // Minimum delay between requests
+#define GOOGLE_DRIVE_MAX_RETRY_ATTEMPTS 10          // Maximum retry attempts for failed requests
+#define GOOGLE_DRIVE_BACKOFF_BASE_DELAY_MS 60000    // Base delay for exponential backoff
+#define GOOGLE_DRIVE_BACKOFF_MAX_DELAY_MS 120000UL  // Maximum backoff delay
+#define GOOGLE_DRIVE_MAX_WAIT_TIME_MS 1200000       // Maximum wait time for rate limiting
+#define GOOGLE_DRIVE_MAX_LIST_PAGE_SIZE 500         // Files per API request
 
-/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured in system defaults
-/// section)
-// Memory limits are automatically set based on BOARD_HAS_PSRAM in the system defaults section
-// ESP32-S3 with PSRAM: 4MB JSON buffer, 6MB body reserve, 10MB safety limit
-// Standard ESP32: 40KB JSON buffer, 64KB body reserve, 100KB safety limit
+/// Memory management - Platform specific (PSRAM vs Standard ESP32, configured
+/// in system defaults section)
+// Memory limits are automatically set based on BOARD_HAS_PSRAM in the system
+// defaults section ESP32-S3 with PSRAM: 4MB JSON buffer, 6MB body reserve, 10MB
+// safety limit Standard ESP32: 40KB JSON buffer, 64KB body reserve, 100KB
+// safety limit
 
 /// Development and testing
-// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.pfr1"  // Force specific test file
+// #define GOOGLE_DRIVE_TEST_FILE "combined_portrait_214.pfr1"  // Force
+// specific test file
 
 // ============================================================================
 // ============================================================================
@@ -369,7 +381,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #define DEFAULT_ORIENTATION 0 // Default to 0° if not defined
 #endif
 
-/// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE are deprecated
+/// Old compile-time constants ORIENTATION_PORTRAIT and ORIENTATION_LANDSCAPE
+/// are deprecated
 
 /// Default value definitions with validation guards
 #ifndef BATTERY_CHARGING_MILLIVOLTS
@@ -429,7 +442,8 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif
 #endif
 
-/// Google Drive memory management - scaled based on flash memory and PSRAM availability
+/// Google Drive memory management - scaled based on flash memory and PSRAM
+/// availability
 #ifndef GOOGLE_DRIVE_JSON_DOC_SIZE
 #if FLASH_SIZE_MB >= 16
 #define GOOGLE_DRIVE_JSON_DOC_SIZE 4194304 // 4MB JSON document buffer for 16MB+ flash

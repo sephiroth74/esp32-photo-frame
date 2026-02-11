@@ -20,279 +20,275 @@
 
 namespace photo_frame {
 
-GoogleDriveTocParser::GoogleDriveTocParser(SdCard& sdCard, const char* tocFilePath) :
-    sdCard_(sdCard),
-    tocFilePath_(tocFilePath) {}
+GoogleDriveTocParser::GoogleDriveTocParser(SdCard &sdCard, const char *tocFilePath) : sdCard_(sdCard), tocFilePath_(tocFilePath) {}
 
-time_t GoogleDriveTocParser::get_timestamp(photo_frame_error_t* error) {
+time_t GoogleDriveTocParser::get_timestamp(photo_frame_error_t *error) {
+  if (error) {
+    *error = error_type::None;
+  }
+
+  fs::File file = sdCard_.open(tocFilePath_, FILE_READ);
+  if (!file) {
+    log_e("Failed to open TOC file for timestamp: %s", tocFilePath_);
     if (error) {
-        *error = error_type::None;
+      *error = error_type::SdCardFileOpenFailed;
     }
+    return 0;
+  }
 
-    fs::File file = sdCard_.open(tocFilePath_, FILE_READ);
-    if (!file) {
-        log_e("Failed to open TOC file for timestamp: %s", tocFilePath_);
-        if (error) {
-            *error = error_type::SdCardFileOpenFailed;
-        }
-        return 0;
+  // Read line 1 (timestamp = <value>)
+  String line = file.readStringUntil('\n');
+  file.close();
+
+  if (line.length() == 0) {
+    log_e("TOC file is empty or missing timestamp line");
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return 0;
+  }
 
-    // Read line 1 (timestamp = <value>)
-    String line = file.readStringUntil('\n');
-    file.close();
-
-    if (line.length() == 0) {
-        log_e("TOC file is empty or missing timestamp line");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
+  // Parse "timestamp = <number>"
+  int equalPos = line.indexOf('=');
+  if (equalPos == -1) {
+    log_e("Invalid TOC format: missing '=' in timestamp line");
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return 0;
+  }
 
-    // Parse "timestamp = <number>"
-    int equalPos = line.indexOf('=');
-    if (equalPos == -1) {
-        log_e("Invalid TOC format: missing '=' in timestamp line");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
+  String timestampStr = line.substring(equalPos + 1);
+  timestampStr.trim();
+
+  time_t timestamp = timestampStr.toInt();
+  if (timestamp == 0 && timestampStr != "0") {
+    log_e("Invalid timestamp value in TOC");
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return 0;
+  }
 
-    String timestampStr = line.substring(equalPos + 1);
-    timestampStr.trim();
-
-    time_t timestamp = timestampStr.toInt();
-    if (timestamp == 0 && timestampStr != "0") {
-        log_e("Invalid timestamp value in TOC");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
-    }
-
-    return timestamp;
+  return timestamp;
 }
 
-size_t GoogleDriveTocParser::get_file_count(photo_frame_error_t* error) {
+size_t GoogleDriveTocParser::get_file_count(photo_frame_error_t *error) {
+  if (error) {
+    *error = error_type::None;
+  }
+
+  fs::File file = sdCard_.open(tocFilePath_, FILE_READ);
+  if (!file) {
+    log_e("Failed to open TOC file for file count: %s", tocFilePath_);
     if (error) {
-        *error = error_type::None;
+      *error = error_type::SdCardFileOpenFailed;
     }
+    return 0;
+  }
 
-    fs::File file = sdCard_.open(tocFilePath_, FILE_READ);
-    if (!file) {
-        log_e("Failed to open TOC file for file count: %s", tocFilePath_);
-        if (error) {
-            *error = error_type::SdCardFileOpenFailed;
-        }
-        return 0;
-    }
-
-    // Skip line 1 (timestamp)
-    String line = file.readStringUntil('\n');
-    if (line.length() == 0) {
-        log_e("TOC file is empty or invalid");
-        file.close();
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
-    }
-
-    // Read line 2 (fileCount)
-    line = file.readStringUntil('\n');
+  // Skip line 1 (timestamp)
+  String line = file.readStringUntil('\n');
+  if (line.length() == 0) {
+    log_e("TOC file is empty or invalid");
     file.close();
-
-    if (line.length() == 0) {
-        log_e("TOC file missing fileCount line");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return 0;
+  }
 
-    // Parse "fileCount = <number>"
-    int equalPos = line.indexOf('=');
-    if (equalPos == -1) {
-        log_e("Invalid TOC format: missing '=' in fileCount line");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
+  // Read line 2 (fileCount)
+  line = file.readStringUntil('\n');
+  file.close();
+
+  if (line.length() == 0) {
+    log_e("TOC file missing fileCount line");
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return 0;
+  }
 
-    String countStr = line.substring(equalPos + 1);
-    countStr.trim();
-
-    size_t fileCount = countStr.toInt();
-    if (fileCount == 0 && countStr != "0") {
-        log_e("[GoogleDriveTocParser] Invalid fileCount value in TOC");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return 0;
+  // Parse "fileCount = <number>"
+  int equalPos = line.indexOf('=');
+  if (equalPos == -1) {
+    log_e("Invalid TOC format: missing '=' in fileCount line");
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return 0;
+  }
 
-    return fileCount;
+  String countStr = line.substring(equalPos + 1);
+  countStr.trim();
+
+  size_t fileCount = countStr.toInt();
+  if (fileCount == 0 && countStr != "0") {
+    log_e("[GoogleDriveTocParser] Invalid fileCount value in TOC");
+    if (error) {
+      *error = error_type::JsonParseFailed;
+    }
+    return 0;
+  }
+
+  return fileCount;
 }
 
-GoogleDriveFile GoogleDriveTocParser::get_file_by_index(size_t index, photo_frame_error_t* error) {
-    log_d("Getting TOC file at index: %zu", index);
+GoogleDriveFile GoogleDriveTocParser::get_file_by_index(size_t index, photo_frame_error_t *error) {
+  log_d("Getting TOC file at index: %zu", index);
 
-    if (error) {
-        *error = error_type::None;
-    }
+  if (error) {
+    *error = error_type::None;
+  }
 
-    fs::File file;
-    if (!open_and_validate_toc(file, error)) {
-        return GoogleDriveFile();
-    }
-
-    if (!skip_header(file, error)) {
-        file.close();
-        return GoogleDriveFile();
-    }
-
-    // Skip to the desired index
-    for (size_t i = 0; i < index; i++) {
-        String skipLine = file.readStringUntil('\n');
-        if (skipLine.length() == 0) {
-            log_e("TOC file ended before reaching index %zu", index);
-            file.close();
-            if (error) {
-                *error = error_type::JsonParseFailed;
-            }
-            return GoogleDriveFile();
-        }
-    }
-
-    // Read the target line
-    String targetLine = file.readStringUntil('\n');
-    file.close();
-
-    if (targetLine.length() == 0) {
-        log_e("No file entry found at index %zu", index);
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return GoogleDriveFile();
-    }
-
-    return parse_file_line(targetLine.c_str(), error);
-}
-
-GoogleDriveFile GoogleDriveTocParser::get_file_by_name(const char* filename,
-                                                       photo_frame_error_t* error) {
-    log_d("Getting TOC file by name: %s", filename);
-
-    if (error) {
-        *error = error_type::None;
-    }
-
-    fs::File file;
-    if (!open_and_validate_toc(file, error)) {
-        return GoogleDriveFile();
-    }
-
-    if (!skip_header(file, error)) {
-        file.close();
-        return GoogleDriveFile();
-    }
-
-    // Search through all file entries
-    while (file.available()) {
-        String line = file.readStringUntil('\n');
-        line.trim();
-
-        if (line.length() == 0) {
-            continue;
-        }
-
-        // Parse line to get the name
-        int pos1 = line.indexOf('|');
-        if (pos1 == -1)
-            continue;
-
-        int pos2 = line.indexOf('|', pos1 + 1);
-        if (pos2 == -1)
-            continue;
-
-        String name = line.substring(pos1 + 1, pos2);
-
-        // Check if this is the file we're looking for
-        if (name.equals(filename)) {
-            file.close();
-
-            log_d("Found file by name: %s", filename);
-
-            return parse_file_line(line.c_str(), error);
-        }
-    }
-
-    file.close();
-
-    log_w("File not found by name: %s", filename);
-
-    if (error) {
-        *error = error_type::SdCardFileNotFound;
-    }
-
+  fs::File file;
+  if (!open_and_validate_toc(file, error)) {
     return GoogleDriveFile();
-}
+  }
 
-GoogleDriveFile GoogleDriveTocParser::parse_file_line(const char* line,
-                                                      photo_frame_error_t* error) {
+  if (!skip_header(file, error)) {
+    file.close();
+    return GoogleDriveFile();
+  }
+
+  // Skip to the desired index
+  for (size_t i = 0; i < index; i++) {
+    String skipLine = file.readStringUntil('\n');
+    if (skipLine.length() == 0) {
+      log_e("TOC file ended before reaching index %zu", index);
+      file.close();
+      if (error) {
+        *error = error_type::JsonParseFailed;
+      }
+      return GoogleDriveFile();
+    }
+  }
+
+  // Read the target line
+  String targetLine = file.readStringUntil('\n');
+  file.close();
+
+  if (targetLine.length() == 0) {
+    log_e("No file entry found at index %zu", index);
     if (error) {
-        *error = error_type::None;
+      *error = error_type::JsonParseFailed;
     }
+    return GoogleDriveFile();
+  }
 
-    String lineStr(line);
-
-    // Parse line: id|name
-    int pos1 = lineStr.indexOf('|');
-    if (pos1 == -1) {
-        log_e("Invalid file entry format: missing separator");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return GoogleDriveFile("", "");
-    }
-
-    String id   = lineStr.substring(0, pos1);
-    String name = lineStr.substring(pos1 + 1);
-
-    return GoogleDriveFile(id, name);
+  return parse_file_line(targetLine.c_str(), error);
 }
 
-bool GoogleDriveTocParser::open_and_validate_toc(fs::File& file, photo_frame_error_t* error) {
-    file = sdCard_.open(tocFilePath_, FILE_READ);
-    if (!file) {
-        log_e("Failed to open TOC file: %s", tocFilePath_);
-        if (error) {
-            *error = error_type::SdCardFileOpenFailed;
-        }
-        return false;
+GoogleDriveFile GoogleDriveTocParser::get_file_by_name(const char *filename, photo_frame_error_t *error) {
+  log_d("Getting TOC file by name: %s", filename);
+
+  if (error) {
+    *error = error_type::None;
+  }
+
+  fs::File file;
+  if (!open_and_validate_toc(file, error)) {
+    return GoogleDriveFile();
+  }
+
+  if (!skip_header(file, error)) {
+    file.close();
+    return GoogleDriveFile();
+  }
+
+  // Search through all file entries
+  while (file.available()) {
+    String line = file.readStringUntil('\n');
+    line.trim();
+
+    if (line.length() == 0) {
+      continue;
     }
 
-    return true;
+    // Parse line to get the name
+    int pos1 = line.indexOf('|');
+    if (pos1 == -1)
+      continue;
+
+    int pos2 = line.indexOf('|', pos1 + 1);
+    if (pos2 == -1)
+      continue;
+
+    String name = line.substring(pos1 + 1, pos2);
+
+    // Check if this is the file we're looking for
+    if (name.equals(filename)) {
+      file.close();
+
+      log_d("Found file by name: %s", filename);
+
+      return parse_file_line(line.c_str(), error);
+    }
+  }
+
+  file.close();
+
+  log_w("File not found by name: %s", filename);
+
+  if (error) {
+    *error = error_type::SdCardFileNotFound;
+  }
+
+  return GoogleDriveFile();
 }
 
-bool GoogleDriveTocParser::skip_header(fs::File& file, photo_frame_error_t* error) {
-    log_d("Skipping TOC header lines...");
-    // Skip line 1 (timestamp) and line 2 (fileCount)
-    String line1 = file.readStringUntil('\n');
-    String line2 = file.readStringUntil('\n');
+GoogleDriveFile GoogleDriveTocParser::parse_file_line(const char *line, photo_frame_error_t *error) {
+  if (error) {
+    *error = error_type::None;
+  }
 
-    if (line1.length() == 0 || line2.length() == 0) {
-        log_e("TOC file missing header lines");
-        if (error) {
-            *error = error_type::JsonParseFailed;
-        }
-        return false;
+  String lineStr(line);
+
+  // Parse line: id|name
+  int pos1 = lineStr.indexOf('|');
+  if (pos1 == -1) {
+    log_e("Invalid file entry format: missing separator");
+    if (error) {
+      *error = error_type::JsonParseFailed;
     }
+    return GoogleDriveFile("", "");
+  }
 
-    return true;
+  String id = lineStr.substring(0, pos1);
+  String name = lineStr.substring(pos1 + 1);
+
+  return GoogleDriveFile(id, name);
+}
+
+bool GoogleDriveTocParser::open_and_validate_toc(fs::File &file, photo_frame_error_t *error) {
+  file = sdCard_.open(tocFilePath_, FILE_READ);
+  if (!file) {
+    log_e("Failed to open TOC file: %s", tocFilePath_);
+    if (error) {
+      *error = error_type::SdCardFileOpenFailed;
+    }
+    return false;
+  }
+
+  return true;
+}
+
+bool GoogleDriveTocParser::skip_header(fs::File &file, photo_frame_error_t *error) {
+  log_d("Skipping TOC header lines...");
+  // Skip line 1 (timestamp) and line 2 (fileCount)
+  String line1 = file.readStringUntil('\n');
+  String line2 = file.readStringUntil('\n');
+
+  if (line1.length() == 0 || line2.length() == 0) {
+    log_e("TOC file missing header lines");
+    if (error) {
+      *error = error_type::JsonParseFailed;
+    }
+    return false;
+  }
+
+  return true;
 }
 
 } // namespace photo_frame

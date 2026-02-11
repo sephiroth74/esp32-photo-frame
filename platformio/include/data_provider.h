@@ -33,26 +33,26 @@ namespace photo_frame {
  * (e.g., SD card, Google Drive,...).
  */
 class DataProvider {
-  public:
-    virtual ~DataProvider()          = default;
+public:
+  virtual ~DataProvider() = default;
 
-    virtual const char* name() const = 0;
+  virtual const char *name() const = 0;
 
-    /**
-     * @brief Load the next image from this data provider
-     *
-     * @param is_reset Whether this is a reset/first load
-     * @param sd_card Reference to SD card instance
-     * @param config Reference to unified configuration
-     * @return ImageLoadResult containing the image file, metadata, and error status
-     *
-     * The caller is responsible for:
-     * - Rendering the image to display
-     * - Handling any errors returned
-     * - Managing the returned PFR1BinaryFile lifetime
-     */
-    virtual ImageLoadResult
-    load_next_image(bool is_reset, SdCard& sd_card, const unified_config& config) = 0;
+  /**
+   * @brief Load the next image from this data provider
+   *
+   * @param is_reset Whether this is a reset/first load
+   * @param sd_card Reference to SD card instance
+   * @param config Reference to unified configuration
+   * @return ImageLoadResult containing the image file, metadata, and error
+   * status
+   *
+   * The caller is responsible for:
+   * - Rendering the image to display
+   * - Handling any errors returned
+   * - Managing the returned PFR1BinaryFile lifetime
+   */
+  virtual ImageLoadResult load_next_image(bool is_reset, SdCard &sd_card, const unified_config &config) = 0;
 };
 
 } // namespace photo_frame

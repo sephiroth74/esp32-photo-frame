@@ -27,108 +27,110 @@ class SdCard;
  * - extension = <ext>
  */
 class SdCardTocParser {
-  public:
-    /**
-     * Constructor
-     * @param sdCard Reference to SD card instance
-     * @param tocDataPath Path to TOC data file
-     * @param tocMetaPath Path to TOC metadata file
-     */
-    SdCardTocParser(SdCard& sdCard, const char* tocDataPath, const char* tocMetaPath);
+public:
+  /**
+   * Constructor
+   * @param sdCard Reference to SD card instance
+   * @param tocDataPath Path to TOC data file
+   * @param tocMetaPath Path to TOC metadata file
+   */
+  SdCardTocParser(SdCard &sdCard, const char *tocDataPath, const char *tocMetaPath);
 
-    /**
-     * Get the timestamp when the TOC was created
-     * @param error Optional error output
-     * @return Unix timestamp, or 0 on error
-     */
-    time_t get_timestamp(photo_frame_error_t* error = nullptr);
+  /**
+   * Get the timestamp when the TOC was created
+   * @param error Optional error output
+   * @return Unix timestamp, or 0 on error
+   */
+  time_t get_timestamp(photo_frame_error_t *error = nullptr);
 
-    /**
-     * Get the number of files in the TOC
-     * @param error Optional error output
-     * @return File count, or 0 on error
-     */
-    size_t get_file_count(photo_frame_error_t* error = nullptr);
+  /**
+   * Get the number of files in the TOC
+   * @param error Optional error output
+   * @return File count, or 0 on error
+   */
+  size_t get_file_count(photo_frame_error_t *error = nullptr);
 
-    /**
-     * Get the directory path this TOC represents
-     * @param error Optional error output
-     * @return Directory path, or empty string on error
-     */
-    String get_directory_path(photo_frame_error_t* error = nullptr);
+  /**
+   * Get the directory path this TOC represents
+   * @param error Optional error output
+   * @return Directory path, or empty string on error
+   */
+  String get_directory_path(photo_frame_error_t *error = nullptr);
 
-    /**
-     * Get the file extension filter used for this TOC
-     * @param error Optional error output
-     * @return Extension (e.g., ".pfr1"), or empty string on error
-     */
-    String get_extension(photo_frame_error_t* error = nullptr);
+  /**
+   * Get the file extension filter used for this TOC
+   * @param error Optional error output
+   * @return Extension (e.g., ".pfr1"), or empty string on error
+   */
+  String get_extension(photo_frame_error_t *error = nullptr);
 
-    /**
-     * Get a file path by index from the TOC
-     * @param index Zero-based index
-     * @param error Optional error output
-     * @return File path, or empty string on error
-     */
-    String get_file_by_index(size_t index, photo_frame_error_t* error = nullptr);
+  /**
+   * Get a file path by index from the TOC
+   * @param index Zero-based index
+   * @param error Optional error output
+   * @return File path, or empty string on error
+   */
+  String get_file_by_index(size_t index, photo_frame_error_t *error = nullptr);
 
-    /**
-     * Validate TOC integrity
-     * @param expectedPath Expected directory path (optional)
-     * @param expectedExt Expected file extension (optional)
-     * @return true if TOC is valid and matches expected state
-     */
-    bool validate_toc(const char* expectedPath = nullptr, const char* expectedExt = nullptr);
+  /**
+   * Validate TOC integrity
+   * @param expectedPath Expected directory path (optional)
+   * @param expectedExt Expected file extension (optional)
+   * @return true if TOC is valid and matches expected state
+   */
+  bool validate_toc(const char *expectedPath = nullptr, const char *expectedExt = nullptr);
 
-    /**
-     * Check if TOC files exist
-     * @return true if both TOC data and metadata files exist
-     */
-    bool toc_exists() const;
+  /**
+   * Check if TOC files exist
+   * @return true if both TOC data and metadata files exist
+   */
+  bool toc_exists() const;
 
-    /**
-     * Get directory modification time from metadata
-     * @param error Optional error output
-     * @return Modification time, or 0 on error
-     */
-    // get_directory_mod_time removed - no longer used for TOC validation
+  /**
+   * Get directory modification time from metadata
+   * @param error Optional error output
+   * @return Modification time, or 0 on error
+   */
+  // get_directory_mod_time removed - no longer used for TOC validation
 
-  private:
-    SdCard& sdCard_;
-    String tocDataPath_; // Changed from const char* to String to avoid dangling pointers
-    String tocMetaPath_; // Changed from const char* to String to avoid dangling pointers
+private:
+  SdCard &sdCard_;
+  String tocDataPath_; // Changed from const char* to String to avoid dangling
+                       // pointers
+  String tocMetaPath_; // Changed from const char* to String to avoid dangling
+                       // pointers
 
-    // Cached metadata values (from meta file)
-    mutable bool metaParsed_;
-    mutable String cachedDirectoryPath_;
-    mutable time_t cachedDirModTime_;
-    mutable size_t cachedFileCount_;
-    mutable String cachedExtension_;
-    mutable size_t cachedFileSize_;
+  // Cached metadata values (from meta file)
+  mutable bool metaParsed_;
+  mutable String cachedDirectoryPath_;
+  mutable time_t cachedDirModTime_;
+  mutable size_t cachedFileCount_;
+  mutable String cachedExtension_;
+  mutable size_t cachedFileSize_;
 
-    /**
-     * Read a line from file
-     * @param file Open file handle
-     * @param buffer Output buffer
-     * @param maxLength Maximum line length
-     * @return Number of characters read, or -1 on error
-     */
-    int read_line(File& file, char* buffer, size_t maxLength) const;
+  /**
+   * Read a line from file
+   * @param file Open file handle
+   * @param buffer Output buffer
+   * @param maxLength Maximum line length
+   * @return Number of characters read, or -1 on error
+   */
+  int read_line(File &file, char *buffer, size_t maxLength) const;
 
-    /**
-     * Parse a key=value line
-     * @param line Input line
-     * @param key Key to match
-     * @param value Output value
-     * @return true if key matches and value extracted
-     */
-    bool parse_key_value(const String& line, const char* key, String& value) const;
+  /**
+   * Parse a key=value line
+   * @param line Input line
+   * @param key Key to match
+   * @param value Output value
+   * @return true if key matches and value extracted
+   */
+  bool parse_key_value(const String &line, const char *key, String &value) const;
 
-    /**
-     * Parse and cache all metadata from meta file
-     * @return true on success
-     */
-    bool parse_and_cache_metadata() const;
+  /**
+   * Parse and cache all metadata from meta file
+   * @return true on success
+   */
+  bool parse_and_cache_metadata() const;
 };
 
 } // namespace photo_frame
