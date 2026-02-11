@@ -433,7 +433,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                             mainAxisAlignment: MainAxisAlignment.start,
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              _buildConfigRow('Rotation', ws.binHeader!.rotation.toReadableString()),
+                                              _buildConfigRow('Rotation', ws.binHeader!.orientation.toReadableString()),
                                               _buildConfigRow('Size', '${ws.binHeader!.getWidth()} x ${ws.binHeader!.getHeight()}'),
                                               _buildConfigRow('Color Mode', ws.binHeader!.colorMode.toJsonValue()),
                                               _buildConfigRow('Name', fileLabel),

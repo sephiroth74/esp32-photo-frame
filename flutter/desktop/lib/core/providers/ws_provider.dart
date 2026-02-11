@@ -5,11 +5,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:photoframe_common/models/bin_model.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-
-import '../services/bin_parser.dart';
 
 class WsUploadState with ChangeNotifier {
   static const String _defaultIp = '192.168.4.1';
@@ -268,9 +267,9 @@ class WsUploadState with ChangeNotifier {
       final parsed = BinParser.parse(bytes);
       binHeader = parsed.header;
 
-      final rgba = BinParser.decodeToRgba(parsed);
+      final rgba = parsed.decodeToRgba();
       previewImage = await _rgbaToImage(rgba, parsed.header.width, parsed.header.height);
-      rotation = parsed.header.quarterTurns();
+      rotation = parsed.header.orientation.value;
 
       status = 'File loaded: ${p.basename(path)}';
       notifyListeners();

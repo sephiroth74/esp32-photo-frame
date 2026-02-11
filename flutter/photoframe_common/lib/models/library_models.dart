@@ -2,16 +2,15 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'library_models.g.dart';
 
-@JsonEnum(alwaysCreate: true)
+@JsonEnum(alwaysCreate: true, valueField: 'value')
 enum Orientation {
-  @JsonValue('0')
-  landscape,
-  @JsonValue('1')
-  portrait,
-  @JsonValue('2')
-  landscapeReverse,
-  @JsonValue('3')
-  portraitReverse,
+  landscape(0),
+  portrait(1),
+  landscapeReverse(2),
+  portraitReverse(3);
+
+  final int value;
+  const Orientation(this.value);
 }
 
 @JsonEnum(alwaysCreate: true)
@@ -47,12 +46,7 @@ enum ColorMode {
 // ----------- Extensions for FFI enums ------------
 
 ColorMode colorModeFromString(String value) {
-  return _$ColorModeEnumMap.entries
-      .firstWhere(
-        (entry) => entry.value == value,
-        orElse: () => throw ArgumentError('Unknown color mode: $value'),
-      )
-      .key;
+  return _$ColorModeEnumMap.entries.firstWhere((entry) => entry.value == value, orElse: () => throw ArgumentError('Unknown color mode: $value')).key;
 }
 
 ColorMode colorModeFromInt(int value) {
@@ -68,28 +62,19 @@ ColorMode colorModeFromInt(int value) {
 
 DisplayType displayTypeFromString(String value) {
   return _$DisplayTypeEnumMap.entries
-      .firstWhere(
-        (entry) => entry.value == value,
-        orElse: () => throw ArgumentError('Unknown display type: $value'),
-      )
+      .firstWhere((entry) => entry.value == value, orElse: () => throw ArgumentError('Unknown display type: $value'))
       .key;
 }
 
 Orientation orientationFromInt(int value) {
   return _$OrientationEnumMap.entries
-      .firstWhere(
-        (entry) => entry.value == value.toString(),
-        orElse: () => throw ArgumentError('Unknown orientation value: $value'),
-      )
+      .firstWhere((entry) => entry.value == value, orElse: () => throw ArgumentError('Unknown orientation value: $value'))
       .key;
 }
 
 Orientation orientationFromString(String value) {
   return _$OrientationEnumMap.entries
-      .firstWhere(
-        (entry) => entry.value == value,
-        orElse: () => throw ArgumentError('Unknown orientation: $value'),
-      )
+      .firstWhere((entry) => entry.value == int.parse(value), orElse: () => throw ArgumentError('Unknown orientation: $value'))
       .key;
 }
 
@@ -139,15 +124,13 @@ extension DisplayTypeExtension on DisplayType {
 
 extension DitheringMethodExtension on DitheringMethod {
   String toJsonValue() {
-    return _$DitheringMethodEnumMap[this] ??
-        (throw ArgumentError('Unknown dithering method: $this'));
+    return _$DitheringMethodEnumMap[this] ?? (throw ArgumentError('Unknown dithering method: $this'));
   }
 }
 
 extension OrientationExtension on Orientation {
   String toJsonValue() {
-    return _$OrientationEnumMap[this] ??
-        (throw ArgumentError('Unknown orientation: $this'));
+    return _$OrientationEnumMap[this].toString();
   }
 
   int toInt() {
@@ -155,7 +138,7 @@ extension OrientationExtension on Orientation {
     if (value == null) {
       throw ArgumentError('Unknown orientation: $this');
     }
-    return int.parse(value);
+    return value;
   }
 
   String toReadableString() {

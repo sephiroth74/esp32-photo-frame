@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:photoframe/main.dart';
-import 'package:photoframe/models/ws_messages.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/qr_scanner_screen.dart';
 import 'package:photoframe/screens/configuration_screen.dart';
 import 'package:photoframe/screens/image_upload_screen.dart';

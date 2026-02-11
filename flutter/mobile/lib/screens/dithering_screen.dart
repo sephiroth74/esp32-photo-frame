@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:photoframe/models/library_models.dart';
-import 'package:photoframe/models/ws_messages.dart';
+import 'package:photoframe_common/photoframe_common.dart';
+import 'package:photoframe/widgets/dithering_method_icon.dart';
 
 class DitheringScreen extends StatefulWidget {
   final File croppedImageFile;
@@ -332,6 +332,14 @@ class _EffectPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = isSelected ? Colors.blue : Colors.grey.shade400;
     final borderWidth = isSelected ? 2.5 : 1.0;
+    final iconColor = option.colorMode == ColorMode.sixColors ? Colors.white : Colors.grey.shade300;
+    final grayScale = option.colorMode == ColorMode.blackAndWhite;
+    Image image;
+    if(grayScale) {
+      image = Image.file(imageFile, fit: BoxFit.cover, color: Colors.grey, colorBlendMode: BlendMode.saturation, width: 90, height: 70,);
+    } else {
+      image = Image.file(imageFile, fit: BoxFit.cover, width: 90, height: 70,);
+    }
 
     return InkWell(
       onTap: onTap,
@@ -353,9 +361,20 @@ class _EffectPreviewCard extends StatelessWidget {
                 color: Colors.black,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
               ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
-                child: Image.file(imageFile, fit: BoxFit.cover),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+                    child: image,
+                  ),
+                  // Icon overlay with semi-transparent background
+                  Container(
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+                    padding: const EdgeInsets.all(4),
+                    child: DitheringMethodIcon(method: option.method, color: iconColor, size: 40),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 6),

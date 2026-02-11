@@ -6,9 +6,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
-import 'package:photoframe/models/ws_messages.dart';
 import 'package:photoframe/screens/dithering_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 
 class ImageCropScreen extends StatefulWidget {
   final File imageFile;
@@ -114,8 +114,6 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     final displaySize = Size(imageSize.width * minScale * newUserScale, imageSize.height * minScale * newUserScale);
 
     // Debug clamping calculation
-    final maxX = math.max(0, (displaySize.width - cropSize.width) / 2);
-    final maxY = math.max(0, (displaySize.height - cropSize.height) / 2);
     final clamped = _clampOffset(updatedOffset, displaySize, cropSize);
 
     // Check if image borders are inside crop area

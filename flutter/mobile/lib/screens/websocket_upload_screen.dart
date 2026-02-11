@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
 import 'package:app_settings/app_settings.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:photoframe/models/binary_model.dart';
+import 'package:photoframe_common/models/bin_model.dart';
+import 'package:photoframe_common/models/library_models.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/processing_models.dart';
@@ -309,10 +311,17 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
   Future<Pfr1ViewData?> _loadPfr1Data() async {
     try {
       final bytes = await widget.pfr1File.readAsBytes();
-      final header = BinParser.parseHeader(bytes);
-      if (header == null) return null;
+      final ParsedBin? parsed;
+      final BinHeader? header;
+      try {
+        parsed = BinParser.parse(bytes);
+        header = parsed.header;
+      } catch (e) {
+        logger.severe('Failed to parse PFR1 file: $e');
+        return null;
+      }
 
-      final decoded = await BinParser.decodeToImage(bytes);
+      final decoded = await parsed.decodeToImage(bytes);
       if (decoded == null) return null;
 
       return Pfr1ViewData(header, decoded);
@@ -675,7 +684,7 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
         if (data != null && _pfr1Data == null) {
           _pfr1Data = data;
           if (header != null) {
-            _selectedOrientation = header.rotation;
+            _selectedOrientation = header.orientation.value;
           }
         }
 
@@ -891,10 +900,10 @@ class _WebSocketUploadScreenState extends State<WebSocketUploadScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildOrientationButton(0, 'Landscape 0°', Icons.stay_current_landscape),
-                _buildOrientationButton(1, 'Portrait 90°', Icons.stay_current_portrait),
-                _buildOrientationButton(2, 'Landscape 180°', Icons.stay_current_landscape),
-                _buildOrientationButton(3, 'Portrait 270°', Icons.stay_current_portrait),
+                _buildOrientationButton(Orientation.landscape.value, 'Landscape 0°', Icons.stay_current_landscape),
+                _buildOrientationButton(Orientation.portrait.value, 'Portrait 90°', Icons.stay_current_portrait),
+                _buildOrientationButton(Orientation.landscapeReverse.value, 'Landscape 180°', Icons.stay_current_landscape),
+                _buildOrientationButton(Orientation.portraitReverse.value, 'Portrait 270°', Icons.stay_current_portrait),
               ],
             ),
           ],

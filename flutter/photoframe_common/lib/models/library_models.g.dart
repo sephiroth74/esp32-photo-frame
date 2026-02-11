@@ -7,10 +7,10 @@ part of 'library_models.dart';
 // **************************************************************************
 
 const _$OrientationEnumMap = {
-  Orientation.landscape: '0',
-  Orientation.portrait: '1',
-  Orientation.landscapeReverse: '2',
-  Orientation.portraitReverse: '3',
+  Orientation.landscape: 0,
+  Orientation.portrait: 1,
+  Orientation.landscapeReverse: 2,
+  Orientation.portraitReverse: 3,
 };
 
 const _$DitheringMethodEnumMap = {

@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:photoframe_common/photoframe_common.dart';
 
-import '../models/ws_messages.dart';
 import '../platform/network_binding_service.dart';
 import '../utils/app_logger.dart';
 
