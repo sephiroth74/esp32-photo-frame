@@ -1,11 +1,10 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Orientation;
+import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe_common/models/bin_model.dart';
 import 'package:photoframe_common/photoframe_common.dart';
-import 'package:photoframe/utils/app_logger.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/binary_model.dart';
@@ -107,9 +106,9 @@ class _UploadScreenState extends State<UploadScreen> {
                       }
 
                       final angle = switch (data.header.orientation) {
-                        Orientation.portrait => math.pi / 2,
-                        Orientation.landscapeReverse => math.pi,
-                        Orientation.portraitReverse => math.pi * 1.5,
+                        Orientation.portrait => -math.pi / 2,
+                        Orientation.landscapeReverse => -math.pi,
+                        Orientation.portraitReverse => -math.pi * 1.5,
                         Orientation.landscape => 0.0,
                       };
 
@@ -133,7 +132,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               // File info
               Container(
                 padding: const EdgeInsets.all(16),
@@ -145,13 +144,11 @@ class _UploadScreenState extends State<UploadScreen> {
                     const SizedBox(height: 12),
                     _InfoRow(label: 'Filename', value: widget.pfrFile.path.split('/').last),
                     const SizedBox(height: 8),
-                    _InfoRow(label: 'File size', value: '${(widget.pfrFile.lengthSync() / 1024).toStringAsFixed(2)} KB'),
-                    const SizedBox(height: 8),
                     _InfoRow(label: 'Status', value: 'Ready to upload'),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               // Temporary share button (will be replaced with upload)
               SizedBox(
                 width: double.infinity,

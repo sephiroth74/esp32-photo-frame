@@ -364,36 +364,43 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
           Expanded(
             child: Container(
               color: Colors.black,
-              child: Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Base image
-                    Image.file(widget.croppedImageFile, fit: BoxFit.cover),
-                    // Dithered preview overlay if available
-                    if (_previewDithered != null) Image.memory(_previewDithered!, fit: BoxFit.cover),
-                    // Loading indicator
-                    if (_isGeneratingPreview)
-                      Container(
-                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-                        padding: const EdgeInsets.all(16),
-                        child: const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Image preview layer
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.file(widget.croppedImageFile, fit: BoxFit.cover),
+                      if (_previewDithered != null) Image.memory(_previewDithered!, fit: BoxFit.cover),
+                      if (_isGeneratingPreview)
+                        Container(
+                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                          padding: const EdgeInsets.all(16),
+                          child: const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                        ),
+                    ],
+                  ),
+                  // Overlay panel
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: SizedBox(
+                        height: _activeTab == null
+                            ? 0
+                            : _activeTab == NavigationTab.effects
+                            ? 190
+                            : 90,
+                        child: _buildPanel(),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: SizedBox(
-              height: _activeTab == null
-                  ? 0
-                  : _activeTab == NavigationTab.effects
-                  ? _activeTab == NavigationTab.effects ? 190 : 190
-                  : 90,
-              child: _buildPanel(),
             ),
           ),
           LayoutBuilder(
@@ -539,7 +546,7 @@ class _EffectsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      decoration: BoxDecoration(backgroundBlendMode: BlendMode.screen, color: Colors.white.withValues(alpha: 0.8)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -574,9 +581,17 @@ class _EffectsPanel extends StatelessWidget {
               child: Row(
                 children: [
                   for (int i = 0; i < options.length; i++) ...[
-                    if (i > 0 && supportsSixColors && options[i - 1].colorMode == ColorMode.sixColors && options[i].colorMode == ColorMode.blackAndWhite)
+                    if (i > 0 &&
+                        supportsSixColors &&
+                        options[i - 1].colorMode == ColorMode.sixColors &&
+                        options[i].colorMode == ColorMode.blackAndWhite)
                       Container(width: 1, height: 80, margin: const EdgeInsets.symmetric(horizontal: 8), color: Colors.grey.shade400),
-                    _EffectPreviewCard(option: options[i], isSelected: options[i] == selected, onTap: () => onSelect(options[i]), imageFile: imageFile),
+                    _EffectPreviewCard(
+                      option: options[i],
+                      isSelected: options[i] == selected,
+                      onTap: () => onSelect(options[i]),
+                      imageFile: imageFile,
+                    ),
                   ],
                 ],
               ),
@@ -682,7 +697,10 @@ class _AdjustmentPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      decoration: BoxDecoration(
+        backgroundBlendMode: BlendMode.screen,
+        color: Colors.white.withValues(alpha: 0.8),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
