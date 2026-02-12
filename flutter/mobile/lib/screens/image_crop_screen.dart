@@ -411,12 +411,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         flex: 1,
-                        child: ElevatedButton(
+                        child: FilledButton(
                           onPressed: _continue,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.primary,
-                            // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
                           child: Text(
                             'Continue',
                             style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),

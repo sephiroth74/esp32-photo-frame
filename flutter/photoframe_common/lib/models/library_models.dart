@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:json_annotation/json_annotation.dart';
 
 part 'library_models.g.dart';
@@ -148,6 +150,19 @@ extension OrientationExtension on Orientation {
       throw ArgumentError('Unknown orientation: $this');
     }
     return value;
+  }
+
+  double toRadians() {
+    switch (this) {
+      case Orientation.landscape:
+        return 0.0;
+      case Orientation.portrait:
+        return math.pi / 2;
+      case Orientation.landscapeReverse:
+        return math.pi;
+      case Orientation.portraitReverse:
+        return 3 * math.pi / 2;
+    }
   }
 
   int toDegrees() {

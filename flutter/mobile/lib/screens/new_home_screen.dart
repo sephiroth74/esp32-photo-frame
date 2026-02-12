@@ -55,8 +55,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
     const boardConfigJson = '''{
   "type": "board_info",
   "board": "ESP32-S3",
-  "flash_size": "16MB",
-  "flash_size_bytes": 16777216,
+  "flash_size": 16777216,
   "display_type": "six-colors",
   "display_width": 800,
   "display_height": 480,

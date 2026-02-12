@@ -458,10 +458,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
             top: false,
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 12, offset: const Offset(0, -2))],
-              ),
+              decoration: BoxDecoration(color: colors.surface),
               child: Row(
                 children: [
                   Expanded(

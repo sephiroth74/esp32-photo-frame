@@ -74,147 +74,84 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
       ),
-      body: Stack(
+      body: Column(
+        mainAxisSize: MainAxisSize.max,
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 96),
-            child: Column(
-              children: [
-                // BoardConfig info section
-                Container(
-                  color: colors.background,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Device Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      _buildInfoRow('Device', widget.boardConfig.board, colors),
-                      _buildInfoRow('Display', '${widget.boardConfig.displayWidth}×${widget.boardConfig.displayHeight}', colors),
-                      _buildInfoRow('Type', widget.boardConfig.displayType.toJsonValue(), colors),
-                      _buildInfoRow(
-                        'Rotation',
-                        '${widget.boardConfig.displayRotation.name} (${_rotationAngle(widget.boardConfig.displayRotation.value)})',
-                        colors,
-                      ),
-                      if (widget.boardConfig.batteryLevel != null)
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 96, left: 16, right: 16, top: 16),
+              child: Column(
+                children: [
+                  // BoardConfig info section
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colors.borderLight, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Device Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        _buildInfoRow('Device', widget.boardConfig.board, colors),
+                        _buildInfoRow('Display', '${widget.boardConfig.displayWidth}×${widget.boardConfig.displayHeight}', colors),
+                        _buildInfoRow('Type', widget.boardConfig.displayType.toJsonValue(), colors),
                         _buildInfoRow(
-                          'Battery',
-                          '${widget.boardConfig.batteryLevel}%${widget.boardConfig.batteryVoltageMv != null ? ' (${widget.boardConfig.batteryVoltageMv}mV)' : ''}',
+                          'Rotation',
+                          '${widget.boardConfig.displayRotation.name} (${_rotationAngle(widget.boardConfig.displayRotation.value)})',
                           colors,
                         ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Image picker section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Select Image', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-
-                      // Image preview or picker button
-                      if (_selectedImage == null)
-                        GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            width: double.infinity,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: colors.borderLight, width: 2),
-                              borderRadius: BorderRadius.circular(8),
-                              color: colors.surfaceLight,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.image_outlined, size: 64, color: colors.textHint),
-                                const SizedBox(height: 12),
-                                Text('Tap to select an image', style: TextStyle(fontSize: 16, color: colors.textSecondary)),
-                              ],
-                            ),
+                        if (widget.boardConfig.batteryLevel != null)
+                          _buildInfoRow(
+                            'Battery',
+                            '${widget.boardConfig.batteryLevel}%${widget.boardConfig.batteryVoltageMv != null ? ' (${widget.boardConfig.batteryVoltageMv}mV)' : ''}',
+                            colors,
                           ),
-                        )
-                      else
-                        Stack(
-                          children: [
-                            // Image preview
-                            Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: colors.borderLight, width: 2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                            ),
-
-                            // Clear button
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: _clearImage,
-                                child: Container(
-                                  decoration: BoxDecoration(color: colors.error, shape: BoxShape.circle),
-                                  padding: const EdgeInsets.all(8),
-                                  child: Icon(Icons.close, color: colors.onError, size: 20),
-                                ),
-                              ),
-                            ),
-
-                            // Select another button
-                            Positioned(
-                              bottom: 8,
-                              left: 8,
-                              child: GestureDetector(
-                                onTap: _pickImage,
-                                child: Container(
-                                  decoration: BoxDecoration(color: colors.primary, borderRadius: BorderRadius.circular(4)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.edit, color: colors.onError, size: 16),
-                                      const SizedBox(width: 4),
-                                      Text('Change', style: TextStyle(color: colors.onError, fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 24),
+
+                  // Image picker section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        FilledButton.icon(onPressed: _pickImage, label: const Text('Pick Image from Gallery'), icon: const Icon(Icons.image)),
+                        const SizedBox(height: 16),
+                        // Image preview or picker button
+                        if (_selectedImage != null)
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: colors.borderMedium, width: 2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+          Flexible(
+            flex: 0,
             child: SafeArea(
-              top: false,
               child: Container(
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 12, offset: const Offset(0, -2))],
-                ),
+                decoration: BoxDecoration(color: colors.surface),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: _selectedImage != null ? _continue : null,
-                    style: ElevatedButton.styleFrom(backgroundColor: colors.primary, disabledBackgroundColor: colors.disabled),
                     child: Text(
                       'Continue',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onError),
