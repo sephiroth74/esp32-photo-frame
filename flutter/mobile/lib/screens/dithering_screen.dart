@@ -8,9 +8,11 @@ import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/upload_screen.dart';
 import 'package:photoframe/services/binary_converter.dart';
 import 'package:photoframe/services/dithering_processor.dart';
+import 'package:photoframe/services/ws_connection_service.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe/widgets/dithering_method_icon.dart';
+import 'package:photoframe/l10n/app_localizations.dart';
 
 class DitheringScreen extends StatefulWidget {
   final File croppedImageFile;
@@ -84,14 +86,27 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updatePreviewDithering();
     });
+
+    // Listen to connection state changes and show snackbar on disconnection
+    WsConnectionService().connectionStateStream.listen((isConnected) {
+      if (mounted && !isConnected) {
+        final l10n = AppLocalizations.of(context)!;
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.connectionLostMessage), backgroundColor: colors.error, duration: const Duration(seconds: 4)));
+      }
+    });
   }
 
   @override
   void dispose() {
     // Clean up temporary cropped image file when leaving this screen
-    widget.croppedImageFile.delete().catchError((_) {
+    try {
+      widget.croppedImageFile.deleteSync();
+    } catch (e) {
       logger.warning('Failed to delete temporary cropped image file: ${widget.croppedImageFile.path}');
-    });
+    }
     super.dispose();
   }
 
@@ -305,8 +320,9 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
     } catch (e, stackTrace) {
       logger.severe('Failed to apply dithering and convert to binary: $e', e, stackTrace);
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to process image: $e'), backgroundColor: colors.error));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.ditheringFailedMessage(e.toString())), backgroundColor: colors.error));
       }
     } finally {
       if (mounted) {
@@ -356,9 +372,10 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors(context);
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dithering & Effects'),
+        title: Text(l10n.ditheringTitle),
         centerTitle: true,
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
@@ -423,28 +440,28 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                   children: [
                     _NavBarItem(
                       icon: Icons.auto_fix_high,
-                      label: 'Effects',
+                      label: l10n.effectsLabel,
                       showLabel: showLabel,
                       isActive: _activeTab == NavigationTab.effects,
                       onTap: () => _onNavTap(NavigationTab.effects),
                     ),
                     _NavBarItem(
                       icon: Icons.brightness_6,
-                      label: 'Brightness',
+                      label: l10n.brightnessLabel,
                       showLabel: showLabel,
                       isActive: _activeTab == NavigationTab.brightness,
                       onTap: () => _onNavTap(NavigationTab.brightness),
                     ),
                     _NavBarItem(
                       icon: Icons.contrast,
-                      label: 'Contrast',
+                      label: l10n.contrastLabel,
                       showLabel: showLabel,
                       isActive: _activeTab == NavigationTab.contrast,
                       onTap: () => _onNavTap(NavigationTab.contrast),
                     ),
                     _NavBarItem(
                       icon: Icons.palette,
-                      label: 'Saturation',
+                      label: l10n.saturationLabel,
                       showLabel: showLabel,
                       isActive: _activeTab == NavigationTab.saturation,
                       onTap: () => _onNavTap(NavigationTab.saturation),
@@ -462,7 +479,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(onPressed: _isProcessing ? null : () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                    child: OutlinedButton(onPressed: _isProcessing ? null : () => Navigator.of(context).pop(), child: Text(l10n.cancelAction)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -476,7 +493,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                               child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
                             )
                           : Text(
-                              'Continue',
+                              l10n.continueAction,
                               style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),
                             ),
                     ),
@@ -506,22 +523,22 @@ class _DitheringOption {
   @override
   int get hashCode => Object.hash(method, colorMode);
 
-  String get label {
+  String label(AppLocalizations l10n) {
     switch (method) {
       case DitheringMethod.floydSteinberg:
-        return 'Floyd-Steinberg';
+        return l10n.ditheringMethodFloydSteinberg;
       case DitheringMethod.atkinson:
-        return 'Atkinson';
+        return l10n.ditheringMethodAtkinson;
       case DitheringMethod.stucki:
-        return 'Stucki';
+        return l10n.ditheringMethodStucki;
       case DitheringMethod.jarvisJudiceNinke:
-        return 'Jarvis-Judice';
+        return l10n.ditheringMethodJarvisJudice;
       case DitheringMethod.ordered:
-        return 'Ordered';
+        return l10n.ditheringMethodOrdered;
     }
   }
 
-  String get modeLabel => colorMode == ColorMode.sixColors ? '6C' : 'BW';
+  String modeLabel(AppLocalizations l10n) => colorMode == ColorMode.sixColors ? l10n.colorModeSixColorsLabel : l10n.colorModeBlackWhiteLabel;
 }
 
 class _EffectsPanel extends StatelessWidget {
@@ -617,6 +634,7 @@ class _EffectPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final colors = ThemeColors(context);
     final borderColor = isSelected ? colors.primary : colors.borderLight;
     final borderWidth = isSelected ? 2.5 : 1.0;
@@ -667,7 +685,7 @@ class _EffectPreviewCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              option.label,
+              option.label(l10n),
               style: TextStyle(fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -688,26 +706,28 @@ class _AdjustmentPanel extends StatelessWidget {
 
   const _AdjustmentPanel({required this.type, required this.value, required this.onChanged, required this.onChangeEnd});
 
-  String get _label {
+  String _label(AppLocalizations l10n) {
     switch (type) {
       case AdjustmentType.brightness:
-        return 'Brightness';
+        return l10n.brightnessLabel;
       case AdjustmentType.contrast:
-        return 'Contrast';
+        return l10n.contrastLabel;
       case AdjustmentType.saturation:
-        return 'Saturation';
+        return l10n.saturationLabel;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final label = _label(l10n);
     return Container(
       decoration: BoxDecoration(backgroundBlendMode: BlendMode.screen, color: Colors.white.withValues(alpha: 0.8)),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('$_label: ${value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(l10n.adjustmentValueLabel(label, value.toStringAsFixed(2)), style: const TextStyle(fontWeight: FontWeight.bold)),
           Slider(value: value, min: 0.0, max: 2.0, divisions: 40, onChanged: onChanged, onChangeEnd: onChangeEnd),
         ],
       ),

@@ -37,11 +37,12 @@ enum DitheringMethod {
 
 #### `ws_messages.dart`
 WebSocket protocol models for ESP32 device communication:
+- **WsMessageType**: Enum for all WebSocket message types (type-safe string constants)
 - **BoardConfig**: Device configuration (display size, orientation, battery, etc.)
 - **WsErrorInfo**: Error responses
 - **WsChunkAck**: Upload chunk acknowledgments
 - **WsReadyInfo**: Session initialization
-- **WsSuccessInfo**: Success confirmations
+- **WsFinalResponse**: Upload completion response with success/failure status
 - **WsMessageInfo**: General messages
 
 **Note:** BoardConfig uses `DisplayType` enum for type-safe display configuration.

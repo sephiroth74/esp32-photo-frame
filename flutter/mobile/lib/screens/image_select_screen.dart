@@ -5,6 +5,7 @@ import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/image_crop_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/utils/theme_colors.dart';
+import 'package:photoframe/l10n/app_localizations.dart';
 
 /// Image select screen with BoardConfig info display and image selection
 /// Allows user to pick an image from gallery and preview before upload
@@ -36,23 +37,18 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
     } catch (e) {
       logger.severe('Failed to pick image: $e');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick image: $e'), backgroundColor: colors.error));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.pickImageFailedMessage(e.toString())), backgroundColor: colors.error));
       }
     }
   }
 
-  void _clearImage() {
-    setState(() {
-      _selectedImage = null;
-    });
-    logger.info('Image selection cleared');
-  }
-
   void _continue() {
     if (_selectedImage == null) {
+      final l10n = AppLocalizations.of(context)!;
       final colors = ThemeColors(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Please select an image first'), backgroundColor: colors.warning));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.selectImageFirstMessage), backgroundColor: colors.warning));
       return;
     }
 
@@ -67,9 +63,10 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors(context);
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Image Select'),
+        title: Text(l10n.imageSelectTitle),
         elevation: 0,
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
@@ -92,19 +89,19 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Device Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(l10n.deviceInfoTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
-                        _buildInfoRow('Device', widget.boardConfig.board, colors),
-                        _buildInfoRow('Display', '${widget.boardConfig.displayWidth}×${widget.boardConfig.displayHeight}', colors),
-                        _buildInfoRow('Type', widget.boardConfig.displayType.toJsonValue(), colors),
+                        _buildInfoRow(l10n.deviceLabel, widget.boardConfig.board, colors),
+                        _buildInfoRow(l10n.displayLabel, '${widget.boardConfig.displayWidth}×${widget.boardConfig.displayHeight}', colors),
+                        _buildInfoRow(l10n.typeLabel, widget.boardConfig.displayType.toJsonValue(), colors),
                         _buildInfoRow(
-                          'Rotation',
-                          '${widget.boardConfig.displayRotation.name} (${_rotationAngle(widget.boardConfig.displayRotation.value)})',
+                          l10n.rotationLabel,
+                          '${widget.boardConfig.displayRotation.name} (${_rotationAngle(widget.boardConfig.displayRotation.value, l10n)})',
                           colors,
                         ),
                         if (widget.boardConfig.batteryLevel != null)
                           _buildInfoRow(
-                            'Battery',
+                            l10n.batteryLabel,
                             '${widget.boardConfig.batteryLevel}%${widget.boardConfig.batteryVoltageMv != null ? ' (${widget.boardConfig.batteryVoltageMv}mV)' : ''}',
                             colors,
                           ),
@@ -120,7 +117,7 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        FilledButton.icon(onPressed: _pickImage, label: const Text('Pick Image from Gallery'), icon: const Icon(Icons.image)),
+                        FilledButton.icon(onPressed: _pickImage, label: Text(l10n.pickImageFromGallery), icon: const Icon(Icons.image)),
                         const SizedBox(height: 16),
                         // Image preview or picker button
                         if (_selectedImage != null)
@@ -153,7 +150,7 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
                   child: FilledButton(
                     onPressed: _selectedImage != null ? _continue : null,
                     child: Text(
-                      'Continue',
+                      l10n.continueAction,
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onError),
                     ),
                   ),
@@ -182,7 +179,7 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
     );
   }
 
-  String _rotationAngle(int rotation) {
+  String _rotationAngle(int rotation, AppLocalizations l10n) {
     switch (rotation) {
       case 0:
         return '0°';
@@ -193,7 +190,7 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
       case 3:
         return '270°';
       default:
-        return 'Unknown';
+        return l10n.rotationUnknown;
     }
   }
 }

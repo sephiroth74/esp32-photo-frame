@@ -82,7 +82,7 @@ impl BoardConfig {
             "  Dimensions: {}x{}",
             self.display_width, self.display_height
         );
-        println!("  Rotation: {}°", self.display_rotation);
+        println!("  Rotation: {}", self.display_rotation.to_string());
         println!();
         println!("{}", style("Hardware:").bold().cyan());
         println!("  Chip Model: {}", self.board);
@@ -139,6 +139,7 @@ pub struct FinalResponse {
     #[serde(rename = "type")]
     #[allow(dead_code)]
     pub msg_type: String,
+    pub success: bool,
     pub message: Option<String>,
     pub error: Option<String>,
 }

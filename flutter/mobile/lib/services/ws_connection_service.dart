@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
+import 'package:photoframe_common/photoframe_common.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:photoframe_common/photoframe_common.dart';
 
 import '../platform/network_binding_service.dart';
 import '../utils/app_logger.dart';
@@ -17,8 +19,15 @@ class WsConnectionService {
   WebSocketChannel? _channel;
   StreamSubscription? _channelSubscription;
   Completer<BoardConfig>? _configCompleter;
+  Completer<WsReadyInfo>? _uploadReadyCompleter;
+  Completer<WsChunkAck>? _uploadChunkAckCompleter;
+  Completer<WsFinalResponse>? _uploadCompleteCompleter;
   BoardConfig? _boardConfig;
   bool _isConfigReceived = false;
+  bool _uploading = false;
+
+  final _connectionStateController = StreamController<bool>.broadcast();
+  final _uploadProgressController = StreamController<double>.broadcast();
 
   WsConnectionService._internal();
 
@@ -32,6 +41,12 @@ class WsConnectionService {
 
   /// Get board configuration (only available after successful connection)
   BoardConfig? get boardConfig => _boardConfig;
+
+  /// Connection state stream (true = connected)
+  Stream<bool> get connectionStateStream => _connectionStateController.stream;
+
+  /// Upload progress stream (0.0 - 1.0)
+  Stream<double> get uploadProgress => _uploadProgressController.stream;
 
   Future<BoardConfig> connect({required String host, required int port, Duration timeout = const Duration(seconds: 10)}) async {
     if (isConnected) {
@@ -127,6 +142,7 @@ class WsConnectionService {
       final config = await _configCompleter!.future.timeout(timeout);
       _boardConfig = config;
       _isConfigReceived = true;
+      _connectionStateController.add(true);
 
       logger.info('✓ Received board configuration: $config');
       return config;
@@ -145,7 +161,9 @@ class WsConnectionService {
         final json = jsonDecode(message) as Map<String, dynamic>;
         logger.fine('Received message type: ${json['type']}');
 
-        if (json['type'] == 'board_info') {
+        final messageType = WsMessageType.fromString(json['type'] as String?);
+
+        if (messageType == WsMessageType.boardInfo) {
           final config = BoardConfig.fromJson(json);
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.complete(config);
@@ -154,11 +172,44 @@ class WsConnectionService {
         }
 
         // Check for error messages
-        if (json['type'] == 'error') {
+        if (messageType == WsMessageType.error) {
           final error = WsErrorInfo.fromJson(json);
           logger.severe('Server error: ${error.message}');
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.completeError(Exception(error.message));
+          }
+          if (_uploadReadyCompleter != null && !_uploadReadyCompleter!.isCompleted) {
+            _uploadReadyCompleter!.completeError(Exception(error.message));
+          }
+          if (_uploadChunkAckCompleter != null && !_uploadChunkAckCompleter!.isCompleted) {
+            _uploadChunkAckCompleter!.completeError(Exception(error.message));
+          }
+          if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
+            _uploadCompleteCompleter!.completeError(Exception(error.message));
+          }
+          return;
+        }
+
+        if (messageType == WsMessageType.ready) {
+          final ready = WsReadyInfo.fromJson(json);
+          if (_uploadReadyCompleter != null && !_uploadReadyCompleter!.isCompleted) {
+            _uploadReadyCompleter!.complete(ready);
+          }
+          return;
+        }
+
+        if (messageType == WsMessageType.chunkAck) {
+          final ack = WsChunkAck.fromJson(json);
+          if (_uploadChunkAckCompleter != null && !_uploadChunkAckCompleter!.isCompleted) {
+            _uploadChunkAckCompleter!.complete(ack);
+          }
+          return;
+        }
+
+        if (messageType == WsMessageType.finalResponse) {
+          final response = WsFinalResponse.fromJson(json);
+          if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
+            _uploadCompleteCompleter!.complete(response);
           }
           return;
         }
@@ -173,6 +224,7 @@ class WsConnectionService {
   Future<void> disconnect() async {
     try {
       _isConfigReceived = false;
+      _connectionStateController.add(false);
       await _channelSubscription?.cancel();
       _channelSubscription = null;
 
@@ -187,6 +239,80 @@ class WsConnectionService {
       logger.info('WebSocket disconnected');
     } catch (e) {
       logger.warning('Error during disconnect: $e');
+    }
+  }
+
+  Future<void> uploadImage({required String pfrFilePath, required int orientation}) async {
+    if (!isConnected || _channel == null) {
+      throw Exception('Not connected to WebSocket');
+    }
+
+    if (_uploading) {
+      throw Exception('Upload already in progress');
+    }
+
+    if (_boardConfig == null) {
+      throw Exception('Board configuration not available');
+    }
+
+    _uploading = true;
+
+    try {
+      final fileBytes = await File(pfrFilePath).readAsBytes();
+      final fileName = p.basename(pfrFilePath);
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final token = timestamp.toRadixString(16).padLeft(8, '0');
+
+      final initMessage = {
+        'type': WsMessageType.init.value,
+        'filename': fileName,
+        'token': token,
+        'timestamp': timestamp,
+        'orientation': orientation,
+      };
+
+      _channel!.sink.add(jsonEncode(initMessage));
+
+      _uploadReadyCompleter = Completer<WsReadyInfo>();
+      await _uploadReadyCompleter!.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw TimeoutException('Server did not respond with ready'),
+      );
+
+      const chunkSize = 4096;
+      for (int i = 0; i < fileBytes.length; i += chunkSize) {
+        final endIndex = (i + chunkSize < fileBytes.length) ? i + chunkSize : fileBytes.length;
+        final chunk = fileBytes.sublist(i, endIndex);
+
+        _channel!.sink.add(chunk);
+
+        _uploadChunkAckCompleter = Completer<WsChunkAck>();
+        final ack = await _uploadChunkAckCompleter!.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw TimeoutException('No ACK for chunk ${i ~/ chunkSize + 1}'),
+        );
+
+        final progress = (ack.received / fileBytes.length).clamp(0.0, 1.0);
+        _uploadProgressController.add(progress);
+      }
+
+      final endMessage = {'type': WsMessageType.end.value};
+      _channel!.sink.add(jsonEncode(endMessage));
+
+      _uploadCompleteCompleter = Completer<WsFinalResponse>();
+      final response = await _uploadCompleteCompleter!.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('Server did not send final response'),
+      );
+
+      if (!response.success) {
+        throw Exception(response.message.isNotEmpty ? response.message : 'Upload failed');
+      }
+    } finally {
+      _uploadReadyCompleter = null;
+      _uploadChunkAckCompleter = null;
+      _uploadCompleteCompleter = null;
+      _uploading = false;
     }
   }
 }

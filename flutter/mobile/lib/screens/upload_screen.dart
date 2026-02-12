@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -8,8 +9,11 @@ import 'package:photoframe_common/models/bin_model.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/binary_model.dart';
 import '../services/bin_parser.dart';
+import '../services/ws_connection_service.dart';
+import 'image_select_screen.dart';
 
 class UploadScreen extends StatefulWidget {
   final File pfrFile;
@@ -28,6 +32,9 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
   late Orientation _orientation;
   late AnimationController _rotationController;
   late Animation<double> _rotationAnimation;
+  bool _isConnected = false;
+  double _uploadProgress = 0.0;
+  StreamSubscription? _uploadProgressSubscription;
 
   @override
   void initState() {
@@ -42,6 +49,26 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
       begin: 0.0,
       end: -(math.pi / 2),
     ).animate(CurvedAnimation(parent: _rotationController, curve: Curves.easeInOut));
+
+    // Check initial connection state
+    _isConnected = WsConnectionService().isConnected;
+
+    // Listen to connection state changes and show snackbar on disconnection
+    WsConnectionService().connectionStateStream.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isConnected = isConnected;
+        });
+
+        if (!isConnected && _isConnected != isConnected) {
+          final l10n = AppLocalizations.of(context)!;
+          final colors = ThemeColors(context);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.connectionLostMessage), backgroundColor: colors.error, duration: const Duration(seconds: 4)));
+        }
+      }
+    });
   }
 
   Future<Pfr1ViewData?> _loadPfrPreview() async {
@@ -62,6 +89,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
   @override
   void dispose() {
     _rotationController.dispose();
+    _uploadProgressSubscription?.cancel();
     // Clean up temporary files when leaving this screen
     try {
       widget.pfrFile.deleteSync();
@@ -72,28 +100,100 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
   }
 
   Future<void> _uploadToDevice() async {
-    setState(() => _isUploading = true);
+    if (!WsConnectionService().isConnected) {
+      logger.warning('Not connected to device');
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.deviceNotConnectedMessage), backgroundColor: colors.error));
+      }
+      return;
+    }
+
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+    });
+
+    // Subscribe to upload progress stream
+    _uploadProgressSubscription = WsConnectionService().uploadProgress.listen((progress) {
+      if (mounted) {
+        setState(() {
+          _uploadProgress = progress;
+        });
+      }
+    });
+
     try {
       logger.info('Uploading PFR1 file to device: ${widget.pfrFile.path}');
 
-      // TODO: Implement WebSocket upload to device
-      // Read bytes and send to ESP32 device over WebSocket
-      // final bytes = await widget.pfrFile.readAsBytes();
+      // Upload file with current orientation
+      await WsConnectionService().uploadImage(pfrFilePath: widget.pfrFile.path, orientation: _orientation.value);
 
       logger.info('File uploaded successfully');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('File uploaded successfully'), backgroundColor: colors.success));
+        final boardConfig = WsConnectionService().boardConfig;
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: Icon(Icons.check_circle, color: colors.success, size: 48),
+            title: Text(l10n.uploadSuccessTitle),
+            content: Text(l10n.uploadSuccessMessage),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(); // Chiude il dialog
+                  WsConnectionService().disconnect(); // Disconnette il WebSocket
+                  Navigator.of(context).pop(); // Torna alla schermata precedente
+                },
+                child: Text(l10n.okAction),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(); // Chiude il dialog
+                  WsConnectionService().disconnect(); // Disconnette il WebSocket
+                  // Torna all'image select screen rimuovendo tutte le schermate precedenti
+                  if (boardConfig != null) {
+                    Navigator.of(
+                      context,
+                    ).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => ImageSelectScreen(boardConfig: boardConfig)), (route) => false);
+                  } else {
+                    // Se non c'è boardConfig, torna alla schermata precedente
+                    Navigator.of(context).pop();
+                  }
+                },
+                icon: const Icon(Icons.add_photo_alternate),
+                label: Text(l10n.newImageAction),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       logger.severe('Failed to upload file: $e');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to upload file: $e'), backgroundColor: colors.error));
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            icon: Icon(Icons.error_outline, color: colors.error, size: 48),
+            title: Text(l10n.uploadFailedTitle),
+            content: Text(l10n.uploadFailedMessage(e.toString())),
+            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction))],
+          ),
+        );
       }
     } finally {
+      await _uploadProgressSubscription?.cancel();
+      _uploadProgressSubscription = null;
       if (mounted) {
-        setState(() => _isUploading = false);
+        setState(() {
+          _isUploading = false;
+          _uploadProgress = 0.0;
+        });
       }
     }
   }
@@ -102,14 +202,16 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     try {
       logger.fine('Sharing PFR1 file: ${widget.pfrFile.path}');
 
-      await Share.shareXFiles([XFile(widget.pfrFile.path)], text: 'Photo Frame Binary');
+      final l10n = AppLocalizations.of(context)!;
+      await Share.shareXFiles([XFile(widget.pfrFile.path)], text: l10n.photoFrameBinaryShareText);
 
       logger.info('File shared successfully');
     } catch (e) {
       logger.severe('Failed to share file: $e');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to share file: $e'), backgroundColor: colors.error));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.shareFailedMessage(e.toString())), backgroundColor: colors.error));
       }
     }
   }
@@ -136,16 +238,29 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     await _rotationController.forward(from: 0.0);
   }
 
+  Future<void> _retryConnection() async {
+    logger.info('Retrying WebSocket connection...');
+    try {
+      WsConnectionService().disconnect();
+      // TODO: Get the device IP from somewhere (configuration or state)
+      // For now, this is a placeholder
+      logger.warning('Need to implement retry connection with device IP');
+    } catch (e) {
+      logger.severe('Failed to retry connection: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors(context);
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Preview'),
+        title: Text(l10n.previewTitle),
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
         elevation: 0,
-        actions: [IconButton(icon: const Icon(Icons.share), tooltip: 'Share', onPressed: _shareFile)],
+        actions: [IconButton(icon: const Icon(Icons.share), tooltip: l10n.shareTooltip, onPressed: _shareFile)],
       ),
       body: FutureBuilder<Pfr1ViewData?>(
         future: _pfrPreview,
@@ -165,7 +280,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
 
                       final data = snapshot.data;
                       if (data == null) {
-                        return const SizedBox(height: 600, child: Center(child: Text('Unable to render .pfr1 preview')));
+                        return SizedBox(height: 600, child: Center(child: Text(l10n.unableToRenderPreview)));
                       }
 
                       // Load orientation from PFR1 header only once
@@ -193,10 +308,9 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                         children: [
                           // Preview image (decoded from .pfr1)
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
                             child: SizedBox(
-                              width: data.header.width.toDouble(),
                               height: data.header.height.toDouble(),
+                              width: double.infinity,
                               child: AspectRatio(
                                 aspectRatio: aspectRatio,
                                 child: AnimatedBuilder(
@@ -212,7 +326,6 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                                   child: FittedBox(
                                     fit: BoxFit.cover,
                                     child: SizedBox(
-                                      width: data.header.getWidth().toDouble(),
                                       height: data.header.getHeight().toDouble(),
                                       child: RawImage(image: data.image),
                                     ),
@@ -221,7 +334,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -234,14 +347,39 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Dimensions: ${data.header.getWidth()}x${data.header.getHeight()}',
+                                  l10n.dimensionsLabel(data.header.getWidth(), data.header.getHeight()),
                                   style: TextStyle(fontSize: 14, color: colors.textSecondary),
                                 ),
                                 const SizedBox(height: 2),
-                                Text('Orientation: ${_orientation.toDegrees()}°', style: TextStyle(fontSize: 14, color: colors.textSecondary)),
+                                Text(l10n.orientationLabel(_orientation.toDegrees()), style: TextStyle(fontSize: 14, color: colors.textSecondary)),
                               ],
                             ),
                           ),
+                          // show a box when the connection is lost
+                          if (!_isConnected) ...[
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(top: 16),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: colors.error, width: 2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(l10n.deviceNotConnectedMessage, style: TextStyle(fontSize: 14, color: colors.textSecondary)),
+                                  const SizedBox(height: 16),
+                                  FilledButton.icon(
+                                    onPressed: _retryConnection,
+                                    label: Text(l10n.retryAction),
+                                    icon: const Icon(Icons.refresh),
+                                    style: FilledButton.styleFrom(backgroundColor: colors.error),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       );
                     },
@@ -257,28 +395,52 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                     child: SizedBox(
                       width: double.infinity,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: (isLoading || _isUploading) ? null : _rotateImage,
-                              icon: Icon(Icons.rotate_right),
-                              label: Text('Rotate', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          // Upload progress indicator
+                          if (_isUploading)
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                LinearProgressIndicator(
+                                  value: _uploadProgress,
+                                  backgroundColor: colors.disabled,
+                                  valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  l10n.uploadingProgress((_uploadProgress * 100).toStringAsFixed(0)),
+                                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                                ),
+                                const SizedBox(height: 8),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: (isLoading || _isUploading) ? null : _uploadToDevice,
-                              child: _isUploading
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : Text(
-                                      'Upload',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onError),
-                                    ),
-                            ),
+                          // Buttons row
+                          Row(
+                            mainAxisSize: MainAxisSize.max,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: (isLoading || _isUploading) ? null : _rotateImage,
+                                  icon: Icon(Icons.rotate_right),
+                                  label: Text(l10n.rotateAction, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: (isLoading || _isUploading) ? null : _uploadToDevice,
+                                  child: _isUploading
+                                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                      : Text(
+                                          l10n.uploadAction,
+                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onError),
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

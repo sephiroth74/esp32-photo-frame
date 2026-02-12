@@ -177,13 +177,17 @@ String WSReadyInfo::toJson() const {
 }
 
 // ===============================================
-// WSSuccessInfo Implementation
+// WSFinalResponse Implementation
 // ===============================================
 
-String WSSuccessInfo::toJson() const {
+String WSFinalResponse::toJson() const {
   StaticJsonDocument<256> doc;
   doc["type"] = type;
+  doc["success"] = success;
   doc["message"] = message;
+  if (filepath.length() > 0) {
+    doc["filepath"] = filepath;
+  }
 
   String output;
   serializeJson(doc, output);

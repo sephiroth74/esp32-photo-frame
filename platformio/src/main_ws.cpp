@@ -49,11 +49,11 @@ static bool g_disconnectOnLastClient = false;
 static WSServer *g_wsServer = nullptr;
 static photo_frame::littlefs_manager::LittleFsManager *g_littleFs = nullptr;
 static photo_frame::DisplayManager *g_display = nullptr;
-static unsigned long g_lastCheckMs = 0;
+static photo_frame::BatteryInfo g_battery_info;
 static const uint32_t g_timeout_ms = WS_LISTEN_TIMEOUT_MS;
 static uint8_t g_display_rotation = DEFAULT_ORIENTATION;
-static photo_frame::BatteryInfo g_battery_info;
 static bool g_clientConnected = false;
+static unsigned long g_lastCheckMs = 0;
 static unsigned long g_serverStartMs = 0;
 static unsigned long g_lastActivityMs = 0;
 
@@ -522,7 +522,7 @@ void main_webserver_loop() {
     bool shouldPause = true; // Always pause timer if deep sleep is disabled to
                              // prevent timeout-based shutdown
 #else
-    bool shouldPause = g_clientConnected || g_wsServer->isUploadActive() || g_isLoadingImage;
+    bool shouldPause = g_wsServer->isUploadActive() || g_isLoadingImage;
 #endif // DISABLE_DEEP_SLEEP
 
     // Handle pause state transitions

@@ -3,6 +3,37 @@ library;
 
 import 'package:photoframe_common/models/library_models.dart';
 
+/// WebSocket message types
+enum WsMessageType {
+  // Client to server
+  handshake('handshake'),
+  init('init'),
+  end('end'),
+
+  // Server to client
+  boardInfo('board_info'),
+  ready('ready'),
+  chunkAck('chunk_ack'),
+  ack('ack'),
+  finalResponse('final_response'),
+  error('error');
+
+  final String value;
+  const WsMessageType(this.value);
+
+  /// Parse message type from string
+  static WsMessageType? fromString(String? value) {
+    if (value == null) return null;
+    for (final type in WsMessageType.values) {
+      if (type.value == value) return type;
+    }
+    return null;
+  }
+
+  @override
+  String toString() => value;
+}
+
 class BoardConfig {
   final String type;
   final String board;
@@ -61,8 +92,7 @@ class BoardConfig {
   }
 
   @override
-  String toString() =>
-      'BoardConfig(board=$board, display=${displayWidth}x$displayHeight, version=$serverVersion)';
+  String toString() => 'BoardConfig(board=$board, display=${displayWidth}x$displayHeight, version=$serverVersion)';
 }
 
 class WsErrorInfo {
@@ -91,10 +121,7 @@ class WsChunkAck {
   const WsChunkAck({this.type = 'chunk_ack', this.received = 0});
 
   factory WsChunkAck.fromJson(Map<String, dynamic> json) {
-    return WsChunkAck(
-      type: json['type'] as String? ?? 'chunk_ack',
-      received: (json['received'] as num?)?.toInt() ?? 0,
-    );
+    return WsChunkAck(type: json['type'] as String? ?? 'chunk_ack', received: (json['received'] as num?)?.toInt() ?? 0);
   }
 
   @override
@@ -108,31 +135,32 @@ class WsReadyInfo {
   const WsReadyInfo({this.type = 'ready', this.sessionId = 0});
 
   factory WsReadyInfo.fromJson(Map<String, dynamic> json) {
-    return WsReadyInfo(
-      type: json['type'] as String? ?? 'ready',
-      sessionId: (json['session_id'] as num?)?.toInt() ?? 0,
-    );
+    return WsReadyInfo(type: json['type'] as String? ?? 'ready', sessionId: (json['session_id'] as num?)?.toInt() ?? 0);
   }
 
   @override
   String toString() => 'WsReadyInfo(sessionId=$sessionId)';
 }
 
-class WsSuccessInfo {
+class WsFinalResponse {
   final String type;
+  final bool success;
   final String message;
+  final String? filepath;
 
-  const WsSuccessInfo({this.type = 'success', this.message = ''});
+  const WsFinalResponse({this.type = 'final_response', required this.success, this.message = '', this.filepath});
 
-  factory WsSuccessInfo.fromJson(Map<String, dynamic> json) {
-    return WsSuccessInfo(
-      type: json['type'] as String? ?? 'success',
+  factory WsFinalResponse.fromJson(Map<String, dynamic> json) {
+    return WsFinalResponse(
+      type: json['type'] as String? ?? 'final_response',
+      success: json['success'] as bool? ?? false,
       message: json['message'] as String? ?? '',
+      filepath: json['filepath'] as String?,
     );
   }
 
   @override
-  String toString() => 'WsSuccessInfo(message=$message)';
+  String toString() => 'WsFinalResponse(success=$success, message=$message, filepath=$filepath)';
 }
 
 class WsMessageInfo {
@@ -142,10 +170,7 @@ class WsMessageInfo {
   const WsMessageInfo({this.type = '', this.message = ''});
 
   factory WsMessageInfo.fromJson(Map<String, dynamic> json) {
-    return WsMessageInfo(
-      type: json['type'] as String? ?? '',
-      message: json['message'] as String? ?? '',
-    );
+    return WsMessageInfo(type: json['type'] as String? ?? '', message: json['message'] as String? ?? '');
   }
 
   @override

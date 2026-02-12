@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../state/image_processing_state.dart';
 import '../utils/app_logger.dart';
+import '../l10n/app_localizations.dart';
 
 class ProcessingWizardScreen extends StatefulWidget {
   final File imageFile;
@@ -34,10 +35,10 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
     super.dispose();
   }
 
-  String _getTitleForStep(int step) {
-    const titles = ['Crop & Rotate', 'Dithering', 'Review'];
+  String _getTitleForStep(int step, AppLocalizations l10n) {
+    final titles = [l10n.cropRotateTitle, l10n.ditheringTitle, l10n.reviewTitle];
     if (step >= 0 && step < titles.length) {
-      return '${titles[step]} (${step + 1} of 3)';
+      return l10n.wizardStepTitle(titles[step], step + 1, 3);
     }
     return '';
   }
@@ -47,16 +48,17 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
 
     // Show loading indicator
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Generating .pfr1 file...')],
+              children: [const CircularProgressIndicator(), const SizedBox(height: 16), Text(l10n.generatingPfrMessage)],
             ),
           ),
         ),
@@ -72,7 +74,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       Navigator.of(context).pop(); // Close loading dialog
 
       if (binaryData == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .pfr1 file')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.unableToGeneratePfrMessage)));
         return;
       }
 
@@ -80,12 +82,12 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       final savedFile = await state.savePfr1ToGallery();
       if (savedFile != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File saved to gallery: ${savedFile.path}')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.fileSavedToGalleryMessage(savedFile.path))));
           logger.info('Wizard: File saved successfully to gallery');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error saving file')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorSavingFileMessage)));
         }
         return;
       }
@@ -98,22 +100,23 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
       logger.severe('Wizard: Error finishing wizard', e, stackTrace);
       if (mounted) {
         Navigator.of(context).pop(); // Close dialog if open
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorMessageWithDetails(e.toString()))));
       }
     }
   }
 
   Future<void> _onShareBin(ImageProcessingState state) async {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Preparing .pfr1 file...')],
+              children: [const CircularProgressIndicator(), const SizedBox(height: 16), Text(l10n.preparingPfrMessage)],
             ),
           ),
         ),
@@ -126,17 +129,17 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
     Navigator.of(context).pop();
 
     if (binaryData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to generate .pfr1 file')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.unableToGeneratePfrMessage)));
       return;
     }
 
     try {
       final tempFile = File('${Directory.systemTemp.path}/photoframe_${DateTime.now().millisecondsSinceEpoch}.pfr1');
       await tempFile.writeAsBytes(binaryData, flush: true);
-      await Share.shareXFiles([XFile(tempFile.path)], text: 'PhotoFrame .pfr1 ready for desktop test');
+      await Share.shareXFiles([XFile(tempFile.path)], text: l10n.photoframePfrReadyShareText);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sharing failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.shareFailedMessage(e.toString()))));
       }
     }
   }
@@ -145,17 +148,16 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
   Widget build(BuildContext context) {
     return Consumer<ImageProcessingState>(
       builder: (context, state, _) {
-        final job = state.currentJob;
-        final processed = state.intermediateFile ?? widget.imageFile;
+        final l10n = AppLocalizations.of(context)!;
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(_getTitleForStep(_currentStep)),
+            title: Text(_getTitleForStep(_currentStep, l10n)),
             elevation: 0,
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
             actions: _currentStep == 2
-                ? [IconButton(icon: const Icon(Icons.share), tooltip: 'Share .pfr1', onPressed: () => _onShareBin(state))]
+                ? [IconButton(icon: const Icon(Icons.share), tooltip: l10n.sharePfrTooltip, onPressed: () => _onShareBin(state))]
                 : [],
           ),
           body: Column(
@@ -197,7 +199,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                         }
                       : null,
                   icon: const Icon(Icons.arrow_back),
-                  label: const Text('Back'),
+                  label: Text(l10n.backAction),
                 ),
                 FilledButton.icon(
                   onPressed: () async {
@@ -219,7 +221,7 @@ class _ProcessingWizardScreenState extends State<ProcessingWizardScreen> {
                     }
                   },
                   icon: Icon(_currentStep < 2 ? Icons.arrow_forward : Icons.check),
-                  label: Text(_currentStep < 2 ? 'Next' : 'Finish'),
+                  label: Text(_currentStep < 2 ? l10n.nextAction : l10n.finishAction),
                 ),
               ],
             ),

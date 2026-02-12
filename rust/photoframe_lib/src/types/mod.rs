@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use clap::ValueEnum;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[repr(C)]

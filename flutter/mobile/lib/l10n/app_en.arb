@@ -1,0 +1,213 @@
+{
+  "helloWorld": "Hello World!",
+  "@helloWorld": {
+    "description": "The conventional newborn programmer greeting"
+  },
+  "connectionLostMessage": "Connection to device lost",
+  "deviceNotConnectedMessage": "Device not connected",
+  "uploadSuccessTitle": "Upload Successful",
+  "uploadSuccessMessage": "The file has been uploaded to the device successfully.",
+  "okAction": "OK",
+  "newImageAction": "New Image",
+  "uploadFailedTitle": "Upload Failed",
+  "uploadFailedMessage": "Failed to upload file: {error}",
+  "@uploadFailedMessage": {
+    "description": "Upload failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "shareFailedMessage": "Failed to share file: {error}",
+  "@shareFailedMessage": {
+    "description": "Share failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "previewTitle": "Preview",
+  "shareTooltip": "Share",
+  "unableToRenderPreview": "Unable to render .pfr1 preview",
+  "dimensionsLabel": "Dimensions: {width}x{height}",
+  "@dimensionsLabel": {
+    "description": "Image dimensions label",
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "orientationLabel": "Orientation: {degrees}°",
+  "@orientationLabel": {
+    "description": "Image orientation label",
+    "placeholders": {
+      "degrees": {}
+    }
+  },
+  "retryAction": "Retry",
+  "uploadingProgress": "Uploading: {percent}%",
+  "@uploadingProgress": {
+    "description": "Upload progress label",
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "rotateAction": "Rotate",
+  "uploadAction": "Upload",
+  "photoFrameBinaryShareText": "Photo Frame Binary",
+  "imageSelectTitle": "Image Select",
+  "deviceInfoTitle": "Device Information",
+  "deviceLabel": "Device",
+  "displayLabel": "Display",
+  "typeLabel": "Type",
+  "rotationLabel": "Rotation",
+  "batteryLabel": "Battery",
+  "pickImageFromGallery": "Pick Image from Gallery",
+  "continueAction": "Continue",
+  "selectImageFirstMessage": "Please select an image first",
+  "pickImageFailedMessage": "Failed to pick image: {error}",
+  "@pickImageFailedMessage": {
+    "description": "Image pick failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "rotationUnknown": "Unknown",
+  "homeAppBarTitle": "ESP32 Photo Frame",
+  "homeTitle": "Photo Frame App",
+  "chooseConnectionMethod": "Choose connection method",
+  "scanQrTitle": "Scan QR Code",
+  "scanQrSubtitle": "Scan the QR code from your ESP32 display",
+  "enterManuallyTitle": "Enter Manually",
+  "enterManuallySubtitle": "Enter IP address and port manually",
+  "testCropTitle": "Test Crop Screen",
+  "testCropSubtitle": "[DEV] Skip to crop screen with mock board",
+  "errorMessageWithDetails": "Error: {error}",
+  "@errorMessageWithDetails": {
+    "description": "Error message with details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "permissionRequiredLabel": "Permission required",
+  "locationPermissionRequiredMessage": "Location permission is required to verify WiFi network",
+  "wifiInfoErrorLabel": "Error getting WiFi info",
+  "wifiConnectCorrectNetworkMessage": "Please connect to the correct WiFi network first",
+  "connectedReadyMessage": "Connected successfully! Ready to upload",
+  "connectionFailedMessage": "Connection failed: {error}",
+  "@connectionFailedMessage": {
+    "description": "Connection failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "ePaperConnectionTitle": "E-Paper Connection",
+  "wifiConnectionTitle": "WiFi Connection",
+  "checkingWifiMessage": "Checking WiFi...",
+  "currentNetworkLabel": "Current Network: {ssid}",
+  "@currentNetworkLabel": {
+    "description": "Current WiFi network label",
+    "placeholders": {
+      "ssid": {}
+    }
+  },
+  "requiredNetworkLabel": "Required Network: {ssid}",
+  "@requiredNetworkLabel": {
+    "description": "Required WiFi network label",
+    "placeholders": {
+      "ssid": {}
+    }
+  },
+  "networkPrefixRequirement": "Network must start with: {prefix}",
+  "@networkPrefixRequirement": {
+    "description": "Network prefix requirement",
+    "placeholders": {
+      "prefix": {}
+    }
+  },
+  "wifiSettingsInstruction": "Open the WiFi settings and connect to the network displayed on your ESP32 screen",
+  "wifiSettingsAction": "WiFi Settings",
+  "refreshAction": "Refresh",
+  "connectionSettingsTitle": "Connection Settings",
+  "ipAddressLabel": "IP Address",
+  "ipAddressRequiredMessage": "Please enter an IP address",
+  "ipAddressFormatInvalidMessage": "Invalid IP address format",
+  "ipAddressInvalidMessage": "Invalid IP address",
+  "portLabel": "Port",
+  "portRequiredMessage": "Please enter a port number",
+  "portInvalidMessage": "Invalid port number (1-65535)",
+  "saveConnectAction": "Save & Connect",
+  "notConnectedLabel": "Not connected",
+  "cropDataNotReadyMessage": "Crop data not ready yet",
+  "saveCroppedImageFailedMessage": "Failed to save cropped image: {error}",
+  "@saveCroppedImageFailedMessage": {
+    "description": "Cropped image save failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "cropRotateTitle": "Crop & Rotate",
+  "resetAction": "Reset",
+  "ditheringFailedMessage": "Failed to process image: {error}",
+  "@ditheringFailedMessage": {
+    "description": "Dithering failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "ditheringTitle": "Dithering & Effects",
+  "effectsLabel": "Effects",
+  "brightnessLabel": "Brightness",
+  "contrastLabel": "Contrast",
+  "saturationLabel": "Saturation",
+  "cancelAction": "Cancel",
+  "ditheringMethodFloydSteinberg": "Floyd-Steinberg",
+  "ditheringMethodAtkinson": "Atkinson",
+  "ditheringMethodStucki": "Stucki",
+  "ditheringMethodJarvisJudice": "Jarvis-Judice",
+  "ditheringMethodOrdered": "Ordered",
+  "colorModeSixColorsLabel": "6C",
+  "colorModeBlackWhiteLabel": "BW",
+  "adjustmentValueLabel": "{label}: {value}",
+  "@adjustmentValueLabel": {
+    "description": "Adjustment label with current value",
+    "placeholders": {
+      "label": {},
+      "value": {}
+    }
+  },
+  "reviewTitle": "Review",
+  "wizardStepTitle": "{title} ({step} of {total})",
+  "@wizardStepTitle": {
+    "description": "Wizard step title with progress",
+    "placeholders": {
+      "title": {},
+      "step": {},
+      "total": {}
+    }
+  },
+  "generatingPfrMessage": "Generating .pfr1 file...",
+  "preparingPfrMessage": "Preparing .pfr1 file...",
+  "unableToGeneratePfrMessage": "Unable to generate .pfr1 file",
+  "fileSavedToGalleryMessage": "File saved to gallery: {path}",
+  "@fileSavedToGalleryMessage": {
+    "description": "File saved message with path",
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "errorSavingFileMessage": "Error saving file",
+  "photoframePfrReadyShareText": "PhotoFrame .pfr1 ready for desktop test",
+  "sharePfrTooltip": "Share .pfr1",
+  "backAction": "Back",
+  "nextAction": "Next",
+  "finishAction": "Finish",
+  "invalidQrFormatMessage": "Invalid QR code format",
+  "qrProcessFailedMessage": "Failed to process QR code: {error}",
+  "@qrProcessFailedMessage": {
+    "description": "QR processing failed message with error details",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "qrScannerInstructionTitle": "Point your camera at the QR code",
+  "qrScannerInstructionSubtitle": "The QR code will be scanned automatically"
+}

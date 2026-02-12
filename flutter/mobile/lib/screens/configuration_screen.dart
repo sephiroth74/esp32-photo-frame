@@ -7,6 +7,7 @@ import 'package:photoframe/services/wifi_service.dart';
 import 'package:photoframe/services/ws_connection_service.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/utils/theme_colors.dart';
+import 'package:photoframe/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_settings/app_settings.dart';
 
@@ -124,21 +125,19 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       if (!permissionGranted) {
         logger.warning('Location permission denied');
         if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
           setState(() {
-            _currentSSID = 'Permission required';
+            _currentSSID = l10n.permissionRequiredLabel;
             _isLoadingWiFi = false;
             _wifiValid = false;
           });
         }
 
         if (showPermissionSnackBar && mounted) {
+          final l10n = AppLocalizations.of(context)!;
           final colors = ThemeColors(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Location permission is required to verify WiFi network'),
-              backgroundColor: colors.warning,
-              duration: const Duration(seconds: 3),
-            ),
+            SnackBar(content: Text(l10n.locationPermissionRequiredMessage), backgroundColor: colors.warning, duration: const Duration(seconds: 3)),
           );
         }
         return;
@@ -171,8 +170,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
     } catch (e) {
       logger.severe('Failed to get WiFi info: $e');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         setState(() {
-          _currentSSID = 'Error getting WiFi info';
+          _currentSSID = l10n.wifiInfoErrorLabel;
           _isLoadingWiFi = false;
           _wifiValid = false;
         });
@@ -210,10 +210,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
     }
 
     final colors = ThemeColors(context);
+    final l10n = AppLocalizations.of(context)!;
     if (!_wifiValid) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: const Text('Please connect to the correct WiFi network first'), backgroundColor: colors.warning));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.wifiConnectCorrectNetworkMessage), backgroundColor: colors.warning));
       return;
     }
 
@@ -247,13 +246,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       logger.info('Configuration saved - IP: $ip, Port: $portStr, SSID: $_currentSSID');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Connected successfully! Ready to upload'),
-            backgroundColor: colors.success,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.connectedReadyMessage), backgroundColor: colors.success, duration: const Duration(seconds: 2)));
 
         // Navigate to image upload screen with board config
         await Future.delayed(const Duration(milliseconds: 500));
@@ -264,9 +259,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
     } catch (e) {
       logger.severe('Failed to save configuration or connect: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Connection failed: $e'), backgroundColor: colors.error, duration: const Duration(seconds: 3)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.connectionFailedMessage(e.toString())), backgroundColor: colors.error, duration: const Duration(seconds: 3)),
+        );
       }
       if (!WsConnectionService().isConnected) {
         _startWiFiPolling();
@@ -283,8 +278,9 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors(context);
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('E-Paper Connection'), centerTitle: true),
+      appBar: AppBar(title: Text(l10n.ePaperConnectionTitle), centerTitle: true),
       body: AbsorbPointer(
         absorbing: _isConnecting,
         child: Opacity(
@@ -308,7 +304,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                             children: [
                               Icon(_wifiValid ? Icons.wifi : Icons.wifi_off, color: _wifiValid ? colors.success : colors.warning),
                               const SizedBox(width: 8),
-                              const Text('WiFi Connection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              Text(l10n.wifiConnectionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -317,36 +313,37 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                               children: [
                                 SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                                 SizedBox(width: 12),
-                                Text('Checking WiFi...'),
+                                Text(l10n.checkingWifiMessage),
                               ],
                             )
                           else ...[
-                            Text('Current Network: ${_currentSSID ?? "Not connected"}', style: const TextStyle(fontSize: 14)),
+                            Text(l10n.currentNetworkLabel(_currentSSID ?? l10n.notConnectedLabel), style: const TextStyle(fontSize: 14)),
                             if (_expectedSSID != null) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Required Network: $_expectedSSID',
+                                l10n.requiredNetworkLabel(_expectedSSID!),
                                 style: TextStyle(fontSize: 14, color: _wifiValid ? Colors.green : Colors.orange, fontWeight: FontWeight.bold),
                               ),
                             ] else ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Network must start with: PhotoFrame-',
+                                l10n.networkPrefixRequirement('PhotoFrame-'),
                                 style: TextStyle(fontSize: 14, color: _wifiValid ? Colors.green : Colors.orange, fontWeight: FontWeight.bold),
                               ),
                             ],
                             const SizedBox(height: 4),
-                            Text(
-                              'Open the WiFi settings and connect to the network displayed on your ESP32 screen',
-                              style: const TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
+                            Text(l10n.wifiSettingsInstruction, style: const TextStyle(fontSize: 14, color: Colors.grey)),
                           ],
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              ElevatedButton.icon(onPressed: _openWiFiSettings, icon: const Icon(Icons.settings), label: const Text('WiFi Settings')),
+                              ElevatedButton.icon(
+                                onPressed: _openWiFiSettings,
+                                icon: const Icon(Icons.settings),
+                                label: Text(l10n.wifiSettingsAction),
+                              ),
                               const SizedBox(width: 12),
-                              ElevatedButton.icon(onPressed: _checkWiFiConnection, icon: const Icon(Icons.refresh), label: const Text('Refresh')),
+                              ElevatedButton.icon(onPressed: _checkWiFiConnection, icon: const Icon(Icons.refresh), label: Text(l10n.refreshAction)),
                             ],
                           ),
                         ],
@@ -366,14 +363,14 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                             children: [
                               Icon(Icons.settings_ethernet, color: colors.primary),
                               const SizedBox(width: 8),
-                              Text('Connection Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              Text(l10n.connectionSettingsTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _ipController,
-                            decoration: const InputDecoration(
-                              labelText: 'IP Address',
+                            decoration: InputDecoration(
+                              labelText: l10n.ipAddressLabel,
                               hintText: '192.168.4.1',
                               prefixIcon: Icon(Icons.computer),
                               border: OutlineInputBorder(),
@@ -381,17 +378,17 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter an IP address';
+                                return l10n.ipAddressRequiredMessage;
                               }
                               // Basic IP validation
                               final parts = value.split('.');
                               if (parts.length != 4) {
-                                return 'Invalid IP address format';
+                                return l10n.ipAddressFormatInvalidMessage;
                               }
                               for (final part in parts) {
                                 final num = int.tryParse(part);
                                 if (num == null || num < 0 || num > 255) {
-                                  return 'Invalid IP address';
+                                  return l10n.ipAddressInvalidMessage;
                                 }
                               }
                               return null;
@@ -400,8 +397,8 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _portController,
-                            decoration: const InputDecoration(
-                              labelText: 'Port',
+                            decoration: InputDecoration(
+                              labelText: l10n.portLabel,
                               hintText: '81',
                               prefixIcon: Icon(Icons.power),
                               border: OutlineInputBorder(),
@@ -409,11 +406,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter a port number';
+                                return l10n.portRequiredMessage;
                               }
                               final port = int.tryParse(value);
                               if (port == null || port < 1 || port > 65535) {
-                                return 'Invalid port number (1-65535)';
+                                return l10n.portInvalidMessage;
                               }
                               return null;
                             },
@@ -441,7 +438,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                           ),
                           const SizedBox(width: 12),
                         ],
-                        Text('Save & Connect', style: TextStyle(fontSize: 16, color: _wifiValid ? Colors.white : Colors.black)),
+                        Text(l10n.saveConnectAction, style: TextStyle(fontSize: 16, color: _wifiValid ? Colors.white : Colors.black)),
                       ],
                     ),
                   ),

@@ -2,33 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:photoframe_common/photoframe_common.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../utils/app_logger.dart';
 
 // Export the enum so it can be used with prefix
 export 'websocket_service.dart' show WsConnectionState;
-
-class DeviceInfo {
-  final int version;
-  final int displayType;
-  final int width;
-  final int height;
-  final int rotation;
-
-  const DeviceInfo({required this.version, required this.displayType, required this.width, required this.height, required this.rotation});
-
-  String get displayName => displayType == 1 ? '6-color' : 'B/W';
-
-  factory DeviceInfo.fromJson(Map<String, dynamic> json) {
-    return DeviceInfo(
-      version: json['version'] as int,
-      displayType: json['displayType'] as int,
-      width: json['width'] as int,
-      height: json['height'] as int,
-      rotation: json['rotation'] as int,
-    );
-  }
-}
 
 enum WsConnectionState { disconnected, connecting, connected, error }
 
@@ -38,14 +17,14 @@ class WebSocketService {
   final _stateController = StreamController<WsConnectionState>.broadcast();
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   StreamSubscription? _channelSubscription;
-  DeviceInfo? _deviceInfo;
+  BoardConfig? _deviceInfo;
   String? _lastError;
   bool _connectionInProgress = false; // Guard against multiple simultaneous connection attempts
 
   WsConnectionState get state => _state;
   Stream<WsConnectionState> get stateStream => _stateController.stream;
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
-  DeviceInfo? get deviceInfo => _deviceInfo;
+  BoardConfig? get deviceInfo => _deviceInfo;
   String? get lastError => _lastError;
 
   Future<void> connect(String host, {int port = 8080, Duration timeout = const Duration(seconds: 10)}) async {
@@ -127,7 +106,7 @@ class WebSocketService {
   }
 
   Future<void> _sendHandshake() async {
-    final handshake = {'type': 'handshake', 'clientVersion': '1.0.0', 'platform': 'flutter'};
+    final handshake = {'type': WsMessageType.handshake.value, 'clientVersion': '1.0.0', 'platform': 'flutter'};
     _sendJson(handshake);
     logger.info('Sent handshake');
   }
@@ -137,10 +116,11 @@ class WebSocketService {
     late StreamSubscription subscription;
 
     subscription = _messageController.stream.listen((message) {
-      if (message['type'] == 'device_info') {
+      final messageType = WsMessageType.fromString(message['type'] as String?);
+      if (messageType == WsMessageType.boardInfo) {
         try {
-          _deviceInfo = DeviceInfo.fromJson(message);
-          logger.info('Received device info: ${_deviceInfo!.width}x${_deviceInfo!.height}, type=${_deviceInfo!.displayName}');
+          _deviceInfo = BoardConfig.fromJson(message);
+          logger.info('Received device info: ${_deviceInfo!.displayWidth}x${_deviceInfo!.displayHeight}, type=${_deviceInfo!.displayType}');
           if (!completer.isCompleted) {
             completer.complete();
           }
@@ -216,7 +196,7 @@ class WebSocketService {
     final token = timestamp.toRadixString(16);
 
     // Send upload init message
-    final initMessage = {'type': 'init', 'filename': filename, 'token': token, 'timestamp': timestamp, 'orientation': orientation};
+    final initMessage = {'type': WsMessageType.init.value, 'filename': filename, 'token': token, 'timestamp': timestamp, 'orientation': orientation};
     _sendJson(initMessage);
     logger.info('Sent upload init');
 
@@ -225,13 +205,14 @@ class WebSocketService {
     late StreamSubscription subscription;
 
     subscription = _messageController.stream.listen((message) {
-      if (message['type'] == 'ready') {
+      final messageType = WsMessageType.fromString(message['type'] as String?);
+      if (messageType == WsMessageType.ready) {
         logger.info('Server ready to receive image data');
         if (!readyCompleter.isCompleted) {
           readyCompleter.complete();
         }
         subscription.cancel();
-      } else if (message['type'] == 'error') {
+      } else if (messageType == WsMessageType.error) {
         logger.severe('Server error during init: ${message['message']}');
         if (!readyCompleter.isCompleted) {
           readyCompleter.completeError(message['message'] ?? 'Server error');
@@ -262,7 +243,8 @@ class WebSocketService {
       late StreamSubscription ackSubscription;
 
       ackSubscription = _messageController.stream.listen((message) {
-        if (message['type'] == 'chunk_ack') {
+        final messageType = WsMessageType.fromString(message['type'] as String?);
+        if (messageType == WsMessageType.chunkAck) {
           final received = message['received'] as int?;
           if (received != null) {
             onProgress(received / imageData.length);
@@ -272,7 +254,7 @@ class WebSocketService {
             ackCompleter.complete();
           }
           ackSubscription.cancel();
-        } else if (message['type'] == 'error') {
+        } else if (messageType == WsMessageType.error) {
           logger.severe('Server error during chunk transfer: ${message['message']}');
           if (!ackCompleter.isCompleted) {
             ackCompleter.completeError(message['message'] ?? 'Server error');
@@ -295,7 +277,7 @@ class WebSocketService {
     logger.info('Sent all image data: $sentBytes bytes');
 
     // Send completion message
-    final endMessage = {'type': 'end'};
+    final endMessage = {'type': WsMessageType.end.value};
     _sendJson(endMessage);
     logger.info('Sent upload completion message');
 
@@ -304,13 +286,23 @@ class WebSocketService {
     late StreamSubscription finalSubscription;
 
     finalSubscription = _messageController.stream.listen((message) {
-      if (message['type'] == 'success') {
-        logger.info('Image upload successful');
-        if (!finalCompleter.isCompleted) {
-          finalCompleter.complete();
+      final messageType = WsMessageType.fromString(message['type'] as String?);
+      if (messageType == WsMessageType.finalResponse) {
+        final success = message['success'] as bool? ?? false;
+        if (success) {
+          logger.info('Image upload successful');
+          if (!finalCompleter.isCompleted) {
+            finalCompleter.complete();
+          }
+        } else {
+          final errorMsg = message['message'] ?? 'Upload failed';
+          logger.severe('Upload failed: $errorMsg');
+          if (!finalCompleter.isCompleted) {
+            finalCompleter.completeError(errorMsg);
+          }
         }
         finalSubscription.cancel();
-      } else if (message['type'] == 'error') {
+      } else if (messageType == WsMessageType.error) {
         logger.severe('Upload failed: ${message['message']}');
         if (!finalCompleter.isCompleted) {
           finalCompleter.completeError(message['message'] ?? 'Upload failed');

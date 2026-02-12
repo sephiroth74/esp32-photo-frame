@@ -38,7 +38,7 @@ class WsUploadState with ChangeNotifier {
   Completer<BoardConfig>? _configCompleter;
   Completer<WsReadyInfo>? _uploadReadyCompleter;
   Completer<WsChunkAck>? _uploadChunkAckCompleter;
-  Completer<WsSuccessInfo>? _uploadCompleteCompleter;
+  Completer<WsFinalResponse>? _uploadCompleteCompleter;
   Completer<WsMessageInfo>? _shutdownCompleter;
 
   bool get canConnect => ipAddress.isNotEmpty && port.isNotEmpty && !connecting && !connected;
@@ -178,7 +178,7 @@ class WsUploadState with ChangeNotifier {
       final decoded = jsonDecode(message);
       if (decoded is Map<String, dynamic>) {
         // Handle error messages
-        if (decoded['type'] == 'error') {
+        if (decoded['type'] == WsMessageType.error.value) {
           final err = WsErrorInfo.fromJson(decoded);
           error = err.message.isNotEmpty ? err.message : 'Unknown error';
           status = 'Server error';
@@ -204,7 +204,7 @@ class WsUploadState with ChangeNotifier {
         }
 
         // Handle upload ready response
-        if (decoded['type'] == 'ready') {
+        if (decoded['type'] == WsMessageType.ready.value) {
           final ready = WsReadyInfo.fromJson(decoded);
           if (_uploadReadyCompleter != null && !_uploadReadyCompleter!.isCompleted) {
             _uploadReadyCompleter!.complete(ready);
@@ -213,7 +213,7 @@ class WsUploadState with ChangeNotifier {
         }
 
         // Handle upload chunk ACK
-        if (decoded['type'] == 'chunk_ack') {
+        if (decoded['type'] == WsMessageType.chunkAck.value) {
           final ack = WsChunkAck.fromJson(decoded);
           if (_uploadChunkAckCompleter != null && !_uploadChunkAckCompleter!.isCompleted) {
             _uploadChunkAckCompleter!.complete(ack);
@@ -222,15 +222,15 @@ class WsUploadState with ChangeNotifier {
         }
 
         // Handle upload success
-        if (decoded['type'] == 'success') {
-          final success = WsSuccessInfo.fromJson(decoded);
+        if (decoded['type'] == WsMessageType.finalResponse.value) {
+          final success = WsFinalResponse.fromJson(decoded);
           if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
             _uploadCompleteCompleter!.complete(success);
           }
           return;
         }
 
-        if (decoded['type'] == 'ack') {
+        if (decoded['type'] == WsMessageType.ack.value) {
           final ack = WsMessageInfo.fromJson(decoded);
           if (_shutdownCompleter != null && !_shutdownCompleter!.isCompleted) {
             _shutdownCompleter!.complete(ack);
@@ -239,7 +239,7 @@ class WsUploadState with ChangeNotifier {
         }
 
         // Handle board configuration
-        if (BoardConfig.looksLikeConfig(decoded)) {
+        if (decoded['type'] == WsMessageType.boardInfo.value && BoardConfig.looksLikeConfig(decoded)) {
           final config = BoardConfig.fromJson(decoded);
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.complete(config);
@@ -406,7 +406,7 @@ class WsUploadState with ChangeNotifier {
       debugPrint('✓ Sent upload end message');
 
       // Wait for final response
-      _uploadCompleteCompleter = Completer<WsSuccessInfo>();
+      _uploadCompleteCompleter = Completer<WsFinalResponse>();
       final success = await _uploadCompleteCompleter!.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () => throw TimeoutException('Server did not send final response'),

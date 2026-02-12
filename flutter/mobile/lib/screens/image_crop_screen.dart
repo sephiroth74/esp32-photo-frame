@@ -7,9 +7,11 @@ import 'package:flutter/material.dart' hide Orientation;
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:photoframe/screens/dithering_screen.dart';
+import 'package:photoframe/services/ws_connection_service.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe_common/photoframe_common.dart';
+import 'package:photoframe/l10n/app_localizations.dart';
 
 class ImageCropScreen extends StatefulWidget {
   final File imageFile;
@@ -43,6 +45,17 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     _resolveImageSize();
     _isRotated = widget.boardConfig.displayRotation.value % 2 == 1;
     _currentAspect = _targetAspect;
+
+    // Listen to connection state changes and show snackbar on disconnection
+    WsConnectionService().connectionStateStream.listen((isConnected) {
+      if (mounted && !isConnected) {
+        final l10n = AppLocalizations.of(context)!;
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.connectionLostMessage), backgroundColor: colors.error, duration: const Duration(seconds: 4)));
+      }
+    });
   }
 
   @override
@@ -171,8 +184,9 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
     if (cropSize == null || cropCenter == null || imageSize == null || minScale == null) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Crop data not ready yet'), backgroundColor: colors.warning));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.cropDataNotReadyMessage), backgroundColor: colors.warning));
       }
       return;
     }
@@ -206,8 +220,11 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     } catch (e) {
       logger.severe('Failed to save cropped image: $e');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         final colors = ThemeColors(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save cropped image: $e'), backgroundColor: colors.error));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.saveCroppedImageFailedMessage(e.toString())), backgroundColor: colors.error));
       }
     } finally {
       if (mounted) {
@@ -284,9 +301,10 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors(context);
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Crop & Rotate'),
+        title: Text(l10n.cropRotateTitle),
         elevation: 0,
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
@@ -401,12 +419,12 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                     children: [
                       Expanded(
                         flex: 1,
-                        child: OutlinedButton.icon(onPressed: _rotateFrame, icon: const Icon(Icons.rotate_right), label: const Text('Rotate')),
+                        child: OutlinedButton.icon(onPressed: _rotateFrame, icon: const Icon(Icons.rotate_right), label: Text(l10n.rotateAction)),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         flex: 1,
-                        child: OutlinedButton(onPressed: _resetTransform, child: const Text('Reset')),
+                        child: OutlinedButton(onPressed: _resetTransform, child: Text(l10n.resetAction)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -414,7 +432,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         child: FilledButton(
                           onPressed: _continue,
                           child: Text(
-                            'Continue',
+                            l10n.continueAction,
                             style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),
                           ),
                         ),

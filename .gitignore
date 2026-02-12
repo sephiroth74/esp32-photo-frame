@@ -82,3 +82,4 @@ rust/processor/target/
 rust/processor/temp/
 flutter/desktop/temp/
 .swift-version
+flutter/mobile/ios/Build/

@@ -9,6 +9,9 @@ import 'package:dynamic_color/dynamic_color.dart';
 // New implementation
 import 'screens/new_home_screen.dart';
 import 'services/deep_link_handler.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final DeepLinkHandler deepLinkHandler = DeepLinkHandler();
@@ -47,6 +50,16 @@ class PhotoframeApp extends StatelessWidget {
         return MaterialApp(
           navigatorKey: navigatorKey,
           title: 'PhotoFrame Mobile',
+          localizationsDelegates: const [
+            AppLocalizations.delegate, // Add this line
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: [
+            Locale('en'), // English
+            Locale('it'), // Italian
+          ],
           debugShowCheckedModeBanner: false,
           theme: ThemeData(useMaterial3: true, colorScheme: lightColorScheme, brightness: Brightness.light),
           darkTheme: ThemeData(useMaterial3: true, colorScheme: darkColorScheme, brightness: Brightness.dark),

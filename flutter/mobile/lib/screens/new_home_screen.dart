@@ -6,6 +6,7 @@ import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/qr_scanner_screen.dart';
 import 'package:photoframe/screens/configuration_screen.dart';
 import 'package:photoframe/screens/image_select_screen.dart';
+import 'package:photoframe/l10n/app_localizations.dart';
 
 /// Home Screen - Choose connection method
 class NewHomeScreen extends StatefulWidget {
@@ -72,14 +73,16 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
 
       Navigator.of(context).push(MaterialPageRoute(builder: (context) => ImageSelectScreen(boardConfig: boardConfig)));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorMessageWithDetails(e.toString()))));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('ESP32 Photo Frame'), centerTitle: true),
+      appBar: AppBar(title: Text(l10n.homeAppBarTitle), centerTitle: true),
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
@@ -89,9 +92,9 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
               children: [
                 Image.asset('assets/images/app_icon.png', width: 80, height: 80),
                 const SizedBox(height: 24),
-                const Text('Photo Frame App', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(l10n.homeTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                const Text('Choose connection method', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                Text(l10n.chooseConnectionMethod, style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 const SizedBox(height: 48),
                 // Scan QR Code option
                 SizedBox(
@@ -111,12 +114,12 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                           Icon(Icons.qr_code_scanner, color: Colors.indigo, size: 48),
                           const SizedBox(height: 12),
                           Text(
-                            'Scan QR Code',
+                            l10n.scanQrTitle,
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo.shade900),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Scan the QR code from your ESP32 display',
+                            l10n.scanQrSubtitle,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 14, color: Colors.indigo.shade700),
                           ),
@@ -144,12 +147,12 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                           Icon(Icons.edit, color: Colors.blue, size: 48),
                           const SizedBox(height: 12),
                           Text(
-                            'Enter Manually',
+                            l10n.enterManuallyTitle,
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Enter IP address and port manually',
+                            l10n.enterManuallySubtitle,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 14, color: Colors.blue.shade700),
                           ),
@@ -177,12 +180,12 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                           Icon(Icons.bug_report, color: Colors.grey.shade600, size: 48),
                           const SizedBox(height: 12),
                           Text(
-                            'Test Crop Screen',
+                            l10n.testCropTitle,
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '[DEV] Skip to crop screen with mock board',
+                            l10n.testCropSubtitle,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                           ),

@@ -438,8 +438,13 @@ pub async fn upload_image(ws_url: &str, file_path: &str, orientation: u8) -> Res
                 let response: FinalResponse =
                     serde_json::from_str(&text).context("Failed to parse final response")?;
 
-                if let Some(error) = response.error {
-                    return Err(anyhow!("Upload failed: {}", error));
+                if !response.success {
+                    return Err(anyhow!(
+                        "Upload failed: {}",
+                        response
+                            .message
+                            .unwrap_or_else(|| "Unknown error".to_string())
+                    ));
                 }
 
                 println!(

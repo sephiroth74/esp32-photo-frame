@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:photoframe/models/qr_code_data.dart';
 import 'package:photoframe/screens/configuration_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
+import 'package:photoframe/l10n/app_localizations.dart';
 
 /// Fullscreen QR Code scanner
 class QRScannerScreen extends StatefulWidget {
@@ -45,7 +46,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       final uri = Uri.parse(code);
 
       if (uri.scheme != 'photoframe' || uri.host != 'connect') {
-        _showError('Invalid QR code format');
+        _showError(AppLocalizations.of(context)!.invalidQrFormatMessage);
         setState(() {
           _isProcessing = false;
         });
@@ -63,7 +64,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       }
     } catch (e) {
       logger.severe('Failed to process QR code: $e');
-      _showError('Failed to process QR code: $e');
+      _showError(AppLocalizations.of(context)!.qrProcessFailedMessage(e.toString()));
       setState(() {
         _isProcessing = false;
       });
@@ -76,9 +77,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: const Text('Scan QR Code'), backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(l10n.scanQrTitle), backgroundColor: Colors.black, foregroundColor: Colors.white),
       body: Stack(
         children: [
           MobileScanner(controller: cameraController, onDetect: _onDetect),
@@ -95,15 +97,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 children: [
                   const Icon(Icons.qr_code_scanner, color: Colors.white, size: 48),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Point your camera at the QR code',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    l10n.qrScannerInstructionTitle,
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'The QR code will be scanned automatically',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  Text(
+                    l10n.qrScannerInstructionSubtitle,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                   if (_isProcessing) ...[

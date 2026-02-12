@@ -129,10 +129,12 @@ struct WSReadyInfo {
   String toJson() const;
 };
 
-struct WSSuccessInfo {
-  constexpr static char type[] = "success";
+struct WSFinalResponse {
+  constexpr static char type[] = "final_response";
+  bool success;
   String message;
-  WSSuccessInfo(const String &msg = "") : message(msg) {}
+  String filepath;
+  WSFinalResponse(bool s = true, const String &msg = "", const String &path = "") : success(s), message(msg), filepath(path) {}
 
   String toJson() const;
 };
