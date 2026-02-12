@@ -488,7 +488,7 @@ void EPD_WhiteScreen_ALL_4G(const unsigned char* datas)
 
 void Display_4Level_Gray(void)
 {
-    unsigned int i, j;
+    unsigned int i;
 
     lcd_chkstatus();
     EPD_W21_WriteCMD(0x10);

@@ -144,24 +144,24 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(dialogContext).pop(); // Chiude il dialog
-                  WsConnectionService().disconnect(); // Disconnette il WebSocket
-                  Navigator.of(context).pop(); // Torna alla schermata precedente
+                  Navigator.of(dialogContext).pop();
+                  WsConnectionService().disconnect();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 child: Text(l10n.okAction),
               ),
               FilledButton.icon(
                 onPressed: () {
-                  Navigator.of(dialogContext).pop(); // Chiude il dialog
-                  WsConnectionService().disconnect(); // Disconnette il WebSocket
-                  // Torna all'image select screen rimuovendo tutte le schermate precedenti
+                  Navigator.of(dialogContext).pop();
+                  // go back to image select screen with the same board config to allow uploading another image
                   if (boardConfig != null) {
+                    WsConnectionService().disconnect();
                     Navigator.of(
                       context,
                     ).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => ImageSelectScreen(boardConfig: boardConfig)), (route) => false);
                   } else {
-                    // Se non c'è boardConfig, torna alla schermata precedente
-                    Navigator.of(context).pop();
+                    logger.warning('Board config is null, cannot navigate to image select screen');
+                    Navigator.of(context).popUntil((route) => route.isFirst);
                   }
                 },
                 icon: const Icon(Icons.add_photo_alternate),

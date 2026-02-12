@@ -62,7 +62,10 @@ class WsConnectionService {
       // Force Android to use WiFi network for WebSocket connection
       // This is required on Android 12+ when WiFi has no internet
       logger.info('Binding to WiFi network before WebSocket connection...');
-      await NetworkBindingService.bindToWifi();
+      final bound = await NetworkBindingService.bindToWifi().timeout(const Duration(seconds: 4), onTimeout: () => false);
+      if (!bound) {
+        throw Exception('Failed to bind to WiFi network');
+      }
 
       final uri = Uri.parse('ws://$host:$port');
       logger.info('Connecting to WebSocket: $uri with timeout ${timeout.inSeconds}s');
