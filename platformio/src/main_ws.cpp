@@ -522,7 +522,7 @@ void main_webserver_loop() {
     bool shouldPause = true; // Always pause timer if deep sleep is disabled to
                              // prevent timeout-based shutdown
 #else
-    bool shouldPause = g_wsServer->isUploadActive() || g_isLoadingImage;
+    bool shouldPause = g_wsServer->isUploadActive() || g_isLoadingImage || g_clientConnected;
 #endif // DISABLE_DEEP_SLEEP
 
     // Handle pause state transitions

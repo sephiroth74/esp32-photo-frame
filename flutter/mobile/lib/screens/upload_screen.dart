@@ -142,7 +142,8 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
             title: Text(l10n.uploadSuccessTitle),
             content: Text(l10n.uploadSuccessMessage),
             actions: [
-              TextButton(
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: colors.primary),
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   WsConnectionService().disconnect();
@@ -150,7 +151,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                 },
                 child: Text(l10n.okAction),
               ),
-              FilledButton.icon(
+              OutlinedButton(
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   // go back to image select screen with the same board config to allow uploading another image
@@ -164,8 +165,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   }
                 },
-                icon: const Icon(Icons.add_photo_alternate),
-                label: Text(l10n.newImageAction),
+                child: Text(l10n.newImageAction),
               ),
             ],
           ),
