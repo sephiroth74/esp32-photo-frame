@@ -460,6 +460,10 @@ void main_webserver_setup() {
   log_v("[WS] Waiting 1 second for WiFi AP to stabilize...");
   delay(1000);
 
+  BoardInfo::setIpAddress(apManager.getIP());
+  BoardInfo::setIpPort(WS_PORT);
+  BoardInfo::setSsid(apManager.getSSID());
+
   // Start WebSocket server for GET_CONFIG testing
   log_d("[WS] Creating WebSocket server on port %u...", WS_PORT);
   static auto wsServer = std::make_unique<WSServer>(WS_PORT, [](const WSEvent &event) {

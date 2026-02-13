@@ -11,6 +11,9 @@ static bool s_hasBatteryInfo = false;
 static BatteryInfo s_batteryInfo;
 static bool s_hasDisplayRotation = false;
 static uint16_t s_displayRotation = 0;
+static std::string s_ipAddress;
+static uint16_t s_ipPort = 0;
+static std::string s_ssid;
 
 uint32_t BoardInfo::getBinaryFileSize() {
   uint32_t size = PFR1_MAX_IMAGE_SIZE_FOR(DISP_WIDTH, DISP_HEIGHT);
@@ -93,6 +96,18 @@ void BoardInfo::setBatteryInfo(const BatteryInfo &info) {
 
 void BoardInfo::clearBatteryInfo() { s_hasBatteryInfo = false; }
 
+void BoardInfo::setIpAddress(const std::string &ip) { s_ipAddress = ip; }
+
+std::string BoardInfo::getIpAddress() { return s_ipAddress; }
+
+void BoardInfo::setIpPort(uint16_t port) { s_ipPort = port; }
+
+uint16_t BoardInfo::getIpPort() { return s_ipPort; }
+
+void BoardInfo::setSsid(const std::string &ssid) { s_ssid = ssid; }
+
+std::string BoardInfo::getSsid() { return s_ssid; }
+
 String BoardInfo::toJson() {
   // Create JSON document
   StaticJsonDocument<512> doc;
@@ -109,6 +124,9 @@ String BoardInfo::toJson() {
   doc["server_version"] = WS_SERVER_VERSION;
   doc["file_version"] = PFR1_FILE_VERSION;
   doc["binary_file_size"] = getBinaryFileSize();
+  doc["ip_address"] = getIpAddress();
+  doc["ip_port"] = getIpPort();
+  doc["ssid"] = getSsid();
 
   int8_t battery = getBatteryLevel();
   if (battery >= 0) {

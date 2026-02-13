@@ -94,6 +94,42 @@ public:
   static uint32_t getBinaryFileSize();
 
   /**
+   * @brief Set the device's IP address (for GET_CONFIG response)
+   * @param ip IP address string (e.g., "192.168.4.1")
+   */
+  static void setIpAddress(const std::string &ip);
+
+  /**
+   * @brief Get the device's IP address
+   * @return IP address string (e.g., "192.168.4.1")
+   */
+  static std::string getIpAddress();
+
+  /**
+   * @brief Set the device's IP port (for GET_CONFIG response)
+   * @param port IP port number (e.g., 81)
+   */
+  static void setIpPort(uint16_t port);
+
+  /**
+   * @brief Get the device's IP port
+   * @return IP port number (e.g., 81)
+   */
+  static uint16_t getIpPort();
+
+  /**
+   * @brief Set the device's SSID (for GET_CONFIG response)
+   * @param ssid SSID string (e.g., "MyWiFi")
+   */
+  static void setSsid(const std::string &ssid);
+
+  /**
+   * @brief Get the device's SSID
+   * @return SSID string (e.g., "MyWiFi")
+   */
+  static std::string getSsid();
+
+  /**
    * @brief Get total system info as JSON
    * @return JSON string with all board information
    */

@@ -350,4 +350,15 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get uploadTitle => 'Carica';
+
+  @override
+  String get reconnectionFailedTitle => 'Riconnessione fallita';
+
+  @override
+  String reconnectionFailedMessage(Object error) {
+    return 'Impossibile riconnettersi al dispositivo: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'Errore di connessione';
 }

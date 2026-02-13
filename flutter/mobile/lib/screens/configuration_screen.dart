@@ -207,10 +207,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
 
     final colors = ThemeColors(context);
     final l10n = AppLocalizations.of(context)!;
-    if (!_wifiValid) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.wifiConnectCorrectNetworkMessage), backgroundColor: colors.warning));
-      return;
-    }
+
+    // if (!_wifiValid) {
+    //   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.wifiConnectCorrectNetworkMessage), backgroundColor: colors.warning));
+    //   return;
+    // }
 
     setState(() {
       _isConnecting = true;
@@ -260,8 +261,16 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
     } catch (e) {
       logger.severe('Failed to save configuration or connect: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.connectionFailedMessage(e.toString())), backgroundColor: colors.error, duration: const Duration(seconds: 3)),
+        // show an error dialog instead
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(l10n.connectionErrorTitle),
+            content: Text(l10n.connectionFailedMessage(e.toString())),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction)),
+            ],
+          )
         );
       }
       if (!WsConnectionService().isConnected) {

@@ -237,17 +237,40 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     await _rotationController.forward(from: 0.0);
   }
 
-  Future<void> _retryConnection() async {
-    logger.info('Retrying WebSocket connection...');
-    try {
-      WsConnectionService().disconnect();
-      // TODO: Get the device IP from somewhere (configuration or state)
-      // For now, this is a placeholder
-      logger.warning('Need to implement retry connection with device IP');
-    } catch (e) {
-      logger.severe('Failed to retry connection: $e');
+Future<void> _retryConnection() async {
+  logger.info('Retrying WebSocket connection...');
+
+  try {
+
+  final boardConfig = WsConnectionService().boardConfig;
+  if(boardConfig == null) {
+    logger.severe('Cannot retry connection: board config is null');
+    throw Exception('Board configuration is not available. Please go back to the home screen and reconnect to the device.');
+  }
+
+  try {
+    WsConnectionService().disconnect();
+    await WsConnectionService().connect(host: boardConfig.ipAddress, port: boardConfig.ipPort);
+    logger.info('Reconnection attempt finished');
+  } catch (e) {
+    throw Exception('Failed to reconnect: $e');
+  }
+  } catch (e) {
+    logger.severe('Reconnection failed: $e');
+    if (mounted) {
+      // show an alert dialog
+      final l10n = AppLocalizations.of(context)!;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l10n.reconnectionFailedTitle),
+          content: Text(l10n.reconnectionFailedMessage(e.toString())),
+          actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction))],
+        ),
+      );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -292,12 +315,11 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                           end: -_orientation.toRadians(),
                         ).animate(CurvedAnimation(parent: _rotationController, curve: Curves.easeInOut));
 
+                        logger.info('PFR1 header: ${data.header}');
+                        logger.info('PFR1 image size: ${data.image.width}x${data.image.height}');
                         logger.info('Loaded initial orientation from PFR1 header: $_orientation');
                         logger.info('Initial rotation angle: ${-_orientation.toRadians()} rad');
                       }
-
-                      logger.info('PFR1 header: ${data.header}');
-                      logger.info('PFR1 image size: ${data.image.width}x${data.image.height}');
 
                       final aspectRatio = data.header.getWidth() / data.header.getHeight();
 

@@ -350,4 +350,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get uploadTitle => 'Upload';
+
+  @override
+  String get reconnectionFailedTitle => 'Reconnection Failed';
+
+  @override
+  String reconnectionFailedMessage(Object error) {
+    return 'Failed to reconnect: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'Connection Error';
 }

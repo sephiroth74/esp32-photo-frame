@@ -709,6 +709,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload'**
   String get uploadTitle;
+
+  /// No description provided for @reconnectionFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnection Failed'**
+  String get reconnectionFailedTitle;
+
+  /// Reconnection failed message with error details
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to reconnect: {error}'**
+  String reconnectionFailedMessage(Object error);
+
+  /// No description provided for @connectionErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Error'**
+  String get connectionErrorTitle;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

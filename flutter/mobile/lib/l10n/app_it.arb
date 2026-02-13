@@ -102,5 +102,8 @@
     "qrProcessFailedMessage": "Elaborazione QR code fallita: {error}",
     "qrScannerInstructionTitle": "Inquadra il QR code con la fotocamera",
     "qrScannerInstructionSubtitle": "Il QR code verra scansionato automaticamente",
-    "uploadTitle": "Carica"
+    "uploadTitle": "Carica",
+    "reconnectionFailedTitle": "Riconnessione fallita",
+    "reconnectionFailedMessage": "Impossibile riconnettersi al dispositivo: {error}",
+    "connectionErrorTitle": "Errore di connessione"
 }

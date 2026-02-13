@@ -48,7 +48,7 @@ class WsConnectionService {
   /// Upload progress stream (0.0 - 1.0)
   Stream<double> get uploadProgress => _uploadProgressController.stream;
 
-  Future<BoardConfig> connect({required String host, required int port, Duration timeout = const Duration(seconds: 10)}) async {
+  Future<BoardConfig> connect({required String host, required int port, Duration timeout = const Duration(seconds: 5)}) async {
     if (isConnected) {
       logger.info('Already connected, returning cached config');
       return _boardConfig!;
@@ -83,6 +83,7 @@ class WsConnectionService {
       } on TimeoutException catch (_) {
         logger.severe('✗ TCP handshake timeout after ${timeout.inSeconds}s');
         await disconnect();
+        logger.severe('✗ Failed to connect to WebSocket at $uri: TCP handshake timed out');
         throw TimeoutException('TCP handshake timed out', timeout);
       }
 
@@ -225,18 +226,23 @@ class WsConnectionService {
   }
 
   Future<void> disconnect() async {
+    logger.info('Disconnecting WebSocket...');
     try {
       _isConfigReceived = false;
       _connectionStateController.add(false);
-      await _channelSubscription?.cancel();
+
+      logger.fine('Closing WebSocket channel and subscription...');
+      await _channelSubscription?.cancel().timeout(const Duration(seconds: 2), onTimeout: () {});
       _channelSubscription = null;
 
       // Clear network binding when disconnecting
-      await NetworkBindingService.clearWifiBinding();
+      logger.fine('Clearing network binding...');
+      await NetworkBindingService.clearWifiBinding().timeout(const Duration(seconds: 2), onTimeout: () {});
 
-      await _channel?.sink.close();
+
+      logger.fine('Closing WebSocket channel...');
+      await _channel?.sink.close().timeout(const Duration(seconds: 2), onTimeout: () {});
       _channel = null;
-
       _configCompleter = null;
 
       logger.info('WebSocket disconnected');

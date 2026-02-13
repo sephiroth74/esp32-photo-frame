@@ -214,5 +214,14 @@
     "uploadTitle": "Upload",
     "@uploadTitle": {
         "description": "Upload screen title"
-    }
+    },
+    "reconnectionFailedTitle": "Reconnection Failed",
+    "reconnectionFailedMessage": "Failed to reconnect: {error}",
+    "@reconnectionFailedMessage": {
+        "description": "Reconnection failed message with error details",
+        "placeholders": {
+            "error": {}
+        }
+    },
+    "connectionErrorTitle": "Connection Error"
 }

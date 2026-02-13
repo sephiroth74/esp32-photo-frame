@@ -45,6 +45,9 @@ class BoardConfig {
   final String serverVersion;
   final int fileVersion;
   final int binaryFileSize;
+  final String ipAddress;
+  final int ipPort;
+  final String ssid;
   final int? batteryLevel;
   final int? batteryVoltageMv;
 
@@ -59,6 +62,9 @@ class BoardConfig {
     required this.serverVersion,
     required this.fileVersion,
     required this.binaryFileSize,
+    required this.ipAddress,
+    required this.ipPort,
+    required this.ssid,
     this.batteryLevel,
     this.batteryVoltageMv,
   });
@@ -70,7 +76,10 @@ class BoardConfig {
         json.containsKey('flash_size') &&
         json.containsKey('display_width') &&
         json.containsKey('display_height') &&
-        json.containsKey('server_version');
+        json.containsKey('server_version') &&
+        json.containsKey('ip_address') &&
+        json.containsKey('ip_port') &&
+        json.containsKey('ssid');
   }
 
   /// Parse from JSON response
@@ -86,13 +95,17 @@ class BoardConfig {
       serverVersion: json['server_version'] as String,
       fileVersion: (json['file_version'] as num).toInt(),
       binaryFileSize: (json['binary_file_size'] as num).toInt(),
+      ipAddress: json['ip_address'] as String,
+      ipPort: (json['ip_port'] as num).toInt(),
+      ssid: json['ssid'] as String,
       batteryLevel: (json['battery_level'] as num?)?.toInt(),
       batteryVoltageMv: (json['battery_voltage_mv'] as num?)?.toInt(),
     );
   }
 
   @override
-  String toString() => 'BoardConfig(board=$board, display=${displayWidth}x$displayHeight, version=$serverVersion)';
+  String toString() =>
+      'BoardConfig(board=$board, display=${displayWidth}x$displayHeight, version=$serverVersion, ip=$ipAddress:$ipPort, ssid=$ssid, battery=${batteryLevel != null ? '$batteryLevel% (${batteryVoltageMv}mV)' : 'N/A'})';
 }
 
 class WsErrorInfo {
