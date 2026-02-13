@@ -146,8 +146,9 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: colors.primary),
                 onPressed: () {
-                  Navigator.of(dialogContext).pop();
+                  WsConnectionService().sendShutdown();
                   WsConnectionService().disconnect();
+                  Navigator.of(dialogContext).pop();
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 child: Text(l10n.okAction),
@@ -237,40 +238,39 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     await _rotationController.forward(from: 0.0);
   }
 
-Future<void> _retryConnection() async {
-  logger.info('Retrying WebSocket connection...');
+  Future<void> _retryConnection() async {
+    logger.info('Retrying WebSocket connection...');
 
-  try {
+    try {
+      final boardConfig = WsConnectionService().boardConfig;
+      if (boardConfig == null) {
+        logger.severe('Cannot retry connection: board config is null');
+        throw Exception('Board configuration is not available. Please go back to the home screen and reconnect to the device.');
+      }
 
-  final boardConfig = WsConnectionService().boardConfig;
-  if(boardConfig == null) {
-    logger.severe('Cannot retry connection: board config is null');
-    throw Exception('Board configuration is not available. Please go back to the home screen and reconnect to the device.');
-  }
-
-  try {
-    WsConnectionService().disconnect();
-    await WsConnectionService().connect(host: boardConfig.ipAddress, port: boardConfig.ipPort);
-    logger.info('Reconnection attempt finished');
-  } catch (e) {
-    throw Exception('Failed to reconnect: $e');
-  }
-  } catch (e) {
-    logger.severe('Reconnection failed: $e');
-    if (mounted) {
-      // show an alert dialog
-      final l10n = AppLocalizations.of(context)!;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(l10n.reconnectionFailedTitle),
-          content: Text(l10n.reconnectionFailedMessage(e.toString())),
-          actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction))],
-        ),
-      );
+      try {
+        WsConnectionService().disconnect();
+        await WsConnectionService().connect(host: boardConfig.ipAddress, port: boardConfig.ipPort);
+        logger.info('Reconnection attempt finished');
+      } catch (e) {
+        throw Exception('Failed to reconnect: $e');
+      }
+    } catch (e) {
+      logger.severe('Reconnection failed: $e');
+      if (mounted) {
+        // show an alert dialog
+        final l10n = AppLocalizations.of(context)!;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(l10n.reconnectionFailedTitle),
+            content: Text(l10n.reconnectionFailedMessage(e.toString())),
+            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction))],
+          ),
+        );
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {

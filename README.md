@@ -1,5 +1,12 @@
 # ESP32 E-Paper Photo Frame
 
+|  |  |
+|--|--|
+| <img src="assets/render-004.png" width="400" /> | <img src="assets/render-003.png" width="400" /> |
+| <img src="assets/screenshot-004.jpg" width="400" /> | <img src="assets/screenshot-006.jpg" width="400" /> |
+| <img src="assets/screenshot-003.jpg" width="400" /> | <img src="assets/screenshot-005.jpg" width="400" /> |
+| <img src="assets/screenshot-002.jpg" width="400" /> |  |
+
 ## Introduction
 
 **ESP32 E-Paper Photo Frame** is an open-source project designed to turn a low-power e-paper display into a smart, battery-efficient digital photo frame. Built around the ESP32 ecosystem, it offers a seamless way to display your memories using modern connectivity or local storage.

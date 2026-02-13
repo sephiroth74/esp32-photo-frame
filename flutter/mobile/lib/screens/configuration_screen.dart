@@ -267,10 +267,8 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
           builder: (context) => AlertDialog(
             title: Text(l10n.connectionErrorTitle),
             content: Text(l10n.connectionFailedMessage(e.toString())),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction)),
-            ],
-          )
+            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.okAction))],
+          ),
         );
       }
       if (!WsConnectionService().isConnected) {

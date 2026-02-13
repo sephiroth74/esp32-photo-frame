@@ -4,7 +4,7 @@
     "connectionLostMessage": "Connessione al dispositivo persa",
     "deviceNotConnectedMessage": "Dispositivo non connesso",
     "uploadSuccessTitle": "Upload completato",
-    "uploadSuccessMessage": "Il file e stato caricato correttamente sul dispositivo.",
+    "uploadSuccessMessage": "Il file e stato caricato correttamente sul dispositivo. Premi OK per completare il processo e spegnere il dispositivo.",
     "okAction": "OK",
     "newImageAction": "Nuova immagine",
     "uploadFailedTitle": "Upload fallito",

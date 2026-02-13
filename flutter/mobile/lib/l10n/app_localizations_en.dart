@@ -21,7 +21,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadSuccessTitle => 'Upload Successful';
 
   @override
-  String get uploadSuccessMessage => 'The file has been uploaded to the device successfully.';
+  String get uploadSuccessMessage =>
+      'The file has been uploaded to the device successfully. Press OK to complete the process and turn off the device.';
 
   @override
   String get okAction => 'OK';

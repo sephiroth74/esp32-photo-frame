@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// No description provided for @uploadSuccessMessage.
   ///
   /// In en, this message translates to:
-  /// **'The file has been uploaded to the device successfully.'**
+  /// **'The file has been uploaded to the device successfully. Press OK to complete the process and turn off the device.'**
   String get uploadSuccessMessage;
 
   /// No description provided for @okAction.

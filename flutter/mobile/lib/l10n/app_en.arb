@@ -7,7 +7,7 @@
     "connectionLostMessage": "Connection to device lost",
     "deviceNotConnectedMessage": "Device not connected",
     "uploadSuccessTitle": "Upload Successful",
-    "uploadSuccessMessage": "The file has been uploaded to the device successfully.",
+    "uploadSuccessMessage": "The file has been uploaded to the device successfully. Press OK to complete the process and turn off the device.",
     "okAction": "OK",
     "newImageAction": "New Image",
     "uploadFailedTitle": "Upload Failed",
