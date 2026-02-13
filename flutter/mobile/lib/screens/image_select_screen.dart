@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:photoframe/services/ws_connection_service.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/image_crop_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
@@ -21,6 +22,47 @@ class ImageSelectScreen extends StatefulWidget {
 class _ImageSelectScreenState extends State<ImageSelectScreen> {
   File? _selectedImage;
   final ImagePicker _imagePicker = ImagePicker();
+
+  Future<void> _askToShutdown() async {
+    final l10n = AppLocalizations.of(context)!;
+    final colors = ThemeColors(context);
+    final shouldShutdown = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.power_settings_new, size: 48, color: colors.warning),
+        title: Text(l10n.shutdownDevice),
+        content: Text(l10n.shutdownDeviceConfirmationMessage),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.cancelAction)),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l10n.okAction)),
+        ],
+      ),
+    );
+
+    if (shouldShutdown == true) {
+      await _shutdownDevice();
+    }
+  }
+
+  Future<void> _shutdownDevice() async {
+    logger.info('Shutting down device: ${widget.boardConfig.board}');
+    try {
+      WsConnectionService().sendShutdown();
+      // go back to the home screen immediately, the device should disconnect within a few seconds
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      logger.severe('Failed to send shutdown command: $e');
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        final colors = ThemeColors(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.errorMessageWithDetails(e.toString())), backgroundColor: colors.error));
+      }
+    }
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -117,7 +159,19 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        FilledButton.icon(onPressed: _pickImage, label: Text(l10n.pickImageFromGallery), icon: const Icon(Icons.image)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            FilledButton.icon(onPressed: _pickImage, label: Text(l10n.pickImageFromGallery), icon: const Icon(Icons.image)),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: _askToShutdown,
+                              style: OutlinedButton.styleFrom(foregroundColor: colors.error),
+                              child: Text(l10n.shutdownDevice),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 16),
                         // Image preview or picker button
                         if (_selectedImage != null)

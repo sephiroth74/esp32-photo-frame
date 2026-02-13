@@ -101,7 +101,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get batteryLabel => 'Batteria';
 
   @override
-  String get pickImageFromGallery => 'Scegli immagine dalla galleria';
+  String get pickImageFromGallery => 'Scegli immagine';
 
   @override
   String get continueAction => 'Continua';
@@ -362,4 +362,13 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get connectionErrorTitle => 'Errore di connessione';
+
+  @override
+  String get shutdownDevice => 'Spegni Dispositivo';
+
+  @override
+  String get shutdownDeviceConfirmationMessage => 'Sei sicuro di voler spegnere il dispositivo?';
+
+  @override
+  String get confirmAction => 'Conferma';
 }

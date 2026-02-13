@@ -27,7 +27,7 @@
     "typeLabel": "Tipo",
     "rotationLabel": "Rotazione",
     "batteryLabel": "Batteria",
-    "pickImageFromGallery": "Scegli immagine dalla galleria",
+    "pickImageFromGallery": "Scegli immagine",
     "continueAction": "Continua",
     "selectImageFirstMessage": "Seleziona prima un'immagine",
     "pickImageFailedMessage": "Selezione immagine fallita: {error}",
@@ -105,5 +105,8 @@
     "uploadTitle": "Carica",
     "reconnectionFailedTitle": "Riconnessione fallita",
     "reconnectionFailedMessage": "Impossibile riconnettersi al dispositivo: {error}",
-    "connectionErrorTitle": "Errore di connessione"
+    "connectionErrorTitle": "Errore di connessione",
+    "shutdownDevice": "Spegni Dispositivo",
+    "shutdownDeviceConfirmationMessage": "Sei sicuro di voler spegnere il dispositivo?",
+    "confirmAction": "Conferma"
 }

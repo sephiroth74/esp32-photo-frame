@@ -14,17 +14,7 @@ import '../utils/app_logger.dart';
 /// Handles connection, GET_CONFIG request, and maintains connection state
 /// Singleton pattern - available app-wide for image upload and other operations
 class WsConnectionService {
-    /// Invia il comando shutdown al server senza attendere risposta
-    void sendShutdown() {
-      if (!isConnected || _channel == null) return;
-      try {
-        final shutdownMessage = {'type': 'shutdown'};
-        _channel!.sink.add(jsonEncode(shutdownMessage));
-        logger.info('✓ Shutdown command sent');
-      } catch (e) {
-        logger.warning('Failed to send shutdown: $e');
-      }
-    }
+
   static final WsConnectionService _instance = WsConnectionService._internal();
 
   WebSocketChannel? _channel;
@@ -130,6 +120,18 @@ class WsConnectionService {
       rethrow;
     }
   }
+
+  void sendShutdown() {
+    if (!isConnected || _channel == null) return;
+    try {
+      final shutdownMessage = {'type': 'shutdown'};
+      _channel!.sink.add(jsonEncode(shutdownMessage));
+      logger.info('✓ Shutdown command sent');
+    } catch (e) {
+      logger.warning('Failed to send shutdown: $e');
+      rethrow;
+    }
+  }  
 
   Future<void> _sendHandshake() async {
     try {

@@ -257,7 +257,7 @@ abstract class AppLocalizations {
   /// No description provided for @pickImageFromGallery.
   ///
   /// In en, this message translates to:
-  /// **'Pick Image from Gallery'**
+  /// **'Pick Image'**
   String get pickImageFromGallery;
 
   /// No description provided for @continueAction.
@@ -727,6 +727,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connection Error'**
   String get connectionErrorTitle;
+
+  /// No description provided for @shutdownDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Shutdown Device'**
+  String get shutdownDevice;
+
+  /// No description provided for @shutdownDeviceConfirmationMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to shutdown the device?'**
+  String get shutdownDeviceConfirmationMessage;
+
+  /// No description provided for @confirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirmAction;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -61,7 +61,7 @@
     "typeLabel": "Type",
     "rotationLabel": "Rotation",
     "batteryLabel": "Battery",
-    "pickImageFromGallery": "Pick Image from Gallery",
+    "pickImageFromGallery": "Pick Image",
     "continueAction": "Continue",
     "selectImageFirstMessage": "Please select an image first",
     "pickImageFailedMessage": "Failed to pick image: {error}",
@@ -223,5 +223,8 @@
             "error": {}
         }
     },
-    "connectionErrorTitle": "Connection Error"
+    "connectionErrorTitle": "Connection Error",
+    "shutdownDevice": "Shutdown Device",
+    "shutdownDeviceConfirmationMessage": "Are you sure you want to shutdown the device?",
+    "confirmAction": "Confirm"
 }
