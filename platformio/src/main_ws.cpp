@@ -591,6 +591,7 @@ void main_webserver_loop() {
     if (elapsedTime % WS_BATTERY_CHECK_INTERVAL_MS < 1000) {
       log_d("[WS] Active - elapsed time %u seconds (timeout in %u seconds)", elapsedTime / 1000,
             (g_timeout_ms - elapsedTime) / 1000);
+      log_d("[WS] Going to sleep in %u seconds", (g_timeout_ms - elapsedTime) / 1000);
 
       photo_frame::photo_frame_error_t error = photo_frame::BatteryManager::getInstance().read(g_battery_info);
       if (error == photo_frame::error_type::None) {

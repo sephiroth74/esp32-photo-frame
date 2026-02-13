@@ -35,7 +35,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
 
   Future<void> _loadSavedSettings() async {
     await Preferences.initialize();
-    if(!mounted) return;
+    if (!mounted) return;
     final ws = context.read<WsUploadState>();
     final savedIp = Preferences.getString(_ipHistoryKey);
     final savedPort = Preferences.getString(_portHistoryKey);
@@ -93,9 +93,9 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     return factory.button(label: label, onPressed: onPressed, icon: icon != null ? Icon(icon) : null, size: size, style: style);
   }
 
-  Widget _buildCircularProgress(double? value) {
+  Widget _buildCircularProgress(double? value, double? size) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    return factory.circularProgress(value: value);
+    return factory.circularProgress(value: value, size: size);
   }
 
   Widget _buildLinearProgress(BuildContext context, double? value) {
@@ -178,9 +178,9 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
       builder: (ctx, factory) {
         return factory.dialog(
           title: 'Error',
-          icon: Icon(Icons.warning, color: Colors.red.shade800),
+          icon: Icon(Icons.error_outline, color: Colors.red.shade500, size: 64),
           message: message,
-          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop())],
+          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop(), style: PlatformDialogActionStyle.primary)],
         );
       },
     );
@@ -190,10 +190,10 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     _openDialog<void>(
       builder: (ctx, factory) {
         return factory.dialog(
-          icon: Icon(Icons.check, color: Colors.green.shade500),
+          icon: Icon(Icons.check, color: Colors.green.shade500, size: 64),
           title: 'Upload completed',
           message: message,
-          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop())],
+          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop(), style: PlatformDialogActionStyle.primary)],
         );
       },
     );
@@ -323,7 +323,10 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                     onPressed: ws.connected && !ws.uploading ? () async => await ws.shutdown() : null,
                                     style: PlatformButtonStyle.danger,
                                   ),
-                                  if (ws.connecting) ...[const SizedBox(width: 8), _buildCircularProgress(null)],
+                                  if (ws.connecting) ...[
+                                    const SizedBox(width: 8),
+                                    SizedBox(width: 24, height: 24, child: _buildCircularProgress(null, 20)),
+                                  ],
                                 ],
                               ),
                             ],
@@ -360,8 +363,18 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                     Flexible(
                                       flex: 0,
                                       child: ws.error == null
-                                          ? Text(ws.status, style: TextStyle(fontSize: 11, color: Colors.grey[600]))
-                                          : Text(ws.error!, style: TextStyle(fontSize: 11, color: Colors.red)),
+                                          ? Text(
+                                              ws.status,
+                                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                              maxLines: 5,
+                                              overflow: TextOverflow.ellipsis,
+                                            )
+                                          : Text(
+                                              ws.error!,
+                                              style: TextStyle(fontSize: 11, color: Colors.red),
+                                              maxLines: 5,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                     ),
                                   ],
                                 ),
@@ -459,10 +472,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                                 '${ws.boardConfig!.displayWidth} × ${ws.boardConfig!.displayHeight} px',
                                               ),
                                               if (ws.boardConfig!.flashSize > 0)
-                                                _buildConfigRow(
-                                                  'Flash Size:',
-                                                  '${(ws.boardConfig!.flashSize / 1024 / 1024).toStringAsFixed(1)} MB',
-                                                ),
+                                                _buildConfigRow('Flash Size:', '${(ws.boardConfig!.flashSize / 1024 / 1024).toStringAsFixed(1)} MB'),
                                               if (ws.boardConfig!.batteryVoltageMv != null && ws.boardConfig!.batteryVoltageMv! > 0)
                                                 _buildConfigRow(
                                                   'Battery:',
@@ -552,7 +562,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.grey[500]!)),
+                border: Border(top: BorderSide(color: Colors.grey[500]!.withValues(alpha: 0.3))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -564,6 +574,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                     label: 'Upload',
                     onPressed: ws.canUpload ? () async => await ws.upload() : null,
                     style: PlatformButtonStyle.primary,
+                    size: PlatformButtonSize.large,
                   ),
                 ],
               ),
