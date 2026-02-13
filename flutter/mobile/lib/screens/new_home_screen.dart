@@ -204,37 +204,39 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                 ),
                 const SizedBox(height: 20),
                 // TEST: Direct to crop screen (temporary)
-                SizedBox(
-                  width: double.infinity,
-                  child: InkWell(
-                    onTap: _testCropScreen,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade400, width: 2),
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(Icons.bug_report, color: Colors.grey.shade600, size: 48),
-                          const SizedBox(height: 12),
-                          Text(
-                            l10n.testCropTitle,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            l10n.testCropSubtitle,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
-                          ),
-                        ],
+                if (false) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: InkWell(
+                      onTap: _testCropScreen,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade400, width: 2),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.bug_report, color: Colors.grey.shade600, size: 48),
+                            const SizedBox(height: 12),
+                            Text(
+                              l10n.testCropTitle,
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              l10n.testCropSubtitle,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
