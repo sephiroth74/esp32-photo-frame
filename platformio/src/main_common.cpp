@@ -133,7 +133,6 @@ bool initializeDisplayHardware() {
   return true;
 }
 
-
 photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo &batteryInfo,
                                                       esp_sleep_wakeup_cause_t wakeup_reason) {
   log_i("=======================================");
@@ -261,7 +260,6 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo &BatteryInfo, Date
 }
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
-
 
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
 void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo &BatteryInfo, DateTime &now, esp_sleep_wakeup_cause_t wakeup_reason,
