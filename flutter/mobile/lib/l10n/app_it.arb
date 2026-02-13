@@ -100,5 +100,6 @@
     "invalidQrFormatMessage": "Formato QR code non valido",
     "qrProcessFailedMessage": "Elaborazione QR code fallita: {error}",
     "qrScannerInstructionTitle": "Inquadra il QR code con la fotocamera",
-    "qrScannerInstructionSubtitle": "Il QR code verra scansionato automaticamente"
+    "qrScannerInstructionSubtitle": "Il QR code verra scansionato automaticamente",
+    "uploadTitle": "Carica"
 }

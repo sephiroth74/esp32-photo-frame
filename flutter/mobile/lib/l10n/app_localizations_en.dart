@@ -347,4 +347,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qrScannerInstructionSubtitle => 'The QR code will be scanned automatically';
+
+  @override
+  String get uploadTitle => 'Upload';
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:photoframe/main.dart';
+import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/qr_scanner_screen.dart';
 import 'package:photoframe/screens/configuration_screen.dart';
@@ -80,6 +81,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors(context);
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.homeAppBarTitle), centerTitle: true),
@@ -105,23 +107,23 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.indigo.shade50,
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.indigo, width: 2),
+                        border: Border.all(color: colors.borderMedium, width: 2),
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.qr_code_scanner, color: Colors.indigo, size: 48),
+                          Icon(Icons.qr_code_scanner, color: colors.primary, size: 48),
                           const SizedBox(height: 12),
                           Text(
                             l10n.scanQrTitle,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo.shade900),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.primary),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             l10n.scanQrSubtitle,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: Colors.indigo.shade700),
+                            style: TextStyle(fontSize: 14, color: colors.secondary),
                           ),
                         ],
                       ),
@@ -138,23 +140,23 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue, width: 2),
+                        border: Border.all(color: colors.borderMedium, width: 2),
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.edit, color: Colors.blue, size: 48),
+                          Icon(Icons.edit, color: colors.primary, size: 48),
                           const SizedBox(height: 12),
                           Text(
                             l10n.enterManuallyTitle,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.primary),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             l10n.enterManuallySubtitle,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: Colors.blue.shade700),
+                            style: TextStyle(fontSize: 14, color: colors.secondary),
                           ),
                         ],
                       ),

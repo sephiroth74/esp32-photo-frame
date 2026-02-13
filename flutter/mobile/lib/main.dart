@@ -12,7 +12,6 @@ import 'services/deep_link_handler.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final DeepLinkHandler deepLinkHandler = DeepLinkHandler();
 

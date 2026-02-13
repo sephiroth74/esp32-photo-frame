@@ -209,5 +209,9 @@
     }
   },
   "qrScannerInstructionTitle": "Point your camera at the QR code",
-  "qrScannerInstructionSubtitle": "The QR code will be scanned automatically"
+  "qrScannerInstructionSubtitle": "The QR code will be scanned automatically",
+  "uploadTitle": "Upload",
+  "@uploadTitle": {
+    "description": "Upload screen title"
+  }
 }

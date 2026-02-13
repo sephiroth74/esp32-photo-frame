@@ -149,10 +149,7 @@ class _ImageSelectScreenState extends State<ImageSelectScreen> {
                   height: 48,
                   child: FilledButton(
                     onPressed: _selectedImage != null ? _continue : null,
-                    child: Text(
-                      l10n.continueAction,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onError),
-                    ),
+                    child: Text(l10n.continueAction, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),

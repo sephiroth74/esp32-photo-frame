@@ -376,7 +376,6 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.ditheringTitle),
-        centerTitle: true,
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
         elevation: 0,
@@ -385,7 +384,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
         children: [
           Expanded(
             child: Container(
-              color: Colors.black,
+              color: colors.appBarBackground,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -397,9 +396,9 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                       if (_previewDithered != null) Image.memory(_previewDithered!, fit: BoxFit.cover),
                       if (_isGeneratingPreview)
                         Container(
-                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: colors.overlayDark.withValues(alpha: 0.5), shape: BoxShape.circle),
                           padding: const EdgeInsets.all(16),
-                          child: const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                          child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colors.primary)),
                         ),
                     ],
                   ),
@@ -433,7 +432,6 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                 decoration: BoxDecoration(
                   color: colors.surface,
                   border: Border(top: BorderSide(color: colors.borderLight)),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2))],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -483,19 +481,15 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: colors.primary, disabledBackgroundColor: colors.disabled),
+                    child: FilledButton(
                       onPressed: _isProcessing ? null : _applyDithering,
                       child: _isProcessing
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
+                              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(colors.primary)),
                             )
-                          : Text(
-                              l10n.continueAction,
-                              style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),
-                            ),
+                          : Text(l10n.continueAction, style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -566,8 +560,9 @@ class _EffectsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors(context);
     return Container(
-      decoration: BoxDecoration(backgroundBlendMode: BlendMode.screen, color: Colors.white.withValues(alpha: 0.8)),
+      decoration: BoxDecoration(color: colors.appBarBackground.withValues(alpha: 0.65)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -638,7 +633,7 @@ class _EffectPreviewCard extends StatelessWidget {
     final colors = ThemeColors(context);
     final borderColor = isSelected ? colors.primary : colors.borderLight;
     final borderWidth = isSelected ? 2.5 : 1.0;
-    final iconColor = option.colorMode == ColorMode.sixColors ? colors.surface : colors.textHint;
+    final iconColor = option.colorMode == ColorMode.sixColors ? colors.primary : Colors.grey;
     final grayScale = option.colorMode == ColorMode.blackAndWhite;
     Image image;
     if (grayScale) {
@@ -654,7 +649,7 @@ class _EffectPreviewCard extends StatelessWidget {
         width: 90,
         margin: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: borderColor, width: borderWidth),
         ),
@@ -721,8 +716,9 @@ class _AdjustmentPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final label = _label(l10n);
+    final colors = ThemeColors(context);
     return Container(
-      decoration: BoxDecoration(backgroundBlendMode: BlendMode.screen, color: Colors.white.withValues(alpha: 0.8)),
+      decoration: BoxDecoration(color: colors.appBarBackground.withValues(alpha: 0.65)),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -747,7 +743,7 @@ class _NavBarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors(context);
-    final color = isActive ? colors.primary : colors.textSecondary;
+    final color = isActive ? colors.warning : colors.textPrimary;
 
     return InkWell(
       onTap: onTap,

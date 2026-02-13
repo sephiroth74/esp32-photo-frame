@@ -703,6 +703,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The QR code will be scanned automatically'**
   String get qrScannerInstructionSubtitle;
+
+  /// Upload screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get uploadTitle;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

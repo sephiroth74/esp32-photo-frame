@@ -256,7 +256,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.previewTitle),
+        title: Text(l10n.uploadTitle),
         backgroundColor: colors.appBarBackground,
         foregroundColor: colors.appBarForeground,
         elevation: 0,
@@ -434,10 +434,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                                   onPressed: (isLoading || _isUploading) ? null : _uploadToDevice,
                                   child: _isUploading
                                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                      : Text(
-                                          l10n.uploadAction,
-                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.onError),
-                                        ),
+                                      : Text(l10n.uploadAction, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],

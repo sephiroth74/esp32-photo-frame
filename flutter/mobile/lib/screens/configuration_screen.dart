@@ -163,10 +163,6 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       } else {
         _wifiValid = false;
       }
-
-      if (!_wifiValid) {
-        // logger.info('WiFi check - Current: $ssid, Expected: $_expectedSSID, Valid: $_wifiValid');
-      }
     } catch (e) {
       logger.severe('Failed to get WiFi info: $e');
       if (mounted) {
@@ -337,13 +333,13 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              ElevatedButton.icon(
+                              OutlinedButton.icon(
                                 onPressed: _openWiFiSettings,
                                 icon: const Icon(Icons.settings),
                                 label: Text(l10n.wifiSettingsAction),
                               ),
                               const SizedBox(width: 12),
-                              ElevatedButton.icon(onPressed: _checkWiFiConnection, icon: const Icon(Icons.refresh), label: Text(l10n.refreshAction)),
+                              OutlinedButton.icon(onPressed: _checkWiFiConnection, icon: const Icon(Icons.refresh), label: Text(l10n.refreshAction)),
                             ],
                           ),
                         ],
@@ -421,24 +417,20 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
                   ),
                   const SizedBox(height: 32),
                   // Continue Button
-                  ElevatedButton(
-                    onPressed: (_wifiValid && !_isConnecting) ? _saveAndContinue : null,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: (_wifiValid && !_isConnecting) ? colors.primary : colors.disabled,
-                    ),
+                  FilledButton(
+                    onPressed: (!_isConnecting) ? _saveAndContinue : null,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (_isConnecting) ...[
-                          const SizedBox(
+                          SizedBox(
                             height: 24,
                             width: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo)),
+                            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(colors.primary)),
                           ),
                           const SizedBox(width: 12),
                         ],
-                        Text(l10n.saveConnectAction, style: TextStyle(fontSize: 16, color: _wifiValid ? Colors.white : Colors.black)),
+                        Text(l10n.saveConnectAction, style: TextStyle(fontSize: 16)),
                       ],
                     ),
                   ),

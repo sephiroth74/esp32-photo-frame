@@ -410,10 +410,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
               SafeArea(
                 top: false,
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 12, offset: const Offset(0, -2))],
-                  ),
+                  decoration: BoxDecoration(color: colors.surfaceLight),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Row(
                     children: [
@@ -446,9 +443,14 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
           if (_isSaving)
             Positioned.fill(
               child: AbsorbPointer(
-                child: Container(
-                  color: Colors.black54,
-                  child: const Center(child: SizedBox(width: 40, height: 40, child: CircularProgressIndicator())),
+                child: Center(
+                  child: SizedBox(
+                    child: Container(
+                      decoration: BoxDecoration(color: colors.overlayDark.withValues(alpha: 0.5), shape: BoxShape.circle),
+                      padding: const EdgeInsets.all(16),
+                      child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colors.primary)),
+                    ),
+                  ),
                 ),
               ),
             ),
