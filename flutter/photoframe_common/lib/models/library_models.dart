@@ -15,21 +15,16 @@ enum Orientation {
   const Orientation(this.value);
 }
 
-@JsonEnum(alwaysCreate: true)
+@JsonEnum(alwaysCreate: true, valueField: 'value')
 enum DitheringMethod {
-  @JsonValue('floyd-steinberg')
-  floydSteinberg(0),
-  @JsonValue('atkinson')
-  atkinson(1),
-  @JsonValue('stucki')
-  stucki(2),
-  @JsonValue('jarvis-judice-ninke')
-  jarvisJudiceNinke(3),
-  @JsonValue('ordered')
-  ordered(4);
+  floydSteinberg('floyd-steinberg'),
+  atkinson('atkinson'),
+  stucki('stucki'),
+  jarvisJudiceNinke('jarvis-judice-ninke'),
+  ordered('ordered');
 
-  final int value;
-  const DitheringMethod([this.value = 0]);
+  final String value;
+  const DitheringMethod(this.value);
 }
 
 @JsonEnum(alwaysCreate: true)

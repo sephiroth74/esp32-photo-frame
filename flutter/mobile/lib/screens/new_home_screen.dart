@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:photoframe/main.dart';
+import 'package:photoframe/services/photoframe_dithering_ffi.dart';
+import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/utils/theme_colors.dart';
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:photoframe/screens/qr_scanner_screen.dart';
@@ -18,10 +20,21 @@ class NewHomeScreen extends StatefulWidget {
 }
 
 class _NewHomeScreenState extends State<NewHomeScreen> {
+  static final logger = getLogger('NewHomeScreen');
+
   @override
   void initState() {
     super.initState();
     _checkDeepLink();
+  }
+
+  void _checkNativeLib() {
+    try {
+      final result = PhotoframeDithering.dummyFunction();
+      logger.info('Rust dummy function result: $result'); // Dovrebbe stampare 42
+    } catch (e) {
+      logger.severe('Failed to call Rust dummy function: $e');
+    }
   }
 
   /// Listen for deep links received while app is running
@@ -32,27 +45,49 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
         if (!mounted) {
           return;
         }
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => ConfigurationScreen(qrData: initialQrData)));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ConfigurationScreen(qrData: initialQrData),
+            settings: const RouteSettings(name: '/configuration'),
+          ),
+        );
       });
     }
 
     // Listen for new deep links (only navigates when link received while app is running)
     deepLinkHandler.qrCodeDataStream.listen((data) {
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => ConfigurationScreen(qrData: data)));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ConfigurationScreen(qrData: data),
+            settings: const RouteSettings(name: '/configuration'),
+          ),
+        );
       }
     });
   }
 
   void _scanQRCode() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const QRScannerScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const QRScannerScreen(),
+        settings: const RouteSettings(name: '/qr_scanner'),
+      ),
+    );
   }
 
   void _enterManually() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ConfigurationScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ConfigurationScreen(),
+        settings: const RouteSettings(name: '/configuration'),
+      ),
+    );
   }
 
   void _testCropScreen() {
+    _checkNativeLib();
+
     // Simulated board config for testing without hardware
     const boardConfigJson = '''{
   "type": "board_info",
@@ -95,8 +130,12 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                 Image.asset('assets/images/app_icon.png', width: 80, height: 80),
                 const SizedBox(height: 24),
                 Text(l10n.homeTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                Text(l10n.chooseConnectionMethod, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                const SizedBox(height: 6),
+                Text(
+                  l10n.chooseConnectionMethod,
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 48),
                 // Scan QR Code option
                 SizedBox(

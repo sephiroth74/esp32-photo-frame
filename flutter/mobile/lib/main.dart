@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 
-// Old implementation kept for reference
-// import 'screens/home_screen.dart';
-// import 'state/image_processing_state.dart';
-
 // New implementation
 import 'screens/new_home_screen.dart';
 import 'services/deep_link_handler.dart';

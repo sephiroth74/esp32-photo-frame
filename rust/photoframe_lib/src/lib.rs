@@ -1,7 +1,15 @@
+/// Dummy FFI function for linker/debugging purposes.
+#[no_mangle]
+pub extern "C" fn photoframe_dummy_function() -> u32 {
+    42
+}
 pub mod bin_format;
 mod core;
 pub mod dithering;
 pub mod types;
+
+use std::ffi::CStr;
+use std::os::raw::c_char;
 
 // Re-export core public API for Rust users (include color adjustments)
 pub use core::{
@@ -50,7 +58,7 @@ pub struct BinValidationResult {
 ///
 /// Safety: `ptr` must be a pointer previously returned by this crate and `len` must
 /// match the original allocation length.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn photoframe_dithering_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() {
         unsafe {
@@ -74,12 +82,12 @@ pub extern "C" fn photoframe_dithering_free(ptr: *mut u8, len: usize) {
 /// The function returns a `DitheringResult` with `data_ptr` pointing to a heap
 /// allocated PNG buffer; callers MUST call `photoframe_dithering_free(ptr, len)`
 /// to avoid memory leaks.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn photoframe_dithering_apply(
     image_data: *const u8,
     image_len: usize,
-    dither_method: DitheringMethod,
-    color_mode: ColorMode,
+    dither_method: *const c_char,
+    color_mode: u8,
     dither_strength: f32,
     saturation: f32,
     contrast: f32,
@@ -104,11 +112,16 @@ pub unsafe extern "C" fn photoframe_dithering_apply(
 
     // Apply color adjustments (function now lives in core module)
     let adjusted = apply_color_adjustments(&img, saturation, contrast, brightness);
-    //let dither = DitheringMethod::from_str(&dither_method, true).unwrap_or(DitheringMethod::FloydSteinberg);
-    //let display = ColorMode::from(color_mode);
+
+    let c_str = CStr::from_ptr(dither_method);
+    let rust_str = c_str
+        .to_str()
+        .unwrap_or(DitheringMethod::FloydSteinberg.into());
+    let dither = DitheringMethod::from(rust_str);
+    let cmode = ColorMode::from(color_mode);
 
     // Apply dithering
-    let result = apply_dithering(&adjusted, dither_method, color_mode, dither_strength);
+    let result = apply_dithering(&adjusted, dither, cmode, dither_strength);
     if result.is_err() {
         return DitheringResult {
             success: false,
@@ -167,7 +180,7 @@ pub unsafe extern "C" fn photoframe_dithering_apply(
 /// - image_len: Length of image data
 /// - processing_type: 0 = BlackAndWhite, 1 = SixColors
 /// - rotation: Display rotation (0-3)
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn photoframe_convert_with_processing(
     image_data: *const u8,
     image_len: usize,
@@ -207,7 +220,7 @@ pub unsafe extern "C" fn photoframe_convert_with_processing(
 
 /// Validate a PFR1 .pfr1 file (C ABI).
 /// Returns metadata on success; on failure, success=false and other fields are zeroed.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn photoframe_validate_bin(
     data_ptr: *const u8,
     data_len: usize,

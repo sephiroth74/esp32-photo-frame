@@ -123,7 +123,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTitle => 'Photo Frame App';
 
   @override
-  String get chooseConnectionMethod => 'Choose connection method';
+  String get chooseConnectionMethod => 'Connect to your ESP32 Photo Frame by choosing one of the options below';
 
   @override
   String get scanQrTitle => 'Scan QR Code';

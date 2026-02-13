@@ -83,3 +83,4 @@ rust/processor/temp/
 flutter/desktop/temp/
 .swift-version
 flutter/mobile/ios/Build/
+rust/photoframe_lib/include/

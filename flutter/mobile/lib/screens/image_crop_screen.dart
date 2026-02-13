@@ -215,6 +215,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
             boardConfig: widget.boardConfig,
             currentOrientation: _isRotated ? Orientation.portrait : Orientation.landscape,
           ),
+          settings: const RouteSettings(name: '/dithering'),
         ),
       );
     } catch (e) {
@@ -410,7 +411,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
               SafeArea(
                 top: false,
                 child: Container(
-                  decoration: BoxDecoration(color: colors.surfaceLight),
+                  decoration: BoxDecoration(color: colors.appBarBackground),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Row(
                     children: [
@@ -448,7 +449,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                     child: Container(
                       decoration: BoxDecoration(color: colors.overlayDark.withValues(alpha: 0.5), shape: BoxShape.circle),
                       padding: const EdgeInsets.all(16),
-                      child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colors.primary)),
+                      child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colors.overlayLight)),
                     ),
                   ),
                 ),

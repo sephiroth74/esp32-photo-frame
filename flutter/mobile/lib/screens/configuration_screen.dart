@@ -249,7 +249,12 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
         // Navigate to image upload screen with board config
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ImageSelectScreen(boardConfig: boardConfig)));
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ImageSelectScreen(boardConfig: boardConfig),
+              settings: const RouteSettings(name: '/image_select'),
+            ),
+          );
         }
       }
     } catch (e) {

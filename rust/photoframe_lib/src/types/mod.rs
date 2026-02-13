@@ -69,6 +69,38 @@ pub enum DitheringMethod {
     Ordered,
 }
 
+impl Into<&str> for DitheringMethod {
+    fn into(self) -> &'static str {
+        match self {
+            DitheringMethod::FloydSteinberg => "floyd-steinberg",
+            DitheringMethod::Atkinson => "atkinson",
+            DitheringMethod::Stucki => "stucki",
+            DitheringMethod::JarvisJudiceNinke => "jarvis-judice-ninke",
+            DitheringMethod::Ordered => "ordered",
+        }
+    }
+}
+
+impl From<&str> for DitheringMethod {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "floyd-steinberg" | "floyd_steinberg" | "floydsteinberg" | "fs" => {
+                DitheringMethod::FloydSteinberg
+            }
+            "atkinson" | "atkinson-diffusion" | "atkinson_diffusion" | "atkinsondiffusion"
+            | "atkinson-diff" | "atkinson_diff" => DitheringMethod::Atkinson,
+            "stucki" => DitheringMethod::Stucki,
+            "jarvis-judice-ninke" | "jarvis_judice_ninke" | "jarvisjudiceninke" | "jjn" => {
+                DitheringMethod::JarvisJudiceNinke
+            }
+            "ordered" | "bayer-ordered" | "bayer_ordered" | "bayerordered" => {
+                DitheringMethod::Ordered
+            }
+            _ => DitheringMethod::FloydSteinberg, // Default case
+        }
+    }
+}
+
 impl Into<u8> for ColorMode {
     fn into(self) -> u8 {
         match self {

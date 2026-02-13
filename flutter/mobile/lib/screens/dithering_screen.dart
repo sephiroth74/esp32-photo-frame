@@ -315,6 +315,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => UploadScreen(pfrFile: pfrFile, currentOrientation: widget.currentOrientation),
+          settings: const RouteSettings(name: '/upload'),
         ),
       );
     } catch (e, stackTrace) {
@@ -331,6 +332,11 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
         });
       }
     }
+  }
+
+  Future<void> _cancelAction() async {
+    debugPrint('Cancel action triggered');
+    Navigator.of(context).popUntil((route) => route.settings.name == '/configuration' || route.isFirst);
   }
 
   Widget _buildPanel() {
@@ -398,7 +404,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
                         Container(
                           decoration: BoxDecoration(color: colors.overlayDark.withValues(alpha: 0.5), shape: BoxShape.circle),
                           padding: const EdgeInsets.all(16),
-                          child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colors.primary)),
+                          child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colors.overlayLight)),
                         ),
                     ],
                   ),
@@ -477,7 +483,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(onPressed: _isProcessing ? null : () => Navigator.of(context).pop(), child: Text(l10n.cancelAction)),
+                    child: OutlinedButton(onPressed: _isProcessing ? null : _cancelAction, child: Text(l10n.cancelAction)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

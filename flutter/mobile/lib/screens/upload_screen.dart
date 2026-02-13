@@ -13,7 +13,6 @@ import '../l10n/app_localizations.dart';
 import '../models/binary_model.dart';
 import '../services/bin_parser.dart';
 import '../services/ws_connection_service.dart';
-import 'image_select_screen.dart';
 
 class UploadScreen extends StatefulWidget {
   final File pfrFile;
@@ -26,6 +25,7 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMixin {
+  static final logger = getLogger('UploadScreen');
   late final Future<Pfr1ViewData?> _pfrPreview;
   bool _isUploading = false;
   bool _initialOrientationLoaded = false;
@@ -41,7 +41,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     super.initState();
     _pfrPreview = _loadPfrPreview();
     _orientation = widget.currentOrientation;
-    debugPrint('Initial orientation: $_orientation');
+    logger.info('Initial orientation: $_orientation');
 
     // Initialize rotation animation controller
     _rotationController = AnimationController(duration: const Duration(milliseconds: 300), vsync: this);
@@ -61,6 +61,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
         });
 
         if (!isConnected && _isConnected != isConnected) {
+          logger.warning('Connection lost');
           final l10n = AppLocalizations.of(context)!;
           final colors = ThemeColors(context);
           ScaffoldMessenger.of(
@@ -154,12 +155,10 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
               OutlinedButton(
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
-                  // go back to image select screen with the same board config to allow uploading another image
                   if (boardConfig != null) {
-                    WsConnectionService().disconnect();
                     Navigator.of(
                       context,
-                    ).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => ImageSelectScreen(boardConfig: boardConfig)), (route) => false);
+                    ).popUntil((route) => route.settings.name == '/image_select'); // Pop back to home before navigating to image select
                   } else {
                     logger.warning('Board config is null, cannot navigate to image select screen');
                     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -219,7 +218,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
   Future<void> _rotateImage() async {
     final currentDegrees = _orientation.toDegrees();
     final currentAngle = _orientation.toRadians();
-    debugPrint('Current orientation before rotation: $_orientation, current degrees: $currentDegrees°, current angle: $currentAngle rad');
+    logger.info('Current orientation before rotation: $_orientation, current degrees: $currentDegrees°, current angle: $currentAngle rad');
     setState(() {
       _orientation = switch (_orientation) {
         Orientation.landscape => Orientation.portrait,
@@ -293,12 +292,12 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                           end: -_orientation.toRadians(),
                         ).animate(CurvedAnimation(parent: _rotationController, curve: Curves.easeInOut));
 
-                        debugPrint('Loaded initial orientation from PFR1 header: $_orientation');
-                        debugPrint('Initial rotation angle: ${-_orientation.toRadians()} rad');
+                        logger.info('Loaded initial orientation from PFR1 header: $_orientation');
+                        logger.info('Initial rotation angle: ${-_orientation.toRadians()} rad');
                       }
 
-                      debugPrint('PFR1 header: ${data.header}');
-                      debugPrint('PFR1 image size: ${data.image.width}x${data.image.height}');
+                      logger.info('PFR1 header: ${data.header}');
+                      logger.info('PFR1 image size: ${data.image.width}x${data.image.height}');
 
                       final aspectRatio = data.header.getWidth() / data.header.getHeight();
 

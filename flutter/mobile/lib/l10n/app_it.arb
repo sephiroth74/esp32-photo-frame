@@ -1,4 +1,5 @@
 {
+    "@@locale": "it",
     "helloWorld": "Ciao mondo!",
     "connectionLostMessage": "Connessione al dispositivo persa",
     "deviceNotConnectedMessage": "Dispositivo non connesso",
@@ -33,7 +34,7 @@
     "rotationUnknown": "Sconosciuto",
     "homeAppBarTitle": "ESP32 Photo Frame",
     "homeTitle": "App Photo Frame",
-    "chooseConnectionMethod": "Scegli il metodo di connessione",
+    "chooseConnectionMethod": "Connettiti al tuo ESP32 Photo Frame scegliendo una delle opzioni qui sotto",
     "scanQrTitle": "Scansiona QR Code",
     "scanQrSubtitle": "Scansiona il QR code dal display ESP32",
     "enterManuallyTitle": "Inserisci manualmente",

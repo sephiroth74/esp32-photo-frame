@@ -21,12 +21,16 @@ final class DitheringResult extends ffi.Struct {
   external int dataLen;
 }
 
+// Typedef per la funzione Rust
+typedef PhotoframeDummyFunctionNative = ffi.Uint32 Function();
+typedef PhotoframeDummyFunctionDart = int Function();
+
 /// Typedef for dithering_apply FFI function
 typedef DitheringApplyNative =
     DitheringResult Function(
       ffi.Pointer<ffi.Uint8> imageData,
       ffi.Size imageLen,
-      ffi.Uint8 method,
+      ffi.Pointer<ffi.Char> method,
       ffi.Uint8 displayType,
       ffi.Float ditherStrength,
       ffi.Float saturation,
@@ -38,7 +42,7 @@ typedef DitheringApplyDart =
     DitheringResult Function(
       ffi.Pointer<ffi.Uint8> imageData,
       int imageLen,
-      int method,
+      ffi.Pointer<ffi.Char> method,
       int displayType,
       double ditherStrength,
       double saturation,
@@ -79,6 +83,10 @@ class PhotoframeDithering {
 
   static final DitheringFreeDart _free = _dylib.lookup<ffi.NativeFunction<DitheringFreeNative>>('photoframe_dithering_free').asFunction();
 
+  static final PhotoframeDummyFunctionDart dummyFunction = _dylib
+      .lookup<ffi.NativeFunction<PhotoframeDummyFunctionNative>>('photoframe_dummy_function')
+      .asFunction();
+
   static final ConvertWithProcessingDart _convertWithProcessing = _dylib
       .lookup<ffi.NativeFunction<ConvertWithProcessingNative>>('photoframe_convert_with_processing')
       .asFunction();
@@ -88,7 +96,7 @@ class PhotoframeDithering {
   /// Returns PNG bytes or null on error
   static Uint8List? apply({
     required Uint8List imageBytes,
-    required int method,
+    required String method,
     required int displayType,
     required double ditherStrength,
     double saturation = 1.0,
@@ -102,7 +110,9 @@ class PhotoframeDithering {
 
     try {
       // Call FFI function
-      final result = _apply(inputPtr, imageBytes.length, method, displayType, ditherStrength, saturation, contrast, brightness);
+      final methodPtr = method.toNativeUtf8().cast<ffi.Char>();
+      final result = _apply(inputPtr, imageBytes.length, methodPtr, displayType, ditherStrength, saturation, contrast, brightness);
+      malloc.free(methodPtr);
 
       if (!result.success || result.dataPtr == ffi.nullptr) {
         return null;

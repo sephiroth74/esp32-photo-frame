@@ -299,7 +299,7 @@ abstract class AppLocalizations {
   /// No description provided for @chooseConnectionMethod.
   ///
   /// In en, this message translates to:
-  /// **'Choose connection method'**
+  /// **'Connect to your ESP32 Photo Frame by choosing one of the options below'**
   String get chooseConnectionMethod;
 
   /// No description provided for @scanQrTitle.
