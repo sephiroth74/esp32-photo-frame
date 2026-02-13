@@ -312,7 +312,7 @@ class _DitheringScreenState extends State<DitheringScreen> with TickerProviderSt
       if (!mounted) return;
 
       // Navigate to UploadScreen
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => UploadScreen(pfrFile: pfrFile, currentOrientation: widget.currentOrientation),
         ),
