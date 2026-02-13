@@ -4,6 +4,7 @@ import 'package:photoframe/models/qr_code_data.dart';
 import 'package:photoframe/screens/configuration_screen.dart';
 import 'package:photoframe/utils/app_logger.dart';
 import 'package:photoframe/l10n/app_localizations.dart';
+import 'package:photoframe/utils/theme_colors.dart';
 
 /// Fullscreen QR Code scanner
 class QRScannerScreen extends StatefulWidget {
@@ -78,9 +79,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = ThemeColors(context);
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: Text(l10n.scanQrTitle), backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(l10n.scanQrTitle), backgroundColor: colors.appBarBackground, foregroundColor: colors.appBarForeground),
       body: Stack(
         children: [
           MobileScanner(controller: cameraController, onDetect: _onDetect),
