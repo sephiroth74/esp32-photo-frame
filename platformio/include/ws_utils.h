@@ -17,6 +17,8 @@
 #ifndef WS_UTILS_H
 #define WS_UTILS_H
 
+#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "battery_manager.h"
 #include "binary_utils.h"
 #include "display_manager.h"
@@ -49,5 +51,7 @@ photo_frame::photo_frame_error_t loadLittleFsFile(const char *filename, photo_fr
 
 } // namespace ws_utils
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 #endif // WS_UTILS_H

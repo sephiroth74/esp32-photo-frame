@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 #ifndef WS_DISPLAY_UTILS_H
 #define WS_DISPLAY_UTILS_H
+
+#ifdef ENABLE_WEBSERVER_DATAPROVIDER
 
 #include "display_manager.h"
 #include "errors.h"
@@ -48,5 +51,7 @@ void drawConnectionInfoBox(photo_frame::DisplayManager &display, const std::stri
 
 } // namespace ws_display_utils
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 #endif // WS_DISPLAY_UTILS_H

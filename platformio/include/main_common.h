@@ -77,14 +77,6 @@ bool initializeImageBuffer();
  */
 bool initializeDisplayHardware();
 
-/**
- * @brief Cleanup the image buffer
- *
- * The ImageBuffer class automatically handles cleanup through its destructor,
- * but this function can be called explicitly if needed.
- */
-void cleanupImageBuffer();
-
 // ============================================================================
 // POWER MANAGEMENT
 // ============================================================================
@@ -111,6 +103,7 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo &batteryInfo, Date
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
 
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 /**
  * @brief Handle final cleanup and prepare for deep sleep
  * @param batteryInfo Battery information for sleep calculations
@@ -121,6 +114,8 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo &batteryInfo, Date
  */
 void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo &batteryInfo, DateTime &now, esp_sleep_wakeup_cause_t wakeup_reason,
                                const refresh_delay_t &refresh_delay);
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 // ============================================================================
 // IMAGE RENDERING

@@ -133,14 +133,6 @@ bool initializeDisplayHardware() {
   return true;
 }
 
-void cleanupImageBuffer() {
-  auto &display = photo_frame::DisplayManager::getInstance();
-  if (display.isInitialized()) {
-    log_i("[main] Releasing display manager");
-    display.release();
-    log_i("[main] Display manager released");
-  }
-}
 
 photo_frame::photo_frame_error_t setupBatteryAndPower(photo_frame::BatteryInfo &batteryInfo,
                                                       esp_sleep_wakeup_cause_t wakeup_reason) {
@@ -270,6 +262,8 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo &BatteryInfo, Date
 
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
 
+
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo &BatteryInfo, DateTime &now, esp_sleep_wakeup_cause_t wakeup_reason,
                                const refresh_delay_t &refresh_delay) {
 
@@ -288,6 +282,8 @@ void finalizeAndEnterDeepSleep(photo_frame::BatteryInfo &BatteryInfo, DateTime &
   log_d("Elapsed seconds since startup: %lu s", elapsed / 1000);
   photo_frame::board_utils::enterDeepSleep(wakeup_reason, refresh_delay.get_refresh_microseconds());
 }
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 #if !defined(ENABLE_WEBSERVER_DATAPROVIDER)
 

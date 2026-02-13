@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "wifi_manager.h"
 #include <Arduino.h>
 
@@ -319,3 +321,5 @@ String WifiManager::getIpAddress() const {
 String WifiManager::getSsid() const { return _ssid; }
 
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

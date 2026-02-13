@@ -16,6 +16,8 @@
 
 #pragma once
 
+#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "RTClib.h"
 #include "config.h"
 #include "errors.h"
@@ -210,3 +212,5 @@ private:
 };
 
 } // namespace photo_frame
+
+#endif
