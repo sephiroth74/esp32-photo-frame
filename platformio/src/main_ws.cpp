@@ -135,6 +135,19 @@ DateTime getCurrentDateTime() {
 }
 
 /**
+ * @brief Send display_ready event to client that performed the upload
+ */
+void sendDisplayReadyEvent() {
+  log_i("[WS] Sending display_ready event to client if upload is active");
+  // Invio messaggio display_ready al client che ha fatto l'upload
+  if (g_wsServer && g_wsServer->isClientConnected()) {
+    g_wsServer->sendDisplayReadyMessage();
+  } else {
+    log_w("[WS] No active client to send display_ready message");
+  }
+}
+
+/**
  * @brief Load and display the received image file
  * @param filename Filename of the image in LittleFS
  * @param orientation Display orientation (0-3)
@@ -151,6 +164,7 @@ void displayReceivedFile(const char *filename, uint8_t orientation, uint32_t tim
   if (!g_littleFs || !g_display) {
     log_e("[WS] LittleFS or Display not initialized");
     g_isLoadingImage = false;
+    sendDisplayReadyEvent(); // Ensure we still send display_ready even if we can't load the image
     return;
   }
 
@@ -179,6 +193,7 @@ void displayReceivedFile(const char *filename, uint8_t orientation, uint32_t tim
     g_display->drawError(error, filename);
     g_display->render();
     g_isLoadingImage = false;
+    sendDisplayReadyEvent(); // Still send display_ready to allow client to know loading is done (even if it failed)
     return;
   }
 
@@ -198,6 +213,7 @@ void displayReceivedFile(const char *filename, uint8_t orientation, uint32_t tim
 
   g_isLoadingImage = false;
   g_imageUpdated = true;
+  sendDisplayReadyEvent(); // Ensure we send display_ready after image is loaded
 }
 
 void onWsClientError(const WSEvent &event) { log_w("[WS] Client error: %s", event.message.c_str()); }

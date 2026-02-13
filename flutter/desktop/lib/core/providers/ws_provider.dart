@@ -6,11 +6,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:photoframe_common/models/bin_model.dart';
+import 'package:photoframe_common/models/ws_messages.dart'; // Import for WsDisplayReadyMessage
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class WsUploadState with ChangeNotifier {
+  Completer<WsDisplayReadyMessage>? _displayReadyCompleter;
   static const String _defaultIp = '192.168.4.1';
   static const String _defaultPort = '81';
   static const int _chunkSize = 4096;
@@ -227,6 +229,17 @@ class WsUploadState with ChangeNotifier {
           if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
             _uploadCompleteCompleter!.complete(success);
           }
+          // Dopo finalResponse, attendi display_ready
+          _displayReadyCompleter = Completer<WsDisplayReadyMessage>();
+          return;
+        }
+
+        // Handle display_ready
+        if (decoded['type'] == WsMessageType.displayReady.value) {
+          final displayReady = WsDisplayReadyMessage.fromJson(decoded);
+          if (_displayReadyCompleter != null && !_displayReadyCompleter!.isCompleted) {
+            _displayReadyCompleter!.complete(displayReady);
+          }
           return;
         }
 
@@ -407,14 +420,30 @@ class WsUploadState with ChangeNotifier {
 
       // Wait for final response
       _uploadCompleteCompleter = Completer<WsFinalResponse>();
-      final success = await _uploadCompleteCompleter!.future.timeout(
+      await _uploadCompleteCompleter!.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () => throw TimeoutException('Server did not send final response'),
       );
 
+      // Mostra progress indeterminato in attesa di display_ready
+      status = 'Updating display...';
       progress = 1.0;
+      notifyListeners();
+
+      // Attendi display_ready o timeout
+      try {
+        final displayReady = await _displayReadyCompleter!.future.timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw TimeoutException('Display not ready after 30s'),
+        );
+        status = 'Display updated: ${displayReady.message}';
+        debugPrint('✓ Display ready: ${displayReady.message}');
+      } catch (e) {
+        status = 'Display update timeout';
+        debugPrint('✗ Display ready timeout: $e');
+      }
+
       uploadDuration = stopwatch.elapsed.inSeconds;
-      status = 'Upload completed: ${success.message}';
       debugPrint('✓ Upload completed in ${uploadDuration}s');
     } catch (e) {
       error = e.toString();
@@ -425,6 +454,7 @@ class WsUploadState with ChangeNotifier {
       _uploadReadyCompleter = null;
       _uploadChunkAckCompleter = null;
       _uploadCompleteCompleter = null;
+      _displayReadyCompleter = null;
       stopwatch.stop();
       notifyListeners();
     }

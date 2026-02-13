@@ -32,7 +32,6 @@ extern volatile bool g_isLoadingImage;
 
 namespace photo_frame {
 namespace ws {
-
 // FreeRTOS task configuration
 #define WS_TASK_STACK_SIZE 8192
 #define WS_TASK_PRIORITY 5
@@ -113,6 +112,16 @@ void WSServer::stop() {
   }
 
   log_i("[WSServer] Stopped");
+}
+
+void WSServer::sendDisplayReadyMessage() {
+  if (m_webSocket && isClientConnected()) {
+    photo_frame::ws::WSDisplayReadyMessage msg(m_activeClientId, "Display updated");
+    String json = msg.toJson();
+    m_webSocket->sendTXT(m_activeClientId, json);
+  } else {
+    log_w("[WSServer] No active client to send display_ready message");
+  }
 }
 
 void WSServer::taskFunction(void *parameter) {

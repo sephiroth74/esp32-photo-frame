@@ -152,6 +152,16 @@ pub struct ShutdownCommand {
 }
 
 /// Shutdown acknowledgement response from server
+/// Display ready message from server
+#[derive(Deserialize)]
+pub struct DisplayReadyMessage {
+    #[serde(rename = "type")]
+    #[allow(dead_code)]
+    pub msg_type: String,
+    pub session_id: Option<u8>,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
 #[derive(Deserialize)]
 pub struct ShutdownResponse {
     #[serde(rename = "type")]

@@ -16,6 +16,7 @@ enum WsMessageType {
   chunkAck('chunk_ack'),
   ack('ack'),
   finalResponse('final_response'),
+  displayReady('display_ready'),
   error('error');
 
   final String value;
@@ -188,4 +189,15 @@ class WsMessageInfo {
 
   @override
   String toString() => 'WsMessageInfo(type=$type, message=$message)';
+}
+
+class WsDisplayReadyMessage extends WsMessageInfo {
+  const WsDisplayReadyMessage({super.type = 'display_ready', super.message});
+
+  factory WsDisplayReadyMessage.fromJson(Map<String, dynamic> json) {
+    return WsDisplayReadyMessage(type: json['type'] as String? ?? 'display_ready', message: json['message'] as String? ?? '');
+  }
+
+  @override
+  String toString() => 'WsDisplayReadyMessage(message=$message)';
 }

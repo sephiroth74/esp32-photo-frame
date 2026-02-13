@@ -244,6 +244,21 @@ String WSMessageInfo::toJson() const {
   return output;
 }
 
+// ===============================================
+// WSDisplayReadyMessage Implementation
+// ===============================================
+
+String WSDisplayReadyMessage::toJson() const {
+  StaticJsonDocument<256> doc;
+  doc["type"] = type;
+  doc["session_id"] = sessionId;
+  doc["message"] = message;
+
+  String output;
+  serializeJson(doc, output);
+  return output;
+}
+
 } // namespace ws
 } // namespace photo_frame
 

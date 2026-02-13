@@ -201,6 +201,15 @@ struct WSMessageInfo {
   String toJson() const;
 };
 
+struct WSDisplayReadyMessage {
+  constexpr static char type[] = "display_ready";
+  uint8_t sessionId;
+  String message;
+  WSDisplayReadyMessage(uint8_t id = 0, const String &msg = "") : sessionId(id), message(msg) {}
+
+  String toJson() const;
+};
+
 } // namespace ws
 } // namespace photo_frame
 

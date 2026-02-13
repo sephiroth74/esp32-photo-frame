@@ -70,6 +70,16 @@ using WSEventCallback = std::function<void(const WSEvent &)>;
 class WSServer {
 public:
   /**
+   * @brief Send display_ready message to all clients
+   */
+  void sendDisplayReadyMessage();
+
+  /**
+   * @brief Get upload client id
+   */
+  uint8_t getUploadClientId() const { return m_uploadClientId; }
+
+  /**
    * @brief Construct WebSocket server
    * @param port WebSocket server port
    * @param callback Event callback function
@@ -115,6 +125,8 @@ public:
    * @return Milliseconds since last activity (millis())
    */
   unsigned long getLastActivityMs() const { return m_lastActivityMs; }
+
+  bool isClientConnected() const { return m_connectedClientsCount > 0; }
 
 private:
   /**
