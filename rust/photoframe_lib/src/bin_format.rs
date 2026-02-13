@@ -1,5 +1,5 @@
 use crate::ColorMode;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use crc32fast::Hasher as Crc32Hasher;
 
 /// Magic 'PFR1' little-endian (0x50465231)
