@@ -1,4 +1,5 @@
 use super::imagemagick::ImageMagickWrapper;
+use crate::logging::Logger;
 use anyhow::{Context, Result};
 use image::{Rgb, RgbImage};
 use std::fs;
@@ -19,9 +20,9 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
     let thread_id = std::thread::current().id();
 
     let input_path =
-        NamedTempFile::with_prefix(format!("pfproc_color_in_{}_{:?}_", timestamp, thread_id))
+        NamedTempFile::with_suffix(format!("pfproc_color_in_{}_{:?}.png", timestamp, thread_id))
             .context("Failed to create temporary input image file")?;
-    let output_path = NamedTempFile::with_prefix(format!(
+    let output_path = NamedTempFile::with_suffix(format!(
         "pfproc_color_out_{}_{:?}.png",
         timestamp, thread_id
     ))
@@ -53,6 +54,7 @@ fn apply_imagemagick_manual_correction(
     brightness: u32,
     contrast: u32,
     saturation: u32,
+    logger: &Logger,
 ) -> Result<RgbImage> {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -61,17 +63,28 @@ fn apply_imagemagick_manual_correction(
     let thread_id = std::thread::current().id();
 
     let input_path =
-        NamedTempFile::with_prefix(format!("pfproc_color_in_{}_{:?}.png", timestamp, thread_id))
+        NamedTempFile::with_suffix(format!("pfproc_color_in_{}_{:?}.png", timestamp, thread_id))
             .context("Failed to create temporary input image file")?;
-    let output_path = NamedTempFile::with_prefix(format!(
+    let output_path = NamedTempFile::with_suffix(format!(
         "pfproc_color_out_{}_{:?}.png",
         timestamp, thread_id
     ))
     .context("Failed to create temporary output image file")?;
 
+    logger.verbose(&format!("input path: {}", input_path.path().display()));
+    logger.verbose(&format!("output path: {}", output_path.path().display()));
+
     // Save input image
-    img.save(&input_path)
-        .context("Failed to save temporary input image")?;
+    match img.save(&input_path) {
+        Ok(_) => (),
+        Err(err) => {
+            logger.warning(format!("Failed to save temporary input image: {}", err).as_str());
+            return Err(anyhow::anyhow!(
+                "Failed to save temporary input image: {}",
+                err
+            ));
+        }
+    }
 
     ImageMagickWrapper::apply_color_correction(
         &input_path.path(),
@@ -79,6 +92,7 @@ fn apply_imagemagick_manual_correction(
         brightness,
         contrast,
         saturation,
+        logger,
     )
     .context("Failed to apply color correction using ImageMagick")?;
 
@@ -154,16 +168,22 @@ pub fn apply_color_correction(
     brightness: u32,
     contrast: u32,
     saturation: u32,
+    logger: &Logger,
 ) -> Result<RgbImage> {
     let processed_image = if auto_color_correct {
         // Try ImageMagick first for full auto color correction
         if is_imagemagick_available() {
+            logger.verbose("Applying auto color correction using ImageMagick");
             match apply_imagemagick_auto_correction(img) {
                 Ok(corrected) => return Ok(corrected),
-                Err(_) => apply_fallback_auto_correction(img),
+                Err(err) => {
+                    logger.verbose(format!("Failed to apply color correction: {}", err).as_str());
+                    apply_fallback_auto_correction(img)
+                }
             }?
         } else {
             // Fall back to photoframe-lib
+            logger.verbose("Auto color correction using fallback");
             apply_fallback_auto_correction(img)?
         }
     } else {
@@ -176,15 +196,25 @@ pub fn apply_color_correction(
     }
 
     // Try ImageMagick first for manual correction
-    if is_imagemagick_available() {
-        if let Ok(corrected) =
-            apply_imagemagick_manual_correction(&processed_image, brightness, contrast, saturation)
-        {
-            return Ok(corrected);
+    return if is_imagemagick_available() {
+        match apply_imagemagick_manual_correction(
+            &processed_image,
+            brightness,
+            contrast,
+            saturation,
+            logger,
+        ) {
+            Ok(corrected) => Ok(corrected),
+            Err(err) => {
+                logger.verbose("ImageMagick manual correction failed, falling back");
+                logger.warning(format!("error: {}", err).as_str());
+                apply_fallback_manual_correction(&processed_image, brightness, contrast, saturation)
+            }
         }
-    }
-    // Fall back to photoframe-lib
-    apply_fallback_manual_correction(&processed_image, brightness, contrast, saturation)
+    } else {
+        logger.verbose("Manual color correction using fallback");
+        apply_fallback_manual_correction(&processed_image, brightness, contrast, saturation)
+    };
 }
 
 /// Apply automatic levels correction to stretch histogram

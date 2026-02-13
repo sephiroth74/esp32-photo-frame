@@ -518,7 +518,7 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #endif                                        // WS_UPLOAD_TEMP_FILENAME
 
 #ifndef WS_UPLOAD_TIMEOUT_MS
-#define WS_UPLOAD_TIMEOUT_MS (30 * 1000) // Upload session timeout
+#define WS_UPLOAD_TIMEOUT_MS (15 * 1000) // Upload session timeout
 #endif                                   // WS_UPLOAD_TIMEOUT_MS
 
 /// WiFi Access Point Configuration

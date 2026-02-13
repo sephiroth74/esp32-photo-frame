@@ -1,3 +1,4 @@
+use crate::logging::Logger;
 use anyhow::{Context, Result};
 use image::RgbImage;
 use std::path::Path;
@@ -88,6 +89,7 @@ impl ImageMagickWrapper {
         brightness: u32,
         contrast: u32,
         saturation: u32,
+        logger: &Logger,
     ) -> Result<()> {
         if !Self::is_available() {
             return Err(anyhow::anyhow!("ImageMagick is not available"));
@@ -97,11 +99,10 @@ impl ImageMagickWrapper {
 
         let mut command = Command::new(cmd);
         command.arg(input_path.to_string_lossy().as_ref());
-
         command.arg("-auto-level"); // Stretch histogram
 
-        // Apply brightness
-        if brightness != 100 || saturation != 100 {
+        // Apply saturation and brightness
+        if saturation != 100 || brightness != 100 {
             command
                 .arg("-modulate")
                 .arg(format!("{},{},100", brightness, saturation));
@@ -116,6 +117,8 @@ impl ImageMagickWrapper {
         }
 
         command.arg(output_path.to_string_lossy().as_ref());
+
+        logger.verbose(&format!("cmd: {}", output_path.display()));
 
         let output = command
             .output()

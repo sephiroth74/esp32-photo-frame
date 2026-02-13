@@ -760,6 +760,7 @@ fn process_job(
         job.brightness,
         job.contrast,
         job.saturation,
+        logger,
     )
     .context("Failed to apply color correction")?;
 
