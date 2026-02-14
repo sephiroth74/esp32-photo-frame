@@ -49,22 +49,13 @@ class _HomeScreenMaterialState extends State<HomeScreenMaterial> {
               isSelected: [_tabIndex == 0, _tabIndex == 1],
               onPressed: (index) => setState(() => _tabIndex = index),
               children: const [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('Process Images'),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('Upload to Device'),
-                ),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Process Images')),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Upload to Device')),
               ],
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: IndexedStack(
-                index: _tabIndex,
-                children: const [ProcessingScreen(), WsUploadScreen()],
-              ),
+              child: IndexedStack(index: _tabIndex, children: const [ProcessingScreen(), WsUploadScreen()]),
             ),
           ],
         ),

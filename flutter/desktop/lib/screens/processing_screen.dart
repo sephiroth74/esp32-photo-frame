@@ -785,13 +785,16 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if(!_magickAvailable) ...[
+                      if (!_magickAvailable) ...[
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.warning_amber_outlined, size: 16, color: Colors.orange),
                             const SizedBox(width: 4),
-                            Text('Image annotation requires ImageMagick\'s "magick" command to be available. It will add date/time text to the bottom of each image.', style: TextStyle(fontSize: 12, color: Colors.grey[600]),),
+                            Text(
+                              'Image annotation requires ImageMagick\'s "magick" command to be available. It will add date/time text to the bottom of each image.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),

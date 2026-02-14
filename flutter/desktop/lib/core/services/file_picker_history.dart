@@ -18,10 +18,7 @@ class FilePickerHistory {
   }
 
   /// Remember directory for future file picker calls
-  static Future<void> rememberDirectory(
-    String key,
-    String directoryPath,
-  ) async {
+  static Future<void> rememberDirectory(String key, String directoryPath) async {
     if (directoryPath.isEmpty) return;
     // Save to persistent storage
     try {

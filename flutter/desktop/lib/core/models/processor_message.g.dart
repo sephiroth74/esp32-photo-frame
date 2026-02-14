@@ -6,21 +6,19 @@ part of 'processor_message.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-ProgressMessage _$ProgressMessageFromJson(Map<String, dynamic> json) =>
-    ProgressMessage(
-      phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']),
-      current: (json['current'] as num).toInt(),
-      total: (json['total'] as num).toInt(),
-      message: json['message'] as String,
-    );
+ProgressMessage _$ProgressMessageFromJson(Map<String, dynamic> json) => ProgressMessage(
+  phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']),
+  current: (json['current'] as num).toInt(),
+  total: (json['total'] as num).toInt(),
+  message: json['message'] as String,
+);
 
-Map<String, dynamic> _$ProgressMessageToJson(ProgressMessage instance) =>
-    <String, dynamic>{
-      'phase': _$ProcessorMessagePhaseEnumMap[instance.phase]!,
-      'current': instance.current,
-      'total': instance.total,
-      'message': instance.message,
-    };
+Map<String, dynamic> _$ProgressMessageToJson(ProgressMessage instance) => <String, dynamic>{
+  'phase': _$ProcessorMessagePhaseEnumMap[instance.phase]!,
+  'current': instance.current,
+  'total': instance.total,
+  'message': instance.message,
+};
 
 const _$ProcessorMessagePhaseEnumMap = {
   ProcessorMessagePhase.startup: 'startup',
@@ -32,37 +30,28 @@ const _$ProcessorMessagePhaseEnumMap = {
   ProcessorMessagePhase.complete: 'complete',
 };
 
-FileCompletedMessage _$FileCompletedMessageFromJson(
-  Map<String, dynamic> json,
-) => FileCompletedMessage(
-  phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']),
-);
+FileCompletedMessage _$FileCompletedMessageFromJson(Map<String, dynamic> json) =>
+    FileCompletedMessage(phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']));
 
-Map<String, dynamic> _$FileCompletedMessageToJson(
-  FileCompletedMessage instance,
-) => <String, dynamic>{
+Map<String, dynamic> _$FileCompletedMessageToJson(FileCompletedMessage instance) => <String, dynamic>{
   'phase': _$ProcessorMessagePhaseEnumMap[instance.phase]!,
 };
 
-FileFailedMessage _$FileFailedMessageFromJson(Map<String, dynamic> json) =>
-    FileFailedMessage(
-      phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']),
-      inputPath: json['input_path'] as String,
-      error: json['error'] as String,
-    );
+FileFailedMessage _$FileFailedMessageFromJson(Map<String, dynamic> json) => FileFailedMessage(
+  phase: $enumDecode(_$ProcessorMessagePhaseEnumMap, json['phase']),
+  inputPath: json['input_path'] as String,
+  error: json['error'] as String,
+);
 
-ProcessorSummary _$ProcessorSummaryFromJson(Map<String, dynamic> json) =>
-    ProcessorSummary(
-      failed: (json['failed'] as num).toInt(),
-      paired: (json['paired'] as num).toInt(),
-      processed: (json['processed'] as num).toInt(),
-      totalFiles: (json['total_files'] as num).toInt(),
-      totalOutputImages: (json['total_output_images'] as num).toInt(),
-    );
+ProcessorSummary _$ProcessorSummaryFromJson(Map<String, dynamic> json) => ProcessorSummary(
+  failed: (json['failed'] as num).toInt(),
+  paired: (json['paired'] as num).toInt(),
+  processed: (json['processed'] as num).toInt(),
+  totalFiles: (json['total_files'] as num).toInt(),
+  totalOutputImages: (json['total_output_images'] as num).toInt(),
+);
 
-ProcessorCompleteMessage _$ProcessorCompleteMessageFromJson(
-  Map<String, dynamic> json,
-) => ProcessorCompleteMessage(
+ProcessorCompleteMessage _$ProcessorCompleteMessageFromJson(Map<String, dynamic> json) => ProcessorCompleteMessage(
   totalFiles: (json['total_files'] as num).toInt(),
   processed: (json['processed'] as num).toInt(),
   failed: (json['failed'] as num).toInt(),

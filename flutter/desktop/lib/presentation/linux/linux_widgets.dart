@@ -67,14 +67,7 @@ class LinuxButton extends PlatformButton {
   @override
   Widget build(BuildContext context) {
     final content = isLoading
-        ? SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(_getForegroundColor()),
-            ),
-          )
+        ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(_getForegroundColor())))
         : Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -96,11 +89,7 @@ class LinuxButton extends PlatformButton {
       );
     }
 
-    return ElevatedButton(
-      onPressed: enabled && !isLoading ? onPressed : null,
-      style: _getButtonStyle(),
-      child: content,
-    );
+    return ElevatedButton(onPressed: enabled && !isLoading ? onPressed : null, style: _getButtonStyle(), child: content);
   }
 }
 
@@ -148,13 +137,8 @@ class _LinuxTextFieldState extends State<LinuxTextField> {
         focusedBorder: _getFocusedBorder(),
         errorBorder: _getErrorBorder(),
         focusedErrorBorder: _getErrorBorder(),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        suffixIcon: widget.errorText != null
-            ? const Icon(Icons.error, color: Colors.red)
-            : null,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        suffixIcon: widget.errorText != null ? const Icon(Icons.error, color: Colors.red) : null,
       ),
     );
   }
@@ -179,13 +163,9 @@ class _LinuxTextFieldState extends State<LinuxTextField> {
           borderSide: const BorderSide(color: color, width: 2),
         );
       case PlatformTextFieldBorderStyle.square:
-        return const OutlineInputBorder(
-          borderSide: BorderSide(color: color, width: 2),
-        );
+        return const OutlineInputBorder(borderSide: BorderSide(color: color, width: 2));
       case PlatformTextFieldBorderStyle.none:
-        return const UnderlineInputBorder(
-          borderSide: BorderSide(color: color, width: 2),
-        );
+        return const UnderlineInputBorder(borderSide: BorderSide(color: color, width: 2));
     }
   }
 
@@ -222,26 +202,14 @@ class LinuxGroupBox extends PlatformGroupBox {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(
-          color: borderColor ?? Colors.grey[300] ?? Colors.grey,
-          width: 1,
-        ),
+        side: BorderSide(color: borderColor ?? Colors.grey[300] ?? Colors.grey, width: 1),
       ),
       child: Padding(
         padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (title != null) ...[
-              Text(
-                title!,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
+            if (title != null) ...[Text(title!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)), const SizedBox(height: 12)],
             child,
           ],
         ),
@@ -295,10 +263,7 @@ class LinuxProgressIndicator extends PlatformProgressIndicator {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (label != null) ...[
-          Text(label!, style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: 8),
-        ],
+        if (label != null) ...[Text(label!, style: const TextStyle(fontSize: 12)), const SizedBox(height: 8)],
         LinearProgressIndicator(
           value: value,
           minHeight: 8,
@@ -333,37 +298,21 @@ class LinuxPopupMenuItem<T> extends PlatformPopupMenuItem<T> {
 }
 
 class LinuxPopupMenu<T> extends PlatformPopupMenu<T> {
-  const LinuxPopupMenu({
-    required super.items,
-    super.label,
-    super.selectedItem,
-    super.onSelected,
-    super.style,
-    super.key,
-  });
+  const LinuxPopupMenu({required super.items, super.label, super.selectedItem, super.onSelected, super.style, super.key});
 
   @override
   Widget build(BuildContext context) {
     return DropdownMenu<T>(
       onSelected: onSelected,
       label: label,
-      dropdownMenuEntries: items
-          .map(
-            (item) =>
-                DropdownMenuEntry<T>(value: item.value, label: item.label),
-          )
-          .toList(),
+      dropdownMenuEntries: items.map((item) => DropdownMenuEntry<T>(value: item.value, label: item.label)).toList(),
       initialSelection: selectedItem,
     );
   }
 }
 
 class LinuxSwitch extends PlatformSwitch {
-  const LinuxSwitch({
-    required super.checked,
-    required super.onChanged,
-    super.key,
-  });
+  const LinuxSwitch({required super.checked, required super.onChanged, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -372,33 +321,16 @@ class LinuxSwitch extends PlatformSwitch {
 }
 
 class LinuxSlider extends PlatformSlider {
-  const LinuxSlider({
-    required super.value,
-    required super.min,
-    required super.max,
-    required super.onChanged,
-    super.divisions,
-    super.key,
-  });
+  const LinuxSlider({required super.value, required super.min, required super.max, required super.onChanged, super.divisions, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Slider(
-      value: value,
-      min: min,
-      max: max,
-      divisions: divisions,
-      onChanged: onChanged,
-    );
+    return Slider(value: value, min: min, max: max, divisions: divisions, onChanged: onChanged);
   }
 }
 
 class LinuxCheckBox extends PlatformCheckbox {
-  const LinuxCheckBox({
-    required super.value,
-    required super.onChanged,
-    super.key,
-  });
+  const LinuxCheckBox({required super.value, required super.onChanged, super.key});
 
   @override
   Widget build(BuildContext context) {

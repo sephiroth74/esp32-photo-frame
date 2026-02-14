@@ -81,17 +81,9 @@ class BinValidationResult {
 }
 
 /// Typedef for validate_bin FFI function
-typedef ValidateBinNative =
-    BinValidationResultNative Function(
-      ffi.Pointer<ffi.Uint8> dataPtr,
-      ffi.Size dataLen,
-    );
+typedef ValidateBinNative = BinValidationResultNative Function(ffi.Pointer<ffi.Uint8> dataPtr, ffi.Size dataLen);
 
-typedef ValidateBinDart =
-    BinValidationResultNative Function(
-      ffi.Pointer<ffi.Uint8> dataPtr,
-      int dataLen,
-    );
+typedef ValidateBinDart = BinValidationResultNative Function(ffi.Pointer<ffi.Uint8> dataPtr, int dataLen);
 
 /// FFI wrapper for PFR1 .pfr1 file validation
 class PhotoframeValidator {
@@ -108,9 +100,7 @@ class PhotoframeValidator {
     throw UnsupportedError('Unsupported platform for PFR1 validation');
   }
 
-  static final ValidateBinDart _validateBin = _dylib
-      .lookup<ffi.NativeFunction<ValidateBinNative>>('photoframe_validate_bin')
-      .asFunction();
+  static final ValidateBinDart _validateBin = _dylib.lookup<ffi.NativeFunction<ValidateBinNative>>('photoframe_validate_bin').asFunction();
 
   /// Validate a PFR1 .pfr1 file
   ///

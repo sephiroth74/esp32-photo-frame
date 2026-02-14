@@ -107,8 +107,7 @@ abstract class PlatformTextField extends StatefulWidget {
     TextEditingController? controller,
     ValueChanged<String>? onChanged,
     VoidCallback? onSubmitted,
-    PlatformTextFieldBorderStyle borderStyle =
-        PlatformTextFieldBorderStyle.rounded,
+    PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
     bool obscureText = false,
@@ -167,15 +166,7 @@ abstract class PlatformDropdown<T> extends StatefulWidget {
   final String? label;
   final bool enabled;
 
-  const PlatformDropdown({
-    required this.items,
-    required this.itemLabel,
-    this.value,
-    this.onChanged,
-    this.label,
-    this.enabled = true,
-    super.key,
-  });
+  const PlatformDropdown({required this.items, required this.itemLabel, this.value, this.onChanged, this.label, this.enabled = true, super.key});
 
   /// Factory constructor to create platform-specific implementation
   factory PlatformDropdown.create({
@@ -199,15 +190,7 @@ abstract class PlatformSlider extends StatelessWidget {
   final int? divisions;
   final ValueChanged<double>? onChanged;
 
-  const PlatformSlider({
-    required this.value,
-    required this.min,
-    required this.max,
-    this.stops,
-    this.divisions,
-    this.onChanged,
-    super.key,
-  });
+  const PlatformSlider({required this.value, required this.min, required this.max, this.stops, this.divisions, this.onChanged, super.key});
 }
 
 /// Platform-agnostic dialog action button
@@ -217,12 +200,7 @@ class PlatformDialogAction {
   final PlatformDialogActionStyle style;
   final bool isDestructive;
 
-  PlatformDialogAction({
-    required this.label,
-    this.onPressed,
-    this.style = PlatformDialogActionStyle.secondary,
-    this.isDestructive = false,
-  });
+  PlatformDialogAction({required this.label, this.onPressed, this.style = PlatformDialogActionStyle.secondary, this.isDestructive = false});
 }
 
 /// Platform-agnostic dialog/alert
@@ -268,13 +246,7 @@ class PlatformMenuItem {
   final bool enabled;
   final List<PlatformMenuItem>? submenu;
 
-  PlatformMenuItem({
-    required this.label,
-    this.onPressed,
-    this.shortcut,
-    this.enabled = true,
-    this.submenu,
-  });
+  PlatformMenuItem({required this.label, this.onPressed, this.shortcut, this.enabled = true, this.submenu});
 }
 
 /// Platform-agnostic application menu bar
@@ -295,11 +267,7 @@ abstract class PlatformNotification {
   final Duration duration;
   final VoidCallback? onDismissed;
 
-  const PlatformNotification({
-    required this.message,
-    this.duration = const Duration(seconds: 3),
-    this.onDismissed,
-  });
+  const PlatformNotification({required this.message, this.duration = const Duration(seconds: 3), this.onDismissed});
 
   /// Show the notification
   void show(BuildContext context);
@@ -314,12 +282,7 @@ abstract class PlatformProgressIndicator extends StatelessWidget {
   final String? label;
   final bool visible;
 
-  const PlatformProgressIndicator({
-    this.value,
-    this.label,
-    this.visible = true,
-    super.key,
-  });
+  const PlatformProgressIndicator({this.value, this.label, this.visible = true, super.key});
 }
 
 /// Platform-agnostic circular progress indicator
@@ -333,42 +296,22 @@ abstract class PlatformCircularProgressIndicator extends StatelessWidget {
 /// Platform-agnostic file picker
 abstract class PlatformFilePicker {
   /// Pick a single file
-  Future<String?> pickFile({
-    String? initialDirectory,
-    List<String>? allowedExtensions,
-    String dialogTitle = 'Pick a file',
-  });
+  Future<String?> pickFile({String? initialDirectory, List<String>? allowedExtensions, String dialogTitle = 'Pick a file'});
 
   /// Pick multiple files
-  Future<List<String>?> pickFiles({
-    String? initialDirectory,
-    List<String>? allowedExtensions,
-    String dialogTitle = 'Pick files',
-  });
+  Future<List<String>?> pickFiles({String? initialDirectory, List<String>? allowedExtensions, String dialogTitle = 'Pick files'});
 
   /// Pick a directory
-  Future<String?> pickDirectory({
-    String? initialDirectory,
-    String dialogTitle = 'Pick a directory',
-  });
+  Future<String?> pickDirectory({String? initialDirectory, String dialogTitle = 'Pick a directory'});
 
   /// Save file dialog
-  Future<String?> saveFile({
-    String? initialDirectory,
-    String? suggestedName,
-    List<String>? allowedExtensions,
-    String dialogTitle = 'Save file',
-  });
+  Future<String?> saveFile({String? initialDirectory, String? suggestedName, List<String>? allowedExtensions, String dialogTitle = 'Save file'});
 }
 
 /// Platform-agnostic keyboard shortcuts
 abstract class PlatformKeyboardShortcuts {
   /// Register a keyboard shortcut
-  void register(
-    String shortcut,
-    VoidCallback action, {
-    bool isRepeatable = false,
-  });
+  void register(String shortcut, VoidCallback action, {bool isRepeatable = false});
 
   /// Unregister a keyboard shortcut
   void unregister(String shortcut);

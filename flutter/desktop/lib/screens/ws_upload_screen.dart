@@ -62,18 +62,10 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     super.dispose();
   }
 
-  Future<void> _openDialog<T>({
-    required Widget Function(BuildContext context, WidgetFactory factory)
-    builder,
-    bool barrierDismissible = true,
-  }) async {
+  Future<void> _openDialog<T>({required Widget Function(BuildContext context, WidgetFactory factory) builder, bool barrierDismissible = true}) async {
     if (!mounted) return;
     final factory = context.read<WidgetFactoryProvider>().factory;
-    await factory.openDialog<T>(
-      context: context,
-      builder: (ctx, f) => builder(ctx, f),
-      barrierDismissible: barrierDismissible,
-    );
+    await factory.openDialog<T>(context: context, builder: (ctx, f) => builder(ctx, f), barrierDismissible: barrierDismissible);
   }
 
   Future<void> _pickBinFile(WsUploadState ws) async {
@@ -98,13 +90,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     PlatformButtonStyle style = PlatformButtonStyle.primary,
   }) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    return factory.button(
-      label: label,
-      onPressed: onPressed,
-      icon: icon != null ? Icon(icon) : null,
-      size: size,
-      style: style,
-    );
+    return factory.button(label: label, onPressed: onPressed, icon: icon != null ? Icon(icon) : null, size: size, style: style);
   }
 
   Widget _buildCircularProgress(double? value, double? size) {
@@ -130,12 +116,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     TextInputType keyboardType = TextInputType.text,
   }) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    return factory.textField(
-      controller: controller,
-      placeholder: placeholder,
-      keyboardType: keyboardType,
-      onChanged: onChanged,
-    );
+    return factory.textField(controller: controller, placeholder: placeholder, keyboardType: keyboardType, onChanged: onChanged);
   }
 
   Widget _buildConfigRow(String label, String value) {
@@ -144,10 +125,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-          ),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -168,9 +146,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
     final displayWidth = ws.boardConfig!.displayWidth;
     final displayHeight = ws.boardConfig!.displayHeight;
 
-    final matches =
-        (imageWidth == displayWidth && imageHeight == displayHeight) ||
-        (imageWidth == displayHeight && imageHeight == displayWidth);
+    final matches = (imageWidth == displayWidth && imageHeight == displayHeight) || (imageWidth == displayHeight && imageHeight == displayWidth);
     final statusColor = matches ? Colors.green : Colors.orange;
     final statusIcon = matches ? Icons.check_circle : Icons.warning;
     final statusText = matches
@@ -190,10 +166,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
           Icon(statusIcon, color: statusColor, size: 14),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(
-              statusText,
-              style: TextStyle(fontSize: 10, color: statusColor),
-            ),
+            child: Text(statusText, style: TextStyle(fontSize: 10, color: statusColor)),
           ),
         ],
       ),
@@ -207,13 +180,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
           title: 'Error',
           icon: Icon(Icons.error_outline, color: Colors.red.shade500, size: 64),
           message: message,
-          actions: [
-            PlatformDialogAction(
-              label: 'OK',
-              onPressed: () => Navigator.of(ctx).pop(),
-              style: PlatformDialogActionStyle.primary,
-            ),
-          ],
+          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop(), style: PlatformDialogActionStyle.primary)],
         );
       },
     );
@@ -226,13 +193,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
           icon: Icon(Icons.check, color: Colors.green.shade500, size: 64),
           title: 'Upload completed',
           message: message,
-          actions: [
-            PlatformDialogAction(
-              label: 'OK',
-              onPressed: () => Navigator.of(ctx).pop(),
-              style: PlatformDialogActionStyle.primary,
-            ),
-          ],
+          actions: [PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(ctx).pop(), style: PlatformDialogActionStyle.primary)],
         );
       },
     );
@@ -253,11 +214,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
             _showUploadError(context, ws.error!);
           });
         }
-        final uploadSucceeded =
-            !ws.uploading &&
-            ws.error == null &&
-            ws.progress >= 1.0 &&
-            ws.status.startsWith('Upload completed');
+        final uploadSucceeded = !ws.uploading && ws.error == null && ws.progress >= 1.0 && ws.status.startsWith('Upload completed');
         if (uploadSucceeded && ws.status != _lastSuccessShown) {
           _lastSuccessShown = ws.status;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -265,9 +222,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
             _showUploadSuccess(context, ws.status);
           });
         }
-        final fileLabel = ws.binPath != null
-            ? ws.binPath!.split('/').last
-            : 'No file selected';
+        final fileLabel = ws.binPath != null ? ws.binPath!.split('/').last : 'No file selected';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,26 +234,14 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(left: 12, bottom: 8),
-                      child: Text(
-                        'Upload to Device via WebSocket',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text('Upload to Device via WebSocket', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                     _buildGroupBox(
                       context,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Connection.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          const Text('Connection.', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           const Text(
                             'Enter the IP address and port of the device you want to connect to. Remember to connect to the device\'s own WiFi network first.',
@@ -316,10 +259,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                 flex: 0,
                                 child: Row(
                                   children: [
-                                    Text(
-                                      'IP Address:',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
+                                    Text('IP Address:', style: TextStyle(fontSize: 12)),
                                     const SizedBox(width: 8),
                                     SizedBox(
                                       width: 120,
@@ -330,10 +270,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                         keyboardType: TextInputType.number,
                                         onChanged: (value) {
                                           ws.setIpAddress(value);
-                                          Preferences.setString(
-                                            _ipHistoryKey,
-                                            value,
-                                          );
+                                          Preferences.setString(_ipHistoryKey, value);
                                         },
                                       ),
                                     ),
@@ -355,10 +292,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                       keyboardType: TextInputType.number,
                                       onChanged: (value) {
                                         ws.setPort(value);
-                                        Preferences.setString(
-                                          _portHistoryKey,
-                                          value,
-                                        );
+                                        Preferences.setString(_portHistoryKey, value);
                                       },
                                     ),
                                   ),
@@ -370,9 +304,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                 children: [
                                   _buildButton(
                                     context,
-                                    label: ws.connected
-                                        ? 'Disconnect'
-                                        : 'Connect',
+                                    label: ws.connected ? 'Disconnect' : 'Connect',
                                     onPressed: ws.connecting || ws.uploading
                                         ? null
                                         : () async {
@@ -382,26 +314,18 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                               await ws.connect();
                                             }
                                           },
-                                    style: ws.connected
-                                        ? PlatformButtonStyle.secondary
-                                        : PlatformButtonStyle.primary,
+                                    style: ws.connected ? PlatformButtonStyle.secondary : PlatformButtonStyle.primary,
                                   ),
                                   const SizedBox(width: 8),
                                   _buildButton(
                                     context,
                                     label: 'Shutdown',
-                                    onPressed: ws.connected && !ws.uploading
-                                        ? () async => await ws.shutdown()
-                                        : null,
+                                    onPressed: ws.connected && !ws.uploading ? () async => await ws.shutdown() : null,
                                     style: PlatformButtonStyle.danger,
                                   ),
                                   if (ws.connecting) ...[
                                     const SizedBox(width: 8),
-                                    SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: _buildCircularProgress(null, 20),
-                                    ),
+                                    SizedBox(width: 24, height: 24, child: _buildCircularProgress(null, 20)),
                                   ],
                                 ],
                               ),
@@ -414,19 +338,9 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                             Row(
                               children: [
                                 const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
-                                  size: 16,
-                                ),
+                                const Icon(Icons.check_circle, color: Colors.green, size: 16),
                                 const SizedBox(width: 4),
-                                Text(
-                                  'Connected',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.green,
-                                  ),
-                                ),
+                                Text('Connected', style: TextStyle(fontSize: 11, color: Colors.green)),
                               ],
                             ),
                           ],
@@ -437,41 +351,27 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
 
                             DecoratedBox(
                               decoration: BoxDecoration(
-                                color: ws.error != null
-                                    ? Colors.red.withValues(alpha: 0.1)
-                                    : Colors.blue.withValues(alpha: 0.08),
+                                color: ws.error != null ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(8),
                                 child: Row(
                                   children: [
-                                    if (ws.error != null) ...[
-                                      const Icon(
-                                        Icons.error_outline,
-                                        color: Colors.red,
-                                        size: 16,
-                                      ),
-                                    ],
+                                    if (ws.error != null) ...[const Icon(Icons.error_outline, color: Colors.red, size: 16)],
                                     const SizedBox(width: 8),
                                     Flexible(
                                       flex: 0,
                                       child: ws.error == null
                                           ? Text(
                                               ws.status,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey[600],
-                                              ),
+                                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                                               maxLines: 5,
                                               overflow: TextOverflow.ellipsis,
                                             )
                                           : Text(
                                               ws.error!,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.red,
-                                              ),
+                                              style: TextStyle(fontSize: 11, color: Colors.red),
                                               maxLines: 5,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -509,13 +409,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                   children: [
                                     SizedBox(
                                       width: 150,
-                                      child: const Text(
-                                        'File Selection',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
+                                      child: const Text('File Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                                     ),
                                     const SizedBox(height: 12, width: 12),
                                     Row(
@@ -525,9 +419,7 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                           label: 'Pick File',
                                           style: PlatformButtonStyle.primary,
                                           size: PlatformButtonSize.large,
-                                          onPressed: ws.uploading
-                                              ? null
-                                              : () async => _pickBinFile(ws),
+                                          onPressed: ws.uploading ? null : () async => _pickBinFile(ws),
                                         ),
                                         const SizedBox(height: 12, width: 8),
                                         _buildButton(
@@ -535,13 +427,9 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                           label: 'Rotate',
                                           style: PlatformButtonStyle.secondary,
                                           size: PlatformButtonSize.large,
-                                          onPressed:
-                                              !ws.uploading &&
-                                                  ws.binHeader != null
+                                          onPressed: !ws.uploading && ws.binHeader != null
                                               ? () {
-                                                  ws.setRotation(
-                                                    (ws.rotation + 1) % 4,
-                                                  );
+                                                  ws.setRotation((ws.rotation + 1) % 4);
                                                 }
                                               : null,
                                         ),
@@ -555,29 +443,13 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                           context,
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              _buildConfigRow(
-                                                'Rotation',
-                                                ws.binHeader!.orientation
-                                                    .toReadableString(),
-                                              ),
-                                              _buildConfigRow(
-                                                'Size',
-                                                '${ws.binHeader!.getWidth()} x ${ws.binHeader!.getHeight()}',
-                                              ),
-                                              _buildConfigRow(
-                                                'Color Mode',
-                                                ws.binHeader!.colorMode
-                                                    .toJsonValue(),
-                                              ),
-                                              _buildConfigRow(
-                                                'Name',
-                                                fileLabel,
-                                              ),
+                                              _buildConfigRow('Rotation', ws.binHeader!.orientation.toReadableString()),
+                                              _buildConfigRow('Size', '${ws.binHeader!.getWidth()} x ${ws.binHeader!.getHeight()}'),
+                                              _buildConfigRow('Color Mode', ws.binHeader!.colorMode.toJsonValue()),
+                                              _buildConfigRow('Name', fileLabel),
                                             ],
                                           ),
                                         ),
@@ -590,43 +462,23 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                         child: _buildGroupBox(
                                           context,
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Text(
-                                                'Board Configuration',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
+                                              const Text('Board Configuration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                                               const SizedBox(height: 2),
                                               _buildConfigRow(
                                                 'Display Size:',
                                                 '${ws.boardConfig!.displayWidth} × ${ws.boardConfig!.displayHeight} px',
                                               ),
                                               if (ws.boardConfig!.flashSize > 0)
-                                                _buildConfigRow(
-                                                  'Flash Size:',
-                                                  '${(ws.boardConfig!.flashSize / 1024 / 1024).toStringAsFixed(1)} MB',
-                                                ),
-                                              if (ws
-                                                          .boardConfig!
-                                                          .batteryVoltageMv !=
-                                                      null &&
-                                                  ws
-                                                          .boardConfig!
-                                                          .batteryVoltageMv! >
-                                                      0)
+                                                _buildConfigRow('Flash Size:', '${(ws.boardConfig!.flashSize / 1024 / 1024).toStringAsFixed(1)} MB'),
+                                              if (ws.boardConfig!.batteryVoltageMv != null && ws.boardConfig!.batteryVoltageMv! > 0)
                                                 _buildConfigRow(
                                                   'Battery:',
                                                   '${ws.boardConfig!.batteryLevel}% (${ws.boardConfig!.batteryVoltageMv} mV)',
                                                 ),
-                                              if (ws.binHeader != null) ...[
-                                                const SizedBox(height: 8),
-                                                _buildDimensionComparison(ws),
-                                              ],
+                                              if (ws.binHeader != null) ...[const SizedBox(height: 8), _buildDimensionComparison(ws)],
                                             ],
                                           ),
                                         ),
@@ -644,18 +496,13 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                     Expanded(
                                       child: DropTarget(
                                         enable: true,
-                                        onDragEntered: (_) =>
-                                            setState(() => _dragging = true),
-                                        onDragUpdated: (_) =>
-                                            setState(() => _dragging = true),
-                                        onDragExited: (_) =>
-                                            setState(() => _dragging = false),
+                                        onDragEntered: (_) => setState(() => _dragging = true),
+                                        onDragUpdated: (_) => setState(() => _dragging = true),
+                                        onDragExited: (_) => setState(() => _dragging = false),
                                         onDragDone: (detail) async {
                                           setState(() => _dragging = false);
                                           if (detail.files.isNotEmpty) {
-                                            await ws.selectBinFile(
-                                              detail.files.first.path,
-                                            );
+                                            await ws.selectBinFile(detail.files.first.path);
                                           }
                                         },
                                         child: GestureDetector(
@@ -663,74 +510,31 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
                                           child: AnimatedContainer(
                                             height: 370,
                                             width: 300,
-                                            duration: const Duration(
-                                              milliseconds: 150,
-                                            ),
+                                            duration: const Duration(milliseconds: 150),
                                             padding: const EdgeInsets.all(10),
                                             decoration: BoxDecoration(
-                                              color: _dragging
-                                                  ? Colors.blue.withValues(
-                                                      alpha: 0.08,
-                                                    )
-                                                  : Colors.grey.shade800
-                                                        .withAlpha(127),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              border: Border.all(
-                                                color: _dragging
-                                                    ? Colors.blue
-                                                    : Colors.grey.shade600,
-                                                width: _dragging ? 1.5 : 1,
-                                              ),
+                                              color: _dragging ? Colors.blue.withValues(alpha: 0.08) : Colors.grey.shade800.withAlpha(127),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: _dragging ? Colors.blue : Colors.grey.shade600, width: _dragging ? 1.5 : 1),
                                             ),
                                             child: Center(
                                               child: ws.previewImage != null
                                                   ? RotatedBox(
-                                                      quarterTurns:
-                                                          -ws.rotation,
+                                                      quarterTurns: -ws.rotation,
                                                       child: SizedBox(
                                                         width: 300,
                                                         height: 300,
-                                                        child: RawImage(
-                                                          image:
-                                                              ws.previewImage,
-                                                          fit: BoxFit.contain,
-                                                        ),
+                                                        child: RawImage(image: ws.previewImage, fit: BoxFit.contain),
                                                       ),
                                                     )
                                                   : Column(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
+                                                      mainAxisAlignment: MainAxisAlignment.center,
                                                       children: [
-                                                        Icon(
-                                                          Icons.upload_file,
-                                                          color:
-                                                              Colors.blue[600],
-                                                          size: 28,
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 8,
-                                                        ),
-                                                        Text(
-                                                          'Drop a .pfr1 file here',
-                                                          style: TextStyle(
-                                                            fontSize: 11,
-                                                            color: Colors
-                                                                .grey[700],
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 4,
-                                                        ),
-                                                        Text(
-                                                          'or click to select',
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                            color: Colors
-                                                                .grey[500],
-                                                          ),
-                                                        ),
+                                                        Icon(Icons.upload_file, color: Colors.blue[600], size: 28),
+                                                        const SizedBox(height: 8),
+                                                        Text('Drop a .pfr1 file here', style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+                                                        const SizedBox(height: 4),
+                                                        Text('or click to select', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                                                       ],
                                                     ),
                                             ),
@@ -758,30 +562,17 @@ class _WsUploadScreenState extends State<WsUploadScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: Colors.grey[500]!.withValues(alpha: 0.3),
-                  ),
-                ),
+                border: Border(top: BorderSide(color: Colors.grey[500]!.withValues(alpha: 0.3))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: ws.uploading
-                        ? _buildLinearProgress(
-                            context,
-                            ws.progress.clamp(0.0, 1.0),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                  Expanded(child: ws.uploading ? _buildLinearProgress(context, ws.progress.clamp(0.0, 1.0)) : const SizedBox.shrink()),
                   const SizedBox(width: 12),
                   _buildButton(
                     context,
                     label: 'Upload',
-                    onPressed: ws.canUpload
-                        ? () async => await ws.upload()
-                        : null,
+                    onPressed: ws.canUpload ? () async => await ws.upload() : null,
                     style: PlatformButtonStyle.primary,
                     size: PlatformButtonSize.large,
                   ),

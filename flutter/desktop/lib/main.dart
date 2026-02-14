@@ -37,10 +37,7 @@ void main() async {
 
   if (platform == AppPlatform.macos) {
     await _configureMacosWindowUtils();
-    await AppKitUiElements.ensureInitialized(
-      debug: true,
-      useWindowManager: true,
-    );
+    await AppKitUiElements.ensureInitialized(debug: true, useWindowManager: true);
   } else {
     await windowManager.ensureInitialized();
   }
@@ -110,8 +107,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
               theme: AppKitThemeData.light(),
               darkTheme: AppKitThemeData.dark(),
               themeMode: ThemeMode.system,
-              builder: (context, child) =>
-                  AppMenuBar(child: child ?? const SizedBox.shrink()),
+              builder: (context, child) => AppMenuBar(child: child ?? const SizedBox.shrink()),
               home: const HomeScreen(),
             )
           : MaterialApp(
