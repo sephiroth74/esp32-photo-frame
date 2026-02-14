@@ -65,7 +65,8 @@ class ProcessingConfig {
     this.processorBinaryPath,
   });
 
-  factory ProcessingConfig.fromJson(Map<String, dynamic> json) => _$ProcessingConfigFromJson(json);
+  factory ProcessingConfig.fromJson(Map<String, dynamic> json) =>
+      _$ProcessingConfigFromJson(json);
 
   Map<String, dynamic> toJson() => _$ProcessingConfigToJson(this);
 

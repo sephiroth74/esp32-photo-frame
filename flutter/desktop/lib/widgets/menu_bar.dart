@@ -21,14 +21,20 @@ class AppMenuBar extends StatelessWidget {
           menus: [
             PlatformMenuItem(
               label: 'New Configuration',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyN, meta: true),
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyN,
+                meta: true,
+              ),
               onSelected: () {
                 _handleNewConfiguration(context);
               },
             ),
             PlatformMenuItem(
               label: 'Open Configuration...',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyO, meta: true),
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyO,
+                meta: true,
+              ),
               onSelected: () {
                 _handleOpenConfiguration(context);
               },
@@ -56,7 +62,10 @@ class AppMenuBar extends StatelessWidget {
             ],
             PlatformMenuItem(
               label: 'Save Configuration',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyS, meta: true),
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyS,
+                meta: true,
+              ),
               onSelected: provider.currentProfilePath != null
                   ? () {
                       _handleSaveConfiguration(context);
@@ -65,7 +74,11 @@ class AppMenuBar extends StatelessWidget {
             ),
             PlatformMenuItem(
               label: 'Save Configuration As...',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true),
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyS,
+                meta: true,
+                shift: true,
+              ),
               onSelected: () {
                 _handleSaveConfigurationAs(context);
               },
@@ -85,10 +98,14 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Input Directory...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('inputDir'));
+                final path = await FilePicker.platform.getDirectoryPath(
+                  initialDirectory: FilePickerHistory.initialDir('inputDir'),
+                );
                 if (path != null) {
                   await FilePickerHistory.rememberDirectory('inputDir', path);
-                  provider.updateConfig(provider.config.copyWith(inputPath: path));
+                  provider.updateConfig(
+                    provider.config.copyWith(inputPath: path),
+                  );
                 }
               },
             ),
@@ -96,10 +113,14 @@ class AppMenuBar extends StatelessWidget {
               label: 'Select Output Directory...',
               onSelected: () async {
                 final provider = context.read<ProcessingProvider>();
-                final path = await FilePicker.platform.getDirectoryPath(initialDirectory: FilePickerHistory.initialDir('outputDir'));
+                final path = await FilePicker.platform.getDirectoryPath(
+                  initialDirectory: FilePickerHistory.initialDir('outputDir'),
+                );
                 if (path != null) {
                   await FilePickerHistory.rememberDirectory('outputDir', path);
-                  provider.updateConfig(provider.config.copyWith(outputPath: path));
+                  provider.updateConfig(
+                    provider.config.copyWith(outputPath: path),
+                  );
                 }
               },
             ),
@@ -111,11 +132,20 @@ class AppMenuBar extends StatelessWidget {
                   type: FileType.custom,
                   allowedExtensions: [''],
                   dialogTitle: 'Select processor binary',
-                  initialDirectory: FilePickerHistory.initialDir('processorBinary'),
+                  initialDirectory: FilePickerHistory.initialDir(
+                    'processorBinary',
+                  ),
                 );
                 if (result != null && result.files.single.path != null) {
-                  await FilePickerHistory.rememberFile('processorBinary', result.files.single.path!);
-                  provider.updateConfig(provider.config.copyWith(processorBinaryPath: result.files.single.path));
+                  await FilePickerHistory.rememberFile(
+                    'processorBinary',
+                    result.files.single.path!,
+                  );
+                  provider.updateConfig(
+                    provider.config.copyWith(
+                      processorBinaryPath: result.files.single.path,
+                    ),
+                  );
                 }
               },
             ),
@@ -126,7 +156,10 @@ class AppMenuBar extends StatelessWidget {
           menus: [
             PlatformMenuItem(
               label: 'Start Processing',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyR, meta: true),
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyR,
+                meta: true,
+              ),
               onSelected: !provider.isProcessing
                   ? () {
                       provider.startProcessing();
@@ -229,10 +262,18 @@ class AppMenuBar extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved Changes'),
-        content: const Text('You have unsaved changes. Do you want to discard them?'),
+        content: const Text(
+          'You have unsaved changes. Do you want to discard them?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Discard')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Discard'),
+          ),
         ],
       ),
     );

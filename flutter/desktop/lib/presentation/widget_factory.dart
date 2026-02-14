@@ -13,11 +13,15 @@ abstract class WidgetFactory {
 
   Future<T?> openDialog<T>({
     required BuildContext context,
-    required Widget Function(BuildContext context, WidgetFactory factory) builder,
+    required Widget Function(BuildContext context, WidgetFactory factory)
+    builder,
     bool barrierDismissible,
   });
 
-  PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged});
+  PlatformSwitch switchWidget({
+    required bool checked,
+    required ValueChanged<bool>? onChanged,
+  });
 
   PlatformSlider slider({
     required double value,
@@ -29,7 +33,10 @@ abstract class WidgetFactory {
   });
 
   /// Factory constructor to create platform-specific implementation
-  PlatformCheckbox checkbox({required bool value, ValueChanged<bool?>? onChanged});
+  PlatformCheckbox checkbox({
+    required bool value,
+    ValueChanged<bool?>? onChanged,
+  });
 
   PlatformButton button({
     required String label,
@@ -49,7 +56,8 @@ abstract class WidgetFactory {
     ValueChanged<String>? onChanged,
     ValueChanged<String>? onSubmitted,
     VoidCallback? onEditingComplete,
-    PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
+    PlatformTextFieldBorderStyle borderStyle =
+        PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
     bool obscureText = false,
@@ -77,11 +85,21 @@ abstract class WidgetFactory {
     VoidCallback? onDismissed,
   });
 
-  PlatformProgressIndicator progress({double? value, String? label, bool visible = true});
+  PlatformProgressIndicator progress({
+    double? value,
+    String? label,
+    bool visible = true,
+  });
 
-  PlatformCircularProgressIndicator circularProgress({double? value, double? size});
+  PlatformCircularProgressIndicator circularProgress({
+    double? value,
+    double? size,
+  });
 
-  PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label});
+  PlatformPopupMenuItem<T> popupMenuItem<T>({
+    required T value,
+    required String label,
+  });
 
   PlatformPopupMenu<T> popupMenu<T>({
     required List<PlatformPopupMenuItem<T>> items,
@@ -101,14 +119,22 @@ class MacOSWidgetFactory extends WidgetFactory {
   @override
   Future<T?> openDialog<T>({
     required BuildContext context,
-    required Widget Function(BuildContext context, WidgetFactory factory) builder,
+    required Widget Function(BuildContext context, WidgetFactory factory)
+    builder,
     bool barrierDismissible = true,
   }) {
-    return showAppKitDialog<T>(context: context, builder: (context) => builder(context, this), barrierDismissible: barrierDismissible);
+    return showAppKitDialog<T>(
+      context: context,
+      builder: (context) => builder(context, this),
+      barrierDismissible: barrierDismissible,
+    );
   }
 
   @override
-  PlatformCheckbox checkbox({required bool value, ValueChanged<bool?>? onChanged}) {
+  PlatformCheckbox checkbox({
+    required bool value,
+    ValueChanged<bool?>? onChanged,
+  }) {
     return MacOSCheckbox(value: value, onChanged: onChanged);
   }
 
@@ -121,11 +147,20 @@ class MacOSWidgetFactory extends WidgetFactory {
     List<double>? stops,
     int? divisions,
   }) {
-    return MacOSSlider(value: value, min: min, max: max, onChanged: onChanged, stops: stops);
+    return MacOSSlider(
+      value: value,
+      min: min,
+      max: max,
+      onChanged: onChanged,
+      stops: stops,
+    );
   }
 
   @override
-  PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label}) {
+  PlatformPopupMenuItem<T> popupMenuItem<T>({
+    required T value,
+    required String label,
+  }) {
     return MacOSPopupMenuItem(value: value, label: label);
   }
 
@@ -137,7 +172,11 @@ class MacOSWidgetFactory extends WidgetFactory {
     ValueChanged<T?>? onSelected,
     PlatformPopupMenuStyle? style,
   }) {
-    return MacOSPopupMenu(items: items, onSelected: onSelected, selectedItem: selectedItem);
+    return MacOSPopupMenu(
+      items: items,
+      onSelected: onSelected,
+      selectedItem: selectedItem,
+    );
   }
 
   @override
@@ -171,7 +210,8 @@ class MacOSWidgetFactory extends WidgetFactory {
     ValueChanged<String>? onChanged,
     ValueChanged<String>? onSubmitted,
     VoidCallback? onEditingComplete,
-    PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
+    PlatformTextFieldBorderStyle borderStyle =
+        PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
     bool obscureText = false,
@@ -205,7 +245,13 @@ class MacOSWidgetFactory extends WidgetFactory {
     Color? backgroundColor,
     Color? borderColor,
   }) {
-    return MacOSGroupBox(title: title, padding: padding, backgroundColor: backgroundColor, borderColor: borderColor, child: child);
+    return MacOSGroupBox(
+      title: title,
+      padding: padding,
+      backgroundColor: backgroundColor,
+      borderColor: borderColor,
+      child: child,
+    );
   }
 
   @override
@@ -230,17 +276,27 @@ class MacOSWidgetFactory extends WidgetFactory {
   }
 
   @override
-  PlatformProgressIndicator progress({double? value, String? label, bool visible = true}) {
+  PlatformProgressIndicator progress({
+    double? value,
+    String? label,
+    bool visible = true,
+  }) {
     return MacOSProgressIndicator(value: value, label: label, visible: visible);
   }
 
   @override
-  PlatformCircularProgressIndicator circularProgress({double? value, double? size}) {
+  PlatformCircularProgressIndicator circularProgress({
+    double? value,
+    double? size,
+  }) {
     return MacOSCircularProgressIndicator(value: value, size: size);
   }
 
   @override
-  PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged}) {
+  PlatformSwitch switchWidget({
+    required bool checked,
+    required ValueChanged<bool>? onChanged,
+  }) {
     return MacOSSwitch(checked: checked, onChanged: onChanged);
   }
 }
@@ -251,19 +307,30 @@ class LinuxWidgetFactory extends WidgetFactory {
   @override
   Future<T?> openDialog<T>({
     required BuildContext context,
-    required Widget Function(BuildContext context, WidgetFactory factory) builder,
+    required Widget Function(BuildContext context, WidgetFactory factory)
+    builder,
     bool barrierDismissible = true,
   }) {
-    return showDialog(context: context, builder: (context) => builder(context, this), barrierDismissible: barrierDismissible);
+    return showDialog(
+      context: context,
+      builder: (context) => builder(context, this),
+      barrierDismissible: barrierDismissible,
+    );
   }
 
   @override
-  PlatformPopupMenuItem<T> popupMenuItem<T>({required T value, required String label}) {
+  PlatformPopupMenuItem<T> popupMenuItem<T>({
+    required T value,
+    required String label,
+  }) {
     return LinuxPopupMenuItem(value: value, label: label);
   }
 
   @override
-  PlatformCheckbox checkbox({required bool value, ValueChanged<bool?>? onChanged}) {
+  PlatformCheckbox checkbox({
+    required bool value,
+    ValueChanged<bool?>? onChanged,
+  }) {
     return LinuxCheckBox(value: value, onChanged: onChanged);
   }
 
@@ -276,7 +343,13 @@ class LinuxWidgetFactory extends WidgetFactory {
     List<double>? stops,
     int? divisions,
   }) {
-    return LinuxSlider(value: value, min: min, max: max, onChanged: onChanged, divisions: divisions);
+    return LinuxSlider(
+      value: value,
+      min: min,
+      max: max,
+      onChanged: onChanged,
+      divisions: divisions,
+    );
   }
 
   @override
@@ -321,7 +394,8 @@ class LinuxWidgetFactory extends WidgetFactory {
     ValueChanged<String>? onChanged,
     ValueChanged<String>? onSubmitted,
     VoidCallback? onEditingComplete,
-    PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
+    PlatformTextFieldBorderStyle borderStyle =
+        PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
     bool obscureText = false,
@@ -360,7 +434,13 @@ class LinuxWidgetFactory extends WidgetFactory {
     Color? backgroundColor,
     Color? borderColor,
   }) {
-    return LinuxGroupBox(title: title, padding: padding, backgroundColor: backgroundColor, borderColor: borderColor, child: child);
+    return LinuxGroupBox(
+      title: title,
+      padding: padding,
+      backgroundColor: backgroundColor,
+      borderColor: borderColor,
+      child: child,
+    );
   }
 
   @override
@@ -386,17 +466,27 @@ class LinuxWidgetFactory extends WidgetFactory {
   }
 
   @override
-  PlatformProgressIndicator progress({double? value, String? label, bool visible = true}) {
+  PlatformProgressIndicator progress({
+    double? value,
+    String? label,
+    bool visible = true,
+  }) {
     return LinuxProgressIndicator(value: value, label: label);
   }
 
   @override
-  PlatformCircularProgressIndicator circularProgress({double? value, double? size}) {
+  PlatformCircularProgressIndicator circularProgress({
+    double? value,
+    double? size,
+  }) {
     return LinuxCircularProgressIndicator(value: value, size: size);
   }
 
   @override
-  PlatformSwitch switchWidget({required bool checked, required ValueChanged<bool> onChanged}) {
+  PlatformSwitch switchWidget({
+    required bool checked,
+    required ValueChanged<bool>? onChanged,
+  }) {
     return LinuxSwitch(checked: checked, onChanged: onChanged);
   }
 

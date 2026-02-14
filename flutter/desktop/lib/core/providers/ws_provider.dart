@@ -43,7 +43,8 @@ class WsUploadState with ChangeNotifier {
   Completer<WsFinalResponse>? _uploadCompleteCompleter;
   Completer<WsMessageInfo>? _shutdownCompleter;
 
-  bool get canConnect => ipAddress.isNotEmpty && port.isNotEmpty && !connecting && !connected;
+  bool get canConnect =>
+      ipAddress.isNotEmpty && port.isNotEmpty && !connecting && !connected;
   bool get canUpload => connected && binPath != null && !uploading;
 
   void setIpAddress(String value) {
@@ -138,7 +139,9 @@ class WsUploadState with ChangeNotifier {
     _channel!.sink.add('GET_CONFIG');
 
     try {
-      final config = await _configCompleter!.future.timeout(const Duration(seconds: 5));
+      final config = await _configCompleter!.future.timeout(
+        const Duration(seconds: 5),
+      );
       boardConfig = config;
       connected = true;
       status = 'Connected - Configuration received';
@@ -188,13 +191,16 @@ class WsUploadState with ChangeNotifier {
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.completeError(Exception(error));
           }
-          if (_uploadReadyCompleter != null && !_uploadReadyCompleter!.isCompleted) {
+          if (_uploadReadyCompleter != null &&
+              !_uploadReadyCompleter!.isCompleted) {
             _uploadReadyCompleter!.completeError(Exception(error));
           }
-          if (_uploadChunkAckCompleter != null && !_uploadChunkAckCompleter!.isCompleted) {
+          if (_uploadChunkAckCompleter != null &&
+              !_uploadChunkAckCompleter!.isCompleted) {
             _uploadChunkAckCompleter!.completeError(Exception(error));
           }
-          if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
+          if (_uploadCompleteCompleter != null &&
+              !_uploadCompleteCompleter!.isCompleted) {
             _uploadCompleteCompleter!.completeError(Exception(error));
           }
           if (_shutdownCompleter != null && !_shutdownCompleter!.isCompleted) {
@@ -208,7 +214,8 @@ class WsUploadState with ChangeNotifier {
         // Handle upload ready response
         if (decoded['type'] == WsMessageType.ready.value) {
           final ready = WsReadyInfo.fromJson(decoded);
-          if (_uploadReadyCompleter != null && !_uploadReadyCompleter!.isCompleted) {
+          if (_uploadReadyCompleter != null &&
+              !_uploadReadyCompleter!.isCompleted) {
             _uploadReadyCompleter!.complete(ready);
           }
           return;
@@ -217,7 +224,8 @@ class WsUploadState with ChangeNotifier {
         // Handle upload chunk ACK
         if (decoded['type'] == WsMessageType.chunkAck.value) {
           final ack = WsChunkAck.fromJson(decoded);
-          if (_uploadChunkAckCompleter != null && !_uploadChunkAckCompleter!.isCompleted) {
+          if (_uploadChunkAckCompleter != null &&
+              !_uploadChunkAckCompleter!.isCompleted) {
             _uploadChunkAckCompleter!.complete(ack);
           }
           return;
@@ -226,7 +234,8 @@ class WsUploadState with ChangeNotifier {
         // Handle upload success
         if (decoded['type'] == WsMessageType.finalResponse.value) {
           final success = WsFinalResponse.fromJson(decoded);
-          if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
+          if (_uploadCompleteCompleter != null &&
+              !_uploadCompleteCompleter!.isCompleted) {
             _uploadCompleteCompleter!.complete(success);
           }
           // Dopo finalResponse, attendi display_ready
@@ -237,7 +246,8 @@ class WsUploadState with ChangeNotifier {
         // Handle display_ready
         if (decoded['type'] == WsMessageType.displayReady.value) {
           final displayReady = WsDisplayReadyMessage.fromJson(decoded);
-          if (_displayReadyCompleter != null && !_displayReadyCompleter!.isCompleted) {
+          if (_displayReadyCompleter != null &&
+              !_displayReadyCompleter!.isCompleted) {
             _displayReadyCompleter!.complete(displayReady);
           }
           return;
@@ -252,7 +262,8 @@ class WsUploadState with ChangeNotifier {
         }
 
         // Handle board configuration
-        if (decoded['type'] == WsMessageType.boardInfo.value && BoardConfig.looksLikeConfig(decoded)) {
+        if (decoded['type'] == WsMessageType.boardInfo.value &&
+            BoardConfig.looksLikeConfig(decoded)) {
           final config = BoardConfig.fromJson(decoded);
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.complete(config);
@@ -281,7 +292,11 @@ class WsUploadState with ChangeNotifier {
       binHeader = parsed.header;
 
       final rgba = parsed.decodeToRgba();
-      previewImage = await _rgbaToImage(rgba, parsed.header.width, parsed.header.height);
+      previewImage = await _rgbaToImage(
+        rgba,
+        parsed.header.width,
+        parsed.header.height,
+      );
       rotation = parsed.header.orientation.value;
 
       status = 'File loaded: ${p.basename(path)}';
@@ -298,7 +313,13 @@ class WsUploadState with ChangeNotifier {
 
   Future<ui.Image> _rgbaToImage(Uint8List rgba, int width, int height) {
     final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(rgba, width, height, ui.PixelFormat.rgba8888, (img) => completer.complete(img));
+    ui.decodeImageFromPixels(
+      rgba,
+      width,
+      height,
+      ui.PixelFormat.rgba8888,
+      (img) => completer.complete(img),
+    );
     return completer.future;
   }
 
@@ -319,7 +340,8 @@ class WsUploadState with ChangeNotifier {
     final displayWidth = boardConfig!.displayWidth;
     final displayHeight = boardConfig!.displayHeight;
 
-    if ((imageWidth == displayWidth && imageHeight == displayHeight) || (imageWidth == displayHeight && imageHeight == displayWidth)) {
+    if ((imageWidth == displayWidth && imageHeight == displayHeight) ||
+        (imageWidth == displayHeight && imageHeight == displayWidth)) {
       return true; // Dimensions match exactly
     } else {
       error =
@@ -363,7 +385,13 @@ class WsUploadState with ChangeNotifier {
       final token = timestamp.toRadixString(16).padLeft(8, '0');
 
       // Send upload init message
-      final initMessage = {'type': 'init', 'filename': fileName, 'token': token, 'timestamp': timestamp, 'orientation': rotation};
+      final initMessage = {
+        'type': 'init',
+        'filename': fileName,
+        'token': token,
+        'timestamp': timestamp,
+        'orientation': rotation,
+      };
 
       status = 'Sending upload init...';
       notifyListeners();
@@ -374,7 +402,8 @@ class WsUploadState with ChangeNotifier {
       _uploadReadyCompleter = Completer<WsReadyInfo>();
       final ready = await _uploadReadyCompleter!.future.timeout(
         const Duration(seconds: 5),
-        onTimeout: () => throw TimeoutException('Server did not respond with ready'),
+        onTimeout: () =>
+            throw TimeoutException('Server did not respond with ready'),
       );
       debugPrint('✓ Server ready with session_id=${ready.sessionId}');
 
@@ -383,7 +412,9 @@ class WsUploadState with ChangeNotifier {
       int totalChunksSent = 0;
 
       for (int i = 0; i < fileBytes.length; i += chunkSize) {
-        final endIndex = (i + chunkSize < fileBytes.length) ? i + chunkSize : fileBytes.length;
+        final endIndex = (i + chunkSize < fileBytes.length)
+            ? i + chunkSize
+            : fileBytes.length;
         final chunk = fileBytes.sublist(i, endIndex);
 
         // Send chunk as binary data
@@ -398,7 +429,8 @@ class WsUploadState with ChangeNotifier {
         _uploadChunkAckCompleter = Completer<WsChunkAck>();
         final ack = await _uploadChunkAckCompleter!.future.timeout(
           const Duration(seconds: 5),
-          onTimeout: () => throw TimeoutException('No ACK for chunk $totalChunksSent'),
+          onTimeout: () =>
+              throw TimeoutException('No ACK for chunk $totalChunksSent'),
         );
 
         final ackProgress = (ack.received / fileBytes.length).clamp(0.0, 1.0);
@@ -408,7 +440,9 @@ class WsUploadState with ChangeNotifier {
           notifyListeners();
         }
 
-        debugPrint('✓ Chunk $totalChunksSent sent: ${ack.received}/${fileBytes.length} bytes');
+        debugPrint(
+          '✓ Chunk $totalChunksSent sent: ${ack.received}/${fileBytes.length} bytes',
+        );
       }
 
       // Send upload end message
@@ -422,7 +456,8 @@ class WsUploadState with ChangeNotifier {
       _uploadCompleteCompleter = Completer<WsFinalResponse>();
       await _uploadCompleteCompleter!.future.timeout(
         const Duration(seconds: 5),
-        onTimeout: () => throw TimeoutException('Server did not send final response'),
+        onTimeout: () =>
+            throw TimeoutException('Server did not send final response'),
       );
 
       // Mostra progress indeterminato in attesa di display_ready
@@ -434,7 +469,8 @@ class WsUploadState with ChangeNotifier {
       try {
         final displayReady = await _displayReadyCompleter!.future.timeout(
           const Duration(seconds: 30),
-          onTimeout: () => throw TimeoutException('Display not ready after 30s'),
+          onTimeout: () =>
+              throw TimeoutException('Display not ready after 30s'),
         );
         status = 'Display updated: ${displayReady.message}';
         debugPrint('✓ Display ready: ${displayReady.message}');
@@ -489,10 +525,13 @@ class WsUploadState with ChangeNotifier {
       _shutdownCompleter = Completer<WsMessageInfo>();
       final ack = await _shutdownCompleter!.future.timeout(
         const Duration(seconds: 5),
-        onTimeout: () => throw TimeoutException('Server did not acknowledge shutdown'),
+        onTimeout: () =>
+            throw TimeoutException('Server did not acknowledge shutdown'),
       );
 
-      final ackMessage = ack.message.isNotEmpty ? ack.message : 'Device entering deep sleep';
+      final ackMessage = ack.message.isNotEmpty
+          ? ack.message
+          : 'Device entering deep sleep';
       status = 'Shutdown accepted: $ackMessage';
       debugPrint('✓ Shutdown accepted: $ackMessage');
 

@@ -34,7 +34,9 @@ enum ProcessorMessagePhase {
   complete;
 
   static ProcessorMessagePhase? fromString(String value) {
-    return ProcessorMessagePhase.values.firstWhere((item) => item.name == value);
+    return ProcessorMessagePhase.values.firstWhere(
+      (item) => item.name == value,
+    );
   }
 }
 
@@ -69,10 +71,15 @@ class ProgressMessage extends ProcessorMessage {
   final int total;
   final String message;
 
-  ProgressMessage({required super.phase, required this.current, required this.total, required this.message})
-    : super(type: ProcessorMessageType.progress);
+  ProgressMessage({
+    required super.phase,
+    required this.current,
+    required this.total,
+    required this.message,
+  }) : super(type: ProcessorMessageType.progress);
 
-  factory ProgressMessage.fromJson(Map<String, dynamic> json) => _$ProgressMessageFromJson(json);
+  factory ProgressMessage.fromJson(Map<String, dynamic> json) =>
+      _$ProgressMessageFromJson(json);
   Map<String, dynamic> toJson() => _$ProgressMessageToJson(this);
 
   /// Get human-readable phase name
@@ -92,9 +99,11 @@ class FileCompletedMessage extends ProcessorMessage {
   // final List<String> outputPaths;
   // @JsonKey(name: 'processing_time_ms')
   // final int processingTimeMs;
-  FileCompletedMessage({required super.phase}) : super(type: ProcessorMessageType.filecompleted);
+  FileCompletedMessage({required super.phase})
+    : super(type: ProcessorMessageType.filecompleted);
 
-  factory FileCompletedMessage.fromJson(Map<String, dynamic> json) => _$FileCompletedMessageFromJson(json);
+  factory FileCompletedMessage.fromJson(Map<String, dynamic> json) =>
+      _$FileCompletedMessageFromJson(json);
   Map<String, dynamic> toJson() => _$FileCompletedMessageToJson(this);
 }
 
@@ -106,9 +115,14 @@ class FileFailedMessage extends ProcessorMessage {
   @JsonKey(name: 'error')
   final String error;
 
-  FileFailedMessage({required super.phase, required this.inputPath, required this.error}) : super(type: ProcessorMessageType.filefailed);
+  FileFailedMessage({
+    required super.phase,
+    required this.inputPath,
+    required this.error,
+  }) : super(type: ProcessorMessageType.filefailed);
 
-  factory FileFailedMessage.fromJson(Map<String, dynamic> json) => _$FileFailedMessageFromJson(json);
+  factory FileFailedMessage.fromJson(Map<String, dynamic> json) =>
+      _$FileFailedMessageFromJson(json);
 }
 
 @JsonSerializable(createToJson: false)
@@ -124,12 +138,25 @@ class ProcessorSummary {
   @JsonKey(name: 'total_output_images')
   final int totalOutputImages;
 
-  ProcessorSummary({required this.failed, required this.paired, required this.processed, required this.totalFiles, required this.totalOutputImages});
+  ProcessorSummary({
+    required this.failed,
+    required this.paired,
+    required this.processed,
+    required this.totalFiles,
+    required this.totalOutputImages,
+  });
 
-  factory ProcessorSummary.fromJson(Map<String, dynamic> json) => _$ProcessorSummaryFromJson(json);
+  factory ProcessorSummary.fromJson(Map<String, dynamic> json) =>
+      _$ProcessorSummaryFromJson(json);
 
   factory ProcessorSummary.empty() {
-    return ProcessorSummary(failed: 0, paired: 0, processed: 0, totalFiles: 0, totalOutputImages: 0);
+    return ProcessorSummary(
+      failed: 0,
+      paired: 0,
+      processed: 0,
+      totalFiles: 0,
+      totalOutputImages: 0,
+    );
   }
 }
 
@@ -160,7 +187,11 @@ class ProcessorCompleteMessage extends ProcessorMessage {
     required this.failed,
     required this.durationInSeconds,
     required this.summary,
-  }) : super(phase: ProcessorMessagePhase.complete, type: ProcessorMessageType.complete);
+  }) : super(
+         phase: ProcessorMessagePhase.complete,
+         type: ProcessorMessageType.complete,
+       );
 
-  factory ProcessorCompleteMessage.fromJson(Map<String, dynamic> json) => _$ProcessorCompleteMessageFromJson(json);
+  factory ProcessorCompleteMessage.fromJson(Map<String, dynamic> json) =>
+      _$ProcessorCompleteMessageFromJson(json);
 }

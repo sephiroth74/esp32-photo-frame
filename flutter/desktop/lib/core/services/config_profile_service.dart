@@ -12,7 +12,9 @@ class ConfigProfileService {
 
   static Future<Directory> _getConfigDirectory() async {
     final appSupportDir = await getApplicationSupportDirectory();
-    final configDir = Directory(path.join(appSupportDir.path, 'PhotoFrameProcessor', 'configs'));
+    final configDir = Directory(
+      path.join(appSupportDir.path, 'PhotoFrameProcessor', 'configs'),
+    );
     if (!await configDir.exists()) {
       await configDir.create(recursive: true);
     }
@@ -21,7 +23,9 @@ class ConfigProfileService {
 
   static Future<File> _getPreferencesFile() async {
     final appSupportDir = await getApplicationSupportDirectory();
-    final prefsDir = Directory(path.join(appSupportDir.path, 'PhotoFrameProcessor'));
+    final prefsDir = Directory(
+      path.join(appSupportDir.path, 'PhotoFrameProcessor'),
+    );
     if (!await prefsDir.exists()) {
       await prefsDir.create(recursive: true);
     }
@@ -64,14 +68,23 @@ class ConfigProfileService {
     recentFiles.removeWhere((f) => f.path == filePath);
 
     // Add to beginning
-    recentFiles.insert(0, RecentFile(path: filePath, name: fileName.replaceAll(_configFileExtension, ''), lastOpened: DateTime.now()));
+    recentFiles.insert(
+      0,
+      RecentFile(
+        path: filePath,
+        name: fileName.replaceAll(_configFileExtension, ''),
+        lastOpened: DateTime.now(),
+      ),
+    );
 
     // Limit to max recent files
     if (recentFiles.length > prefs.maxRecentFiles) {
       recentFiles.removeRange(prefs.maxRecentFiles, recentFiles.length);
     }
 
-    await savePreferences(prefs.copyWith(recentFiles: recentFiles, lastOpenedProfile: filePath));
+    await savePreferences(
+      prefs.copyWith(recentFiles: recentFiles, lastOpenedProfile: filePath),
+    );
   }
 
   // Clear recent files
@@ -81,7 +94,11 @@ class ConfigProfileService {
   }
 
   // Save configuration profile
-  static Future<String> saveProfile(ProcessingConfig config, {String? filePath, String? name}) async {
+  static Future<String> saveProfile(
+    ProcessingConfig config, {
+    String? filePath,
+    String? name,
+  }) async {
     try {
       String targetPath;
       String profileName;
@@ -92,10 +109,18 @@ class ConfigProfileService {
       } else {
         final configDir = await _getConfigDirectory();
         profileName = name ?? 'config_${DateTime.now().millisecondsSinceEpoch}';
-        targetPath = path.join(configDir.path, '$profileName$_configFileExtension');
+        targetPath = path.join(
+          configDir.path,
+          '$profileName$_configFileExtension',
+        );
       }
 
-      final profile = ConfigProfile(name: profileName, filePath: targetPath, lastModified: DateTime.now(), config: config);
+      final profile = ConfigProfile(
+        name: profileName,
+        filePath: targetPath,
+        lastModified: DateTime.now(),
+        config: config,
+      );
 
       final file = File(targetPath);
       final json = const JsonEncoder.withIndent('  ').convert(profile.toJson());
@@ -135,7 +160,14 @@ class ConfigProfileService {
   static Future<List<ConfigProfile>> getSavedProfiles() async {
     try {
       final configDir = await _getConfigDirectory();
-      final files = await configDir.list().where((entity) => entity is File && entity.path.endsWith(_configFileExtension)).cast<File>().toList();
+      final files = await configDir
+          .list()
+          .where(
+            (entity) =>
+                entity is File && entity.path.endsWith(_configFileExtension),
+          )
+          .cast<File>()
+          .toList();
 
       final profiles = <ConfigProfile>[];
       for (final file in files) {
@@ -176,7 +208,10 @@ class ConfigProfileService {
   }
 
   // Export configuration to any location
-  static Future<void> exportProfile(ConfigProfile profile, String destinationPath) async {
+  static Future<void> exportProfile(
+    ConfigProfile profile,
+    String destinationPath,
+  ) async {
     try {
       final file = File(destinationPath);
       final json = const JsonEncoder.withIndent('  ').convert(profile.toJson());

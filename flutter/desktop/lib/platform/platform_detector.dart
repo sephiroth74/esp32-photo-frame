@@ -18,5 +18,8 @@ class PlatformDetector {
     return AppPlatform.unknown;
   }
 
-  static bool get isDesktop => current == AppPlatform.macos || current == AppPlatform.windows || current == AppPlatform.linux;
+  static bool get isDesktop =>
+      current == AppPlatform.macos ||
+      current == AppPlatform.windows ||
+      current == AppPlatform.linux;
 }

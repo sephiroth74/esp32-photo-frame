@@ -21,7 +21,10 @@ class ReportSummaryWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Processing Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text(
+            'Processing Summary',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           _buildSummaryFromReport(),
         ],
@@ -41,7 +44,10 @@ class ReportSummaryWidget extends StatelessWidget {
         _buildSummaryRow('Processed', (s.processed).toString()),
         _buildSummaryRow('Paired', (s.paired).toString()),
         _buildSummaryRow('Failed', (s.failed).toString()),
-        _buildSummaryRow('Total output images', (s.totalOutputImages).toString()),
+        _buildSummaryRow(
+          'Total output images',
+          (s.totalOutputImages).toString(),
+        ),
       ],
     );
   }

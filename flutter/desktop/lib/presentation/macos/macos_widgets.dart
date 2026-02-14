@@ -43,7 +43,14 @@ class MacOSButton extends PlatformButton {
   @override
   Widget build(BuildContext context) {
     final content = isLoading
-        ? Row(mainAxisSize: MainAxisSize.min, children: const [AppKitProgressCircle(size: 14), SizedBox(width: 8), Text('Loading...')])
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              AppKitProgressCircle(size: 14),
+              SizedBox(width: 8),
+              Text('Loading...'),
+            ],
+          )
         : Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -52,7 +59,12 @@ class MacOSButton extends PlatformButton {
             ],
           );
 
-    final button = AppKitButton(size: _mapSize(), type: _mapStyle(), onTap: enabled ? onPressed : null, child: content);
+    final button = AppKitButton(
+      size: _mapSize(),
+      type: _mapStyle(),
+      onTap: enabled ? onPressed : null,
+      child: content,
+    );
 
     if (tooltip != null && tooltip!.isNotEmpty) {
       return Tooltip(message: tooltip!, child: button);
@@ -86,7 +98,8 @@ class MacOSTextField extends PlatformTextField {
 
 class _MacOSTextFieldState extends State<MacOSTextField> {
   late final TextEditingController _internalController;
-  TextEditingController get _controller => widget.controller ?? _internalController;
+  TextEditingController get _controller =>
+      widget.controller ?? _internalController;
 
   @override
   void initState() {
@@ -119,7 +132,10 @@ class _MacOSTextFieldState extends State<MacOSTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.label != null) ...[
-          Text(widget.label!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            widget.label!,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 6),
         ],
         AppKitTextField(
@@ -134,7 +150,10 @@ class _MacOSTextFieldState extends State<MacOSTextField> {
         ),
         if (widget.errorText != null) ...[
           const SizedBox(height: 4),
-          Text(widget.errorText!, style: const TextStyle(color: Colors.red, fontSize: 11)),
+          Text(
+            widget.errorText!,
+            style: const TextStyle(color: Colors.red, fontSize: 11),
+          ),
         ],
       ],
     );
@@ -173,16 +192,32 @@ class MacOSDialog extends PlatformDialog {
   });
 
   AppKitButton _mapAction(BuildContext context, PlatformDialogAction action) {
-    final type = action.style == PlatformDialogActionStyle.primary ? AppKitButtonType.primary : AppKitButtonType.secondary;
-    return AppKitButton(size: AppKitControlSize.large, style: AppKitButtonStyle.push, type: type, onTap: action.onPressed, child: Text(action.label));
+    final type = action.style == PlatformDialogActionStyle.primary
+        ? AppKitButtonType.primary
+        : AppKitButtonType.secondary;
+    return AppKitButton(
+      size: AppKitControlSize.large,
+      style: AppKitButtonStyle.push,
+      type: type,
+      onTap: action.onPressed,
+      child: Text(action.label),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final primary = actions.isNotEmpty
         ? _mapAction(context, actions.first)
-        : _mapAction(context, PlatformDialogAction(label: 'OK', onPressed: () => Navigator.of(context).pop()));
-    final secondary = actions.length > 1 ? _mapAction(context, actions[1]) : null;
+        : _mapAction(
+            context,
+            PlatformDialogAction(
+              label: 'OK',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          );
+    final secondary = actions.length > 1
+        ? _mapAction(context, actions[1])
+        : null;
 
     return AppKitDialog(
       constraints: const BoxConstraints(minWidth: 450, maxWidth: 450),
@@ -196,7 +231,12 @@ class MacOSDialog extends PlatformDialog {
 }
 
 class MacOSProgressIndicator extends PlatformProgressIndicator {
-  const MacOSProgressIndicator({super.value, super.label, super.visible = true, super.key});
+  const MacOSProgressIndicator({
+    super.value,
+    super.label,
+    super.visible = true,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +265,13 @@ class MacOSPopupMenuItem<T> extends PlatformPopupMenuItem<T> {
 }
 
 class MacOSPopupMenu<T> extends PlatformPopupMenu<T> {
-  const MacOSPopupMenu({required super.items, required super.selectedItem, required super.onSelected, super.style, super.key});
+  const MacOSPopupMenu({
+    required super.items,
+    required super.selectedItem,
+    required super.onSelected,
+    super.style,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -239,14 +285,25 @@ class MacOSPopupMenu<T> extends PlatformPopupMenu<T> {
     return AppKitPopupButton<T>(
       selectedItem: selectedItem,
       style: style,
-      items: items.map((item) => AppKitContextMenuItem<T>(value: item.value, child: Text(item.label))).toList(),
+      items: items
+          .map(
+            (item) => AppKitContextMenuItem<T>(
+              value: item.value,
+              child: Text(item.label),
+            ),
+          )
+          .toList(),
       onItemSelected: onSelected != null ? (value) => onSelected!(value) : null,
     );
   }
 }
 
 class MacOSSwitch extends PlatformSwitch {
-  const MacOSSwitch({required super.checked, required super.onChanged, super.key});
+  const MacOSSwitch({
+    required super.checked,
+    required super.onChanged,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -255,16 +312,33 @@ class MacOSSwitch extends PlatformSwitch {
 }
 
 class MacOSSlider extends PlatformSlider {
-  const MacOSSlider({required super.value, required super.min, required super.max, required super.onChanged, super.stops, super.key});
+  const MacOSSlider({
+    required super.value,
+    required super.min,
+    required super.max,
+    required super.onChanged,
+    super.stops,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return AppKitSlider(value: value, min: min, max: max, stops: stops ?? [], onChanged: onChanged);
+    return AppKitSlider(
+      value: value,
+      min: min,
+      max: max,
+      stops: stops ?? [],
+      onChanged: onChanged,
+    );
   }
 }
 
 class MacOSCheckbox extends PlatformCheckbox {
-  const MacOSCheckbox({required super.value, required super.onChanged, super.key});
+  const MacOSCheckbox({
+    required super.value,
+    required super.onChanged,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

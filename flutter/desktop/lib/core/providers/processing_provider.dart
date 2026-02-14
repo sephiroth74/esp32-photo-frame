@@ -11,7 +11,12 @@ import '../models/processor_message.dart';
 import '../services/config_profile_service.dart';
 
 class ProcessingProvider with ChangeNotifier {
-  ProcessingConfig _config = const ProcessingConfig(inputPath: '', outputPath: '', outputBin: true, outputJpg: true);
+  ProcessingConfig _config = const ProcessingConfig(
+    inputPath: '',
+    outputPath: '',
+    outputBin: true,
+    outputJpg: true,
+  );
   String? _currentProfilePath;
   String? _currentProfileName;
   bool _hasUnsavedChanges = false;
@@ -67,9 +72,16 @@ class ProcessingProvider with ChangeNotifier {
 
   Future<void> saveProfile({String? filePath, String? name}) async {
     try {
-      final savedPath = await ConfigProfileService.saveProfile(_config, filePath: filePath, name: name);
+      final savedPath = await ConfigProfileService.saveProfile(
+        _config,
+        filePath: filePath,
+        name: name,
+      );
       _currentProfilePath = savedPath;
-      _currentProfileName = name ?? filePath?.split('/').last.replaceAll('.pfconfig', '') ?? 'Untitled';
+      _currentProfileName =
+          name ??
+          filePath?.split('/').last.replaceAll('.pfconfig', '') ??
+          'Untitled';
       _hasUnsavedChanges = false;
       await _loadRecentFiles();
       notifyListeners();
@@ -142,7 +154,10 @@ class ProcessingProvider with ChangeNotifier {
     }
 
     // Validate at least one output format
-    if (!_config.outputBmp && !_config.outputBin && !_config.outputJpg && !_config.outputPng) {
+    if (!_config.outputBmp &&
+        !_config.outputBin &&
+        !_config.outputJpg &&
+        !_config.outputPng) {
       _errorMessage = 'Please select at least one output format';
       notifyListeners();
       return;
@@ -176,54 +191,62 @@ class ProcessingProvider with ChangeNotifier {
       final process = await Process.start(binary, args);
 
       // Listen to stdout for JSON progress
-      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        debugPrint('STDOUT: ${line.substring(0, line.length > 100 ? 100 : line.length)}'); // Debug all output
-        try {
-          final json = jsonDecode(line);
+      process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            debugPrint(
+              'STDOUT: ${line.substring(0, line.length > 100 ? 100 : line.length)}',
+            ); // Debug all output
+            try {
+              final json = jsonDecode(line);
 
-          // Try to parse as ProcessorMessage first
-          try {
-            final message = ProcessorMessage.fromJson(json);
-            debugPrint('✓ Parsed processor message: ${message.type}');
+              // Try to parse as ProcessorMessage first
+              try {
+                final message = ProcessorMessage.fromJson(json);
+                debugPrint('✓ Parsed processor message: ${message.type}');
 
-            if (message is ProgressMessage) {
-              _currentPhase = message.phaseName;
-              _currentFile = message.message;
-              _processedCount = message.current;
-              _totalCount = message.total;
+                if (message is ProgressMessage) {
+                  _currentPhase = message.phaseName;
+                  _currentFile = message.message;
+                  _processedCount = message.current;
+                  _totalCount = message.total;
 
-              if (message.phase == ProcessorMessagePhase.saving) {
-                _isSaving = true;
-              } else {
-                _isSaving = false;
+                  if (message.phase == ProcessorMessagePhase.saving) {
+                    _isSaving = true;
+                  } else {
+                    _isSaving = false;
+                  }
+
+                  if (_totalCount > 0) {
+                    _progress = _processedCount / _totalCount;
+                  }
+                  notifyListeners();
+                } else if (message is ProcessorCompleteMessage) {
+                  _lastSummary = message.summary;
+                  _processedCount = message.processed;
+                  _totalCount = message.totalFiles;
+                  if (_totalCount > 0) {
+                    _progress = _processedCount / _totalCount;
+                  }
+                  notifyListeners();
+                }
+              } catch (e) {
+                debugPrint('Failed to parse as ProcessorMessage: $e');
               }
-
-              if (_totalCount > 0) {
-                _progress = _processedCount / _totalCount;
-              }
-              notifyListeners();
-            } else if (message is ProcessorCompleteMessage) {
-              _lastSummary = message.summary;
-              _processedCount = message.processed;
-              _totalCount = message.totalFiles;
-              if (_totalCount > 0) {
-                _progress = _processedCount / _totalCount;
-              }
-              notifyListeners();
+            } catch (e) {
+              debugPrint('Failed to parse JSON: $line');
+              debugPrint('Error: $e');
             }
-          } catch (e) {
-            debugPrint('Failed to parse as ProcessorMessage: $e');
-          }
-        } catch (e) {
-          debugPrint('Failed to parse JSON: $line');
-          debugPrint('Error: $e');
-        }
-      });
+          });
 
       // Listen to stderr for errors
-      process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        debugPrint('STDERR: $line');
-      });
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            debugPrint('STDERR: $line');
+          });
 
       final exitCode = await process.exitCode;
       debugPrint('Process exit code: $exitCode');
@@ -269,18 +292,17 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.autoOptimize) {
       args.add('--auto-optimize');
     } else {
-      debugPrint('Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation=${_config.saturation}');
+      debugPrint(
+        'Adding brightness=${_config.brightness}, contrast=${_config.contrast}, saturation=${_config.saturation}',
+      );
       args.addAll([
         '--dithering',
         _ditherMethodToString(_config.ditherMethod),
         '--dither-strength',
         _config.ditherStrength.toString(),
-        '--contrast',
-        _config.contrast.toString(),
-        '--brightness',
-        _config.brightness.toString(),
-        '--saturation',
-        _config.saturation.toString(),
+        '--contrast=${_config.contrast}',
+        '--brightness=${_config.brightness}',
+        '--saturation=${_config.saturation}',
       ]);
     }
 
@@ -292,7 +314,14 @@ class ProcessingProvider with ChangeNotifier {
     }
     if (_config.annotate) {
       args.add('--annotate');
-      args.addAll(['--font', _config.font, '--font-size', _config.fontSize.toString(), '--annotation_background', _config.annotationBackground]);
+      args.addAll([
+        '--font',
+        _config.font,
+        '--font-size',
+        _config.fontSize.toString(),
+        '--annotation_background',
+        _config.annotationBackground,
+      ]);
     }
     // Add report generation
     args.add('--report');
@@ -304,7 +333,12 @@ class ProcessingProvider with ChangeNotifier {
     if (_config.noPairing) {
       args.add('--no-pairing');
     } else {
-      args.addAll(['--divider-width', _config.dividerWidth.toString(), '--divider-color', _config.dividerColor]);
+      args.addAll([
+        '--divider-width',
+        _config.dividerWidth.toString(),
+        '--divider-color',
+        _config.dividerColor,
+      ]);
     }
 
     args.addAll(['--extensions', _config.extensions]);
@@ -314,7 +348,8 @@ class ProcessingProvider with ChangeNotifier {
 
   Future<String?> _findProcessorBinary() async {
     // If user has configured a custom path, use it
-    if (_config.processorBinaryPath != null && _config.processorBinaryPath!.isNotEmpty) {
+    if (_config.processorBinaryPath != null &&
+        _config.processorBinaryPath!.isNotEmpty) {
       final file = File(_config.processorBinaryPath!);
       if (await file.exists()) {
         return file.absolute.path;

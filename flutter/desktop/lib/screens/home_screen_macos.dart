@@ -62,7 +62,10 @@ class _HomeScreenMacosState extends State<HomeScreenMacos> {
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: IndexedStack(index: _tabController.index, children: const [ProcessingScreen(), WsUploadScreen()]),
+                    child: IndexedStack(
+                      index: _tabController.index,
+                      children: const [ProcessingScreen(), WsUploadScreen()],
+                    ),
                   ),
                 ],
               ),

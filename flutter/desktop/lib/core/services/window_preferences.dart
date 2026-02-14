@@ -13,7 +13,12 @@ class WindowPreferences {
       final size = await windowManager.getSize();
       final position = await windowManager.getPosition();
 
-      final prefs = {'width': size.width, 'height': size.height, 'x': position.dx, 'y': position.dy};
+      final prefs = {
+        'width': size.width,
+        'height': size.height,
+        'x': position.dx,
+        'y': position.dy,
+      };
 
       final directory = await getApplicationSupportDirectory();
       final file = File('${directory.path}/$_filename');
