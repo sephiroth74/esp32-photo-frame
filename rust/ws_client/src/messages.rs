@@ -108,6 +108,7 @@ pub struct UploadInit {
 
 /// Ready response from server
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct ReadyResponse {
     #[serde(rename = "type")]
     #[allow(dead_code)]
@@ -135,6 +136,7 @@ pub struct UploadEnd {
 
 /// Final response from server after upload
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct FinalResponse {
     #[serde(rename = "type")]
     #[allow(dead_code)]
@@ -154,15 +156,15 @@ pub struct ShutdownCommand {
 /// Shutdown acknowledgement response from server
 /// Display ready message from server
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct DisplayReadyMessage {
     #[serde(rename = "type")]
-    #[allow(dead_code)]
     pub msg_type: String,
-    pub session_id: Option<u8>,
     pub message: Option<String>,
     pub error: Option<String>,
 }
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct ShutdownResponse {
     #[serde(rename = "type")]
     #[allow(dead_code)]
