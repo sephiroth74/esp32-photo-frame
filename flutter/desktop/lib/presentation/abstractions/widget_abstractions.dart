@@ -71,7 +71,8 @@ abstract class PlatformTextField extends StatefulWidget {
   final String? placeholder;
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
-  final VoidCallback? onSubmitted;
+  final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onEditingComplete;
   final PlatformTextFieldBorderStyle borderStyle;
   final int? maxLines;
   final int? minLines;
@@ -87,6 +88,7 @@ abstract class PlatformTextField extends StatefulWidget {
     this.controller,
     this.onChanged,
     this.onSubmitted,
+    this.onEditingComplete,
     this.borderStyle = PlatformTextFieldBorderStyle.rounded,
     this.maxLines = 1,
     this.minLines,

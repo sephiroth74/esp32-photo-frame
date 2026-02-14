@@ -28,6 +28,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
   static final logger = getLogger('UploadScreen');
   late final Future<Pfr1ViewData?> _pfrPreview;
   bool _isUploading = false;
+  bool _isDisplayReady = true;
   bool _initialOrientationLoaded = false;
   late Orientation _orientation;
   late AnimationController _rotationController;
@@ -35,6 +36,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
   bool _isConnected = false;
   double _uploadProgress = 0.0;
   StreamSubscription? _uploadProgressSubscription;
+  StreamSubscription? _displayReadySubscription;
 
   @override
   void initState() {
@@ -112,6 +114,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
     }
 
     setState(() {
+      _isDisplayReady = true;
       _isUploading = true;
       _uploadProgress = 0.0;
     });
@@ -121,6 +124,15 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
       if (mounted) {
         setState(() {
           _uploadProgress = progress;
+        });
+      }
+    });
+
+    _displayReadySubscription = WsConnectionService().isDisplayReadyStream.listen((readyInfo) {
+      logger.config('Received display_ready message: $readyInfo');
+      if (mounted) {
+        setState(() {
+          _isDisplayReady = readyInfo;
         });
       }
     });
@@ -188,11 +200,16 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
       }
     } finally {
       await _uploadProgressSubscription?.cancel();
+      await _displayReadySubscription?.cancel();
+
       _uploadProgressSubscription = null;
+      _displayReadySubscription = null;
+
       if (mounted) {
         setState(() {
           _isUploading = false;
           _uploadProgress = 0.0;
+          _isDisplayReady = true;
         });
       }
     }
@@ -425,7 +442,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 LinearProgressIndicator(
-                                  value: _uploadProgress,
+                                  value: _isDisplayReady == false ? null : _uploadProgress,
                                   backgroundColor: colors.disabled,
                                   valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
                                 ),

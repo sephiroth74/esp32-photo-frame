@@ -431,7 +431,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                           onPressed: _continue,
                           child: Text(
                             l10n.continueAction,
-                            style: TextStyle(color: colors.onError, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),

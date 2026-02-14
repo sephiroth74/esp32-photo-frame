@@ -14,7 +14,6 @@ import '../utils/app_logger.dart';
 /// Handles connection, GET_CONFIG request, and maintains connection state
 /// Singleton pattern - available app-wide for image upload and other operations
 class WsConnectionService {
-
   static final WsConnectionService _instance = WsConnectionService._internal();
 
   WebSocketChannel? _channel;
@@ -23,12 +22,14 @@ class WsConnectionService {
   Completer<WsReadyInfo>? _uploadReadyCompleter;
   Completer<WsChunkAck>? _uploadChunkAckCompleter;
   Completer<WsFinalResponse>? _uploadCompleteCompleter;
+  Completer<WsDisplayReadyMessage>? _displayReadyCompleter;
   BoardConfig? _boardConfig;
   bool _isConfigReceived = false;
   bool _uploading = false;
 
   final _connectionStateController = StreamController<bool>.broadcast();
   final _uploadProgressController = StreamController<double>.broadcast();
+  final _displayReadyController = StreamController<bool>.broadcast();
 
   WsConnectionService._internal();
 
@@ -45,6 +46,9 @@ class WsConnectionService {
 
   /// Connection state stream (true = connected)
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
+
+  /// Display ready stream (true when device signals display_ready after upload)
+  Stream<bool> get isDisplayReadyStream => _displayReadyController.stream;
 
   /// Upload progress stream (0.0 - 1.0)
   Stream<double> get uploadProgress => _uploadProgressController.stream;
@@ -131,7 +135,7 @@ class WsConnectionService {
       logger.warning('Failed to send shutdown: $e');
       rethrow;
     }
-  }  
+  }
 
   Future<void> _sendHandshake() async {
     try {
@@ -184,6 +188,14 @@ class WsConnectionService {
           final config = BoardConfig.fromJson(json);
           if (_configCompleter != null && !_configCompleter!.isCompleted) {
             _configCompleter!.complete(config);
+          }
+          return;
+        }
+
+        if (messageType == WsMessageType.displayReady) {
+          final displayReady = WsDisplayReadyMessage.fromJson(json);
+          if (_displayReadyCompleter != null && !_displayReadyCompleter!.isCompleted) {
+            _displayReadyCompleter!.complete(displayReady);
           }
           return;
         }
@@ -317,19 +329,38 @@ class WsConnectionService {
         _uploadProgressController.add(progress);
       }
 
+      _displayReadyController.add(false);
+
       final endMessage = {'type': WsMessageType.end.value};
       _channel!.sink.add(jsonEncode(endMessage));
 
       _uploadCompleteCompleter = Completer<WsFinalResponse>();
+      _displayReadyCompleter = Completer<WsDisplayReadyMessage>();
+
       final response = await _uploadCompleteCompleter!.future.timeout(
         const Duration(seconds: 10),
-        onTimeout: () => throw TimeoutException('Server did not send final response'),
+        onTimeout: () {
+          _displayReadyController.add(true);
+          throw TimeoutException('Server did not send final response');
+        },
       );
 
       if (!response.success) {
+        _displayReadyController.add(true);
         throw Exception(response.message.isNotEmpty ? response.message : 'Upload failed');
       }
+
+      await _displayReadyCompleter!.future.timeout(
+        const Duration(seconds: 40),
+        onTimeout: () {
+          _displayReadyController.add(true);
+          throw TimeoutException('Server did not send display_ready after upload');
+        },
+      );
+
+      _displayReadyController.add(true);
     } finally {
+      _displayReadyCompleter = null;
       _uploadReadyCompleter = null;
       _uploadChunkAckCompleter = null;
       _uploadCompleteCompleter = null;

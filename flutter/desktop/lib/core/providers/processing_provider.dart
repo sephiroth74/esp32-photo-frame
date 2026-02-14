@@ -43,7 +43,6 @@ class ProcessingProvider with ChangeNotifier {
   String get currentPhase => _currentPhase;
 
   ProcessingProvider() {
-    _loadConfig();
     _loadRecentFiles();
   }
 
@@ -107,13 +106,16 @@ class ProcessingProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _loadConfig() async {
+  Future<void> loadConfig() async {
+    debugPrint('Loading config...');
+
     try {
       final directory = await getApplicationSupportDirectory();
       final file = File('${directory.path}/config.json');
       if (await file.exists()) {
         final json = jsonDecode(await file.readAsString());
         _config = ProcessingConfig.fromJson(json);
+        debugPrint('Config loaded: ${_config.toJson()}');
         notifyListeners();
       }
     } catch (e) {

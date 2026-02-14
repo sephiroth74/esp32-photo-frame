@@ -47,7 +47,8 @@ abstract class WidgetFactory {
     String? placeholder,
     TextEditingController? controller,
     ValueChanged<String>? onChanged,
-    VoidCallback? onSubmitted,
+    ValueChanged<String>? onSubmitted,
+    VoidCallback? onEditingComplete,
     PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
@@ -168,7 +169,8 @@ class MacOSWidgetFactory extends WidgetFactory {
     String? placeholder,
     TextEditingController? controller,
     ValueChanged<String>? onChanged,
-    VoidCallback? onSubmitted,
+    ValueChanged<String>? onSubmitted,
+    VoidCallback? onEditingComplete,
     PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
@@ -317,7 +319,8 @@ class LinuxWidgetFactory extends WidgetFactory {
     String? placeholder,
     TextEditingController? controller,
     ValueChanged<String>? onChanged,
-    VoidCallback? onSubmitted,
+    ValueChanged<String>? onSubmitted,
+    VoidCallback? onEditingComplete,
     PlatformTextFieldBorderStyle borderStyle = PlatformTextFieldBorderStyle.rounded,
     int? maxLines = 1,
     int? minLines,
@@ -332,7 +335,12 @@ class LinuxWidgetFactory extends WidgetFactory {
       placeholder: placeholder,
       controller: controller,
       onChanged: onChanged,
-      onSubmitted: onSubmitted,
+      onSubmitted: onSubmitted != null || onEditingComplete != null
+          ? (value) {
+              if (onSubmitted != null) onSubmitted(value);
+              if (onEditingComplete != null) onEditingComplete();
+            }
+          : null,
       borderStyle: borderStyle,
       maxLines: maxLines,
       minLines: minLines,

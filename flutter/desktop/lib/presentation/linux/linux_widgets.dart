@@ -121,7 +121,7 @@ class _LinuxTextFieldState extends State<LinuxTextField> {
     return TextField(
       controller: widget.controller,
       onChanged: widget.onChanged,
-      onSubmitted: (_) => widget.onSubmitted?.call(),
+      onSubmitted: widget.onSubmitted,
       maxLines: widget.obscureText ? 1 : widget.maxLines,
       minLines: widget.minLines,
       obscureText: widget.obscureText,

@@ -830,15 +830,20 @@ fn process_job(
     // Add date annotation if enabled
     if job.annotate {
         logger.verbose(&format!("Adding date annotation (font: {})", job.font_name));
-        processing_image = add_date_annotation(
+        processing_image = match add_date_annotation(
             &processing_image,
             &job.image.path,
             &job.font_name,
             job.font_size,
             &job.annotation_background,
             logger,
-        )
-        .unwrap_or(processing_image);
+        ) {
+            Ok(annotated) => annotated,
+            Err(err) => {
+                logger.warning(&format!("Failed to add annotation: {}", err));
+                processing_image
+            }
+        }
     }
 
     logger.verbose(&format!(

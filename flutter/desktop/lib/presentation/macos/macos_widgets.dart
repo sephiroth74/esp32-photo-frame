@@ -128,7 +128,8 @@ class _MacOSTextFieldState extends State<MacOSTextField> {
           maxLines: widget.maxLines,
           placeholder: widget.placeholder,
           onChanged: widget.onChanged,
-          onSubmitted: (value) => widget.onSubmitted?.call(),
+          onSubmitted: widget.onSubmitted,
+          onEditingComplete: widget.onEditingComplete,
           enabled: widget.enabled,
         ),
         if (widget.errorText != null) ...[

@@ -2,11 +2,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Orientation;
 import 'package:photoframe_common/photoframe_common.dart';
 import 'package:provider/provider.dart';
+import 'package:system_fonts/system_fonts.dart';
 
 import '../core/providers/processing_provider.dart';
 import '../core/providers/widget_factory_provider.dart';
 import '../core/services/file_picker_history.dart';
-import '../core/services/font_service.dart';
 import '../presentation/abstractions/widget_abstractions.dart';
 import '../widgets/report_summary_widget.dart';
 
@@ -61,9 +61,23 @@ class _FileSelectionSection extends StatelessWidget {
     return factory.button(label: label, onPressed: onPressed, size: PlatformButtonSize.medium);
   }
 
-  Widget _buildTextField(BuildContext context, {String? placeholder, TextEditingController? controller, ValueChanged<String>? onChanged}) {
+  Widget _buildTextField(
+    BuildContext context, {
+    String? placeholder,
+    TextEditingController? controller,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1);
+    return factory.textField(
+      placeholder: placeholder,
+      controller: controller,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      maxLines: 1,
+      keyboardType: keyboardType,
+    );
   }
 
   Widget _buildGroupBox(BuildContext context, {required Widget child}) {
@@ -97,7 +111,7 @@ class _FileSelectionSection extends StatelessWidget {
                       context,
                       placeholder: 'Select input directory...',
                       controller: TextEditingController(text: config.inputPath),
-                      onChanged: (value) {
+                      onSubmitted: (value) {
                         provider.updateConfig(config.copyWith(inputPath: value));
                       },
                     ),
@@ -125,7 +139,7 @@ class _FileSelectionSection extends StatelessWidget {
                       context,
                       placeholder: 'Select output directory...',
                       controller: TextEditingController(text: config.outputPath),
-                      onChanged: (value) {
+                      onSubmitted: (value) {
                         provider.updateConfig(config.copyWith(outputPath: value));
                       },
                     ),
@@ -160,9 +174,23 @@ class _ProcessorBinarySection extends StatelessWidget {
     return factory.button(label: label, onPressed: onPressed, size: PlatformButtonSize.medium);
   }
 
-  Widget _buildTextField(BuildContext context, {String? placeholder, TextEditingController? controller, ValueChanged<String>? onChanged}) {
+  Widget _buildTextField(
+    BuildContext context, {
+    String? placeholder,
+    TextEditingController? controller,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1);
+    return factory.textField(
+      placeholder: placeholder,
+      controller: controller,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      maxLines: 1,
+      keyboardType: keyboardType,
+    );
   }
 
   Widget _buildGroupBox(BuildContext context, {required Widget child}) {
@@ -196,7 +224,7 @@ class _ProcessorBinarySection extends StatelessWidget {
                       context,
                       placeholder: 'Path to processor binary (optional)',
                       controller: TextEditingController(text: config.processorBinaryPath ?? ''),
-                      onChanged: (value) {
+                      onSubmitted: (value) {
                         provider.updateConfig(config.copyWith(processorBinaryPath: value.isEmpty ? null : value));
                       },
                     ),
@@ -659,33 +687,81 @@ class _AnnotationSettingsSection extends StatefulWidget {
 }
 
 class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> {
-  List<String> _systemFonts = [];
+  MapEntry<String, String> _selectedFont = MapEntry('', '');
+
+  List<String> _availableFonts = [];
+  Map<String, String> _systemFonts = {};
   bool _fontsLoaded = false;
+
+  ProcessingProvider? _provider;
+  final TextEditingController _textSizeController = TextEditingController();
+  final TextEditingController _textBackgroundController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadSystemFonts();
+    // _loadSystemFonts();
+
+    _provider = context.read<ProcessingProvider>();
+    _provider?.addListener(() {
+      setState(() {
+        final currentSelection = _textSizeController.selection;
+        final currentBgSelection = _textBackgroundController.selection;
+        _textSizeController.text = _provider!.config.fontSize.toString();
+        _textBackgroundController.text = _provider!.config.annotationBackground;
+
+        _textSizeController.selection = TextSelection.fromPosition(TextPosition(offset: currentSelection.end));
+        _textBackgroundController.selection = TextSelection.fromPosition(TextPosition(offset: currentBgSelection.end));
+      });
+    });
+
+    _provider?.loadConfig().then((_) async {
+      final config = _provider!.config;
+      final systemFonts = SystemFonts().getFontMap();
+      if (!mounted) return;
+
+      setState(() {
+        _systemFonts = systemFonts;
+        _availableFonts = _systemFonts.keys.toList()..sort();
+        _selectedFont = _systemFonts.containsKey(config.font) ? MapEntry(config.font, _systemFonts[config.font]!) : _systemFonts.entries.first;
+        _fontsLoaded = true;
+        debugPrint('Loaded system fonts: ${_availableFonts.length} fonts found');
+      });
+    });
+
+    _textSizeController.text = '22'; // Set a default value or load from config
+    _textBackgroundController.text = '#40000000'; // Set a default value or load from config
   }
 
-  Future<void> _loadSystemFonts() async {
-    final fonts = await FontService.getSystemFonts();
-    if (!mounted) return;
-    setState(() {
-      _systemFonts = fonts;
-      _fontsLoaded = true;
-    });
-  }
+  // Future<void> _loadSystemFonts() async {
+  //   final systemFonts = SystemFonts().getFontMap();
+  //   if (!mounted) return;
+  //   setState(() {
+  //     _systemFonts = systemFonts;
+  //     _availableFonts = _systemFonts.keys.toList()..sort();
+  //     _selectedFont = _systemFonts.containsKey('Arial') ? MapEntry('Arial', _systemFonts['Arial']!) : _systemFonts.entries.first;
+  //     _fontsLoaded = true;
+  //     debugPrint('Loaded system fonts: ${_availableFonts.length} fonts found');
+  //   });
+  // }
 
   Widget _buildTextField(
     BuildContext context, {
     String? placeholder,
     TextEditingController? controller,
     ValueChanged<String>? onChanged,
+    VoidCallback? onEditingComplete,
     TextInputType keyboardType = TextInputType.text,
   }) {
     final factory = context.read<WidgetFactoryProvider>().factory;
-    return factory.textField(placeholder: placeholder, controller: controller, onChanged: onChanged, maxLines: 1, keyboardType: keyboardType);
+    return factory.textField(
+      placeholder: placeholder,
+      controller: controller,
+      onChanged: onChanged,
+      onEditingComplete: onEditingComplete,
+      maxLines: 1,
+      keyboardType: keyboardType,
+    );
   }
 
   Widget _buildGroupBox(BuildContext context, {required Widget child}) {
@@ -695,96 +771,103 @@ class _AnnotationSettingsSectionState extends State<_AnnotationSettingsSection> 
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ProcessingProvider>();
     final factory = context.read<WidgetFactoryProvider>().factory;
-    final config = provider.config;
+    final provider = context.watch<ProcessingProvider>();
+    // final config = provider.config;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12, bottom: 8),
-          child: Text('Annotation Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-        ),
-        _buildGroupBox(
-          context,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Row(
+    return Builder(
+      builder: (context) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 8),
+              child: Text('Annotation Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+            _buildGroupBox(
+              context,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  factory.switchWidget(
-                    checked: config.annotate,
-                    onChanged: (value) {
-                      provider.updateConfig(config.copyWith(annotate: value));
-                    },
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      factory.switchWidget(
+                        checked: provider.config.annotate,
+                        onChanged: (value) {
+                          provider.updateConfig(provider.config.copyWith(annotate: value));
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Add date/time annotation to images'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const Text('Add date/time annotation to images'),
-                ],
-              ),
-              if (config.annotate) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Font:'),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 0,
-                      child: _fontsLoaded
-                          ? factory.popupMenu<String>(
-                              style: PlatformPopupMenuStyle.bevel,
-                              label: _systemFonts.contains(config.font) ? Text(config.font) : null,
-                              selectedItem: _systemFonts.contains(config.font) ? config.font : null,
-                              onSelected: (value) {
-                                if (value != null) {
-                                  provider.updateConfig(config.copyWith(font: value));
-                                }
-                              },
-                              items: _systemFonts.map((font) => factory.popupMenuItem<String>(value: font, label: font)).toList(),
-                            )
-                          : factory.circularProgress(value: null),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Size:'),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 80,
-                      child: _buildTextField(
-                        context,
-                        placeholder: '22',
-                        controller: TextEditingController(text: config.fontSize.toString()),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          final size = int.tryParse(value);
-                          if (size != null) {
-                            provider.updateConfig(config.copyWith(fontSize: size));
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Background:'),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 120,
-                      child: _buildTextField(
-                        context,
-                        placeholder: '#40000000',
-                        controller: TextEditingController(text: config.annotationBackground),
-                        onChanged: (value) {
-                          provider.updateConfig(config.copyWith(annotationBackground: value));
-                        },
-                      ),
+                  if (provider.config.annotate) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('Font:'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 0,
+                          child: _fontsLoaded
+                              ? factory.popupMenu<String>(
+                                  style: PlatformPopupMenuStyle.bevel,
+                                  label: _selectedFont.key.isNotEmpty ? Text(_selectedFont.key) : null,
+                                  selectedItem: _availableFonts.contains(_selectedFont.key) ? _selectedFont.key : null,
+                                  onSelected: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _selectedFont = MapEntry(value, _systemFonts[value]!);
+                                      });
+                                      provider.updateConfig(provider.config.copyWith(font: value));
+                                    }
+                                  },
+                                  items: _availableFonts.map((font) => factory.popupMenuItem<String>(value: font, label: font)).toList(),
+                                )
+                              : factory.circularProgress(value: null),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text('Size:'),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 80,
+                          child: _buildTextField(
+                            context,
+                            placeholder: '22',
+                            controller: _textSizeController,
+                            keyboardType: TextInputType.number,
+                            onChanged: (value) {
+                              final size = int.tryParse(value);
+                              if (size != null) {
+                                provider.updateConfig(provider.config.copyWith(fontSize: size));
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text('Background:'),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 120,
+                          child: _buildTextField(
+                            context,
+                            placeholder: '#40000000',
+                            controller: _textBackgroundController,
+                            onChanged: (value) {
+                              provider.updateConfig(provider.config.copyWith(annotationBackground: value));
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
