@@ -223,25 +223,25 @@ pub struct Args {
     #[arg(
         short = 'c',
         long = "contrast",
-        default_value = "100",
+        default_value = "0",
         value_name = "ADJUSTMENT",
-        value_parser = clap::value_parser!(u32).range(0..=1000),
+        value_parser = clap::value_parser!(i32).range(-100..=100),
         conflicts_with = "validate",
-        help = "Contrast adjustment: 100 (no change), <100 = decrease contrast, >100 = increase contrast (e.g., 150 = 50% boost, 50 = 50% reduction)"
+        help = "Contrast adjustment: 0 (no change), <0 = decrease contrast, >0 = increase contrast (e.g., 50 = 50% more contrast, -50 = 50% less contrast)"
     )]
-    pub contrast: u32,
+    pub contrast: i32,
 
     /// Brightness adjustment (-100 to 100, default 0). Positive = lighter, negative = darker
     #[arg(
         short = 'b',
         long = "brightness",
-        default_value = "100",
+        default_value = "0",
         value_name = "ADJUSTMENT",
-        value_parser = clap::value_parser!(u32).range(0..=1000),
+        value_parser = clap::value_parser!(i32).range(-100..=100),
         conflicts_with = "validate",
-        help = "Brightness adjustment: 100 (no change), <100 = darker, >100 = lighter (e.g., 150 = 50% brighter, 50 = 50% darker)"
+        help = "Brightness adjustment: 0 (no change), <0 = darker, >0 = lighter (e.g., 50 = 50% brighter, -50 = 50% darker)"
     )]
-    pub brightness: u32,
+    pub brightness: i32,
 
     /// Saturation boost multiplier (0.5 to 2.0, default 1.0). >1.0 = more vibrant, <1.0 = less vibrant
     #[arg(

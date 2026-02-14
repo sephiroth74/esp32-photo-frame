@@ -1,11 +1,11 @@
+use crate::image_processor::imagemagick::ImageMagickWrapper;
 use crate::logging::Logger;
 use crate::types::HexColor;
-use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use anyhow::{Context, Result};
-use image::{Rgb, RgbImage};
-use imageproc::drawing::{draw_text_mut, text_size};
+use image::RgbImage;
 use regex::Regex;
 use std::path::Path;
+use tempfile::NamedTempFile;
 
 /// Add date annotation to an image (extracted from EXIF data)
 ///
@@ -21,243 +21,109 @@ pub fn add_date_annotation(
     background_color: &HexColor,
     logger: &Logger,
 ) -> Result<RgbImage> {
-    let mut annotated_img = img.clone();
+    //let mut annotated_img = img.clone();
 
     // Extract date from EXIF data only
     if let Ok(date_text) = extract_date_from_image(input_path) {
-        logger.verbose(&format!(
-            "Adding date annotation '{}' to image '{}'",
-            date_text,
-            input_path.display()
-        ));
+        let thread_id = std::thread::current().id();
+        let input_path = NamedTempFile::with_suffix(format!("annotation_{:?}.png", thread_id))
+            .context("Failed to create temporary input image file")?;
+        img.save(input_path.path())?;
 
-        let bg_r = background_color.red();
-        let bg_g = background_color.green();
-        let bg_b = background_color.blue();
-        let bg_a = background_color.alpha();
-
-        // Load font
-        let font = load_font(font_name)?;
-        let scale = PxScale::from(font_size as f32);
-
-        // Calculate text dimensions using imageproc
-        let (text_width, _text_height) = text_size(scale, &font, &date_text);
-
-        // Get font metrics for baseline positioning
-        let scaled_font = font.as_scaled(scale);
-        let ascent = scaled_font.ascent();
-        let descent = scaled_font.descent();
-        let actual_text_height = (ascent + descent.abs()).ceil() as u32;
-
-        // Calculate background rectangle with reasonable padding
-        let padding_x = 8;
-        let padding_y = 4;
-        let bg_width = text_width as u32 + (padding_x * 2);
-        let bg_height = actual_text_height + (padding_y * 2);
-
-        let (img_width, img_height) = annotated_img.dimensions();
-
-        // Position in bottom-right corner with margin from image edge
-        let margin = 15;
-        let rect_x = img_width.saturating_sub(bg_width + margin);
-        let rect_y = img_height.saturating_sub(bg_height + margin);
-
-        // Draw semi-transparent background rectangle
-        draw_background_rect(
-            &mut annotated_img,
-            rect_x,
-            rect_y,
-            bg_width,
-            bg_height,
-            bg_r,
-            bg_g,
-            bg_b,
-            bg_a,
-        );
-
-        // Calculate properly centered text position within the background rectangle
-        let text_x = rect_x + padding_x;
-        let bg_center_y = rect_y + (bg_height / 2);
-        let text_visual_center_offset = ascent * 0.6;
-        let text_y = bg_center_y as f32 - text_visual_center_offset;
-
-        // Draw text using imageproc with proper font rendering
-        draw_text_mut(
-            &mut annotated_img,
-            Rgb([255u8, 255u8, 255u8]), // White text
-            text_x as i32,
-            text_y as i32,
-            scale,
-            &font,
+        return match ImageMagickWrapper::annotate(
+            input_path.path(),
+            input_path.path(),
+            font_name,
+            font_size,
             &date_text,
-        );
-    }
-
-    Ok(annotated_img)
-}
-
-/// Load font based on font specification with smart detection
-///
-/// Supports three formats:
-/// 1. Font name: "Arial" -> searches system font directories
-/// 2. Font filename: "Arial.ttf" -> searches in common font directories
-/// 3. Full path: "/System/Library/Fonts/Supplemental/Arial.ttf" -> loads directly
-fn load_font(font_spec: &str) -> Result<FontRef<'static>> {
-    // Strategy 1: Check if it's a full path (absolute path)
-    if is_absolute_path(font_spec) {
-        if let Ok(font) = load_font_from_path(font_spec) {
-            return Ok(font);
-        }
-        return Err(anyhow::anyhow!(
-            "Font file not found at path: {}",
-            font_spec
-        ));
-    }
-
-    // Strategy 2: Check if it's a font filename (ends with .ttf, .otf, .ttc, etc.)
-    if is_font_filename(font_spec) {
-        if let Ok(font) = load_font_by_filename(font_spec) {
-            return Ok(font);
-        }
-        // Continue to name-based search as fallback
-    }
-
-    // Strategy 3: Treat as font name and search system directories
-    if let Ok(font) = load_system_font(font_spec) {
-        return Ok(font);
-    }
-
-    Err(anyhow::anyhow!(
-        "No suitable fonts found for '{}'. Please ensure system fonts are available or specify a valid font path.",
-        font_spec
-    ))
-}
-
-/// Check if the input is an absolute path
-fn is_absolute_path(path: &str) -> bool {
-    path.starts_with('/') ||                           // Unix/Linux/macOS absolute path
-    path.starts_with('\\') ||                          // Windows UNC path
-    (path.len() > 2 && path.chars().nth(1) == Some(':')) // Windows drive path (C:, D:, etc.)
-}
-
-/// Check if the input looks like a font filename
-fn is_font_filename(filename: &str) -> bool {
-    let lower = filename.to_lowercase();
-    lower.ends_with(".ttf")
-        || lower.ends_with(".otf")
-        || lower.ends_with(".ttc")
-        || lower.ends_with(".woff")
-        || lower.ends_with(".woff2")
-}
-
-/// Load font directly from a file path
-fn load_font_from_path(font_path: &str) -> Result<FontRef<'static>> {
-    let font_data = std::fs::read(font_path)
-        .with_context(|| format!("Failed to read font file: {}", font_path))?;
-
-    let font = FontRef::try_from_slice(Box::leak(font_data.into_boxed_slice()))
-        .with_context(|| format!("Failed to parse font file: {}", font_path))?;
-
-    Ok(font)
-}
-
-/// Load font by searching for filename in common font directories
-fn load_font_by_filename(filename: &str) -> Result<FontRef<'static>> {
-    for font_path in get_font_search_paths(filename, true) {
-        let font_path = expand_path(&font_path);
-        if std::path::Path::new(&font_path).exists() {
-            if let Ok(font) = load_font_from_path(&font_path) {
-                return Ok(font);
+            Some("white"),
+            Some(&background_color.to_magick_color()),
+            None,
+            None,
+            None,
+        )
+        .and_then(|_| {
+            // Load the annotated image back into memory
+            image::open(input_path.path())
+                .context("Failed to open annotated image")
+                .map(|img| img.to_rgb8())
+        }) {
+            Ok(annotated) => Ok(annotated),
+            Err(e) => {
+                logger.warning(&format!(
+                    "ImageMagick annotation failed: {}. Falling back to Rust-based annotation.",
+                    e
+                ));
+                // Fall back to Rust-based annotation if ImageMagick fails
+                Err(e)
             }
-        }
+        };
+
+        //
+        //
+        //let bg_r = background_color.red();
+        //let bg_g = background_color.green();
+        //let bg_b = background_color.blue();
+        //let bg_a = background_color.alpha();
+        //
+        //// Load font
+        //let font = load_font(font_name)?;
+        //let scale = PxScale::from(font_size as f32);
+        //
+        //// Calculate text dimensions using imageproc
+        //let (text_width, _text_height) = text_size(scale, &font, &date_text);
+        //
+        //// Get font metrics for baseline positioning
+        //let scaled_font = font.as_scaled(scale);
+        //let ascent = scaled_font.ascent();
+        //let descent = scaled_font.descent();
+        //let actual_text_height = (ascent + descent.abs()).ceil() as u32;
+        //
+        //// Calculate background rectangle with reasonable padding
+        //let padding_x = 8;
+        //let padding_y = 4;
+        //let bg_width = text_width as u32 + (padding_x * 2);
+        //let bg_height = actual_text_height + (padding_y * 2);
+        //
+        //let (img_width, img_height) = annotated_img.dimensions();
+        //
+        //// Position in bottom-right corner with margin from image edge
+        //let margin = 15;
+        //let rect_x = img_width.saturating_sub(bg_width + margin);
+        //let rect_y = img_height.saturating_sub(bg_height + margin);
+        //
+        //// Draw semi-transparent background rectangle
+        //draw_background_rect(
+        //    &mut annotated_img,
+        //    rect_x,
+        //    rect_y,
+        //    bg_width,
+        //    bg_height,
+        //    bg_r,
+        //    bg_g,
+        //    bg_b,
+        //    bg_a,
+        //);
+        //
+        //// Calculate properly centered text position within the background rectangle
+        //let text_x = rect_x + padding_x;
+        //let bg_center_y = rect_y + (bg_height / 2);
+        //let text_visual_center_offset = ascent * 0.6;
+        //let text_y = bg_center_y as f32 - text_visual_center_offset;
+        //
+        //// Draw text using imageproc with proper font rendering
+        //draw_text_mut(
+        //    &mut annotated_img,
+        //    Rgb([255u8, 255u8, 255u8]), // White text
+        //    text_x as i32,
+        //    text_y as i32,
+        //    scale,
+        //    &font,
+        //    &date_text,
+        //);
     }
 
-    Err(anyhow::anyhow!(
-        "Font filename '{}' not found in system directories",
-        filename
-    ))
-}
-
-/// Expand paths with ~ to home directory
-fn expand_path(path: &str) -> String {
-    if path.starts_with("~/") {
-        if let Some(home) = std::env::var("HOME").ok() {
-            return path.replacen("~", &home, 1);
-        }
-    }
-    path.to_string()
-}
-
-/// Get common system font directories for different platforms
-#[cfg(target_os = "macos")]
-fn get_platform_font_dirs() -> Vec<String> {
-    vec![
-        "/System/Library/Fonts".to_string(),
-        "/System/Library/Fonts/Supplemental".to_string(),
-        "~/Library/Fonts/NerdFonts/".to_string(),
-        "/Library/Fonts".to_string(),
-        "~/Library/Fonts".to_string(),
-    ]
-}
-
-#[cfg(target_os = "linux")]
-fn get_platform_font_dirs() -> Vec<String> {
-    vec![
-        "/usr/share/fonts".to_string(),
-        "/usr/share/fonts/truetype".to_string(),
-        "/usr/share/fonts/TTF".to_string(),
-        "/usr/share/fonts/opentype".to_string(),
-        "/usr/local/share/fonts".to_string(),
-        "~/.fonts".to_string(),
-        "~/.local/share/fonts".to_string(),
-    ]
-}
-
-#[cfg(target_os = "windows")]
-fn get_platform_font_dirs() -> Vec<String> {
-    vec!["C:\\Windows\\Fonts".to_string()]
-}
-
-/// Attempt to load a system font by name
-fn load_system_font(font_name: &str) -> Result<FontRef<'static>> {
-    for path in get_font_search_paths(font_name, false) {
-        let expanded_path = expand_path(&path);
-        if let Ok(font_data) = std::fs::read(&expanded_path) {
-            if let Ok(font) = FontRef::try_from_slice(Box::leak(font_data.into_boxed_slice())) {
-                return Ok(font);
-            }
-        }
-    }
-
-    Err(anyhow::anyhow!("System font '{}' not found", font_name))
-}
-
-/// Get potential system font paths for different platforms
-fn get_font_search_paths(font_spec: &str, is_filename: bool) -> Vec<String> {
-    let dirs = get_platform_font_dirs();
-    let sep = std::path::MAIN_SEPARATOR;
-
-    if is_filename {
-        return dirs
-            .into_iter()
-            .map(|dir| format!("{}{}{}", dir, sep, font_spec))
-            .collect();
-    }
-
-    let normalized_name = font_spec.to_lowercase().replace(" ", "").replace("-", "");
-    let candidates = [font_spec.to_string(), normalized_name];
-    let exts = ["ttf", "otf", "ttc"];
-
-    let mut paths = Vec::new();
-    for dir in dirs {
-        for name in &candidates {
-            for ext in &exts {
-                paths.push(format!("{}{}{}.{}", dir, sep, name, ext));
-            }
-        }
-    }
-
-    paths
+    Ok(img.clone())
 }
 
 /// Extract date from EXIF data, format as YYYY/MM/DD
@@ -351,42 +217,4 @@ fn extract_date_from_filename(filename: &str) -> Option<String> {
     }
 
     None
-}
-
-/// Draw a semi-transparent background rectangle
-fn draw_background_rect(
-    img: &mut RgbImage,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-    bg_r: u8,
-    bg_g: u8,
-    bg_b: u8,
-    bg_a: u8,
-) {
-    let (img_width, img_height) = img.dimensions();
-    let alpha = bg_a as f32 / 255.0;
-    let inv_alpha = 1.0 - alpha;
-
-    for dy in 0..height {
-        for dx in 0..width {
-            let px = x + dx;
-            let py = y + dy;
-
-            if px < img_width && py < img_height {
-                let current_pixel = img.get_pixel(px, py);
-
-                // Alpha blend background color with existing pixel
-                let blended_r =
-                    ((bg_r as f32 * alpha) + (current_pixel[0] as f32 * inv_alpha)) as u8;
-                let blended_g =
-                    ((bg_g as f32 * alpha) + (current_pixel[1] as f32 * inv_alpha)) as u8;
-                let blended_b =
-                    ((bg_b as f32 * alpha) + (current_pixel[2] as f32 * inv_alpha)) as u8;
-
-                img.put_pixel(px, py, Rgb([blended_r, blended_g, blended_b]));
-            }
-        }
-    }
 }

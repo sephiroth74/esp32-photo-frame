@@ -32,8 +32,7 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
     img.save(&input_path)
         .context("Failed to save temporary input image")?;
 
-    ImageMagickWrapper::apply_auto_correction(&input_path.path(), &output_path.path())
-        .context("Failed to apply auto correction using ImageMagick")?;
+    ImageMagickWrapper::apply_auto_correction(&input_path.path(), &output_path.path())?;
 
     // Load the corrected image
     let corrected_img = image::open(&output_path)
@@ -51,8 +50,8 @@ fn apply_imagemagick_auto_correction(img: &RgbImage) -> Result<RgbImage> {
 /// Applies: auto-white-balance, auto-level, then custom brightness/contrast/saturation
 fn apply_imagemagick_manual_correction(
     img: &RgbImage,
-    brightness: u32,
-    contrast: u32,
+    brightness: i32,
+    contrast: i32,
     saturation: u32,
     logger: &Logger,
 ) -> Result<RgbImage> {
@@ -108,27 +107,11 @@ fn apply_imagemagick_manual_correction(
     Ok(corrected_img)
 }
 
-/// Fallback: Apply automatic color correction using photoframe-lib
-fn apply_fallback_auto_correction(img: &RgbImage) -> Result<RgbImage> {
-    let mut corrected = img.clone();
-
-    // Apply auto-levels (stretch histogram)
-    corrected = apply_auto_levels(&corrected)?;
-
-    // Apply white balance correction
-    corrected = apply_white_balance(&corrected)?;
-
-    // Apply saturation boost (1.2 = 20% increase)
-    corrected = photoframe_lib::apply_color_adjustments(&corrected, 1.2, 1.0, 1.0);
-
-    Ok(corrected)
-}
-
 /// Fallback: Apply manual color correction using photoframe-lib
 fn apply_fallback_manual_correction(
     img: &RgbImage,
-    brightness: u32,
-    contrast: u32,
+    brightness: i32,
+    contrast: i32,
     saturation: u32,
 ) -> Result<RgbImage> {
     let mut corrected = img.clone();
@@ -140,11 +123,11 @@ fn apply_fallback_manual_correction(
     corrected = apply_white_balance(&corrected)?;
 
     // Convert CLI parameters to photoframe-lib format
-    // brightness: 0..1000 -> 0.0..10.0 (100 = 1.0)
+    // brightness: -100..100 -> 0.0..10.0 (100 = 1.0)
     let brightness_factor = 1.0 + (brightness as f32 / 100.0);
 
-    // contrast: 0..1000 -> 0.0..2.0 (100 = 1.0)
-    let contrast_factor = contrast as f32 / 100.0;
+    // contrast: -100..100 -> 0.0..2.0 (100 = 1.0)
+    let contrast_factor = 1.0 + (contrast as f32 / 100.0);
 
     // saturation: 0..1000 -> 0.0..10.0 (100 = 1.0)
     let saturation_factor = saturation as f32 / 100.0;
@@ -165,26 +148,25 @@ fn apply_fallback_manual_correction(
 pub fn apply_color_correction(
     img: &RgbImage,
     auto_color_correct: bool,
-    brightness: u32,
-    contrast: u32,
+    brightness: i32,
+    contrast: i32,
     saturation: u32,
     logger: &Logger,
 ) -> Result<RgbImage> {
     let processed_image = if auto_color_correct {
-        // Try ImageMagick first for full auto color correction
         if is_imagemagick_available() {
             logger.verbose("Applying auto color correction using ImageMagick");
             match apply_imagemagick_auto_correction(img) {
-                Ok(corrected) => return Ok(corrected),
+                Ok(corrected) => corrected,
                 Err(err) => {
-                    logger.verbose(format!("Failed to apply color correction: {}", err).as_str());
-                    apply_fallback_auto_correction(img)
+                    logger.warning(format!("Failed to apply color correction: {}", err).as_str());
+                    img.clone()
                 }
-            }?
+            }
         } else {
             // Fall back to photoframe-lib
             logger.verbose("Auto color correction using fallback");
-            apply_fallback_auto_correction(img)?
+            img.clone()
         }
     } else {
         img.clone()
@@ -196,7 +178,7 @@ pub fn apply_color_correction(
     }
 
     // Try ImageMagick first for manual correction
-    return if is_imagemagick_available() {
+    if is_imagemagick_available() {
         match apply_imagemagick_manual_correction(
             &processed_image,
             brightness,
@@ -214,7 +196,7 @@ pub fn apply_color_correction(
     } else {
         logger.verbose("Manual color correction using fallback");
         apply_fallback_manual_correction(&processed_image, brightness, contrast, saturation)
-    };
+    }
 }
 
 /// Apply automatic levels correction to stretch histogram

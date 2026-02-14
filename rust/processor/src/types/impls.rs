@@ -88,6 +88,17 @@ impl HexColor {
     pub fn blue(&self) -> u8 {
         self.3
     }
+
+    pub fn to_magick_color(&self) -> String {
+        // must return a format that ImageMagick's `color` function can parse, e.g. "rgba(255,0,0,0.5)"
+        format!(
+            "rgba({}, {}, {}, {:.2})",
+            self.red(),
+            self.green(),
+            self.blue(),
+            self.alpha() as f32 / 255.0
+        )
+    }
 }
 
 impl Display for HexColor {
