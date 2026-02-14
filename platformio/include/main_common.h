@@ -77,6 +77,14 @@ bool initializeImageBuffer();
  */
 bool initializeDisplayHardware();
 
+/**
+ * @brief Cleanup the image buffer
+ *
+ * The ImageBuffer class automatically handles cleanup through its destructor,
+ * but this function can be called explicitly if needed.
+ */
+void cleanupImageBuffer();
+
 // ============================================================================
 // POWER MANAGEMENT
 // ============================================================================

@@ -50,11 +50,6 @@
 // Battery Monitoring Configuration
 // ===========================================================================
 
-// Battery monitoring - ProS3 has MAX1704X fuel gauge over I2C
-#define BATTERY_NUM_READINGS 100
-#define BATTERY_DELAY_BETWEEN_READINGS 10
-#define BATTERY_RESISTORS_RATIO 0.2574679943 // ProS3 built-in divider ratio
-
 // MAX1704X I2C fuel gauge - primary battery monitoring method
 // Note: USE_SENSOR_MAX1704X is defined in platformio.ini build_flags
 #define MAX1704X_SDA_PIN 8 // IO8 - I2C SDA

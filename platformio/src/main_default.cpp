@@ -24,7 +24,7 @@
 
 #include <Arduino.h>
 
-#include "battery.h"
+#include "battery_manager.h"
 #include "binary_utils.h"
 #include "board_util.h"
 #include "config.h"
@@ -58,15 +58,10 @@ photo_frame::SdCard sdCard; // SD_MMC uses fixed SDIO pins
 photo_frame::WifiManager wifiManager;
 photo_frame::unified_config systemConfig; // Unified configuration system
 
+int g_display_rotation = DEFAULT_ORIENTATION; // Global display rotation variable (0-3)
+
 // Data provider instances (created locally in setup, no dynamic allocation
 // needed) Removed - created as stack objects in default_main_setup()
-
-// ============================================================================
-// FORWARD DECLARATIONS (from original main.cpp)
-// ============================================================================
-
-photo_frame::photo_frame_error_t setup_time_and_connectivity(const photo_frame::BatteryInfo &BatteryInfo, bool is_reset,
-                                                             DateTime &now);
 
 // ============================================================================
 // MODE-SPECIFIC IMPLEMENTATIONS
@@ -87,7 +82,7 @@ photo_frame::photo_frame_error_t setup_time_and_connectivity(const photo_frame::
   error = sdCard.begin();
 
   // Reduce RGB brightness if battery is low to save power
-  if (BatteryInfo.is_low()) {
+  if (BatteryInfo.isLow()) {
     RGB_SET_BRIGHTNESS(32); // Reduce brightness to 25% of normal for low battery
   }
 
@@ -211,21 +206,21 @@ void default_main_setup() {
   // Setup time synchronization and connectivity
   DateTime now = DateTime((uint32_t)0);
 
-  if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
+  if (error == photo_frame::error_type::None && !BatteryInfo.isCritical()) {
     error = setup_time_and_connectivity(BatteryInfo, is_reset, now);
   }
 
   // Set rotation from config BEFORE initializing buffer
-  display_rotation = systemConfig.board.display_rotation;
+  g_display_rotation = systemConfig.board.display_rotation;
 
   // If config loading failed, try to get from preferences
   if (!systemConfig.is_valid()) {
     auto &prefs = photo_frame::PreferencesHelper::getInstance();
-    display_rotation = prefs.getDisplayRotation(); // Default to 0 (landscape) if not set
-    log_w("Config invalid, using rotation from preferences: %u", display_rotation);
+    g_display_rotation = prefs.getDisplayRotation(); // Default to 0 (landscape) if not set
+    log_w("Config invalid, using rotation from preferences: %u", g_display_rotation);
   }
 
-  log_d("Display rotation: %u", display_rotation);
+  log_d("Display rotation: %u", g_display_rotation);
 
   // Phase 1: Initialize PSRAM image buffer BEFORE SD card operations
   // This allocates the buffer but does NOT initialize display hardware
@@ -245,7 +240,7 @@ void default_main_setup() {
   // Handle image loading via data provider
   photo_frame::ImageLoadResult image_result;
 
-  if (error == photo_frame::error_type::None && !BatteryInfo.is_critical()) {
+  if (error == photo_frame::error_type::None && !BatteryInfo.isCritical()) {
     log_d("Loading image via data providers...");
     // Create data providers as stack objects (no dynamic allocation)
     photo_frame::SdCardDataProvider sdcard_provider;
@@ -343,10 +338,10 @@ void default_main_setup() {
     auto &display = photo_frame::DisplayManager::getInstance();
 
     if (image_result.is_success()) {
-      if (image_result.image_file->header.payload_len > display.getBufferSize()) {
+      if (image_result.image_file->header.getPayloadLen() > display.getBufferSize()) {
         log_e("Image payload size (%u bytes) exceeds display buffer size (%u "
               "bytes)!",
-              image_result.image_file->header.payload_len, display.getBufferSize());
+              image_result.image_file->header.getPayloadLen(), display.getBufferSize());
         error = photo_frame::error_type::ImageBufferOverflow;
       }
     }

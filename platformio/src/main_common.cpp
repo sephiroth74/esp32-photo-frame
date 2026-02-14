@@ -119,6 +119,15 @@ bool initializeImageBuffer() {
   return true;
 }
 
+void cleanupImageBuffer() {
+  auto &display = photo_frame::DisplayManager::getInstance();
+  if (display.isInitialized()) {
+    log_i("[main] Releasing display manager");
+    display.release();
+    log_i("[main] Display manager released");
+  }
+}
+
 bool initializeDisplayHardware() {
   auto &display = photo_frame::DisplayManager::getInstance();
   log_i("[main] Initializing display hardware (Phase 2)...");
@@ -198,7 +207,7 @@ refresh_delay_t calculateWakeupDelay(photo_frame::BatteryInfo &BatteryInfo, Date
   // display the critical warning and not reach this point and it should go to
   // sleep indefinitely
 
-  if (!now.isValid() && !BatteryInfo.is_critical()) {
+  if (!now.isValid() && !BatteryInfo.isCritical()) {
     log_w("Time is invalid, using default refresh interval as fallback");
     refresh_delay.refresh_seconds = REFRESH_DEFAULT_INTERVAL_SECONDS;
     return refresh_delay;
@@ -302,12 +311,12 @@ photo_frame::photo_frame_error_t renderImage(const photo_frame::PFR1BinaryFile &
 
     // double check that the payload_len is valid against the display buffer
     // size
-    if (image_file.header.payload_len > display.getBufferSize()) {
+    if (image_file.header.getPayloadLen() > display.getBufferSize()) {
       log_e("Image payload size (%u bytes) exceeds display buffer size (%u "
             "bytes)!",
-            image_file.header.payload_len, display.getBufferSize());
+            image_file.header.getPayloadLen(), display.getBufferSize());
     } else {
-      memcpy(display.getBuffer(), image_file.getPayload(), image_file.header.payload_len);
+      memcpy(display.getBuffer(), image_file.getPayload(), image_file.header.getPayloadLen());
     }
 
     // Check portrait mode from config (or preferences fallback)

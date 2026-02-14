@@ -16,7 +16,7 @@
 
 #pragma once
 
-#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
 #include "RTClib.h"
 #include "config.h"

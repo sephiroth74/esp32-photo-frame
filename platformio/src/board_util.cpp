@@ -359,7 +359,7 @@ void blinkBuiltinLed(int count, unsigned long on_ms, unsigned long off_ms) {
 #ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
 long readRefreshSeconds(const unified_config &config, photo_frame::BatteryInfo &BatteryInfo) {
-  if (BatteryInfo.is_critical()) {
+  if (BatteryInfo.isCritical()) {
     log_w("Battery is critical, board should not wake up - returning 0 seconds");
     return 0;
   }
@@ -446,7 +446,7 @@ long readRefreshSeconds(const unified_config &config, photo_frame::BatteryInfo &
 #endif // USE_POTENTIOMETER
 
   // Apply low battery multiplier if needed
-  if (BatteryInfo.is_low()) {
+  if (BatteryInfo.isLow()) {
     refresh_seconds *= config.board.refresh.low_battery_multiplier;
   }
 

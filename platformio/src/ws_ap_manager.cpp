@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+
 #include "ws_ap_manager.h"
 #include <Arduino.h>
 #include <iomanip>
@@ -109,3 +111,5 @@ std::string WSAPManager::generateSSID() {
 
 } // namespace ws
 } // namespace photo_frame
+
+#endif // ENABLE_WEBSERVER_DATAPROVIDER

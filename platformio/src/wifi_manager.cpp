@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#ifdef ENABLE_WEBSERVER_DATAPROVIDER
+#ifndef ENABLE_WEBSERVER_DATAPROVIDER
 
 #include "wifi_manager.h"
 #include <Arduino.h>
