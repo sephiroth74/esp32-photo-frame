@@ -169,9 +169,7 @@ class _UploadScreenState extends State<UploadScreen> with TickerProviderStateMix
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   if (boardConfig != null) {
-                    Navigator.of(
-                      context,
-                    ).popUntil((route) => route.settings.name == '/image_select'); // Pop back to home before navigating to image select
+                    Navigator.of(context).popUntil((route) => route.settings.name == '/image_select');
                   } else {
                     logger.warning('Board config is null, cannot navigate to image select screen');
                     Navigator.of(context).popUntil((route) => route.isFirst);
