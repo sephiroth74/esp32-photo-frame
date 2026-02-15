@@ -76,7 +76,7 @@ The system operates on a clear pipeline:
    - `ws_client`: Small rust command line utility used to upload the `.pfr1` images into the ESP32 board, when it is compiled to accept images from Wifi
  - `flutter`:
    - `desktop`: Cross platform desktop GUI which can be used to interface with the rust processor cli. It can also be used to upload images into the board when the Wifi option is enabled on the ESP32.
-   - `modile`: iOS and Android app used to convert and upload your images into the ESP32 board when the Wifi option is enabled. 
+   - `mobile`: iOS and Android app used to convert and upload your images into the ESP32 board when the Wifi option is enabled. 
  - `docs`: Contains most of the the documentation
 
 
@@ -142,7 +142,7 @@ In order to enable the Google Drive dataprovider, your config.json should look s
   ...
 }
 ```
-> Read more how to setup your Google Drive here: [GOOLGE DRIVE.md](docs/GOOGLE_DRIVE.md)
+> Read more how to setup your Google Drive here: [GOOGLE DRIVE.md](docs/GOOGLE_DRIVE.md)
 
 
 ### Image Processing
