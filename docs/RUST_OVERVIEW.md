@@ -16,7 +16,7 @@ This is the foundational library used by all other Rust components. It implement
 - **Dithering algorithms** (Floyd-Steinberg, Atkinson, Sierra, etc.) to convert images for e-paper.
 - Color palette mapping for 6-color and Black/White displays.
 
-[👉 Read `photoframe_lib` Documentation](../rust/photoframe_lib/README.md)
+[Read `photoframe_lib` Documentation](../rust/photoframe_lib/README.md)
 
 ---
 
@@ -35,7 +35,7 @@ $ ./processor -i <INPUT_DIR> -o <OUTPUT_DIR> -t six-colors --orientation portrai
 - Integrates **InsightFace** for smart face-centered cropping.
 - Generates valid `.pfr1` files ready for the ESP32.
 
-[👉 Read `processor` Documentation](../rust/processor/README.md)
+[Read `processor` Documentation](../rust/processor/README.md)
 
 ---
 
@@ -46,7 +46,7 @@ A specialized Rust crate providing bindings and logic for the **InsightFace** de
 - Used by the `processor` to detect faces in images.
 - Ensures that when cropping landscape photos for a portrait frame (or vice versa), the subjects remain in the frame.
 
-[👉 Read `insightface_rs` Documentation](../rust/insightface_rs/README.md)
+[Read `insightface_rs` Documentation](../rust/insightface_rs/README.md)
 
 
 ...
@@ -56,4 +56,4 @@ A specialized Rust crate providing bindings and logic for the **InsightFace** de
 
 A Rust command line utility for connecting to the ESP32 board via WiFi (when compiled with **ENABLE_WEBSERVER_DATAPROVIDER** enabled ) and uploading an image (the generated [**.pfr1**](../docs/BINARY_FILE_FORMAT.md) file)
 
-[👉 Read `ws_client` Documentation](../rust/ws_client/README.md)
+[Read `ws_client` Documentation](../rust/ws_client/README.md)

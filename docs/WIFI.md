@@ -4,6 +4,8 @@
 
 The ESP32 Photo Frame uses a WiFi Access Point and WebSocket-based architecture for transferring images from mobile and desktop applications to the device. This system replaced the previous Bluetooth-based transfer mechanism to provide faster, more reliable image uploads with better battery management.
 
+This configuration can be enabled by setting the `ENABLE_WEBSERVER_DATAPROVIDER` constant in the **platformio.ini** file.
+
 ### Architecture Components
 
 **WiFi Access Point Mode:**
@@ -22,9 +24,6 @@ Once connected to the WiFi AP, the mobile or desktop application establishes a W
 
 **Chunked Upload Mechanism:**
 Images are transferred in 4096-byte chunks over the WebSocket connection. Each chunk is acknowledged by the device before the next chunk is sent, ensuring reliable delivery and allowing for progress tracking. This chunked approach prevents memory overflow on the ESP32 and provides resilience against connection interruptions.
-
-**Battery Conservation:**
-The system includes intelligent timeout mechanisms that automatically shut down the WiFi AP and WebSocket server when no client is connected or when transfers are idle. This preserves battery life while still providing a responsive user experience.
 
 ## Prerequisites
 
@@ -61,11 +60,6 @@ This flag should be defined in your `platformio.ini` configuration file. Without
 - The ESP32 Access Point operates on 2.4 GHz WiFi (802.11 b/g/n)
 - Client devices must support 2.4 GHz WiFi networks
 - No internet connection is required (the ESP32 AP is a local network)
-
-**Firewall Considerations:**
-- WebSocket connections use standard HTTP ports (typically port 81)
-- No special firewall configuration is needed for local AP connections
-- Some mobile devices may show "No Internet" warnings when connected to the ESP32 AP (this is expected and normal)
 
 ## Connection Workflow
 
@@ -1336,35 +1330,13 @@ cd rust/processor
 cargo run --release -- \
   --input photo.jpg \
   --output photo.pfr1 \
-  --width 800 \
-  --height 480 \
-  --display-type 6color \
+  --t 6c \
   --orientation 0
 
 # Step 2: Upload using rust/ws_client
 cd ../ws_client
-cargo run --release -- \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file photo.pfr1
+cargo run --release -- connect 192.168.4.1:81
 ```
-
-**Rust Processor Options:**
-- `--input` - Input image file (JPEG/PNG)
-- `--output` - Output PFR1 file
-- `--width` - Display width in pixels
-- `--height` - Display height in pixels
-- `--display-type` - "bw" or "6color"
-- `--orientation` - 0, 90, 180, or 270 degrees
-
-**Rust WebSocket Client Options:**
-- `--host` - ESP32 IP address (required)
-- `--port` - WebSocket port (required)
-- `--file` - Path to PFR1 file (required)
-- `--orientation` - Display orientation: 0, 90, 180, 270 (optional)
-- `--verbose` - Enable detailed logging (optional)
-- `--timeout` - Connection timeout in seconds (optional, default: 30)
-
 **Step 6: Monitor Upload Progress**
 
 The desktop app displays real-time upload progress:
@@ -1406,211 +1378,6 @@ Summary:
   Battery remaining: 83%
 
 Image successfully displayed on device.
-```
-
-**Step 8: Shutdown (Optional)**
-
-To conserve battery, you can shutdown the device after uploading using the WebSocket client:
-
-```bash
-# Shutdown device after upload (using rust/ws_client)
-cd rust/ws_client
-cargo run --release -- \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file photo.pfr1 \
-  --shutdown
-
-# Output:
-# Upload complete!
-# Display ready!
-# Sending shutdown command...
-# Device shutting down.
-# Connection closed.
-```
-
-#### Advanced Desktop Usage
-
-**Batch Upload Multiple Images:**
-
-```bash
-#!/bin/bash
-# Upload multiple images in sequence using rust/ws_client
-
-cd rust/ws_client
-
-for image in /path/to/images/*.pfr1; do
-  echo "Uploading $image..."
-  cargo run --release -- \
-    --host 192.168.4.1 \
-    --port 81 \
-    --file "$image" \
-    --verbose
-  
-  echo "Waiting 5 seconds before next upload..."
-  sleep 5
-done
-
-echo "All images uploaded!"
-```
-
-**Automated Conversion and Upload:**
-
-```bash
-#!/bin/bash
-# Convert and upload in one script
-
-INPUT_IMAGE="$1"
-TEMP_PFR1="/tmp/temp_image.pfr1"
-
-# Convert to PFR1 using rust/processor
-cd rust/processor
-cargo run --release -- \
-  --input "$INPUT_IMAGE" \
-  --output "$TEMP_PFR1" \
-  --width 800 \
-  --height 480 \
-  --display-type 6color
-
-# Upload to device using rust/ws_client
-cd ../ws_client
-cargo run --release -- \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file "$TEMP_PFR1" \
-  --shutdown
-
-# Cleanup
-rm "$TEMP_PFR1"
-```
-
-**Check Device Status:**
-
-You can query device information using the Flutter desktop app or the Rust WebSocket client. The client will receive board information during the handshake process:
-
-```bash
-# Using rust/ws_client with verbose flag to see board info
-cd rust/ws_client
-cargo run --release -- \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file photo.pfr1 \
-  --verbose
-
-# Output includes board information:
-# Connecting to ws://192.168.4.1:81...
-# Connected! Sending handshake...
-# Received board info:
-#   Model: ESP32-WROVER
-#   Display: 800x480 6-Color
-#   Firmware: v2.1.0
-#   Battery: 85% (3850 mV)
-#   Flash: 4 MB
-#   Free space: 2.1 MB
-#   Current image: /spiffs/current.pfr1
-#   Last updated: 2024-01-15 14:32:18
-```
-
-#### Troubleshooting Desktop App Issues
-
-**Connection Refused:**
-```
-Error: Connection refused (ECONNREFUSED)
-```
-**Solutions:**
-- Verify you're connected to the ESP32 WiFi Access Point
-- Check the IP address and port are correct
-- Ping the ESP32 to verify network connectivity
-- Ensure the ESP32 is powered on and displaying the QR code
-- Try restarting the ESP32
-
-**Connection Timeout:**
-```
-Error: Connection timeout after 30 seconds
-```
-**Solutions:**
-- Move closer to the ESP32 (within 10 feet)
-- Check WiFi signal strength
-- Increase timeout value with `--timeout 60`
-- Verify no firewall is blocking the connection
-- Restart your computer's WiFi adapter
-
-**Upload Fails Mid-Transfer:**
-```
-Error: Upload failed at chunk 15/38
-Error: Timeout waiting for chunk acknowledgment
-```
-**Solutions:**
-- Check WiFi signal strength (move closer)
-- Verify ESP32 battery level (> 20%)
-- Reduce file size or image complexity
-- Restart both the ESP32 and desktop app
-- Check for WiFi interference from other devices
-
-**Invalid File Format:**
-```
-Error: Server rejected file (error code 400)
-Error: Invalid file format or corrupted data
-```
-**Solutions:**
-- Verify the file is in PFR1 format
-- Re-convert the image using `rust/processor` or the Flutter desktop/mobile app
-- Check that display dimensions match device
-- Verify the file is not corrupted (check file size)
-- Ensure the PFR1 version matches device firmware
-
-**Display Update Fails:**
-```
-Warning: Display update timeout after 40 seconds
-Error: Display ready signal not received
-```
-**Solutions:**
-- Check ESP32 battery level (low battery can cause failures)
-- Verify the image data is valid
-- Restart the ESP32 and retry
-- Check ESP32 logs for error messages
-- Ensure sufficient flash storage space
-
-#### Desktop App Configuration File
-
-You can create a configuration file to avoid typing connection parameters repeatedly:
-
-**~/.photoframe/config.toml:**
-```toml
-[connection]
-host = "192.168.4.1"
-port = 81
-timeout = 30
-
-[display]
-width = 800
-height = 480
-type = "6color"
-default_orientation = 0
-
-[upload]
-verbose = true
-auto_shutdown = false
-chunk_size = 4096
-```
-
-**Using the Flutter Desktop App or Rust CLI:**
-
-The Flutter desktop app (`flutter/desktop`) and Rust WebSocket client (`rust/ws_client`) don't require separate configuration files. You provide connection parameters directly:
-
-**Flutter Desktop App:**
-- Enter connection details in the GUI (IP address, port)
-- Configure upload options (orientation, shutdown after upload)
-
-**Rust WebSocket Client:**
-```bash
-cd rust/ws_client
-cargo run --release -- \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file photo.pfr1 \
-  --orientation 0 \
-  --shutdown
 ```
 
 ### General Usage Tips
@@ -2060,59 +1827,6 @@ wscat -c ws://192.168.4.1:81
 # {"type":"board_info","board":"ESP32-WROVER",...}
 ```
 
-#### Serial Console Debugging
-
-Connect to the ESP32 serial console for detailed diagnostic information:
-
-```bash
-# Using PlatformIO
-pio device monitor
-
-# Using Arduino IDE
-# Tools > Serial Monitor (115200 baud)
-
-# Using screen (macOS/Linux)
-screen /dev/ttyUSB0 115200
-```
-
-**Useful Log Messages:**
-- `WiFi AP started: <SSID>` - Access Point initialized successfully
-- `WebSocket server started on port <PORT>` - WebSocket server ready
-- `Client connected: <IP>` - Client established connection
-- `Received chunk: <BYTES> bytes` - Chunk received successfully
-- `Upload complete: <FILENAME>` - Upload finalized
-- `Display update started` - E-paper refresh initiated
-- `Display update complete` - E-paper refresh finished
-- `Error: <MESSAGE>` - Error occurred
-
-#### App Debug Mode
-
-Enable verbose logging in the mobile/desktop app:
-
-**Mobile App:**
-1. Go to Settings
-2. Enable "Developer Mode"
-3. Enable "Verbose Logging"
-4. Logs are saved to app storage and can be exported
-
-**Rust WebSocket Client:**
-```bash
-# Run with verbose flag
-cd rust/ws_client
-cargo run --release -- \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file image.pfr1 \
-  --verbose
-
-# Output includes:
-# - WebSocket message details
-# - Chunk transmission logs
-# - Timing information
-# - Error stack traces
-```
-
-
 ## Battery Management
 
 The ESP32 Photo Frame includes intelligent battery management features to maximize battery life while maintaining a responsive user experience. This section describes how battery conservation works during WiFi/WebSocket operations and how to optimize battery usage.
@@ -2485,144 +2199,3 @@ Deep sleep is the primary battery conservation mechanism, reducing power consump
 
 **Shutdown Time:** Typically 1-2 seconds for graceful shutdown
 
-### Battery Management Troubleshooting
-
-#### Battery Drains Quickly
-
-**Symptoms:**
-- Battery depletes in hours instead of days/weeks
-- Device gets warm during operation
-- Battery percentage drops rapidly
-
-**Possible Causes:**
-- WiFi AP left running continuously
-- Device not entering deep sleep
-- Battery is old or damaged
-- Firmware bug causing high power consumption
-- Display updating too frequently
-
-**Solutions:**
-1. **Use Shutdown Command:** Always shutdown after uploads to enter deep sleep
-2. **Check Timeout Settings:** Verify timeout is configured (5 minutes default)
-3. **Monitor Temperature:** If device is hot, power off and investigate
-4. **Replace Battery:** Old batteries (> 2 years) may have reduced capacity
-5. **Update Firmware:** Install latest firmware with power optimizations
-6. **Check Serial Logs:** Look for errors or unexpected wake-ups
-7. **Measure Current:** Use a multimeter to measure actual current draw
-
-**Prevention:**
-- Always use shutdown command after operations
-- Don't leave device in WiFi AP mode continuously
-- Replace battery every 2-3 years
-- Keep firmware updated
-
-#### Device Shuts Down During Upload
-
-**Symptoms:**
-- Upload fails with connection lost
-- Device powers off mid-transfer
-- Battery was showing > 20% before shutdown
-
-**Possible Causes:**
-- Battery voltage sag under load (weak battery)
-- Battery percentage reporting inaccurate
-- Power supply insufficient (if USB powered)
-- Firmware bug triggering emergency shutdown
-
-**Solutions:**
-1. **Charge Battery Fully:** Charge to 100% and retry
-2. **Replace Battery:** Weak batteries can't handle peak current
-3. **Use USB Power:** Connect USB power during uploads
-4. **Check Battery Connections:** Ensure battery is properly connected
-5. **Calibrate Battery:** Fully discharge and recharge to calibrate gauge
-6. **Update Firmware:** Install firmware with improved battery management
-
-**Prevention:**
-- Keep battery charged above 30%
-- Replace battery when capacity degrades
-- Use USB power for extended upload sessions
-- Monitor battery health regularly
-
-#### Battery Percentage Inaccurate
-
-**Symptoms:**
-- Battery shows 50% then suddenly drops to 10%
-- Battery percentage doesn't match voltage
-- Percentage jumps up or down unexpectedly
-
-**Possible Causes:**
-- Battery fuel gauge needs calibration
-- Battery is old and capacity has degraded
-- Firmware battery calculation error
-- Temperature affecting readings
-
-**Solutions:**
-1. **Calibrate Battery:** Fully discharge to 0%, then fully charge to 100%
-2. **Check Voltage:** Compare reported voltage to expected voltage for percentage
-3. **Update Firmware:** Install firmware with improved battery algorithms
-4. **Replace Battery:** Old batteries have non-linear discharge curves
-5. **Check Temperature:** Extreme temperatures affect battery readings
-
-**Prevention:**
-- Calibrate battery monthly
-- Replace battery when capacity drops below 80% of original
-- Avoid extreme temperatures
-- Keep firmware updated
-
-### Battery Safety
-
-#### Safe Operating Conditions
-
-**Temperature Range:**
-- **Operating:** 0°C to 45°C (32°F to 113°F)
-- **Charging:** 0°C to 45°C (32°F to 113°F)
-- **Storage:** -20°C to 60°C (-4°F to 140°F)
-
-**Voltage Limits:**
-- **Maximum Charge Voltage:** 4.2V (do not exceed)
-- **Minimum Discharge Voltage:** 3.0V (hardware protected)
-- **Nominal Voltage:** 3.7V
-
-**Current Limits:**
-- **Maximum Discharge Current:** 1-2A (depends on battery)
-- **Maximum Charge Current:** 0.5-1A (depends on battery)
-
-#### Battery Warning Signs
-
-**Replace Battery If:**
-- Battery swells or bulges
-- Battery gets hot during normal use (> 45°C)
-- Capacity drops below 50% of original
-- Battery age exceeds 3 years
-- Voltage drops below 3.0V under load
-- Physical damage to battery
-
-**Safety Warnings:**
-- Never puncture or disassemble battery
-- Don't expose to fire or extreme heat
-- Don't short circuit battery terminals
-- Use only approved chargers
-- Dispose of batteries properly at recycling centers
-
-#### Battery Maintenance
-
-**Regular Maintenance:**
-- Charge battery every 3 months if not in use
-- Store at 40-60% charge for long-term storage
-- Keep battery contacts clean
-- Avoid full discharge cycles (< 10%)
-- Calibrate battery every 3 months
-
-**Optimal Usage Patterns:**
-- Keep battery between 20-80% for longest life
-- Avoid leaving at 100% charge for extended periods
-- Avoid deep discharge below 10%
-- Charge at room temperature
-- Use device regularly (at least weekly)
-
-**Expected Battery Lifespan:**
-- **Charge Cycles:** 300-500 full cycles
-- **Calendar Life:** 2-3 years
-- **Capacity Retention:** 80% after 300 cycles, 60% after 500 cycles
-
-**Note:** Battery lifespan depends on usage patterns, temperature, and charge/discharge rates. Following best practices can significantly extend battery life.

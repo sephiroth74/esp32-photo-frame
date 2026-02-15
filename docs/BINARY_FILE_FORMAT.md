@@ -59,10 +59,6 @@ Total Size = Header (21) + Payload (W × H) + CRC32 (4)
 **Purpose**: File format identification
 **Validation**: Must match exactly to be recognized as valid PFR1 file
 
-```c
-uint32_t magic = 0x50465231;  // 'PFR1' in little-endian
-```
-
 ### Version (Offset: 4, Size: 1 byte)
 
 **Current Value**: 1
@@ -73,20 +69,12 @@ uint32_t magic = 0x50465231;  // 'PFR1' in little-endian
 - Older readers should reject unknown versions
 - Current implementation only supports version 1
 
-```c
-uint8_t version = 1;
-```
-
 ### Header Length (Offset: 5, Size: 2 bytes)
 
 **Value**: 21 (for current version)
 **Range**: 16-65535
 **Purpose**: Allows header extension in future versions
 **Validation**: Current implementation expects 21 bytes
-
-```c
-uint16_t header_len = 21;  // little-endian
-```
 
 ### Width (Offset: 7, Size: 2 bytes)
 
@@ -98,10 +86,6 @@ uint16_t header_len = 21;  // little-endian
 **Purpose**: Image width in pixels
 **Validation**: Must match display configuration
 
-```c
-uint16_t width = 800;  // little-endian
-```
-
 ### Height (Offset: 9, Size: 2 bytes)
 
 **Range**: 1-65535 pixels
@@ -111,10 +95,6 @@ uint16_t width = 800;  // little-endian
 - 768 (high-res)
 **Purpose**: Image height in pixels
 **Validation**: Must match display configuration
-
-```c
-uint16_t height = 480;  // little-endian
-```
 
 ### Rotation (Offset: 11, Size: 1 byte)
 
@@ -128,9 +108,6 @@ uint16_t height = 480;  // little-endian
 **Purpose**: Display orientation
 **Application**: Applied after image loading, before display rendering
 
-```c
-uint8_t rotation = 0;  // 0-3 only
-```
 
 ### Color Mode (Offset: 12, Size: 1 byte)
 
@@ -142,9 +119,6 @@ uint8_t rotation = 0;  // 0-3 only
 **Purpose**: Image color format indicator
 **Validation**: Must match device hardware capabilities
 
-```c
-uint8_t color_mode = 0;  // 0=BW, 1=6C
-```
 
 ### Payload Length (Offset: 13, Size: 4 bytes)
 
@@ -152,10 +126,6 @@ uint8_t color_mode = 0;  // 0=BW, 1=6C
 **Range**: 0-4,294,967,295 bytes
 **Purpose**: Size of image data following header
 **Validation**: Must match file size: `file_size = 25 + payload_len`
-
-```c
-uint32_t payload_len = width * height;  // little-endian
-```
 
 ### Header CRC32 (Offset: 17, Size: 4 bytes)
 
@@ -196,8 +166,18 @@ uint32_t crc32(const uint8_t* data, size_t length) {
 Raw pixel data immediately following the 21-byte header.
 
 **Format**:
-- **Black & White**: 1 byte per pixel (256 grayscale values)
-- **6-Color**: 1 byte per pixel (custom 6-color palette)
+ - **1 byte per pixel**
+ - **Black & White**: 
+   - `0xFF` White
+   - `0x00` Black
+ - **6-Colors**: 
+   - `0xFF` White
+   - `0x00` Black
+   - `'0xE0` Red
+   - `0x1C` Green
+   - `0x03` Blue
+   - `0xFC` Yellow
+
 
 **Size**: Exactly `width × height` bytes
 
@@ -212,24 +192,6 @@ Row 1: [0,1] [1,1] [2,1] ... [W-1,1]
 Row H-1: [0,H-1] [1,H-1] ... [W-1,H-1]
 ```
 
-### Black & White Format
-
-**Byte Value**: 0-255 (grayscale)
-- `0x00` = Black
-- `0xFF` = White
-- Intermediate values = Gray levels
-
-### 6-Color Format
-
-**Byte Value**: 0-5 (palette index)
-```
-0 = Black
-1 = Dark Gray
-2 = Light Gray
-3 = White
-4 = Red
-5 = Yellow
-```
 
 ---
 
@@ -257,60 +219,6 @@ During file loading:
 2. Calculate CRC32 of payload section
 3. Compare with stored CRC32 value
 4. Reject if mismatch detected
-
----
-
-## File Validation Process
-
-### Step 1: Magic Number Check
-
-```c
-uint32_t magic = *(uint32_t*)(buffer + 0);
-if (magic != 0x50465231) {
-    return ERROR_INVALID_MAGIC;
-}
-```
-
-### Step 2: Header CRC32 Validation
-
-```c
-uint32_t stored_header_crc = *(uint32_t*)(buffer + 17);
-uint32_t calculated_crc = crc32(buffer, 17);
-if (stored_header_crc != calculated_crc) {
-    return ERROR_HEADER_CRC_FAILED;
-}
-```
-
-### Step 3: Dimension Validation
-
-```c
-uint16_t width = *(uint16_t*)(buffer + 7);
-uint16_t height = *(uint16_t*)(buffer + 9);
-if (width != EXPECTED_WIDTH || height != EXPECTED_HEIGHT) {
-    return ERROR_DIMENSION_MISMATCH;
-}
-```
-
-### Step 4: Payload CRC32 Validation
-
-```c
-uint32_t payload_len = *(uint32_t*)(buffer + 13);
-uint32_t stored_payload_crc = *(uint32_t*)(buffer + 21 + payload_len);
-uint8_t* payload = buffer + 21;
-uint32_t calculated_crc = crc32(payload, payload_len);
-if (stored_payload_crc != calculated_crc) {
-    return ERROR_PAYLOAD_CRC_FAILED;
-}
-```
-
-### Step 5: File Size Validation
-
-```c
-size_t expected_size = 21 + payload_len + 4;
-if (actual_file_size != expected_size) {
-    return ERROR_FILE_SIZE_MISMATCH;
-}
-```
 
 ---
 
@@ -375,15 +283,6 @@ void create_pfr1_file(const char* output_path,
 
 **All multi-byte fields use LITTLE-ENDIAN byte order** (native to ESP32 and most desktop systems).
 
-When reading/writing:
-```c
-// Read
-uint16_t value = *(uint16_t*)&buffer[offset];
-
-// Write
-*(uint16_t*)&buffer[offset] = value;
-```
-
 ---
 
 ## Compatibility
@@ -395,40 +294,6 @@ uint16_t value = *(uint16_t*)&buffer[offset];
 - **Status**: Stable
 - **Breaking Changes**: None expected for v1.x
 
-### Future Compatibility
-
-If format needs to change:
-1. Increment `version` field in header
-2. Readers can gracefully reject unknown versions
-3. Extend header by using `header_len` field
-4. Maintain backward compatibility where possible
-
----
-
-## Usage in Transfer
-
-### Bluetooth Transfer
-
-1. **File Loading**: Read complete PFR1 file
-2. **Validation**: Verify both CRC32 checksums
-3. **Fragmentation**: Split payload into MTU-sized chunks
-4. **Transmission**: Send header + chunks via BLE
-5. **Reception**: Device rebuilds file in PSRAM
-6. **Verification**: Device validates both CRC32 checksums
-7. **Application**: Device applies rotation and renders to display
-
-### SD Card Storage
-
-1. **File Saving**: Write complete PFR1 file to SD card
-2. **Verification**: Read back and validate checksums
-3. **Persistence**: File remains on SD for recovery
-4. **Playback**: On next boot, device loads from SD and displays
-
-### Flash Storage
-
-1. **Compression**: PFR1 can be stored in compressed form
-2. **Caching**: Common images cached in ESP32 flash
-3. **Quick Load**: Reduces Bluetooth transfer for repeated images
 
 ---
 
@@ -437,7 +302,7 @@ If format needs to change:
 ### Validate PFR1 File (Shell Script)
 
 ```bash
-photoframe-processor --validate Input-File.pfr1
+processor --validate Input-File.pfr1
 ```
 ---
 
@@ -452,11 +317,6 @@ photoframe-processor --validate Input-File.pfr1
 - **Maximum Resolution**: Limited by PSRAM size (typically 8 MB)
 - **Practical Maximum**: 1024×1024 pixels (1 MB) for most devices
 - **Standard**: 800×480 pixels (384 KB)
-
-### Transfer Considerations
-- **Large Files**: May timeout on slow Bluetooth connections
-- **Battery Drain**: Bluetooth transfer consumes ~50-100 mA
-- **Interference**: 2.4 GHz WiFi can affect Bluetooth performance
 
 ---
 
