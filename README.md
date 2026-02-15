@@ -37,13 +37,14 @@ The project also provides a **complete hardware solution**:
 To build this project, you will need the following core components. A detailed bill of materials is available in the [Assembly Guide](docs/assembly_guide.pdf).
 
 ### Essential Components
-| Component | Recommendation | Notes |
-|-----------|----------------|-------|
-| **Microcontroller** | [Unexpected Maker ProS3-D](https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737) | ESP32-S3 with PSRAM (Required for image buffer) |
-| **Display** | [Good Display 7.3" ACeP](https://www.good-display.com/blank7.html?productId=533) | 800×480, 6-Color (GDEP073E01) |
-| **Adapter** | [DESPI-C73](https://www.good-display.com/product/522.html) | Connection interface for the display |
-| **Storage** | [Adafruit MicroSD SPI/SDIO](https://learn.adafruit.com/adafruit-microsd-spi-sdio) | High-speed SDIO support for faster image loading |
-| **Battery** | 3.7V LiPo (5000mAh+) | Required for portable operation |
+| Component           | Recommendation                                                                          | Notes                                            |
+| ------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Microcontroller** | [Unexpected Maker ProS3-D](https://unexpectedmaker.com/shop.html#!/ProS3-D/p/759221737) | ESP32-S3 with PSRAM (Required for image buffer)  |
+| **Display**         | [Good Display 7.3" ACeP](https://www.good-display.com/blank7.html?productId=533)        | 800×480, 6-Color (GDEP073E01)                    |
+| **Adapter**         | [DESPI-C73](https://www.good-display.com/product/522.html)                              | Connection interface for the display             |
+| **Storage**         | [Adafruit MicroSD SPI/SDIO](https://learn.adafruit.com/adafruit-microsd-spi-sdio)       | High-speed SDIO support for faster image loading |
+| **Battery**         | 3.7V LiPo (5000mAh+)                                                                    | Required for portable operation                  |
+
 
 
 ### Key Features
@@ -51,13 +52,25 @@ To build this project, you will need the following core components. A detailed b
 - **Ultra-Low Power**: Designed for longevity, the frame enters deep sleep between updates, lasting months on a standard LiPo battery.
 - **E-Paper Optimized**: Leverages multiple dithering algorithms (Floyd-Steinberg, Atkinson, etc.) and a custom 6-color palette (via `.pfr1` format) to transform any image into a stunning e-ink display.
 - **Smart & Autonomous**:
-    - **Cloud Mode**: Connects to Google Drive to fetch and display random images at set intervals.
-    - **Offline Mode**: Cycles through images stored locally on the SD Card.
-    - **Local WiFi Mode**: Functions as a static display, updated instantly via the mobile or desktop app.
-    - **Night Mode**: Automatically pauses updates during sleeping hours to save energy.
-    - **Smart Cropping**: Integrated AI (InsightFace) detects faces to automatically center and crop images for the best composition.
+  - **Cloud Mode**: Connects to Google Drive to fetch and display random images at set intervals.
+  - **Offline Mode**: Cycles through images stored locally on the SD Card.
+  - **Local WiFi Mode**: Functions as a static display, updated instantly via the mobile or desktop app.
+  - **Night Mode**: Automatically pauses updates during sleeping hours to save energy.
+  - **Smart Cropping**: Integrated AI (InsightFace) detects faces to automatically center and crop images for the best composition.
 - **Zero-Recompile Config**: All settings (WiFi, schedules, refresh intervals) are managed via a simple `config.json` file on the SD card—no programming knowledge required to tweak settings.
 
+---
+
+### Operating Modes
+
+| Mode            | Image Source          | Update Type      | Main Notes                                     |
+| --------------- | --------------------- | ---------------- | ---------------------------------------------- |
+| Cloud Mode      | Google Drive          | Scheduled        | Requires Google Drive and WiFi configuration   |
+| Offline Mode    | Internal SD Card      | Scheduled/manual | Works without network connection               |
+| Local WiFi Mode | Upload via WiFi (App) | Instant/manual   | Requires firmware build with WebServer enabled |
+| Night Mode      | All                   | Night pause      | Suspends updates to save power                 |
+
+---
 ## Architecture Overview
 
 The system operates on a clear pipeline:
