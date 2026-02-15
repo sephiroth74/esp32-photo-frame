@@ -8,7 +8,7 @@ Built with Rust, these tools ensure type safety, memory safety, and native perfo
 
 The Rust workspace is divided into several crates, each serving a specific purpose:
 
-### 📚 Core Library (`photoframe_lib`)
+### Core Library (`photoframe_lib`)
 **Location:** [`rust/photoframe_lib`](../rust/photoframe_lib/README.md)
 
 This is the foundational library used by all other Rust components. It implements:
@@ -20,10 +20,17 @@ This is the foundational library used by all other Rust components. It implement
 
 ---
 
-### ⚙️ Image Processor (`processor`)
+### Image Processor (`processor`)
 **Location:** [`rust/processor`](../rust/processor/README.md)
 
 The official Command Line Interface (CLI) tool for the project. It powers the Flutter Desktop App but can also be used standalone for batch processing.
+Use this command line to convert images in batch into the supported **.pfr1** file supported by the ESP32 board.
+
+
+```bash
+$ ./processor -i <INPUT_DIR> -o <OUTPUT_DIR> -t six-colors --orientation portrait
+```
+
 - Handles image resizing, cropping, and padding.
 - Integrates **InsightFace** for smart face-centered cropping.
 - Generates valid `.pfr1` files ready for the ESP32.
@@ -32,7 +39,7 @@ The official Command Line Interface (CLI) tool for the project. It powers the Fl
 
 ---
 
-### 🧠 InsightFace (`insightface_rs`)
+### InsightFace (`insightface_rs`)
 **Location:** [`rust/insightface_rs`](../rust/insightface_rs/README.md)
 
 A specialized Rust crate providing bindings and logic for the **InsightFace** deep learning model.
@@ -41,13 +48,12 @@ A specialized Rust crate providing bindings and logic for the **InsightFace** de
 
 [👉 Read `insightface_rs` Documentation](../rust/insightface_rs/README.md)
 
----
 
-### 📡 Bluetooth Uploader (`bt_uploader`)
-**Location:** [`rust/bt_uploader`](../rust/bt_uploader/README.md)
+...
 
-A utility tool for communicating with the photo frame via Bluetooth Low Energy (BLE).
-- Allows uploading `.pfr1` files directly to the device without WiFi.
-- Primarily used for testing transfer protocols and integration with the firmware's `ENABLE_BT_IMAGE` mode.
+### WebSocket Client (`ws_client`)
+**Location:** [`rust/ws_client`](../rust/ws_client/README.md)
 
-[👉 Read `bt_uploader` Documentation](../rust/bt_uploader/README.md)
+A Rust command line utility for connecting to the ESP32 board via WiFi (when compiled with **ENABLE_WEBSERVER_DATAPROVIDER** enabled ) and uploading an image (the generated [**.pfr1**](../docs/BINARY_FILE_FORMAT.md) file)
+
+[👉 Read `ws_client` Documentation](../rust/ws_client/README.md)

@@ -24,7 +24,8 @@ A native-feeling desktop application for **macOS**, **Windows**, and **Linux**.
 
 A companion app for **iOS** and **Android**.
 - **On-Device Processing**: Uses the Rust core libraries (via FFI) to dither and convert images directly on your phone.
-- **Bluetooth Upload**: Wirelessly transfer images to the frame without needing a WiFi connection (requires `ENABLE_BT_IMAGE` firmware build).
+- **WiFi/WebSocket Upload**: Wirelessly transfer images to the frame via WiFi Access Point and WebSocket connection (requires `ENABLE_WEBSERVER_DATAPROVIDER` firmware build).
+- **QR Code Scanning**: Scan the QR code displayed on the frame to automatically connect and configure the upload.
 - **Share Extension**: Send photos directly from your phone's gallery to the app.
 
 [👉 Read Mobile App Documentation](../flutter/mobile/README.md)

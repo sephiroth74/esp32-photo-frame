@@ -15,7 +15,8 @@ Native macOS GUI for ESP32 Photo Frame image processor, built with Flutter and [
 - Flutter SDK 3.10.3 or higher
 - macOS 11.0 (Big Sur) or higher
 - Xcode 13 or higher
-- Rust processor compiled with AI features (v1.1.0+)
+- Rust processor compiled with AI features
+- [ImageMagick](https://imagemagick.org/) (recommended)
 
 ## 🚀 Installation
 
@@ -55,19 +56,6 @@ The provider searches for the `processor` binary in these locations:
 2. Absolute path in the project
 3. System PATH
 4. Custom path configured in the UI
-
-## 📝 Main Dependencies
-
-```yaml
-dependencies:
-  appkit_ui_elements: ^0.2.2      # Native macOS UI components
-  provider: ^6.1.2                # State management
-  file_picker: ^10.3.8            # Native file/directory picker
-  path_provider: ^2.1.5           # System paths
-  json_annotation: ^4.9.0         # JSON serialization
-  process_run: ^1.2.1             # Process execution
-  window_manager: ^0.5.0          # Window management
-```
 
 ## 🐛 Troubleshooting
 

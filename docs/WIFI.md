@@ -1315,11 +1315,25 @@ ping 192.168.4.1
 
 **Step 4: Prepare Your Image**
 
-The desktop app requires a PFR1-formatted image file. If you have a JPEG or PNG, you'll need to convert it first using the conversion tool:
+You can convert and upload images using one of the following methods:
+
+**Option A: Flutter Desktop App (`flutter/desktop`)**
+
+The Flutter desktop app provides a GUI for image conversion and upload:
+1. Launch the desktop app
+2. Drag and drop your image (JPEG/PNG)
+3. Configure display settings (width, height, display type, orientation)
+4. Preview the dithered result
+5. Click "Upload to Device" and enter connection details (IP: 192.168.4.1, Port: 81)
+
+**Option B: Rust CLI Processor + WebSocket Client**
+
+Use the Rust command-line tools for conversion and upload:
 
 ```bash
-# Convert image to PFR1 format
-pfr1-converter \
+# Step 1: Convert image to PFR1 format using rust/processor
+cd rust/processor
+cargo run --release -- \
   --input photo.jpg \
   --output photo.pfr1 \
   --width 800 \
@@ -1327,55 +1341,27 @@ pfr1-converter \
   --display-type 6color \
   --orientation 0
 
-# Options:
-#   --width: Display width in pixels
-#   --height: Display height in pixels
-#   --display-type: "bw" or "6color"
-#   --orientation: 0, 90, 180, or 270 degrees
-```
-
-**Conversion Output:**
-```
-Converting image...
-Input: photo.jpg (1920x1080, 2.4 MB)
-Output: photo.pfr1 (800x480, 6-Color)
-Resizing image...
-Applying dithering...
-Compressing to PFR1 format...
-Conversion complete: photo.pfr1 (156 KB)
-```
-
-**Step 5: Upload Image Using Desktop App**
-
-Use the desktop app to upload the PFR1 file to the ESP32:
-
-```bash
-# Basic upload command
-photoframe-upload \
+# Step 2: Upload using rust/ws_client
+cd ../ws_client
+cargo run --release -- \
   --host 192.168.4.1 \
   --port 81 \
   --file photo.pfr1
-
-# With verbose output
-photoframe-upload \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file photo.pfr1 \
-  --verbose
-
-# With custom orientation
-photoframe-upload \
-  --host 192.168.4.1 \
-  --port 81 \
-  --file photo.pfr1 \
-  --orientation 90
 ```
 
-**Command Options:**
+**Rust Processor Options:**
+- `--input` - Input image file (JPEG/PNG)
+- `--output` - Output PFR1 file
+- `--width` - Display width in pixels
+- `--height` - Display height in pixels
+- `--display-type` - "bw" or "6color"
+- `--orientation` - 0, 90, 180, or 270 degrees
+
+**Rust WebSocket Client Options:**
 - `--host` - ESP32 IP address (required)
 - `--port` - WebSocket port (required)
 - `--file` - Path to PFR1 file (required)
-- `--orientation` - Display orientation: 0, 90, 180, 270 (optional, default: 0)
+- `--orientation` - Display orientation: 0, 90, 180, 270 (optional)
 - `--verbose` - Enable detailed logging (optional)
 - `--timeout` - Connection timeout in seconds (optional, default: 30)
 
@@ -1424,11 +1410,12 @@ Image successfully displayed on device.
 
 **Step 8: Shutdown (Optional)**
 
-To conserve battery, you can shutdown the device after uploading:
+To conserve battery, you can shutdown the device after uploading using the WebSocket client:
 
 ```bash
-# Shutdown device after upload
-photoframe-upload \
+# Shutdown device after upload (using rust/ws_client)
+cd rust/ws_client
+cargo run --release -- \
   --host 192.168.4.1 \
   --port 81 \
   --file photo.pfr1 \
@@ -1448,11 +1435,13 @@ photoframe-upload \
 
 ```bash
 #!/bin/bash
-# Upload multiple images in sequence
+# Upload multiple images in sequence using rust/ws_client
 
-for image in *.pfr1; do
+cd rust/ws_client
+
+for image in /path/to/images/*.pfr1; do
   echo "Uploading $image..."
-  photoframe-upload \
+  cargo run --release -- \
     --host 192.168.4.1 \
     --port 81 \
     --file "$image" \
@@ -1474,16 +1463,18 @@ echo "All images uploaded!"
 INPUT_IMAGE="$1"
 TEMP_PFR1="/tmp/temp_image.pfr1"
 
-# Convert to PFR1
-pfr1-converter \
+# Convert to PFR1 using rust/processor
+cd rust/processor
+cargo run --release -- \
   --input "$INPUT_IMAGE" \
   --output "$TEMP_PFR1" \
   --width 800 \
   --height 480 \
   --display-type 6color
 
-# Upload to device
-photoframe-upload \
+# Upload to device using rust/ws_client
+cd ../ws_client
+cargo run --release -- \
   --host 192.168.4.1 \
   --port 81 \
   --file "$TEMP_PFR1" \
@@ -1495,14 +1486,21 @@ rm "$TEMP_PFR1"
 
 **Check Device Status:**
 
-```bash
-# Query device information without uploading
-photoframe-info \
-  --host 192.168.4.1 \
-  --port 81
+You can query device information using the Flutter desktop app or the Rust WebSocket client. The client will receive board information during the handshake process:
 
-# Output:
-# Device Information:
+```bash
+# Using rust/ws_client with verbose flag to see board info
+cd rust/ws_client
+cargo run --release -- \
+  --host 192.168.4.1 \
+  --port 81 \
+  --file photo.pfr1 \
+  --verbose
+
+# Output includes board information:
+# Connecting to ws://192.168.4.1:81...
+# Connected! Sending handshake...
+# Received board info:
 #   Model: ESP32-WROVER
 #   Display: 800x480 6-Color
 #   Firmware: v2.1.0
@@ -1556,7 +1554,7 @@ Error: Invalid file format or corrupted data
 ```
 **Solutions:**
 - Verify the file is in PFR1 format
-- Re-convert the image using pfr1-converter
+- Re-convert the image using `rust/processor` or the Flutter desktop/mobile app
 - Check that display dimensions match device
 - Verify the file is not corrupted (check file size)
 - Ensure the PFR1 version matches device firmware
@@ -1596,13 +1594,23 @@ auto_shutdown = false
 chunk_size = 4096
 ```
 
-**Using the config file:**
-```bash
-# Upload using config file defaults
-photoframe-upload --file photo.pfr1
+**Using the Flutter Desktop App or Rust CLI:**
 
-# Override specific settings
-photoframe-upload --file photo.pfr1 --orientation 90 --shutdown
+The Flutter desktop app (`flutter/desktop`) and Rust WebSocket client (`rust/ws_client`) don't require separate configuration files. You provide connection parameters directly:
+
+**Flutter Desktop App:**
+- Enter connection details in the GUI (IP address, port)
+- Configure upload options (orientation, shutdown after upload)
+
+**Rust WebSocket Client:**
+```bash
+cd rust/ws_client
+cargo run --release -- \
+  --host 192.168.4.1 \
+  --port 81 \
+  --file photo.pfr1 \
+  --orientation 0 \
+  --shutdown
 ```
 
 ### General Usage Tips
@@ -2087,10 +2095,15 @@ Enable verbose logging in the mobile/desktop app:
 3. Enable "Verbose Logging"
 4. Logs are saved to app storage and can be exported
 
-**Desktop App:**
+**Rust WebSocket Client:**
 ```bash
 # Run with verbose flag
-photoframe-upload --file image.pfr1 --verbose
+cd rust/ws_client
+cargo run --release -- \
+  --host 192.168.4.1 \
+  --port 81 \
+  --file image.pfr1 \
+  --verbose
 
 # Output includes:
 # - WebSocket message details

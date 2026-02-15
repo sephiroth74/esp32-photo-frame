@@ -16,7 +16,7 @@ Unlike traditional LCD photo frames, this project leverages **e-paper technology
 The system is designed as a complete ecosystem containing:
 - **Smart Firmware**: An efficient ESP32 firmware that manages power, WiFi, and display rendering.
 - **Cross-Platform Tools**: A suite of powerful tools (Rust CLI, Flutter Desktop & Mobile Apps) to process and optimize images specifically for e-paper displays.
-- **Flexible Data Sources**: Fetch images from the cloud (Google Drive), local SD card, or upload them directly via Bluetooth.
+- **Flexible Data Sources**: Fetch images from the cloud (Google Drive), local SD card, or upload them directly via WiFi.
 
 The project also provides a **complete hardware solution**:
 - **3D Printable Enclosure**: A custom-designed case available in `assets/3d model`.
@@ -44,25 +44,25 @@ The firmware is flexible and supports multiple configurations:
 
 ## Key Features
 
-- **🔋 Ultra-Low Power**: Designed for longevity, the frame enters deep sleep between updates, lasting months on a standard LiPo battery.
-- **🎨 E-Paper Optimized**: Leverages multiple dithering algorithms (Floyd-Steinberg, Atkinson, etc.) and a custom 6-color palette (via `.pfr1` format) to transform any image into a stunning e-ink display.
-- **🤖 Smart & Autonomous**:
+- **Ultra-Low Power**: Designed for longevity, the frame enters deep sleep between updates, lasting months on a standard LiPo battery.
+- **E-Paper Optimized**: Leverages multiple dithering algorithms (Floyd-Steinberg, Atkinson, etc.) and a custom 6-color palette (via `.pfr1` format) to transform any image into a stunning e-ink display.
+- **Smart & Autonomous**:
     - **Cloud Mode**: Connects to Google Drive to fetch and display random images at set intervals.
     - **Offline Mode**: Cycles through images stored locally on the SD Card.
-    - **Bluetooth Mode**: Functions as a static display, updated instantly via the mobile app (no WiFi required).
+    - **Local WiFi Mode**: Functions as a static display, updated instantly via the mobile or desktop app.
     - **Night Mode**: Automatically pauses updates during sleeping hours to save energy.
     - **Smart Cropping**: Integrated AI (InsightFace) detects faces to automatically center and crop images for the best composition.
-- **🛠️ Zero-Recompile Config**: All settings (WiFi, schedules, refresh intervals) are managed via a simple `config.json` file on the SD card—no programming knowledge required to tweak settings.
+- **Zero-Recompile Config**: All settings (WiFi, schedules, refresh intervals) are managed via a simple `config.json` file on the SD card—no programming knowledge required to tweak settings.
 - **📱 Cross-Platform Ecosystem**:
     - **Desktop**: Drag-and-drop processing tool for macOS/Windows/Linux.
-    - **Mobile**: Dedicated companion app for managing and uploading photos directly from your phone via Bluetooth.
+    - **Mobile**: Dedicated companion app for managing and uploading photos directly from your phone via WiFi.
 
 ## Architecture Overview
 
 The system operates on a clear pipeline:
 1.  **Input**: Images are taken from your phone, computer, or cloud storage.
 2.  **Processing**: Images are resized, dithered, and converted into the efficient `.pfr1` binary format by the provided tools (Rust CLI / Desktop App / Mobile App).
-3.  **Transfer**: Processed files are moved to the frame via SD Card, Google Drive, or Bluetooth.
+3.  **Transfer**: Processed files are moved to the frame via SD Card, Google Drive, or WiFi.
 4.  **Display**: The ESP32 wakes up, loads the image, renders it to the e-paper screen, and returns to deep sleep.
 
 ## Project Structure
@@ -71,7 +71,7 @@ The system operates on a clear pipeline:
 |-----------|-------------|
 | **`platformio/`** | The ESP32 firmware source code (C++). Handles WiFi, display driving, and power management ([**Overview**](docs/FIRMWARE_OVERVIEW.md)). |
 | **`rust/`** | High-performance tools handling the `.pfr1` ([**file format specs**](docs/BINARY_FILE_FORMAT.md)) format logic. [**Overview**](docs/RUST_OVERVIEW.md) of the core library, CLI processor, and InsightFace integration. |
-| **`flutter/`** | Cross-platform applications [**Overview**](docs/FLUTTER_OVERVIEW.md). <br>• `desktop/`: GUI for the Rust processor (macOS/Windows/Linux).<br>• `mobile/`: iOS/Android app for Bluetooth transfers. |
+| **`flutter/`** | Cross-platform applications [**Overview**](docs/FLUTTER_OVERVIEW.md). <br>• `desktop/`: GUI for the Rust processor (macOS/Windows/Linux).<br>• `mobile/`: iOS/Android app for WiFi transfers. |
 | **`assets/`** | Resources including the **3D printable enclosure** (`3d model/`) and screenshots. |
 | **`docs/`** | Detailed technical documentation, API references, and assembly guides. |
 | **`extras/`** | Additional utilities, such as macOS QuickLook plugins for previewing `.pfr1` files. |
@@ -113,10 +113,10 @@ The frame requires images in the custom `.pfr1` format. Use one of our tools:
 
 ### 4. Upload Images
 Choose your preferred method:
-- **💾 SD Card**: Copy `.pfr1` files directly to the SD card.
-- **☁️ Google Drive**: Upload files to your Drive folder.  
+- **SD Card**: Copy `.pfr1` files directly to the SD card.
+- **Google Drive**: Upload files to your Drive folder.  
   [👉 Google Drive Setup](docs/GOOGLE_DRIVE.md)
-- **📡 Bluetooth**: Use the Mobile App to upload images wirelessly (requires `ENABLE_BT_IMAGE` firmware build).  
-  [👉 Bluetooth Guide](docs/BLUETOOTH.md)
+- **WiFi**: Use the Mobile or Desktop App to upload images wirelessly (requires `ENABLE_WEBSERVER_DATAPROVIDER` firmware build).  
+  [👉 WiFi Guide](docs/WIFI.md)
 
 For detailed technical documentation, please refer to the `docs/` folder.

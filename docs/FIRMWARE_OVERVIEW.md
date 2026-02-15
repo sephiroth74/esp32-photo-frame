@@ -62,7 +62,7 @@ To flash the firmware to your board:
 
 The `platformio.ini` file controls various features via build flags:
 
-- **`ENABLE_BT_IMAGE`**: Enables Bluetooth image transfer mode. When uncommented, the frame will prioritize Bluetooth connections over WiFi/Cloud.
+- **`ENABLE_WEBSERVER_DATAPROVIDER`**: Enables WiFi/WebSocket image transfer mode. When enabled, the frame creates a WiFi Access Point and WebSocket server for direct image uploads from mobile or desktop apps. See [WiFi Transfer Guide](WIFI.md) for details.
 - **`DISABLE_DEEP_SLEEP`**: Prevents the board from sleeping, useful for debugging via Serial monitor.
 - **`DEFAULT_ORIENTATION`**: Sets the default screen rotation (0=Landscape, 1=Portrait).
 
@@ -79,8 +79,8 @@ For the frame to operate in standard mode (WiFi/SD), you **must** manually prepa
 2.  Copy your customized `config.json` file to the **ROOT** of the SD card.
 3.  Insert the SD card into the device before powering it on.
 
-### LittleFS Partition (Bluetooth Mode)
-If you are using **Bluetooth Mode** (`ENABLE_BT_IMAGE`), the firmware expects a fallback image to be present in the device's internal memory (LittleFS partition).
+### LittleFS Partition (Internal Storage)
+The firmware can use a fallback image stored in the device's internal memory (LittleFS partition).
 
 To upload this data (which includes `default.pfr1` found in `platformio/data/`):
 1.  Connect your board via USB.
