@@ -8,9 +8,9 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Utilizziamo la factory per creare la schermata home specifica per la piattaforma.
-    // Questo rimuove la dipendenza diretta dai file specifici (es. home_screen_macos.dart)
-    // e garantisce l'uso delle astrazioni preparate.
+    // Use the factory to create the platform-specific home screen.
+    // This removes direct dependency on specific files (e.g., home_screen_macos.dart)
+    // and ensures the use of prepared abstractions.
     return context.watch<WidgetFactoryProvider>().factory.createHomeScreen();
   }
 }

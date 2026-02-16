@@ -24,7 +24,7 @@ namespace datetime_utils {
 // This will format the date and time as "YYYY/MM/DD HH:MM"
 const char dateTimeFormatLong[] = "%04d/%02d/%02d %02d:%02d";
 
-// This will format the date and time as "Lun, 1 Gen 2023 12:00"
+// This will format the date and time as "Mon, 1 Jan 2023 12:00"
 const char dateTimeFormatFull[] = "%a, %e %b %Y %H:%M";
 
 // This will format the date and time as ""

@@ -161,7 +161,7 @@ struct unified_config {
 
 #ifdef ENABLE_DISPLAY_DIAGNOSTIC
   /**
-   * @brief Serializza la configurazione in formato JSON
+   * @brief Serializes the configuration in JSON format
    */
   String to_json() const {
 #if ARDUINOJSON_VERSION_MAJOR >= 7

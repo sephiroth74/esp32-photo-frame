@@ -112,11 +112,11 @@ class WsUploadState with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Cancella il listener del stream prima di chiudere il canale
+      // Cancel stream listener before closing channel
       await _channelSub?.cancel();
       _channelSub = null;
 
-      // Chiudi il canale
+      // Close the channel
       await _channel?.sink.close();
       _channel = null;
       boardConfig = null;
@@ -150,7 +150,7 @@ class WsUploadState with ChangeNotifier {
       error = 'Timeout waiting for board configuration';
       debugPrint('✗ Config request timeout');
       notifyListeners();
-      // Disconnetti al timeout
+      // Disconnect on timeout
       await disconnect();
     } catch (e) {
       status = 'Config request failed';
@@ -158,7 +158,7 @@ class WsUploadState with ChangeNotifier {
       error = 'Failed to get board config: $e';
       debugPrint('✗ Config request error: $e');
       notifyListeners();
-      // Disconnetti su errore
+      // Disconnect on error
       await disconnect();
     }
   }
@@ -229,7 +229,7 @@ class WsUploadState with ChangeNotifier {
           if (_uploadCompleteCompleter != null && !_uploadCompleteCompleter!.isCompleted) {
             _uploadCompleteCompleter!.complete(success);
           }
-          // Dopo finalResponse, attendi display_ready
+          // After finalResponse, wait for display_ready
           _displayReadyCompleter = Completer<WsDisplayReadyMessage>();
           return;
         }
@@ -425,12 +425,12 @@ class WsUploadState with ChangeNotifier {
         onTimeout: () => throw TimeoutException('Server did not send final response'),
       );
 
-      // Mostra progress indeterminato in attesa di display_ready
+      // Show indeterminate progress while waiting for display_ready
       status = 'Updating display...';
       progress = 1.0;
       notifyListeners();
 
-      // Attendi display_ready o timeout
+      // Wait for display_ready or timeout
       try {
         final displayReady = await _displayReadyCompleter!.future.timeout(
           const Duration(seconds: 30),

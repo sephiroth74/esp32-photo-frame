@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:photoframe_flutter/platform/platform_detector.dart';
 import 'package:photoframe_flutter/presentation/widget_factory.dart';
 
-/// Provider per il WidgetFactory della piattaforma corrente.
+/// Provider for the WidgetFactory of the current platform.
 class WidgetFactoryProvider with ChangeNotifier {
   late final WidgetFactory _factory;
 

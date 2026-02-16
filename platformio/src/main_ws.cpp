@@ -139,7 +139,7 @@ DateTime getCurrentDateTime() {
  */
 void sendDisplayReadyEvent() {
   log_i("[WS] Sending display_ready event to client if upload is active");
-  // Invio messaggio display_ready al client che ha fatto l'upload
+  // Send display_ready message to the client that performed the upload
   if (g_wsServer && g_wsServer->isClientConnected()) {
     g_wsServer->sendDisplayReadyMessage();
   } else {

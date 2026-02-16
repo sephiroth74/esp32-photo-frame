@@ -117,14 +117,14 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
   void _onScaleUpdate(ScaleUpdateDetails details, Size cropSize, Size imageSize) {
     final newUserScale = (_startScale * details.scale).clamp(_minUserScale, _maxUserScale).toDouble();
 
-    // Accumula il pan durante la gesture
+    // Accumulate pan during the gesture
     final dx = details.focalPointDelta.dx;
     final dy = details.focalPointDelta.dy;
     final updatedOffset = Offset(_offset.dx + dx, _offset.dy + dy);
 
-    // Calcola minScale: scala minima per riempire il crop frame
+    // Calculate minScale: minimum scale to fill the crop frame
     final minScale = math.max(cropSize.width / imageSize.width, cropSize.height / imageSize.height);
-    // Dimensione immagine scalata finale
+    // Final scaled image size
     final displaySize = Size(imageSize.width * minScale * newUserScale, imageSize.height * minScale * newUserScale);
 
     // Debug clamping calculation
@@ -480,21 +480,21 @@ class ImageCropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Calcola la dimensione scalata dell'immagine
+    // Calculate the scaled image size
     final scaledImageWidth = imageSize.width * scale;
     final scaledImageHeight = imageSize.height * scale;
 
-    // Posizione dell'immagine scalata (centrata)
+    // Scaled image position (centered)
     final imageX = offset.dx + size.width / 2 - scaledImageWidth / 2;
     final imageY = offset.dy + size.height / 2 - scaledImageHeight / 2;
 
-    // Rect di destinazione dove rendere l'immagine scalata
+    // Destination rect where to render the scaled image
     final dstRect = Rect.fromLTWH(imageX, imageY, scaledImageWidth, scaledImageHeight);
 
-    // Rect dell'immagine originale (uso tutta l'immagine)
+    // Original image rect (use the whole image)
     final srcRect = Rect.fromLTWH(0, 0, imageSize.width.toDouble(), imageSize.height.toDouble());
 
-    // Disegna l'immagine
+    // Draw the image
     canvas.drawImageRect(image, srcRect, dstRect, Paint());
   }
 

@@ -21,7 +21,7 @@ final class DitheringResult extends ffi.Struct {
   external int dataLen;
 }
 
-// Typedef per la funzione Rust
+// Typedef for the Rust function
 typedef PhotoframeDummyFunctionNative = ffi.Uint32 Function();
 typedef PhotoframeDummyFunctionDart = int Function();
 
