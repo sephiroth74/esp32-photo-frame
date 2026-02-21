@@ -208,11 +208,6 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
     final colors = ThemeColors(context);
     final l10n = AppLocalizations.of(context)!;
 
-    // if (!_wifiValid) {
-    //   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.wifiConnectCorrectNetworkMessage), backgroundColor: colors.warning));
-    //   return;
-    // }
-
     setState(() {
       _isConnecting = true;
     });
@@ -221,7 +216,6 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> with WidgetsB
       final ip = _ipController.text;
       final portStr = _portController.text;
       final port = int.parse(portStr);
-
       logger.info('Attempting WebSocket connection to $ip:$port');
 
       // Get singleton instance and connect

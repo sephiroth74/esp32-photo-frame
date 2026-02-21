@@ -70,6 +70,19 @@ using WSEventCallback = std::function<void(const WSEvent &)>;
 class WSServer {
 public:
   /**
+   * @brief Get active client ID (255 if no active client)
+   * @return Active client ID or 255 if no client connected
+   */
+  uint8_t getActiveClientId() const;
+
+  /**
+   * @brief Get IP address of a connected client by ID
+   * @param clientId Client ID to query
+   * @return IPAddress of the client, or
+   * IPAddress(0,0,0,0) if client not found or no WebSocket instance
+   */
+  IPAddress getClientIp(uint8_t clientId) const;
+  /**
    * @brief Send display_ready message to all clients
    */
   void sendDisplayReadyMessage();

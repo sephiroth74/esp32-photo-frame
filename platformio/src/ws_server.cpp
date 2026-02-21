@@ -32,6 +32,14 @@ extern volatile bool g_isLoadingImage;
 
 namespace photo_frame {
 namespace ws {
+uint8_t WSServer::getActiveClientId() const { return m_activeClientId; }
+
+IPAddress WSServer::getClientIp(uint8_t clientId) const {
+  if (m_webSocket) {
+    return m_webSocket->remoteIP(clientId);
+  }
+  return IPAddress(0, 0, 0, 0);
+}
 // FreeRTOS task configuration
 #define WS_TASK_STACK_SIZE 8192
 #define WS_TASK_PRIORITY 5
@@ -251,21 +259,30 @@ void WSServer::handleMessage(const uint8_t *data, size_t len) {
 }
 
 void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
+  // Pre-dichiarazione variabili usate nei case
+  String message;
+  WSEvent event;
+  IPAddress clientIp;
+  uint32_t maxSize;
+  size_t written;
+  bool sent;
   switch (type) {
   case WStype_DISCONNECTED:
     if (num == m_activeClientId) {
       m_activeClientId = 255;
       m_connectedClientsCount = 0;
       resetHeartbeatState();
-      log_i("[WSServer] Client %u disconnected (active clients: %u)", num, m_connectedClientsCount);
-      WSEvent event;
+      clientIp = m_webSocket ? m_webSocket->remoteIP(num) : IPAddress(0, 0, 0, 0);
+      log_i("[WSServer] Client %u disconnected (active clients: %u, ip: %s)", num, m_connectedClientsCount,
+            clientIp.toString().c_str());
       event.type = WSEventType::CLIENT_DISCONNECTED;
       event.message = "Client disconnected";
       event.clientId = num;
       event.clientsCount = m_connectedClientsCount;
       sendEvent(event);
     } else {
-      log_i("[WSServer] Client %u disconnected (not active)", num);
+      clientIp = m_webSocket ? m_webSocket->remoteIP(num) : IPAddress(0, 0, 0, 0);
+      log_i("[WSServer] Client %u disconnected (not active, ip: %s)", num, clientIp.toString().c_str());
     }
     break;
 
@@ -287,18 +304,16 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload
     m_lastPongMs = m_lastActivityMs;
     m_lastPingMs = m_lastActivityMs;
     m_waitingPong = false;
-    log_i("[WSServer] Client %u connected (active clients: %u)", num, m_connectedClientsCount);
-    {
-      WSEvent event;
-      event.type = WSEventType::CLIENT_CONNECTED;
-      event.message = "Client connected";
-      event.clientId = num;
-      event.clientsCount = m_connectedClientsCount;
-      sendEvent(event);
-    }
+    clientIp = m_webSocket ? m_webSocket->remoteIP(num) : IPAddress(0, 0, 0, 0);
+    log_i("[WSServer] Client %u connected (active clients: %u, ip: %s)", num, m_connectedClientsCount, clientIp.toString().c_str());
+    event.type = WSEventType::CLIENT_CONNECTED;
+    event.message = "Client connected";
+    event.clientId = num;
+    event.clientsCount = m_connectedClientsCount;
+    sendEvent(event);
     break;
 
-  case WStype_TEXT: {
+  case WStype_TEXT:
     if (m_activeClientId != 255 && num != m_activeClientId) {
       log_w("[WSServer] Ignoring TEXT from non-active client %u", num);
       if (m_webSocket) {
@@ -306,7 +321,7 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload
       }
       break;
     }
-    String message(reinterpret_cast<const char *>(payload), length);
+    message = String(reinterpret_cast<const char *>(payload), length);
     message.trim();
     log_i("[WSServer] Received TEXT from client %u: %s", num, message.c_str());
     m_lastActivityMs = millis();
@@ -315,14 +330,13 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload
       String json = BoardInfo::toJson();
       log_d("[WSServer] Sending config JSON (%d bytes): %s", json.length(), json.c_str());
       if (m_webSocket) {
-        bool sent = m_webSocket->sendTXT(num, json);
+        sent = m_webSocket->sendTXT(num, json);
         log_d("[WSServer] sendTXT result: %s", sent ? "SUCCESS" : "FAILED");
       }
     } else if (message.startsWith("{")) {
       handleControlMessage(num, message);
     }
     break;
-  }
 
   case WStype_BIN:
     if (m_activeClientId != 255 && num != m_activeClientId) {
@@ -336,7 +350,7 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload
     m_lastActivityMs = millis();
     if (m_uploadActive && num == m_uploadClientId && m_uploadFile) {
       // Check file size limit
-      uint32_t maxSize = PFR1_MAX_IMAGE_SIZE_FOR(DISP_WIDTH, DISP_HEIGHT);
+      maxSize = PFR1_MAX_IMAGE_SIZE_FOR(DISP_WIDTH, DISP_HEIGHT);
       if (m_uploadBytesReceived + length > maxSize) {
         log_e("[WSServer] File size limit exceeded: %u + %u > %u", m_uploadBytesReceived, length, maxSize);
         if (m_webSocket) {
@@ -348,7 +362,7 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload
         break;
       }
 
-      size_t written = m_uploadFile.write(payload, length);
+      written = m_uploadFile.write(payload, length);
       if (written != length) {
         log_e("[WSServer] Failed to write chunk to file (%u/%u)", written, length);
         if (m_webSocket) {
@@ -399,12 +413,9 @@ void WSServer::handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload
 
   case WStype_ERROR:
     log_e("[WSServer] Error from client %u", num);
-    {
-      WSEvent event;
-      event.type = WSEventType::ERROR;
-      event.message = "WebSocket error";
-      sendEvent(event);
-    }
+    event.type = WSEventType::ERROR;
+    event.message = "WebSocket error";
+    sendEvent(event);
     break;
 
   default:

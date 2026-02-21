@@ -530,10 +530,6 @@ extern const size_t ALLOWED_EXTENSIONS_COUNT;
 #define WS_AP_CHANNEL 6 // WiFi channel for AP
 #endif                  // WS_AP_CHANNEL
 
-#ifndef WS_AP_IP
-#define WS_AP_IP 0xC0A80401 // 192.168.4.1 in hex
-#endif                      // WS_AP_IP
-
 #endif // ENABLE_WEBSERVER_DATAPROVIDER
 
 #endif // __PHOTO_FRAME_CONFIG_H__

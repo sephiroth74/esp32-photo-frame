@@ -53,7 +53,8 @@ class WsConnectionService {
   /// Upload progress stream (0.0 - 1.0)
   Stream<double> get uploadProgress => _uploadProgressController.stream;
 
-  Future<BoardConfig> connect({required String host, required int port, Duration timeout = const Duration(seconds: 5)}) async {
+  Future<BoardConfig> connect({required String host, required int port, Duration timeout = const Duration(seconds: 10)}) async {
+    logger.info("connect(host: $host, port: $port, timeout: ${timeout.inSeconds}s) called");
     if (isConnected) {
       logger.info('Already connected, returning cached config');
       return _boardConfig!;
@@ -67,10 +68,13 @@ class WsConnectionService {
       // Force Android to use WiFi network for WebSocket connection
       // This is required on Android 12+ when WiFi has no internet
       logger.info('Binding to WiFi network before WebSocket connection...');
-      final bound = await NetworkBindingService.bindToWifi().timeout(const Duration(seconds: 4), onTimeout: () => false);
+      final bound = await NetworkBindingService.bindToWifi().timeout(timeout, onTimeout: () => false);
       if (!bound) {
         throw Exception('Failed to bind to WiFi network');
       }
+
+      logger.info('Checking ESP32 reachability at $host:$port...');
+      await Future.delayed(const Duration(seconds: 1));
 
       final uri = Uri.parse('ws://$host:$port');
       logger.info('Connecting to WebSocket: $uri with timeout ${timeout.inSeconds}s');
