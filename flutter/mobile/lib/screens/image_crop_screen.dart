@@ -429,10 +429,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         flex: 1,
                         child: FilledButton(
                           onPressed: _continue,
-                          child: Text(
-                            l10n.continueAction,
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          child: Text(l10n.continueAction, style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
