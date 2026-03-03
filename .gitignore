@@ -84,3 +84,7 @@ flutter/desktop/temp/
 .swift-version
 flutter/mobile/ios/Build/
 rust/photoframe_lib/include/
+rust/google-photo-manager/target/
+rust/google-photo-manager/credentials.json
+rust/google-photo-manager/test_project/
+client_secret_*.apps.googleusercontent.com.json

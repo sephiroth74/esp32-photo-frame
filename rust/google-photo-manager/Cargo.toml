@@ -1,0 +1,3 @@
+[workspace]
+members = ["photoframe_manager", "photoframe_worker"]
+resolver = "3"
