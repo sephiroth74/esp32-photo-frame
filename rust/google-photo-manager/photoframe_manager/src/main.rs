@@ -1,4 +1,5 @@
 use arboard;
+use ratatui::widgets::Padding;
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
@@ -125,6 +126,7 @@ enum DashboardEntry {
     LogoutFromGoogle,
     CreateGooglePhotoAlbum,
     AlbumName,
+    Back,
 }
 
 impl DashboardEntry {
@@ -135,6 +137,7 @@ impl DashboardEntry {
             Self::LogoutFromGoogle => "Logout".to_string(),
             Self::CreateGooglePhotoAlbum => "Create Google Photo Album".to_string(),
             Self::AlbumName => format!("Album name: {}", album_name.unwrap_or("(unknown)")),
+            Self::Back => "Back".to_string(),
         }
     }
 }
@@ -168,17 +171,19 @@ enum AppState {
 enum MenuItem {
     NewProject,
     OpenProject,
+    Exit,
 }
 
 impl MenuItem {
     fn all() -> Vec<Self> {
-        vec![Self::NewProject, Self::OpenProject]
+        vec![Self::NewProject, Self::OpenProject, Self::Exit]
     }
 
     fn label(&self) -> &str {
         match self {
             Self::NewProject => "New Project",
             Self::OpenProject => "Open Project",
+            Self::Exit => "Exit",
         }
     }
 }
@@ -745,6 +750,7 @@ impl App {
                                         })
                                     }
                                 }
+                                DashboardEntry::Back => Some(AppState::MainMenu),
                             }
                         }
                     }
@@ -792,6 +798,10 @@ impl App {
 
     fn handle_menu_selection(&mut self, item: MenuItem) {
         match item {
+            MenuItem::Exit => {
+                info!("Exit selected from main menu");
+                self.should_quit = true;
+            }
             MenuItem::NewProject => {
                 info!("Opening project path input dialog...");
                 self.state = AppState::ProjectPathInput {
@@ -812,7 +822,7 @@ impl App {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup tracing with tui-logger
-    tui_logger::init_logger(log::LevelFilter::Debug).unwrap();
+    tui_logger::init_logger(log::LevelFilter::Debug)?;
     tui_logger::set_default_level(log::LevelFilter::Debug);
 
     let app_logs = Arc::new(Mutex::new(VecDeque::new()));
@@ -857,7 +867,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run_app<B: ratatui::backend::Backend + std::io::Write>(
+fn run_app<B: ratatui::backend::Backend + io::Write>(
     terminal: &mut Terminal<B>,
     app: &mut App,
 ) -> Result<(), Box<dyn std::error::Error>>
@@ -1389,25 +1399,27 @@ fn ui(f: &mut Frame, app: &App) {
             );
         }
         AppState::OperationInProgress { message } => {
-            let dialog_area = centered_rect_fixed_height(60, 7, size);
+            let dialog_area = centered_rect_fixed_height(50, 5, size);
             let progress_text = Paragraph::new(message.as_str())
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(Color::Black)
+                        .bg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 )
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title("Operation in progress")
-                        .border_style(Style::default().fg(Color::Yellow)),
+                        .title("Hang tight...")
+                        .border_style(Style::default().bg(Color::Yellow).fg(Color::Black))
+                        .padding(Padding::uniform(1)),
                 )
                 .alignment(Alignment::Center);
             f.render_widget(Clear, dialog_area);
             f.render_widget(progress_text, dialog_area);
         }
         AppState::TestingGoogleApiSuccess { .. } => {
-            let dialog_area = centered_rect_fixed_height(60, 7, size);
+            let dialog_area = centered_rect_fixed_height(50, 5, size);
             let success_text = Paragraph::new("✓ Google API test successful!")
                 .style(
                     Style::default()
@@ -1504,27 +1516,33 @@ fn dashboard_entries_for(
 ) -> Vec<DashboardEntry> {
     if let Some(pm) = project_manager {
         match pm.get_google_auth_status() {
-            Ok(GoogleAuthStatus::MissingCredentials) => vec![DashboardEntry::LoginToGoogle],
-            Ok(GoogleAuthStatus::NeedsLogin { .. }) => vec![DashboardEntry::LoginToGoogle],
+            Ok(GoogleAuthStatus::MissingCredentials) => {
+                vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back]
+            }
+            Ok(GoogleAuthStatus::NeedsLogin { .. }) => {
+                vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back]
+            }
             Ok(GoogleAuthStatus::LoggedIn { .. }) => {
                 if album_name.is_some() {
                     vec![
                         DashboardEntry::AlbumName,
                         DashboardEntry::TestGoogleApi,
                         DashboardEntry::LogoutFromGoogle,
+                        DashboardEntry::Back,
                     ]
                 } else {
                     vec![
                         DashboardEntry::CreateGooglePhotoAlbum,
                         DashboardEntry::TestGoogleApi,
                         DashboardEntry::LogoutFromGoogle,
+                        DashboardEntry::Back,
                     ]
                 }
             }
-            Err(_) => vec![DashboardEntry::LoginToGoogle],
+            Err(_) => vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back],
         }
     } else {
-        vec![DashboardEntry::LoginToGoogle]
+        vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back]
     }
 }
 
@@ -1877,7 +1895,7 @@ fn render_google_login_confirm_dialog(f: &mut Frame, area: Rect) {
         .split(inner);
 
     let msg = Paragraph::new(
-        "Verrà aperto il browser per il login Google OAuth.\nPermessi richiesti: lettura/scrittura Google Photos e Google Drive.\nPremi il bottone per continuare.",
+        "A browser window will open for Google OAuth login.\nRequired permissions: read/write access to Google Photos and Google Drive.\nPress the button to continue.",
     )
     .style(Style::default().fg(Color::White))
     .wrap(Wrap { trim: true });

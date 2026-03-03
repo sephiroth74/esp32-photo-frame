@@ -120,6 +120,7 @@ impl GoogleAuthFileManager<'_> {
         GoogleAuthFileManager { project_manager }
     }
 
+    /// Validates the credentials.json file and returns the parsed information
     pub fn validate_google_credentials_file(
         file_path: &Path,
     ) -> Result<GoogleCredentialsInfo, Box<dyn std::error::Error>> {
@@ -189,6 +190,7 @@ impl GoogleAuthFileManager<'_> {
         })
     }
 
+    /// Gets a valid access token, refreshing if necessary
     pub fn perform_google_oauth_login(
         token_path: &Path,
         credentials_path: &Path,
@@ -218,6 +220,7 @@ impl GoogleAuthFileManager<'_> {
         Ok(token_path.to_path_buf())
     }
 
+    /// Gets the current Google authentication status based on the presence of credentials and token files
     pub(crate) fn get_google_auth_status(
         &self,
     ) -> Result<GoogleAuthStatus, Box<dyn std::error::Error>> {
@@ -235,7 +238,7 @@ impl GoogleAuthFileManager<'_> {
     }
 
     /// Gets a valid access token, refreshing if necessary
-    pub fn get_valid_access_token(
+    pub(crate) fn get_valid_access_token(
         &self,
         token_path: &Path,
     ) -> Result<String, Box<dyn std::error::Error>> {
@@ -262,7 +265,10 @@ impl GoogleAuthFileManager<'_> {
     }
 
     /// Checks if the token has expired
-    pub fn is_token_expired(&self, token_path: &Path) -> Result<bool, Box<dyn std::error::Error>> {
+    pub(crate) fn is_token_expired(
+        &self,
+        token_path: &Path,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         match self.get_token_expiration(token_path) {
             Ok(expiration_time) => {
                 let now = chrono::Utc::now().naive_utc();
@@ -280,7 +286,7 @@ impl GoogleAuthFileManager<'_> {
 
     /// Checks if the token is valid (has an access_token)
     #[allow(dead_code)]
-    pub fn is_token_valid(&self, token_path: &Path) -> bool {
+    pub(crate) fn is_token_valid(&self, token_path: &Path) -> bool {
         match self.read_token(token_path) {
             Ok(data) => !data.token.access_token.is_empty(),
             Err(_) => false,
@@ -288,7 +294,7 @@ impl GoogleAuthFileManager<'_> {
     }
 
     /// Gets the access token from a token file
-    pub fn get_access_token(
+    pub(crate) fn get_access_token(
         &self,
         token_path: &Path,
     ) -> Result<String, Box<dyn std::error::Error>> {
@@ -298,10 +304,7 @@ impl GoogleAuthFileManager<'_> {
 
     /// Reads a token file and returns the GoogleTokenData
     /// The token file is expected to be a JSON array with one element
-    pub fn read_token(
-        &self,
-        token_path: &Path,
-    ) -> Result<GoogleTokenData, Box<dyn std::error::Error>> {
+    fn read_token(&self, token_path: &Path) -> Result<GoogleTokenData, Box<dyn std::error::Error>> {
         debug!("Reading token file: {}", token_path.display());
 
         if !token_path.exists() {
@@ -321,7 +324,8 @@ impl GoogleAuthFileManager<'_> {
         Ok(tokens[0].clone())
     }
 
-    pub fn get_token_expiration(
+    /// Gets the token expiration time from the token file
+    fn get_token_expiration(
         &self,
         token_path: &Path,
     ) -> Result<NaiveDateTime, Box<dyn std::error::Error>> {
