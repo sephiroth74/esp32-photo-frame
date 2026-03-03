@@ -126,6 +126,8 @@ enum DashboardEntry {
     LogoutFromGoogle,
     CreateGooglePhotoAlbum,
     AlbumName,
+    AddBinaryData,
+    EditBinaryData,
     Back,
 }
 
@@ -138,6 +140,8 @@ impl DashboardEntry {
             Self::CreateGooglePhotoAlbum => "Create Google Photo Album".to_string(),
             Self::AlbumName => format!("Album name: {}", album_name.unwrap_or("(unknown)")),
             Self::Back => "Back".to_string(),
+            Self::AddBinaryData => "Set up processor params".to_string(),
+            Self::EditBinaryData => "Edit processor params".to_string(),
         }
     }
 }
@@ -686,6 +690,8 @@ impl App {
                         } else {
                             let idx = (*selected_entry).min(entries.len() - 1);
                             match entries[idx] {
+                                DashboardEntry::AddBinaryData => None,
+                                DashboardEntry::EditBinaryData => None,
                                 DashboardEntry::LoginToGoogle => {
                                     if let Some(project_manager) = &self.current_project_manager {
                                         match project_manager.get_google_auth_status() {
@@ -1490,7 +1496,7 @@ fn render_dashboard(
         .enumerate()
         .map(|(idx, entry)| {
             let is_selected = idx == selected_entry;
-            let marker = if is_selected { "▶ " } else { "  " };
+            let marker = if is_selected { "» " } else { "  " };
             let style = if is_selected {
                 Style::default()
                     .fg(Color::Yellow)
@@ -1514,36 +1520,44 @@ fn dashboard_entries_for(
     project_manager: Option<&ProjectFileManager>,
     album_name: Option<&str>,
 ) -> Vec<DashboardEntry> {
+    let has_binary_data = project_manager.unwrap().has_binary_data();
+    let mut entries: Vec<DashboardEntry> = vec![];
+
     if let Some(pm) = project_manager {
         match pm.get_google_auth_status() {
             Ok(GoogleAuthStatus::MissingCredentials) => {
-                vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back]
+                entries.push(DashboardEntry::LoginToGoogle);
             }
             Ok(GoogleAuthStatus::NeedsLogin { .. }) => {
-                vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back]
+                entries.push(DashboardEntry::LoginToGoogle);
+                entries.push(DashboardEntry::Back);
             }
             Ok(GoogleAuthStatus::LoggedIn { .. }) => {
                 if album_name.is_some() {
-                    vec![
-                        DashboardEntry::AlbumName,
-                        DashboardEntry::TestGoogleApi,
-                        DashboardEntry::LogoutFromGoogle,
-                        DashboardEntry::Back,
-                    ]
+                    entries.push(DashboardEntry::AlbumName);
+                    entries.push(DashboardEntry::TestGoogleApi);
+                    entries.push(DashboardEntry::LogoutFromGoogle);
                 } else {
-                    vec![
-                        DashboardEntry::CreateGooglePhotoAlbum,
-                        DashboardEntry::TestGoogleApi,
-                        DashboardEntry::LogoutFromGoogle,
-                        DashboardEntry::Back,
-                    ]
+                    entries.push(DashboardEntry::CreateGooglePhotoAlbum);
+                    entries.push(DashboardEntry::TestGoogleApi);
+                    entries.push(DashboardEntry::LogoutFromGoogle);
                 }
             }
-            Err(_) => vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back],
+            Err(_) => entries.push(DashboardEntry::LoginToGoogle),
         }
     } else {
-        vec![DashboardEntry::LoginToGoogle, DashboardEntry::Back]
+        entries.push(DashboardEntry::LoginToGoogle);
     }
+
+    if has_binary_data {
+        entries.push(DashboardEntry::EditBinaryData);
+        entries.push(DashboardEntry::Back);
+    } else {
+        entries.push(DashboardEntry::AddBinaryData);
+        entries.push(DashboardEntry::Back);
+    };
+
+    entries
 }
 
 fn render_main_menu(f: &mut Frame, app: &App, area: Rect) {
@@ -1555,7 +1569,7 @@ fn render_main_menu(f: &mut Frame, app: &App, area: Rect) {
         .map(|(i, item)| {
             let content = if i == app.selected_menu {
                 Line::from(vec![
-                    Span::raw("▶ "),
+                    Span::raw("» "),
                     Span::styled(
                         item.label(),
                         Style::default()

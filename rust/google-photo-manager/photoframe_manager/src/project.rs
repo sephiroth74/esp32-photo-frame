@@ -16,6 +16,10 @@ pub(crate) enum ProjectKeys {
     GooglePhotosAlbumId,
     #[strum(to_string = "google.photos.album_name")]
     GooglePhotosAlbumName,
+    #[strum(to_string = "binary.data.path")]
+    BinaryDataPath,
+    #[strum(to_string = "binary.data.arguments")]
+    BinaryDataArguments,
 }
 
 pub struct ProjectFileManager {
@@ -224,6 +228,29 @@ impl ProjectFileManager {
             credentials_path
         } else {
             self.path.join(credentials_path)
+        }
+    }
+
+    pub fn get_binary_data_path(&self) -> Option<PathBuf> {
+        self.get_property(ProjectKeys::BinaryDataPath)
+            .ok()
+            .flatten()
+            .map(PathBuf::from)
+    }
+
+    pub fn get_binary_data_arguments(&self) -> Option<String> {
+        self.get_property(ProjectKeys::BinaryDataArguments)
+            .ok()
+            .flatten()
+    }
+
+    pub fn has_binary_data(&self) -> bool {
+        match (
+            self.get_binary_data_path(),
+            self.get_binary_data_arguments(),
+        ) {
+            (Some(path), Some(args)) => path.exists() && !args.trim().is_empty(),
+            _ => false,
         }
     }
 
