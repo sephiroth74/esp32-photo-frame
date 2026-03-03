@@ -1,5 +1,5 @@
 use arboard;
-use ratatui::widgets::Padding;
+use ratatui::widgets::{BorderType, Padding};
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
@@ -1753,6 +1753,8 @@ fn render_project_input_dialog(
     // Create dialog block
     let dialog_block = Block::default()
         .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(Color::White))
         .title(title)
         .title_style(
             Style::default()
@@ -1760,7 +1762,7 @@ fn render_project_input_dialog(
                 .add_modifier(Modifier::BOLD),
         )
         .padding(Padding::horizontal(1))
-        .style(Style::default().bg(Color::DarkGray));
+        .style(Style::default().bg(Color::Black));
 
     let inner = dialog_block.inner(area);
     f.render_widget(dialog_block, area);
@@ -1781,18 +1783,26 @@ fn render_project_input_dialog(
     let label = Paragraph::new(label);
     f.render_widget(label, layout_chunks[1]);
 
+    let input_focused = focus == DialogFocus::Input;
+
     // Render input field
-    let input_block =
-        Block::default()
-            .borders(Borders::ALL)
-            .style(if focus == DialogFocus::Input {
-                Style::default()
-                    .bg(Color::Black)
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            });
+    let input_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if input_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        })
+        .border_type(if input_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        })
+        .style(
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        );
 
     let input_area = layout_chunks[2];
     let width = input_area.width.max(3) - 3;
@@ -1803,7 +1813,7 @@ fn render_project_input_dialog(
         .scroll((0, scroll as u16));
     f.render_widget(input_paragraph, input_area);
 
-    if focus == DialogFocus::Input {
+    if input_focused {
         let x = input.visual_cursor().max(scroll) - scroll + 1;
         f.set_cursor_position((input_area.x + x as u16, input_area.y + 1));
     }
