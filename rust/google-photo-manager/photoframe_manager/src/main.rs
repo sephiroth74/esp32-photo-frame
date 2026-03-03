@@ -1362,7 +1362,7 @@ fn ui(f: &mut Frame, app: &App) {
                 f,
                 dialog_area,
                 "Create New Project",
-                "Project folder path:",
+                "Enter the project folder path:",
                 input,
                 *focus,
             );
@@ -1373,7 +1373,7 @@ fn ui(f: &mut Frame, app: &App) {
                 f,
                 dialog_area,
                 "Open Project",
-                "Project folder path:",
+                "Enter the project folder path:",
                 input,
                 *focus,
             );
@@ -1384,7 +1384,7 @@ fn ui(f: &mut Frame, app: &App) {
                 f,
                 dialog_area,
                 "Login to Google",
-                "credentials.json path:",
+                "Enter the path to credentials.json:",
                 input,
                 *focus,
             );
@@ -1399,7 +1399,7 @@ fn ui(f: &mut Frame, app: &App) {
                 f,
                 dialog_area,
                 "Create Google Photo Album",
-                "Album name:",
+                "Enter the album name:",
                 input,
                 *focus,
             );
@@ -1759,7 +1759,8 @@ fn render_project_input_dialog(
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )
-        .style(Style::default().bg(Color::Black));
+        .padding(Padding::horizontal(1))
+        .style(Style::default().bg(Color::DarkGray));
 
     let inner = dialog_block.inner(area);
     f.render_widget(dialog_block, area);
@@ -1768,6 +1769,7 @@ fn render_project_input_dialog(
     let layout_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(1), // Padding
             Constraint::Length(1), // Label
             Constraint::Length(3), // Input field
             Constraint::Length(1), // Spacing
@@ -1777,7 +1779,7 @@ fn render_project_input_dialog(
 
     // Render label
     let label = Paragraph::new(label);
-    f.render_widget(label, layout_chunks[0]);
+    f.render_widget(label, layout_chunks[1]);
 
     // Render input field
     let input_block =
@@ -1785,14 +1787,14 @@ fn render_project_input_dialog(
             .borders(Borders::ALL)
             .style(if focus == DialogFocus::Input {
                 Style::default()
-                    .bg(Color::DarkGray)
+                    .bg(Color::Black)
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().bg(Color::Black).fg(Color::White)
+                Style::default().fg(Color::White)
             });
 
-    let input_area = layout_chunks[1];
+    let input_area = layout_chunks[2];
     let width = input_area.width.max(3) - 3;
     let scroll = input.visual_scroll(width as usize);
     let input_paragraph = Paragraph::new(input.value())
@@ -1810,11 +1812,12 @@ fn render_project_input_dialog(
     let button_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(10),
-            Constraint::Length(2),
+            Constraint::Min(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
             Constraint::Length(10),
         ])
-        .split(layout_chunks[3]);
+        .split(layout_chunks[4]);
 
     // Ok button
     let ok_style = if focus == DialogFocus::OkButton {
@@ -1827,8 +1830,8 @@ fn render_project_input_dialog(
     };
     let ok_button = Paragraph::new("[ Ok ]")
         .style(ok_style)
-        .alignment(Alignment::Center);
-    f.render_widget(ok_button, button_layout[0]);
+        .alignment(Alignment::Right);
+    f.render_widget(ok_button, button_layout[1]);
 
     // Cancel button
     let cancel_style = if focus == DialogFocus::CancelButton {
@@ -1841,8 +1844,8 @@ fn render_project_input_dialog(
     };
     let cancel_button = Paragraph::new("[ Cancel ]")
         .style(cancel_style)
-        .alignment(Alignment::Center);
-    f.render_widget(cancel_button, button_layout[2]);
+        .alignment(Alignment::Right);
+    f.render_widget(cancel_button, button_layout[3]);
 }
 
 /// Renders an error alert dialog
