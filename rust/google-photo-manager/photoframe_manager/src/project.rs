@@ -254,6 +254,108 @@ impl ProjectFileManager {
         }
     }
 
+    /// Set the binary data path and arguments. The path is converted to an absolute path if it is not already, and the arguments are filtered to remove reserved flags.
+    pub fn set_binary_data(
+        &self,
+        path: &str,
+        arguments: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let binary_path = PathBuf::from(path);
+        let binary_path_absolute = if binary_path.is_absolute() {
+            binary_path
+        } else {
+            binary_path.canonicalize()?
+        };
+
+        if !binary_path_absolute.exists() || !binary_path_absolute.is_file() {
+            return Err("Binary data file does not exist".into());
+        }
+
+        // we must remove:
+        // --input, -i
+        // --output, -o
+        // --report, -r
+        // --output-format, -f
+        // --help, -h
+        // from the arguments, as they are reserved for the photo frame application
+        let reserved_args = [
+            "--input",
+            "-i",
+            "--output",
+            "-o",
+            "--output-format",
+            "-f",
+            "--help",
+            "-h",
+            "--report",
+            "-r",
+        ];
+        let filtered_arguments = Self::remove_arguments(&arguments, &reserved_args);
+
+        self.set_property(
+            ProjectKeys::BinaryDataPath,
+            &binary_path_absolute.to_string_lossy(),
+        )?;
+        self.set_property(ProjectKeys::BinaryDataArguments, &filtered_arguments)?;
+        Ok(())
+    }
+
+    fn remove_arguments(input: &str, keys: &[&str]) -> String {
+        let tokens = shlex::split(input).unwrap_or_default();
+        let mut filtered = Vec::new();
+        let mut i = 0;
+
+        while i < tokens.len() {
+            let token = &tokens[i];
+            let mut found = false;
+
+            for &target in keys {
+                // 1. Exact match (es. --port o -p)
+                if token == target {
+                    found = true;
+                    // Check if the next token is a value (does not start with '-')
+                    if i + 1 < tokens.len() && !tokens[i + 1].starts_with('-') {
+                        i += 1; // Skip the value token
+                    }
+                    break;
+                }
+
+                // 2. Match with "=" (e.g. --port=8080)
+                let prefix_equal = format!("{}=", target);
+                if token.starts_with(&prefix_equal) {
+                    found = true;
+                    break;
+                }
+
+                // 3. Short flag grouping (es. -abc, removing 'b' becomes -ac)
+                // We apply this logic only if the target is a short flag like "-b"
+                if target.starts_with('-') && !target.starts_with("--") && target.len() == 2 {
+                    let char_target = target.chars().nth(1).unwrap();
+                    if token.starts_with('-')
+                        && !token.starts_with("--")
+                        && token.contains(char_target)
+                    {
+                        let new_token: String =
+                            token.chars().filter(|&c| c != char_target).collect();
+                        // If the token resulting from the removal is not just "-", we add it to the filtered list
+                        if new_token != "-" {
+                            filtered.push(new_token);
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if !found {
+                filtered.push(token.clone());
+            }
+            i += 1;
+        }
+
+        filtered.join(" ")
+    }
+
     pub fn get_property(
         &self,
         key: ProjectKeys,
@@ -354,4 +456,72 @@ pub(crate) fn read_properties_map(
     }
 
     Ok(map)
+}
+
+/// Make some tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arguments() {
+        let mut input = "--input input.jpg --output output.bmp --output-format bmp --help -h -i input2.jpg -o output2.bmp -f png";
+        let reserved_args = [
+            "--input",
+            "-i",
+            "--output",
+            "-o",
+            "--output-format",
+            "-f",
+            "--help",
+            "-h",
+        ];
+        let mut filtered = ProjectFileManager::remove_arguments(input, &reserved_args);
+        assert_eq!(filtered, "");
+
+        input = "-i /Users/alessandro/Desktop/arduino/photos/test -o /Users/alessandro/Desktop/arduino/photos/outputs/test -t six-colors --orientation 1 --output-format pfr1 --dithering stucki --dither-strength 101 --contrast=-5 --brightness 20 --saturation 110 --auto-color --detect-people --confidence=0.5 --no-pairing --extensions jpg,jpeg,png,heic,webp,tiff --report json";
+        filtered = ProjectFileManager::remove_arguments(
+            input,
+            &[
+                "--input",
+                "-i",
+                "--output",
+                "-o",
+                "--output-format",
+                "-f",
+                "--help",
+                "-h",
+                "--report",
+                "-r",
+            ],
+        );
+        assert_eq!(
+            filtered,
+            "-t six-colors --orientation 1 --dithering stucki --dither-strength 101 --contrast=-5 --brightness 20 --saturation 110 --auto-color --detect-people --confidence=0.5 --no-pairing --extensions jpg,jpeg,png,heic,webp,tiff"
+        );
+
+        input = "--input=\"/Users/alessandro/Desktop/arduino/photos/test\" --contrast=-5 --brightness 20 --saturation 110 --auto-color --detect-people --confidence=0.5 --no-pairing --extensions jpg,jpeg,png,heic,webp,tiff --report json";
+        filtered = ProjectFileManager::remove_arguments(
+            input,
+            &[
+                "--input",
+                "-i",
+                "--output",
+                "-o",
+                "--output-format",
+                "-f",
+                "--help",
+                "-h",
+                "--report",
+                "-r",
+                "--contrast",
+                "-c",
+                "--no-pairing",
+            ],
+        );
+        assert_eq!(
+            filtered,
+            "--brightness 20 --saturation 110 --auto-color --detect-people --confidence=0.5 --extensions jpg,jpeg,png,heic,webp,tiff"
+        );
+    }
 }

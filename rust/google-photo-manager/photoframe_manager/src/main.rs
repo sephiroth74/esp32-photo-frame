@@ -149,6 +149,8 @@ impl DashboardEntry {
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DialogFocus {
     Input,
+    Input1,
+    Input2,
     OkButton,
     CancelButton,
 }
@@ -156,19 +158,53 @@ enum DialogFocus {
 #[derive(Debug, Clone)]
 enum AppState {
     MainMenu,
-    ProjectPathInput { input: Input, focus: DialogFocus },
-    OpenProjectInput { input: Input, focus: DialogFocus },
-    GoogleCredentialsPathInput { input: Input, focus: DialogFocus },
-    CreatingProject { path: String },
-    OpeningProject { path: String },
-    ValidatingGoogleCredentials { credentials_path: String },
-    GoogleLoginConfirm { credentials_path: String },
-    PerformingGoogleLogin { credentials_path: String },
-    Dashboard { path: String, selected_entry: usize },
-    AlbumNameInput { input: Input, focus: DialogFocus },
-    OperationInProgress { message: String },
+    ProjectPathInput {
+        input: Input,
+        focus: DialogFocus,
+    },
+    OpenProjectInput {
+        input: Input,
+        focus: DialogFocus,
+    },
+    GoogleCredentialsPathInput {
+        input: Input,
+        focus: DialogFocus,
+    },
+    CreatingProject {
+        path: String,
+    },
+    OpeningProject {
+        path: String,
+    },
+    ValidatingGoogleCredentials {
+        credentials_path: String,
+    },
+    GoogleLoginConfirm {
+        credentials_path: String,
+    },
+    PerformingGoogleLogin {
+        credentials_path: String,
+    },
+    Dashboard {
+        path: String,
+        selected_entry: usize,
+    },
+    AlbumNameInput {
+        input: Input,
+        focus: DialogFocus,
+    },
+    BinaryDataInput {
+        path_input: Input,
+        args_input: Input,
+        focus: DialogFocus,
+    },
+    OperationInProgress {
+        message: String,
+    },
     TestingGoogleApiSuccess,
-    Error { message: String },
+    Error {
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -368,24 +404,54 @@ impl App {
                             info!("Project creation cancelled");
                             Some(AppState::MainMenu)
                         }
-                        KeyCode::Tab | KeyCode::Right => {
+                        KeyCode::Tab => {
                             // Move focus to next element
                             *focus = match focus {
                                 DialogFocus::Input => DialogFocus::OkButton,
                                 DialogFocus::OkButton => DialogFocus::CancelButton,
                                 DialogFocus::CancelButton => DialogFocus::Input,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                             };
                             debug!("Dialog focus changed to: {:?}", focus);
                             None
                         }
-                        KeyCode::BackTab | KeyCode::Left => {
+                        KeyCode::Right => {
+                            if *focus == DialogFocus::Input {
+                                input.handle_event(&event);
+                            } else {
+                                *focus = match focus {
+                                    DialogFocus::Input => DialogFocus::OkButton,
+                                    DialogFocus::OkButton => DialogFocus::CancelButton,
+                                    DialogFocus::CancelButton => DialogFocus::Input,
+                                    DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                                };
+                                debug!("Dialog focus changed to: {:?}", focus);
+                            }
+                            None
+                        }
+                        KeyCode::BackTab => {
                             // Move focus to previous element
                             *focus = match focus {
                                 DialogFocus::Input => DialogFocus::CancelButton,
                                 DialogFocus::OkButton => DialogFocus::Input,
                                 DialogFocus::CancelButton => DialogFocus::OkButton,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                             };
                             debug!("Dialog focus changed to: {:?}", focus);
+                            None
+                        }
+                        KeyCode::Left => {
+                            if *focus == DialogFocus::Input {
+                                input.handle_event(&event);
+                            } else {
+                                *focus = match focus {
+                                    DialogFocus::Input => DialogFocus::CancelButton,
+                                    DialogFocus::OkButton => DialogFocus::Input,
+                                    DialogFocus::CancelButton => DialogFocus::OkButton,
+                                    DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                                };
+                                debug!("Dialog focus changed to: {:?}", focus);
+                            }
                             None
                         }
                         KeyCode::Enter => match focus {
@@ -411,6 +477,7 @@ impl App {
                                 info!("Project creation cancelled");
                                 Some(AppState::MainMenu)
                             }
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                         },
                         _ => {
                             if *focus == DialogFocus::Input {
@@ -429,24 +496,54 @@ impl App {
                             info!("Open project cancelled");
                             Some(AppState::MainMenu)
                         }
-                        KeyCode::Tab | KeyCode::Right => {
+                        KeyCode::Tab => {
                             // Move focus to next element
                             *focus = match focus {
                                 DialogFocus::Input => DialogFocus::OkButton,
                                 DialogFocus::OkButton => DialogFocus::CancelButton,
                                 DialogFocus::CancelButton => DialogFocus::Input,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                             };
                             debug!("Dialog focus changed to: {:?}", focus);
                             None
                         }
-                        KeyCode::BackTab | KeyCode::Left => {
+                        KeyCode::Right => {
+                            if *focus == DialogFocus::Input {
+                                input.handle_event(&event);
+                            } else {
+                                *focus = match focus {
+                                    DialogFocus::Input => DialogFocus::OkButton,
+                                    DialogFocus::OkButton => DialogFocus::CancelButton,
+                                    DialogFocus::CancelButton => DialogFocus::Input,
+                                    DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                                };
+                                debug!("Dialog focus changed to: {:?}", focus);
+                            }
+                            None
+                        }
+                        KeyCode::BackTab => {
                             // Move focus to previous element
                             *focus = match focus {
                                 DialogFocus::Input => DialogFocus::CancelButton,
                                 DialogFocus::OkButton => DialogFocus::Input,
                                 DialogFocus::CancelButton => DialogFocus::OkButton,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                             };
                             debug!("Dialog focus changed to: {:?}", focus);
+                            None
+                        }
+                        KeyCode::Left => {
+                            if *focus == DialogFocus::Input {
+                                input.handle_event(&event);
+                            } else {
+                                *focus = match focus {
+                                    DialogFocus::Input => DialogFocus::CancelButton,
+                                    DialogFocus::OkButton => DialogFocus::Input,
+                                    DialogFocus::CancelButton => DialogFocus::OkButton,
+                                    DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                                };
+                                debug!("Dialog focus changed to: {:?}", focus);
+                            }
                             None
                         }
                         KeyCode::Enter => match focus {
@@ -472,6 +569,7 @@ impl App {
                                 info!("Open project cancelled");
                                 Some(AppState::MainMenu)
                             }
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                         },
                         _ => {
                             if *focus == DialogFocus::Input {
@@ -493,22 +591,52 @@ impl App {
                             selected_entry: 0,
                         })
                     }
-                    KeyCode::Tab | KeyCode::Right => {
+                    KeyCode::Tab => {
                         *focus = match focus {
                             DialogFocus::Input => DialogFocus::OkButton,
                             DialogFocus::OkButton => DialogFocus::CancelButton,
                             DialogFocus::CancelButton => DialogFocus::Input,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                         };
                         debug!("Dialog focus changed to: {:?}", focus);
                         None
                     }
-                    KeyCode::BackTab | KeyCode::Left => {
+                    KeyCode::Right => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::OkButton,
+                                DialogFocus::OkButton => DialogFocus::CancelButton,
+                                DialogFocus::CancelButton => DialogFocus::Input,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
+                        None
+                    }
+                    KeyCode::BackTab => {
                         *focus = match focus {
                             DialogFocus::Input => DialogFocus::CancelButton,
                             DialogFocus::OkButton => DialogFocus::Input,
                             DialogFocus::CancelButton => DialogFocus::OkButton,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                         };
                         debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Left => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::CancelButton,
+                                DialogFocus::OkButton => DialogFocus::Input,
+                                DialogFocus::CancelButton => DialogFocus::OkButton,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
                         None
                     }
                     KeyCode::Enter => match focus {
@@ -533,6 +661,7 @@ impl App {
                                 selected_entry: 0,
                             })
                         }
+                        DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                     },
                     _ => {
                         if *focus == DialogFocus::Input {
@@ -568,22 +697,52 @@ impl App {
                             selected_entry: 0,
                         })
                     }
-                    KeyCode::Tab | KeyCode::Right => {
+                    KeyCode::Tab => {
                         *focus = match focus {
                             DialogFocus::Input => DialogFocus::OkButton,
                             DialogFocus::OkButton => DialogFocus::CancelButton,
                             DialogFocus::CancelButton => DialogFocus::Input,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                         };
                         debug!("Dialog focus changed to: {:?}", focus);
                         None
                     }
-                    KeyCode::BackTab | KeyCode::Left => {
+                    KeyCode::Right => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::OkButton,
+                                DialogFocus::OkButton => DialogFocus::CancelButton,
+                                DialogFocus::CancelButton => DialogFocus::Input,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
+                        None
+                    }
+                    KeyCode::BackTab => {
                         *focus = match focus {
                             DialogFocus::Input => DialogFocus::CancelButton,
                             DialogFocus::OkButton => DialogFocus::Input,
                             DialogFocus::CancelButton => DialogFocus::OkButton,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                         };
                         debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Left => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::CancelButton,
+                                DialogFocus::OkButton => DialogFocus::Input,
+                                DialogFocus::CancelButton => DialogFocus::OkButton,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
                         None
                     }
                     KeyCode::Enter => match focus {
@@ -612,10 +771,154 @@ impl App {
                                 selected_entry: 0,
                             })
                         }
+                        DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
                     },
                     _ => {
                         if *focus == DialogFocus::Input {
                             input.handle_event(&event);
+                        }
+                        None
+                    }
+                },
+                _ => None,
+            },
+            AppState::BinaryDataInput {
+                path_input,
+                args_input,
+                focus,
+            } => match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Esc => {
+                        let path = self.current_project_path.clone().unwrap_or_default();
+                        Some(AppState::Dashboard {
+                            path,
+                            selected_entry: 0,
+                        })
+                    }
+                    KeyCode::Tab => {
+                        *focus = match focus {
+                            DialogFocus::Input1 => DialogFocus::Input2,
+                            DialogFocus::Input2 => DialogFocus::OkButton,
+                            DialogFocus::OkButton => DialogFocus::CancelButton,
+                            DialogFocus::CancelButton => DialogFocus::Input1,
+                            DialogFocus::Input => DialogFocus::Input1, // Fallback
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Right => {
+                        match focus {
+                            DialogFocus::Input1 => {
+                                path_input.handle_event(&event);
+                            }
+                            DialogFocus::Input2 => {
+                                args_input.handle_event(&event);
+                            }
+                            _ => {
+                                *focus = match focus {
+                                    DialogFocus::Input1 => DialogFocus::Input2,
+                                    DialogFocus::Input2 => DialogFocus::OkButton,
+                                    DialogFocus::OkButton => DialogFocus::CancelButton,
+                                    DialogFocus::CancelButton => DialogFocus::Input1,
+                                    DialogFocus::Input => DialogFocus::Input1, // Fallback
+                                };
+                                debug!("Dialog focus changed to: {:?}", focus);
+                            }
+                        }
+                        None
+                    }
+                    KeyCode::BackTab => {
+                        *focus = match focus {
+                            DialogFocus::Input1 => DialogFocus::CancelButton,
+                            DialogFocus::Input2 => DialogFocus::Input1,
+                            DialogFocus::OkButton => DialogFocus::Input2,
+                            DialogFocus::CancelButton => DialogFocus::OkButton,
+                            DialogFocus::Input => DialogFocus::CancelButton, // Fallback
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Left => {
+                        match focus {
+                            DialogFocus::Input1 => {
+                                path_input.handle_event(&event);
+                            }
+                            DialogFocus::Input2 => {
+                                args_input.handle_event(&event);
+                            }
+                            _ => {
+                                *focus = match focus {
+                                    DialogFocus::Input1 => DialogFocus::CancelButton,
+                                    DialogFocus::Input2 => DialogFocus::Input1,
+                                    DialogFocus::OkButton => DialogFocus::Input2,
+                                    DialogFocus::CancelButton => DialogFocus::OkButton,
+                                    DialogFocus::Input => DialogFocus::CancelButton, // Fallback
+                                };
+                                debug!("Dialog focus changed to: {:?}", focus);
+                            }
+                        }
+                        None
+                    }
+                    KeyCode::Enter => match focus {
+                        DialogFocus::Input1 => {
+                            *focus = DialogFocus::Input2;
+                            None
+                        }
+                        DialogFocus::Input2 => {
+                            *focus = DialogFocus::OkButton;
+                            None
+                        }
+                        DialogFocus::OkButton => {
+                            let proc_path = path_input.value().trim();
+                            let proc_args = args_input.value().trim();
+
+                            if proc_path.is_empty() {
+                                Some(AppState::Error {
+                                    message: "Processor path cannot be empty".to_string(),
+                                })
+                            } else {
+                                if let Some(pm) = &self.current_project_manager {
+                                    match pm.set_binary_data(proc_path, proc_args) {
+                                        Ok(_) => {
+                                            info!("Binary data saved successfully");
+                                            let path = self
+                                                .current_project_path
+                                                .clone()
+                                                .unwrap_or_default();
+                                            Some(AppState::Dashboard {
+                                                path,
+                                                selected_entry: 0,
+                                            })
+                                        }
+                                        Err(err) => Some(AppState::Error {
+                                            message: format!("Failed to save binary data: {}", err),
+                                        }),
+                                    }
+                                } else {
+                                    Some(AppState::Error {
+                                        message: "Project manager not available".to_string(),
+                                    })
+                                }
+                            }
+                        }
+                        DialogFocus::CancelButton => {
+                            let path = self.current_project_path.clone().unwrap_or_default();
+                            Some(AppState::Dashboard {
+                                path,
+                                selected_entry: 0,
+                            })
+                        }
+                        DialogFocus::Input => None, // Should not happen
+                    },
+                    _ => {
+                        match focus {
+                            DialogFocus::Input1 => {
+                                path_input.handle_event(&event);
+                            }
+                            DialogFocus::Input2 => {
+                                args_input.handle_event(&event);
+                            }
+                            _ => {}
                         }
                         None
                     }
@@ -690,8 +993,28 @@ impl App {
                         } else {
                             let idx = (*selected_entry).min(entries.len() - 1);
                             match entries[idx] {
-                                DashboardEntry::AddBinaryData => None,
-                                DashboardEntry::EditBinaryData => None,
+                                DashboardEntry::AddBinaryData => Some(AppState::BinaryDataInput {
+                                    path_input: Input::default(),
+                                    args_input: Input::default(),
+                                    focus: DialogFocus::Input1,
+                                }),
+                                DashboardEntry::EditBinaryData => {
+                                    if let Some(pm) = &self.current_project_manager {
+                                        let path = pm
+                                            .get_binary_data_path()
+                                            .and_then(|p| p.to_str().map(String::from))
+                                            .unwrap_or_default();
+                                        let args =
+                                            pm.get_binary_data_arguments().unwrap_or_default();
+                                        Some(AppState::BinaryDataInput {
+                                            path_input: Input::new(path),
+                                            args_input: Input::new(args),
+                                            focus: DialogFocus::Input1,
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                }
                                 DashboardEntry::LoginToGoogle => {
                                     if let Some(project_manager) = &self.current_project_manager {
                                         match project_manager.get_google_auth_status() {
@@ -1404,6 +1727,21 @@ fn ui(f: &mut Frame, app: &App) {
                 *focus,
             );
         }
+        AppState::BinaryDataInput {
+            path_input,
+            args_input,
+            focus,
+        } => {
+            let dialog_area = centered_rect_fixed_height(80, 13, size);
+            render_binary_data_dialog(
+                f,
+                dialog_area,
+                "Processor Configuration",
+                path_input,
+                args_input,
+                *focus,
+            );
+        }
         AppState::OperationInProgress { message } => {
             let dialog_area = centered_rect_fixed_height(50, 5, size);
             let progress_text = Paragraph::new(message.as_str())
@@ -1828,6 +2166,164 @@ fn render_project_input_dialog(
             Constraint::Length(10),
         ])
         .split(layout_chunks[4]);
+
+    // Ok button
+    let ok_style = if focus == DialogFocus::OkButton {
+        Style::default()
+            .bg(Color::Green)
+            .fg(Color::Black)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    };
+    let ok_button = Paragraph::new("[ Ok ]")
+        .style(ok_style)
+        .alignment(Alignment::Right);
+    f.render_widget(ok_button, button_layout[1]);
+
+    // Cancel button
+    let cancel_style = if focus == DialogFocus::CancelButton {
+        Style::default()
+            .bg(Color::Red)
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Red)
+    };
+    let cancel_button = Paragraph::new("[ Cancel ]")
+        .style(cancel_style)
+        .alignment(Alignment::Right);
+    f.render_widget(cancel_button, button_layout[3]);
+}
+
+/// Renders a dialog with 2 input fields for binary data configuration
+fn render_binary_data_dialog(
+    f: &mut Frame,
+    area: Rect,
+    title: &str,
+    path_input: &Input,
+    args_input: &Input,
+    focus: DialogFocus,
+) {
+    f.render_widget(Clear, area);
+
+    // Create dialog block
+    let dialog_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(Color::White))
+        .title(title)
+        .title_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .padding(Padding::horizontal(1))
+        .style(Style::default().bg(Color::Black));
+
+    let inner = dialog_block.inner(area);
+    f.render_widget(dialog_block, area);
+
+    // Create layout for dialog contents
+    let layout_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Padding
+            Constraint::Length(1), // Label 1
+            Constraint::Length(3), // Input field 1
+            Constraint::Length(1), // Label 2
+            Constraint::Length(3), // Input field 2
+            Constraint::Length(1), // Spacing
+            Constraint::Length(1), // Buttons
+        ])
+        .split(inner);
+
+    // Render label 1
+    let label1 = Paragraph::new("Enter processor path:");
+    f.render_widget(label1, layout_chunks[1]);
+
+    // Render input field 1 (path)
+    let input1_focused = focus == DialogFocus::Input1;
+    let input1_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if input1_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        })
+        .border_type(if input1_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        })
+        .style(
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let input1_area = layout_chunks[2];
+    let width1 = input1_area.width.max(3) - 3;
+    let scroll1 = path_input.visual_scroll(width1 as usize);
+    let input1_paragraph = Paragraph::new(path_input.value())
+        .block(input1_block)
+        .style(Style::default().fg(Color::White))
+        .scroll((0, scroll1 as u16));
+    f.render_widget(input1_paragraph, input1_area);
+
+    if input1_focused {
+        let x = path_input.visual_cursor().max(scroll1) - scroll1 + 1;
+        f.set_cursor_position((input1_area.x + x as u16, input1_area.y + 1));
+    }
+
+    // Render label 2
+    let label2 = Paragraph::new("Enter processor arguments:");
+    f.render_widget(label2, layout_chunks[3]);
+
+    // Render input field 2 (args)
+    let input2_focused = focus == DialogFocus::Input2;
+    let input2_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if input2_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        })
+        .border_type(if input2_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        })
+        .style(
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let input2_area = layout_chunks[4];
+    let width2 = input2_area.width.max(3) - 3;
+    let scroll2 = args_input.visual_scroll(width2 as usize);
+    let input2_paragraph = Paragraph::new(args_input.value())
+        .block(input2_block)
+        .style(Style::default().fg(Color::White))
+        .scroll((0, scroll2 as u16));
+    f.render_widget(input2_paragraph, input2_area);
+
+    if input2_focused {
+        let x = args_input.visual_cursor().max(scroll2) - scroll2 + 1;
+        f.set_cursor_position((input2_area.x + x as u16, input2_area.y + 1));
+    }
+
+    // Render buttons
+    let button_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(10),
+        ])
+        .split(layout_chunks[6]);
 
     // Ok button
     let ok_style = if focus == DialogFocus::OkButton {
