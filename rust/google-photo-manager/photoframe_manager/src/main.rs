@@ -33,6 +33,8 @@ mod project;
 use google_auth::{GoogleAuthFileManager, GoogleAuthStatus};
 use project::{ProjectFileManager, ProjectKeys};
 
+use crate::project::CronJobFrequency;
+
 const MAX_LOG_ENTRIES: usize = 5000;
 
 #[derive(Debug, Deserialize)]
@@ -128,11 +130,13 @@ enum DashboardEntry {
     AlbumName,
     AddBinaryData,
     EditBinaryData,
+    AddCronJob,
+    EditCronJob,
     Back,
 }
 
 impl DashboardEntry {
-    fn label(&self, album_name: Option<&str>) -> String {
+    fn label(&self, album_name: Option<&str>, cron_job: Option<CronJobFrequency>) -> String {
         match self {
             Self::LoginToGoogle => "Login to Google".to_string(),
             Self::TestGoogleApi => "Test Google api".to_string(),
@@ -142,6 +146,13 @@ impl DashboardEntry {
             Self::Back => "Back".to_string(),
             Self::AddBinaryData => "Set up processor params".to_string(),
             Self::EditBinaryData => "Edit processor params".to_string(),
+            Self::AddCronJob => "Set frequency".to_string(),
+            Self::EditCronJob => format!(
+                "Frequency: {}",
+                cron_job
+                    .map(|c| c.to_string())
+                    .unwrap_or("(unknown)".to_string())
+            ),
         }
     }
 }
@@ -198,6 +209,9 @@ enum AppState {
         args_input: Input,
         focus: DialogFocus,
     },
+    CronJobFrequencySelection {
+        selected_index: usize,
+    },
     OperationInProgress {
         message: String,
     },
@@ -240,6 +254,7 @@ struct App {
     logs: Arc<Mutex<VecDeque<String>>>,
     album_id: Option<String>,
     album_name: Option<String>,
+    cron_frequency: Option<CronJobFrequency>,
     pending_operation: Option<PendingOperation>,
     album_checked_project: Option<String>,
 }
@@ -260,6 +275,7 @@ impl App {
             album_name: None,
             pending_operation: None,
             album_checked_project: None,
+            cron_frequency: None,
         }
     }
 
@@ -925,6 +941,68 @@ impl App {
                 },
                 _ => None,
             },
+            AppState::CronJobFrequencySelection { selected_index } => match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Esc => {
+                        let path = self.current_project_path.clone().unwrap_or_default();
+                        Some(AppState::Dashboard {
+                            path,
+                            selected_entry: 0,
+                        })
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if *selected_index > 0 {
+                            *selected_index -= 1;
+                        }
+                        None
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        let frequencies = [
+                            CronJobFrequency::Daily,
+                            CronJobFrequency::Weekly,
+                            CronJobFrequency::Biweekly,
+                            CronJobFrequency::Monthly,
+                        ];
+                        if *selected_index < frequencies.len() - 1 {
+                            *selected_index += 1;
+                        }
+                        None
+                    }
+                    KeyCode::Enter => {
+                        let frequencies = [
+                            CronJobFrequency::Daily,
+                            CronJobFrequency::Weekly,
+                            CronJobFrequency::Biweekly,
+                            CronJobFrequency::Monthly,
+                        ];
+                        let selected_frequency = frequencies[*selected_index];
+
+                        if let Some(pm) = &self.current_project_manager {
+                            match pm.set_cron_job(selected_frequency) {
+                                Ok(_) => {
+                                    info!("Cron job frequency set to: {:?}", selected_frequency);
+                                    self.cron_frequency = Some(selected_frequency);
+                                    let path =
+                                        self.current_project_path.clone().unwrap_or_default();
+                                    Some(AppState::Dashboard {
+                                        path,
+                                        selected_entry: 0,
+                                    })
+                                }
+                                Err(err) => Some(AppState::Error {
+                                    message: format!("Failed to set cron job: {}", err),
+                                }),
+                            }
+                        } else {
+                            Some(AppState::Error {
+                                message: "Project manager not available".to_string(),
+                            })
+                        }
+                    }
+                    _ => None,
+                },
+                _ => None,
+            },
             AppState::Error { .. } => match event {
                 Event::Key(key) => match key.code {
                     KeyCode::Enter | KeyCode::Esc | KeyCode::Char(' ') => Some(AppState::MainMenu),
@@ -957,6 +1035,7 @@ impl App {
                             path,
                             self.current_project_manager.as_ref(),
                             self.album_name.as_deref(),
+                            self.cron_frequency,
                         );
                         if !entries.is_empty() && *selected_entry < entries.len() - 1 {
                             *selected_entry += 1;
@@ -987,12 +1066,35 @@ impl App {
                             path,
                             self.current_project_manager.as_ref(),
                             self.album_name.as_deref(),
+                            self.cron_frequency,
                         );
                         if entries.is_empty() {
                             None
                         } else {
                             let idx = (*selected_entry).min(entries.len() - 1);
                             match entries[idx] {
+                                DashboardEntry::AddCronJob => {
+                                    Some(AppState::CronJobFrequencySelection { selected_index: 0 })
+                                }
+                                DashboardEntry::EditCronJob => {
+                                    // Pre-select current frequency if available
+                                    let current_index =
+                                        if let Some(pm) = &self.current_project_manager {
+                                            pm.get_cron_job()
+                                                .map(|freq| match freq {
+                                                    CronJobFrequency::Daily => 0,
+                                                    CronJobFrequency::Weekly => 1,
+                                                    CronJobFrequency::Biweekly => 2,
+                                                    CronJobFrequency::Monthly => 3,
+                                                })
+                                                .unwrap_or(0)
+                                        } else {
+                                            0
+                                        };
+                                    Some(AppState::CronJobFrequencySelection {
+                                        selected_index: current_index,
+                                    })
+                                }
                                 DashboardEntry::AddBinaryData => Some(AppState::BinaryDataInput {
                                     path_input: Input::default(),
                                     args_input: Input::default(),
@@ -1064,6 +1166,7 @@ impl App {
                                                 self.album_id = None;
                                                 self.album_name = None;
                                                 self.album_checked_project = None;
+                                                self.cron_frequency = None;
                                                 Some(AppState::Dashboard {
                                                     path: path.clone(),
                                                     selected_entry: 0,
@@ -1214,6 +1317,7 @@ where
                     app.current_project_path = Some(path.clone());
                     app.album_id = None;
                     app.album_name = None;
+                    app.cron_frequency = None;
                     app.album_checked_project = None;
                     app.state = AppState::Dashboard {
                         path,
@@ -1235,6 +1339,7 @@ where
             match ProjectFileManager::open(&path) {
                 Ok(project_manager) => {
                     info!("Project opened successfully at: {}", path);
+                    app.cron_frequency = project_manager.get_cron_job();
                     app.current_project_manager = Some(project_manager);
                     app.current_project_path = Some(path.clone());
                     app.album_id = None;
@@ -1316,6 +1421,7 @@ where
                             app.album_id = None;
                             app.album_name = None;
                             app.album_checked_project = None;
+                            app.cron_frequency = None;
                             app.state = AppState::Dashboard {
                                 path: project_path,
                                 selected_entry: 0,
@@ -1370,6 +1476,7 @@ where
                     } else {
                         app.album_id = None;
                         app.album_name = None;
+                        app.cron_frequency = None;
                         app.album_checked_project = Some(path.clone());
                     }
                 }
@@ -1441,6 +1548,7 @@ where
                                 Ok(None) => {
                                     app.album_id = None;
                                     app.album_name = None;
+                                    app.cron_frequency = None;
                                     app.album_checked_project = Some(project_path.clone());
                                     app.state = AppState::Dashboard {
                                         path: project_path,
@@ -1656,6 +1764,7 @@ fn ui(f: &mut Frame, app: &App) {
                 *selected_entry,
                 app.current_project_manager.as_ref(),
                 app.album_name.as_deref(),
+                app.cron_frequency,
             );
         }
         _ => {
@@ -1742,6 +1851,10 @@ fn ui(f: &mut Frame, app: &App) {
                 *focus,
             );
         }
+        AppState::CronJobFrequencySelection { selected_index } => {
+            let dialog_area = centered_rect_fixed_height(60, 12, size);
+            render_cron_frequency_dialog(f, dialog_area, *selected_index);
+        }
         AppState::OperationInProgress { message } => {
             let dialog_area = centered_rect_fixed_height(50, 5, size);
             let progress_text = Paragraph::new(message.as_str())
@@ -1795,6 +1908,7 @@ fn render_dashboard(
     selected_entry: usize,
     project_manager: Option<&ProjectFileManager>,
     album_name: Option<&str>,
+    cron_frequency: Option<CronJobFrequency>,
 ) {
     let block = Block::default()
         .borders(Borders::ALL)
@@ -1828,7 +1942,7 @@ fn render_dashboard(
         Paragraph::new(format!("Path: {}", path)).style(Style::default().fg(Color::White));
     f.render_widget(path_line, layout_chunks[1]);
 
-    let entries = dashboard_entries_for(path, project_manager, album_name);
+    let entries = dashboard_entries_for(path, project_manager, album_name, cron_frequency);
     let dashboard_entries: Vec<ListItem> = entries
         .iter()
         .enumerate()
@@ -1844,7 +1958,7 @@ fn render_dashboard(
             };
             ListItem::new(Line::from(vec![
                 Span::raw(marker),
-                Span::styled(entry.label(album_name), style),
+                Span::styled(entry.label(album_name, cron_frequency), style),
             ]))
         })
         .collect();
@@ -1857,11 +1971,13 @@ fn dashboard_entries_for(
     _path: &str,
     project_manager: Option<&ProjectFileManager>,
     album_name: Option<&str>,
+    cron_frequency: Option<CronJobFrequency>,
 ) -> Vec<DashboardEntry> {
-    let has_binary_data = project_manager.unwrap().has_binary_data();
     let mut entries: Vec<DashboardEntry> = vec![];
 
     if let Some(pm) = project_manager {
+        let has_binary_data = pm.has_binary_data();
+        let has_cron_job = cron_frequency.is_some();
         match pm.get_google_auth_status() {
             Ok(GoogleAuthStatus::MissingCredentials) => {
                 entries.push(DashboardEntry::LoginToGoogle);
@@ -1883,17 +1999,20 @@ fn dashboard_entries_for(
             }
             Err(_) => entries.push(DashboardEntry::LoginToGoogle),
         }
+        if has_binary_data {
+            entries.push(DashboardEntry::EditBinaryData);
+        } else {
+            entries.push(DashboardEntry::AddBinaryData);
+        };
+        if has_cron_job {
+            entries.push(DashboardEntry::EditCronJob);
+        } else {
+            entries.push(DashboardEntry::AddCronJob);
+        };
+        entries.push(DashboardEntry::Back);
     } else {
-        entries.push(DashboardEntry::LoginToGoogle);
+        entries.push(DashboardEntry::Back);
     }
-
-    if has_binary_data {
-        entries.push(DashboardEntry::EditBinaryData);
-        entries.push(DashboardEntry::Back);
-    } else {
-        entries.push(DashboardEntry::AddBinaryData);
-        entries.push(DashboardEntry::Back);
-    };
 
     entries
 }
@@ -2442,4 +2561,74 @@ fn render_google_login_confirm_dialog(f: &mut Frame, area: Rect) {
         )
         .alignment(Alignment::Center);
     f.render_widget(button, button_layout[1]);
+}
+
+fn render_cron_frequency_dialog(f: &mut Frame, area: Rect, selected_index: usize) {
+    f.render_widget(Clear, area);
+
+    // Create dialog block
+    let dialog_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(Color::White))
+        .title("Select Cron Job Frequency")
+        .title_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .padding(Padding::horizontal(1))
+        .style(Style::default().bg(Color::Black));
+
+    let inner = dialog_block.inner(area);
+    f.render_widget(dialog_block, area);
+
+    // Create layout for dialog contents
+    let layout_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Padding
+            Constraint::Length(1), // Label
+            Constraint::Length(1), // Daily
+            Constraint::Length(1), // Weekly
+            Constraint::Length(1), // Biweekly
+            Constraint::Length(1), // Monthly
+            Constraint::Length(1), // Spacing
+            Constraint::Length(1), // Help text
+        ])
+        .split(inner);
+
+    // Render label
+    let label = Paragraph::new("Use ↑/↓ to select, Enter to confirm, Esc to cancel")
+        .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(label, layout_chunks[1]);
+
+    let frequencies = [
+        CronJobFrequency::Daily,
+        CronJobFrequency::Weekly,
+        CronJobFrequency::Biweekly,
+        CronJobFrequency::Monthly,
+    ];
+
+    // Render each frequency option
+    for (i, freq) in frequencies.iter().enumerate() {
+        let is_selected = i == selected_index;
+        let text = if is_selected {
+            format!("> {}", freq.to_string())
+        } else {
+            format!("  {}", freq.to_string())
+        };
+
+        let style = if is_selected {
+            Style::default()
+                .bg(Color::Yellow)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        let option = Paragraph::new(text).style(style);
+        f.render_widget(option, layout_chunks[2 + i]);
+    }
 }

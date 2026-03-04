@@ -20,6 +20,20 @@ pub(crate) enum ProjectKeys {
     BinaryDataPath,
     #[strum(to_string = "binary.data.arguments")]
     BinaryDataArguments,
+    #[strum(to_string = "binary.data.cron")]
+    BinaryDataCron,
+}
+
+#[derive(Debug, Eq, PartialEq, EnumString, AsRefStr, IntoStaticStr, Hash, Display, Copy, Clone)]
+pub(crate) enum CronJobFrequency {
+    #[strum(to_string = "Daily", serialize = "0 0 * * *")]
+    Daily,
+    #[strum(to_string = "Weekly", serialize = "0 0 * * 0")]
+    Weekly,
+    #[strum(to_string = "Bi-weekly", serialize = "0 0 * * 0,14")]
+    Biweekly,
+    #[strum(to_string = "Monthly", serialize = "0 0 1 * *")]
+    Monthly,
 }
 
 pub struct ProjectFileManager {
@@ -170,13 +184,22 @@ impl ProjectFileManager {
 
     pub fn logout_from_google(&self) -> Result<(), Box<dyn std::error::Error>> {
         let token_path = self.get_token_path();
+
         if token_path.exists() {
             let _ = fs::remove_file(&token_path);
         }
+
         let credentials_path = self.get_credentials_path();
+
         if credentials_path.exists() {
             let _ = fs::remove_file(&credentials_path);
         }
+
+        self.remove_properties(&[
+            ProjectKeys::BinaryDataCron,
+            ProjectKeys::GooglePhotosAlbumId,
+            ProjectKeys::GooglePhotosAlbumName,
+        ])?;
 
         info!("Google auth data removed");
         Ok(())
@@ -254,7 +277,8 @@ impl ProjectFileManager {
         }
     }
 
-    /// Set the binary data path and arguments. The path is converted to an absolute path if it is not already, and the arguments are filtered to remove reserved flags.
+    /// Set the binary data path and arguments.
+    /// The path is converted to an absolute path if it is not already, and the arguments are filtered to remove reserved flags.
     pub fn set_binary_data(
         &self,
         path: &str,
@@ -298,6 +322,46 @@ impl ProjectFileManager {
         )?;
         self.set_property(ProjectKeys::BinaryDataArguments, &filtered_arguments)?;
         Ok(())
+    }
+
+    pub fn remove_binary_data(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.remove_properties(&[
+            ProjectKeys::BinaryDataPath,
+            ProjectKeys::BinaryDataArguments,
+            ProjectKeys::BinaryDataCron,
+        ])?;
+        Ok(())
+    }
+
+    pub fn has_cron_job(&self) -> bool {
+        self.get_cron_job().is_some()
+    }
+
+    pub fn set_cron_job(
+        &self,
+        frequency: CronJobFrequency,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cron_expression = frequency.as_ref();
+        info!(
+            "Setting cron job with frequency: {} (expression: {})",
+            frequency, cron_expression
+        );
+        self.set_property(ProjectKeys::BinaryDataCron, cron_expression)
+    }
+
+    pub fn get_cron_job(&self) -> Option<CronJobFrequency> {
+        self.get_property(ProjectKeys::BinaryDataCron)
+            .ok()
+            .flatten()
+            .and_then(|cron_str| {
+                CronJobFrequency::from_str(&cron_str).ok().or_else(|| {
+                    debug!(
+                        "Failed to parse cron job frequency from string: {}",
+                        cron_str
+                    );
+                    None
+                })
+            })
     }
 
     fn remove_arguments(input: &str, keys: &[&str]) -> String {
