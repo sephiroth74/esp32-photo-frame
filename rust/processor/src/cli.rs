@@ -282,6 +282,14 @@ pub struct Args {
     )]
     pub report: ReportFormat,
 
+    #[arg(
+        long = "report-output",
+        value_name = "FILE",
+        conflicts_with = "validate",
+        help = "Optional file path to save the processing report (if not specified, report will be printed to console)"
+    )]
+    pub report_output: Option<PathBuf>,
+
     /// Number of parallel processing jobs (0 = auto-detect CPU cores)
     #[arg(
         short = 'j',

@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use std::sync::{Arc, Mutex};
 use std::{collections::VecDeque, path::Path};
+use strum::IntoEnumIterator;
 use tracing::field::{Field, Visit};
 use tracing::{Event as TracingEvent, Subscriber};
 use tracing::{debug, error, info};
@@ -53,10 +54,49 @@ struct CreateAlbumPayload {
     title: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GoogleDriveFileResponse {
+    id: Option<String>,
+    name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateDriveFolderRequest {
+    name: String,
+    #[serde(rename = "mimeType")]
+    mime_type: String,
+    parents: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateDrivePermissionRequest {
+    #[serde(rename = "type")]
+    permission_type: String,
+    role: String,
+    #[serde(rename = "emailAddress")]
+    email_address: String,
+}
+
 #[derive(Debug)]
 enum PendingOperation {
     CheckAlbum,
-    CreateAlbum { album_name: String },
+    CheckDriveFolder,
+    CreateAlbum {
+        album_name: String,
+    },
+    ModifyAlbum {
+        album_id: String,
+        album_name: String,
+    },
+    CreateDriveFolder {
+        parent_folder_id: String,
+        folder_name: String,
+        sharing_emails: Vec<String>,
+    },
+    ModifyDriveFolder {
+        folder_id: String,
+        folder_name: String,
+    },
     TestGoogleApi,
 }
 
@@ -94,10 +134,15 @@ where
     S: Subscriber + for<'span> LookupSpan<'span>,
 {
     fn on_event(&self, event: &TracingEvent<'_>, _ctx: Context<'_, S>) {
+        let meta = event.metadata();
+        let target = meta.target();
+        if !(target == "photoframe_manager" || target.starts_with("photoframe_manager::")) {
+            return;
+        }
+
         let mut visitor = AppLogFieldVisitor::default();
         event.record(&mut visitor);
 
-        let meta = event.metadata();
         let mut line = format!("[{}]", meta.level());
 
         if let Some(message) = visitor.message {
@@ -127,34 +172,58 @@ enum DashboardEntry {
     TestGoogleApi,
     LogoutFromGoogle,
     CreateGooglePhotoAlbum,
-    AlbumName,
+    ModifyAlbum,
+    CreateDriveFolder,
+    ModifyDriveFolder,
     AddBinaryData,
     EditBinaryData,
     AddCronJob,
     EditCronJob,
+    StartScheduler,
+    CancelScheduler,
     Back,
 }
 
 impl DashboardEntry {
-    fn label(&self, album_name: Option<&str>, cron_job: Option<CronJobFrequency>) -> String {
+    fn label(
+        &self,
+        album_name: Option<&str>,
+        drive_folder_name: Option<&str>,
+        cron_job: Option<CronJobFrequency>,
+    ) -> String {
         match self {
             Self::LoginToGoogle => "Login to Google".to_string(),
             Self::TestGoogleApi => "Test Google api".to_string(),
             Self::LogoutFromGoogle => "Logout".to_string(),
             Self::CreateGooglePhotoAlbum => "Create Google Photo Album".to_string(),
-            Self::AlbumName => format!("Album name: {}", album_name.unwrap_or("(unknown)")),
-            Self::Back => "Back".to_string(),
+            Self::ModifyAlbum => format!("Modify Album: {}", album_name.unwrap_or("(unknown)")),
+            Self::CreateDriveFolder => {
+                if let Some(name) = drive_folder_name {
+                    format!("Drive folder: {}", name)
+                } else {
+                    "Create Google Drive Folder".to_string()
+                }
+            }
+            Self::ModifyDriveFolder => format!(
+                "Modify Drive Folder: {}",
+                drive_folder_name.unwrap_or("(unknown)")
+            ),
             Self::AddBinaryData => "Set up processor params".to_string(),
             Self::EditBinaryData => "Edit processor params".to_string(),
             Self::AddCronJob => "Set frequency".to_string(),
             Self::EditCronJob => format!(
                 "Frequency: {}",
-                cron_job
-                    .map(|c| c.to_string())
-                    .unwrap_or("(unknown)".to_string())
+                cron_job.map(|c| c.display_name()).unwrap_or("(unknown)")
             ),
+            Self::StartScheduler => "Start Scheduler".to_string(),
+            Self::CancelScheduler => "Cancel Scheduler".to_string(),
+            Self::Back => "Back".to_string(),
         }
     }
+}
+struct DashboardItem {
+    entry: DashboardEntry,
+    enabled: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -201,6 +270,22 @@ enum AppState {
         selected_entry: usize,
     },
     AlbumNameInput {
+        input: Input,
+        focus: DialogFocus,
+    },
+    ModifyAlbumInput {
+        album_id: String,
+        input: Input,
+        focus: DialogFocus,
+    },
+    DriveFolderInput {
+        parent_folder_input: Input,
+        folder_name_input: Input,
+        sharing_emails_input: Input,
+        focus: DialogFocus,
+    },
+    ModifyDriveFolderInput {
+        folder_id: String,
         input: Input,
         focus: DialogFocus,
     },
@@ -252,11 +337,9 @@ struct App {
     logs_focused: bool,
     logs_selected_index: Option<usize>,
     logs: Arc<Mutex<VecDeque<String>>>,
-    album_id: Option<String>,
-    album_name: Option<String>,
-    cron_frequency: Option<CronJobFrequency>,
     pending_operation: Option<PendingOperation>,
     album_checked_project: Option<String>,
+    drive_folder_checked_project: Option<String>,
 }
 
 impl App {
@@ -271,11 +354,9 @@ impl App {
             logs_focused: false,
             logs_selected_index: None,
             logs,
-            album_id: None,
-            album_name: None,
             pending_operation: None,
             album_checked_project: None,
-            cron_frequency: None,
+            drive_folder_checked_project: None,
         }
     }
 
@@ -798,6 +879,350 @@ impl App {
                 },
                 _ => None,
             },
+            AppState::ModifyAlbumInput {
+                album_id,
+                input,
+                focus,
+            } => match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Esc => {
+                        let path = self.current_project_path.clone().unwrap_or_default();
+                        Some(AppState::Dashboard {
+                            path,
+                            selected_entry: 0,
+                        })
+                    }
+                    KeyCode::Tab => {
+                        *focus = match focus {
+                            DialogFocus::Input => DialogFocus::OkButton,
+                            DialogFocus::OkButton => DialogFocus::CancelButton,
+                            DialogFocus::CancelButton => DialogFocus::Input,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Right => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::OkButton,
+                                DialogFocus::OkButton => DialogFocus::CancelButton,
+                                DialogFocus::CancelButton => DialogFocus::Input,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
+                        None
+                    }
+                    KeyCode::BackTab => {
+                        *focus = match focus {
+                            DialogFocus::Input => DialogFocus::CancelButton,
+                            DialogFocus::OkButton => DialogFocus::Input,
+                            DialogFocus::CancelButton => DialogFocus::OkButton,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Left => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::CancelButton,
+                                DialogFocus::OkButton => DialogFocus::Input,
+                                DialogFocus::CancelButton => DialogFocus::OkButton,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
+                        None
+                    }
+                    KeyCode::Enter => match focus {
+                        DialogFocus::Input => {
+                            *focus = DialogFocus::OkButton;
+                            None
+                        }
+                        DialogFocus::OkButton => {
+                            let new_name = input.value().trim();
+                            if new_name.is_empty() {
+                                None
+                            } else {
+                                queued_operation = Some((
+                                    "Operation in progress".to_string(),
+                                    PendingOperation::ModifyAlbum {
+                                        album_id: album_id.clone(),
+                                        album_name: new_name.to_string(),
+                                    },
+                                ));
+                                None
+                            }
+                        }
+                        DialogFocus::CancelButton => {
+                            let path = self.current_project_path.clone().unwrap_or_default();
+                            Some(AppState::Dashboard {
+                                path,
+                                selected_entry: 0,
+                            })
+                        }
+                        DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                    },
+                    _ => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        }
+                        None
+                    }
+                },
+                _ => None,
+            },
+            AppState::ModifyDriveFolderInput {
+                folder_id,
+                input,
+                focus,
+            } => match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Esc => {
+                        let path = self.current_project_path.clone().unwrap_or_default();
+                        Some(AppState::Dashboard {
+                            path,
+                            selected_entry: 0,
+                        })
+                    }
+                    KeyCode::Tab => {
+                        *focus = match focus {
+                            DialogFocus::Input => DialogFocus::OkButton,
+                            DialogFocus::OkButton => DialogFocus::CancelButton,
+                            DialogFocus::CancelButton => DialogFocus::Input,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Right => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::OkButton,
+                                DialogFocus::OkButton => DialogFocus::CancelButton,
+                                DialogFocus::CancelButton => DialogFocus::Input,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
+                        None
+                    }
+                    KeyCode::BackTab => {
+                        *focus = match focus {
+                            DialogFocus::Input => DialogFocus::CancelButton,
+                            DialogFocus::OkButton => DialogFocus::Input,
+                            DialogFocus::CancelButton => DialogFocus::OkButton,
+                            DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Left => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        } else {
+                            *focus = match focus {
+                                DialogFocus::Input => DialogFocus::CancelButton,
+                                DialogFocus::OkButton => DialogFocus::Input,
+                                DialogFocus::CancelButton => DialogFocus::OkButton,
+                                DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                            };
+                            debug!("Dialog focus changed to: {:?}", focus);
+                        }
+                        None
+                    }
+                    KeyCode::Enter => match focus {
+                        DialogFocus::Input => {
+                            *focus = DialogFocus::OkButton;
+                            None
+                        }
+                        DialogFocus::OkButton => {
+                            let new_name = input.value().trim();
+                            if new_name.is_empty() {
+                                None
+                            } else {
+                                queued_operation = Some((
+                                    "Operation in progress".to_string(),
+                                    PendingOperation::ModifyDriveFolder {
+                                        folder_id: folder_id.clone(),
+                                        folder_name: new_name.to_string(),
+                                    },
+                                ));
+                                None
+                            }
+                        }
+                        DialogFocus::CancelButton => {
+                            let path = self.current_project_path.clone().unwrap_or_default();
+                            Some(AppState::Dashboard {
+                                path,
+                                selected_entry: 0,
+                            })
+                        }
+                        DialogFocus::Input1 | DialogFocus::Input2 => unreachable!(),
+                    },
+                    _ => {
+                        if *focus == DialogFocus::Input {
+                            input.handle_event(&event);
+                        }
+                        None
+                    }
+                },
+                _ => None,
+            },
+            AppState::DriveFolderInput {
+                parent_folder_input,
+                folder_name_input,
+                sharing_emails_input,
+                focus,
+            } => match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Esc => {
+                        let path = self.current_project_path.clone().unwrap_or_default();
+                        Some(AppState::Dashboard {
+                            path,
+                            selected_entry: 0,
+                        })
+                    }
+                    KeyCode::Tab => {
+                        *focus = match focus {
+                            DialogFocus::Input1 => DialogFocus::Input2,
+                            DialogFocus::Input2 => DialogFocus::Input,
+                            DialogFocus::Input => DialogFocus::OkButton,
+                            DialogFocus::OkButton => DialogFocus::CancelButton,
+                            DialogFocus::CancelButton => DialogFocus::Input1,
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::BackTab => {
+                        *focus = match focus {
+                            DialogFocus::Input1 => DialogFocus::CancelButton,
+                            DialogFocus::Input2 => DialogFocus::Input1,
+                            DialogFocus::Input => DialogFocus::Input2,
+                            DialogFocus::OkButton => DialogFocus::Input,
+                            DialogFocus::CancelButton => DialogFocus::OkButton,
+                        };
+                        debug!("Dialog focus changed to: {:?}", focus);
+                        None
+                    }
+                    KeyCode::Right => {
+                        match focus {
+                            DialogFocus::Input1 => {
+                                parent_folder_input.handle_event(&event);
+                            }
+                            DialogFocus::Input2 => {
+                                folder_name_input.handle_event(&event);
+                            }
+                            DialogFocus::Input => {
+                                sharing_emails_input.handle_event(&event);
+                            }
+                            _ => {
+                                *focus = match focus {
+                                    DialogFocus::Input1 => DialogFocus::Input2,
+                                    DialogFocus::Input2 => DialogFocus::Input,
+                                    DialogFocus::Input => DialogFocus::OkButton,
+                                    DialogFocus::OkButton => DialogFocus::CancelButton,
+                                    DialogFocus::CancelButton => DialogFocus::Input1,
+                                };
+                            }
+                        }
+                        None
+                    }
+                    KeyCode::Left => {
+                        match focus {
+                            DialogFocus::Input1 => {
+                                parent_folder_input.handle_event(&event);
+                            }
+                            DialogFocus::Input2 => {
+                                folder_name_input.handle_event(&event);
+                            }
+                            DialogFocus::Input => {
+                                sharing_emails_input.handle_event(&event);
+                            }
+                            _ => {
+                                *focus = match focus {
+                                    DialogFocus::Input1 => DialogFocus::CancelButton,
+                                    DialogFocus::Input2 => DialogFocus::Input1,
+                                    DialogFocus::Input => DialogFocus::Input2,
+                                    DialogFocus::OkButton => DialogFocus::Input,
+                                    DialogFocus::CancelButton => DialogFocus::OkButton,
+                                };
+                            }
+                        }
+                        None
+                    }
+                    KeyCode::Enter => match focus {
+                        DialogFocus::Input1 => {
+                            *focus = DialogFocus::Input2;
+                            None
+                        }
+                        DialogFocus::Input2 => {
+                            *focus = DialogFocus::Input;
+                            None
+                        }
+                        DialogFocus::Input => {
+                            *focus = DialogFocus::OkButton;
+                            None
+                        }
+                        DialogFocus::OkButton => {
+                            let parent_folder_id = parent_folder_input.value().trim();
+                            let folder_name = folder_name_input.value().trim();
+                            if parent_folder_id.is_empty() {
+                                Some(AppState::Error {
+                                    message: "Parent folder ID cannot be empty".to_string(),
+                                })
+                            } else if folder_name.is_empty() {
+                                Some(AppState::Error {
+                                    message: "Folder name cannot be empty".to_string(),
+                                })
+                            } else {
+                                let sharing_emails =
+                                    parse_sharing_emails(sharing_emails_input.value().trim());
+                                queued_operation = Some((
+                                    "Creating Google Drive folder".to_string(),
+                                    PendingOperation::CreateDriveFolder {
+                                        parent_folder_id: parent_folder_id.to_string(),
+                                        folder_name: folder_name.to_string(),
+                                        sharing_emails,
+                                    },
+                                ));
+                                None
+                            }
+                        }
+                        DialogFocus::CancelButton => {
+                            let path = self.current_project_path.clone().unwrap_or_default();
+                            Some(AppState::Dashboard {
+                                path,
+                                selected_entry: 0,
+                            })
+                        }
+                    },
+                    _ => {
+                        match focus {
+                            DialogFocus::Input1 => {
+                                parent_folder_input.handle_event(&event);
+                            }
+                            DialogFocus::Input2 => {
+                                folder_name_input.handle_event(&event);
+                            }
+                            DialogFocus::Input => {
+                                sharing_emails_input.handle_event(&event);
+                            }
+                            _ => {}
+                        }
+                        None
+                    }
+                },
+                _ => None,
+            },
             AppState::BinaryDataInput {
                 path_input,
                 args_input,
@@ -957,37 +1382,32 @@ impl App {
                         None
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
-                        let frequencies = [
-                            CronJobFrequency::Daily,
-                            CronJobFrequency::Weekly,
-                            CronJobFrequency::Biweekly,
-                            CronJobFrequency::Monthly,
-                        ];
+                        let frequencies = CronJobFrequency::iter().collect::<Vec<_>>();
                         if *selected_index < frequencies.len() - 1 {
                             *selected_index += 1;
                         }
                         None
                     }
                     KeyCode::Enter => {
-                        let frequencies = [
-                            CronJobFrequency::Daily,
-                            CronJobFrequency::Weekly,
-                            CronJobFrequency::Biweekly,
-                            CronJobFrequency::Monthly,
-                        ];
+                        let frequencies = CronJobFrequency::iter().collect::<Vec<_>>();
                         let selected_frequency = frequencies[*selected_index];
 
                         if let Some(pm) = &self.current_project_manager {
-                            match pm.set_cron_job(selected_frequency) {
+                            match pm.set_frequency(selected_frequency) {
                                 Ok(_) => {
                                     info!("Cron job frequency set to: {:?}", selected_frequency);
-                                    self.cron_frequency = Some(selected_frequency);
-                                    let path =
-                                        self.current_project_path.clone().unwrap_or_default();
-                                    Some(AppState::Dashboard {
-                                        path,
-                                        selected_entry: 0,
-                                    })
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        Some(AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        })
+                                    } else {
+                                        let path =
+                                            self.current_project_path.clone().unwrap_or_default();
+                                        Some(AppState::Dashboard {
+                                            path,
+                                            selected_entry: 0,
+                                        })
+                                    }
                                 }
                                 Err(err) => Some(AppState::Error {
                                     message: format!("Failed to set cron job: {}", err),
@@ -1025,20 +1445,28 @@ impl App {
                     }
                     KeyCode::Esc => Some(AppState::MainMenu),
                     KeyCode::Up | KeyCode::Char('k') => {
-                        if *selected_entry > 0 {
-                            *selected_entry -= 1;
+                        let entries =
+                            dashboard_entries_for(path, self.current_project_manager.as_ref());
+                        let mut idx = *selected_entry;
+                        while idx > 0 {
+                            idx -= 1;
+                            if entries.get(idx).map(|e| e.enabled).unwrap_or(false) {
+                                *selected_entry = idx;
+                                break;
+                            }
                         }
                         None
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
-                        let entries = dashboard_entries_for(
-                            path,
-                            self.current_project_manager.as_ref(),
-                            self.album_name.as_deref(),
-                            self.cron_frequency,
-                        );
-                        if !entries.is_empty() && *selected_entry < entries.len() - 1 {
-                            *selected_entry += 1;
+                        let entries =
+                            dashboard_entries_for(path, self.current_project_manager.as_ref());
+                        let mut idx = *selected_entry;
+                        while idx + 1 < entries.len() {
+                            idx += 1;
+                            if entries.get(idx).map(|e| e.enabled).unwrap_or(false) {
+                                *selected_entry = idx;
+                                break;
+                            }
                         }
                         None
                     }
@@ -1062,127 +1490,246 @@ impl App {
                         // Set current project path when in Dashboard
                         self.current_project_path = Some(path.clone());
 
-                        let entries = dashboard_entries_for(
-                            path,
-                            self.current_project_manager.as_ref(),
-                            self.album_name.as_deref(),
-                            self.cron_frequency,
-                        );
+                        let entries =
+                            dashboard_entries_for(path, self.current_project_manager.as_ref());
                         if entries.is_empty() {
                             None
                         } else {
                             let idx = (*selected_entry).min(entries.len() - 1);
-                            match entries[idx] {
-                                DashboardEntry::AddCronJob => {
-                                    Some(AppState::CronJobFrequencySelection { selected_index: 0 })
-                                }
-                                DashboardEntry::EditCronJob => {
-                                    // Pre-select current frequency if available
-                                    let current_index =
-                                        if let Some(pm) = &self.current_project_manager {
-                                            pm.get_cron_job()
-                                                .map(|freq| match freq {
-                                                    CronJobFrequency::Daily => 0,
-                                                    CronJobFrequency::Weekly => 1,
-                                                    CronJobFrequency::Biweekly => 2,
-                                                    CronJobFrequency::Monthly => 3,
-                                                })
-                                                .unwrap_or(0)
-                                        } else {
-                                            0
-                                        };
-                                    Some(AppState::CronJobFrequencySelection {
-                                        selected_index: current_index,
-                                    })
-                                }
-                                DashboardEntry::AddBinaryData => Some(AppState::BinaryDataInput {
-                                    path_input: Input::default(),
-                                    args_input: Input::default(),
-                                    focus: DialogFocus::Input1,
-                                }),
-                                DashboardEntry::EditBinaryData => {
-                                    if let Some(pm) = &self.current_project_manager {
-                                        let path = pm
-                                            .get_binary_data_path()
-                                            .and_then(|p| p.to_str().map(String::from))
-                                            .unwrap_or_default();
-                                        let args =
-                                            pm.get_binary_data_arguments().unwrap_or_default();
-                                        Some(AppState::BinaryDataInput {
-                                            path_input: Input::new(path),
-                                            args_input: Input::new(args),
-                                            focus: DialogFocus::Input1,
+                            if !entries[idx].enabled {
+                                None
+                            } else {
+                                match entries[idx].entry {
+                                    DashboardEntry::AddCronJob => {
+                                        Some(AppState::CronJobFrequencySelection {
+                                            selected_index: 0,
                                         })
-                                    } else {
-                                        None
                                     }
-                                }
-                                DashboardEntry::LoginToGoogle => {
-                                    if let Some(project_manager) = &self.current_project_manager {
-                                        match project_manager.get_google_auth_status() {
-                                            Ok(GoogleAuthStatus::MissingCredentials) => {
-                                                Some(AppState::GoogleCredentialsPathInput {
-                                                    input: Input::default(),
-                                                    focus: DialogFocus::Input,
-                                                })
+                                    DashboardEntry::EditCronJob => {
+                                        // Pre-select current frequency if available
+                                        let current_index =
+                                            if let Some(pm) = &self.current_project_manager {
+                                                pm.get_frequency()
+                                                    .map(|freq| match freq {
+                                                        CronJobFrequency::FiveMinutes => 0,
+                                                        CronJobFrequency::Daily => 1,
+                                                        CronJobFrequency::Weekly => 2,
+                                                        CronJobFrequency::Biweekly => 3,
+                                                        CronJobFrequency::Monthly => 4,
+                                                    })
+                                                    .unwrap_or(0)
+                                            } else {
+                                                0
+                                            };
+                                        Some(AppState::CronJobFrequencySelection {
+                                            selected_index: current_index,
+                                        })
+                                    }
+                                    DashboardEntry::StartScheduler => {
+                                        if let Some(project_manager) = &self.current_project_manager
+                                        {
+                                            match project_manager.start_cron_job() {
+                                                Ok(_) => {
+                                                    let path = self
+                                                        .current_project_path
+                                                        .clone()
+                                                        .unwrap_or_default();
+                                                    Some(AppState::Dashboard {
+                                                        path,
+                                                        selected_entry: 0,
+                                                    })
+                                                }
+                                                Err(err) => Some(AppState::Error {
+                                                    message: format!(
+                                                        "Failed to start scheduler: {}",
+                                                        err
+                                                    ),
+                                                }),
                                             }
-                                            Ok(GoogleAuthStatus::NeedsLogin {
-                                                credentials_path,
-                                            }) => Some(AppState::GoogleLoginConfirm {
-                                                credentials_path: credentials_path
-                                                    .to_string_lossy()
+                                        } else {
+                                            Some(AppState::Error {
+                                                message: "Project manager not available"
                                                     .to_string(),
-                                            }),
-                                            Ok(GoogleAuthStatus::LoggedIn { .. }) => None,
-                                            Err(err) => Some(AppState::Error {
-                                                message: err.to_string(),
-                                            }),
+                                            })
                                         }
-                                    } else {
-                                        Some(AppState::Error {
-                                            message: "Project manager not available".to_string(),
-                                        })
                                     }
-                                }
-                                DashboardEntry::TestGoogleApi => {
-                                    info!("Testing Google API");
-                                    queued_operation = Some((
-                                        "Operation in progress".to_string(),
-                                        PendingOperation::TestGoogleApi,
-                                    ));
-                                    None
-                                }
-                                DashboardEntry::CreateGooglePhotoAlbum => {
-                                    Some(AppState::AlbumNameInput {
-                                        input: Input::default(),
-                                        focus: DialogFocus::Input,
-                                    })
-                                }
-                                DashboardEntry::AlbumName => None,
-                                DashboardEntry::LogoutFromGoogle => {
-                                    if let Some(project_manager) = &self.current_project_manager {
-                                        match project_manager.logout_from_google() {
+                                    DashboardEntry::CancelScheduler => {
+                                        match ProjectFileManager::stop_cron_job() {
                                             Ok(_) => {
-                                                self.album_id = None;
-                                                self.album_name = None;
-                                                self.album_checked_project = None;
-                                                self.cron_frequency = None;
+                                                let path = self
+                                                    .current_project_path
+                                                    .clone()
+                                                    .unwrap_or_default();
                                                 Some(AppState::Dashboard {
-                                                    path: path.clone(),
+                                                    path,
                                                     selected_entry: 0,
                                                 })
                                             }
                                             Err(err) => Some(AppState::Error {
-                                                message: err.to_string(),
+                                                message: format!(
+                                                    "Failed to stop scheduler: {}",
+                                                    err
+                                                ),
                                             }),
                                         }
-                                    } else {
-                                        Some(AppState::Error {
-                                            message: "Project manager not available".to_string(),
+                                    }
+                                    DashboardEntry::AddBinaryData => {
+                                        Some(AppState::BinaryDataInput {
+                                            path_input: Input::default(),
+                                            args_input: Input::default(),
+                                            focus: DialogFocus::Input1,
                                         })
                                     }
+                                    DashboardEntry::EditBinaryData => {
+                                        if let Some(pm) = &self.current_project_manager {
+                                            let path = pm
+                                                .get_binary_data_path()
+                                                .and_then(|p| p.to_str().map(String::from))
+                                                .unwrap_or_default();
+                                            let args =
+                                                pm.get_binary_data_arguments().unwrap_or_default();
+                                            Some(AppState::BinaryDataInput {
+                                                path_input: Input::new(path),
+                                                args_input: Input::new(args),
+                                                focus: DialogFocus::Input1,
+                                            })
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    DashboardEntry::LoginToGoogle => {
+                                        if let Some(project_manager) = &self.current_project_manager
+                                        {
+                                            match project_manager.get_google_auth_status() {
+                                                Ok(GoogleAuthStatus::MissingCredentials) => {
+                                                    Some(AppState::GoogleCredentialsPathInput {
+                                                        input: Input::default(),
+                                                        focus: DialogFocus::Input,
+                                                    })
+                                                }
+                                                Ok(GoogleAuthStatus::NeedsLogin {
+                                                    credentials_path,
+                                                }) => Some(AppState::GoogleLoginConfirm {
+                                                    credentials_path: credentials_path
+                                                        .to_string_lossy()
+                                                        .to_string(),
+                                                }),
+                                                Ok(GoogleAuthStatus::LoggedIn { .. }) => None,
+                                                Err(err) => Some(AppState::Error {
+                                                    message: err.to_string(),
+                                                }),
+                                            }
+                                        } else {
+                                            Some(AppState::Error {
+                                                message: "Project manager not available"
+                                                    .to_string(),
+                                            })
+                                        }
+                                    }
+                                    DashboardEntry::TestGoogleApi => {
+                                        info!("Testing Google API");
+                                        queued_operation = Some((
+                                            "Operation in progress".to_string(),
+                                            PendingOperation::TestGoogleApi,
+                                        ));
+                                        None
+                                    }
+                                    DashboardEntry::CreateGooglePhotoAlbum => {
+                                        Some(AppState::AlbumNameInput {
+                                            input: Input::default(),
+                                            focus: DialogFocus::Input,
+                                        })
+                                    }
+                                    DashboardEntry::ModifyAlbum => {
+                                        if let Some(pm) = &self.current_project_manager {
+                                            if let (Ok(Some(album_id)), Ok(Some(_album_name))) = (
+                                                pm.get_google_photo_album_id(),
+                                                pm.get_google_photo_album_name(),
+                                            ) {
+                                                Some(AppState::ModifyAlbumInput {
+                                                    album_id,
+                                                    input: Input::default(),
+                                                    focus: DialogFocus::Input,
+                                                })
+                                            } else {
+                                                Some(AppState::Error {
+                                                    message: "Album ID not found".to_string(),
+                                                })
+                                            }
+                                        } else {
+                                            Some(AppState::Error {
+                                                message: "Project manager not available"
+                                                    .to_string(),
+                                            })
+                                        }
+                                    }
+                                    DashboardEntry::ModifyDriveFolder => {
+                                        if let Some(pm) = &self.current_project_manager {
+                                            if let (Ok(Some(folder_id)), Ok(Some(_folder_name))) = (
+                                                pm.get_drive_folder_id(),
+                                                pm.get_drive_folder_name(),
+                                            ) {
+                                                Some(AppState::ModifyDriveFolderInput {
+                                                    folder_id,
+                                                    input: Input::default(),
+                                                    focus: DialogFocus::Input,
+                                                })
+                                            } else {
+                                                Some(AppState::Error {
+                                                    message: "Drive Folder ID not found"
+                                                        .to_string(),
+                                                })
+                                            }
+                                        } else {
+                                            Some(AppState::Error {
+                                                message: "Project manager not available"
+                                                    .to_string(),
+                                            })
+                                        }
+                                    }
+                                    DashboardEntry::CreateDriveFolder => {
+                                        Some(AppState::DriveFolderInput {
+                                            parent_folder_input: Input::default(),
+                                            folder_name_input: Input::new(
+                                                "photo-frame-processed".to_string(),
+                                            ),
+                                            sharing_emails_input: Input::default(),
+                                            focus: DialogFocus::Input1,
+                                        })
+                                    }
+                                    DashboardEntry::LogoutFromGoogle => {
+                                        if let Some(project_manager) = &self.current_project_manager
+                                        {
+                                            if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                                Some(AppState::Error {
+                                                    message: format!(
+                                                        "Failed to stop scheduler: {}",
+                                                        err
+                                                    ),
+                                                })
+                                            } else {
+                                                match project_manager.logout_from_google() {
+                                                    Ok(_) => {
+                                                        self.album_checked_project = None;
+                                                        Some(AppState::Dashboard {
+                                                            path: path.clone(),
+                                                            selected_entry: 0,
+                                                        })
+                                                    }
+                                                    Err(err) => Some(AppState::Error {
+                                                        message: err.to_string(),
+                                                    }),
+                                                }
+                                            }
+                                        } else {
+                                            Some(AppState::Error {
+                                                message: "Project manager not available"
+                                                    .to_string(),
+                                            })
+                                        }
+                                    }
+                                    DashboardEntry::Back => Some(AppState::MainMenu),
                                 }
-                                DashboardEntry::Back => Some(AppState::MainMenu),
                             }
                         }
                     }
@@ -1219,6 +1766,8 @@ impl App {
             // Clear project manager when returning to MainMenu
             if matches!(new_state, AppState::MainMenu) {
                 self.current_project_manager = None;
+                self.album_checked_project = None;
+                self.drive_folder_checked_project = None;
             }
             self.state = new_state;
         }
@@ -1255,7 +1804,12 @@ impl App {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup tracing with tui-logger
     tui_logger::init_logger(log::LevelFilter::Debug)?;
-    tui_logger::set_default_level(log::LevelFilter::Debug);
+    tui_logger::set_default_level(log::LevelFilter::Off);
+
+    // only show logs from this crate in the UI
+    tui_logger::set_level_for_target("photoframe_manager", log::LevelFilter::Trace);
+    tui_logger::set_level_for_target("photoframe_manager::project", log::LevelFilter::Trace);
+    tui_logger::set_level_for_target("photoframe_manager::google_auth", log::LevelFilter::Trace);
 
     let app_logs = Arc::new(Mutex::new(VecDeque::new()));
 
@@ -1315,9 +1869,6 @@ where
                     info!("Project created successfully at: {}", path);
                     app.current_project_manager = Some(project_manager);
                     app.current_project_path = Some(path.clone());
-                    app.album_id = None;
-                    app.album_name = None;
-                    app.cron_frequency = None;
                     app.album_checked_project = None;
                     app.state = AppState::Dashboard {
                         path,
@@ -1339,11 +1890,8 @@ where
             match ProjectFileManager::open(&path) {
                 Ok(project_manager) => {
                     info!("Project opened successfully at: {}", path);
-                    app.cron_frequency = project_manager.get_cron_job();
                     app.current_project_manager = Some(project_manager);
                     app.current_project_path = Some(path.clone());
-                    app.album_id = None;
-                    app.album_name = None;
                     app.album_checked_project = None;
                     app.state = AppState::Dashboard {
                         path,
@@ -1418,10 +1966,7 @@ where
                                 app.current_project_manager = Some(pm);
                                 app.current_project_path = Some(project_path.clone());
                             }
-                            app.album_id = None;
-                            app.album_name = None;
                             app.album_checked_project = None;
-                            app.cron_frequency = None;
                             app.state = AppState::Dashboard {
                                 path: project_path,
                                 selected_entry: 0,
@@ -1474,10 +2019,34 @@ where
                     if is_logged_in {
                         app.start_operation("Operation in progress", PendingOperation::CheckAlbum);
                     } else {
-                        app.album_id = None;
-                        app.album_name = None;
-                        app.cron_frequency = None;
                         app.album_checked_project = Some(path.clone());
+                    }
+                }
+            }
+        }
+
+        // Auto-check drive folder when entering dashboard (after album check)
+        if let AppState::Dashboard { path, .. } = &app.state {
+            let should_check = app
+                .drive_folder_checked_project
+                .as_deref()
+                .map(|p| p != path)
+                .unwrap_or(true);
+
+            if should_check && app.pending_operation.is_none() {
+                if let Some(pm) = &app.current_project_manager {
+                    let is_logged_in = matches!(
+                        pm.get_google_auth_status(),
+                        Ok(GoogleAuthStatus::LoggedIn { .. })
+                    );
+                    let has_drive_folder = pm.has_drive_folder_info();
+                    if is_logged_in && has_drive_folder {
+                        app.start_operation(
+                            "Operation in progress",
+                            PendingOperation::CheckDriveFolder,
+                        );
+                    } else {
+                        app.drive_folder_checked_project = Some(path.clone());
                     }
                 }
             }
@@ -1541,14 +2110,9 @@ where
                                 }
                             };
 
-                            let album_id = match project_manager
-                                .get_property(ProjectKeys::GooglePhotosAlbumId)
-                            {
+                            let album_id = match project_manager.get_google_photo_album_id() {
                                 Ok(Some(value)) => value,
                                 Ok(None) => {
-                                    app.album_id = None;
-                                    app.album_name = None;
-                                    app.cron_frequency = None;
                                     app.album_checked_project = Some(project_path.clone());
                                     app.state = AppState::Dashboard {
                                         path: project_path,
@@ -1568,10 +2132,24 @@ where
                                 Ok(Some(album)) => {
                                     let title =
                                         album.title.unwrap_or_else(|| "(unknown)".to_string());
-                                    let _ = project_manager
-                                        .set_property(ProjectKeys::GooglePhotosAlbumName, &title);
-                                    app.album_id = album.id.or(Some(album_id));
-                                    app.album_name = Some(title);
+                                    let previous_title: Option<String> = project_manager
+                                        .get_google_photo_album_name()
+                                        .ok()
+                                        .flatten();
+                                    let title_changed = previous_title != Some(title.clone());
+
+                                    let _ = project_manager.set_google_photo_album_name(&title);
+                                    if title_changed {
+                                        if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                            app.state = AppState::Error {
+                                                message: format!(
+                                                    "Failed to stop scheduler: {}",
+                                                    err
+                                                ),
+                                            };
+                                            continue;
+                                        }
+                                    }
                                     app.album_checked_project = Some(project_path.clone());
                                     app.state = AppState::Dashboard {
                                         path: project_path,
@@ -1583,8 +2161,12 @@ where
                                         ProjectKeys::GooglePhotosAlbumId,
                                         ProjectKeys::GooglePhotosAlbumName,
                                     ]);
-                                    app.album_id = None;
-                                    app.album_name = None;
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        };
+                                        continue;
+                                    }
                                     app.album_checked_project = Some(project_path.clone());
                                     app.state = AppState::Dashboard {
                                         path: project_path,
@@ -1594,6 +2176,85 @@ where
                                 Err(err) => {
                                     app.state = AppState::Error {
                                         message: format!("Failed to fetch album: {}", err),
+                                    };
+                                }
+                            }
+                        }
+                        PendingOperation::CheckDriveFolder => {
+                            let access_token = match get_valid_access_token(&project_manager) {
+                                Ok(token) => token,
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to read token: {}", err),
+                                    };
+                                    continue;
+                                }
+                            };
+
+                            let folder_id = match project_manager.get_drive_folder_id() {
+                                Ok(Some(value)) => value,
+                                Ok(None) => {
+                                    app.drive_folder_checked_project = Some(project_path.clone());
+                                    app.state = AppState::Dashboard {
+                                        path: project_path,
+                                        selected_entry: 0,
+                                    };
+                                    continue;
+                                }
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to read drive folder id: {}", err),
+                                    };
+                                    continue;
+                                }
+                            };
+
+                            match fetch_drive_folder(&access_token, &folder_id) {
+                                Ok(Some(folder)) => {
+                                    let name =
+                                        folder.name.unwrap_or_else(|| "(unknown)".to_string());
+                                    let previous_name =
+                                        project_manager.get_drive_folder_name().unwrap_or_default();
+                                    let name_changed = previous_name != Some(name.clone());
+
+                                    let _ = project_manager.set_drive_folder_name(&name);
+                                    if name_changed {
+                                        if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                            app.state = AppState::Error {
+                                                message: format!(
+                                                    "Failed to stop scheduler: {}",
+                                                    err
+                                                ),
+                                            };
+                                            continue;
+                                        }
+                                    }
+                                    app.drive_folder_checked_project = Some(project_path.clone());
+                                    app.state = AppState::Dashboard {
+                                        path: project_path,
+                                        selected_entry: 0,
+                                    };
+                                }
+                                Ok(None) => {
+                                    let _ = project_manager.remove_properties(&[
+                                        ProjectKeys::GoogleDriveFolderId,
+                                        ProjectKeys::GoogleDriveFolderName,
+                                    ]);
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        };
+                                        continue;
+                                    }
+                                    app.drive_folder_checked_project = Some(project_path.clone());
+                                    app.state = AppState::Dashboard {
+                                        path: project_path,
+                                        selected_entry: 0,
+                                    };
+                                }
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to fetch drive folder: {}", err),
                                     };
                                 }
                             }
@@ -1611,12 +2272,21 @@ where
 
                             match create_album(&access_token, &album_name) {
                                 Ok((album_id, title)) => {
-                                    let _ = project_manager
-                                        .set_property(ProjectKeys::GooglePhotosAlbumId, &album_id);
-                                    let _ = project_manager
-                                        .set_property(ProjectKeys::GooglePhotosAlbumName, &title);
-                                    app.album_id = Some(album_id);
-                                    app.album_name = Some(title);
+                                    if let Err(err) = project_manager
+                                        .set_google_photo_album_info(&album_id, &title)
+                                    {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to set album info: {}", err),
+                                        };
+                                        continue;
+                                    }
+
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        };
+                                        continue;
+                                    }
                                     app.album_checked_project = Some(project_path.clone());
                                     app.state = AppState::Dashboard {
                                         path: project_path,
@@ -1626,6 +2296,153 @@ where
                                 Err(err) => {
                                     app.state = AppState::Error {
                                         message: format!("Failed to create album: {}", err),
+                                    };
+                                }
+                            }
+                        }
+                        PendingOperation::ModifyAlbum {
+                            album_id,
+                            album_name,
+                        } => {
+                            let access_token = match get_valid_access_token(&project_manager) {
+                                Ok(token) => token,
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to read token: {}", err),
+                                    };
+                                    continue;
+                                }
+                            };
+
+                            match update_album(&access_token, &album_id, &album_name) {
+                                Ok(updated_name) => {
+                                    if let Err(err) =
+                                        project_manager.set_google_photo_album_name(&updated_name)
+                                    {
+                                        app.state = AppState::Error {
+                                            message: format!(
+                                                "Failed to update album name: {}",
+                                                err
+                                            ),
+                                        };
+                                        continue;
+                                    }
+
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        };
+                                        continue;
+                                    }
+                                    app.album_checked_project = Some(project_path.clone());
+                                    app.state = AppState::Dashboard {
+                                        path: project_path,
+                                        selected_entry: 0,
+                                    };
+                                }
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to update album: {}", err),
+                                    };
+                                }
+                            }
+                        }
+                        PendingOperation::CreateDriveFolder {
+                            parent_folder_id,
+                            folder_name,
+                            sharing_emails,
+                        } => {
+                            let access_token = match get_valid_access_token(&project_manager) {
+                                Ok(token) => token,
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to read token: {}", err),
+                                    };
+                                    continue;
+                                }
+                            };
+
+                            match create_drive_folder(
+                                &access_token,
+                                &parent_folder_id,
+                                &folder_name,
+                                &sharing_emails,
+                            ) {
+                                Ok((folder_id, created_folder_name)) => {
+                                    if let Err(err) = project_manager
+                                        .set_drive_folder_info(&folder_id, &created_folder_name)
+                                    {
+                                        app.state = AppState::Error {
+                                            message: format!(
+                                                "Failed to set Drive folder info: {}",
+                                                err
+                                            ),
+                                        };
+                                        continue;
+                                    }
+
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        };
+                                        continue;
+                                    }
+                                    app.album_checked_project = Some(project_path.clone());
+                                    app.state = AppState::Dashboard {
+                                        path: project_path,
+                                        selected_entry: 0,
+                                    };
+                                }
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to create Drive folder: {}", err),
+                                    };
+                                }
+                            }
+                        }
+                        PendingOperation::ModifyDriveFolder {
+                            folder_id,
+                            folder_name,
+                        } => {
+                            let access_token = match get_valid_access_token(&project_manager) {
+                                Ok(token) => token,
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to read token: {}", err),
+                                    };
+                                    continue;
+                                }
+                            };
+
+                            match update_drive_folder(&access_token, &folder_id, &folder_name) {
+                                Ok(updated_name) => {
+                                    if let Err(err) =
+                                        project_manager.set_drive_folder_name(&updated_name)
+                                    {
+                                        app.state = AppState::Error {
+                                            message: format!(
+                                                "Failed to update Drive folder name: {}",
+                                                err
+                                            ),
+                                        };
+                                        continue;
+                                    }
+
+                                    if let Err(err) = ProjectFileManager::stop_cron_job() {
+                                        app.state = AppState::Error {
+                                            message: format!("Failed to stop scheduler: {}", err),
+                                        };
+                                        continue;
+                                    }
+                                    app.drive_folder_checked_project = Some(project_path.clone());
+                                    app.state = AppState::Dashboard {
+                                        path: project_path,
+                                        selected_entry: 0,
+                                    };
+                                }
+                                Err(err) => {
+                                    app.state = AppState::Error {
+                                        message: format!("Failed to update Drive folder: {}", err),
                                     };
                                 }
                             }
@@ -1687,6 +2504,31 @@ fn fetch_album(
     }
 }
 
+fn fetch_drive_folder(
+    access_token: &str,
+    folder_id: &str,
+) -> Result<Option<GoogleDriveFileResponse>, Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}?fields=id,name",
+        folder_id
+    );
+
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .send()?;
+
+    if response.status().is_success() {
+        let folder: GoogleDriveFileResponse = response.json()?;
+        Ok(Some(folder))
+    } else if response.status().as_u16() == 404 {
+        Ok(None)
+    } else {
+        Err(format!("Drive folder lookup failed: {}", response.status()).into())
+    }
+}
+
 fn create_album(
     access_token: &str,
     album_name: &str,
@@ -1713,6 +2555,144 @@ fn create_album(
         Ok((album_id, title))
     } else {
         Err(format!("Album creation failed: {}", response.status()).into())
+    }
+}
+
+fn parse_sharing_emails(value: &str) -> Vec<String> {
+    value
+        .split(|ch: char| ch == ',' || ch.is_whitespace())
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn create_drive_folder(
+    access_token: &str,
+    parent_folder_id: &str,
+    folder_name: &str,
+    sharing_emails: &[String],
+) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let payload = CreateDriveFolderRequest {
+        name: folder_name.to_string(),
+        mime_type: "application/vnd.google-apps.folder".to_string(),
+        parents: vec![parent_folder_id.to_string()],
+    };
+
+    let response = client
+        .post("https://www.googleapis.com/drive/v3/files")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .query(&[("fields", "id,name")])
+        .json(&payload)
+        .send()?;
+
+    if !response.status().is_success() {
+        return Err(format!("Drive folder creation failed: {}", response.status()).into());
+    }
+
+    let folder: GoogleDriveFileResponse = response.json()?;
+    let folder_id = folder
+        .id
+        .ok_or("Drive folder creation succeeded but id was missing")?;
+    let created_folder_name = folder.name.unwrap_or_else(|| folder_name.to_string());
+
+    for email in sharing_emails {
+        share_drive_folder_with_email(access_token, &folder_id, email)?;
+    }
+
+    Ok((folder_id, created_folder_name))
+}
+
+fn share_drive_folder_with_email(
+    access_token: &str,
+    folder_id: &str,
+    email: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let payload = CreateDrivePermissionRequest {
+        permission_type: "user".to_string(),
+        role: "writer".to_string(),
+        email_address: email.to_string(),
+    };
+
+    let response = client
+        .post(format!(
+            "https://www.googleapis.com/drive/v3/files/{}/permissions",
+            folder_id
+        ))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .query(&[("sendNotificationEmail", "false")])
+        .json(&payload)
+        .send()?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Drive folder sharing failed for {}: {}",
+            email,
+            response.status()
+        )
+        .into())
+    }
+}
+
+fn update_album(
+    access_token: &str,
+    album_id: &str,
+    album_name: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let payload = serde_json::json!({
+        "album": {
+            "title": album_name
+        }
+    });
+
+    let response = client
+        .patch(format!(
+            "https://photoslibrary.googleapis.com/v1/albums/{}",
+            album_id
+        ))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .json(&payload)
+        .send()?;
+
+    if response.status().is_success() {
+        let album: GoogleAlbumResponse = response.json()?;
+        let title = album.title.unwrap_or_else(|| album_name.to_string());
+        Ok(title)
+    } else {
+        Err(format!("Album update failed: {}", response.status()).into())
+    }
+}
+
+fn update_drive_folder(
+    access_token: &str,
+    folder_id: &str,
+    folder_name: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let payload = serde_json::json!({
+        "name": folder_name
+    });
+
+    let response = client
+        .patch(format!(
+            "https://www.googleapis.com/drive/v3/files/{}",
+            folder_id
+        ))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .json(&payload)
+        .send()?;
+
+    if response.status().is_success() {
+        let file: GoogleDriveFileResponse = response.json()?;
+        let name = file.name.unwrap_or_else(|| folder_name.to_string());
+        Ok(name)
+    } else {
+        Err(format!("Drive folder update failed: {}", response.status()).into())
     }
 }
 
@@ -1763,8 +2743,6 @@ fn ui(f: &mut Frame, app: &App) {
                 path,
                 *selected_entry,
                 app.current_project_manager.as_ref(),
-                app.album_name.as_deref(),
-                app.cron_frequency,
             );
         }
         _ => {
@@ -1833,6 +2811,44 @@ fn ui(f: &mut Frame, app: &App) {
                 "Create Google Photo Album",
                 "Enter the album name:",
                 input,
+                *focus,
+            );
+        }
+        AppState::ModifyAlbumInput { input, focus, .. } => {
+            let dialog_area = centered_rect_fixed_height(70, 9, size);
+            render_project_input_dialog(
+                f,
+                dialog_area,
+                "Modify Album Name",
+                "Enter the new album name:",
+                input,
+                *focus,
+            );
+        }
+        AppState::ModifyDriveFolderInput { input, focus, .. } => {
+            let dialog_area = centered_rect_fixed_height(70, 9, size);
+            render_project_input_dialog(
+                f,
+                dialog_area,
+                "Modify Drive Folder Name",
+                "Enter the new folder name:",
+                input,
+                *focus,
+            );
+        }
+        AppState::DriveFolderInput {
+            parent_folder_input,
+            folder_name_input,
+            sharing_emails_input,
+            focus,
+        } => {
+            let dialog_area = centered_rect_fixed_height(90, 19, size);
+            render_drive_folder_dialog(
+                f,
+                dialog_area,
+                parent_folder_input,
+                folder_name_input,
+                sharing_emails_input,
                 *focus,
             );
         }
@@ -1907,9 +2923,19 @@ fn render_dashboard(
     path: &str,
     selected_entry: usize,
     project_manager: Option<&ProjectFileManager>,
-    album_name: Option<&str>,
-    cron_frequency: Option<CronJobFrequency>,
 ) {
+    let mut cron_frequency: Option<CronJobFrequency> = None;
+    let mut album_name: Option<String> = None;
+    let mut drive_folder_name: Option<String> = None;
+
+    if let Some(pm) = project_manager {
+        cron_frequency = pm.get_frequency();
+        album_name = pm.get_google_photo_album_name().ok().flatten();
+        drive_folder_name = pm.get_drive_folder_name().ok().flatten();
+    } else {
+        debug!("Rendering dashboard with no project manager");
+    }
+
     let block = Block::default()
         .borders(Borders::ALL)
         .title("Dashboard")
@@ -1942,14 +2968,22 @@ fn render_dashboard(
         Paragraph::new(format!("Path: {}", path)).style(Style::default().fg(Color::White));
     f.render_widget(path_line, layout_chunks[1]);
 
-    let entries = dashboard_entries_for(path, project_manager, album_name, cron_frequency);
+    let entries = dashboard_entries_for(path, project_manager);
     let dashboard_entries: Vec<ListItem> = entries
         .iter()
         .enumerate()
-        .map(|(idx, entry)| {
+        .map(|(idx, item)| {
             let is_selected = idx == selected_entry;
             let marker = if is_selected { "» " } else { "  " };
-            let style = if is_selected {
+            let style = if !item.enabled {
+                Style::default().fg(Color::DarkGray)
+            } else if matches!(item.entry, DashboardEntry::StartScheduler) {
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD)
+            } else if matches!(item.entry, DashboardEntry::CancelScheduler) {
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+            } else if is_selected {
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD)
@@ -1958,7 +2992,14 @@ fn render_dashboard(
             };
             ListItem::new(Line::from(vec![
                 Span::raw(marker),
-                Span::styled(entry.label(album_name, cron_frequency), style),
+                Span::styled(
+                    item.entry.label(
+                        album_name.as_deref(),
+                        drive_folder_name.as_deref(),
+                        cron_frequency,
+                    ),
+                    style,
+                ),
             ]))
         })
         .collect();
@@ -1970,48 +3011,134 @@ fn render_dashboard(
 fn dashboard_entries_for(
     _path: &str,
     project_manager: Option<&ProjectFileManager>,
-    album_name: Option<&str>,
-    cron_frequency: Option<CronJobFrequency>,
-) -> Vec<DashboardEntry> {
-    let mut entries: Vec<DashboardEntry> = vec![];
+) -> Vec<DashboardItem> {
+    let mut entries: Vec<DashboardItem> = vec![];
 
     if let Some(pm) = project_manager {
         let has_binary_data = pm.has_binary_data();
-        let has_cron_job = cron_frequency.is_some();
+        let has_frequency = pm.has_frequency();
+        let album_name = pm.get_google_photo_album_name().unwrap_or_default();
+        let is_fully_configured = pm.is_fully_configured();
+        let is_cron_scheduled = pm.is_cron_job_scheduled().unwrap_or(false);
+        let drive_folder_name = pm.get_drive_folder_name().unwrap_or_default();
+
         match pm.get_google_auth_status() {
             Ok(GoogleAuthStatus::MissingCredentials) => {
-                entries.push(DashboardEntry::LoginToGoogle);
+                entries.push(DashboardItem {
+                    entry: DashboardEntry::LoginToGoogle,
+                    enabled: true,
+                });
             }
             Ok(GoogleAuthStatus::NeedsLogin { .. }) => {
-                entries.push(DashboardEntry::LoginToGoogle);
-                entries.push(DashboardEntry::Back);
+                entries.push(DashboardItem {
+                    entry: DashboardEntry::LoginToGoogle,
+                    enabled: true,
+                });
             }
             Ok(GoogleAuthStatus::LoggedIn { .. }) => {
                 if album_name.is_some() {
-                    entries.push(DashboardEntry::AlbumName);
-                    entries.push(DashboardEntry::TestGoogleApi);
-                    entries.push(DashboardEntry::LogoutFromGoogle);
+                    entries.push(DashboardItem {
+                        entry: DashboardEntry::ModifyAlbum,
+                        enabled: true,
+                    });
+
+                    if drive_folder_name.is_none() {
+                        entries.push(DashboardItem {
+                            entry: DashboardEntry::CreateDriveFolder,
+                            enabled: true,
+                        });
+                    } else {
+                        entries.push(DashboardItem {
+                            entry: DashboardEntry::ModifyDriveFolder,
+                            enabled: true,
+                        });
+                    }
+                    entries.push(DashboardItem {
+                        entry: DashboardEntry::TestGoogleApi,
+                        enabled: true,
+                    });
+                    entries.push(DashboardItem {
+                        entry: DashboardEntry::LogoutFromGoogle,
+                        enabled: true,
+                    });
                 } else {
-                    entries.push(DashboardEntry::CreateGooglePhotoAlbum);
-                    entries.push(DashboardEntry::TestGoogleApi);
-                    entries.push(DashboardEntry::LogoutFromGoogle);
+                    entries.push(DashboardItem {
+                        entry: DashboardEntry::CreateGooglePhotoAlbum,
+                        enabled: true,
+                    });
+
+                    if let Some(_folder_name) = drive_folder_name {
+                        entries.push(DashboardItem {
+                            entry: DashboardEntry::ModifyDriveFolder,
+                            enabled: true,
+                        });
+                    } else {
+                        entries.push(DashboardItem {
+                            entry: DashboardEntry::CreateDriveFolder,
+                            enabled: true,
+                        });
+                    }
+                    entries.push(DashboardItem {
+                        entry: DashboardEntry::TestGoogleApi,
+                        enabled: true,
+                    });
+                    entries.push(DashboardItem {
+                        entry: DashboardEntry::LogoutFromGoogle,
+                        enabled: true,
+                    });
                 }
             }
-            Err(_) => entries.push(DashboardEntry::LoginToGoogle),
+            Err(_) => entries.push(DashboardItem {
+                entry: DashboardEntry::LoginToGoogle,
+                enabled: true,
+            }),
         }
+
         if has_binary_data {
-            entries.push(DashboardEntry::EditBinaryData);
+            entries.push(DashboardItem {
+                entry: DashboardEntry::EditBinaryData,
+                enabled: true,
+            });
         } else {
-            entries.push(DashboardEntry::AddBinaryData);
+            entries.push(DashboardItem {
+                entry: DashboardEntry::AddBinaryData,
+                enabled: true,
+            });
         };
-        if has_cron_job {
-            entries.push(DashboardEntry::EditCronJob);
+
+        if has_frequency {
+            entries.push(DashboardItem {
+                entry: DashboardEntry::EditCronJob,
+                enabled: true,
+            });
         } else {
-            entries.push(DashboardEntry::AddCronJob);
+            entries.push(DashboardItem {
+                entry: DashboardEntry::AddCronJob,
+                enabled: true,
+            });
         };
-        entries.push(DashboardEntry::Back);
+
+        if is_cron_scheduled {
+            entries.push(DashboardItem {
+                entry: DashboardEntry::CancelScheduler,
+                enabled: true,
+            });
+        } else {
+            entries.push(DashboardItem {
+                entry: DashboardEntry::StartScheduler,
+                enabled: is_fully_configured,
+            });
+        }
+
+        entries.push(DashboardItem {
+            entry: DashboardEntry::Back,
+            enabled: true,
+        });
     } else {
-        entries.push(DashboardEntry::Back);
+        entries.push(DashboardItem {
+            entry: DashboardEntry::Back,
+            enabled: true,
+        });
     }
 
     entries
@@ -2473,6 +3600,187 @@ fn render_binary_data_dialog(
     f.render_widget(cancel_button, button_layout[3]);
 }
 
+fn render_drive_folder_dialog(
+    f: &mut Frame,
+    area: Rect,
+    parent_folder_input: &Input,
+    folder_name_input: &Input,
+    sharing_emails_input: &Input,
+    focus: DialogFocus,
+) {
+    f.render_widget(Clear, area);
+
+    let dialog_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(Color::White))
+        .title("Google Drive Folder Setup")
+        .title_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .padding(Padding::horizontal(1))
+        .style(Style::default().bg(Color::Black));
+
+    let inner = dialog_block.inner(area);
+    f.render_widget(dialog_block, area);
+
+    let layout_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2), // Description
+            Constraint::Length(1), // Label 1
+            Constraint::Length(3), // Input 1
+            Constraint::Length(1), // Label 2
+            Constraint::Length(3), // Input 2
+            Constraint::Length(1), // Label 3
+            Constraint::Length(3), // Input 3
+            Constraint::Length(1), // Spacing
+            Constraint::Length(1), // Buttons
+        ])
+        .split(inner);
+
+    let description = Paragraph::new(
+        "How to get parent folder ID: open Drive folder in browser and copy the last path segment from the URL (after /folders/).",
+    )
+    .style(Style::default().fg(Color::DarkGray))
+    .wrap(Wrap { trim: true });
+    f.render_widget(description, layout_chunks[0]);
+
+    f.render_widget(
+        Paragraph::new("Parent folder ID (required):"),
+        layout_chunks[1],
+    );
+    let parent_focused = focus == DialogFocus::Input1;
+    let parent_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if parent_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        })
+        .border_type(if parent_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        });
+    let parent_area = layout_chunks[2];
+    let parent_width = parent_area.width.max(3) - 3;
+    let parent_scroll = parent_folder_input.visual_scroll(parent_width as usize);
+    f.render_widget(
+        Paragraph::new(parent_folder_input.value())
+            .block(parent_block)
+            .style(Style::default().fg(Color::White))
+            .scroll((0, parent_scroll as u16)),
+        parent_area,
+    );
+
+    f.render_widget(Paragraph::new("Folder name (required):"), layout_chunks[3]);
+    let name_focused = focus == DialogFocus::Input2;
+    let name_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if name_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        })
+        .border_type(if name_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        });
+    let name_area = layout_chunks[4];
+    let name_width = name_area.width.max(3) - 3;
+    let name_scroll = folder_name_input.visual_scroll(name_width as usize);
+    f.render_widget(
+        Paragraph::new(folder_name_input.value())
+            .block(name_block)
+            .style(Style::default().fg(Color::White))
+            .scroll((0, name_scroll as u16)),
+        name_area,
+    );
+
+    f.render_widget(
+        Paragraph::new("Sharing emails (optional, split by comma or space):"),
+        layout_chunks[5],
+    );
+    let sharing_focused = focus == DialogFocus::Input;
+    let sharing_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if sharing_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        })
+        .border_type(if sharing_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        });
+    let sharing_area = layout_chunks[6];
+    let sharing_width = sharing_area.width.max(3) - 3;
+    let sharing_scroll = sharing_emails_input.visual_scroll(sharing_width as usize);
+    f.render_widget(
+        Paragraph::new(sharing_emails_input.value())
+            .block(sharing_block)
+            .style(Style::default().fg(Color::White))
+            .scroll((0, sharing_scroll as u16)),
+        sharing_area,
+    );
+
+    if parent_focused {
+        let x = parent_folder_input.visual_cursor().max(parent_scroll) - parent_scroll + 1;
+        f.set_cursor_position((parent_area.x + x as u16, parent_area.y + 1));
+    } else if name_focused {
+        let x = folder_name_input.visual_cursor().max(name_scroll) - name_scroll + 1;
+        f.set_cursor_position((name_area.x + x as u16, name_area.y + 1));
+    } else if sharing_focused {
+        let x = sharing_emails_input.visual_cursor().max(sharing_scroll) - sharing_scroll + 1;
+        f.set_cursor_position((sharing_area.x + x as u16, sharing_area.y + 1));
+    }
+
+    let button_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(1),
+            Constraint::Length(6),
+            Constraint::Length(1),
+            Constraint::Length(10),
+        ])
+        .split(layout_chunks[8]);
+
+    let ok_style = if focus == DialogFocus::OkButton {
+        Style::default()
+            .bg(Color::Green)
+            .fg(Color::Black)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    };
+    f.render_widget(
+        Paragraph::new("[ Ok ]")
+            .style(ok_style)
+            .alignment(Alignment::Right),
+        button_layout[1],
+    );
+
+    let cancel_style = if focus == DialogFocus::CancelButton {
+        Style::default()
+            .bg(Color::Red)
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Red)
+    };
+    f.render_widget(
+        Paragraph::new("[ Cancel ]")
+            .style(cancel_style)
+            .alignment(Alignment::Right),
+        button_layout[3],
+    );
+}
+
 /// Renders an error alert dialog
 fn render_error_dialog(f: &mut Frame, area: Rect, message: &str) {
     f.render_widget(Clear, area);
@@ -2603,20 +3911,15 @@ fn render_cron_frequency_dialog(f: &mut Frame, area: Rect, selected_index: usize
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(label, layout_chunks[1]);
 
-    let frequencies = [
-        CronJobFrequency::Daily,
-        CronJobFrequency::Weekly,
-        CronJobFrequency::Biweekly,
-        CronJobFrequency::Monthly,
-    ];
+    let frequencies = CronJobFrequency::iter().collect::<Vec<_>>();
 
     // Render each frequency option
     for (i, freq) in frequencies.iter().enumerate() {
         let is_selected = i == selected_index;
         let text = if is_selected {
-            format!("> {}", freq.to_string())
+            format!("> {}", freq.display_name())
         } else {
-            format!("  {}", freq.to_string())
+            format!("  {}", freq.display_name())
         };
 
         let style = if is_selected {

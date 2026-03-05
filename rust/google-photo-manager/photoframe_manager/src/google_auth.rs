@@ -305,14 +305,11 @@ impl GoogleAuthFileManager<'_> {
     /// Reads a token file and returns the GoogleTokenData
     /// The token file is expected to be a JSON array with one element
     fn read_token(&self, token_path: &Path) -> Result<GoogleTokenData, Box<dyn std::error::Error>> {
-        debug!("Reading token file: {}", token_path.display());
-
         if !token_path.exists() {
             return Err(format!("Token file not found: {}", token_path.display()).into());
         }
 
         let token_json = fs::read_to_string(token_path)?;
-        debug!("Token file read successfully");
 
         // The token file is a JSON array with one element
         let tokens: Vec<GoogleTokenData> = serde_json::from_str(&token_json)?;

@@ -3,7 +3,7 @@ mod impls;
 use clap::ValueEnum;
 
 /// Report output format options
-#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Copy)]
 pub enum ReportFormat {
     #[value(name = "plain")]
     Plain,

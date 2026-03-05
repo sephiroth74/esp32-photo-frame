@@ -185,7 +185,7 @@ fn main() {
             summary,
         );
     } else {
-        report.generate(&logger, args.report.clone());
+        report.generate(&logger);
     }
 }
 

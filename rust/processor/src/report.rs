@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::{fs, io::Write};
 
 use crate::cli::Args;
 use crate::logging::Logger;
@@ -63,6 +64,8 @@ pub struct ReportConfig {
     pub extensions: String,
     pub output_formats: Vec<OutputType>,
     pub no_pairing: bool,
+    pub format: ReportFormat,
+    pub output_file: Option<PathBuf>,
 }
 
 /// Runtime report state and aggregated results.
@@ -214,6 +217,8 @@ impl Report {
                 extensions: args.extensions.clone(),
                 output_formats: args.output_formats.clone(),
                 no_pairing: args.no_pairing,
+                output_file: args.report_output.clone(),
+                format: args.report.clone(),
             },
             discovered_files,
             valid_images: Vec::new(),
@@ -251,12 +256,219 @@ impl Report {
     }
 
     /// Generate and display report based on format.
-    pub fn generate(&self, logger: &Logger, format: ReportFormat) {
-        match format {
+    pub fn generate(&self, logger: &Logger) {
+        if let Some(path) = &self.config.output_file {
+            let rendered = match self.render_report() {
+                Ok(content) => content,
+                Err(err) => {
+                    logger.error(&format!("Failed to generate report content: {}", err));
+                    return;
+                }
+            };
+
+            if let Some(parent) = path.parent() {
+                if !parent.as_os_str().is_empty() {
+                    if let Err(err) = fs::create_dir_all(parent) {
+                        logger.error(&format!(
+                            "Failed to create report directory '{}': {}",
+                            parent.display(),
+                            err
+                        ));
+                        return;
+                    }
+                }
+            }
+
+            match fs::File::create(path).and_then(|mut file| file.write_all(rendered.as_bytes())) {
+                Ok(()) => logger.success(&format!("Report written to {}", path.display())),
+                Err(err) => logger.error(&format!(
+                    "Failed to write report file '{}': {}",
+                    path.display(),
+                    err
+                )),
+            }
+
+            return;
+        }
+
+        match self.config.format {
             ReportFormat::Plain => self.generate_plain(logger),
             ReportFormat::Full => self.generate_full(logger),
             ReportFormat::Json => self.generate_json(logger),
         }
+    }
+
+    fn render_report(&self) -> Result<String, String> {
+        match self.config.format {
+            ReportFormat::Plain => Ok(self.render_plain()),
+            ReportFormat::Full => Ok(self.render_full()),
+            ReportFormat::Json => self
+                .render_json()
+                .map_err(|err| format!("Failed to generate JSON report: {}", err)),
+        }
+    }
+
+    fn render_plain(&self) -> String {
+        let mut lines = Vec::new();
+
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+        lines.push("PROCESSING REPORT".to_string());
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+
+        self.push_config_lines(&mut lines);
+
+        let total_output = self.processed_count + self.paired_count;
+        lines.push(format!(
+            "  {:<24} {}",
+            "Total files discovered:",
+            self.discovered_files.len()
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Invalid files:",
+            self.invalid_images.len()
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Unpaired images:",
+            self.unpaired_images.len()
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Images processed:", self.processed_count
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Image pairs created:", self.paired_count
+        ));
+        lines.push(format!("  {:<24} {}", "Total output images:", total_output));
+        lines.push(format!("  {:<24} {}", "Failed images:", self.failed_count));
+        lines.push(String::new());
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+
+        lines.join("\n")
+    }
+
+    fn render_full(&self) -> String {
+        let mut lines = Vec::new();
+
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+        lines.push("DETAILED PROCESSING REPORT".to_string());
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+
+        self.push_config_lines(&mut lines);
+
+        if !self.processed_details.is_empty() {
+            self.push_section_header(&mut lines, "PROCESSED IMAGES");
+            lines.push(
+                Table::new(&self.processed_details)
+                    .with(Style::rounded())
+                    .to_string(),
+            );
+            lines.push(String::new());
+        }
+
+        if !self.paired_details.is_empty() {
+            self.push_section_header(&mut lines, "PAIRED IMAGES");
+            lines.push(
+                Table::new(&self.paired_details)
+                    .with(Style::rounded())
+                    .to_string(),
+            );
+            lines.push(String::new());
+        }
+
+        self.push_section_header(&mut lines, "SUMMARY");
+        let total_output = self.processed_count + self.paired_count;
+        lines.push(format!(
+            "  {:<24} {}",
+            "Total files discovered:",
+            self.discovered_files.len()
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Invalid files:",
+            self.invalid_images.len()
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Images processed:", self.processed_count
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Image pairs created:", self.paired_count
+        ));
+        lines.push(format!("  {:<24} {}", "Total output images:", total_output));
+        lines.push(format!("  {:<24} {}", "Failed images:", self.failed_count));
+        lines.push(String::new());
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+
+        lines.join("\n")
+    }
+
+    fn render_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.build_json_report())
+    }
+
+    fn push_section_header(&self, lines: &mut Vec<String>, title: &str) {
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(title.to_string());
+        lines.push("═══════════════════════════════════════════════════════════════".to_string());
+        lines.push(String::new());
+    }
+
+    fn push_config_lines(&self, lines: &mut Vec<String>) {
+        self.push_section_header(lines, "CONFIG");
+
+        let input_paths = if self.config.input_paths.is_empty() {
+            "-".to_string()
+        } else {
+            self.config
+                .input_paths
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let output_formats = if self.config.output_formats.is_empty() {
+            "-".to_string()
+        } else {
+            self.config
+                .output_formats
+                .iter()
+                .map(|f| match f {
+                    OutputType::Bmp => "bmp",
+                    OutputType::Pfr1 => "pfr1",
+                    OutputType::Jpg => "jpg",
+                    OutputType::Png => "png",
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        lines.push(format!("  {:<24} {}", "Input paths:", input_paths));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Output dir:",
+            self.config.output_dir.display()
+        ));
+        lines.push(format!(
+            "  {:<24} {}",
+            "Extensions:", self.config.extensions
+        ));
+        lines.push(format!("  {:<24} {}", "Output formats:", output_formats));
+        lines.push(format!(
+            "  {:<24} {}",
+            "No pairing:", self.config.no_pairing
+        ));
+        lines.push(String::new());
     }
 
     /// Generate plain text report
@@ -355,8 +567,7 @@ impl Report {
 
     /// Generate JSON report (to be implemented)
     fn generate_json(&self, logger: &Logger) {
-        let report = self.build_json_report();
-        match serde_json::to_string_pretty(&report) {
+        match self.render_json() {
             Ok(json) => {
                 for line in json.lines() {
                     logger.info(line);
