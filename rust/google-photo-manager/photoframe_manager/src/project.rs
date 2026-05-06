@@ -510,7 +510,7 @@ impl ProjectFileManager {
             let command = format!(
                 "{} --project-dir {}",
                 get_worker_binary_path()?.display(),
-                self.path.display()
+                self.path.canonicalize()?.display()
             );
 
             info!("Scheduling cron job with expression: {}", cron_expression);

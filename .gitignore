@@ -88,3 +88,5 @@ rust/google-photo-manager/target/
 rust/google-photo-manager/credentials.json
 rust/google-photo-manager/test_project/
 client_secret_*.apps.googleusercontent.com.json
+assets/pros3d/.history/
+flutter/mobile/prompts/

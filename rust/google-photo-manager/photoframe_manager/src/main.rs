@@ -2074,9 +2074,8 @@ where
 
                             let client = Client::new();
                             let result = client
-                                .get("https://photoslibrary.googleapis.com/v1/albums")
+                                .get("https://photoslibrary.googleapis.com/v1/albums?pageSize=1")
                                 .header("Authorization", format!("Bearer {}", access_token))
-                                .query(&[("pageSize", "1")])
                                 .send();
 
                             match result {
@@ -2581,9 +2580,8 @@ fn create_drive_folder(
     };
 
     let response = client
-        .post("https://www.googleapis.com/drive/v3/files")
+        .post("https://www.googleapis.com/drive/v3/files?fields=id,name")
         .header("Authorization", format!("Bearer {}", access_token))
-        .query(&[("fields", "id,name")])
         .json(&payload)
         .send()?;
 
@@ -2618,11 +2616,10 @@ fn share_drive_folder_with_email(
 
     let response = client
         .post(format!(
-            "https://www.googleapis.com/drive/v3/files/{}/permissions",
+            "https://www.googleapis.com/drive/v3/files/{}/permissions?sendNotificationEmail=false",
             folder_id
         ))
         .header("Authorization", format!("Bearer {}", access_token))
-        .query(&[("sendNotificationEmail", "false")])
         .json(&payload)
         .send()?;
 
