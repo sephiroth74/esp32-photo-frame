@@ -1,0 +1,4 @@
+# Read by settings.gradle.kts: Gradle doesn't expose catalog accessors in settings scripts.
+[versions]
+agp = "9.3.2"
+kotlin = "2.4.10"

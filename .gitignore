@@ -90,3 +90,7 @@ rust/google-photo-manager/test_project/
 client_secret_*.apps.googleusercontent.com.json
 assets/pros3d/.history/
 flutter/mobile/prompts/
+.DS_Store
+flutter/mobile/android/build/
+.vscode
+.idea
